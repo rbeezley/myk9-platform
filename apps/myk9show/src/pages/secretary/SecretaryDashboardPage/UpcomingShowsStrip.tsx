@@ -29,14 +29,16 @@ export function UpcomingShowsStrip({ shows }: UpcomingShowsStripProps) {
         return (
           <div
             key={show.id}
-            className={`flex-1 rounded-lg border bg-slate-800 p-3 ${
-              deadlineUrgent ? 'border-amber-500' : 'border-slate-700'
+            className={`flex-1 rounded-lg border bg-card p-3 ${
+              deadlineUrgent ? 'border-warning-orange/50' : 'border-border'
             }`}
           >
-            <p className="text-xs text-slate-400">In {daysUntil} days</p>
-            <p className="mt-0.5 text-sm font-semibold text-slate-100">{show.name}</p>
+            <p className="text-xs text-muted-foreground">In {daysUntil} days</p>
+            <p className="mt-0.5 text-sm font-semibold text-foreground">{show.name}</p>
             {deadlineUrgent && (
-              <p className="mt-1 text-xs text-amber-400">Entry closes in {daysUntilClose} days</p>
+              <p className="mt-1 text-xs text-warning-orange">
+                Entry closes in {daysUntilClose} days
+              </p>
             )}
           </div>
         );

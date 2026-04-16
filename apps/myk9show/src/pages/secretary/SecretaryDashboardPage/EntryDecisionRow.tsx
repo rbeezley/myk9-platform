@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import type { PendingEntry } from '@/hooks/queries/usePendingEntries';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 type Decision = 'accepted' | 'waitlist' | 'rejected';
 
@@ -10,51 +11,69 @@ interface EntryDecisionRowProps {
   onDecide: (entryId: string, decision: Decision) => void;
 }
 
+const DECISIONS: {
+  value: Decision;
+  label: string;
+  variant: 'success' | 'warning' | 'destructive';
+}[] = [
+  { value: 'accepted', label: 'Accept', variant: 'success' },
+  { value: 'waitlist', label: 'Waitlist', variant: 'warning' },
+  { value: 'rejected', label: 'Reject', variant: 'destructive' },
+];
+
+interface DecisionButtonsProps {
+  entryId: string;
+  onDecide: (entryId: string, decision: Decision) => void;
+  onAfter?: () => void;
+  size?: 'sm' | 'default';
+}
+
+function DecisionButtons({ entryId, onDecide, onAfter, size = 'sm' }: DecisionButtonsProps) {
+  return (
+    <div className="flex gap-1.5">
+      {DECISIONS.map(({ value, label, variant }) => (
+        <Button
+          key={value}
+          variant={variant}
+          size={size}
+          onClick={() => {
+            onDecide(entryId, value);
+            onAfter?.();
+          }}
+        >
+          {label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 export function EntryDecisionRow({ entry, onDecide }: EntryDecisionRowProps) {
   const [showDetail, setShowDetail] = useState(false);
 
   return (
     <>
-      <div className="flex items-center gap-3 rounded-lg bg-slate-800 px-3 py-3">
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-3">
         <div className="min-w-0 flex-1">
           <button
             onClick={() => setShowDetail(true)}
             className="text-left hover:underline focus:outline-none"
           >
-            <p className="text-sm font-medium text-slate-100">
+            <p className="text-sm font-medium text-foreground">
               {entry.handlerName} &mdash;{' '}
-              <span className="font-normal text-slate-300">{entry.dogName}</span>
+              <span className="font-normal text-muted-foreground">{entry.dogName}</span>
             </p>
           </button>
-          <p className="mt-0.5 text-xs text-slate-400">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             <span>{entry.className}</span>
             {' · submitted '}
             {format(new Date(entry.submittedAt), 'MMM d')}
           </p>
         </div>
-        <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
           {entry.showName}
         </span>
-        <div className="flex gap-1.5">
-          <button
-            onClick={() => onDecide(entry.id, 'accepted')}
-            className="rounded bg-green-700 px-2.5 py-1 text-xs font-medium text-green-100 hover:bg-green-600"
-          >
-            Accept
-          </button>
-          <button
-            onClick={() => onDecide(entry.id, 'waitlist')}
-            className="rounded bg-amber-700 px-2.5 py-1 text-xs font-medium text-amber-100 hover:bg-amber-600"
-          >
-            Waitlist
-          </button>
-          <button
-            onClick={() => onDecide(entry.id, 'rejected')}
-            className="rounded bg-red-900 px-2.5 py-1 text-xs font-medium text-red-200 hover:bg-red-800"
-          >
-            Reject
-          </button>
-        </div>
+        <DecisionButtons entryId={entry.id} onDecide={onDecide} />
       </div>
 
       <Sheet open={showDetail} onOpenChange={setShowDetail}>
@@ -101,34 +120,12 @@ export function EntryDecisionRow({ entry, onDecide }: EntryDecisionRowProps) {
               </p>
               <p className="mt-0.5 text-sm capitalize">Pending</p>
             </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => {
-                  onDecide(entry.id, 'accepted');
-                  setShowDetail(false);
-                }}
-                className="rounded bg-green-700 px-3 py-1.5 text-xs font-medium text-green-100 hover:bg-green-600"
-              >
-                Accept
-              </button>
-              <button
-                onClick={() => {
-                  onDecide(entry.id, 'waitlist');
-                  setShowDetail(false);
-                }}
-                className="rounded bg-amber-700 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-600"
-              >
-                Waitlist
-              </button>
-              <button
-                onClick={() => {
-                  onDecide(entry.id, 'rejected');
-                  setShowDetail(false);
-                }}
-                className="rounded bg-red-900 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-800"
-              >
-                Reject
-              </button>
+            <div className="pt-2">
+              <DecisionButtons
+                entryId={entry.id}
+                onDecide={onDecide}
+                onAfter={() => setShowDetail(false)}
+              />
             </div>
           </div>
         </SheetContent>

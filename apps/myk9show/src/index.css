@@ -215,36 +215,7 @@
     --error-red: 255 59 48;
   }
 
-  /* Color utilities */
-  .bg-success-green\/10 {
-    background-color: rgba(52, 199, 89, 0.1);
-  }
-  .text-success-green {
-    color: rgb(52, 199, 89);
-  }
-  .border-success-green\/20 {
-    border-color: rgba(52, 199, 89, 0.2);
-  }
-
-  .bg-warning-orange\/10 {
-    background-color: rgba(255, 149, 0, 0.1);
-  }
-  .text-warning-orange {
-    color: rgb(255, 149, 0);
-  }
-  .border-warning-orange\/20 {
-    border-color: rgba(255, 149, 0, 0.2);
-  }
-
-  .bg-error-red\/10 {
-    background-color: rgba(255, 59, 48, 0.1);
-  }
-  .text-error-red {
-    color: rgb(255, 59, 48);
-  }
-  .border-error-red\/20 {
-    border-color: rgba(255, 59, 48, 0.2);
-  }
+  /* success-green, warning-orange, error-red registered in tailwind.config.js */
 
   /* Primary color opacity variants - use CSS variables for dynamic accent colors */
   /* Using color-mix() because Tailwind's opacity syntax doesn't work with CSS variables */

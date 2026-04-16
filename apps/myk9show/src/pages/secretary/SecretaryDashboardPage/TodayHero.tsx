@@ -26,20 +26,20 @@ export function TodayHero({
 }: TodayHeroProps) {
   if (todayShow) {
     return (
-      <div className="mx-5 my-4 rounded-xl border border-green-700 bg-gradient-to-br from-green-950 to-green-900 p-4">
+      <div className="mx-5 my-4 rounded-xl border border-success-green/30 bg-success-green/10 p-4">
         <div className="flex items-start justify-between">
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-green-300">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-success-green">
               Show Day
             </p>
-            <h2 className="text-lg font-bold text-white">{todayShow.name}</h2>
-            <p className="mt-1 text-xs text-green-300">
+            <h2 className="text-lg font-bold text-foreground">{todayShow.name}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
               {liveClassCount} classes live · {notStartedCount} not started · {closedCount} closed
             </p>
           </div>
           <Link
             to="/secretary/day-of"
-            className="rounded-md bg-green-700 px-3 py-2 text-xs font-medium text-white hover:bg-green-600"
+            className="rounded-md bg-success-green px-3 py-2 text-xs font-medium text-white hover:opacity-90"
           >
             Go to Day-of →
           </Link>
@@ -57,19 +57,19 @@ export function TodayHero({
         : null;
 
     return (
-      <div className="mx-5 my-4 rounded-xl border border-slate-700 bg-slate-800 p-4">
-        <p className="mb-1 text-xs text-slate-400">In {daysUntil} days</p>
-        <h2 className="text-lg font-bold text-slate-100">{nextShow.name}</h2>
-        {milestone && <p className="mt-1 text-xs text-slate-400">{milestone}</p>}
+      <div className="mx-5 my-4 rounded-xl border border-border bg-card p-4">
+        <p className="mb-1 text-xs text-muted-foreground">In {daysUntil} days</p>
+        <h2 className="text-lg font-bold text-foreground">{nextShow.name}</h2>
+        {milestone && <p className="mt-1 text-xs text-muted-foreground">{milestone}</p>}
       </div>
     );
   }
 
   return (
-    <div className="mx-5 my-4 rounded-xl border border-dashed border-slate-700 bg-slate-900 p-6 text-center">
-      <p className="text-sm text-slate-400">
+    <div className="mx-5 my-4 rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+      <p className="text-sm text-muted-foreground">
         No upcoming shows.{' '}
-        <Link to="/secretary/create-show/wizard" className="text-blue-400 hover:underline">
+        <Link to="/secretary/create-show/wizard" className="text-primary hover:underline">
           Ready to create one?
         </Link>
       </p>

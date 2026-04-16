@@ -19,6 +19,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError: vi.fn((msg: string) => new Error(msg)),
 }));
 
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ userWithRoles: { databaseUserId: 'person-1' } }),
+}));
+
 const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -84,13 +88,12 @@ describe('useSecretaryTasks', () => {
 });
 
 describe('useCreateTask', () => {
-  it('inserts a task and invalidates the query', async () => {
+  it('inserts a task with created_by and invalidates the query', async () => {
     const singleMock = vi.fn().mockResolvedValue({ data: mockTask, error: null });
-    mockFrom.mockReturnValue({
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({ single: singleMock }),
-      }),
+    const insertMock = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({ single: singleMock }),
     });
+    mockFrom.mockReturnValue({ insert: insertMock });
 
     const { result } = renderHook(() => useCreateTask(), { wrapper });
     await result.current.mutateAsync({
@@ -100,5 +103,13 @@ describe('useCreateTask', () => {
     });
 
     expect(singleMock).toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        club_id: 'club-1',
+        show_id: 'show-1',
+        title: 'New task',
+        created_by: 'person-1',
+      })
+    );
   });
 });

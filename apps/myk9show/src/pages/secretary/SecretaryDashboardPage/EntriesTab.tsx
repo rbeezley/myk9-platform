@@ -32,9 +32,9 @@ export function EntriesTab({ shows }: EntriesTabProps) {
       <FilterChips options={filterOptions} active={filter} onChange={setFilter} className="mb-3" />
 
       {isLoading ? (
-        <p className="py-6 text-center text-sm text-slate-500">Loading…</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
       ) : entries.length === 0 ? (
-        <p className="py-6 text-center text-sm text-slate-500">
+        <p className="py-6 text-center text-sm text-muted-foreground">
           All caught up — no entries waiting for review.
         </p>
       ) : (

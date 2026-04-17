@@ -33,6 +33,8 @@ export interface TrialClass {
   // Pipeline workflow flags (secretary review/publish flow)
   isScoringFinalized?: boolean | undefined;
   isResultsReviewed?: boolean | undefined;
+  /** Secretary-controlled sort order within the trial (for Kanban reorder) */
+  displayOrder?: number | undefined;
   // Optional fields for enhanced class cards
   lastResultAt?: string | undefined;
   timeLimits?: string[] | undefined;

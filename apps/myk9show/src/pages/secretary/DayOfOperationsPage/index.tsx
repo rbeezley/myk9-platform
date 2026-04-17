@@ -7,7 +7,7 @@
  * - Scratches
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { formatDate } from '@/utils/entryManagementUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,11 +94,17 @@ export default function DayOfOperationsPage() {
     loadData();
   };
 
+  const selectedShowLabel = useMemo(() => {
+    const show = shows.find(s => s.id === selectedShowId);
+    if (!show) return null;
+    return show.name + (show.start_date ? ` (${formatDate(show.start_date)})` : '');
+  }, [shows, selectedShowId]);
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Day-of Operations</h1>
+          <h1 className="text-3xl font-bold">Day of Show</h1>
           <p className="text-muted-foreground">Manage walk-in entries, move-ups, and scratches</p>
         </div>
         <Button onClick={loadData} variant="outline" disabled={isLoading}>
@@ -114,7 +120,7 @@ export default function DayOfOperationsPage() {
         <CardContent>
           <Select value={selectedShowId} onValueChange={setSelectedShowId}>
             <SelectTrigger className="w-full max-w-md">
-              <SelectValue placeholder="Select a show" />
+              <SelectValue placeholder="Select a show">{selectedShowLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {shows.map(show => (
@@ -137,7 +143,7 @@ export default function DayOfOperationsPage() {
             </TabsTrigger>
             <TabsTrigger value="entries" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
-              Day-of Entries
+              Day of Show Entries
             </TabsTrigger>
             <TabsTrigger value="moveups" className="flex items-center gap-2">
               <ArrowUpCircle className="h-4 w-4" />

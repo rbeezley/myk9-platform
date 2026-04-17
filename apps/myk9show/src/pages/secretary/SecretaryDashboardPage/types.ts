@@ -21,5 +21,5 @@ export type CreateTaskInput = Pick<
 };
 
 export type UpdateTaskInput = Partial<
-  Pick<SecretaryTask, 'title' | 'status' | 'priority' | 'dueDate' | 'assigneeId'>
+  Pick<SecretaryTask, 'title' | 'status' | 'priority' | 'dueDate' | 'assigneeId' | 'showId'>
 >;

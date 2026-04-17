@@ -79,6 +79,8 @@ export interface ClassPipelineItem {
   is_results_reviewed: boolean;
   start_time: string | null;
   planned_start_time: string | null;
+  /** Secretary-controlled sort order within the trial (for Kanban reorder) */
+  display_order: number | null;
 }
 
 /** Stats computed for a show or trial context row */

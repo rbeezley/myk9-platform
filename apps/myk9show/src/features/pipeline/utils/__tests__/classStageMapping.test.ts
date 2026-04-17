@@ -7,20 +7,20 @@ describe('mapClassToStage', () => {
     expect(mapClassToStage(undefined, null)).toBe('not-started');
   });
 
-  it('maps no-status to not-started', () => {
-    expect(mapClassToStage('no-status', false)).toBe('not-started');
+  it('maps upcoming to not-started', () => {
+    expect(mapClassToStage('upcoming', false)).toBe('not-started');
+  });
+
+  it('maps cancelled to not-started', () => {
+    expect(mapClassToStage('cancelled', false)).toBe('not-started');
   });
 
   it('maps setup to setup', () => {
     expect(mapClassToStage('setup', false)).toBe('setup');
   });
 
-  it.each(['briefing', 'break'])('maps %s to setup', status => {
-    expect(mapClassToStage(status, false)).toBe('setup');
-  });
-
-  it.each(['start_time', 'in_progress', 'offline-scoring'])('maps %s to in-progress', status => {
-    expect(mapClassToStage(status, false)).toBe('in-progress');
+  it('maps in_progress to in-progress', () => {
+    expect(mapClassToStage('in_progress', false)).toBe('in-progress');
   });
 
   it('maps completed + not finalized to results', () => {

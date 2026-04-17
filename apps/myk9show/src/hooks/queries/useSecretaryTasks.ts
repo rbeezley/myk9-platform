@@ -93,6 +93,7 @@ export function useUpdateTask() {
           ...(update.priority !== undefined && { priority: update.priority }),
           ...(update.dueDate !== undefined && { due_date: update.dueDate }),
           ...(update.assigneeId !== undefined && { assignee_id: update.assigneeId }),
+          ...(update.showId !== undefined && { show_id: update.showId }),
         })
         .eq('id', id);
       if (error) throw error;
@@ -110,6 +111,7 @@ export function useUpdateTask() {
                 ...(update.priority !== undefined && { priority: update.priority }),
                 ...(update.dueDate !== undefined && { dueDate: update.dueDate }),
                 ...(update.assigneeId !== undefined && { assigneeId: update.assigneeId }),
+                ...(update.showId !== undefined && { showId: update.showId }),
               }
             : t
         )

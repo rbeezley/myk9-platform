@@ -14,6 +14,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ScopeType } from '@/types/auth-types';
 import { mapClassToStage, groupClassesByStage } from '../utils/classStageMapping';
+import { sortByDisplayOrder } from '../utils/pipelineReorder';
 import type { ClassPipelineItem, ContextStats } from '../mission-control-types';
 
 export function useMissionControlData() {
@@ -84,7 +85,7 @@ export function useMissionControlData() {
     const localClasses = effectiveTrialId ? (allTrialClasses[effectiveTrialId] ?? []) : [];
     if (!localClasses.length) return [];
 
-    return localClasses.map(cls => {
+    return sortByDisplayOrder(localClasses).map(cls => {
       // Build a display name from element + level (TrialClass doesn't have a "name" field)
       const name =
         [cls.element, cls.level, cls.section].filter(Boolean).join(' ') || 'Unnamed Class';
@@ -104,6 +105,7 @@ export function useMissionControlData() {
         is_results_reviewed: isResultsReviewed,
         start_time: cls.startTime || null,
         planned_start_time: null, // Not tracked on TrialClass
+        display_order: cls.displayOrder ?? null,
       };
     });
   }, [effectiveTrialId, allTrialClasses]);

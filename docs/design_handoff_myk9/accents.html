@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>myK9 · accent colors</title>
+<link rel="stylesheet" href="colors_and_type_v2.css"/>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ivory-100);color:var(--foreground);font-family:var(--font-sans);min-height:100vh;}
+  .hdr{max-width:1400px;margin:0 auto;padding:56px 32px 20px;text-align:center;}
+  .hdr h1{font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);
+    font-weight:450;font-size:48px;letter-spacing:-.022em;margin:0 0 10px;line-height:1.05;}
+  .hdr h1 em{font-style:italic;color:var(--terra-500);font-variation-settings:"opsz" 144, "SOFT" 100, "WONK" 1;}
+  .hdr p{color:var(--stone-500);max-width:680px;margin:0 auto;font-size:16px;line-height:1.55;}
+
+  .picker-demo{max-width:760px;margin:32px auto 0;background:#fff;border-radius:20px;padding:28px 32px;
+    border:1px solid var(--border);box-shadow:0 4px 24px rgba(61,37,22,.05);}
+  .picker-demo h3{margin:0 0 4px;font-size:15px;font-weight:600;}
+  .picker-demo .desc{font-size:13px;color:var(--stone-500);margin:0 0 20px;}
+  .swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .swatch{
+    border:2px solid transparent;border-radius:14px;padding:14px 12px;cursor:pointer;
+    background:#fff;display:flex;flex-direction:column;gap:8px;align-items:flex-start;
+    transition:all .18s;text-align:left;
+  }
+  .swatch:hover{background:var(--ivory-50);}
+  .swatch.on{border-color:var(--ink-900);background:var(--ivory-50);}
+  .swatch .chip{width:32px;height:32px;border-radius:10px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);}
+  .swatch .name{font-size:14px;font-weight:600;color:var(--ink-900);}
+  .swatch .meta{font-size:11px;color:var(--stone-500);font-family:var(--font-mono);}
+
+  .note{max-width:760px;margin:20px auto 0;padding:16px 20px;background:var(--terra-50);
+    border:1px solid var(--terra-200);border-radius:12px;font-size:13px;color:var(--terra-700);
+    display:flex;gap:10px;align-items:flex-start;}
+  .note b{color:var(--terra-900);}
+
+  section.row{padding:36px 32px;max-width:1600px;margin:0 auto;}
+  .row-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px;max-width:1200px;margin-inline:auto;}
+  .row-head h2{font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);
+    font-weight:500;font-size:28px;margin:0;letter-spacing:-.015em;}
+  .row-head .sub{font-size:13px;color:var(--stone-500);}
+
+  .accent-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;}
+  .accent-card{
+    background:var(--ivory-50);border-radius:20px;overflow:hidden;
+    border:1px solid var(--border);padding:24px 20px;
+    display:flex;flex-direction:column;gap:14px;
+  }
+  .accent-card .title{display:flex;align-items:center;gap:10px;}
+  .accent-card .title .chip{width:22px;height:22px;border-radius:7px;background:var(--primary);box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);}
+  .accent-card .title h3{margin:0;font-size:15px;font-weight:600;}
+  .accent-card .title .tag{margin-left:auto;font-size:10px;font-family:var(--font-mono);color:var(--stone-500);
+    background:#fff;padding:2px 7px;border-radius:9999px;border:1px solid var(--border);}
+
+  /* ─── Mini mobile mock (pure CSS, no JSX) ────────────────────── */
+  .mini{background:#fff;border-radius:20px;padding:14px 12px 16px;box-shadow:0 1px 2px rgba(61,37,22,.04),0 4px 16px rgba(61,37,22,.05);border:1px solid var(--border);}
+  .mini .hdr-bar{display:flex;align-items:center;gap:8px;padding:0 2px 10px;border-bottom:0.5px solid rgba(64,58,49,.1);margin-bottom:10px;}
+  .mini .hdr-bar svg{color:var(--primary);flex-shrink:0;}
+  .mini .hdr-bar .t{font-size:13px;font-weight:600;letter-spacing:-.2px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mini .hdr-bar .sub{font-size:9px;color:var(--stone-500);font-weight:500;margin-top:1px;}
+
+  .mini .strip{background:var(--primary-tint);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .mini .strip .dot{width:6px;height:6px;border-radius:50%;background:var(--primary);flex-shrink:0;}
+  .mini .strip .txt{font-size:11px;color:var(--primary-tint-ink);font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mini .strip .live{font-family:var(--font-mono);font-size:9px;color:var(--primary-tint-ink);font-weight:700;letter-spacing:.4px;}
+
+  /* System-owned LIVE banner — never changes */
+  .mini .live-banner{background:var(--ring-green-500);color:#fff;border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;font-weight:600;letter-spacing:.3px;}
+  .mini .live-banner .dot{width:5px;height:5px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.35);}
+  .mini .live-banner .mono{margin-left:auto;font-family:var(--font-mono);font-size:9px;opacity:.85;font-weight:700;}
+
+  .mini .row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:0.5px solid rgba(64,58,49,.08);}
+  .mini .row:last-of-type{border-bottom:0;}
+  .mini .band{width:34px;height:34px;border-radius:8px;background:#fff;border:1.5px solid rgba(64,58,49,.12);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:13px;color:var(--ink-900);flex-shrink:0;}
+  .mini .band.inring{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .mini .info{flex:1;min-width:0;}
+  .mini .info .n{font-size:11px;font-weight:600;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.1px;}
+  .mini .info .m{font-size:10px;color:var(--stone-500);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mini .badge{font-size:9px;font-weight:700;letter-spacing:.4px;padding:3px 7px;border-radius:9999px;background:var(--primary-tint);color:var(--primary-tint-ink);}
+  .mini .badge.live{background:var(--ring-green-50);color:var(--ring-green-700);}
+  .mini .btn{background:var(--primary);color:#fff;font-size:11px;font-weight:600;padding:9px 0;text-align:center;border-radius:9px;margin-top:12px;letter-spacing:.2px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+
+  /* Button + progress demo inside accent card */
+  .control-row{display:flex;gap:10px;align-items:center;}
+  .control-row .sol{background:var(--primary);color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:9999px;letter-spacing:.2px;}
+  .control-row .ghost{background:var(--primary-tint);color:var(--primary-tint-ink);font-size:12px;font-weight:600;padding:7px 14px;border-radius:9999px;}
+  .progress{height:5px;background:#fff;border-radius:9999px;overflow:hidden;border:1px solid var(--border);}
+  .progress > div{height:100%;background:var(--primary);width:55%;}
+
+  .key{max-width:860px;margin:40px auto 64px;background:#fff;padding:24px 28px;border-radius:16px;border:1px solid var(--border);}
+  .key h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin:0 0 14px;color:var(--terra-700);}
+  .key table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  .key td{padding:10px 0;border-bottom:1px solid var(--ivory-100);vertical-align:top;}
+  .key tr:last-child td{border-bottom:0;}
+  .key td:first-child{width:180px;font-weight:600;color:var(--ink-900);}
+  .key td:nth-child(2){color:var(--stone-700);}
+</style>
+</head>
+<body>
+<div data-accent="clay">
+<header class="hdr">
+  <h1>One brand, four <em>personalities.</em></h1>
+  <p>Brand identity stays terracotta — logo, marketing, emails. In-app chrome (buttons, active states, progress) follows the user's pick. "JUDGING LIVE" stays ring-green regardless.</p>
+</header>
+
+<!-- Picker -->
+<div class="picker-demo">
+  <h3>Your ring color</h3>
+  <p class="desc">Pick the accent you want to see in the app. Setting lives in myK9Q Preferences.</p>
+  <div class="swatches">
+    <button class="swatch on" data-set="clay">
+      <div class="chip" style="background:#c96442;"></div>
+      <div class="name">Clay</div>
+      <div class="meta">default · #c96442</div>
+    </button>
+    <button class="swatch" data-set="grove">
+      <div class="chip" style="background:#2f8a7f;"></div>
+      <div class="name">Grove</div>
+      <div class="meta">#2f8a7f</div>
+    </button>
+    <button class="swatch" data-set="dusk">
+      <div class="chip" style="background:#3d6d8c;"></div>
+      <div class="name">Dusk</div>
+      <div class="meta">#3d6d8c</div>
+    </button>
+    <button class="swatch" data-set="heather">
+      <div class="chip" style="background:#7b5aa6;"></div>
+      <div class="name">Heather</div>
+      <div class="meta">#7b5aa6</div>
+    </button>
+  </div>
+</div>
+
+<div class="note">
+  <span style="flex-shrink:0;margin-top:1px;">ℹ︎</span>
+  <div><b>Rule of thumb.</b> Your pick only touches in-app chrome. Brand identity = always terracotta. Status colors (live, warning, error) = system-owned. Rosette placements follow AKC convention.</div>
+</div>
+
+<!-- Rows — each row re-renders itself under each accent -->
+
+<section class="row">
+  <div class="row-head">
+    <h2>All four, side by side</h2>
+    <div class="sub">Same screen · different accent · same ring-green for live</div>
+  </div>
+  <div class="accent-grid">
+    <!-- Clay -->
+    <div class="accent-card" data-accent="clay">
+      <div class="title"><div class="chip"></div><h3>Clay</h3><div class="tag">default</div></div>
+      <div class="mini">
+        <div class="hdr-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <div><div class="t">Novice A — Obedience</div><div class="sub">Ring 2 · 8:30 AM</div></div>
+        </div>
+        <div class="live-banner"><span class="dot"></span>IN RING · 2:47<span class="mono">LIVE</span></div>
+        <div class="row"><div class="band inring">247</div><div class="info"><div class="n">Dewfall's Song of the Moor</div><div class="m">Border Collie · M. Okafor</div></div><span class="badge live">● IN RING</span></div>
+        <div class="row"><div class="band">251</div><div class="info"><div class="n">Highmark's Pennywhistle</div><div class="m">Golden Retriever · R. Nash</div></div><span class="badge">NEXT</span></div>
+        <div class="row"><div class="band">254</div><div class="info"><div class="n">Seastone's Drifting Light</div><div class="m">Aussie · T. Bergen</div></div></div>
+        <div class="btn">Submit score →</div>
+      </div>
+      <div class="control-row"><span class="sol">Enter show</span><span class="ghost">Favorites</span></div>
+      <div class="progress"><div></div></div>
+    </div>
+    <!-- Grove -->
+    <div class="accent-card" data-accent="grove">
+      <div class="title"><div class="chip"></div><h3>Grove</h3><div class="tag">muted teal</div></div>
+      <div class="mini">
+        <div class="hdr-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <div><div class="t">Novice A — Obedience</div><div class="sub">Ring 2 · 8:30 AM</div></div>
+        </div>
+        <div class="live-banner"><span class="dot"></span>IN RING · 2:47<span class="mono">LIVE</span></div>
+        <div class="row"><div class="band inring">247</div><div class="info"><div class="n">Dewfall's Song of the Moor</div><div class="m">Border Collie · M. Okafor</div></div><span class="badge live">● IN RING</span></div>
+        <div class="row"><div class="band">251</div><div class="info"><div class="n">Highmark's Pennywhistle</div><div class="m">Golden Retriever · R. Nash</div></div><span class="badge">NEXT</span></div>
+        <div class="row"><div class="band">254</div><div class="info"><div class="n">Seastone's Drifting Light</div><div class="m">Aussie · T. Bergen</div></div></div>
+        <div class="btn">Submit score →</div>
+      </div>
+      <div class="control-row"><span class="sol">Enter show</span><span class="ghost">Favorites</span></div>
+      <div class="progress"><div></div></div>
+    </div>
+    <!-- Dusk -->
+    <div class="accent-card" data-accent="dusk">
+      <div class="title"><div class="chip"></div><h3>Dusk</h3><div class="tag">slate blue</div></div>
+      <div class="mini">
+        <div class="hdr-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <div><div class="t">Novice A — Obedience</div><div class="sub">Ring 2 · 8:30 AM</div></div>
+        </div>
+        <div class="live-banner"><span class="dot"></span>IN RING · 2:47<span class="mono">LIVE</span></div>
+        <div class="row"><div class="band inring">247</div><div class="info"><div class="n">Dewfall's Song of the Moor</div><div class="m">Border Collie · M. Okafor</div></div><span class="badge live">● IN RING</span></div>
+        <div class="row"><div class="band">251</div><div class="info"><div class="n">Highmark's Pennywhistle</div><div class="m">Golden Retriever · R. Nash</div></div><span class="badge">NEXT</span></div>
+        <div class="row"><div class="band">254</div><div class="info"><div class="n">Seastone's Drifting Light</div><div class="m">Aussie · T. Bergen</div></div></div>
+        <div class="btn">Submit score →</div>
+      </div>
+      <div class="control-row"><span class="sol">Enter show</span><span class="ghost">Favorites</span></div>
+      <div class="progress"><div></div></div>
+    </div>
+    <!-- Heather -->
+    <div class="accent-card" data-accent="heather">
+      <div class="title"><div class="chip"></div><h3>Heather</h3><div class="tag">aubergine</div></div>
+      <div class="mini">
+        <div class="hdr-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <div><div class="t">Novice A — Obedience</div><div class="sub">Ring 2 · 8:30 AM</div></div>
+        </div>
+        <div class="live-banner"><span class="dot"></span>IN RING · 2:47<span class="mono">LIVE</span></div>
+        <div class="row"><div class="band inring">247</div><div class="info"><div class="n">Dewfall's Song of the Moor</div><div class="m">Border Collie · M. Okafor</div></div><span class="badge live">● IN RING</span></div>
+        <div class="row"><div class="band">251</div><div class="info"><div class="n">Highmark's Pennywhistle</div><div class="m">Golden Retriever · R. Nash</div></div><span class="badge">NEXT</span></div>
+        <div class="row"><div class="band">254</div><div class="info"><div class="n">Seastone's Drifting Light</div><div class="m">Aussie · T. Bergen</div></div></div>
+        <div class="btn">Submit score →</div>
+      </div>
+      <div class="control-row"><span class="sol">Enter show</span><span class="ghost">Favorites</span></div>
+      <div class="progress"><div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Governance key -->
+<div class="key">
+  <h3>Color governance</h3>
+  <table>
+    <tr><td>Brand identity</td><td>Always <b style="color:#c96442">terracotta</b>. Logo, hero, marketing, emails, app icon. Never user-overridable.</td></tr>
+    <tr><td>In-app chrome</td><td>User's chosen <b>accent</b> (Clay / Grove / Dusk / Heather). Buttons, active tabs, progress, selected states.</td></tr>
+    <tr><td>Live / judging</td><td>Always <b style="color:#385a3b">ring-green</b> (#4e7c53). System-owned; communicates "a judge is scoring right now."</td></tr>
+    <tr><td>Warnings / errors</td><td>System palette — amber #c88b1a, red #b04835. Never follows accent.</td></tr>
+    <tr><td>Placements</td><td>AKC-standard rosette colors: blue 1st, red 2nd, yellow 3rd, white 4th. Convention, not theme.</td></tr>
+  </table>
+</div>
+
+</div><!-- /data-accent -->
+
+<script>
+  // Make the picker actually drive the page-level accent.
+  const root = document.querySelector('[data-accent]');
+  const buttons = document.querySelectorAll('.swatch');
+  buttons.forEach(b => b.addEventListener('click', () => {
+    buttons.forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    root.setAttribute('data-accent', b.dataset.set);
+    localStorage.setItem('myk9_accent', b.dataset.set);
+  }));
+  const saved = localStorage.getItem('myk9_accent');
+  if (saved) {
+    const btn = [...buttons].find(b => b.dataset.set === saved);
+    if (btn) btn.click();
+  }
+</script>
+</body>
+</html>

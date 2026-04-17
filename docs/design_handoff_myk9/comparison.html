@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>myK9 · v1 vs v2 comparison</title>
+<link rel="stylesheet" href="colors_and_type_v2.css"/>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ivory-100);color:var(--foreground);font-family:var(--font-sans);}
+  .page-hdr{max-width:1400px;margin:0 auto;padding:56px 32px 24px;text-align:center;}
+  .page-hdr h1{
+    font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);
+    font-weight:450;font-size:56px;letter-spacing:-.022em;margin:0 0 10px;line-height:1.05;
+  }
+  .page-hdr h1 em{font-style:italic;color:var(--primary);font-variation-settings:"opsz" 144, "SOFT" 100, "WONK" 1;}
+  .page-hdr p{color:var(--stone-500);max-width:640px;margin:0 auto;font-size:16px;line-height:1.55;}
+  .switch{
+    display:inline-flex;background:#fff;border-radius:999px;padding:4px;margin-top:24px;
+    box-shadow:var(--shadow-card);gap:2px;border:1px solid var(--border);
+  }
+  .switch button{
+    border:0;background:transparent;font-family:inherit;font-size:14px;font-weight:600;
+    padding:10px 22px;border-radius:999px;cursor:pointer;color:var(--stone-500);
+    transition:all .2s;letter-spacing:.2px;
+  }
+  .switch button.on{background:var(--primary);color:#fff;}
+  .notes-panel{
+    max-width:1000px;margin:24px auto 0;padding:20px 28px;background:#fff;border-radius:16px;
+    border:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:32px;
+    box-shadow:var(--shadow-card);
+  }
+  .note h4{
+    margin:0 0 10px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    font-weight:700;color:var(--primary);
+  }
+  .note ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.6;color:var(--stone-700);}
+  .note li{margin-bottom:4px;}
+  .note li b{color:var(--ink-900);font-weight:600;}
+  section.kit{padding:32px;max-width:1400px;margin:0 auto;}
+  .kit h2{
+    font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);
+    font-weight:500;font-size:28px;margin:0 0 6px;letter-spacing:-.015em;
+  }
+  .kit .meta{color:var(--stone-500);font-size:14px;margin-bottom:18px;}
+  .frame{background:#fff;border-radius:20px;overflow:hidden;border:1px solid var(--border);
+    box-shadow:0 8px 32px rgba(61,37,22,0.08);transition:opacity .25s;}
+  .frame iframe{display:block;width:100%;height:760px;border:0;}
+  .frame.mobile{background:linear-gradient(135deg,#efe8db,#e0d6c2);padding:40px 0;}
+  .frame.mobile iframe{height:820px;background:transparent;}
+  .hidden{display:none;}
+  footer{padding:48px 32px;text-align:center;color:var(--stone-500);font-size:13px;}
+</style>
+</head>
+<body>
+<header class="page-hdr">
+  <h1>v1 vs <em>v2</em></h1>
+  <p>Same product, two directions. v1 plays it safe; v2 commits to a terracotta-led, rosette-signed brand with Fraunces instead of Playfair.</p>
+  <div class="switch" role="tablist">
+    <button class="on" data-v="v1">v1 · original</button>
+    <button data-v="v2">v2 · terracotta + rosette</button>
+    <button data-v="both">Both</button>
+  </div>
+</header>
+
+<div class="notes-panel">
+  <div class="note">
+    <h4>v1 · what we had</h4>
+    <ul>
+      <li><b>Teal + terracotta</b> — two accent colors, not a clear primary</li>
+      <li><b>Playfair Display</b> display serif — competent, but on every "elegant SaaS"</li>
+      <li><b>No domain motif</b> — could be any booking app</li>
+      <li><b>Apple-generic mobile</b> — scoring felt like logging a form</li>
+      <li><b>Gradient show covers</b> in blue/pink/purple — disconnected palette</li>
+    </ul>
+  </div>
+  <div class="note">
+    <h4>v2 · what changed</h4>
+    <ul>
+      <li><b>Terracotta leads</b> everywhere; <b>ring-green</b> reserved for "judging live"</li>
+      <li><b>Fraunces</b> (opsz + SOFT) — italics get genuine personality</li>
+      <li><b>Rosette motif</b> in logo, hero, placement pills, score background</li>
+      <li><b>Theatrical in-ring state</b> — LIVE banner, serif dog name, warm score card</li>
+      <li><b>Earth-toned covers</b> — terracotta, clay, sage, slate — one family</li>
+    </ul>
+  </div>
+</div>
+
+<section class="kit" id="show-section">
+  <h2>myK9Show · exhibitor web app</h2>
+  <div class="meta">Landing & shows browse</div>
+  <div id="show-v1" class="frame"><iframe src="ui_kits/myk9show/index.html"></iframe></div>
+  <div id="show-v2" class="frame hidden"><iframe src="ui_kits/myk9show/index-v2.html"></iframe></div>
+</section>
+
+<section class="kit" id="q-section">
+  <h2>myK9Q · ring-side PWA</h2>
+  <div class="meta">Home → Entry list → Score entry</div>
+  <div id="q-v1" class="frame mobile"><iframe src="ui_kits/myk9q/index.html"></iframe></div>
+  <div id="q-v2" class="frame mobile hidden"><iframe src="ui_kits/myk9q/index-v2.html"></iframe></div>
+</section>
+
+<footer>
+  All v1 files preserved. v2 lives in <code style="font-family:var(--font-mono);color:var(--terra-700);">colors_and_type_v2.css</code>, <code style="font-family:var(--font-mono);color:var(--terra-700);">*-v2.html/jsx</code>, <code style="font-family:var(--font-mono);color:var(--terra-700);">assets/rosette.svg</code>.
+</footer>
+
+<script>
+  const btns = document.querySelectorAll('.switch button');
+  const showV1 = document.getElementById('show-v1');
+  const showV2 = document.getElementById('show-v2');
+  const qV1 = document.getElementById('q-v1');
+  const qV2 = document.getElementById('q-v2');
+
+  btns.forEach(b => b.addEventListener('click', () => {
+    btns.forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    const v = b.dataset.v;
+    if (v === 'v1') {
+      showV1.classList.remove('hidden'); showV2.classList.add('hidden');
+      qV1.classList.remove('hidden'); qV2.classList.add('hidden');
+    } else if (v === 'v2') {
+      showV1.classList.add('hidden'); showV2.classList.remove('hidden');
+      qV1.classList.add('hidden'); qV2.classList.remove('hidden');
+    } else {
+      showV1.classList.remove('hidden'); showV2.classList.remove('hidden');
+      qV1.classList.remove('hidden'); qV2.classList.remove('hidden');
+    }
+    localStorage.setItem('myk9_compare_v', v);
+  }));
+
+  const saved = localStorage.getItem('myk9_compare_v');
+  if (saved) {
+    const btn = [...btns].find(b => b.dataset.v === saved);
+    if (btn) btn.click();
+  }
+</script>
+</body>
+</html>

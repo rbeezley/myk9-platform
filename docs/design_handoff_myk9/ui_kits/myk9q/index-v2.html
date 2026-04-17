@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>myK9Q · UI kit v2</title>
+<link rel="stylesheet" href="../../colors_and_type_v2.css"/>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--ivory-50);color:var(--foreground);font-family:var(--font-sans);min-height:100vh;}
+  .page{padding:48px 32px 64px;}
+  .page-hdr{max-width:1400px;margin:0 auto 40px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+  .page-hdr h1{font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);font-weight:450;font-size:48px;letter-spacing:-.022em;margin:0;line-height:1.05;}
+  .page-hdr h1 em{font-style:italic;color:var(--primary);font-variation-settings:"opsz" 144, "SOFT" 100, "WONK" 1;}
+  .page-hdr p{color:var(--muted-foreground);margin:8px 0 0;font-size:15px;max-width:520px;}
+  .tag{display:inline-flex;align-items:center;gap:6px;background:var(--terra-50);color:var(--terra-700);font-size:12px;font-weight:600;padding:5px 12px;border-radius:9999px;letter-spacing:.2px;}
+  .tag.live{background:var(--ring-green-50);color:var(--ring-green-700);}
+  .devices{display:flex;gap:56px;justify-content:center;flex-wrap:wrap;max-width:1400px;margin:0 auto;}
+  .dev{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .dev .label{font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);font-size:20px;font-weight:500;letter-spacing:-.005em;color:var(--foreground);}
+  .dev .sub{font-size:13px;color:var(--muted-foreground);text-align:center;max-width:320px;line-height:1.5;}
+  #root{display:contents;}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="page">
+  <div class="page-hdr">
+    <div>
+      <h1>myK9Q · <em>v2</em></h1>
+      <p>Terracotta-led warmth, rosette as signature, theatrical in-ring state. Green reserved for "judging live" only.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="tag">Mobile PWA</span>
+      <span class="tag">Offline-first</span>
+      <span class="tag live">● LIVE = ring-green</span>
+    </div>
+  </div>
+  <div id="root"></div>
+</div>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="components-v2.jsx"></script>
+<script type="text/babel" src="screens-v2.jsx"></script>
+
+<script type="text/babel">
+function Prototype() {
+  const [screen, setScreen] = React.useState('home');
+  const [selectedClass, setSelectedClass] = React.useState(null);
+  const [selectedEntry, setSelectedEntry] = React.useState(null);
+
+  return (
+    <div className="devices">
+      <div className="dev">
+        <IOSDevice width={372} height={760}>
+          <ScreenHomeV2 onOpenClass={() => {}}/>
+        </IOSDevice>
+        <div className="label">Home</div>
+        <div className="sub">Dashboard with "up next", live class strip in ring-green.</div>
+      </div>
+
+      <div className="dev">
+        <IOSDevice width={372} height={760}>
+          {screen === 'home' && (
+            <ScreenHomeV2 onOpenClass={(c) => { setSelectedClass(c); setScreen('entries'); }}/>
+          )}
+          {screen === 'entries' && (
+            <ScreenEntriesV2 cls={selectedClass}
+              onBack={() => setScreen('home')}
+              onOpenEntry={(e) => { setSelectedEntry(e); setScreen('score'); }}/>
+          )}
+          {screen === 'score' && (
+            <ScreenScoreV2 entry={selectedEntry}
+              onBack={() => setScreen('entries')}
+              onSubmit={() => setScreen('entries')}/>
+          )}
+        </IOSDevice>
+        <div className="label">Entry list → Score</div>
+        <div className="sub">Placements get rosettes. Tap a class, then an entry, to walk the flow.</div>
+      </div>
+
+      <div className="dev">
+        <IOSDevice width={372} height={760}>
+          <ScreenScoreV2 entry={{a:247, n:"Dewfall's Song of the Moor", b:'Border Collie', h:'M. Okafor'}}
+            onBack={()=>{}} onSubmit={()=>{}}/>
+        </IOSDevice>
+        <div className="label">Score entry — theatrical</div>
+        <div className="sub">LIVE banner, rosette watermark, serif dog name, rosette-marked placements.</div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Prototype/>);
+</script>
+</body>
+</html>

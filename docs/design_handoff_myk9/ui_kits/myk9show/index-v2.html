@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>myK9Show · UI kit v2</title>
+<link rel="stylesheet" href="../../colors_and_type_v2.css"/>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-sans);}
+  .app{min-height:100vh;}
+  /* ─── Header ──────────────────────────────────────── */
+  .hdr{
+    display:flex;align-items:center;gap:20px;padding:14px 32px;
+    background:rgba(250,247,242,.92);backdrop-filter:blur(12px);
+    position:sticky;top:0;z-index:10;
+    box-shadow:0 1px 3px rgba(61,37,22,.04);
+    border-bottom:1px solid var(--ivory-200);
+  }
+  .hdr .logo{display:flex;align-items:center;gap:10px;font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);font-size:22px;font-weight:500;letter-spacing:-.01em;}
+  .hdr .logo .mark{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;color:var(--primary);}
+  .hdr .logo .mark svg{width:100%;height:100%;}
+  .nav{display:flex;gap:22px;margin-left:20px;font-size:14px;}
+  .nav a{color:var(--stone-700);text-decoration:none;padding:6px 2px;position:relative;}
+  .nav a.active{color:var(--foreground);font-weight:500;}
+  .nav a.active::after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:2px;background:var(--primary);border-radius:2px;}
+  .hdr .spacer{flex:1;}
+  .hdr .avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--terra-500),var(--terra-700));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;}
+
+  /* ─── Hero — with rosette ─────────────────────────── */
+  .hero{position:relative;padding:96px 32px 64px;max-width:1200px;margin:0 auto;text-align:center;overflow:hidden;}
+  .hero .rosette-bg{
+    position:absolute;top:30px;left:50%;transform:translateX(-50%);
+    width:240px;height:320px;color:var(--terra-100);opacity:.85;pointer-events:none;z-index:0;
+  }
+  .hero .rosette-bg svg{width:100%;height:100%;}
+  .hero > *{position:relative;z-index:1;}
+  .eyebrow-hero{font-family:var(--font-sans);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:600;margin-bottom:18px;display:inline-flex;align-items:center;gap:10px;}
+  .eyebrow-hero::before,.eyebrow-hero::after{content:"";width:24px;height:1px;background:var(--terra-400);}
+  h1.hero-t{
+    font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);
+    font-weight:450;font-size:clamp(44px,6.5vw,78px);line-height:1.02;letter-spacing:-0.022em;
+    margin:0 0 18px;color:var(--ink-900);
+  }
+  h1.hero-t em{font-style:italic;font-weight:400;color:var(--terra-600);font-variation-settings:"opsz" 144, "SOFT" 100, "WONK" 1;}
+  .hero p{font-size:18px;color:var(--stone-700);max-width:600px;margin:0 auto 28px;line-height:1.55;}
+  .hero .cta{display:inline-flex;gap:10px;}
+
+  /* ─── Sections ────────────────────────────────────── */
+  .section{padding:48px 32px;max-width:1200px;margin:0 auto;}
+  .section h2{font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);font-weight:450;font-size:36px;line-height:1.15;margin:0 0 4px;letter-spacing:-0.015em;}
+  .section .sub{color:var(--muted-foreground);font-size:14px;margin-bottom:24px;}
+
+  /* ─── Search ──────────────────────────────────────── */
+  .search{display:flex;gap:10px;background:#fff;padding:8px;border-radius:14px;box-shadow:var(--shadow-card);max-width:720px;margin:0 auto 10px;align-items:center;border:1px solid var(--border);}
+  .search .where{padding:10px 14px;color:var(--muted-foreground);font-size:14px;display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;}
+  .search .where input{flex:1;border:0;padding:0;font-family:inherit;font-size:15px;outline:none;background:transparent;color:var(--foreground);}
+  .search .divider{width:1px;align-self:stretch;background:var(--border);}
+
+  /* ─── Filters ─────────────────────────────────────── */
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;}
+  .chip{padding:7px 14px;font-size:13px;border-radius:9999px;background:#fff;border:1px solid var(--border);cursor:pointer;transition:all .15s;color:var(--stone-700);}
+  .chip:hover{border-color:var(--stone-300);}
+  .chip.on{background:var(--terra-50);border-color:var(--terra-500);color:var(--terra-700);font-weight:600;}
+
+  /* ─── Show cards ──────────────────────────────────── */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;}
+  .show{background:#fff;border-radius:16px;overflow:hidden;box-shadow:var(--shadow-card);transition:all .2s;cursor:pointer;border:1px solid transparent;}
+  .show:hover{box-shadow:var(--shadow-card-hover);transform:translateY(-2px);}
+  .show .cover{
+    aspect-ratio:16/9;
+    background:var(--c1,#e4dccc);
+    background-image:
+      radial-gradient(circle at 85% 20%, rgba(255,255,255,.35), transparent 40%),
+      linear-gradient(135deg,var(--c1,#e4dccc),var(--c2,#c96442));
+    display:flex;align-items:flex-end;padding:16px;position:relative;
+  }
+  /* Subtle rosette watermark on covers */
+  .show .cover::after{
+    content:"";position:absolute;right:-18px;bottom:-30px;width:130px;height:170px;
+    background:url('../../assets/rosette.svg') no-repeat center/contain;
+    opacity:.12;filter:brightness(0.3);
+  }
+  .show .date{position:absolute;top:14px;left:14px;background:rgba(255,255,255,.94);border-radius:10px;padding:6px 10px;text-align:center;font-family:var(--font-mono);min-width:44px;box-shadow:0 1px 2px rgba(0,0,0,.06);}
+  .show .date .m{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--stone-500);}
+  .show .date .d{font-size:18px;font-weight:700;color:var(--ink-900);line-height:1;}
+  .show .badge{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.94);padding:4px 10px;border-radius:9999px;font-size:11px;font-weight:600;color:var(--terra-700);box-shadow:0 1px 2px rgba(0,0,0,.06);}
+  .show .badge.live{background:var(--live);color:#fff;display:inline-flex;align-items:center;gap:5px;}
+  .show .badge.live::before{content:"";width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.35);animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .show .body{padding:16px 18px 18px;}
+  .show h3{font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);font-weight:500;font-size:20px;margin:0 0 6px;line-height:1.22;letter-spacing:-0.01em;}
+  .show .meta{font-size:13px;color:var(--muted-foreground);display:flex;gap:12px;margin-bottom:10px;}
+  .show .meta span{display:inline-flex;align-items:center;gap:5px;}
+  .show .meta svg{width:14px;height:14px;}
+  .show .foot{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--ivory-100);}
+  .show .price{font-size:13px;color:var(--stone-700);}
+  .show .price strong{font-family:var(--font-mono);font-weight:700;color:var(--foreground);}
+  .enter-btn{background:var(--primary);color:#fff;border:0;font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border-radius:9999px;cursor:pointer;transition:background .15s;letter-spacing:.2px;}
+  .enter-btn:hover{background:var(--primary-hover);}
+
+  /* ─── How it works ────────────────────────────────── */
+  .how{background:var(--ivory-100);padding:72px 32px;position:relative;}
+  .how::before{
+    content:"";position:absolute;left:50%;top:-1px;width:80px;height:2px;
+    background:var(--terra-400);transform:translateX(-50%);
+  }
+  .how-inner{max-width:1200px;margin:0 auto;}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .step{background:#fff;border-radius:16px;padding:26px 24px;text-align:left;border:1px solid var(--border);}
+  .step .n{
+    font-family:var(--fraunces-display);font-variation-settings:"opsz" 144, "SOFT" 30;
+    font-size:34px;font-weight:500;color:var(--primary);margin-bottom:12px;line-height:1;
+    letter-spacing:-0.02em;
+  }
+  .step h4{margin:0 0 6px;font-size:17px;font-weight:600;}
+  .step p{font-size:14px;color:var(--muted-foreground);margin:0;line-height:1.55;}
+
+  /* ─── Buttons ─────────────────────────────────────── */
+  .btn{font-family:inherit;font-size:15px;font-weight:600;padding:11px 22px;border-radius:10px;cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:8px;transition:all .15s;letter-spacing:.2px;}
+  .btn-primary{background:var(--primary);color:#fff;}
+  .btn-primary:hover{background:var(--primary-hover);}
+  .btn-ghost{background:transparent;color:var(--foreground);border-color:var(--border);}
+  .btn-ghost:hover{background:var(--ivory-100);}
+
+  /* ─── Footer ──────────────────────────────────────── */
+  footer{padding:48px 32px 40px;max-width:1200px;margin:0 auto;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:13px;color:var(--muted-foreground);align-items:center;}
+  .fnav{display:flex;gap:24px;}
+  .fnav a{color:inherit;text-decoration:none;}
+  .fnav a:hover{color:var(--primary);}
+</style>
+</head>
+<body>
+<div class="app" data-screen-label="01 myK9Show Landing v2">
+  <!-- Header -->
+  <header class="hdr">
+    <div class="logo">
+      <span class="mark">
+        <!-- Small rosette mark -->
+        <svg viewBox="0 0 120 160" fill="currentColor">
+          <path d="M48 78 L38 150 L52 140 L60 152 L68 140 L82 150 L72 78 Z" opacity="0.88"/>
+          <circle cx="60" cy="60" r="42" opacity="0.22"/>
+          <circle cx="60" cy="60" r="26"/>
+          <circle cx="60" cy="60" r="26" fill="none" stroke="#faf7f2" stroke-width="1.5" opacity="0.9"/>
+        </svg>
+      </span>
+      myK9Show
+    </div>
+    <nav class="nav">
+      <a href="#" class="active">Shows</a>
+      <a href="#">My entries</a>
+      <a href="#">Dogs</a>
+      <a href="#">Results</a>
+    </nav>
+    <div class="spacer"></div>
+    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px;">Host a show</button>
+    <div class="avatar">SM</div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="rosette-bg">
+      <svg viewBox="0 0 120 160" fill="currentColor">
+        <path d="M48 78 L38 150 L52 140 L60 152 L68 140 L82 150 L72 78 Z" opacity="0.95"/>
+        <path d="M38 150 L52 140 L46 132 Z" fill="currentColor" opacity="0.55"/>
+        <path d="M82 150 L68 140 L74 132 Z" fill="currentColor" opacity="0.55"/>
+        <g transform="translate(60 60)" fill="currentColor">
+          <circle r="42" opacity="0.3"/>
+          <g opacity="0.7">
+            <circle cx="0" cy="-40" r="5"/><circle cx="15.3" cy="-37" r="5"/>
+            <circle cx="28.3" cy="-28.3" r="5"/><circle cx="37" cy="-15.3" r="5"/>
+            <circle cx="40" cy="0" r="5"/><circle cx="37" cy="15.3" r="5"/>
+            <circle cx="28.3" cy="28.3" r="5"/><circle cx="15.3" cy="37" r="5"/>
+            <circle cx="0" cy="40" r="5"/><circle cx="-15.3" cy="37" r="5"/>
+            <circle cx="-28.3" cy="28.3" r="5"/><circle cx="-37" cy="15.3" r="5"/>
+            <circle cx="-40" cy="0" r="5"/><circle cx="-37" cy="-15.3" r="5"/>
+            <circle cx="-28.3" cy="-28.3" r="5"/><circle cx="-15.3" cy="-37" r="5"/>
+          </g>
+          <circle r="26"/>
+          <circle r="26" fill="none" stroke="#faf7f2" stroke-width="1.5"/>
+          <circle r="19" fill="none" stroke="#faf7f2" stroke-width="0.8" opacity="0.7"/>
+        </g>
+      </svg>
+    </div>
+    <div class="eyebrow-hero">Dog show management, end to end</div>
+    <h1 class="hero-t">Every ribbon, <em>remembered.</em></h1>
+    <p>Find shows near you, enter online, and follow your dog's day live — from premium list to final placements.</p>
+    <div class="cta">
+      <button class="btn btn-primary">Browse shows →</button>
+      <button class="btn btn-ghost">For clubs</button>
+    </div>
+  </section>
+
+  <!-- Search -->
+  <section class="section" style="padding-top:0;">
+    <div class="search">
+      <div class="where"><i data-lucide="search"></i><input placeholder="AKC conformation, obedience, rally…" value="conformation"/></div>
+      <div class="divider"></div>
+      <div class="where"><i data-lucide="map-pin"></i>New Jersey</div>
+      <div class="divider"></div>
+      <div class="where"><i data-lucide="calendar"></i>Apr — Jun</div>
+      <button class="enter-btn" style="padding:9px 18px;">Search</button>
+    </div>
+  </section>
+
+  <!-- Upcoming shows -->
+  <section class="section">
+    <h2>Shows near you</h2>
+    <div class="sub">19 shows within 60 miles · next 30 days</div>
+    <div class="filters">
+      <span class="chip on">All events</span>
+      <span class="chip">Conformation</span>
+      <span class="chip">Obedience</span>
+      <span class="chip">Rally</span>
+      <span class="chip">Agility</span>
+      <span class="chip">Scent work</span>
+      <span class="chip">Open entries</span>
+    </div>
+    <div class="grid">
+      <article class="show">
+        <div class="cover" style="--c1:#f9e5d5;--c2:#c96442;">
+          <div class="date"><div class="m">Apr</div><div class="d">19</div></div>
+          <div class="badge">Closes Fri</div>
+        </div>
+        <div class="body">
+          <h3>Bergen County Kennel Club</h3>
+          <div class="meta"><span><i data-lucide="map-pin"></i>Ramsey, NJ</span><span><i data-lucide="users"></i>2 of 3 days open</span></div>
+          <div class="foot"><div class="price">From <strong>$32</strong> / entry</div><button class="enter-btn">Enter →</button></div>
+        </div>
+      </article>
+      <article class="show">
+        <div class="cover" style="--c1:#e8d8c3;--c2:#8c5a3c;">
+          <div class="date"><div class="m">Apr</div><div class="d">26</div></div>
+          <div class="badge live">Premium live</div>
+        </div>
+        <div class="body">
+          <h3>Lehigh Valley KC — Spring Classic</h3>
+          <div class="meta"><span><i data-lucide="map-pin"></i>Allentown, PA</span><span><i data-lucide="users"></i>486 entries</span></div>
+          <div class="foot"><div class="price">From <strong>$30</strong> / entry</div><button class="enter-btn">Enter →</button></div>
+        </div>
+      </article>
+      <article class="show">
+        <div class="cover" style="--c1:#e0dcc8;--c2:#5b6b3f;">
+          <div class="date"><div class="m">May</div><div class="d">03</div></div>
+          <div class="badge">Obedience · Rally</div>
+        </div>
+        <div class="body">
+          <h3>Hudson Valley Obedience Club</h3>
+          <div class="meta"><span><i data-lucide="map-pin"></i>Poughkeepsie, NY</span><span><i data-lucide="users"></i>Early bird</span></div>
+          <div class="foot"><div class="price">From <strong>$28</strong> / entry</div><button class="enter-btn">Enter →</button></div>
+        </div>
+      </article>
+      <article class="show">
+        <div class="cover" style="--c1:#e6dfd0;--c2:#403a31;">
+          <div class="date"><div class="m">May</div><div class="d">10</div></div>
+          <div class="badge">All-breed</div>
+        </div>
+        <div class="body">
+          <h3>Greater Philadelphia Dog Fanciers</h3>
+          <div class="meta"><span><i data-lucide="map-pin"></i>Oaks, PA</span><span><i data-lucide="users"></i>1,200 entries</span></div>
+          <div class="foot"><div class="price">From <strong>$35</strong> / entry</div><button class="enter-btn">Enter →</button></div>
+        </div>
+      </article>
+      <article class="show">
+        <div class="cover" style="--c1:#f2c8a8;--c2:#b04835;">
+          <div class="date"><div class="m">May</div><div class="d">17</div></div>
+          <div class="badge">Specialty</div>
+        </div>
+        <div class="body">
+          <h3>Golden Retriever Club of Central NJ</h3>
+          <div class="meta"><span><i data-lucide="map-pin"></i>Flemington, NJ</span><span><i data-lucide="users"></i>Sweepstakes</span></div>
+          <div class="foot"><div class="price">From <strong>$40</strong> / entry</div><button class="enter-btn">Enter →</button></div>
+        </div>
+      </article>
+      <article class="show">
+        <div class="cover" style="--c1:#d9dcc4;--c2:#4e7c53;">
+          <div class="date"><div class="m">May</div><div class="d">24</div></div>
+          <div class="badge">Scent work</div>
+        </div>
+        <div class="body">
+          <h3>Cross-Creek Scent Work Trial</h3>
+          <div class="meta"><span><i data-lucide="map-pin"></i>Milford, NJ</span><span><i data-lucide="users"></i>Novice–Elite</span></div>
+          <div class="foot"><div class="price">From <strong>$25</strong> / entry</div><button class="enter-btn">Enter →</button></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="how">
+    <div class="how-inner">
+      <h2 style="font-family:var(--fraunces-display);font-variation-settings:var(--fraunces-settings-display);font-weight:450;font-size:36px;margin:0 0 4px;letter-spacing:-.015em;">How it works</h2>
+      <p class="sub" style="color:var(--muted-foreground);margin:0;">From browsing to a ribbon in your hand.</p>
+      <div class="steps">
+        <div class="step"><div class="n">01</div><h4>Browse</h4><p>Find shows by date, location, or class. Filter down to the events you actually want to enter.</p></div>
+        <div class="step"><div class="n">02</div><h4>Enter</h4><p>Register your dogs in minutes. Premium lists, armbands, and receipts — all in one flow.</p></div>
+        <div class="step"><div class="n">03</div><h4>Compete</h4><p>Live scoring, ring status, and next-up alerts direct to your phone the day of the show.</p></div>
+        <div class="step"><div class="n">04</div><h4>Track</h4><p>Titles, health records, and every placement — saved to your dog's profile forever.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>© 2026 myK9 Platform · <span style="font-family:var(--font-mono);">v2.4.0</span></div>
+    <nav class="fnav">
+      <a href="#">For exhibitors</a>
+      <a href="#">For clubs</a>
+      <a href="#">Premium lists</a>
+      <a href="#">Help</a>
+    </nav>
+  </footer>
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

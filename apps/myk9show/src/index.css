@@ -566,6 +566,9 @@ html:not([data-accent]) {
   --accent-700: #7c4a2e;
 }
 
+/* Dark variants only override color values that differ from light mode.
+   --primary-foreground (#fff), --primary-tint, and --primary-tint-ink
+   intentionally inherit from the light block above — they read well in dark. */
 html[data-accent="clay"].dark,
 html[data-accent="clay"].theme-dark,
 html:not([data-accent]).dark,

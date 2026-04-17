@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { importSettingsWithMigration } from '@/utils/settingsMigration';
+import { ACCENT_V1_TO_V2 } from '@/utils/accentMigrationMap';
 import { logger } from '@/utils/logger';
 
 export const SETTINGS_VERSION = '1.0.0';
@@ -157,16 +158,9 @@ export const useSettingsStore = create<SettingsState>()(
         onRehydrateStorage: () => state => {
           // Called after settings are loaded from localStorage
           if (state) {
-            // Silent migration: map v1 accent names → v2
-            const v1ToV2: Record<string, AppSettings['accentColor']> = {
-              green: 'grove',
-              blue: 'dusk',
-              purple: 'heather',
-              terracotta: 'clay',
-            };
             const raw = state.settings.accentColor as string;
-            if (v1ToV2[raw]) {
-              state.settings.accentColor = v1ToV2[raw];
+            if (ACCENT_V1_TO_V2[raw]) {
+              state.settings.accentColor = ACCENT_V1_TO_V2[raw];
             }
             applyAccentColor(state.settings.accentColor || 'clay');
             applyTheme(state.settings.theme || 'auto');
@@ -231,9 +225,10 @@ function setupSystemThemeListener() {
  */
 function applyAccentColor(color: 'clay' | 'grove' | 'dusk' | 'heather') {
   const root = document.documentElement;
-  root.setAttribute('data-accent', color);
+  if (root.getAttribute('data-accent') !== color) {
+    root.setAttribute('data-accent', color);
+  }
 
-  // Update meta theme-color to match accent (affects browser chrome and mobile status bar)
   const accentColors: Record<string, string> = {
     clay: '#c96442',
     grove: '#2f8a7f',
@@ -241,9 +236,8 @@ function applyAccentColor(color: 'clay' | 'grove' | 'dusk' | 'heather') {
     heather: '#7b5aa6',
   };
   const themeColor = accentColors[color] || '#c96442';
-  document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
-    meta.setAttribute('content', themeColor);
-  });
+  const meta = document.querySelector('meta[name="theme-color"]');
+  meta?.setAttribute('content', themeColor);
 }
 
 /**

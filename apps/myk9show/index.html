@@ -53,7 +53,8 @@
           var meta = document.querySelector('meta[name="theme-color"]');
           if (meta) meta.setAttribute('content', accentColors[accent] || '#c96442');
         } catch (e) {
-          document.documentElement.classList.add('theme-light', 'accent-green');
+          document.documentElement.classList.add('theme-light');
+          document.documentElement.setAttribute('data-accent', 'clay');
         }
       })();
     </script>

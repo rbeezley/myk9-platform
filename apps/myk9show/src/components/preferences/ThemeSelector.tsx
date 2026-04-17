@@ -51,42 +51,16 @@ const themeOptions: Array<{
   { value: 'system', label: 'System', icon: Monitor, description: 'Follow system preference' },
 ];
 
-// Color schemes matching settingsStore accent colors (v2 names)
 const colorSchemes: Array<{
   value: ColorScheme;
   label: string;
   color: string;
   description: string;
-  accentId: 'clay' | 'grove' | 'dusk' | 'heather';
 }> = [
-  {
-    value: 'clay',
-    label: 'Clay',
-    color: '#c96442',
-    description: 'Warm terracotta',
-    accentId: 'clay',
-  },
-  {
-    value: 'grove',
-    label: 'Grove',
-    color: '#2f8a7f',
-    description: 'Muted grass teal',
-    accentId: 'grove',
-  },
-  {
-    value: 'dusk',
-    label: 'Dusk',
-    color: '#3d6d8c',
-    description: 'Dusty slate blue',
-    accentId: 'dusk',
-  },
-  {
-    value: 'heather',
-    label: 'Heather',
-    color: '#7b5aa6',
-    description: 'Aubergine purple',
-    accentId: 'heather',
-  },
+  { value: 'clay',    label: 'Clay',    color: '#c96442', description: 'Warm terracotta' },
+  { value: 'grove',   label: 'Grove',   color: '#2f8a7f', description: 'Muted grass teal' },
+  { value: 'dusk',    label: 'Dusk',    color: '#3d6d8c', description: 'Dusty slate blue' },
+  { value: 'heather', label: 'Heather', color: '#7b5aa6', description: 'Aubergine purple' },
 ];
 
 const densityOptions: Array<{ value: LayoutDensity; label: string; description: string }> = [
@@ -124,11 +98,7 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
   const handleColorSchemeChange = (colorScheme: ColorScheme) => {
     onUpdate({ colorScheme });
 
-    // Update settingsStore which sets the data-accent attribute
-    const scheme = colorSchemes.find(s => s.value === colorScheme);
-    if (scheme) {
-      updateSettings({ accentColor: scheme.accentId });
-    }
+    updateSettings({ accentColor: colorScheme });
   };
 
   /**
@@ -229,8 +199,7 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {colorSchemes.map(scheme => {
-              // Use settingsStore accent color as source of truth
-              const isSelected = settings.accentColor === scheme.accentId;
+              const isSelected = settings.accentColor === scheme.value;
               return (
                 <Button
                   key={scheme.value}

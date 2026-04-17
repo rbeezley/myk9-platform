@@ -5,6 +5,9 @@
  */
 
 import type { AppSettings } from '@/stores/settingsStore';
+import { ACCENT_V1_TO_V2 } from '@/utils/accentMigrationMap';
+
+export { ACCENT_V1_TO_V2 };
 
 export interface MigrationResult {
   success: boolean;
@@ -41,15 +44,8 @@ export function importSettingsWithMigration(
       mergedSettings.theme = defaults.theme;
     }
 
-    // Migrate v1 accent names to v2
-    const v1ToV2: Record<string, AppSettings['accentColor']> = {
-      green: 'grove',
-      blue: 'dusk',
-      purple: 'heather',
-      terracotta: 'clay',
-    };
-    if (v1ToV2[mergedSettings.accentColor]) {
-      mergedSettings.accentColor = v1ToV2[mergedSettings.accentColor];
+    if (ACCENT_V1_TO_V2[mergedSettings.accentColor]) {
+      mergedSettings.accentColor = ACCENT_V1_TO_V2[mergedSettings.accentColor];
     }
     if (!['clay', 'grove', 'dusk', 'heather'].includes(mergedSettings.accentColor)) {
       mergedSettings.accentColor = defaults.accentColor;

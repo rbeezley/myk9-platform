@@ -98,7 +98,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                         isCollapsed ? 'justify-center p-3' : 'px-3 py-2.5',
                         active
                           ? 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary'
-                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                          : 'text-[#a09f98] hover:bg-muted/50 hover:text-foreground'
                       )}
                     >
                       <div className="relative flex-shrink-0">
@@ -108,7 +108,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                             isCollapsed ? 'h-5 w-5' : 'h-4 w-4',
                             active
                               ? 'text-primary'
-                              : 'text-muted-foreground group-hover:text-foreground'
+                              : 'text-[#a09f98] group-hover:text-foreground'
                           )}
                         />
                         {isCollapsed && dynamicBadgeCount > 0 && (

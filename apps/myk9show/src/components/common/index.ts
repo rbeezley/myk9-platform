@@ -22,15 +22,6 @@ export {
   FormPageLayout,
 } from '../layouts/StandardPageLayout';
 
-// Navigation Components
-export {
-  PremiumTabBar,
-  usePremiumTabs,
-  createDashboardTabs,
-  createEntityTabs,
-  createShowTabs,
-} from './PremiumTabBar';
-
 // Card Components
 export { PremiumCard, FeatureCard, StatsCard, ShowCard } from './PremiumCard';
 
@@ -81,8 +72,6 @@ export type {
   BreadcrumbItem,
   PageAction,
 } from '../layouts/StandardPageLayout';
-
-export type { PremiumTabBarProps, TabItem } from './PremiumTabBar';
 
 export type {
   PremiumCardProps,

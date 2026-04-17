@@ -27,7 +27,7 @@ import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { RunOrderDialog } from '../RunOrderDialog';
 import { useRunOrderPreset } from './useRunOrderPreset';
-import { SubTabs, type SubTabDef } from '@/components/common/SubTabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, ScoringRow, ScoringEdit } from './types';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
@@ -140,7 +140,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     return { pending: rows.length - completed, completed };
   }, [rows, scoredEntryIds]);
 
-  const scoringTabs: SubTabDef[] = useMemo(
+  const scoringTabs: PrimaryTabDef[] = useMemo(
     () => [
       { id: 'pending', label: 'Pending', badge: tabCounts.pending },
       { id: 'completed', label: 'Completed', badge: tabCounts.completed },
@@ -496,7 +496,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             </div>
           </div>
 
-          <SubTabs
+          <PrimaryTabs
             tabs={scoringTabs}
             value={scoringTab}
             onValueChange={v => setScoringTab(v as ScoringStatusTab)}

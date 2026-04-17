@@ -19,7 +19,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
-import { SubTabs, SubTabsContent, type SubTabDef } from '@/components/common/SubTabs';
+import {
+  PrimaryTabs,
+  PrimaryTabsContent,
+  type PrimaryTabDef,
+} from '@/components/common/PrimaryTabs';
 import { PodiumCard } from './PodiumCard';
 import {
   useShowResults,
@@ -234,7 +238,7 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
   const hasScoredEntries = (showEntries || []).some(e => e.resultText !== 'pending');
   const hasJudges = (judges || []).length > 0;
 
-  const subTabDefs: SubTabDef[] = useMemo(
+  const subTabDefs: PrimaryTabDef[] = useMemo(
     () => [
       { id: 'podium', label: 'Podium', icon: Medal },
       ...(hasScoredEntries ? [{ id: 'show-stats', label: 'Show Stats', icon: BarChart3 }] : []),
@@ -246,22 +250,22 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
   const [activeSubTab, setActiveSubTab] = useState('podium');
 
   return (
-    <SubTabs tabs={subTabDefs} value={activeSubTab} onValueChange={setActiveSubTab}>
-      <SubTabsContent value="podium">
+    <PrimaryTabs tabs={subTabDefs} value={activeSubTab} onValueChange={setActiveSubTab}>
+      <PrimaryTabsContent value="podium">
         <PodiumContent showId={showId} />
-      </SubTabsContent>
+      </PrimaryTabsContent>
 
       {hasScoredEntries && (
-        <SubTabsContent value="show-stats">
+        <PrimaryTabsContent value="show-stats">
           <ShowStatsSubTab showId={showId} />
-        </SubTabsContent>
+        </PrimaryTabsContent>
       )}
 
       {hasJudges && (
-        <SubTabsContent value="judge-stats">
+        <PrimaryTabsContent value="judge-stats">
           <JudgeStatsSubTab showId={showId} />
-        </SubTabsContent>
+        </PrimaryTabsContent>
       )}
-    </SubTabs>
+    </PrimaryTabs>
   );
 }

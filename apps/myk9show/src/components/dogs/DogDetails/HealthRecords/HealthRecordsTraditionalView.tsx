@@ -4,8 +4,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { SubTabs, SubTabsContent } from '@/components/common/SubTabs';
-import type { SubTabDef } from '@/components/common/SubTabs';
+import { PrimaryTabs, PrimaryTabsContent } from '@/components/common/PrimaryTabs';
+import type { PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { Plus } from 'lucide-react';
 import type {
   VaccinationRecord,
@@ -45,7 +45,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('vetVisits');
 
-  const tabs: SubTabDef[] = useMemo(
+  const tabs: PrimaryTabDef[] = useMemo(
     () => [
       { id: 'vetVisits', label: 'Vet Visits' },
       { id: 'vaccinations', label: 'Vaccinations', badge: vaccinationAlerts.length },
@@ -58,8 +58,8 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
   );
 
   return (
-    <SubTabs tabs={tabs} value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <SubTabsContent value="vetVisits" className="space-y-4">
+    <PrimaryTabs tabs={tabs} value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <PrimaryTabsContent value="vetVisits" className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Vet Visits</h3>
           <Button size="sm" onClick={() => onAddItem('vet_visit')}>
@@ -91,9 +91,9 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             </div>
           ))}
         </div>
-      </SubTabsContent>
+      </PrimaryTabsContent>
 
-      <SubTabsContent value="vaccinations" className="space-y-4">
+      <PrimaryTabsContent value="vaccinations" className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Vaccinations</h3>
           <Button size="sm" onClick={() => onAddItem('vaccination')}>
@@ -139,9 +139,9 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             );
           })}
         </div>
-      </SubTabsContent>
+      </PrimaryTabsContent>
 
-      <SubTabsContent value="medications" className="space-y-4">
+      <PrimaryTabsContent value="medications" className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Medications</h3>
           <Button size="sm" onClick={() => onAddItem('medication')}>
@@ -174,9 +174,9 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             </div>
           ))}
         </div>
-      </SubTabsContent>
+      </PrimaryTabsContent>
 
-      <SubTabsContent value="allergies" className="space-y-4">
+      <PrimaryTabsContent value="allergies" className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Allergies</h3>
           <Button size="sm" onClick={() => onAddItem('allergy')}>
@@ -216,9 +216,9 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             </div>
           ))}
         </div>
-      </SubTabsContent>
+      </PrimaryTabsContent>
 
-      <SubTabsContent value="ofaScreenings" className="space-y-4">
+      <PrimaryTabsContent value="ofaScreenings" className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">OFA / Health Screenings</h3>
           <Button size="sm" onClick={() => onAddItem('ofa_screening')}>
@@ -260,9 +260,9 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             </div>
           ))}
         </div>
-      </SubTabsContent>
+      </PrimaryTabsContent>
 
-      <SubTabsContent value="geneticScreenings" className="space-y-4">
+      <PrimaryTabsContent value="geneticScreenings" className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Genetic Tests</h3>
           <Button size="sm" onClick={() => onAddItem('genetic_screening')}>
@@ -307,7 +307,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
             </div>
           ))}
         </div>
-      </SubTabsContent>
-    </SubTabs>
+      </PrimaryTabsContent>
+    </PrimaryTabs>
   );
 };

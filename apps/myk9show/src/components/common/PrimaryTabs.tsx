@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -7,18 +8,39 @@ export interface PrimaryTabDef {
   id: string;
   label: string;
   icon?: LucideIcon;
+  /** Neutral count badge shown after the label. */
   count?: number;
+  /** Alert-style numeric badge (amber circle) — for unread/attention counts. */
+  badge?: number;
 }
 
 interface PrimaryTabsProps {
   tabs: PrimaryTabDef[];
   value: string;
   onValueChange: (value: string) => void;
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  /** When this key changes, the active tab resets to the first tab. */
+  resetKey?: string;
   className?: string;
 }
 
-export function PrimaryTabs({ tabs, value, onValueChange, children, className }: PrimaryTabsProps) {
+export function PrimaryTabs({
+  tabs,
+  value,
+  onValueChange,
+  children,
+  resetKey,
+  className,
+}: PrimaryTabsProps) {
+  const prevResetKey = useRef(resetKey);
+
+  useEffect(() => {
+    if (prevResetKey.current !== resetKey && tabs.length > 0) {
+      onValueChange(tabs[0].id);
+    }
+    prevResetKey.current = resetKey;
+  }, [resetKey, tabs, onValueChange]);
+
   // Only spread className when defined to satisfy exactOptionalPropertyTypes
   const classNameProps = className !== undefined ? { className } : {};
 
@@ -52,6 +74,11 @@ export function PrimaryTabs({ tabs, value, onValueChange, children, className }:
                   {tab.count}
                 </Badge>
               )}
+              {tab.badge != null && tab.badge > 0 && (
+                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                  {tab.badge}
+                </span>
+              )}
             </TabsTrigger>
           );
         })}
@@ -62,4 +89,4 @@ export function PrimaryTabs({ tabs, value, onValueChange, children, className }:
 }
 
 // Re-export TabsContent for convenience
-export { TabsContent } from '@/components/ui/tabs';
+export { TabsContent, TabsContent as PrimaryTabsContent } from '@/components/ui/tabs';

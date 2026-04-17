@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase as supabaseClient } from '@/services/database/supabaseClient';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type {
   SecretaryTask,
   CreateTaskInput,
@@ -55,8 +56,11 @@ export function useSecretaryTasks(showIdFilter?: string) {
 
 export function useCreateTask() {
   const qc = useQueryClient();
+  const { userWithRoles } = useAuthContext();
+  const personId = userWithRoles?.databaseUserId;
   return useMutation({
     mutationFn: async (input: CreateTaskInput) => {
+      if (!personId) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('secretary_tasks')
         .insert({
@@ -66,6 +70,7 @@ export function useCreateTask() {
           priority: input.priority ?? null,
           due_date: input.dueDate ?? null,
           assignee_id: input.assigneeId ?? null,
+          created_by: personId,
         })
         .select()
         .single();

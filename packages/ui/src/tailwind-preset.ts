@@ -46,6 +46,12 @@ export const myk9Preset: Partial<Config> = {
           DEFAULT: 'var(--destructive)',
           foreground: 'var(--destructive-foreground)',
         },
+        // Semantic status tokens — consumed by <Button variant="success|warning">
+        // and direct utility classes. CSS vars must be space-separated RGB components
+        // (e.g. --success-green: 52 199 89) so Tailwind can compose alpha variants.
+        'success-green': 'rgb(var(--success-green) / <alpha-value>)',
+        'warning-orange': 'rgb(var(--warning-orange) / <alpha-value>)',
+        'error-red': 'rgb(var(--error-red) / <alpha-value>)',
         border: 'var(--border)',
         input: 'var(--input)',
         ring: 'var(--ring)',

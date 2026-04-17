@@ -67,7 +67,7 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
         {clubId && (
           <button
             onClick={() => setShowAddForm(true)}
-            className="ml-auto rounded bg-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-600"
+            className="ml-auto rounded border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted"
           >
             + Add Task
           </button>
@@ -92,9 +92,9 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
 
       <div className="flex flex-col gap-2">
         {isLoading ? (
-          <p className="py-6 text-center text-sm text-slate-500">Loading…</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
         ) : visible.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">
+          <p className="py-6 text-center text-sm text-muted-foreground">
             {filter === 'all' ? 'No open tasks.' : 'No tasks for this show.'}
           </p>
         ) : (
@@ -122,7 +122,7 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
       {hasCompletedTasks && (
         <button
           onClick={() => setShowCompleted(v => !v)}
-          className="mt-3 text-xs text-slate-500 hover:text-slate-300"
+          className="mt-3 text-xs text-muted-foreground hover:text-foreground"
         >
           {showCompleted ? 'Hide completed' : 'Show completed'}
         </button>

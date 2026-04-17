@@ -2,7 +2,11 @@ import animate from 'tailwindcss-animate';
 
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    '../../packages/ui/src/**/*.{js,ts,jsx,tsx}',
+  ],
   darkMode: 'class',
   theme: {
     extend: {
@@ -63,6 +67,9 @@ export default {
           DEFAULT: 'var(--destructive)',
           foreground: 'var(--destructive-foreground)',
         },
+        'success-green': 'rgb(var(--success-green) / <alpha-value>)',
+        'warning-orange': 'rgb(var(--warning-orange) / <alpha-value>)',
+        'error-red': 'rgb(var(--error-red) / <alpha-value>)',
         border: 'var(--border)',
         input: 'var(--input)',
         ring: 'var(--ring)',

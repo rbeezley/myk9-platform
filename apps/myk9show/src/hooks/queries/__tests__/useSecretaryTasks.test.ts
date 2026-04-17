@@ -19,6 +19,14 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError: vi.fn((msg: string) => new Error(msg)),
 }));
 
+const authState = vi.hoisted(() => ({
+  userWithRoles: { databaseUserId: 'person-1' } as { databaseUserId: string | undefined } | null,
+}));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ userWithRoles: authState.userWithRoles }),
+}));
+
 const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -84,13 +92,16 @@ describe('useSecretaryTasks', () => {
 });
 
 describe('useCreateTask', () => {
-  it('inserts a task and invalidates the query', async () => {
+  beforeEach(() => {
+    authState.userWithRoles = { databaseUserId: 'person-1' };
+  });
+
+  it('inserts a task with created_by and invalidates the query', async () => {
     const singleMock = vi.fn().mockResolvedValue({ data: mockTask, error: null });
-    mockFrom.mockReturnValue({
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({ single: singleMock }),
-      }),
+    const insertMock = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({ single: singleMock }),
     });
+    mockFrom.mockReturnValue({ insert: insertMock });
 
     const { result } = renderHook(() => useCreateTask(), { wrapper });
     await result.current.mutateAsync({
@@ -100,5 +111,25 @@ describe('useCreateTask', () => {
     });
 
     expect(singleMock).toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        club_id: 'club-1',
+        show_id: 'show-1',
+        title: 'New task',
+        created_by: 'person-1',
+      })
+    );
+  });
+
+  it('throws "Not authenticated" when no databaseUserId is present', async () => {
+    authState.userWithRoles = null;
+    const insertMock = vi.fn();
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    const { result } = renderHook(() => useCreateTask(), { wrapper });
+    await expect(
+      result.current.mutateAsync({ clubId: 'club-1', showId: 'show-1', title: 'x' })
+    ).rejects.toThrow('Not authenticated');
+    expect(insertMock).not.toHaveBeenCalled();
   });
 });

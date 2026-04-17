@@ -44,6 +44,10 @@ export const buttonVariants = cva(
         default: 'bg-primary text-primary-foreground hover:opacity-90',
         // Destructive action
         destructive: 'bg-destructive text-destructive-foreground hover:opacity-90',
+        // Success (accept/approve actions) — uses success-green token from tailwind-preset
+        success: 'bg-success-green text-white hover:bg-success-green/90',
+        // Warning (waitlist/caution actions) — uses warning-orange token from tailwind-preset
+        warning: 'bg-warning-orange text-white hover:bg-warning-orange/90',
         // Outline button - matches myK9Q dialog-button-secondary
         outline: 'border border-border bg-secondary text-secondary-foreground hover:bg-muted',
         // Secondary button - muted background

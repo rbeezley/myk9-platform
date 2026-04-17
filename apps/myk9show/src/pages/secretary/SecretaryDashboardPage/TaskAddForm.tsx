@@ -25,7 +25,7 @@ export function TaskAddForm({ shows, clubId, onAdd, onCancel }: TaskAddFormProps
   }
 
   return (
-    <div className="flex gap-2 rounded-lg border border-slate-600 bg-slate-800 p-2">
+    <div className="flex gap-2 rounded-lg border border-border bg-card p-2">
       <input
         autoFocus
         value={title}
@@ -35,12 +35,12 @@ export function TaskAddForm({ shows, clubId, onAdd, onCancel }: TaskAddFormProps
           if (e.key === 'Escape') onCancel();
         }}
         placeholder="Task title…"
-        className="flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
       />
       <select
         value={showId}
         onChange={e => setShowId(e.target.value)}
-        className="rounded bg-slate-700 px-2 py-1 text-xs text-slate-200"
+        className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
       >
         <option value="general">General</option>
         {shows.map(s => (
@@ -51,11 +51,11 @@ export function TaskAddForm({ shows, clubId, onAdd, onCancel }: TaskAddFormProps
       </select>
       <button
         onClick={submit}
-        className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-500"
+        className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
       >
         Add
       </button>
-      <button onClick={onCancel} className="text-xs text-slate-400 hover:text-slate-200">
+      <button onClick={onCancel} className="text-xs text-muted-foreground hover:text-foreground">
         Cancel
       </button>
     </div>

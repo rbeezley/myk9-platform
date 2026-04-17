@@ -25,17 +25,16 @@ interface DecisionButtonsProps {
   entryId: string;
   onDecide: (entryId: string, decision: Decision) => void;
   onAfter?: () => void;
-  size?: 'sm' | 'default';
 }
 
-function DecisionButtons({ entryId, onDecide, onAfter, size = 'sm' }: DecisionButtonsProps) {
+function DecisionButtons({ entryId, onDecide, onAfter }: DecisionButtonsProps) {
   return (
     <div className="flex gap-1.5">
       {DECISIONS.map(({ value, label, variant }) => (
         <Button
           key={value}
           variant={variant}
-          size={size}
+          size="sm"
           onClick={() => {
             onDecide(entryId, value);
             onAfter?.();

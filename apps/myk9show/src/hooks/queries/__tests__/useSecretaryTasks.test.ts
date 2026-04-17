@@ -19,8 +19,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError: vi.fn((msg: string) => new Error(msg)),
 }));
 
+const authState = vi.hoisted(() => ({
+  userWithRoles: { databaseUserId: 'person-1' } as { databaseUserId: string | undefined } | null,
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ userWithRoles: { databaseUserId: 'person-1' } }),
+  useAuthContext: () => ({ userWithRoles: authState.userWithRoles }),
 }));
 
 const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
@@ -88,6 +92,10 @@ describe('useSecretaryTasks', () => {
 });
 
 describe('useCreateTask', () => {
+  beforeEach(() => {
+    authState.userWithRoles = { databaseUserId: 'person-1' };
+  });
+
   it('inserts a task with created_by and invalidates the query', async () => {
     const singleMock = vi.fn().mockResolvedValue({ data: mockTask, error: null });
     const insertMock = vi.fn().mockReturnValue({
@@ -111,5 +119,17 @@ describe('useCreateTask', () => {
         created_by: 'person-1',
       })
     );
+  });
+
+  it('throws "Not authenticated" when no databaseUserId is present', async () => {
+    authState.userWithRoles = null;
+    const insertMock = vi.fn();
+    mockFrom.mockReturnValue({ insert: insertMock });
+
+    const { result } = renderHook(() => useCreateTask(), { wrapper });
+    await expect(
+      result.current.mutateAsync({ clubId: 'club-1', showId: 'show-1', title: 'x' })
+    ).rejects.toThrow('Not authenticated');
+    expect(insertMock).not.toHaveBeenCalled();
   });
 });

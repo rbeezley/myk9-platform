@@ -5,27 +5,25 @@
  * pipeline progress across 5 columns.
  */
 
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DndContext, DragOverlay, pointerWithin, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, DragOverlay, pointerWithin } from '@dnd-kit/core';
 import { Plus, Settings, Copy } from 'lucide-react';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { Button } from '@/components/ui/button';
-import { notifications } from '@/lib/notifications';
-import { useUpdateClassMutation } from '@/hooks/queries/useClassesDatabase';
 import { useMissionControlData } from '../hooks/useMissionControlData';
+import { useClassPipelineDragEnd } from '../hooks/useClassPipelineDragEnd';
+import { ClassPipelineCard } from './ClassPipelineCard';
+import { usePipelinePrint } from '../print/usePipelinePrint';
 import { ClassPipelineColumn } from './ClassPipelineColumn';
 import { ShowContextRow } from './ShowContextRow';
 import { TrialContextRow } from './TrialContextRow';
 import { CLASS_PIPELINE_STAGES } from '../mission-control-types';
-import type { ClassPipelineStage } from '../mission-control-types';
-import { stageToDefaultStatus } from '../utils/classStageMapping';
 import { AnnouncementsCard } from './AnnouncementsCard';
 import { useQuickActionStats } from '../hooks/useQuickActionStats';
 import { QuickActionsSection } from './QuickActionsSection';
 import { ShowSettingsPanel } from './ShowSettingsPanel';
-import type { DbClassUpdate } from '@/types/database-mappings';
 import { parseLocalDateString } from '@myk9/core';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
@@ -88,53 +86,12 @@ export const PipelineDashboard: React.FC = () => {
     return { text: 'Show complete', isShowDay: false };
   }, [selectedShow]);
 
-  const updateClass = useUpdateClassMutation();
-
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over) return;
-
-      // Get the target column stage from the droppable
-      const overData = over.data.current as { stage?: ClassPipelineStage } | undefined;
-      const targetStage = overData?.stage;
-      if (!targetStage) return;
-
-      // Get the dragged item
-      const activeData = active.data.current as
-        | {
-            type?: string;
-            item?: { id: string; stage: ClassPipelineStage; name: string };
-          }
-        | undefined;
-      const draggedItem = activeData?.item;
-      if (!draggedItem || draggedItem.stage === targetStage) return;
-
-      // Map target stage to DB status
-      const { status, is_scoring_finalized } = stageToDefaultStatus(targetStage);
-      const updates: DbClassUpdate = { status };
-      if (is_scoring_finalized !== undefined) {
-        updates.is_scoring_finalized = is_scoring_finalized;
-        // Reset review flag when moving to results
-        if (!is_scoring_finalized) {
-          updates.is_results_reviewed = false;
-        }
-      }
-
-      updateClass.mutate(
-        { id: draggedItem.id, updates },
-        {
-          onSuccess: () =>
-            notifications.success(`${draggedItem.name} moved to ${targetStage.replace(/-/g, ' ')}`),
-          onError: () => notifications.error(`Failed to move ${draggedItem.name}`),
-        }
-      );
-    },
-    [updateClass]
-  );
+  const { activeItem, handleDragStart, handleDragEnd, handleDragCancel } =
+    useClassPipelineDragEnd(pipelineClasses);
+  const overlayPrint = usePipelinePrint(selectedShow?.id ?? '', selectedTrial?.id ?? '');
 
   if (isLoading) {
     return <DelightfulLoading message="Loading mission control..." />;
@@ -241,7 +198,12 @@ export const PipelineDashboard: React.FC = () => {
               </span>
             )}
           </h2>
-          <DndContext collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+          <DndContext
+            collisionDetection={pointerWithin}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
             <div className="overflow-x-auto">
               <div className="flex gap-3 pb-4">
                 {CLASS_PIPELINE_STAGES.map(stage => (
@@ -256,7 +218,18 @@ export const PipelineDashboard: React.FC = () => {
                 ))}
               </div>
             </div>
-            <DragOverlay dropAnimation={null} />
+            <DragOverlay dropAnimation={null}>
+              {activeItem ? (
+                <div className="cursor-grabbing">
+                  <ClassPipelineCard
+                    item={activeItem}
+                    showId={showId}
+                    trialId={trialId}
+                    print={overlayPrint}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </div>
       )}

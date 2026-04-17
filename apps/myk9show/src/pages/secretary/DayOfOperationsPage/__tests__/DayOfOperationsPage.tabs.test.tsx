@@ -21,7 +21,7 @@ vi.mock('../../CheckInReportPage', () => ({ default: () => <div>Check-In Content
 describe('DayOfOperationsPage tab consolidation', () => {
   it('renders all four tabs', () => {
     render(<DayOfOperationsPage />, { initialRoute: '/secretary/day-of' });
-    expect(screen.getByRole('tab', { name: /day-of entries/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /day of show entries/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /check-in/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /move-ups/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /scratches/i })).toBeInTheDocument();

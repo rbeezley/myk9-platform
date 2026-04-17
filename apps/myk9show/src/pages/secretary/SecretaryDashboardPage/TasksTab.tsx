@@ -103,11 +103,18 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
               key={task.id}
               task={task}
               showName={task.showId ? (showNameMap[task.showId] ?? task.showId) : 'General'}
+              shows={shows}
               onToggleDone={id =>
                 updateTask.mutate({
                   id,
                   update: { status: task.status === 'done' ? 'todo' : 'done' },
                 })
+              }
+              onUpdate={(id, update) =>
+                updateTask.mutate(
+                  { id, update },
+                  { onError: () => toast.error('Failed to update task.') }
+                )
               }
               onDelete={id =>
                 deleteTask.mutate(id, {

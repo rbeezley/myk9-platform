@@ -17,6 +17,7 @@ export function trialClassToReplicated(tc: SyncableTrialClass, trialId: string):
     classStatus: tc.status,
     isScoringFinalized: tc.isScoringFinalized,
     isResultsReviewed: tc.isResultsReviewed,
+    displayOrder: tc.displayOrder,
     _version: tc._version,
     _lastModified: tc._lastModified,
     _lastModifiedBy: tc._lastModifiedBy,
@@ -39,6 +40,7 @@ export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTri
     entries: 0, // Computed field (derived from entry data, not stored on class)
     isScoringFinalized: replicated.isScoringFinalized ?? false,
     isResultsReviewed: replicated.isResultsReviewed ?? false,
+    displayOrder: replicated.displayOrder,
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),
     _lastModifiedBy: replicated._lastModifiedBy || '',

@@ -175,7 +175,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
         'transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
         isClosed && 'opacity-60',
-        isDragging && 'shadow-lg scale-105 opacity-90 ring-2 ring-primary/30 z-50'
+        isDragging && 'opacity-40'
       )}
     >
       {/* Drag handle */}

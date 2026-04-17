@@ -1,10 +1,19 @@
+import { useState } from 'react';
 import { format, isPast, isToday } from 'date-fns';
-import type { SecretaryTask } from './types';
+import { Pencil, X } from 'lucide-react';
+import type { SecretaryTask, UpdateTaskInput } from './types';
+
+interface Show {
+  id: string;
+  name: string;
+}
 
 interface TaskRowProps {
   task: SecretaryTask;
   showName: string;
+  shows: Show[];
   onToggleDone: (id: string) => void;
+  onUpdate: (id: string, update: UpdateTaskInput) => void;
   onDelete: (id: string) => void;
 }
 
@@ -18,8 +27,79 @@ function borderColor(task: SecretaryTask): string {
   return 'border-l-border';
 }
 
-export function TaskRow({ task, showName, onToggleDone, onDelete }: TaskRowProps) {
+export function TaskRow({ task, showName, shows, onToggleDone, onUpdate, onDelete }: TaskRowProps) {
   const isDone = task.status === 'done';
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editDueDate, setEditDueDate] = useState(task.dueDate ?? '');
+  const [editShowId, setEditShowId] = useState<string>(task.showId ?? 'general');
+
+  function openEdit() {
+    setEditTitle(task.title);
+    setEditDueDate(task.dueDate ?? '');
+    setEditShowId(task.showId ?? 'general');
+    setEditing(true);
+  }
+
+  function save() {
+    const trimmed = editTitle.trim();
+    if (!trimmed) return;
+    onUpdate(task.id, {
+      title: trimmed,
+      dueDate: editDueDate || null,
+      showId: editShowId === 'general' ? null : editShowId,
+    });
+    setEditing(false);
+  }
+
+  function cancel() {
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary bg-card px-3 py-2.5">
+        <input
+          autoFocus
+          value={editTitle}
+          onChange={e => setEditTitle(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') save();
+            if (e.key === 'Escape') cancel();
+          }}
+          className="flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+        />
+        <input
+          type="date"
+          value={editDueDate}
+          onChange={e => setEditDueDate(e.target.value)}
+          className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+        />
+        <select
+          value={editShowId}
+          onChange={e => setEditShowId(e.target.value)}
+          className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+        >
+          <option value="general">General</option>
+          {shows.map(s => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={save}
+          className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
+        >
+          Save
+        </button>
+        <button onClick={cancel} className="text-xs text-muted-foreground hover:text-foreground">
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`flex items-center gap-3 rounded-lg border border-border border-l-4 bg-card px-3 py-2.5 ${borderColor(task)}`}
@@ -45,11 +125,18 @@ export function TaskRow({ task, showName, onToggleDone, onDelete }: TaskRowProps
         {showName}
       </span>
       <button
+        onClick={openEdit}
+        className="text-muted-foreground hover:text-foreground"
+        aria-label={`Edit "${task.title}"`}
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+      <button
         onClick={() => onDelete(task.id)}
         className="text-muted-foreground hover:text-foreground"
         aria-label={`Delete "${task.title}"`}
       >
-        ×
+        <X className="h-4 w-4" />
       </button>
     </div>
   );

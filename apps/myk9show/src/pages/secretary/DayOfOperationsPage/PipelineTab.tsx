@@ -6,22 +6,18 @@
  * without the standalone show-selector or dashboard header.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { DndContext, DragOverlay, pointerWithin, type DragEndEvent } from '@dnd-kit/core';
+import React, { useState, useMemo } from 'react';
+import { DndContext, DragOverlay, pointerWithin } from '@dnd-kit/core';
 import { useTrialStore } from '@/store/trialStore';
-import { useUpdateClassMutation } from '@/hooks/queries/useClassesDatabase';
-import { notifications } from '@/lib/notifications';
 import { ClassPipelineColumn } from '@/features/pipeline/components/ClassPipelineColumn';
+import { ClassPipelineCard } from '@/features/pipeline/components/ClassPipelineCard';
 import { TrialContextRow } from '@/features/pipeline/components/TrialContextRow';
+import { usePipelinePrint } from '@/features/pipeline/print/usePipelinePrint';
 import { CLASS_PIPELINE_STAGES } from '@/features/pipeline/mission-control-types';
-import type {
-  ClassPipelineItem,
-  ClassPipelineStage,
-  ContextStats,
-} from '@/features/pipeline/mission-control-types';
+import type { ClassPipelineItem, ContextStats } from '@/features/pipeline/mission-control-types';
 import { mapClassToStage, groupClassesByStage } from '@/features/pipeline/utils/classStageMapping';
-import { stageToDefaultStatus } from '@/features/pipeline/utils/classStageMapping';
-import type { DbClassUpdate } from '@/types/database-mappings';
+import { sortByDisplayOrder } from '@/features/pipeline/utils/pipelineReorder';
+import { useClassPipelineDragEnd } from '@/features/pipeline/hooks/useClassPipelineDragEnd';
 
 interface PipelineTabProps {
   showId: string;
@@ -45,7 +41,7 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({ showId }) => {
     const localClasses = trialId ? (allTrialClasses[trialId] ?? []) : [];
     if (!localClasses.length) return [];
 
-    return localClasses.map(cls => {
+    return sortByDisplayOrder(localClasses).map(cls => {
       const name =
         [cls.element, cls.level, cls.section].filter(Boolean).join(' ') || 'Unnamed Class';
       const isScoringFinalized = cls.isScoringFinalized ?? false;
@@ -63,6 +59,7 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({ showId }) => {
         is_results_reviewed: isResultsReviewed,
         start_time: cls.startTime || null,
         planned_start_time: null,
+        display_order: cls.displayOrder ?? null,
       };
     });
   }, [selectedTrial, allTrialClasses]);
@@ -84,45 +81,10 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({ showId }) => {
     };
   }, [pipelineClasses]);
 
-  const updateClass = useUpdateClassMutation();
-
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over) return;
-
-      const overData = over.data.current as { stage?: ClassPipelineStage } | undefined;
-      const targetStage = overData?.stage;
-      if (!targetStage) return;
-
-      const activeData = active.data.current as
-        | { type?: string; item?: { id: string; stage: ClassPipelineStage; name: string } }
-        | undefined;
-      const draggedItem = activeData?.item;
-      if (!draggedItem || draggedItem.stage === targetStage) return;
-
-      const { status, is_scoring_finalized } = stageToDefaultStatus(targetStage);
-      const updates: DbClassUpdate = { status };
-      if (is_scoring_finalized !== undefined) {
-        updates.is_scoring_finalized = is_scoring_finalized;
-        if (!is_scoring_finalized) {
-          updates.is_results_reviewed = false;
-        }
-      }
-
-      updateClass.mutate(
-        { id: draggedItem.id, updates },
-        {
-          onSuccess: () =>
-            notifications.success(`${draggedItem.name} moved to ${targetStage.replace(/-/g, ' ')}`),
-          onError: () => notifications.error(`Failed to move ${draggedItem.name}`),
-        }
-      );
-    },
-    [updateClass]
-  );
-
+  const { activeItem, handleDragStart, handleDragEnd, handleDragCancel } =
+    useClassPipelineDragEnd(pipelineClasses);
   const trialId = selectedTrial?.id ?? '';
+  const overlayPrint = usePipelinePrint(showId, trialId);
 
   if (trials.length === 0) {
     return (
@@ -147,7 +109,12 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({ showId }) => {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Class Pipeline
           </h2>
-          <DndContext collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+          <DndContext
+            collisionDetection={pointerWithin}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
             <div className="overflow-x-auto">
               <div className="flex gap-3 pb-4">
                 {CLASS_PIPELINE_STAGES.map(stage => (
@@ -162,7 +129,18 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({ showId }) => {
                 ))}
               </div>
             </div>
-            <DragOverlay dropAnimation={null} />
+            <DragOverlay dropAnimation={null}>
+              {activeItem ? (
+                <div className="cursor-grabbing">
+                  <ClassPipelineCard
+                    item={activeItem}
+                    showId={showId}
+                    trialId={trialId}
+                    print={overlayPrint}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </div>
       ) : null}

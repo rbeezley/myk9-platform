@@ -8,24 +8,36 @@ interface Show {
 interface TaskAddFormProps {
   shows: Show[];
   clubId: string;
-  onAdd: (input: { title: string; showId: string | null; clubId: string }) => void;
+  onAdd: (input: {
+    title: string;
+    showId: string | null;
+    clubId: string;
+    dueDate?: string;
+  }) => void;
   onCancel: () => void;
 }
 
 export function TaskAddForm({ shows, clubId, onAdd, onCancel }: TaskAddFormProps) {
   const [title, setTitle] = useState('');
   const [showId, setShowId] = useState<string>('general');
+  const [dueDate, setDueDate] = useState('');
 
   function submit() {
     const trimmed = title.trim();
     if (!trimmed) return;
-    onAdd({ title: trimmed, showId: showId === 'general' ? null : showId, clubId });
+    onAdd({
+      title: trimmed,
+      showId: showId === 'general' ? null : showId,
+      clubId,
+      ...(dueDate ? { dueDate } : {}),
+    });
     setTitle('');
     setShowId('general');
+    setDueDate('');
   }
 
   return (
-    <div className="flex gap-2 rounded-lg border border-border bg-card p-2">
+    <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2">
       <input
         autoFocus
         value={title}
@@ -36,6 +48,12 @@ export function TaskAddForm({ shows, clubId, onAdd, onCancel }: TaskAddFormProps
         }}
         placeholder="Task title…"
         className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+      />
+      <input
+        type="date"
+        value={dueDate}
+        onChange={e => setDueDate(e.target.value)}
+        className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
       />
       <select
         value={showId}

@@ -50,6 +50,8 @@ export interface ReplicatedClass {
   judgeId?: string | undefined;
   classStatus?: string | undefined;
   classOrder?: number | undefined;
+  /** Secretary-controlled display order within a trial (per-column Kanban reorder). */
+  displayOrder?: number | undefined;
   isCompleted?: boolean | undefined;
 
   // Pipeline workflow flags (secretary review/publish flow)
@@ -127,8 +129,9 @@ function rowToClass(row: ClassRow): ReplicatedClass {
       const ja = (dbRow.judge_assignments as Array<{ person_id: string }>) || [];
       return ja[0]?.person_id;
     })(),
-    classStatus: (dbRow.class_status as string | undefined) ?? undefined,
+    classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
     classOrder: (dbRow.class_order as number | undefined) ?? undefined,
+    displayOrder: (dbRow.display_order as number | undefined) ?? undefined,
     isCompleted: (dbRow.is_completed as boolean | undefined) ?? false,
 
     // Pipeline workflow flags
@@ -169,6 +172,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   /** Map UI class status to DB CHECK constraint values */
   private mapClassStatusToDb(uiStatus: string | undefined): string {
     switch (uiStatus) {
+      case 'Setup':
+      case 'setup':
+        return 'setup';
       case 'In Progress':
       case 'in_progress':
         return 'in_progress';
@@ -223,6 +229,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       // silently reverting a finalized class during an unrelated mutation
       ...(cls.isScoringFinalized !== undefined && { is_scoring_finalized: cls.isScoringFinalized }),
       ...(cls.isResultsReviewed !== undefined && { is_results_reviewed: cls.isResultsReviewed }),
+      ...(cls.displayOrder !== undefined && { display_order: cls.displayOrder }),
       actual_start_time: cls.actual_start_time ?? null,
       actual_end_time: cls.actual_end_time ?? null,
       updated_at: new Date().toISOString(),

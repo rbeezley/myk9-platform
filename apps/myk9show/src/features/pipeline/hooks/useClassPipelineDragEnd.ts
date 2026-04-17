@@ -48,15 +48,17 @@ export function useClassPipelineDragEnd(pipelineClasses: ClassPipelineItem[]) {
       });
       if (updates.length === 0) return;
 
-      try {
-        await Promise.all(
-          updates.map(u => replicatedClassesTable.updateClass(u.classId, u.updates))
-        );
-        if (draggedItem.stage !== targetStage) {
-          notifications.success(`${draggedItem.name} moved to ${targetStage.replace(/-/g, ' ')}`);
-        }
-      } catch {
+      const results = await Promise.allSettled(
+        updates.map(u => replicatedClassesTable.updateClass(u.classId, u.updates))
+      );
+      const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      if (failures.length > 0) {
+        for (const f of failures) console.error('[pipeline drag] write failed', f.reason);
         notifications.error(`Failed to move ${draggedItem.name}`);
+        return;
+      }
+      if (draggedItem.stage !== targetStage) {
+        notifications.success(`${draggedItem.name} moved to ${targetStage.replace(/-/g, ' ')}`);
       }
     },
     [pipelineClasses]

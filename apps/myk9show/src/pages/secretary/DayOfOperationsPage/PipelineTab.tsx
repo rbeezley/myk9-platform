@@ -12,7 +12,6 @@ import { useTrialStore } from '@/store/trialStore';
 import { ClassPipelineColumn } from '@/features/pipeline/components/ClassPipelineColumn';
 import { ClassPipelineCard } from '@/features/pipeline/components/ClassPipelineCard';
 import { TrialContextRow } from '@/features/pipeline/components/TrialContextRow';
-import { usePipelinePrint } from '@/features/pipeline/print/usePipelinePrint';
 import { CLASS_PIPELINE_STAGES } from '@/features/pipeline/mission-control-types';
 import type { ClassPipelineItem, ContextStats } from '@/features/pipeline/mission-control-types';
 import { mapClassToStage, groupClassesByStage } from '@/features/pipeline/utils/classStageMapping';
@@ -84,7 +83,6 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({ showId }) => {
   const { activeItem, handleDragStart, handleDragEnd, handleDragCancel } =
     useClassPipelineDragEnd(pipelineClasses);
   const trialId = selectedTrial?.id ?? '';
-  const overlayPrint = usePipelinePrint(showId, trialId);
 
   if (trials.length === 0) {
     return (
@@ -132,12 +130,7 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({ showId }) => {
             <DragOverlay dropAnimation={null}>
               {activeItem ? (
                 <div className="cursor-grabbing">
-                  <ClassPipelineCard
-                    item={activeItem}
-                    showId={showId}
-                    trialId={trialId}
-                    print={overlayPrint}
-                  />
+                  <ClassPipelineCard item={activeItem} showId={showId} trialId={trialId} />
                 </div>
               ) : null}
             </DragOverlay>

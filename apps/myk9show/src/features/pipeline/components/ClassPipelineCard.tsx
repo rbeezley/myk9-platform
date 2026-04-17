@@ -35,7 +35,8 @@ interface ClassPipelineCardProps {
   item: ClassPipelineItem;
   showId: string;
   trialId: string;
-  print: UsePipelinePrintReturn;
+  /** Omit to hide the print dropdown (e.g. for the DragOverlay preview). */
+  print?: UsePipelinePrintReturn;
 }
 
 // Two result sub-states: 'results' (done, needs review) and
@@ -98,7 +99,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
   const navigate = useNavigate();
   const updateClass = useUpdateClassMutation();
   const isMutating = updateClass.isPending;
-  const { isPrinting, printRunOrder, printScoreSheet, printResults } = print;
+  const isPrinting = print?.isPrinting ?? false;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -246,7 +247,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
         {/* Action row: print dropdown + stage-specific buttons */}
         <div className="flex items-center gap-2 pt-0.5">
           {/* Print dropdown — visible on all stages when entries exist */}
-          {item.total_entries > 0 && (
+          {print && item.total_entries > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -260,15 +261,15 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" onClick={e => e.stopPropagation()}>
-                <DropdownMenuItem onClick={() => printRunOrder(item)}>
+                <DropdownMenuItem onClick={() => print.printRunOrder(item)}>
                   Run Order / Check-In
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => printScoreSheet(item)}>
+                <DropdownMenuItem onClick={() => print.printScoreSheet(item)}>
                   Blank Score Sheet
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={item.stage !== 'results' && item.stage !== 'closed'}
-                  onClick={() => printResults(item)}
+                  onClick={() => print.printResults(item)}
                 >
                   Results Report
                 </DropdownMenuItem>

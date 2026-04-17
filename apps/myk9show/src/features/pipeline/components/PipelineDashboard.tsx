@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { useMissionControlData } from '../hooks/useMissionControlData';
 import { useClassPipelineDragEnd } from '../hooks/useClassPipelineDragEnd';
 import { ClassPipelineCard } from './ClassPipelineCard';
-import { usePipelinePrint } from '../print/usePipelinePrint';
 import { ClassPipelineColumn } from './ClassPipelineColumn';
 import { ShowContextRow } from './ShowContextRow';
 import { TrialContextRow } from './TrialContextRow';
@@ -91,7 +90,6 @@ export const PipelineDashboard: React.FC = () => {
 
   const { activeItem, handleDragStart, handleDragEnd, handleDragCancel } =
     useClassPipelineDragEnd(pipelineClasses);
-  const overlayPrint = usePipelinePrint(selectedShow?.id ?? '', selectedTrial?.id ?? '');
 
   if (isLoading) {
     return <DelightfulLoading message="Loading mission control..." />;
@@ -221,12 +219,7 @@ export const PipelineDashboard: React.FC = () => {
             <DragOverlay dropAnimation={null}>
               {activeItem ? (
                 <div className="cursor-grabbing">
-                  <ClassPipelineCard
-                    item={activeItem}
-                    showId={showId}
-                    trialId={trialId}
-                    print={overlayPrint}
-                  />
+                  <ClassPipelineCard item={activeItem} showId={showId} trialId={trialId} />
                 </div>
               ) : null}
             </DragOverlay>

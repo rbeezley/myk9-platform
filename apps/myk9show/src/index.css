@@ -540,128 +540,127 @@ select:hover {
 }
 
 /* ===================================================================
-   ACCENT COLOR SYSTEM
-   User-selectable accent colors that override primary theme colors
-   Applied via document.documentElement.classList by settingsStore
-   Classes: accent-green (default), accent-blue, accent-terracotta, accent-purple
-   Theme classes: theme-dark, theme-light (or .dark from Tailwind)
+   ACCENT COLOR SYSTEM — v2
+   User-selectable accent colors via [data-accent] HTML attribute.
+   Applied via document.documentElement.setAttribute('data-accent', ...)
+   Values: clay (default), grove, dusk, heather
    =================================================================== */
 
-/* Terracotta - Claude-inspired warm brand color */
-:root.accent-terracotta {
+/* Clay — warm terracotta (default) */
+html[data-accent="clay"],
+html:not([data-accent]) {
   --primary: #c96442;
   --primary-hover: #b05338;
-  --primary-foreground: #faf9f5;
-  --accent: #f5f0e8;
+  --primary-foreground: #ffffff;
+  --primary-tint: #fdf5ef;
+  --primary-tint-ink: #7c4a2e;
+  --accent: #fdf5ef;
   --accent-foreground: #7c4a2e;
   --accent-glow: rgba(201, 100, 66, 0.3);
-  --ring: #e8a882;
+  --ring: #f2c8a8;
   --accent-50: #fdf5ef;
   --accent-100: #f9e5d5;
-  --accent-200: #f2c9a8;
+  --accent-200: #f2c8a8;
   --accent-500: #c96442;
   --accent-600: #b05338;
   --accent-700: #7c4a2e;
 }
 
-/* Terracotta dark mode */
-:root.accent-terracotta.dark,
-:root.accent-terracotta.theme-dark {
+html[data-accent="clay"].dark,
+html[data-accent="clay"].theme-dark,
+html:not([data-accent]).dark,
+html:not([data-accent]).theme-dark {
   --primary: #d97757;
   --primary-hover: #c96442;
-  --primary-foreground: #faf9f5;
   --accent: #2a2520;
   --accent-foreground: #d97757;
   --accent-glow: rgba(217, 119, 87, 0.4);
   --ring: #c96442;
 }
 
-/* Blue - Classic professional color */
-:root.accent-blue {
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
+/* Grove — muted grass-ring teal */
+html[data-accent="grove"] {
+  --primary: #2f8a7f;
+  --primary-hover: #226b63;
   --primary-foreground: #ffffff;
-  --accent: #eff6ff;
-  --accent-foreground: #1d4ed8;
-  --accent-glow: rgba(59, 130, 246, 0.3);
-  --ring: #93c5fd;
-  --accent-50: #eff6ff;
-  --accent-100: #dbeafe;
-  --accent-200: #bfdbfe;
-  --accent-500: #3b82f6;
-  --accent-600: #2563eb;
-  --accent-700: #1d4ed8;
+  --primary-tint: #ecf6f4;
+  --primary-tint-ink: #184d47;
+  --accent: #ecf6f4;
+  --accent-foreground: #184d47;
+  --accent-glow: rgba(47, 138, 127, 0.3);
+  --ring: #b9dcd6;
+  --accent-50: #ecf6f4;
+  --accent-100: #cce9e4;
+  --accent-200: #b9dcd6;
+  --accent-500: #2f8a7f;
+  --accent-600: #226b63;
+  --accent-700: #184d47;
 }
 
-/* Blue dark mode */
-:root.accent-blue.dark,
-:root.accent-blue.theme-dark {
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-foreground: #ffffff;
-  --accent: #1e3a5f;
-  --accent-foreground: #93c5fd;
-  --accent-glow: rgba(59, 130, 246, 0.4);
-  --ring: #3b82f6;
+html[data-accent="grove"].dark,
+html[data-accent="grove"].theme-dark {
+  --primary: #3aa898;
+  --primary-hover: #2f8a7f;
+  --accent: #0d2e2b;
+  --accent-foreground: #3aa898;
+  --accent-glow: rgba(47, 138, 127, 0.4);
+  --ring: #2f8a7f;
 }
 
-/* Green/Teal (Default) - Classic myK9 brand color */
-:root.accent-green,
-:root:not(.accent-blue):not(.accent-terracotta):not(.accent-purple) {
-  --primary: #14b8a6;
-  --primary-hover: #0d9488;
+/* Dusk — dusty slate blue */
+html[data-accent="dusk"] {
+  --primary: #3d6d8c;
+  --primary-hover: #305875;
   --primary-foreground: #ffffff;
-  --accent: #f0fdfa;
-  --accent-foreground: #0f766e;
-  --accent-glow: rgba(20, 184, 166, 0.3);
-  --ring: #5eead4;
-  --accent-50: #f0fdfa;
-  --accent-100: #ccfbf1;
-  --accent-200: #99f6e4;
-  --accent-500: #14b8a6;
-  --accent-600: #0d9488;
-  --accent-700: #0f766e;
+  --primary-tint: #edf2f6;
+  --primary-tint-ink: #213e53;
+  --accent: #edf2f6;
+  --accent-foreground: #213e53;
+  --accent-glow: rgba(61, 109, 140, 0.3);
+  --ring: #b9cbd9;
+  --accent-50: #edf2f6;
+  --accent-100: #cfdbe6;
+  --accent-200: #b9cbd9;
+  --accent-500: #3d6d8c;
+  --accent-600: #305875;
+  --accent-700: #213e53;
 }
 
-/* Green dark mode */
-:root.accent-green.dark,
-:root.accent-green.theme-dark,
-:root.theme-dark:not(.accent-blue):not(.accent-terracotta):not(.accent-purple),
-:root.dark:not(.accent-blue):not(.accent-terracotta):not(.accent-purple) {
-  --primary: #14b8a6;
-  --primary-hover: #0d9488;
-  --primary-foreground: #ffffff;
-  --accent: #134e4a;
-  --accent-foreground: #5eead4;
-  --accent-glow: rgba(20, 184, 166, 0.4);
-  --ring: #14b8a6;
+html[data-accent="dusk"].dark,
+html[data-accent="dusk"].theme-dark {
+  --primary: #5088a8;
+  --primary-hover: #3d6d8c;
+  --accent: #0d1e2a;
+  --accent-foreground: #5088a8;
+  --accent-glow: rgba(61, 109, 140, 0.4);
+  --ring: #3d6d8c;
 }
 
-/* Purple - Royal elegant color */
-:root.accent-purple {
-  --primary: #8b5cf6;
-  --primary-hover: #7c3aed;
+/* Heather — aubergine purple */
+html[data-accent="heather"] {
+  --primary: #7b5aa6;
+  --primary-hover: #634689;
   --primary-foreground: #ffffff;
-  --accent: #faf5ff;
-  --accent-foreground: #6d28d9;
-  --accent-glow: rgba(139, 92, 246, 0.3);
-  --ring: #c4b5fd;
-  --accent-50: #faf5ff;
-  --accent-100: #f3e8ff;
-  --accent-200: #e9d5ff;
-  --accent-500: #8b5cf6;
-  --accent-600: #7c3aed;
-  --accent-700: #6d28d9;
+  --primary-tint: #f1ecf6;
+  --primary-tint-ink: #432f61;
+  --accent: #f1ecf6;
+  --accent-foreground: #432f61;
+  --accent-glow: rgba(123, 90, 166, 0.3);
+  --ring: #cdbedb;
+  --accent-50: #f1ecf6;
+  --accent-100: #e0d5ed;
+  --accent-200: #cdbedb;
+  --accent-500: #7b5aa6;
+  --accent-600: #634689;
+  --accent-700: #432f61;
 }
 
-/* Purple dark mode */
-:root.accent-purple.dark,
-:root.accent-purple.theme-dark {
-  --primary: #8b5cf6;
-  --primary-hover: #7c3aed;
-  --primary-foreground: #ffffff;
-  --accent: #2e1065;
-  --accent-foreground: #c4b5fd;
-  --accent-glow: rgba(139, 92, 246, 0.4);
-  --ring: #8b5cf6;
+html[data-accent="heather"].dark,
+html[data-accent="heather"].theme-dark {
+  --primary: #9572bf;
+  --primary-hover: #7b5aa6;
+  --accent: #1e1028;
+  --accent-foreground: #9572bf;
+  --accent-glow: rgba(123, 90, 166, 0.4);
+  --ring: #7b5aa6;
 }

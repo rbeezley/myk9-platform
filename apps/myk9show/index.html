@@ -10,7 +10,7 @@
     <!-- Google Fonts: Montserrat (body) + Playfair Display (headings) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <!-- DNS prefetch for faster API connections -->
     <link rel="dns-prefetch" href="https://sojmvhhwsjxmfistvzbe.supabase.co" />
     <link rel="preconnect" href="https://sojmvhhwsjxmfistvzbe.supabase.co" crossorigin />
@@ -42,14 +42,16 @@
           document.documentElement.classList.add(isDark ? 'theme-dark' : 'theme-light');
           if (isDark) document.documentElement.classList.add('dark');
 
-          // Apply accent color
-          var accent = settings.accentColor || 'green';
-          document.documentElement.classList.add('accent-' + accent);
+          // Apply accent color (v2: data-accent attribute; silently migrate v1 names)
+          var accentMigration = { green: 'grove', blue: 'dusk', purple: 'heather', terracotta: 'clay', orange: 'clay' };
+          var accent = settings.accentColor || 'clay';
+          accent = accentMigration[accent] || accent;
+          document.documentElement.setAttribute('data-accent', accent);
 
           // Update meta theme-color
-          var colors = { green: '#14b8a6', blue: '#3b82f6', orange: '#f97316', purple: '#8b5cf6' };
+          var accentColors = { clay: '#c96442', grove: '#2f8a7f', dusk: '#3d6d8c', heather: '#7b5aa6' };
           var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute('content', colors[accent] || '#14b8a6');
+          if (meta) meta.setAttribute('content', accentColors[accent] || '#c96442');
         } catch (e) {
           document.documentElement.classList.add('theme-light', 'accent-green');
         }

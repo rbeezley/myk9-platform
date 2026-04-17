@@ -27,7 +27,7 @@ export type UserPreferencesUpdate = Partial<UserPreferencesInsert>;
 
 // Theme preferences
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type ColorScheme = 'blue' | 'purple' | 'green' | 'terracotta';
+export type ColorScheme = 'clay' | 'grove' | 'dusk' | 'heather';
 export type LayoutDensity = 'compact' | 'comfortable' | 'spacious';
 export type FontSizeScale = 'small' | 'medium' | 'large' | 'extra-large';
 
@@ -217,7 +217,7 @@ export interface UseUserPreferencesReturn {
 // Default preferences
 export const DEFAULT_THEME_PREFERENCES: ThemePreferences = {
   mode: 'system',
-  colorScheme: 'blue',
+  colorScheme: 'clay',
   layoutDensity: 'comfortable',
   fontSize: 'medium',
   reduceMotion: false,

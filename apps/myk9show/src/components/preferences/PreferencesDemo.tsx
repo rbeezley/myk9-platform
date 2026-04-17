@@ -128,10 +128,10 @@ export function PreferencesDemo() {
                 <Badge 
                   variant="outline" 
                   className="text-xs"
-                  style={{ 
-                    color: preferences.theme.colorScheme === 'blue' ? '#007AFF' : 
-                           preferences.theme.colorScheme === 'purple' ? '#5856D6' :
-                           preferences.theme.colorScheme === 'green' ? '#34C759' : '#FF9500'
+                  style={{
+                    color: preferences.theme.colorScheme === 'dusk' ? '#3d6d8c' :
+                           preferences.theme.colorScheme === 'heather' ? '#7b5aa6' :
+                           preferences.theme.colorScheme === 'grove' ? '#2f8a7f' : '#c96442'
                   }}
                 >
                   {preferences.theme.colorScheme}

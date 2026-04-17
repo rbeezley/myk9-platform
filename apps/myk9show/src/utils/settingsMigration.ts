@@ -41,7 +41,17 @@ export function importSettingsWithMigration(
       mergedSettings.theme = defaults.theme;
     }
 
-    if (!['terracotta', 'blue', 'green', 'purple'].includes(mergedSettings.accentColor)) {
+    // Migrate v1 accent names to v2
+    const v1ToV2: Record<string, AppSettings['accentColor']> = {
+      green: 'grove',
+      blue: 'dusk',
+      purple: 'heather',
+      terracotta: 'clay',
+    };
+    if (v1ToV2[mergedSettings.accentColor]) {
+      mergedSettings.accentColor = v1ToV2[mergedSettings.accentColor];
+    }
+    if (!['clay', 'grove', 'dusk', 'heather'].includes(mergedSettings.accentColor)) {
       mergedSettings.accentColor = defaults.accentColor;
     }
 

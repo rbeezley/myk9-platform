@@ -51,41 +51,41 @@ const themeOptions: Array<{
   { value: 'system', label: 'System', icon: Monitor, description: 'Follow system preference' },
 ];
 
-// Color schemes matching settingsStore accent colors
+// Color schemes matching settingsStore accent colors (v2 names)
 const colorSchemes: Array<{
   value: ColorScheme;
   label: string;
   color: string;
   description: string;
-  accentId: 'terracotta' | 'blue' | 'green' | 'purple';
+  accentId: 'clay' | 'grove' | 'dusk' | 'heather';
 }> = [
   {
-    value: 'terracotta',
-    label: 'Terracotta',
+    value: 'clay',
+    label: 'Clay',
     color: '#c96442',
-    description: 'Warm earthy default',
-    accentId: 'terracotta',
+    description: 'Warm terracotta',
+    accentId: 'clay',
   },
   {
-    value: 'blue',
-    label: 'Ocean',
-    color: '#3b82f6',
-    description: 'Classic professional',
-    accentId: 'blue',
+    value: 'grove',
+    label: 'Grove',
+    color: '#2f8a7f',
+    description: 'Muted grass teal',
+    accentId: 'grove',
   },
   {
-    value: 'green',
-    label: 'Teal',
-    color: '#14b8a6',
-    description: 'Classic myK9 brand',
-    accentId: 'green',
+    value: 'dusk',
+    label: 'Dusk',
+    color: '#3d6d8c',
+    description: 'Dusty slate blue',
+    accentId: 'dusk',
   },
   {
-    value: 'purple',
-    label: 'Royal',
-    color: '#8b5cf6',
-    description: 'Elegant purple',
-    accentId: 'purple',
+    value: 'heather',
+    label: 'Heather',
+    color: '#7b5aa6',
+    description: 'Aubergine purple',
+    accentId: 'heather',
   },
 ];
 
@@ -124,10 +124,9 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
   const handleColorSchemeChange = (colorScheme: ColorScheme) => {
     onUpdate({ colorScheme });
 
-    // Find the matching accent color for the settingsStore
+    // Update settingsStore which sets the data-accent attribute
     const scheme = colorSchemes.find(s => s.value === colorScheme);
     if (scheme) {
-      // Update settingsStore which applies the accent-{color} CSS class
       updateSettings({ accentColor: scheme.accentId });
     }
   };
@@ -223,9 +222,9 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
-            Color Scheme
+            Your ring color
           </CardTitle>
-          <CardDescription>Select an accent color for the interface</CardDescription>
+          <CardDescription>Pick the accent you want to see in the app. Brand identity always stays terracotta.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

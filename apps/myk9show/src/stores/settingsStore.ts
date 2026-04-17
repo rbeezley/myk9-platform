@@ -15,7 +15,7 @@ export const SETTINGS_VERSION = '1.0.0';
 export interface AppSettings {
   // Display
   theme: 'light' | 'dark' | 'auto';
-  accentColor: 'terracotta' | 'blue' | 'green' | 'purple';
+  accentColor: 'clay' | 'grove' | 'dusk' | 'heather';
 
   // Performance
   enableAnimations: boolean | null; // null = auto-detect
@@ -55,7 +55,7 @@ interface SettingsState {
 const defaultSettings: AppSettings = {
   // Display
   theme: 'auto',
-  accentColor: 'green',
+  accentColor: 'clay',
 
   // Performance
   enableAnimations: null,
@@ -109,7 +109,7 @@ export const useSettingsStore = create<SettingsState>()(
         resetSettings: () => {
           set({ settings: defaultSettings });
           applyTheme('auto');
-          applyAccentColor('green');
+          applyAccentColor('clay');
         },
 
         resetSection: _section => {
@@ -143,7 +143,7 @@ export const useSettingsStore = create<SettingsState>()(
             // Apply settings immediately
             const newSettings = get().settings;
             applyTheme(newSettings.theme);
-            applyAccentColor(newSettings.accentColor || 'green');
+            applyAccentColor(newSettings.accentColor || 'clay');
 
             return true;
           } catch (error) {
@@ -157,7 +157,18 @@ export const useSettingsStore = create<SettingsState>()(
         onRehydrateStorage: () => state => {
           // Called after settings are loaded from localStorage
           if (state) {
-            applyAccentColor(state.settings.accentColor || 'green');
+            // Silent migration: map v1 accent names → v2
+            const v1ToV2: Record<string, AppSettings['accentColor']> = {
+              green: 'grove',
+              blue: 'dusk',
+              purple: 'heather',
+              terracotta: 'clay',
+            };
+            const raw = state.settings.accentColor as string;
+            if (v1ToV2[raw]) {
+              state.settings.accentColor = v1ToV2[raw];
+            }
+            applyAccentColor(state.settings.accentColor || 'clay');
             applyTheme(state.settings.theme || 'auto');
           }
         },
@@ -218,17 +229,16 @@ function setupSystemThemeListener() {
 /**
  * Apply accent color to document and update meta theme-color
  */
-function applyAccentColor(color: 'terracotta' | 'blue' | 'green' | 'purple') {
+function applyAccentColor(color: 'clay' | 'grove' | 'dusk' | 'heather') {
   const root = document.documentElement;
-  root.classList.remove('accent-terracotta', 'accent-blue', 'accent-green', 'accent-purple');
-  root.classList.add(`accent-${color}`);
+  root.setAttribute('data-accent', color);
 
   // Update meta theme-color to match accent (affects browser chrome and mobile status bar)
   const accentColors: Record<string, string> = {
-    terracotta: '#c96442',
-    blue: '#3b82f6',
-    green: '#14b8a6',
-    purple: '#8b5cf6',
+    clay: '#c96442',
+    grove: '#2f8a7f',
+    dusk: '#3d6d8c',
+    heather: '#7b5aa6',
   };
   const themeColor = accentColors[color] || '#c96442';
   document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
@@ -243,7 +253,7 @@ function applyAccentColor(color: 'terracotta' | 'blue' | 'green' | 'purple') {
 export function initializeSettings() {
   const { settings } = useSettingsStore.getState();
   // Theme already applied by blocking script in index.html
-  applyAccentColor(settings.accentColor || 'green');
+  applyAccentColor(settings.accentColor || 'clay');
   // Listen for system theme changes (for 'auto' mode)
   setupSystemThemeListener();
 }

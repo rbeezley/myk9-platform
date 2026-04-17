@@ -132,7 +132,9 @@ export default {
           'system-ui',
           'sans-serif',
         ],
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        serif: ['Fraunces', 'Georgia', '"Times New Roman"', 'serif'],
+        display: ['Fraunces', 'Georgia', 'serif'],
+        mono: ['"JetBrains Mono"', '"SF Mono"', 'Consolas', 'monospace'],
       },
       transitionTimingFunction: {
         apple: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',

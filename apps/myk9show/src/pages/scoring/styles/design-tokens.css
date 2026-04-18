@@ -413,7 +413,7 @@
   --card: #1e1c19; /* was #1e1e1b — v2 sync */
   --card-foreground: #faf7f2; /* was #faf9f5 — v2 sync */
   --muted: #1e1c19; /* was #1e1e1b — v2 sync */
-  --muted-foreground: #8c8376; /* was #87867f — v2 stone-500 */
+  --muted-foreground: #87867f;
   --border: #2e2b27; /* was #2e2e2b — v2 sync */
   --input: #1e1c19; /* was #1e1e1b — v2 sync */
   --input-bg: #1e1c19; /* was #1e1e1b — v2 sync */
@@ -437,7 +437,7 @@
   --foreground-dark: #faf7f2; /* was #faf9f5 — v2 sync */
   --border-light: #2e2b27; /* was #2e2e2b — v2 sync */
   --border-subtle: #2e2b27; /* was #2e2e2b — v2 sync */
-  --text-gray: #8c8376; /* was #87867f — v2 stone-500 */
+  --text-gray: #87867f;
   --text-light-gray: #5e5d59;
 
   /* Glass Morphism (Dark Mode) */

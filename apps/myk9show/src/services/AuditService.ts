@@ -166,7 +166,9 @@ export class AuditService {
    * Search audit trail in database
    */
   private async searchRemoteAuditTrail(filters: AuditSearchFilters): Promise<AuditSearchResult> {
-    let query = supabase
+    // `audit_entry` table not yet in generated Supabase types — cast to bypass.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = (supabase as any)
       .from('audit_entry')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
@@ -208,7 +210,8 @@ export class AuditService {
     }
 
     // Transform database results to AuditEntry format
-    const entries: AuditEntry[] = (data || []).map(row => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const entries: AuditEntry[] = ((data as any[]) || []).map((row: any) => ({
       id: row.id,
       timestamp: new Date(row.created_at),
       userId: row.user_id,
@@ -527,7 +530,9 @@ export class AuditService {
       },
     };
 
-    const { error } = await supabase.from('audit_entry').insert(auditData);
+    // `audit_entry` table not yet in generated Supabase types — cast to bypass.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from('audit_entry').insert(auditData);
 
     if (error) {
       throw new Error(`Failed to send audit entry to database: ${error.message}`);

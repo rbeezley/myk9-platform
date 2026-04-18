@@ -27,10 +27,7 @@ interface EntryRow {
   show_id: string;
   check_in_status: string | null;
   armband: string | null;
-  handler: string | null;
-  entry_fee: number | null;
-  payment_status: string | null;
-  submitted_at: string | null;
+  is_scored: boolean | null;
 }
 
 interface ClassRow {
@@ -105,8 +102,7 @@ export function useNotificationMonitor(): void {
       const { data: entryRows, error: entryError } = await supabase
         .from('entries')
         .select(
-          `id, dog_id, class_id, show_id, check_in_status,
-         armband, handler, entry_fee, payment_status, submitted_at,
+          `id, dog_id, class_id, show_id, check_in_status, armband, is_scored,
          dog:dog_id!inner(id, call_name)`
         )
         .in('class_id', classIds);
@@ -150,10 +146,17 @@ export function useNotificationMonitor(): void {
     const newDogNames = new Map<string, string>();
 
     // Build class lookup
-    const classLookup = new Map<string, { name: string; status: string }>();
+    const classLookup = new Map<
+      string,
+      { name: string; status: string; isScoringFinalized: boolean }
+    >();
     for (const cls of classes) {
       const c = cls as unknown as ClassRow;
-      classLookup.set(c.id, { name: c.name, status: c.status ?? '' });
+      classLookup.set(c.id, {
+        name: c.name,
+        status: c.status ?? '',
+        isScoringFinalized: c.is_scoring_finalized,
+      });
     }
 
     // Group entries by class and build dog name map
@@ -174,12 +177,16 @@ export function useNotificationMonitor(): void {
         checkInStatus: (entry.check_in_status as ShowEntry['checkInStatus']) ?? undefined,
         status: 'confirmed',
         registrationData: {
-          submittedAt: entry.submitted_at ?? '',
-          handler: entry.handler ?? '',
-          entryFee: entry.entry_fee ?? 0,
-          paymentStatus: (entry.payment_status as 'pending' | 'paid' | 'refunded') ?? 'pending',
+          submittedAt: '',
+          handler: '',
+          entryFee: 0,
+          paymentStatus: 'pending',
           armband: entry.armband ?? undefined,
         },
+        // competitionData is used by runOrderUtils/conflictDetection as a
+        // scored-vs-unscored flag. Populate a minimal object when is_scored
+        // is true; leave undefined otherwise.
+        competitionData: entry.is_scored ? { recordedBy: '', recordedAt: '' } : undefined,
         statusHistory: [],
         createdAt: '',
         updatedAt: '',
@@ -229,10 +236,7 @@ export function useNotificationMonitor(): void {
         }
       }
 
-      const classRow = classes.find(c => (c as unknown as ClassRow).id === classId) as unknown as
-        | ClassRow
-        | undefined;
-      if (classRow?.is_scoring_finalized && !notifiedResultsPosted.current.has(classId)) {
+      if (cls.isScoringFinalized && !notifiedResultsPosted.current.has(classId)) {
         notifiedResultsPosted.current.add(classId);
         const userDogNames = ctx.entries
           .filter(e => userDogIdsRef.current.has(e.dogId))

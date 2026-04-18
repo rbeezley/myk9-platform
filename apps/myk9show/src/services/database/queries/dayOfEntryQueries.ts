@@ -65,7 +65,7 @@ export const getClassesWithCapacity = async (showId: string) => {
           .from('entries')
           .select('id', { count: 'exact', head: true })
           .eq('class_id', cls.id)
-          .in('entry_status', ['accepted', 'checked_in'])
+          .in('entry_status', ['confirmed', 'checked-in'])
           .is('deleted_at', null);
 
         const limit = cls.max_entries || 999;
@@ -145,7 +145,7 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
         handler: entryData.handler,
         handler_id: userId, // Track who created the day-of entry
         payment_status: entryData.paymentMethod === 'waived' ? 'waived' : 'paid',
-        entry_status: 'accepted',
+        entry_status: 'confirmed',
         entry_fee: entryData.paymentMethod === 'waived' ? 0 : classInfo?.entry_fee || defaultFee,
         armband: String(nextArmband), // Same armband for all classes (same dog/handler)
         jump_height: entryData.jumpHeight || null,

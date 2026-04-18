@@ -6,20 +6,10 @@
  */
 
 import type { CheckInStatus } from '@myk9/core';
-
-// Entry lifecycle states
-export type EntryStatus =
-  | 'draft' // User building entry
-  | 'submitted' // Entry submitted, awaiting payment
-  | 'paid' // Payment confirmed
-  | 'confirmed' // Entry accepted by show
-  | 'scheduled' // Running order created
-  | 'competing' // Currently in ring
-  | 'completed' // Results recorded
-  | 'withdrawn' // Entry withdrawn
-  | 'scratched' // Scratched day of show
-  | 'pending-payment' // Promoted from wait list, awaiting Stripe checkout
-  | 'promotion-expired'; // Didn't pay within promotion deadline
+// EntryStatus is defined in entry-lifecycle.ts and re-exported here so consumers
+// can import from either path without breaking changes.
+import type { EntryStatus } from '@/types/entry-lifecycle';
+export type { EntryStatus };
 
 export interface StatusHistoryEntry {
   status: EntryStatus;

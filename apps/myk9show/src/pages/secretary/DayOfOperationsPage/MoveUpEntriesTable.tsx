@@ -65,7 +65,7 @@ function buildColumns(
       header: 'Status',
       accessorFn: row => row.entry_status ?? '',
       cell: ({ row }) => (
-        <Badge variant={row.original.entry_status === 'checked_in' ? 'default' : 'outline'}>
+        <Badge variant={row.original.entry_status === 'checked-in' ? 'default' : 'outline'}>
           {row.original.entry_status}
         </Badge>
       ),

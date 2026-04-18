@@ -2,17 +2,30 @@
 // Entry progresses through lifecycle stages
 
 export type EntryStatus =
+  // Pre-show lifecycle
+  | 'no-status' // DB default, not yet categorized
   | 'draft' // User building entry
-  | 'submitted' // Entry submitted, awaiting payment
+  | 'submitted' // Submitted, awaiting payment
   | 'paid' // Payment confirmed
-  | 'confirmed' // Entry accepted by show
-  | 'scheduled' // Running order created
-  | 'competing' // Currently in ring
+  | 'confirmed' // Accepted by show
+  | 'scheduled' // Running order assigned (UI-only, not a DB constraint value)
+  // Day-of states
+  | 'checked-in' // Dog checked in at venue
+  | 'at-gate' // At the gate, next to run
+  | 'in-ring' // Currently competing
+  | 'competing' // In-ring / actively competing
   | 'completed' // Results recorded
-  | 'withdrawn' // Entry withdrawn
+  // Terminal / removal states
+  | 'withdrawn' // Withdrawn before show day
   | 'scratched' // Scratched day of show
-  | 'pending-payment' // Promoted from wait list, awaiting Stripe checkout
-  | 'promotion-expired'; // Didn't pay within promotion deadline
+  | 'absent' // Dog did not appear
+  | 'moved' // Entry moved to a different class (source record)
+  // Secretary-approval workflow
+  | 'scratch_requested' // Exhibitor requested scratch; awaiting secretary approval
+  | 'move_up_requested' // Exhibitor requested move-up; awaiting secretary approval
+  // Waitlist promotion flow
+  | 'pending-payment' // Promoted from waitlist, awaiting Stripe checkout
+  | 'promotion-expired'; // Did not pay within promotion deadline
 
 export interface ShowEntry {
   // Identity

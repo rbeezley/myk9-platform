@@ -28,6 +28,15 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 ---
 
+## Design system v2 follow-ups — 2026-04-18
+
+Low-priority cleanup items discovered during v2 implementation.
+
+- [ ] `apps/myk9show/DESIGN.md` references Playfair Display in ~12 places. Refresh to match v2 (Fraunces headings, Montserrat body).
+- [ ] myK9Q app (`apps/myk9q/`) design system v2 — separate plan needed; myK9Q uses semantic CSS (no Tailwind/shadcn).
+
+---
+
 ## Route Audit Findings — 2026-04-18
 
 Logged-in-as `secretary@myk9t.com` route sweep of `apps/myk9show/src/routes/*.tsx`. All ~56 routes loaded without rendering an error boundary. Fixes landed in commit `b642853e`. Remaining items:

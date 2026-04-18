@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" fill="none">
-
+  
   <path d="M48 78 L38 150 L52 140 L60 152 L68 140 L82 150 L72 78 Z" fill="currentColor" opacity="0.88"></path>
-
+  
   <path d="M38 150 L52 140 L46 132 Z" fill="currentColor" opacity="0.55"></path>
   <path d="M82 150 L68 140 L74 132 Z" fill="currentColor" opacity="0.55"></path>
-
+  
   <g transform="translate(60 60)">
     <g fill="currentColor">
       <circle r="42" opacity="0.22"></circle>
       <g opacity="0.55">
-
+        
         <circle cx="0" cy="-40" r="5"></circle>
         <circle cx="15.3" cy="-37" r="5"></circle>
         <circle cx="28.3" cy="-28.3" r="5"></circle>
@@ -28,9 +28,9 @@
         <circle cx="-15.3" cy="-37" r="5"></circle>
       </g>
     </g>
-
+    
     <circle r="26" fill="currentColor"></circle>
-
+    
     <circle r="26" fill="none" stroke="#faf9f5" stroke-width="1.5" opacity="0.9"></circle>
     <circle r="19" fill="none" stroke="#faf9f5" stroke-width="0.8" opacity="0.5"></circle>
   </g>

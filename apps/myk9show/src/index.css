@@ -369,11 +369,18 @@ select:hover {
 @layer base {
   :root {
     color-scheme: light dark;
+    /* ---- Font stack ----
+       --font-sans is defined only at :root (not redeclared in .dark),
+       so it cascades into dark mode unchanged. If you ever move this
+       behind a theme selector, add a matching declaration to .dark or
+       dark mode will fall back to the UA default.
+       --font-serif and --font-mono live in design-tokens.css. */
+    --font-sans: 'Montserrat', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     /* Warm parchment backgrounds — Claude-inspired */
-    --background: #f5f4ed;
-    --foreground: #141413;
-    --background-alt: #f5f4ed;
-    --card: #faf9f5;
+    --background: #faf7f2; /* was #f5f4ed — v2 ivory-50 */
+    --foreground: #181411; /* was #141413 — v2 ink-900 */
+    --background-alt: #f3efe6; /* was #f5f4ed — v2 ivory-100 */
+    --card: #ffffff; /* was #faf9f5 — v2 pure white card */
     --card-foreground: #141413;
     --sidebar: #ede9e0;
     --sidebar-foreground: #141413;
@@ -381,7 +388,7 @@ select:hover {
     --card-secondary-foreground: #141413;
     /* Warm neutrals */
     --muted: #f0eee6;
-    --muted-foreground: #87867f;
+    --muted-foreground: #8c8376; /* was #87867f — v2 stone-500 */
     /* Primary overridden by accent color classes below */
     --secondary: #e8e6dc;
     --secondary-foreground: #4d4c48;
@@ -389,9 +396,9 @@ select:hover {
     --accent-foreground: #7c4a2e;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: #e8e6dc;
-    --input: #f5f4ed;
-    --input-border: #e8e6dc;
+    --border: #e4dccc; /* was #e8e6dc — v2 ivory-200 */
+    --input: #ffffff; /* was #f5f4ed — inputs match card */
+    --input-border: #e4dccc; /* was #e8e6dc */
     --input-border-hover: #d1cfc5;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
@@ -403,61 +410,60 @@ select:hover {
     --popover: #faf9f5;
     --popover-foreground: #141413;
     --show-secondary-bg: transparent;
-    /* Card elevation — whisper-soft (Level 3), ring on hover (Level 2) */
-    --shadow-card: rgba(0, 0, 0, 0.05) 0px 4px 24px;
-    --shadow-card-hover: 0px 0px 0px 1px var(--border), rgba(0, 0, 0, 0.05) 0px 8px 24px;
-    /* Ring shadows — warm-toned, 0px 0px 0px 1px pattern */
+    /* Ring shadows — warm-toned, 0px 0px 0px 1px pattern
+       (shadow-card, shadow-card-hover, shadow-header defined in
+       design-tokens.css v2 block) */
     --shadow-ring: 0px 0px 0px 1px var(--border);
     --shadow-ring-primary: 0px 0px 0px 1px var(--primary);
     --shadow-ring-inset: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.15);
-    /* Header elevation */
-    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
     --sidebar-border: #e8e6dc;
   }
 
   .dark {
     color-scheme: dark;
-    /* Warm olive-dark backgrounds */
-    --background: #141413;
-    --foreground: #faf9f5;
-    --background-alt: #1e1e1b;
-    --card: #1e1e1b;
-    --card-foreground: #faf9f5;
-    --sidebar: #141413;
-    --sidebar-foreground: #faf9f5;
-    --card-secondary: #141413;
-    --card-secondary-foreground: #faf9f5;
-    --muted: #1e1e1b;
-    --muted-foreground: #87867f;
+    /* v2 warm-black surfaces — tokenized to brand palette where the hex
+       matches a named token (--ink-900 / --ivory-50). The in-between shades
+       (#1e1c19, #2e2b27) are dark-mode-only and stay as literals. */
+    --background: var(--ink-900);
+    --foreground: var(--ivory-50);
+    --background-alt: #1e1c19;
+    --card: #1e1c19;
+    --card-foreground: var(--ivory-50);
+    --sidebar: var(--ink-900);
+    --sidebar-foreground: var(--ivory-50);
+    --card-secondary: var(--ink-900);
+    --card-secondary-foreground: var(--ivory-50);
+    --muted: #1e1c19;
+    --muted-foreground: var(--stone-500); /* v2 stone-500 — matches light mode */
     /* Primary overridden by accent color classes below */
-    --secondary: #1e1e1b;
-    --secondary-foreground: #faf9f5;
+    --secondary: #1e1c19;
+    --secondary-foreground: var(--ivory-50);
     --accent: #2a2520;
     --accent-foreground: #d97757;
     --destructive: #dc2626;
     --destructive-foreground: #ffffff;
-    --border: #2e2e2b;
-    --input: #1e1e1b;
-    --input-border: #2e2e2b;
+    --border: #2e2b27;
+    --input: #1e1c19;
+    --input-border: #2e2b27;
     --input-border-hover: #3a3a36;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
-    --dialog-input-bg: #141413;
-    --popover: #1e1e1b;
-    --popover-foreground: #faf9f5;
-    /* Card elevation — whisper-soft (Level 3), ring on hover (Level 2) */
-    --shadow-card: rgba(0, 0, 0, 0.2) 0px 4px 24px;
-    --shadow-card-hover: 0px 0px 0px 1px var(--border), rgba(0, 0, 0, 0.25) 0px 8px 24px;
+    --dialog-input-bg: var(--ink-900);
+    --popover: #1e1c19;
+    --popover-foreground: var(--ivory-50);
+    /* Card elevation — deeper shadows for darker warm-black backdrop */
+    --shadow-card: rgba(0, 0, 0, 0.3) 0px 4px 24px;
+    --shadow-card-hover: 0px 0px 0px 1px var(--border), rgba(0, 0, 0, 0.35) 0px 8px 28px;
     /* Ring shadows — warm-toned, 0px 0px 0px 1px pattern */
     --shadow-ring: 0px 0px 0px 1px var(--border);
     --shadow-ring-primary: 0px 0px 0px 1px var(--primary);
     --shadow-ring-inset: inset 0px 0px 0px 1px rgba(255, 255, 255, 0.08);
     /* Header elevation */
-    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
-    --sidebar-border: #2e2e2b;
+    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --sidebar-border: #2e2b27;
   }
 
   * {
@@ -470,29 +476,63 @@ select:hover {
     line-height: 1.6; /* Editorial spacing — generous like a book, not a dashboard */
   }
 
-  /* Serif for editorial/page-level headings — sans for UI/component headings */
+  /* v2 typography — Fraunces display for h1/h2, Montserrat for h3/h4 */
   h1 {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-weight: 500;
-    line-height: 1.1; /* Tight — book-title presence */
+    font-family: var(--font-serif);
+    font-weight: 450;
+    font-variation-settings: var(--fraunces-settings-display);
+    font-size: clamp(36px, 5vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -0.018em;
   }
 
   h2 {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-weight: 500;
-    line-height: 1.2; /* Section-anchor cadence */
+    font-family: var(--font-serif);
+    font-weight: 450;
+    font-variation-settings: var(--fraunces-settings-display);
+    font-size: clamp(28px, 3.5vw, 40px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
   }
 
   h3,
   h4 {
-    font-family:
-      'Montserrat',
-      -apple-system,
-      BlinkMacSystemFont,
-      system-ui,
-      sans-serif;
+    font-family: var(--font-sans);
     font-weight: 600;
-    line-height: 1.3; /* UI heading — enough breathing room */
+    line-height: 1.3;
+  }
+
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--terra-700);
+  }
+
+  .numeric,
+  code,
+  kbd {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .display-serif {
+    font-family: var(--font-serif);
+    font-weight: 450;
+    font-variation-settings: var(--fraunces-settings-display);
+  }
+
+  /* Rosette utility — inline SVG via mask so it recolors via currentColor */
+  .rosette {
+    display: inline-block;
+    width: 1em;
+    height: 1.33em;
+    background-color: currentColor;
+    -webkit-mask: url('/rosette.svg') center / contain no-repeat;
+    mask: url('/rosette.svg') center / contain no-repeat;
+    color: var(--primary);
   }
 
   /* Micro letter-spacing for labels — maintains readability at small sizes */
@@ -547,7 +587,7 @@ select:hover {
    =================================================================== */
 
 /* Clay — warm terracotta (default) */
-html[data-accent="clay"],
+html[data-accent='clay'],
 html:not([data-accent]) {
   --primary: #c96442;
   --primary-hover: #b05338;
@@ -569,8 +609,8 @@ html:not([data-accent]) {
 /* Dark variants only override color values that differ from light mode.
    --primary-foreground (#fff), --primary-tint, and --primary-tint-ink
    intentionally inherit from the light block above — they read well in dark. */
-html[data-accent="clay"].dark,
-html[data-accent="clay"].theme-dark,
+html[data-accent='clay'].dark,
+html[data-accent='clay'].theme-dark,
 html:not([data-accent]).dark,
 html:not([data-accent]).theme-dark {
   --primary: #d97757;
@@ -582,7 +622,7 @@ html:not([data-accent]).theme-dark {
 }
 
 /* Grove — muted grass-ring teal */
-html[data-accent="grove"] {
+html[data-accent='grove'] {
   --primary: #2f8a7f;
   --primary-hover: #226b63;
   --primary-foreground: #ffffff;
@@ -600,8 +640,8 @@ html[data-accent="grove"] {
   --accent-700: #184d47;
 }
 
-html[data-accent="grove"].dark,
-html[data-accent="grove"].theme-dark {
+html[data-accent='grove'].dark,
+html[data-accent='grove'].theme-dark {
   --primary: #3aa898;
   --primary-hover: #2f8a7f;
   --accent: #0d2e2b;
@@ -611,7 +651,7 @@ html[data-accent="grove"].theme-dark {
 }
 
 /* Dusk — dusty slate blue */
-html[data-accent="dusk"] {
+html[data-accent='dusk'] {
   --primary: #3d6d8c;
   --primary-hover: #305875;
   --primary-foreground: #ffffff;
@@ -629,8 +669,8 @@ html[data-accent="dusk"] {
   --accent-700: #213e53;
 }
 
-html[data-accent="dusk"].dark,
-html[data-accent="dusk"].theme-dark {
+html[data-accent='dusk'].dark,
+html[data-accent='dusk'].theme-dark {
   --primary: #5088a8;
   --primary-hover: #3d6d8c;
   --accent: #0d1e2a;
@@ -640,7 +680,7 @@ html[data-accent="dusk"].theme-dark {
 }
 
 /* Heather — aubergine purple */
-html[data-accent="heather"] {
+html[data-accent='heather'] {
   --primary: #7b5aa6;
   --primary-hover: #634689;
   --primary-foreground: #ffffff;
@@ -658,8 +698,8 @@ html[data-accent="heather"] {
   --accent-700: #432f61;
 }
 
-html[data-accent="heather"].dark,
-html[data-accent="heather"].theme-dark {
+html[data-accent='heather'].dark,
+html[data-accent='heather'].theme-dark {
   --primary: #9572bf;
   --primary-hover: #7b5aa6;
   --accent: #1e1028;

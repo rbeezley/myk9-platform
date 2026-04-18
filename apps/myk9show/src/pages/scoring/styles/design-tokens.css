@@ -337,7 +337,7 @@
   --stress-touch-target: 52px;
 
   /* ===== v2 BRAND PALETTE (terracotta-led warm) ===== */
-  --terra-50:  #fdf5ef;
+  --terra-50: #fdf5ef;
   --terra-100: #f9e5d5;
   --terra-200: #f2c8a8;
   --terra-400: #db8561;
@@ -346,96 +346,106 @@
   --terra-700: #7c4a2e;
   --terra-900: #3d2516;
 
-  --ivory-50:  #faf7f2;
+  --ivory-50: #faf7f2;
   --ivory-100: #f3efe6;
   --ivory-200: #e4dccc;
   --stone-300: #b9b1a0;
   --stone-500: #8c8376;
   --stone-700: #403a31;
-  --ink-900:   #181411;
+  --ink-900: #181411;
 
   /* Ring-green: reserved exclusively for LIVE / judging-in-progress status */
-  --ring-green-50:  #f1f8f1;
+  --ring-green-50: #f1f8f1;
   --ring-green-500: #4e7c53;
   --ring-green-700: #385a3b;
 
-  --live:      var(--ring-green-500);
+  --live: var(--ring-green-500);
   --live-tint: var(--ring-green-50);
-  --live-ink:  var(--ring-green-700);
+  --live-ink: var(--ring-green-700);
 
   /* v2 semantic status */
   --success: #4e7c53;
   --warning: #c88b1a;
-  --danger:  #b04835;
-  --info:    #3d6d8c;
+  --danger: #b04835;
+  --info: #3d6d8c;
 
   /* v2 warm shadows */
-  --shadow-card:        rgba(61, 37, 22, 0.05) 0 4px 24px;
-  --shadow-card-hover:  0 0 0 1px var(--border), rgba(61, 37, 22, 0.06) 0 8px 28px;
+  --shadow-card: rgba(61, 37, 22, 0.05) 0 4px 24px;
+  --shadow-card-hover: 0 0 0 1px var(--border), rgba(61, 37, 22, 0.06) 0 8px 28px;
   --shadow-ring-primary: 0 0 0 1px var(--primary);
-  --shadow-header:      0 1px 3px rgba(61, 37, 22, 0.04);
+  --shadow-header: 0 1px 3px rgba(61, 37, 22, 0.04);
 
   /* v2 font aliases */
   --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-mono:  'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 
   /* v2 Fraunces optical-size settings */
-  --fraunces-settings-display: "opsz" 144, "SOFT" 50, "WONK" 0;
-  --fraunces-settings-text:    "opsz" 24,  "SOFT" 30, "WONK" 0;
+  --fraunces-settings-display: 'opsz' 144, 'SOFT' 50, 'WONK' 0;
+  --fraunces-settings-text: 'opsz' 24, 'SOFT' 30, 'WONK' 0;
 
   /* v2 spacing aliases */
-  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;
-  --space-4: 16px;  --space-5: 20px;  --space-6: 24px;
-  --space-8: 32px;  --space-10: 40px; --space-12: 48px;
-  --space-16: 64px; --space-24: 96px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
 
   /* v2 radius aliases */
-  --radius-sm:   4px;  --radius:      8px;
-  --radius-md:   12px; --radius-lg:   16px;
-  --radius-xl:   24px; --radius-full: 9999px;
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
 }
 
 /* ===== DARK THEME ===== */
 .theme-dark {
   /* UI Colors (Dark Mode) — warm olive-dark surfaces */
-  --background: #141413;
-  --foreground: #faf9f5;
-  --card: #1e1e1b;
-  --card-foreground: #faf9f5;
-  --muted: #1e1e1b;
+  --background: #181411; /* was #141413 — v2 sync */
+  --foreground: #faf7f2; /* was #faf9f5 — v2 sync */
+  --card: #1e1c19; /* was #1e1e1b — v2 sync */
+  --card-foreground: #faf7f2; /* was #faf9f5 — v2 sync */
+  --muted: #1e1c19; /* was #1e1e1b — v2 sync */
   --muted-foreground: #87867f;
-  --border: #2e2e2b;
-  --input: #1e1e1b;
-  --input-bg: #1e1e1b;
-  --input-border: #2e2e2b;
-  --input-text: #faf9f5;
+  --border: #2e2b27; /* was #2e2e2b — v2 sync */
+  --input: #1e1c19; /* was #1e1e1b — v2 sync */
+  --input-bg: #1e1c19; /* was #1e1e1b — v2 sync */
+  --input-border: #2e2b27; /* was #2e2e2b — v2 sync */
+  --input-text: #faf7f2; /* was #faf9f5 — v2 sync */
   --input-bg-hover: #252522;
   --primary: #d97757;
   --primary-hover: #c96442;
-  --primary-foreground: #faf9f5;
-  --secondary: #1e1e1b;
-  --secondary-foreground: #faf9f5;
+  --primary-foreground: #faf7f2; /* was #faf9f5 — v2 sync */
+  --secondary: #1e1c19; /* was #1e1e1b — v2 sync */
+  --secondary-foreground: #faf7f2; /* was #faf9f5 — v2 sync */
 
   /* Neutral Grays (Dark Theme) — warm olive-dark tones */
-  --surface: #1e1e1b;
-  --surface-subtle: #141413;
-  --surface-muted: #141413;
+  --surface: #1e1c19; /* was #1e1e1b — v2 sync */
+  --surface-subtle: #181411; /* was #141413 — v2 sync */
+  --surface-muted: #181411; /* was #141413 — v2 sync */
   --surface-elevated: #252522;
-  --background-subtle: #141413;
+  --background-subtle: #181411; /* was #141413 — v2 sync */
   --background-soft: #252522;
   --foreground-muted: #b0aea5;
-  --foreground-dark: #faf9f5;
-  --border-light: #2e2e2b;
-  --border-subtle: #2e2e2b;
+  --foreground-dark: #faf7f2; /* was #faf9f5 — v2 sync */
+  --border-light: #2e2b27; /* was #2e2e2b — v2 sync */
+  --border-subtle: #2e2b27; /* was #2e2e2b — v2 sync */
   --text-gray: #87867f;
   --text-light-gray: #5e5d59;
 
   /* Glass Morphism (Dark Mode) */
-  --glass-bg: rgba(20, 20, 19, 0.9);
+  --glass-bg: rgba(24, 20, 17, 0.9); /* was rgba(20, 20, 19, 0.9) — matches #181411 */
   --glass-border: rgba(255, 255, 255, 0.06);
 
   /* Skeleton Loaders (Dark Mode) */
-  --skeleton-gradient: linear-gradient(90deg, #1e1e1b 25%, #141413 50%, #1e1e1b 75%);
+  --skeleton-gradient: linear-gradient(90deg, #1e1c19 25%, #181411 50%, #1e1c19 75%);
 
   /* Check-in Status Colors (darker backgrounds for better dark mode visibility) */
   --status-no-status: #6b7280;

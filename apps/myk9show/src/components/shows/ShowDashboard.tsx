@@ -20,7 +20,15 @@ import { UnifiedEntryData } from '@/types/unified-entry-types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+
+const SHOW_DASHBOARD_TABS: PrimaryTabDef[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'entries', label: 'Entries' },
+  { id: 'schedule', label: 'Schedule' },
+  { id: 'analytics', label: 'Analytics' },
+];
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePagination, usePerformanceMetrics, useMemoryMonitoring } from '@/hooks/usePerformanceOptimization';
@@ -413,33 +421,7 @@ export function ShowDashboard({ showId, className }: ShowDashboardProps) {
       </Card>
 
       {/* Detailed Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-          <TabsTrigger 
-            value="overview"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger 
-            value="entries"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
-            Entries
-          </TabsTrigger>
-          <TabsTrigger 
-            value="schedule"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
-            Schedule
-          </TabsTrigger>
-          <TabsTrigger 
-            value="analytics"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
-            Analytics
-          </TabsTrigger>
-        </TabsList>
+      <PrimaryTabs tabs={SHOW_DASHBOARD_TABS} value={activeTab} onValueChange={setActiveTab}>
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -620,7 +602,7 @@ export function ShowDashboard({ showId, className }: ShowDashboardProps) {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+      </PrimaryTabs>
     </div>
   );
 }

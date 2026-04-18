@@ -1,8 +1,16 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { Calendar, Users, Clock, Settings } from 'lucide-react';
+
+const RUN_ORDER_TABS: PrimaryTabDef[] = [
+  { id: 'runorder', label: 'Run Order', icon: Calendar },
+  { id: 'schedule', label: 'Schedule', icon: Clock },
+  { id: 'personnel', label: 'Personnel', icon: Users },
+  { id: 'settings', label: 'Settings', icon: Settings },
+];
 
 import { RunOrderBoard } from '@/components/templates/secretary/RunOrderBoard';
 import { ClassScheduleView } from '@/components/templates/secretary/ClassScheduleView';
@@ -55,25 +63,7 @@ export const RunOrderPage: React.FC = () => {
 
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="runorder" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span className="hidden sm:inline">Run Order</span>
-              </TabsTrigger>
-              <TabsTrigger value="schedule" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                <span className="hidden sm:inline">Schedule</span>
-              </TabsTrigger>
-              <TabsTrigger value="personnel" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">Personnel</span>
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Settings</span>
-              </TabsTrigger>
-            </TabsList>
+          <PrimaryTabs tabs={RUN_ORDER_TABS} value={activeTab} onValueChange={setActiveTab}>
 
             <TabsContent value="runorder" className="mt-6">
               <RunOrderBoard
@@ -113,7 +103,7 @@ export const RunOrderPage: React.FC = () => {
                 onExport={handleExport}
               />
             </TabsContent>
-          </Tabs>
+          </PrimaryTabs>
         </CardContent>
       </Card>
 

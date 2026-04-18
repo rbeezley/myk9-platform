@@ -10,7 +10,7 @@
  * - Reports and analytics
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/services/LoggingService';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
@@ -18,7 +18,8 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   ArrowLeft,
@@ -40,6 +41,7 @@ import {
   Copy,
   Check,
   ExternalLink,
+  type LucideIcon,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -60,7 +62,7 @@ interface NavigationItem {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   href: string;
   badge?: string;
   urgent?: boolean;
@@ -351,24 +353,15 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       )}
 
       {/* Main Content */}
-      <Tabs value={activeSection} onValueChange={setActiveSection}>
-        <TabsList className="grid w-full grid-cols-5">
-          {navigationItems.map(item => (
-            <TabsTrigger
-              key={item.id}
-              value={item.id}
-              className={cn('flex items-center gap-2', item.urgent && 'text-orange-600')}
-            >
-              <item.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{item.title}</span>
-              {item.badge && (
-                <Badge variant={item.urgent ? 'destructive' : 'secondary'} className="text-xs">
-                  {item.badge}
-                </Badge>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <PrimaryTabs
+        tabs={navigationItems.map<PrimaryTabDef>(item => ({
+          id: item.id,
+          label: item.title,
+          icon: item.icon,
+        }))}
+        value={activeSection}
+        onValueChange={setActiveSection}
+      >
 
         <TabsContent value="dashboard" className="mt-6">
           <ShowDashboard {...(showId ? { showId } : {})} />
@@ -514,7 +507,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+      </PrimaryTabs>
     </div>
   );
 }

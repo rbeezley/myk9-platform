@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import WaitlistManagementPage from './WaitlistManagementPage/index';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,11 @@ import {
   RegistrationView,
 } from '@/components/entries/management';
 import { formatDate } from '@/utils/entryManagementUtils';
+
+const PAGE_TABS: PrimaryTabDef[] = [
+  { id: 'entries', label: 'Entries' },
+  { id: 'waitlist', label: 'Waitlist' },
+];
 
 /**
  * Entry Management Page for show secretaries
@@ -317,11 +323,11 @@ const EntryManagementPage: React.FC = () => {
       </Card>
 
       {/* Page-level tabs: Entries | Waitlist */}
-      <Tabs value={activePageTab} onValueChange={handlePageTabChange}>
-        <TabsList>
-          <TabsTrigger value="entries">Entries</TabsTrigger>
-          <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
-        </TabsList>
+      <PrimaryTabs
+        tabs={PAGE_TABS}
+        value={activePageTab}
+        onValueChange={handlePageTabChange}
+      >
 
         <TabsContent value="entries">
           {/* No Show Selected */}
@@ -475,7 +481,7 @@ const EntryManagementPage: React.FC = () => {
         <TabsContent value="waitlist">
           <WaitlistManagementPage />
         </TabsContent>
-      </Tabs>
+      </PrimaryTabs>
 
       {/* Armband Assignment Dialog */}
       <ArmbandDialog

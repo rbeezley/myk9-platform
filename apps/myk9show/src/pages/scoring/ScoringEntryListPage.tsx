@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 
 // Replication
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -309,22 +309,14 @@ export function ScoringEntryListPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="pending" className="gap-2">
-            Pending
-            <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-muted">
-              {entryCounts.pending}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="completed" className="gap-2">
-            Completed
-            <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-muted">
-              {entryCounts.completed}
-            </span>
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <PrimaryTabs
+        tabs={[
+          { id: 'pending', label: 'Pending', count: entryCounts.pending },
+          { id: 'completed', label: 'Completed', count: entryCounts.completed },
+        ] satisfies PrimaryTabDef[]}
+        value={activeTab}
+        onValueChange={v => setActiveTab(v as typeof activeTab)}
+      />
 
       {/* Entry List */}
       <DndContext

@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
@@ -26,6 +27,12 @@ import {
 } from 'lucide-react';
 import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 import { FadeIn } from '@/components/layout/FadeIn';
+
+const JUDGE_TABS: PrimaryTabDef[] = [
+  { id: 'today', label: 'Today', icon: CalendarDays },
+  { id: 'upcoming', label: 'Upcoming', icon: Calendar },
+  { id: 'completed', label: 'Completed', icon: CheckCircle },
+];
 
 interface JudgeClass {
   id: string;
@@ -272,30 +279,7 @@ const JudgeDashboard: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-                  <TabsTrigger
-                    value="today"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-                  >
-                    <CalendarDays className="h-4 w-4" />
-                    Today
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="upcoming"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    Upcoming
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="completed"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Completed
-                  </TabsTrigger>
-                </TabsList>
+              <PrimaryTabs tabs={JUDGE_TABS} value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
 
                 <TabsContent value="today" className="space-y-4">
                   {todaysClasses.map(judgeClass => (
@@ -420,7 +404,7 @@ const JudgeDashboard: React.FC = () => {
                     )}
                   </div>
                 </TabsContent>
-              </Tabs>
+              </PrimaryTabs>
             </CardContent>
           </Card>
         </FadeIn>

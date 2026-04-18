@@ -40,7 +40,8 @@ import type { CompetitionData } from '@/store/entryStore';
 
 // UI Components
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { Separator } from '@/components/ui/separator/separator';
 
 // Custom components
@@ -553,29 +554,15 @@ export function SecretaryClassDashboard({
 
       {/* Tabbed Interface */}
       <div className="myk9-trials-section">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="flex items-center justify-between border-b border-border mb-6">
-            <TabsList className="bg-transparent border-0 rounded-none p-0 h-auto gap-6 justify-start">
-              <TabsTrigger
-                value="overview"
-                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-              >
-                Overview
-              </TabsTrigger>
-              <TabsTrigger
-                value="bulk"
-                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-              >
-                Results Entry ({entries.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="placements"
-                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-              >
-                Placements
-              </TabsTrigger>
-            </TabsList>
-          </div>
+        <PrimaryTabs
+          tabs={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'bulk', label: 'Results Entry', count: entries.length },
+            { id: 'placements', label: 'Placements' },
+          ] satisfies PrimaryTabDef[]}
+          value={activeTab}
+          onValueChange={setActiveTab}
+        >
 
           <TabsContent value="overview" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -719,7 +706,7 @@ export function SecretaryClassDashboard({
               isCalculating={isCalculatingPlacements}
             />
           </TabsContent>
-        </Tabs>
+        </PrimaryTabs>
       </div>
     </div>
   );

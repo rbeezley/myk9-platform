@@ -10,7 +10,13 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+
+const PERMISSION_TABS: PrimaryTabDef[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'audit', label: 'Permission Audit' },
+];
 import {
   Shield,
   Users,
@@ -143,11 +149,7 @@ const PermissionManagementPage: React.FC = () => {
   }
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="mb-6">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="audit">Permission Audit</TabsTrigger>
-      </TabsList>
+    <PrimaryTabs tabs={PERMISSION_TABS} value={activeTab} onValueChange={setActiveTab} className="mb-6">
 
       <TabsContent value="overview">
         <div className="min-h-screen bg-background">
@@ -389,7 +391,7 @@ const PermissionManagementPage: React.FC = () => {
       <TabsContent value="audit">
         <PermissionAuditPage />
       </TabsContent>
-    </Tabs>
+    </PrimaryTabs>
   );
 };
 

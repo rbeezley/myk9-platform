@@ -11,7 +11,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
 import { Users, Plus, Shield, Search, Trash2, KeyRound } from 'lucide-react';
@@ -48,6 +49,11 @@ import {
   STATUS_BADGE_CLASSES,
 } from './ClubMemberDialogs';
 import { format } from 'date-fns';
+
+const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
+  { id: 'members', label: 'Members', icon: Users },
+  { id: 'officers', label: 'Officers', icon: Shield },
+];
 
 // --- Main Page ---
 
@@ -287,23 +293,11 @@ const ClubMembersPage: React.FC = () => {
         {/* Tabs */}
         <Card className="bg-gradient-to-br from-card to-card/80 border border-border/50 rounded-2xl shadow-sm backdrop-blur-xl">
           <CardContent className="p-6">
-            <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-                <TabsTrigger
-                  value="members"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Members
-                </TabsTrigger>
-                <TabsTrigger
-                  value="officers"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Officers
-                </TabsTrigger>
-              </TabsList>
+            <PrimaryTabs
+              tabs={CLUB_MEMBERS_TABS}
+              value={selectedTab}
+              onValueChange={setSelectedTab}
+            >
 
               {/* Members Tab */}
               <TabsContent value="members" className="mt-6 space-y-4">
@@ -506,7 +500,7 @@ const ClubMembersPage: React.FC = () => {
                   )}
                 </div>
               </TabsContent>
-            </Tabs>
+            </PrimaryTabs>
           </CardContent>
         </Card>
       </div>

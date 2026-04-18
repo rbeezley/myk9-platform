@@ -19,8 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { UserPlus, ArrowUpCircle, XCircle, RefreshCw, UserCheck, GitBranch } from 'lucide-react';
+
+const DAY_OF_OPS_TABS: PrimaryTabDef[] = [
+  { id: 'pipeline', label: 'Pipeline', icon: GitBranch },
+  { id: 'entries', label: 'Day of Show Entries', icon: UserPlus },
+  { id: 'moveups', label: 'Move-Ups', icon: ArrowUpCircle },
+  { id: 'scratches', label: 'Scratches', icon: XCircle },
+  { id: 'check-in', label: 'Check-In', icon: UserCheck },
+];
 import { PipelineTab } from './PipelineTab';
 
 import CheckInReportPage from '../CheckInReportPage';
@@ -135,29 +144,12 @@ export default function DayOfOperationsPage() {
       </Card>
 
       {selectedShowId && (
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="pipeline" className="flex items-center gap-2">
-              <GitBranch className="h-4 w-4" />
-              Pipeline
-            </TabsTrigger>
-            <TabsTrigger value="entries" className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Day of Show Entries
-            </TabsTrigger>
-            <TabsTrigger value="moveups" className="flex items-center gap-2">
-              <ArrowUpCircle className="h-4 w-4" />
-              Move-Ups
-            </TabsTrigger>
-            <TabsTrigger value="scratches" className="flex items-center gap-2">
-              <XCircle className="h-4 w-4" />
-              Scratches
-            </TabsTrigger>
-            <TabsTrigger value="check-in" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4" />
-              Check-In
-            </TabsTrigger>
-          </TabsList>
+        <PrimaryTabs
+          tabs={DAY_OF_OPS_TABS}
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="space-y-4"
+        >
 
           <TabsContent value="pipeline">
             <PipelineTab showId={selectedShowId} />
@@ -182,7 +174,7 @@ export default function DayOfOperationsPage() {
           <TabsContent value="check-in">
             <CheckInReportPage showId={selectedShowId} />
           </TabsContent>
-        </Tabs>
+        </PrimaryTabs>
       )}
 
       <DayOfEntryDialog

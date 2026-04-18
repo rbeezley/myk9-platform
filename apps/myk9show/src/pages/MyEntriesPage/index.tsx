@@ -7,7 +7,8 @@
 import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { EntryStatus } from '@/types/show-registration-types';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
@@ -35,8 +36,16 @@ import {
   Activity,
   ChevronRight,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
+
+const ENTRY_TABS: PrimaryTabDef[] = [
+  { id: 'all', label: 'All', icon: List },
+  { id: 'pending', label: 'Pending', icon: Clock },
+  { id: 'accepted', label: 'Accepted', icon: CheckCircle },
+  { id: 'waitlist', label: 'Waitlist', icon: Users },
+  { id: 'upcoming', label: 'Upcoming', icon: CalendarDays },
+  { id: 'completed', label: 'Completed', icon: CircleCheck },
+];
 import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
@@ -259,32 +268,12 @@ const MyEntriesPage: React.FC = () => {
           <MyEntriesStatsCards stats={entryStats} />
 
           {/* Entries List */}
-          <Tabs
+          <PrimaryTabs
+            tabs={ENTRY_TABS}
             value={selectedTab}
             onValueChange={value => setSelectedTab(value as EntryTabFilter)}
             className="space-y-6"
           >
-            <TabsList className="flex w-full overflow-x-auto scrollbar-hide bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto gap-1">
-              {(
-                [
-                  { key: 'all', label: 'All', icon: List },
-                  { key: 'pending', label: 'Pending', icon: Clock },
-                  { key: 'accepted', label: 'Accepted', icon: CheckCircle },
-                  { key: 'waitlist', label: 'Waitlist', icon: Users },
-                  { key: 'upcoming', label: 'Upcoming', icon: CalendarDays },
-                  { key: 'completed', label: 'Completed', icon: CircleCheck },
-                ] as { key: string; label: string; icon: LucideIcon }[]
-              ).map(tab => (
-                <TabsTrigger
-                  key={tab.key}
-                  value={tab.key}
-                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4"
-                >
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
 
             <TabsContent value={selectedTab} className="space-y-4">
               {filteredEntries.length === 0 ? (
@@ -301,7 +290,7 @@ const MyEntriesPage: React.FC = () => {
                 ))
               )}
             </TabsContent>
-          </Tabs>
+          </PrimaryTabs>
         </div>
       </div>
 

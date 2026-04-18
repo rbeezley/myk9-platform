@@ -180,7 +180,7 @@ export const requestScratch = async (entryId: string, reason?: string) => {
     const { data, error } = await supabase
       .from('entries')
       .update({
-        entry_status: 'scratched',
+        entry_status: 'scratch_requested',
         special_requests: reason || null,
         updated_at: new Date().toISOString(),
       })

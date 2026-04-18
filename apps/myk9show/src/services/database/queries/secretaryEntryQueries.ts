@@ -136,9 +136,9 @@ export const getEntryCountsByStatus = async (showId: string) => {
 
     const counts = {
       total: entries?.length || 0,
-      pending: entries?.filter(e => e.entry_status === 'submitted').length || 0,
-      accepted: entries?.filter(e => e.entry_status === 'confirmed').length || 0,
-      waitlist: entries?.filter(e => e.entry_status === 'pending-payment').length || 0,
+      submitted: entries?.filter(e => e.entry_status === 'submitted').length || 0,
+      confirmed: entries?.filter(e => e.entry_status === 'confirmed').length || 0,
+      pendingPayment: entries?.filter(e => e.entry_status === 'pending-payment').length || 0,
       paymentDue: entries?.filter(e => e.payment_status === 'pending').length || 0,
     };
 

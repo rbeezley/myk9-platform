@@ -7,17 +7,15 @@
  */
 
 import { BaseEntity, SyncableEntity } from './core-types';
+import type { EntryStatus } from './entry-lifecycle';
+
+// Re-export the canonical EntryStatus so the barrel (and any direct importer)
+// sees the same 19-value union defined in entry-lifecycle.ts.
+export type { EntryStatus };
 
 // ============================================================================
 // Core Entry Types (Order-level)
 // ============================================================================
-
-export type EntryStatus =
-  | 'draft' // Being created/edited
-  | 'submitted' // Submitted for review
-  | 'accepted' // Entry accepted (all classes processed)
-  | 'rejected' // Entry rejected
-  | 'withdrawn'; // Withdrawn by handler
 
 export type PaymentStatus =
   | 'pending' // Payment not yet made
@@ -365,8 +363,30 @@ export interface EntryMigrationData {
 // Type Guards
 // ============================================================================
 
+const VALID_ENTRY_STATUSES: readonly EntryStatus[] = [
+  'no-status',
+  'draft',
+  'submitted',
+  'paid',
+  'confirmed',
+  'scheduled',
+  'checked-in',
+  'at-gate',
+  'in-ring',
+  'competing',
+  'completed',
+  'withdrawn',
+  'scratched',
+  'absent',
+  'moved',
+  'scratch_requested',
+  'move_up_requested',
+  'pending-payment',
+  'promotion-expired',
+];
+
 export function isValidEntryStatus(status: string): status is EntryStatus {
-  return ['draft', 'submitted', 'accepted', 'rejected', 'withdrawn'].includes(status);
+  return (VALID_ENTRY_STATUSES as readonly string[]).includes(status);
 }
 
 export function isValidPaymentStatus(status: string): status is PaymentStatus {
@@ -389,14 +409,6 @@ export function isClassEntryEditable(classEntry: ClassEntry): boolean {
 // Constants
 // ============================================================================
 
-export const ENTRY_STATUS_LABELS: Record<EntryStatus, string> = {
-  draft: 'Draft',
-  submitted: 'Submitted',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-  withdrawn: 'Withdrawn',
-};
-
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   pending: 'Pending',
   paid: 'Paid',
@@ -412,14 +424,6 @@ export const CLASS_ENTRY_STATUS_LABELS: Record<ClassEntryStatus, string> = {
   waitlisted: 'Waitlisted',
   withdrawn: 'Withdrawn',
   moved: 'Moved',
-};
-
-export const ENTRY_STATUS_COLORS: Record<EntryStatus, string> = {
-  draft: 'gray',
-  submitted: 'blue',
-  accepted: 'green',
-  rejected: 'red',
-  withdrawn: 'orange',
 };
 
 export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {

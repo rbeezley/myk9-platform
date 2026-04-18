@@ -156,8 +156,8 @@ export type {
 } from './show-registration-types';
 
 // Entry Types - explicit exports
-// EntryStatus is sourced from entry-lifecycle.ts (canonical); entry-refactored-types has a
-// conflicting 5-value version so we export this one explicitly to shadow it.
+// EntryStatus is canonical in entry-lifecycle.ts. entry-refactored-types re-exports
+// the same alias for its internal use.
 export type { EntryStatus } from './entry-lifecycle';
 export type {
   PaymentStatus,
@@ -189,10 +189,8 @@ export {
   isValidClassEntryStatus,
   isEntryEditable,
   isClassEntryEditable,
-  ENTRY_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   CLASS_ENTRY_STATUS_LABELS,
-  ENTRY_STATUS_COLORS,
   PAYMENT_STATUS_COLORS,
   CLASS_ENTRY_STATUS_COLORS,
 } from './entry-refactored-types';

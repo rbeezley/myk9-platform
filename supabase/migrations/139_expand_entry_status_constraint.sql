@@ -1,19 +1,24 @@
 -- ---------------------------------------------------------------------------
 -- Migration 139: Expand entry_status CHECK constraint
 -- ---------------------------------------------------------------------------
--- Migration 116 accidentally dropped 'pending-payment' and 'promotion-expired'
--- (added in migration 114 for the waitlist promotion flow) when it rewrote the
--- constraint for myK9Q compatibility.
+-- Migration 116 ("myK9Q compatibility") rewrote the constraint to add
+-- ring-state values ('at-gate', 'in-ring') but did not carry forward the two
+-- waitlist values ('pending-payment', 'promotion-expired') that migration 114
+-- had added. This migration restores them.
 --
--- Additionally, the app code uses three workflow-transition values that were
--- never added to the constraint:
+-- It also adds three workflow-transition values the app code writes but the
+-- constraint never allowed:
 --   'scratch_requested' -- exhibitor has requested a scratch; awaiting approval
 --   'move_up_requested' -- exhibitor has requested a move-up; awaiting approval
 --   'moved'             -- entry was moved to a different class (source entry)
 --
--- These three values are written/read by scratchQueries.ts and moveUpQueries.ts.
--- Without them in the constraint, every INSERT/UPDATE with these values fails
--- the CHECK and every SELECT filter on them silently returns zero rows.
+-- Written/read by scratchQueries.ts and moveUpQueries.ts. Every INSERT/UPDATE
+-- with these values was failing the CHECK and every SELECT filter on them was
+-- silently returning zero rows.
+--
+-- No data backfill is needed: the CHECK constraint has rejected unknown values
+-- since migration 003, so no existing rows can hold any of the invalid values
+-- the buggy code was attempting to write.
 -- ---------------------------------------------------------------------------
 
 BEGIN;

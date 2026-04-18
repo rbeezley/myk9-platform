@@ -33,7 +33,6 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 Low-priority cleanup items discovered during v2 implementation.
 
 - [ ] `apps/myk9show/DESIGN.md` references Playfair Display in ~12 places. Refresh to match v2 (Fraunces headings, Montserrat body).
-- [ ] `apps/myk9show/src/pages/scoring/styles/design-tokens.css` `.theme-dark` block still has old values for `--input`, `--input-border`, `--secondary`, `--surface`, `--glass-bg` (out of Task 3 scope). Sync when scoring pages get v2 visual QA.
 - [ ] myK9Q app (`apps/myk9q/`) design system v2 — separate plan needed; myK9Q uses semantic CSS (no Tailwind/shadcn).
 
 ---

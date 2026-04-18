@@ -369,7 +369,12 @@ select:hover {
 @layer base {
   :root {
     color-scheme: light dark;
-    /* ---- Font stack (sans only; serif/mono live in design-tokens.css) ---- */
+    /* ---- Font stack ----
+       --font-sans is defined only at :root (not redeclared in .dark),
+       so it cascades into dark mode unchanged. If you ever move this
+       behind a theme selector, add a matching declaration to .dark or
+       dark mode will fall back to the UA default.
+       --font-serif and --font-mono live in design-tokens.css. */
     --font-sans: 'Montserrat', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     /* Warm parchment backgrounds — Claude-inspired */
     --background: #faf7f2; /* was #f5f4ed — v2 ivory-50 */
@@ -416,21 +421,23 @@ select:hover {
 
   .dark {
     color-scheme: dark;
-    /* v2 warm-black surfaces — ink-900 / ivory-50 */
-    --background: #181411;
-    --foreground: #faf7f2;
+    /* v2 warm-black surfaces — tokenized to brand palette where the hex
+       matches a named token (--ink-900 / --ivory-50). The in-between shades
+       (#1e1c19, #2e2b27) are dark-mode-only and stay as literals. */
+    --background: var(--ink-900);
+    --foreground: var(--ivory-50);
     --background-alt: #1e1c19;
     --card: #1e1c19;
-    --card-foreground: #faf7f2;
-    --sidebar: #181411;
-    --sidebar-foreground: #faf7f2;
-    --card-secondary: #181411;
-    --card-secondary-foreground: #faf7f2;
+    --card-foreground: var(--ivory-50);
+    --sidebar: var(--ink-900);
+    --sidebar-foreground: var(--ivory-50);
+    --card-secondary: var(--ink-900);
+    --card-secondary-foreground: var(--ivory-50);
     --muted: #1e1c19;
-    --muted-foreground: #87867f;
+    --muted-foreground: var(--stone-500); /* v2 stone-500 — matches light mode */
     /* Primary overridden by accent color classes below */
     --secondary: #1e1c19;
-    --secondary-foreground: #faf7f2;
+    --secondary-foreground: var(--ivory-50);
     --accent: #2a2520;
     --accent-foreground: #d97757;
     --destructive: #dc2626;
@@ -444,9 +451,9 @@ select:hover {
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
-    --dialog-input-bg: #181411;
+    --dialog-input-bg: var(--ink-900);
     --popover: #1e1c19;
-    --popover-foreground: #faf7f2;
+    --popover-foreground: var(--ivory-50);
     /* Card elevation — deeper shadows for darker warm-black backdrop */
     --shadow-card: rgba(0, 0, 0, 0.3) 0px 4px 24px;
     --shadow-card-hover: 0px 0px 0px 1px var(--border), rgba(0, 0, 0, 0.35) 0px 8px 28px;

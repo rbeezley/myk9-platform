@@ -413,39 +413,39 @@
   --card: #1e1c19; /* was #1e1e1b — v2 sync */
   --card-foreground: #faf7f2; /* was #faf9f5 — v2 sync */
   --muted: #1e1c19; /* was #1e1e1b — v2 sync */
-  --muted-foreground: #87867f;
+  --muted-foreground: #8c8376; /* was #87867f — v2 stone-500 */
   --border: #2e2b27; /* was #2e2e2b — v2 sync */
-  --input: #1e1e1b;
-  --input-bg: #1e1e1b;
-  --input-border: #2e2e2b;
-  --input-text: #faf9f5;
+  --input: #1e1c19; /* was #1e1e1b — v2 sync */
+  --input-bg: #1e1c19; /* was #1e1e1b — v2 sync */
+  --input-border: #2e2b27; /* was #2e2e2b — v2 sync */
+  --input-text: #faf7f2; /* was #faf9f5 — v2 sync */
   --input-bg-hover: #252522;
   --primary: #d97757;
   --primary-hover: #c96442;
-  --primary-foreground: #faf9f5;
-  --secondary: #1e1e1b;
-  --secondary-foreground: #faf9f5;
+  --primary-foreground: #faf7f2; /* was #faf9f5 — v2 sync */
+  --secondary: #1e1c19; /* was #1e1e1b — v2 sync */
+  --secondary-foreground: #faf7f2; /* was #faf9f5 — v2 sync */
 
   /* Neutral Grays (Dark Theme) — warm olive-dark tones */
-  --surface: #1e1e1b;
-  --surface-subtle: #141413;
-  --surface-muted: #141413;
+  --surface: #1e1c19; /* was #1e1e1b — v2 sync */
+  --surface-subtle: #181411; /* was #141413 — v2 sync */
+  --surface-muted: #181411; /* was #141413 — v2 sync */
   --surface-elevated: #252522;
   --background-subtle: #181411; /* was #141413 — v2 sync */
   --background-soft: #252522;
   --foreground-muted: #b0aea5;
-  --foreground-dark: #faf9f5;
+  --foreground-dark: #faf7f2; /* was #faf9f5 — v2 sync */
   --border-light: #2e2b27; /* was #2e2e2b — v2 sync */
   --border-subtle: #2e2b27; /* was #2e2e2b — v2 sync */
-  --text-gray: #87867f;
+  --text-gray: #8c8376; /* was #87867f — v2 stone-500 */
   --text-light-gray: #5e5d59;
 
   /* Glass Morphism (Dark Mode) */
-  --glass-bg: rgba(20, 20, 19, 0.9);
+  --glass-bg: rgba(24, 20, 17, 0.9); /* was rgba(20, 20, 19, 0.9) — matches #181411 */
   --glass-border: rgba(255, 255, 255, 0.06);
 
   /* Skeleton Loaders (Dark Mode) */
-  --skeleton-gradient: linear-gradient(90deg, #1e1e1b 25%, #141413 50%, #1e1e1b 75%);
+  --skeleton-gradient: linear-gradient(90deg, #1e1c19 25%, #181411 50%, #1e1c19 75%);
 
   /* Check-in Status Colors (darker backgrounds for better dark mode visibility) */
   --status-no-status: #6b7280;

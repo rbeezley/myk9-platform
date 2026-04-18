@@ -16,6 +16,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'current-user-id' },
     getUserRoles: () => ['exhibitor'],
+    hasPermission: vi.fn().mockReturnValue(false),
   }),
 }));
 

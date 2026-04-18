@@ -257,6 +257,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [auth.user?.id]);
 
   // Build userWithRoles - priority: mock user > database RBAC > default exhibitor
+  // Deps use primitive/stable values (IDs, not object references) to avoid re-creating
+  // this object when Supabase returns a new User reference for the same identity.
   const userWithRoles = useMemo((): UserWithRoles | null => {
     if (!auth.user) return null;
 
@@ -308,7 +310,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // RBAC not yet loaded (or failed) — return null to keep loading state
     // The loading flag (rbacData.isLoading) prevents ProtectedRoute from showing fallback
     return null;
-  }, [auth.user, currentMockUser, rbacData, userProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.user?.id, auth.user?.email, currentMockUser, rbacData, userProfile?.id]);
 
   /**
    * Check if user has a specific role
@@ -537,7 +540,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: userProfile?.first_name ?? null,
     }),
     [
-      auth,
+      // Use auth.user and auth.loading instead of the whole auth object.
+      // auth is a plain object literal recreated on every useAuth() call, so including it
+      // as a dep would recreate the context value on every AuthProvider render.
+      auth.user,
+      auth.loading,
       userWithRoles,
       rbacData.isLoading,
       rbacData.effectivePermissions,

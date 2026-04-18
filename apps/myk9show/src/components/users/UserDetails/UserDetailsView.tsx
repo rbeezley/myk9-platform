@@ -11,7 +11,6 @@ import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { UserRole } from '@/types/auth-types';
 import { User as UserType } from '@/types/user-types';
-import { useRBAC } from '@/hooks/useRBAC';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { RecordPageLayout } from '@/components/layout/record';
@@ -30,8 +29,7 @@ interface UserDetailsViewProps {
 
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
-  const { user: currentUser } = useAuthContext();
-  const { hasPermission } = useRBAC();
+  const { user: currentUser, hasPermission } = useAuthContext();
   const { loadUsers } = useUserStore();
   const { dogs: ownerDogs } = useOwnerDogsWithQuery(person.id);
   const updateUserMutation = useUpdateUserMutation();
@@ -59,11 +57,15 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     return false;
   };
 
+  // Sync formData when navigating to a different person (ID changes).
+  // Using person.id (stable string) avoids re-running when React Query returns a new
+  // object reference for the same person after a background refetch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     if (person) {
       setFormData(buildFormData(person));
     }
-  }, [person]);
+  }, [person?.id]);
 
   const handleDeleteUser = async () => {
     try {

@@ -63,32 +63,44 @@ class PerformanceMonitor {
     // Navigation timing
     if ('PerformanceObserver' in window) {
       try {
-        const navObserver = new PerformanceObserver((list) => {
-          list.getEntries().forEach((entry) => {
+        const navObserver = new PerformanceObserver(list => {
+          list.getEntries().forEach(entry => {
             if (entry.entryType === 'navigation') {
               const navEntry = entry as PerformanceNavigationTiming;
-              this.recordMetric('navigation.domContentLoaded', navEntry.domContentLoadedEventEnd - navEntry.domContentLoadedEventStart, 'ms', {
-                type: navEntry.type,
-                url: navEntry.name,
-              });
-              
-              this.recordMetric('navigation.load', navEntry.loadEventEnd - navEntry.loadEventStart, 'ms', {
-                type: navEntry.type,
-                url: navEntry.name,
-              });
+              this.recordMetric(
+                'navigation.domContentLoaded',
+                navEntry.domContentLoadedEventEnd - navEntry.domContentLoadedEventStart,
+                'ms',
+                {
+                  type: navEntry.type,
+                  url: navEntry.name,
+                }
+              );
+
+              this.recordMetric(
+                'navigation.load',
+                navEntry.loadEventEnd - navEntry.loadEventStart,
+                'ms',
+                {
+                  type: navEntry.type,
+                  url: navEntry.name,
+                }
+              );
             }
           });
         });
         navObserver.observe({ entryTypes: ['navigation'] });
         this.observers.push(navObserver);
       } catch (error) {
-        logger.warn('Failed to setup navigation observer', 'monitoring', { error: error?.toString() });
+        logger.warn('Failed to setup navigation observer', 'monitoring', {
+          error: error?.toString(),
+        });
       }
 
       // Resource timing
       try {
-        const resourceObserver = new PerformanceObserver((list) => {
-          list.getEntries().forEach((entry) => {
+        const resourceObserver = new PerformanceObserver(list => {
+          list.getEntries().forEach(entry => {
             if (entry.entryType === 'resource') {
               const resourceEntry = entry as PerformanceResourceTiming;
               this.recordMetric('resource.load', resourceEntry.duration, 'ms', {
@@ -102,13 +114,15 @@ class PerformanceMonitor {
         resourceObserver.observe({ entryTypes: ['resource'] });
         this.observers.push(resourceObserver);
       } catch (error) {
-        logger.warn('Failed to setup resource observer', 'monitoring', { error: error?.toString() });
+        logger.warn('Failed to setup resource observer', 'monitoring', {
+          error: error?.toString(),
+        });
       }
 
       // Long tasks
       try {
-        const longTaskObserver = new PerformanceObserver((list) => {
-          list.getEntries().forEach((entry) => {
+        const longTaskObserver = new PerformanceObserver(list => {
+          list.getEntries().forEach(entry => {
             if (entry.entryType === 'longtask') {
               this.recordMetric('longtask.duration', entry.duration, 'ms', {
                 name: entry.name,
@@ -120,7 +134,9 @@ class PerformanceMonitor {
         longTaskObserver.observe({ entryTypes: ['longtask'] });
         this.observers.push(longTaskObserver);
       } catch (error) {
-        logger.warn('Failed to setup long task observer', 'monitoring', { error: error?.toString() });
+        logger.warn('Failed to setup long task observer', 'monitoring', {
+          error: error?.toString(),
+        });
       }
     }
   }
@@ -129,11 +145,15 @@ class PerformanceMonitor {
     // First Input Delay (FID)
     if ('PerformanceObserver' in window) {
       try {
-        const fidObserver = new PerformanceObserver((list) => {
-          list.getEntries().forEach((entry) => {
+        const fidObserver = new PerformanceObserver(list => {
+          list.getEntries().forEach(entry => {
             if (entry.entryType === 'first-input') {
               const fidEntry = entry as PerformanceEventTiming;
-              this.recordMetric('webvitals.fid', fidEntry.processingStart - fidEntry.startTime, 'ms');
+              this.recordMetric(
+                'webvitals.fid',
+                fidEntry.processingStart - fidEntry.startTime,
+                'ms'
+              );
             }
           });
         });
@@ -147,12 +167,15 @@ class PerformanceMonitor {
     // Largest Contentful Paint (LCP)
     if ('PerformanceObserver' in window) {
       try {
-        const lcpObserver = new PerformanceObserver((list) => {
+        const lcpObserver = new PerformanceObserver(list => {
           const entries = list.getEntries();
           const lastEntry = entries[entries.length - 1] as PerformancePaintTiming;
           if (lastEntry) {
             this.recordMetric('webvitals.lcp', lastEntry.startTime, 'ms', {
-              element: 'element' in lastEntry ? (lastEntry as unknown as { element?: { tagName?: string } }).element?.tagName : undefined,
+              element:
+                'element' in lastEntry
+                  ? (lastEntry as unknown as { element?: { tagName?: string } }).element?.tagName
+                  : undefined,
             });
           }
         });
@@ -163,20 +186,35 @@ class PerformanceMonitor {
       }
     }
 
-    // Cumulative Layout Shift (CLS)
+    // Cumulative Layout Shift (CLS) — report once on page hide, not on every shift
     if ('PerformanceObserver' in window) {
       try {
         let clsScore = 0;
-        const clsObserver = new PerformanceObserver((list) => {
-          list.getEntries().forEach((entry) => {
-            if (entry.entryType === 'layout-shift' && !('hadRecentInput' in entry && (entry as unknown as { hadRecentInput: boolean }).hadRecentInput)) {
+        const clsObserver = new PerformanceObserver(list => {
+          list.getEntries().forEach(entry => {
+            if (
+              entry.entryType === 'layout-shift' &&
+              !(
+                'hadRecentInput' in entry &&
+                (entry as unknown as { hadRecentInput: boolean }).hadRecentInput
+              )
+            ) {
               clsScore += 'value' in entry ? (entry as unknown as { value: number }).value : 0;
             }
           });
-          this.recordMetric('webvitals.cls', clsScore, 'score');
         });
-        clsObserver.observe({ entryTypes: ['layout-shift'] });
+        clsObserver.observe({
+          entryTypes: ['layout-shift'],
+          buffered: true,
+        } as PerformanceObserverInit);
         this.observers.push(clsObserver);
+
+        // Report final CLS only when the page is hidden (standard web-vitals approach)
+        const reportCls = () => this.recordMetric('webvitals.cls', clsScore, 'score');
+        window.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') reportCls();
+        });
+        window.addEventListener('pagehide', reportCls, { once: true });
       } catch (error) {
         logger.warn('Failed to setup CLS observer', 'monitoring', { error: error?.toString() });
       }
@@ -191,7 +229,12 @@ class PerformanceMonitor {
     return 'other';
   }
 
-  recordMetric(name: string, value: number, unit: string, metadata?: Record<string, unknown>): void {
+  recordMetric(
+    name: string,
+    value: number,
+    unit: string,
+    metadata?: Record<string, unknown>
+  ): void {
     const metric: PerformanceMetric = {
       name,
       value,
@@ -217,7 +260,11 @@ class PerformanceMonitor {
       };
       const threshold = significantThresholds[name];
       if (threshold && value > threshold) {
-        logger.warn(`Performance issue detected: ${name} = ${value}${unit}`, 'performance', metadata);
+        logger.warn(
+          `Performance issue detected: ${name} = ${value}${unit}`,
+          'performance',
+          metadata
+        );
       }
     } else if (this.isPerformanceIssue(name, value)) {
       // In production, use standard thresholds
@@ -284,7 +331,7 @@ class ErrorMonitor {
 
   private setupErrorHandlers(): void {
     // Global error handler
-    window.addEventListener('error', (event) => {
+    window.addEventListener('error', event => {
       this.recordError({
         message: event.message,
         stack: event.error?.stack,
@@ -300,7 +347,7 @@ class ErrorMonitor {
     });
 
     // Unhandled promise rejection handler
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener('unhandledrejection', event => {
       this.recordError({
         message: `Unhandled Promise Rejection: ${event.reason}`,
         stack: event.reason?.stack,
@@ -508,7 +555,12 @@ export class MonitoringService {
   }
 
   // Performance monitoring
-  recordPerformanceMetric(name: string, value: number, unit: string, metadata?: Record<string, unknown>): void {
+  recordPerformanceMetric(
+    name: string,
+    value: number,
+    unit: string,
+    metadata?: Record<string, unknown>
+  ): void {
     this.performanceMonitor.recordMetric(name, value, unit, metadata);
   }
 
@@ -521,7 +573,12 @@ export class MonitoringService {
   }
 
   // Error monitoring
-  recordError(message: string, component?: string, metadata?: Record<string, unknown>, error?: Error): void {
+  recordError(
+    message: string,
+    component?: string,
+    metadata?: Record<string, unknown>,
+    error?: Error
+  ): void {
     this.errorMonitor.recordError({
       message,
       stack: error?.stack,
@@ -565,7 +622,13 @@ export class MonitoringService {
   }
 
   // API call tracking
-  trackApiCall(method: string, url: string, status: number, duration: number, metadata?: Record<string, unknown>): void {
+  trackApiCall(
+    method: string,
+    url: string,
+    status: number,
+    duration: number,
+    metadata?: Record<string, unknown>
+  ): void {
     this.recordPerformanceMetric('api.response_time', duration, 'ms', {
       method,
       url,
@@ -596,7 +659,12 @@ export class MonitoringService {
       error => {
         const duration = performance.now() - startTime;
         this.recordPerformanceMetric(`resource.${name}`, duration, 'ms', { error: true });
-        this.recordError(`Resource timing error: ${name}`, 'resource', { error: error.toString() }, error);
+        this.recordError(
+          `Resource timing error: ${name}`,
+          'resource',
+          { error: error.toString() },
+          error
+        );
         throw error;
       }
     );
@@ -612,7 +680,9 @@ export class MonitoringService {
       return result;
     } catch (error) {
       const duration = performance.now() - startTime;
-      this.recordPerformanceMetric(`component.render.${componentName}`, duration, 'ms', { error: true });
+      this.recordPerformanceMetric(`component.render.${componentName}`, duration, 'ms', {
+        error: true,
+      });
       this.recordError(`Component render error: ${componentName}`, 'component', {}, error as Error);
       throw error;
     }
@@ -633,12 +703,12 @@ export class MonitoringService {
     const errors = this.getErrors();
     const userEvents = this.getUserEvents();
 
-    const recentErrors = errors.filter(error => 
-      Date.now() - error.timestamp < 5 * 60 * 1000 // Last 5 minutes
+    const recentErrors = errors.filter(
+      error => Date.now() - error.timestamp < 5 * 60 * 1000 // Last 5 minutes
     );
 
-    const recentEvents = userEvents.filter(event =>
-      Date.now() - event.timestamp < 30 * 60 * 1000 // Last 30 minutes
+    const recentEvents = userEvents.filter(
+      event => Date.now() - event.timestamp < 30 * 60 * 1000 // Last 30 minutes
     );
 
     const activeUsers = new Set(recentEvents.map(e => e.userId).filter(Boolean)).size;
@@ -648,9 +718,10 @@ export class MonitoringService {
       .map(m => m.value)
       .sort((a, b) => a - b);
 
-    const avg = performanceTimes.length > 0 
-      ? performanceTimes.reduce((a, b) => a + b, 0) / performanceTimes.length 
-      : 0;
+    const avg =
+      performanceTimes.length > 0
+        ? performanceTimes.reduce((a, b) => a + b, 0) / performanceTimes.length
+        : 0;
 
     const p95Index = Math.floor(performanceTimes.length * 0.95);
     const p95 = performanceTimes[p95Index] || 0;

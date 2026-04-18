@@ -9,9 +9,10 @@ import {
   AuditSearchFilters,
   AuditSearchResult,
   AuditAction,
-  ImpersonationContext
+  ImpersonationContext,
 } from '@/types/audit-types';
 import { logger } from '@/services/LoggingService';
+import { supabase } from '@/services/database/supabaseClient';
 
 export interface AuditServiceConfig {
   enableLocalStorage?: boolean;
@@ -33,7 +34,7 @@ export class AuditService {
       enableConsoleLogging: true,
       enableRemoteLogging: true, // Enable database logging
       apiEndpoint: '/api/audit', // Supabase endpoint
-      ...config
+      ...config,
     };
 
     // Load existing entries from localStorage
@@ -64,8 +65,8 @@ export class AuditService {
         ...input.metadata,
         timestamp: new Date().toISOString(),
         url: window.location.href,
-        referrer: document.referrer
-      }
+        referrer: document.referrer,
+      },
     };
 
     // Store locally
@@ -80,7 +81,7 @@ export class AuditService {
         entity: `${entry.entityType}:${entry.entityId}`,
         user: entry.userId,
         impersonating: entry.impersonatingUserId,
-        changes: entry.changes
+        changes: entry.changes,
       });
     }
 
@@ -107,7 +108,12 @@ export class AuditService {
       try {
         return await this.searchRemoteAuditTrail(filters);
       } catch (error) {
-        logger.warn('Failed to search remote audit trail, falling back to localStorage', 'audit', {}, error as Error);
+        logger.warn(
+          'Failed to search remote audit trail, falling back to localStorage',
+          'audit',
+          {},
+          error as Error
+        );
       }
     }
 
@@ -152,7 +158,7 @@ export class AuditService {
       entries: entries.slice(startIndex, endIndex),
       totalCount: entries.length,
       page,
-      pageSize
+      pageSize,
     };
   }
 
@@ -160,12 +166,6 @@ export class AuditService {
    * Search audit trail in database
    */
   private async searchRemoteAuditTrail(filters: AuditSearchFilters): Promise<AuditSearchResult> {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      import.meta.env.VITE_SUPABASE_URL!,
-      import.meta.env.VITE_SUPABASE_ANON_KEY!
-    );
-
     let query = supabase
       .from('audit_entry')
       .select('*', { count: 'exact' })
@@ -201,8 +201,7 @@ export class AuditService {
     const pageSize = filters.pageSize || 50;
     const startIndex = (page - 1) * pageSize;
 
-    const { data, error, count } = await query
-      .range(startIndex, startIndex + pageSize - 1);
+    const { data, error, count } = await query.range(startIndex, startIndex + pageSize - 1);
 
     if (error) {
       throw new Error(`Failed to search audit trail: ${error.message}`);
@@ -220,20 +219,20 @@ export class AuditService {
       entityId: row.entity_id,
       changes: {
         before: row.old_values,
-        after: row.new_values
+        after: row.new_values,
       },
       ipAddress: row.metadata?.ipAddress || '',
       userAgent: row.metadata?.userAgent || '',
       requestId: row.metadata?.requestId || '',
       impersonatingUserId: row.metadata?.impersonatingUserId,
-      metadata: row.metadata || {}
+      metadata: row.metadata || {},
     }));
 
     return {
       entries,
       totalCount: count || 0,
       page,
-      pageSize
+      pageSize,
     };
   }
 
@@ -251,8 +250,8 @@ export class AuditService {
         metadata: {
           targetUserId: context.targetUserId,
           reason: context.reason,
-          expiresAt: context.expiresAt.toISOString()
-        }
+          expiresAt: context.expiresAt.toISOString(),
+        },
       });
     } else {
       this.log({
@@ -260,8 +259,8 @@ export class AuditService {
         entityType: 'user_session',
         entityId: 'session_end',
         metadata: {
-          endedAt: new Date().toISOString()
-        }
+          endedAt: new Date().toISOString(),
+        },
       });
     }
   }
@@ -279,8 +278,8 @@ export class AuditService {
       metadata: {
         loginTime: new Date().toISOString(),
         userAgent: this.getUserAgent(),
-        ipAddress: this.getClientIP()
-      }
+        ipAddress: this.getClientIP(),
+      },
     });
   }
 
@@ -294,33 +293,42 @@ export class AuditService {
       entityType: 'user_session',
       entityId: userId,
       metadata: {
-        logoutTime: new Date().toISOString()
-      }
+        logoutTime: new Date().toISOString(),
+      },
     });
   }
 
   /**
    * Track entity creation
    */
-  async trackCreate(entityType: string, entityId: string, data: Record<string, unknown>): Promise<void> {
+  async trackCreate(
+    entityType: string,
+    entityId: string,
+    data: Record<string, unknown>
+  ): Promise<void> {
     await this.log({
       action: AuditAction.CREATE,
       entityType,
       entityId,
       changes: {
-        created: { from: null, to: data }
+        created: { from: null, to: data },
       },
       metadata: {
         operation: 'create',
-        entityData: data
-      }
+        entityData: data,
+      },
     });
   }
 
   /**
    * Track entity updates
    */
-  async trackUpdate(entityType: string, entityId: string, oldData: Record<string, unknown>, newData: Record<string, unknown>): Promise<void> {
+  async trackUpdate(
+    entityType: string,
+    entityId: string,
+    oldData: Record<string, unknown>,
+    newData: Record<string, unknown>
+  ): Promise<void> {
     const changes: Record<string, { from: unknown; to: unknown }> = {};
 
     // Compare old and new data to identify changes
@@ -328,7 +336,7 @@ export class AuditService {
       if (oldData[key] !== newData[key]) {
         changes[key] = {
           from: oldData[key],
-          to: newData[key]
+          to: newData[key],
         };
       }
     });
@@ -341,8 +349,8 @@ export class AuditService {
         changes,
         metadata: {
           operation: 'update',
-          changedFields: Object.keys(changes)
-        }
+          changedFields: Object.keys(changes),
+        },
       });
     }
   }
@@ -350,18 +358,22 @@ export class AuditService {
   /**
    * Track entity deletion
    */
-  async trackDelete(entityType: string, entityId: string, data: Record<string, unknown>): Promise<void> {
+  async trackDelete(
+    entityType: string,
+    entityId: string,
+    data: Record<string, unknown>
+  ): Promise<void> {
     await this.log({
       action: AuditAction.DELETE,
       entityType,
       entityId,
       changes: {
-        deleted: { from: data, to: null }
+        deleted: { from: data, to: null },
       },
       metadata: {
         operation: 'delete',
-        deletedData: data
-      }
+        deletedData: data,
+      },
     });
   }
 
@@ -370,7 +382,7 @@ export class AuditService {
    */
   async exportAuditTrail(filters?: AuditSearchFilters): Promise<string> {
     const result = await this.searchAuditTrail(filters || {});
-    
+
     await this.log({
       action: AuditAction.EXPORT,
       entityType: 'audit_trail',
@@ -378,8 +390,8 @@ export class AuditService {
       metadata: {
         exportedCount: result.entries.length,
         filters,
-        exportTime: new Date().toISOString()
-      }
+        exportTime: new Date().toISOString(),
+      },
     });
 
     // Convert to CSV format
@@ -392,7 +404,7 @@ export class AuditService {
       'Entity ID',
       'Changes',
       'IP Address',
-      'User Agent'
+      'User Agent',
     ];
 
     const rows = result.entries.map(entry => [
@@ -404,12 +416,10 @@ export class AuditService {
       entry.entityId,
       JSON.stringify(entry.changes || {}),
       entry.ipAddress || '',
-      entry.userAgent || ''
+      entry.userAgent || '',
     ]);
 
-    return [headers, ...rows].map(row => 
-      row.map(cell => `"${cell}"`).join(',')
-    ).join('\n');
+    return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
   }
 
   /**
@@ -437,7 +447,7 @@ export class AuditService {
       totalEntries: this.localAuditEntries.length,
       entriesByAction,
       entriesByEntityType,
-      recentActivity
+      recentActivity,
     };
   }
 
@@ -463,12 +473,15 @@ export class AuditService {
 
     // Save to localStorage
     try {
-      localStorage.setItem('auditEntries', JSON.stringify(
-        this.localAuditEntries.map(e => ({
-          ...e,
-          timestamp: e.timestamp.toISOString()
-        }))
-      ));
+      localStorage.setItem(
+        'auditEntries',
+        JSON.stringify(
+          this.localAuditEntries.map(e => ({
+            ...e,
+            timestamp: e.timestamp.toISOString(),
+          }))
+        )
+      );
     } catch (error) {
       logger.error('Failed to save audit entries to localStorage', 'audit', {}, error as Error);
     }
@@ -485,7 +498,7 @@ export class AuditService {
         }
         this.localAuditEntries = entries.map((e: StoredEntry) => ({
           ...e,
-          timestamp: new Date(e.timestamp)
+          timestamp: new Date(e.timestamp),
         }));
       }
     } catch (error) {
@@ -495,13 +508,6 @@ export class AuditService {
 
   private async sendToRemote(entry: AuditEntry): Promise<void> {
     if (!this.config.apiEndpoint) return;
-
-    // Import Supabase client
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      import.meta.env.VITE_SUPABASE_URL!,
-      import.meta.env.VITE_SUPABASE_ANON_KEY!
-    );
 
     // Transform AuditEntry to database format
     const auditData = {
@@ -517,13 +523,11 @@ export class AuditService {
         ipAddress: entry.ipAddress,
         userAgent: entry.userAgent,
         requestId: entry.requestId,
-        impersonatingUserId: entry.impersonatingUserId
-      }
+        impersonatingUserId: entry.impersonatingUserId,
+      },
     };
 
-    const { error } = await supabase
-      .from('audit_entry')
-      .insert(auditData);
+    const { error } = await supabase.from('audit_entry').insert(auditData);
 
     if (error) {
       throw new Error(`Failed to send audit entry to database: ${error.message}`);
@@ -540,7 +544,7 @@ export class AuditService {
     return [
       AuditAction.DELETE,
       AuditAction.IMPERSONATE_START,
-      AuditAction.IMPERSONATE_END
+      AuditAction.IMPERSONATE_END,
     ].includes(action);
   }
 
@@ -581,21 +585,21 @@ export const auditService = new AuditService({
   enableLocalStorage: true,
   maxLocalEntries: 1000,
   enableConsoleLogging: process.env.NODE_ENV === 'development',
-  enableRemoteLogging: false
+  enableRemoteLogging: false,
 });
 
 // Decorator for automatic audit logging
 export const Audited = (entityType: string, action?: AuditAction) => {
   return (_target: unknown, propertyName: string, descriptor: PropertyDescriptor) => {
     const method = descriptor.value;
-    
-    descriptor.value = async function(...args: unknown[]) {
+
+    descriptor.value = async function (...args: unknown[]) {
       const startTime = Date.now();
       const auditAction = action || inferActionFromMethod(propertyName);
-      
+
       try {
         const result = await method.apply(this, args);
-        
+
         // Log successful action
         await auditService.log({
           action: auditAction,
@@ -605,10 +609,10 @@ export const Audited = (entityType: string, action?: AuditAction) => {
           metadata: {
             method: propertyName,
             duration: Date.now() - startTime,
-            success: true
-          }
+            success: true,
+          },
         });
-        
+
         return result;
       } catch (error) {
         // Log failed action
@@ -620,10 +624,10 @@ export const Audited = (entityType: string, action?: AuditAction) => {
             method: propertyName,
             duration: Date.now() - startTime,
             success: false,
-            error: error instanceof Error ? error.message : String(error)
-          }
+            error: error instanceof Error ? error.message : String(error),
+          },
         });
-        
+
         throw error;
       }
     };
@@ -644,20 +648,27 @@ function extractEntityId(args: unknown[], result?: unknown): string {
   if (args.length > 0 && typeof args[0] === 'string') {
     return args[0];
   }
-  
+
   // Try to extract ID from result
-  if (result && typeof result === 'object' && 'id' in result && typeof (result as { id: unknown }).id === 'string') {
+  if (
+    result &&
+    typeof result === 'object' &&
+    'id' in result &&
+    typeof (result as { id: unknown }).id === 'string'
+  ) {
     return (result as { id: string }).id;
   }
-  
+
   return 'unknown';
 }
 
-function extractChanges(args: unknown[]): Record<string, { from: unknown; to: unknown }> | undefined {
+function extractChanges(
+  args: unknown[]
+): Record<string, { from: unknown; to: unknown }> | undefined {
   // For update operations, try to extract changes
   if (args.length >= 2 && typeof args[1] === 'object') {
     return { updated: { from: null, to: args[1] } };
   }
-  
+
   return undefined;
 }

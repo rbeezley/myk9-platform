@@ -29,7 +29,7 @@ import { SelfCheckinSection } from './SelfCheckinSection';
 const getClassId = (c: { id: string }) => c.id;
 
 export default function ResultsControlPage() {
-  const { selectedShowId, shows } = useShowStore();
+  const { selectedShowId, shows, selectShow } = useShowStore();
   const { trials } = useTrialStore();
   const { classes } = useClassStore();
 
@@ -45,6 +45,13 @@ export default function ResultsControlPage() {
   );
 
   const bulkOps = useBulkSelection({ items: showClasses, getItemId: getClassId });
+
+  // Auto-select first show if none selected
+  useEffect(() => {
+    if (!selectedShowId && shows.length > 0) {
+      selectShow(shows[0].id);
+    }
+  }, [selectedShowId, shows, selectShow]);
 
   useEffect(() => {
     bulkOps.clearSelection();

@@ -170,6 +170,7 @@ export function useUsersQuery() {
   return useQuery({
     queryKey: queryKeys.users.all,
     queryFn: UserService.getAll,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

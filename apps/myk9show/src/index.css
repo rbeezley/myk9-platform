@@ -416,47 +416,47 @@ select:hover {
 
   .dark {
     color-scheme: dark;
-    /* Warm olive-dark backgrounds */
-    --background: #141413;
-    --foreground: #faf9f5;
-    --background-alt: #1e1e1b;
-    --card: #1e1e1b;
-    --card-foreground: #faf9f5;
-    --sidebar: #141413;
-    --sidebar-foreground: #faf9f5;
-    --card-secondary: #141413;
-    --card-secondary-foreground: #faf9f5;
-    --muted: #1e1e1b;
+    /* v2 warm-black surfaces — ink-900 / ivory-50 */
+    --background: #181411;
+    --foreground: #faf7f2;
+    --background-alt: #1e1c19;
+    --card: #1e1c19;
+    --card-foreground: #faf7f2;
+    --sidebar: #181411;
+    --sidebar-foreground: #faf7f2;
+    --card-secondary: #181411;
+    --card-secondary-foreground: #faf7f2;
+    --muted: #1e1c19;
     --muted-foreground: #87867f;
     /* Primary overridden by accent color classes below */
-    --secondary: #1e1e1b;
-    --secondary-foreground: #faf9f5;
+    --secondary: #1e1c19;
+    --secondary-foreground: #faf7f2;
     --accent: #2a2520;
     --accent-foreground: #d97757;
     --destructive: #dc2626;
     --destructive-foreground: #ffffff;
-    --border: #2e2e2b;
-    --input: #1e1e1b;
-    --input-border: #2e2e2b;
+    --border: #2e2b27;
+    --input: #1e1c19;
+    --input-border: #2e2b27;
     --input-border-hover: #3a3a36;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
-    --dialog-input-bg: #141413;
-    --popover: #1e1e1b;
-    --popover-foreground: #faf9f5;
-    /* Card elevation — whisper-soft (Level 3), ring on hover (Level 2) */
-    --shadow-card: rgba(0, 0, 0, 0.2) 0px 4px 24px;
-    --shadow-card-hover: 0px 0px 0px 1px var(--border), rgba(0, 0, 0, 0.25) 0px 8px 24px;
+    --dialog-input-bg: #181411;
+    --popover: #1e1c19;
+    --popover-foreground: #faf7f2;
+    /* Card elevation — deeper shadows for darker warm-black backdrop */
+    --shadow-card: rgba(0, 0, 0, 0.3) 0px 4px 24px;
+    --shadow-card-hover: 0px 0px 0px 1px var(--border), rgba(0, 0, 0, 0.35) 0px 8px 28px;
     /* Ring shadows — warm-toned, 0px 0px 0px 1px pattern */
     --shadow-ring: 0px 0px 0px 1px var(--border);
     --shadow-ring-primary: 0px 0px 0px 1px var(--primary);
     --shadow-ring-inset: inset 0px 0px 0px 1px rgba(255, 255, 255, 0.08);
     /* Header elevation */
-    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
-    --sidebar-border: #2e2e2b;
+    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --sidebar-border: #2e2b27;
   }
 
   * {

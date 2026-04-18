@@ -67,6 +67,8 @@ jobs:
 
       - name: Test packages
         run: pnpm test:packages -- --coverage
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Test myK9Q
         run: pnpm --filter=@myk9/q test -- --reporter=default --coverage

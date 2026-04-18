@@ -37,6 +37,16 @@ Low-priority cleanup items discovered during v2 implementation.
 
 ---
 
+## Route Audit Findings — 2026-04-18
+
+Logged-in-as `secretary@myk9t.com` route sweep of `apps/myk9show/src/routes/*.tsx`. All ~56 routes loaded without rendering an error boundary. Fixes landed in commit `b642853e`. Remaining items:
+
+- **Admin / judge / club-admin interior audit pending** — Routes under `/admin/*`, `/judge/*`, `/club-admin/*` render the "You don't have permission to access this page" gate for a secretary session and were not walked end-to-end. Need a second pass logged in as a SITE_ADMIN (and a judge for `/judge/*`) to surface any 400s, broken UI, or missing data. `/results/dashboard` is accessible to secretaries and loaded cleanly.
+- **Entry status filter uses non-schema enum values** — During the sweep, several `HEAD /entries?entry_status=in.(accepted,checked_in)` calls fired (they return 200 but get cancelled by React Query, so look benign). The `entry_status` CHECK constraint (migration 003, amended by 114/116) uses values like `confirmed`, `checked-in`, `waitlist` — not `accepted` or `checked_in`. Worth grepping for these literals; they're almost certainly returning empty sets silently on real pages. Likely candidates: the "active entries" badges on the Browse Shows cards and pipeline dashboards.
+- **Google Maps embed aborts on fast navigation** — `/clubs/:id` fires a `https://maps.google.com/maps?q=...&output=embed` that gets aborted when the user navigates away mid-load. Cosmetic only (the club card renders fine); lazy-mount the iframe after idle or debounce to avoid wasted requests.
+
+---
+
 ## Testing Findings from 2026-04-10 Session — Triage in Phase 1
 
 During yesterday's manual testing session, 22 bugs and UX issues were logged in full detail. **Don't work these individually before Phase 0.** They will be formally triaged in Phase 1 against the journey maps produced in Phase 0, then either:

@@ -53,7 +53,7 @@ async function fetchTVData(
   let classQuery = supabase
     .from('classes')
     .select(
-      'id, name, element, level, status, total_entries_count, scored_count, start_time, trials!inner(show_id, trial_date, trial_number), judge_assignments(people(first_name, last_name))'
+      'id, name, element, level, status, total_entries_count, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number), judge_assignments(people(first_name, last_name))'
     )
     .eq('trials.show_id', showId)
     .in('status', [...TV_ACTIVE_STATUSES]);

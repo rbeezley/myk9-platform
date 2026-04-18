@@ -1,14 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.vscode/**'
-      - 'LICENSE'
-      - '.gitignore'
   pull_request:
     branches: [main]
     paths-ignore:
@@ -51,37 +43,10 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-  test-myk9q:
-    name: Test myK9Q
+  test:
+    name: Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: quality
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build shared packages
-        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/secretary --filter=@myk9/supabase --filter=@myk9/ui
-
-      - name: Run tests with coverage
-        run: pnpm --filter=@myk9/q test -- --reporter=default --coverage
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-
-  test-myk9show:
-    name: Test myK9Show
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     needs: quality
 
     steps:
@@ -100,41 +65,24 @@ jobs:
       - name: Build shared packages
         run: pnpm build --filter=@myk9/core --filter=@myk9/notifications --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/secretary --filter=@myk9/supabase --filter=@myk9/ui
 
-      - name: Run tests with coverage
-        run: pnpm --filter=@myk9/show test -- --reporter=default --coverage --exclude '**/integration/**' --exclude '**/debug-*.test.*'
+      - name: Test packages
+        run: pnpm test:packages -- --coverage
+
+      - name: Test myK9Q
+        run: pnpm --filter=@myk9/q test -- --reporter=default --coverage
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
-  test-packages:
-    name: Test Packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: quality
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build shared packages
-        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/secretary --filter=@myk9/supabase --filter=@myk9/ui
-
-      - name: Run package tests with coverage
-        run: pnpm test:packages -- --coverage
+      - name: Test myK9Show
+        run: pnpm --filter=@myk9/show test -- --reporter=default --coverage --exclude '**/integration/**' --exclude '**/debug-*.test.*'
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
   build:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [test-myk9q, test-myk9show, test-packages]
+    needs: [test]
 
     steps:
       - uses: actions/checkout@v4

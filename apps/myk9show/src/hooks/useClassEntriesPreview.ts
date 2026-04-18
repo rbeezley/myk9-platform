@@ -1,6 +1,12 @@
 import { useMemo } from 'react';
 import { useEntryStore } from '@/store/entryStore';
+import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { ClassCardEntry } from '@myk9/ui';
+
+/** Returns true for any status that means the dog is currently in the ring. */
+export function isInRingStatus(status: EntryStatus): boolean {
+  return status === 'competing' || status === 'in-ring';
+}
 
 /**
  * Entry preview data for a class
@@ -18,14 +24,14 @@ export interface ClassEntryPreview {
  * @returns Map of classId to ClassCardEntry array
  */
 export function useClassEntriesPreview(classIds: string[]): Map<string, ClassCardEntry[]> {
-  const allEntries = useEntryStore((state) => state.entries);
+  const allEntries = useEntryStore(state => state.entries);
 
   return useMemo(() => {
     const previewMap = new Map<string, ClassCardEntry[]>();
 
     for (const classId of classIds) {
       // Get entries for this class
-      const classEntries = allEntries.filter((entry) => entry.classId === classId);
+      const classEntries = allEntries.filter(entry => entry.classId === classId);
 
       // Transform to ClassCardEntry format
       // Sort by run order, then by armband
@@ -39,16 +45,16 @@ export function useClassEntriesPreview(classIds: string[]): Map<string, ClassCar
         return armbandA - armbandB;
       });
 
-      const cardEntries: ClassCardEntry[] = sortedEntries.map((entry) => ({
+      const cardEntries: ClassCardEntry[] = sortedEntries.map(entry => ({
         id: entry.id,
         armband: parseInt(entry.registrationData.armband || '0', 10),
-        inRing: entry.status === 'competing',
+        inRing: isInRingStatus(entry.status),
         isScored: entry.status === 'completed',
       }));
 
       // Filter to show in-ring + next 3 unscored entries (like myK9Q)
-      const inRingEntry = cardEntries.find((e) => e.inRing);
-      const unscoredEntries = cardEntries.filter((e) => !e.isScored && !e.inRing);
+      const inRingEntry = cardEntries.find(e => e.inRing);
+      const unscoredEntries = cardEntries.filter(e => !e.isScored && !e.inRing);
       const previewEntries: ClassCardEntry[] = [];
 
       if (inRingEntry) {

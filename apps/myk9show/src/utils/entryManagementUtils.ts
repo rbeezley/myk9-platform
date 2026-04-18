@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycle';
 
 /**
  * Entry management utility functions
@@ -71,20 +72,21 @@ export const mapClassEntryStatus = (
 /**
  * Map UI entry status to database string
  */
-export const mapStatusToDb = (status: EntryStatus): string => {
+export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
   switch (status) {
     case EntryStatus.ACCEPTED:
-      return 'accepted';
-    case EntryStatus.PENDING:
-      return 'pending';
+      return 'confirmed';
     case EntryStatus.WAITLIST:
-      return 'waitlisted';
+      // Waitlist system uses waitlist_entries table; leave entry_status unchanged
+      return 'submitted';
     case EntryStatus.REJECTED:
-      return 'rejected';
+      return 'withdrawn';
     case EntryStatus.CANCELLED:
-      return 'cancelled';
+      return 'withdrawn';
+    case EntryStatus.PENDING:
+    case EntryStatus.MISSING_INFO:
     default:
-      return 'pending';
+      return 'submitted';
   }
 };
 

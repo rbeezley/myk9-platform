@@ -141,6 +141,7 @@ export function useClassAvailability(
             'confirmed',
             'checked-in',
             'competing',
+            'in-ring',
             'pending-payment',
           ]),
         supabase

@@ -225,6 +225,7 @@ function mapEntryStatus(dbStatus: string | null): EntryStatus {
     'confirmed',
     'scheduled',
     'competing',
+    'in-ring',
     'completed',
     'withdrawn',
     'scratched',

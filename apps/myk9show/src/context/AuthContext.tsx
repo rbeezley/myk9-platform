@@ -172,10 +172,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('people')
         .select('id, first_name, last_name, email, status')
         .eq('auth_user_id', auth.user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        logger.warn('Could not fetch user profile:', 'context', {}, ensureError(error));
+        logger.warn('Could not fetch user profile', 'context', {
+          code: error.code,
+          message: error.message,
+        });
         return null;
       }
 

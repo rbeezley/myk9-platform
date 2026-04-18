@@ -240,7 +240,7 @@ export class LoggingService {
     // Console transport for development
     if (isDev()) {
       this.transports.push(new ConsoleTransport());
-      this.minLevel = LogLevel.DEBUG;
+      this.minLevel = LogLevel.WARN;
     }
 
     // Remote transport for production
@@ -348,11 +348,11 @@ export class LoggingService {
   }
 
   private generateSessionId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   }
 
   private generateFingerprint(message: string, category: string, level: LogLevel): string {
-    return `${category}-${LogLevel[level]}-${message.replace(/\d+/g, 'X').substring(0, 50)}`;
+    return `${category}-${LogLevel[level]}-${message.replace(/\d+/g, 'X').slice(0, 50)}`;
   }
 
   async flush(): Promise<void> {

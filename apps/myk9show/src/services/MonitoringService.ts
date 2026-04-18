@@ -114,15 +114,6 @@ class PerformanceMonitor {
                 name: entry.name,
                 startTime: entry.startTime,
               });
-
-              // Only log significant long tasks (>200ms) in development to reduce noise
-              // Standard threshold is 50ms but that's too verbose during development
-              if (import.meta.env.DEV && entry.duration > 200) {
-                logger.warn(`Long task detected: ${entry.duration}ms`, 'performance', {
-                  duration: entry.duration,
-                  startTime: entry.startTime,
-                });
-              }
             }
           });
         });
@@ -398,7 +389,7 @@ class UserAnalyticsMonitor {
   }
 
   private generateSessionId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   }
 
   private trackPageViews(): void {

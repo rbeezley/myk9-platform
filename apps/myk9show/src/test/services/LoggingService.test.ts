@@ -52,6 +52,8 @@ describe('LoggingService', () => {
     (LoggingService as unknown as { instance: LoggingService }).instance =
       undefined as unknown as LoggingService;
     logger = LoggingService.getInstance();
+    // Set DEBUG level so tests don't depend on the environment default
+    logger.setMinLevel(LogLevel.DEBUG);
   });
 
   afterEach(() => {
@@ -96,8 +98,7 @@ describe('LoggingService', () => {
     });
 
     it('should respect default minimum level', () => {
-      // In dev mode (vitest sets import.meta.env.DEV = true), default is DEBUG
-      // so debug messages should be logged
+      // beforeEach sets DEBUG level, so debug messages should be logged
       const consoleSpy = vi.spyOn(console, 'debug');
 
       logger.debug('Debug message', 'test');
@@ -390,6 +391,8 @@ describe('LogTransport Implementations', () => {
     (LoggingService as unknown as { instance: LoggingService }).instance =
       undefined as unknown as LoggingService;
     logger = LoggingService.getInstance();
+    // Set DEBUG level so tests don't depend on the environment default
+    logger.setMinLevel(LogLevel.DEBUG);
   });
 
   afterEach(() => {
@@ -564,6 +567,8 @@ describe('Integration Tests', () => {
     (LoggingService as unknown as { instance: LoggingService }).instance =
       undefined as unknown as LoggingService;
     logger = LoggingService.getInstance();
+    // Set DEBUG level so tests don't depend on the environment default
+    logger.setMinLevel(LogLevel.DEBUG);
   });
 
   afterEach(() => {

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UserBehaviorLearning } from '@/services/analytics/UserBehaviorLearning';
+import { LoggingService, LogLevel } from '@/services/LoggingService';
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -38,6 +39,7 @@ describe('UserBehaviorLearning', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocalStorage.getItem.mockReturnValue(null);
+    LoggingService.getInstance().setMinLevel(LogLevel.DEBUG);
     behaviorLearning = new UserBehaviorLearning();
   });
 

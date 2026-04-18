@@ -104,7 +104,7 @@ export function useNotificationMonitor(): void {
         .select(
           `id, dog_id, class_id, show_id, check_in_status,
          registration_data, competition_data,
-         dog:dogs!inner(id, call_name)`
+         dog:dog_id!inner(id, call_name)`
         )
         .in('class_id', classIds);
       if (entryError) throw entryError;

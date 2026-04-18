@@ -99,7 +99,11 @@ export function useExhibitorProfile() {
         .maybeSingle();
 
       if (error) {
-        logger.error('Error fetching exhibitor profile', 'useExhibitorProfile', {}, error as Error);
+        logger.error('Error fetching exhibitor profile', 'useExhibitorProfile', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
         throw error;
       }
 
@@ -108,7 +112,8 @@ export function useExhibitorProfile() {
       return mapToExhibitorProfile(data as Record<string, unknown>);
     },
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   // Create exhibitor profile for existing users who don't have one

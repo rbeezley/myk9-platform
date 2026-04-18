@@ -7,7 +7,7 @@ import { logger } from '@/services/LoggingService';
 import { type DbMessage, type DbThread, type DbPerson, initialState } from './messageStore.types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase.from as (table: string) => any;
+const db = supabase.from.bind(supabase) as (table: string) => any;
 
 interface MessageState {
   threads: MessageThread[];

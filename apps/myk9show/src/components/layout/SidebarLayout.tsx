@@ -127,6 +127,12 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
     ? (customCollapsedWidth ?? SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH)
     : sidebarWidth;
 
+  // When hover-to-expand is active, the sidebar overlays content rather than pushing it.
+  // Locking main's margin to the collapsed width prevents layout shifts on hover.
+  const mainMarginWidth = hoverToExpand
+    ? (customCollapsedWidth ?? SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH)
+    : actualWidth;
+
   return (
     <div className={cn('flex min-h-screen bg-background', className)}>
       {/* Mobile sidebar overlay - positioned below header */}
@@ -190,10 +196,10 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
       {/* Main content area with responsive left margin */}
       <main
         className={cn(
-          'flex-1 overflow-auto pt-12 transition-all duration-300 ease-in-out',
+          'flex-1 overflow-auto pt-12',
           'md:ml-[var(--sidebar-width)]'
         )}
-        style={{ '--sidebar-width': `${actualWidth}px` } as React.CSSProperties}
+        style={{ '--sidebar-width': `${mainMarginWidth}px` } as React.CSSProperties}
       >
         {/* Mobile header with menu button */}
         {showMobileMenuButton && (

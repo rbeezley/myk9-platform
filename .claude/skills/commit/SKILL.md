@@ -121,6 +121,16 @@ If upstream not set:
 git push -u origin HEAD
 ```
 
+### Step 5b: Migration Deploy Check
+
+After pushing, check if this commit touched a migration file. If so, remind the user to deploy to Supabase — `git push` does NOT deploy DB migrations.
+
+```bash
+if git diff HEAD~1 --name-only | grep -q '^supabase/migrations/'; then
+  echo "⚠️  Migration changed — run: source supabase/.env && supabase db push --password \"\$SUPABASE_DB_PASSWORD\""
+fi
+```
+
 ### Step 6: Confirm
 
 ```bash

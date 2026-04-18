@@ -469,29 +469,60 @@ select:hover {
     line-height: 1.6; /* Editorial spacing — generous like a book, not a dashboard */
   }
 
-  /* Serif for editorial/page-level headings — sans for UI/component headings */
+  /* v2 typography — Fraunces display for h1/h2, Montserrat for h3/h4 */
   h1 {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-weight: 500;
-    line-height: 1.1; /* Tight — book-title presence */
+    font-family: var(--font-serif);
+    font-weight: 450;
+    font-variation-settings: var(--fraunces-settings-display);
+    font-size: clamp(36px, 5vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -0.018em;
   }
 
   h2 {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-weight: 500;
-    line-height: 1.2; /* Section-anchor cadence */
+    font-family: var(--font-serif);
+    font-weight: 450;
+    font-variation-settings: var(--fraunces-settings-display);
+    font-size: clamp(28px, 3.5vw, 40px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
   }
 
   h3,
   h4 {
-    font-family:
-      'Montserrat',
-      -apple-system,
-      BlinkMacSystemFont,
-      system-ui,
-      sans-serif;
+    font-family: var(--font-sans);
     font-weight: 600;
-    line-height: 1.3; /* UI heading — enough breathing room */
+    line-height: 1.3;
+  }
+
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--terra-700);
+  }
+
+  .numeric,
+  code,
+  kbd {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .display-serif {
+    font-family: var(--font-serif);
+    font-weight: 450;
+    font-variation-settings: var(--fraunces-settings-display);
+  }
+
+  /* Rosette utility — asset wiring happens in Task 2b */
+  .rosette {
+    display: inline-block;
+    width: 1em;
+    height: 1.33em;
+    color: var(--primary);
   }
 
   /* Micro letter-spacing for labels — maintains readability at small sizes */

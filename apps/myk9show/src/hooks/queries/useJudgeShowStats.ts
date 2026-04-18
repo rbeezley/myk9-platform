@@ -13,7 +13,7 @@ async function fetchJudgeShowEntries(judgeId: string, showId: string): Promise<S
       class_id,
       classes!inner(
         trial_id,
-        trials!inner(trial_date, trial_number)
+        trials!inner(trial_date:date, trial_number)
       )
     `
     )

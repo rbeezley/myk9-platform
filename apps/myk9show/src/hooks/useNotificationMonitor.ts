@@ -26,8 +26,11 @@ interface EntryRow {
   class_id: string;
   show_id: string;
   check_in_status: string | null;
-  registration_data: Record<string, unknown> | null;
-  competition_data: Record<string, unknown> | null;
+  armband: string | null;
+  handler: string | null;
+  entry_fee: number | null;
+  payment_status: string | null;
+  submitted_at: string | null;
 }
 
 interface ClassRow {
@@ -103,7 +106,7 @@ export function useNotificationMonitor(): void {
         .from('entries')
         .select(
           `id, dog_id, class_id, show_id, check_in_status,
-         registration_data, competition_data,
+         armband, handler, entry_fee, payment_status, submitted_at,
          dog:dog_id!inner(id, call_name)`
         )
         .in('class_id', classIds);
@@ -171,15 +174,12 @@ export function useNotificationMonitor(): void {
         checkInStatus: (entry.check_in_status as ShowEntry['checkInStatus']) ?? undefined,
         status: 'confirmed',
         registrationData: {
-          submittedAt: '',
-          handler: '',
-          entryFee: 0,
-          paymentStatus: 'paid',
-          ...(entry.registration_data as Record<string, unknown> | null),
-        } as ShowEntry['registrationData'],
-        competitionData: entry.competition_data
-          ? (entry.competition_data as unknown as ShowEntry['competitionData'])
-          : undefined,
+          submittedAt: entry.submitted_at ?? '',
+          handler: entry.handler ?? '',
+          entryFee: entry.entry_fee ?? 0,
+          paymentStatus: (entry.payment_status as 'pending' | 'paid' | 'refunded') ?? 'pending',
+          armband: entry.armband ?? undefined,
+        },
         statusHistory: [],
         createdAt: '',
         updatedAt: '',
@@ -210,10 +210,7 @@ export function useNotificationMonitor(): void {
       const cls = classLookup.get(classId);
       if (!cls) continue;
 
-      if (
-        cls.status === 'In Progress' &&
-        !notifiedClassStarting.current.has(classId)
-      ) {
+      if (cls.status === 'In Progress' && !notifiedClassStarting.current.has(classId)) {
         notifiedClassStarting.current.add(classId);
         const userEntries = ctx.entries.filter(e => userDogIdsRef.current.has(e.dogId));
         if (userEntries.length > 0) {
@@ -232,11 +229,10 @@ export function useNotificationMonitor(): void {
         }
       }
 
-      const classRow = classes.find(c => (c as unknown as ClassRow).id === classId) as unknown as ClassRow | undefined;
-      if (
-        classRow?.is_scoring_finalized &&
-        !notifiedResultsPosted.current.has(classId)
-      ) {
+      const classRow = classes.find(c => (c as unknown as ClassRow).id === classId) as unknown as
+        | ClassRow
+        | undefined;
+      if (classRow?.is_scoring_finalized && !notifiedResultsPosted.current.has(classId)) {
         notifiedResultsPosted.current.add(classId);
         const userDogNames = ctx.entries
           .filter(e => userDogIdsRef.current.has(e.dogId))
@@ -355,7 +351,10 @@ export function useNotificationMonitor(): void {
       for (const entry of userEntries) {
         if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
           const dogName = dogNameMap.current.get(entry.dogId) ?? 'Your dog';
-          const reminderPayload = buildCheckInReminderPayload({ dogName, className: cls.className });
+          const reminderPayload = buildCheckInReminderPayload({
+            dogName,
+            className: cls.className,
+          });
           reminderPayload.actionUrl = `/classes/${cls.classId}`;
           deliverRef.current(reminderPayload);
         }

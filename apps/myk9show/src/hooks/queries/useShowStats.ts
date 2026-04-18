@@ -17,7 +17,7 @@ async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
   const classIds = [...new Set(entryData.map(r => r.class_id as string))];
   const { data: classData, error: classError } = await supabase
     .from('classes')
-    .select('id, trial_id, trials!inner(trial_date, trial_number)')
+    .select('id, trial_id, trials!inner(trial_date:date, trial_number)')
     .in('id', classIds);
 
   if (classError) throw classError;

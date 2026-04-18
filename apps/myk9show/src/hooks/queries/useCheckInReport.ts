@@ -135,7 +135,7 @@ async function fetchCheckInEntries(showId: string): Promise<CheckInEntryRow[]> {
       dog:dogs!inner(id, call_name, breed_name),
       handler:people!entries_handler_id_fkey(id, first_name, last_name),
       armband:armbands!inner(armband_number),
-      class:classes!inner(id, element, level, section, trial:trials!inner(id, trial_date, trial_number, show_id))`
+      class:classes!inner(id, element, level, section, trial:trials!inner(id, trial_date:date, trial_number, show_id))`
     )
     .eq('class.trial.show_id', showId)
     .is('deleted_at', null);

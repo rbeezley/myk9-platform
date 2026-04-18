@@ -190,7 +190,7 @@ export function useShowClassesForVolunteers(showId: string | undefined) {
       const { data, error } = await supabase
         .from('classes')
         .select(
-          'id, name, element, level, start_time, trial:trials!inner(id, trial_date, trial_number, show_id)'
+          'id, name, element, level, start_time, trial:trials!inner(id, trial_date:date, trial_number, show_id)'
         )
         .eq('trial.show_id' as string, showId!);
       if (error) throw error;

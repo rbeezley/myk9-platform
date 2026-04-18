@@ -517,11 +517,14 @@ select:hover {
     font-variation-settings: var(--fraunces-settings-display);
   }
 
-  /* Rosette utility — asset wiring happens in Task 2b */
+  /* Rosette utility — inline SVG via mask so it recolors via currentColor */
   .rosette {
     display: inline-block;
     width: 1em;
     height: 1.33em;
+    background-color: currentColor;
+    -webkit-mask: url('/rosette.svg') center / contain no-repeat;
+    mask: url('/rosette.svg') center / contain no-repeat;
     color: var(--primary);
   }
 

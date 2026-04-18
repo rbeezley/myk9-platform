@@ -1,16 +1,22 @@
 ---
 name: audit-pages
-description: Use when auditing myK9Show pages for console errors, network errors, or broken UI after a refactor, before a release, or when the "Audit all pages" todo is active. Covers all roles: secretary, exhibitor, admin, public.
+description: Use when auditing myK9Show pages for console errors, network errors, or broken UI after a refactor, before a release, or when the "Audit all pages" todo is active. Covers all roles: secretary, exhibitor, admin, judge, club-admin, public.
 ---
 
 # Audit Pages for Console and Network Errors
 
 Systematically visit every route in myK9Show, capture errors, fix what's addressable inline, and log the rest as TO-DOS entries.
 
+## Scoping the Audit
+
+**Full audit** — run all role groups in order. Use before a release or after a broad refactor.
+
+**Partial audit** — if only specific areas changed, audit only the affected role group(s). Example: secretary routes changed → only run the Secretary group. State the scope in the output report.
+
 ## Setup
 
 1. Start the dev server if not running: `pnpm dev:show` (localhost:5173)
-2. Use `preview_start` / `preview_navigate` / `preview_console_logs` / `preview_network` / `preview_snapshot`
+2. Tools: `preview_start` / `preview_navigate` / `preview_console_logs` / `preview_network` / `preview_snapshot` / `preview_resize`
 3. Log in as the role you're auditing before walking that role's routes (see credentials below)
 
 **Credentials (from `.env`):**
@@ -18,19 +24,31 @@ Systematically visit every route in myK9Show, capture errors, fix what's address
 - Secretary: `secretary@myk9t.com`
 - Site admin: any account with `SITE_ADMIN` role
 - Exhibitor: any exhibitor account
+- Judge / Club admin: accounts with those roles (check Supabase `user_roles` table if unsure)
+
+## Known Noise (do not re-log)
+
+These pre-existing issues fire on every page load and should be **ignored** during audits:
+
+| Error                                                       | Status                                                 |
+| ----------------------------------------------------------- | ------------------------------------------------------ |
+| `Maximum update depth exceeded` (~258 occurrences per load) | Open bug — tracked in TO-DOS.md "App-Wide Render Loop" |
+
+Add new confirmed-pre-existing errors here as discovered.
 
 ## Per-Page Checklist
 
 For each route:
 
 1. `preview_navigate` to the URL
-2. `preview_console_logs` — flag any `error` or `warning` level entries
+2. `preview_console_logs` — flag `error` entries (excluding known noise above); note `warning` entries as lower priority
 3. `preview_network` — flag any 4xx or 5xx responses
-4. `preview_snapshot` — confirm the page renders (not blank, not error boundary)
+4. `preview_snapshot` — confirm the page renders (not blank, not error boundary, **and data actually loaded** — a skeleton that never resolves is a bug)
+5. `preview_resize` to 375px width — confirm layout doesn't break at mobile
 
 **Fix inline** if the cause is obvious and isolated (wrong column name, missing null check, stale import).
 
-**Log as TODO** if the fix requires investigation, touches multiple files, or is non-trivial. Use this format in TO-DOS.md:
+**Log as TODO** if the fix requires investigation, touches multiple files, or is non-trivial:
 
 ```
 - **Fix [page] [symptom]** — **Problem:** [what's wrong]. **Files:** [paths]. **Solution:** [hints].
@@ -77,6 +95,18 @@ For each route:
 /people                     /users/:id
 ```
 
+### Judge (login as judge)
+
+```
+/judge/dashboard    /judge/check-in    /judge/stats    /results/dashboard
+```
+
+### Club Admin (login as club admin)
+
+```
+/club-admin/members
+```
+
 ### Admin (login as site admin)
 
 ```
@@ -93,14 +123,15 @@ For routes with `:id` / `:showId` / `:trialId` / `:classId` — use real IDs fro
 
 ## Output Format
 
-After completing a role group, report:
+After completing each role group, report:
 
 ```
-Secretary audit — 23 routes
+Secretary audit — 23 routes (full) | or: (partial — secretary group only)
   Errors:   3 pages with console errors (logged as TODOs)
   Network:  2 pages with 4xx responses (1 fixed inline, 1 logged)
-  Blank:    0
-  Clean:    18
+  Skeleton: 1 page with data never loading (logged)
+  Mobile:   1 layout break at 375px (logged)
+  Clean:    16
 ```
 
 Append all new TODOs to TO-DOS.md under a dated heading:
@@ -114,5 +145,6 @@ Append all new TODOs to TO-DOS.md under a dated heading:
 - Work one role group at a time; commit TODO additions before switching roles
 - Do NOT fix bugs on hidden/parked features — log them and move on
 - Do NOT wander into unrelated refactors; this is observation only
-- A page that shows a "permission denied" UI for the wrong role is not a bug — skip it
-- Console warnings are lower priority than errors; note them but don't block on them
+- A page showing "permission denied" for the wrong role is not a bug — skip it
+- Console warnings are lower priority than errors; note but don't block on them
+- If known noise (render loop etc.) is the _only_ error on a page, mark it clean

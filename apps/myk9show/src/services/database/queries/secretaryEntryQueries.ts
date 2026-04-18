@@ -136,9 +136,9 @@ export const getEntryCountsByStatus = async (showId: string) => {
 
     const counts = {
       total: entries?.length || 0,
-      pending: entries?.filter(e => e.entry_status === 'pending').length || 0,
-      accepted: entries?.filter(e => e.entry_status === 'accepted').length || 0,
-      waitlist: entries?.filter(e => e.entry_status === 'waitlisted').length || 0,
+      pending: entries?.filter(e => e.entry_status === 'submitted').length || 0,
+      accepted: entries?.filter(e => e.entry_status === 'confirmed').length || 0,
+      waitlist: entries?.filter(e => e.entry_status === 'pending-payment').length || 0,
       paymentDue: entries?.filter(e => e.payment_status === 'pending').length || 0,
     };
 
@@ -338,7 +338,7 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
       .from('entries')
       .select('id, armband')
       .eq('show_id', showId)
-      .eq('entry_status', 'accepted')
+      .eq('entry_status', 'confirmed')
       .is('deleted_at', null)
       .is('armband', null)
       .order('created_at', { ascending: true });

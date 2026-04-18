@@ -12,18 +12,15 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 /**
  * Process a move-up request (move entry from one class to a higher class)
  */
-export const processMoveUp = async (
-  entryId: string,
-  toClassId: string,
-  reason?: string
-) => {
+export const processMoveUp = async (entryId: string, toClassId: string, reason?: string) => {
   const startTime = Date.now();
 
   try {
     // Get the current entry details
     const { data: currentEntry, error: fetchError } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         dog_id,
         show_id,
@@ -33,12 +30,17 @@ export const processMoveUp = async (
         entry_fee,
         handler,
         armband
-      `)
+      `
+      )
       .eq('id', entryId)
       .single();
 
     if (fetchError || !currentEntry) {
-      throw createDatabaseError(fetchError || new Error('Entry not found'), 'entries', 'process_move_up_fetch');
+      throw createDatabaseError(
+        fetchError || new Error('Entry not found'),
+        'entries',
+        'process_move_up_fetch'
+      );
     }
 
     // Check capacity in target class
@@ -46,7 +48,7 @@ export const processMoveUp = async (
       .from('entries')
       .select('id', { count: 'exact', head: true })
       .eq('class_id', toClassId)
-      .in('entry_status', ['accepted', 'checked_in'])
+      .in('entry_status', ['confirmed', 'checked-in'])
       .is('deleted_at', null);
 
     const { data: targetClass } = await supabase
@@ -86,7 +88,7 @@ export const processMoveUp = async (
         show_id: currentEntry.show_id,
         class_id: toClassId,
         trial_id: targetClass.trial_id,
-        entry_status: 'accepted',
+        entry_status: 'confirmed',
         payment_status: 'waived', // Move-ups typically don't require additional fees
         entry_fee: 0,
         jump_height: currentEntry.jump_height,
@@ -96,7 +98,8 @@ export const processMoveUp = async (
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .select(`
+      .select(
+        `
         id,
         entry_status,
         handler,
@@ -111,14 +114,19 @@ export const processMoveUp = async (
           name,
           class_number
         )
-      `)
+      `
+      )
       .single();
 
     if (createError) {
       // Rollback the status change if new entry fails
       await supabase
         .from('entries')
-        .update({ entry_status: 'accepted', special_requests: null, updated_at: new Date().toISOString() })
+        .update({
+          entry_status: 'confirmed',
+          special_requests: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', entryId);
       throw createDatabaseError(createError, 'entries', 'process_move_up_create');
     }
@@ -145,7 +153,8 @@ export const getMoveUpEligibleEntries = async (showId: string) => {
     // Get entries that are accepted/checked-in and could move up
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         class_id,
         trial_id,
@@ -164,9 +173,10 @@ export const getMoveUpEligibleEntries = async (showId: string) => {
           class_number,
           trial_id
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
-      .in('entry_status', ['accepted', 'checked_in'])
+      .in('entry_status', ['confirmed', 'checked-in'])
       .is('deleted_at', null)
       .order('class_id');
 
@@ -196,7 +206,8 @@ export const getPendingMoveUpRequests = async (showId: string) => {
     // Get entries with move-up requests (entry_status = 'move_up_requested')
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         class_id,
         trial_id,
@@ -218,7 +229,8 @@ export const getPendingMoveUpRequests = async (showId: string) => {
           class_number,
           trial_id
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
       .eq('entry_status', 'move_up_requested')
       .is('deleted_at', null)
@@ -243,11 +255,7 @@ export const getPendingMoveUpRequests = async (showId: string) => {
 /**
  * Approve a move-up request
  */
-export const approveMoveUpRequest = async (
-  entryId: string,
-  toClassId: string,
-  reason?: string
-) => {
+export const approveMoveUpRequest = async (entryId: string, toClassId: string, reason?: string) => {
   // Use the existing processMoveUp function
   return processMoveUp(entryId, toClassId, reason);
 };
@@ -255,23 +263,21 @@ export const approveMoveUpRequest = async (
 /**
  * Deny a move-up request
  */
-export const denyMoveUpRequest = async (
-  entryId: string,
-  reason?: string
-) => {
+export const denyMoveUpRequest = async (entryId: string, reason?: string) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
       .from('entries')
       .update({
-        entry_status: 'accepted', // Revert to accepted status
+        entry_status: 'confirmed',
         special_requests: reason ? `Move-up denied: ${reason}` : 'Move-up request denied',
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
       .eq('entry_status', 'move_up_requested')
-      .select(`
+      .select(
+        `
         id,
         entry_status,
         handler,
@@ -286,7 +292,8 @@ export const denyMoveUpRequest = async (
           name,
           class_number
         )
-      `)
+      `
+      )
       .single();
 
     const duration = Date.now() - startTime;

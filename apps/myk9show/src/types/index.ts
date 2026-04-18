@@ -156,8 +156,10 @@ export type {
 } from './show-registration-types';
 
 // Entry Types - explicit exports
+// EntryStatus is sourced from entry-lifecycle.ts (canonical); entry-refactored-types has a
+// conflicting 5-value version so we export this one explicitly to shadow it.
+export type { EntryStatus } from './entry-lifecycle';
 export type {
-  EntryStatus,
   PaymentStatus,
   Entry,
   ClassEntryStatus,

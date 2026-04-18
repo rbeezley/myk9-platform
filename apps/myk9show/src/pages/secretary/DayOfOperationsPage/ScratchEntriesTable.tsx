@@ -137,7 +137,7 @@ export function ScratchEntriesTable({
         header: 'Check-in',
         accessorFn: row => row.entry_status ?? 'pending',
         cell: ({ row }) => (
-          <Badge variant={row.original.entry_status === 'checked_in' ? 'default' : 'outline'}>
+          <Badge variant={row.original.entry_status === 'checked-in' ? 'default' : 'outline'}>
             {row.original.entry_status || 'pending'}
           </Badge>
         ),

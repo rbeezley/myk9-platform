@@ -453,7 +453,7 @@ export const acceptWaitlistOffer = async (waitlistEntryId: string) => {
         dog_id: waitlistEntry.dog_id,
         handler_id: waitlistEntry.handler_id,
         ...(classData?.trial_id !== undefined && { trial_id: classData.trial_id }),
-        entry_status: 'accepted',
+        entry_status: 'confirmed',
         payment_status: 'pending',
         ...(classData?.entry_fee !== undefined && { entry_fee: classData.entry_fee }),
         created_at: new Date().toISOString(),

@@ -26,7 +26,8 @@ export const scratchEntry = async (entryId: string, reason?: string) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .select(`
+      .select(
+        `
         id,
         entry_status,
         handler,
@@ -41,7 +42,8 @@ export const scratchEntry = async (entryId: string, reason?: string) => {
           name,
           class_number
         )
-      `)
+      `
+      )
       .single();
 
     const duration = Date.now() - startTime;
@@ -70,7 +72,8 @@ export const getScratchableEntries = async (showId: string) => {
     // Get entries that can be scratched
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         class_id,
         trial_id,
@@ -89,9 +92,10 @@ export const getScratchableEntries = async (showId: string) => {
           name,
           class_number
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
-      .in('entry_status', ['accepted', 'checked_in'])
+      .in('entry_status', ['confirmed', 'checked-in'])
       .is('deleted_at', null)
       .order('run_order', { ascending: true, nullsFirst: false });
 
@@ -121,7 +125,8 @@ export const getScratchedEntries = async (showId: string) => {
     // Get scratched entries
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         class_id,
         trial_id,
@@ -142,7 +147,8 @@ export const getScratchedEntries = async (showId: string) => {
           name,
           class_number
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
       .eq('entry_status', 'scratched')
       .is('deleted_at', null)
@@ -167,10 +173,7 @@ export const getScratchedEntries = async (showId: string) => {
 /**
  * Request a scratch with reason
  */
-export const requestScratch = async (
-  entryId: string,
-  reason?: string
-) => {
+export const requestScratch = async (entryId: string, reason?: string) => {
   const startTime = Date.now();
 
   try {
@@ -182,7 +185,8 @@ export const requestScratch = async (
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .select(`
+      .select(
+        `
         id,
         entry_status,
         entry_fee,
@@ -199,7 +203,8 @@ export const requestScratch = async (
           name,
           class_number
         )
-      `)
+      `
+      )
       .single();
 
     const duration = Date.now() - startTime;
@@ -228,7 +233,8 @@ export const getPendingScratchRequests = async (showId: string) => {
     // Get entries with scratch_requested status
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         class_id,
         trial_id,
@@ -249,7 +255,8 @@ export const getPendingScratchRequests = async (showId: string) => {
           name,
           class_number
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
       .eq('entry_status', 'scratch_requested')
       .is('deleted_at', null)
@@ -275,7 +282,11 @@ export const getPendingScratchRequests = async (showId: string) => {
  * Approve a scratch request
  * Note: Refund processing should be handled separately via payment service
  */
-export const approveScratchRequest = async (entryId: string, _processRefund?: boolean, _refundAmount?: number) => {
+export const approveScratchRequest = async (
+  entryId: string,
+  _processRefund?: boolean,
+  _refundAmount?: number
+) => {
   const startTime = Date.now();
 
   try {
@@ -287,7 +298,8 @@ export const approveScratchRequest = async (entryId: string, _processRefund?: bo
       })
       .eq('id', entryId)
       .eq('entry_status', 'scratch_requested')
-      .select(`
+      .select(
+        `
         id,
         entry_status,
         entry_fee,
@@ -303,7 +315,8 @@ export const approveScratchRequest = async (entryId: string, _processRefund?: bo
           name,
           class_number
         )
-      `)
+      `
+      )
       .single();
 
     const duration = Date.now() - startTime;
@@ -325,17 +338,14 @@ export const approveScratchRequest = async (entryId: string, _processRefund?: bo
 /**
  * Deny a scratch request
  */
-export const denyScratchRequest = async (
-  entryId: string,
-  reason?: string
-) => {
+export const denyScratchRequest = async (entryId: string, reason?: string) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
       .from('entries')
       .update({
-        entry_status: 'accepted', // Revert to accepted
+        entry_status: 'confirmed',
         special_requests: reason ? `Scratch denied: ${reason}` : 'Scratch request denied',
         updated_at: new Date().toISOString(),
       })

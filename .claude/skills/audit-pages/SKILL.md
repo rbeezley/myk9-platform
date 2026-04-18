@@ -59,9 +59,10 @@ For each route:
 ### Public (no login required)
 
 ```
+/               /login          /registration
 /browse-shows   /shows          /shows/:id        /calendar
 /clubs          /clubs/:id      /dogs             /dogs/:id
-/terms          /privacy        /registration
+/terms          /privacy
 ```
 
 ### Exhibitor (login as exhibitor)

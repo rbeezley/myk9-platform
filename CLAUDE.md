@@ -108,3 +108,19 @@ Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render
 ## Workflow
 
 Update plan/tracking documents (TO-DOS.md, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
+
+## Debugging seed-data / config bugs
+
+Before writing a migration or code fix for a "why doesn't this data flow" bug, **inventory every related table up front** with a single query pass: the role table(s), the permission/config table(s), and the join/link table(s). Writing one migration, pushing it, then discovering a second missing row in a different table is a sign you didn't survey first. For RBAC specifically: check `roles`, `permissions`, and `role_permissions` in the same query batch before writing any `INSERT`. This also means `systematic-debugging`'s full four-phase ceremony can be collapsed when the data path is obvious — go straight to Phase 1 Step 4 (gather evidence across all layers at once).
+
+## Auto Mode — shared-system writes
+
+When Auto Mode is active, the "execute immediately" guidance does NOT extend to mutations of shared systems. Before running any of the following, pause and confirm even if the user's initial request implied consent:
+
+- `supabase db push` on a linked project (writes to staging/prod DB)
+- `supabase functions deploy`
+- `git push --force` to any branch, or any push to `main` when on a feature branch
+- Creating/closing PRs, issues, or comments on GitHub
+- Posting to Slack, email, or any external service
+
+Adding rows to a shared DB is not "destructive" but is still shared-system mutation. One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type.

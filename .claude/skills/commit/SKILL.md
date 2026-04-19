@@ -12,12 +12,18 @@ This skill should be used when the user wants to commit changes, push to GitHub,
 
 ### Step 1: Quality Checks
 
-Run both in parallel. If either fails, fix errors and re-run. Maximum 5 fix iterations — if still failing after 5 attempts, stop and report what's unresolved.
+Run both in parallel.
 
 ```bash
 pnpm typecheck
 pnpm lint
 ```
+
+**Handling failures:**
+
+1. Check whether each failure is in a file the current commit touches (use `git diff --name-only` against staged + unstaged).
+2. **If the failure is in a file this commit modifies** → fix it and re-run. Max 5 fix iterations; stop and report if still failing.
+3. **If the failure is in a file this commit does NOT modify** (pre-existing breakage on main) → STOP. Do not silently fix it. Report the pre-existing failure to the user and ask whether to (a) bundle the drive-by fix into this commit, (b) commit only the intended changes as a separate commit first and file the pre-existing issue for later, or (c) abort. Drive-by fixes bloat commits and dilute commit purpose — the user decides, not the skill.
 
 ### Step 1b: Run Tests
 

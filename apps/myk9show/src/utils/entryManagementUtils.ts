@@ -70,14 +70,25 @@ export const mapClassEntryStatus = (
 };
 
 /**
- * Map UI entry status to database string
+ * Map UI entry status to a value valid for the `entry_status` DB constraint.
+ *
+ * The UI-side `EntryStatus` enum (`accepted`, `pending`, `waitlist`, `rejected`,
+ * `cancelled`, `missing_info`) does not line up 1:1 with the canonical DB
+ * `EntryStatus` union in `types/entry-lifecycle.ts`. This function bridges them.
+ *
+ * Known lossy mappings (no better DB value exists under the current schema):
+ *   - REJECTED and CANCELLED both collapse to 'withdrawn'. Distinguishing
+ *     secretary-rejected from exhibitor-cancelled requires a future schema
+ *     addition (e.g., a 'rejected' value in the constraint).
+ *   - WAITLIST returns 'submitted'. Waitlist membership is tracked separately
+ *     in the `waitlist_entries` table; `entry_status` stays in its pre-decision
+ *     state until the entry is promoted off the waitlist.
  */
 export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
   switch (status) {
     case EntryStatus.ACCEPTED:
       return 'confirmed';
     case EntryStatus.WAITLIST:
-      // Waitlist system uses waitlist_entries table; leave entry_status unchanged
       return 'submitted';
     case EntryStatus.REJECTED:
       return 'withdrawn';

@@ -17,9 +17,18 @@ Run all checks in parallel where possible.
 git worktree list
 ```
 
-- If worktrees exist under `.claude/worktrees/`, they are agent leftovers
-- **Auto-fix:** `git worktree remove --force <path>` + delete the orphan branch
-- Report how many were cleaned
+- Worktrees under `.claude/worktrees/` are agent leftovers.
+- A worktree is _stale_ if its branch has been merged into `main` OR its remote tracking branch is gone (`git rev-parse --abbrev-ref <branch>@{u}` fails or prints "(gone)"). The remote-branch-gone signal is reliable because the repo auto-deletes branches on PR merge.
+- **Self-unmount case:** if cwd is inside a stale worktree, you can't `git worktree remove` from within it. Resolve by `cd`-ing to the main worktree first:
+  ```bash
+  MAIN=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+  cd "$MAIN"
+  git worktree remove --force <stale-path>
+  git branch -D <stale-branch>
+  ```
+  After this, the shell's original cwd no longer exists — report that to the user so they know to `cd` somewhere valid.
+- **Auto-fix** (safe when the branch is merged or upstream is gone): remove the worktree and delete the orphan branch. If the branch has unpushed work or isn't merged, ask first.
+- Report how many were cleaned.
 
 ### 2. Uncommitted Changes
 

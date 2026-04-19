@@ -13,10 +13,12 @@ import { logger } from '@/services/LoggingService';
 interface PermissionGuardProps {
   children: ReactNode;
   permission: string;
-  scope?: {
-    type: string;
-    id: string;
-  } | undefined;
+  scope?:
+    | {
+        type: string;
+        id: string;
+      }
+    | undefined;
   fallback?: ReactNode | undefined;
   showFallback?: boolean | undefined;
   requireAll?: string[] | undefined; // Require all these permissions
@@ -47,7 +49,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   roles,
   onPermissionDenied,
   loading,
-  className
+  className,
 }) => {
   const { hasPermission, userRoles, isLoading: rbacLoading } = useRBAC();
 
@@ -82,7 +84,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
             .filter(ur => ur.is_active)
             .map(ur => ur.role?.name)
             .filter(Boolean);
-          
+
           granted = roles.some(role => userRoleNames.includes(role));
         }
 
@@ -112,7 +114,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
     hasPermission,
     userRoles,
     rbacLoading,
-    onPermissionDenied
+    onPermissionDenied,
   ]);
 
   // Show loading state
@@ -218,13 +220,13 @@ export const IfAdmin: React.FC<{
  */
 export const PermissionDebugger: React.FC<{ className?: string }> = ({ className }) => {
   const { userRoles, effectivePermissions, isLoading } = useRBAC();
-  
+
   if (isLoading) {
     return <div className={className}>Loading permissions...</div>;
   }
 
   return (
-    <div className={`p-4 bg-gray-100 rounded-lg ${className || ''}`}>
+    <div className={`p-4 bg-muted text-foreground rounded-lg ${className || ''}`}>
       <h3 className="font-semibold mb-2">Permission Debug Info</h3>
       <div className="space-y-2 text-sm">
         <div>

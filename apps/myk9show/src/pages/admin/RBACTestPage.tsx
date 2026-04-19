@@ -476,11 +476,19 @@ export const RBACTestPage: React.FC = () => {
                     </Alert>
                   </PermissionGuard>
 
-                  <PermissionGuard permission="nonexistent:permission">
-                    <Alert variant="destructive">
-                      <AlertDescription>You should NOT see this message</AlertDescription>
-                    </Alert>
-                  </PermissionGuard>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      Negative test — a guard checking a permission that doesn't exist. The red "You
+                      don't have permission" message below is the expected, passing result (even for
+                      site admins). If you see a message saying "You should NOT see this", the guard
+                      is leaking access.
+                    </p>
+                    <PermissionGuard permission="nonexistent:permission">
+                      <Alert variant="destructive">
+                        <AlertDescription>You should NOT see this message</AlertDescription>
+                      </Alert>
+                    </PermissionGuard>
+                  </div>
                 </div>
 
                 {/* Inline Permission Checks */}

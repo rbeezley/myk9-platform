@@ -33,7 +33,6 @@ import {
   Settings,
   MoreVertical,
   ListOrdered,
-  Users,
 } from 'lucide-react';
 import {
   DropdownMenu,

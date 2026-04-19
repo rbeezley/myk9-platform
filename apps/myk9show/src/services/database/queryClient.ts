@@ -55,7 +55,7 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.dogs.details(), id] as const,
     byOwner: (ownerId: string) => [...queryKeys.dogs.all, 'owner', ownerId] as const,
   },
-  
+
   // Users
   people: {
     all: ['people'] as const,
@@ -65,7 +65,7 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.people.details(), id] as const,
     search: (query: string) => [...queryKeys.people.all, 'search', query] as const,
   },
-  
+
   // Shows
   shows: {
     all: ['shows'] as const,
@@ -76,7 +76,7 @@ export const queryKeys = {
     byClub: (clubId: string) => [...queryKeys.shows.all, 'club', clubId] as const,
     upcoming: () => [...queryKeys.shows.all, 'upcoming'] as const,
   },
-  
+
   // Clubs
   clubs: {
     all: ['clubs'] as const,
@@ -85,7 +85,7 @@ export const queryKeys = {
     details: () => [...queryKeys.clubs.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.clubs.details(), id] as const,
   },
-  
+
   // Entries
   entries: {
     all: ['entries'] as const,
@@ -103,7 +103,7 @@ export const invalidateQueries = {
   all: (entity: keyof typeof queryKeys) => {
     return queryClient.invalidateQueries({ queryKey: queryKeys[entity].all });
   },
-  
+
   // Invalidate specific entity by ID
   byId: (entity: keyof typeof queryKeys, id: string) => {
     const keys = queryKeys[entity] as QueryKeyStructure;
@@ -112,7 +112,7 @@ export const invalidateQueries = {
     }
     return undefined;
   },
-  
+
   // Invalidate list queries
   lists: (entity: keyof typeof queryKeys) => {
     const keys = queryKeys[entity] as QueryKeyStructure;
@@ -126,11 +126,7 @@ export const invalidateQueries = {
 // Prefetch helpers for predictable navigation
 export const prefetchQueries = {
   // Prefetch entity details
-  detail: async (
-    entity: keyof typeof queryKeys, 
-    id: string, 
-    queryFn: () => Promise<unknown>
-  ) => {
+  detail: async (entity: keyof typeof queryKeys, id: string, queryFn: () => Promise<unknown>) => {
     const keys = queryKeys[entity] as QueryKeyStructure;
     if (keys.detail && typeof keys.detail === 'function') {
       return queryClient.prefetchQuery({
@@ -140,7 +136,7 @@ export const prefetchQueries = {
       });
     }
   },
-  
+
   // Prefetch list data
   list: async (
     entity: keyof typeof queryKeys,
@@ -171,22 +167,15 @@ export const optimisticUpdates = {
       queryClient.setQueryData(keys.detail(id), updater);
     }
   },
-  
+
   // Add entity to list cache
-  addToList: <T>(
-    entity: keyof typeof queryKeys,
-    filters: Record<string, unknown>,
-    newItem: T
-  ) => {
+  addToList: <T>(entity: keyof typeof queryKeys, filters: Record<string, unknown>, newItem: T) => {
     const keys = queryKeys[entity] as QueryKeyStructure;
     if (keys.list && typeof keys.list === 'function') {
-      queryClient.setQueryData(
-        keys.list(filters),
-        (old: T[] = []) => [...old, newItem]
-      );
+      queryClient.setQueryData(keys.list(filters), (old: T[] = []) => [...old, newItem]);
     }
   },
-  
+
   // Remove entity from list cache
   removeFromList: <T extends { id: string }>(
     entity: keyof typeof queryKeys,
@@ -195,9 +184,8 @@ export const optimisticUpdates = {
   ) => {
     const keys = queryKeys[entity] as QueryKeyStructure;
     if (keys.list && typeof keys.list === 'function') {
-      queryClient.setQueryData(
-        keys.list(filters),
-        (old: T[] = []) => old.filter(item => item.id !== id)
+      queryClient.setQueryData(keys.list(filters), (old: T[] = []) =>
+        old.filter(item => item.id !== id)
       );
     }
   },
@@ -206,15 +194,13 @@ export const optimisticUpdates = {
 // Global error handler for queries
 export const handleQueryError = (error: DatabaseError) => {
   logger.error('Query error:', 'database', {}, error as Error);
-  
+
   // You can add global error handling here
   // For example, showing a toast notification
   // toast.error(error.message);
-  
-  // Or redirect to login if unauthorized
+
   if (error.code === 'PGRST301') {
-    // Unauthorized - redirect to login
-    window.location.href = '/login';
+    window.location.href = '/sign-in';
   }
 };
 
@@ -224,20 +210,25 @@ export const withPerformanceTracking = async <T>(
   queryFn: () => Promise<T>
 ): Promise<T> => {
   const startTime = performance.now();
-  
+
   try {
     const result = await queryFn();
     const duration = performance.now() - startTime;
-    
+
     // Log slow queries in development
     if (import.meta.env.DEV && duration > 1000) {
       logger.warn(`Slow query detected: ${queryKey.join('/')} took ${duration}ms`, 'database', {});
     }
-    
+
     return result;
   } catch (error) {
     const duration = performance.now() - startTime;
-    logger.error(`Query failed: ${queryKey.join('/')} after ${duration}ms`, 'database', {}, error as Error);
+    logger.error(
+      `Query failed: ${queryKey.join('/')} after ${duration}ms`,
+      'database',
+      {},
+      error as Error
+    );
     throw error;
   }
 };

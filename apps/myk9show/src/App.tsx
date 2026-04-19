@@ -288,6 +288,7 @@ function App() {
                                 </PageTransition>
                               }
                             />
+                            <Route path="/login" element={<Navigate to="/sign-in" replace />} />
                             <Route
                               path="/sign-up"
                               element={

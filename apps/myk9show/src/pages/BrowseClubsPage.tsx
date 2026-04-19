@@ -13,6 +13,7 @@ import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -27,6 +28,9 @@ import { EmptyState } from '@/components/common/EmptyState';
 
 const BrowseClubsPage: React.FC = () => {
   const navigate = useNavigate();
+
+  const { user } = useAuthContext();
+  const isAuthenticated = !!user;
 
   const [viewMode, setViewMode] = useViewPreference('clubs', 'cards');
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
@@ -124,15 +128,15 @@ const BrowseClubsPage: React.FC = () => {
     [addClub, selectClub, navigate]
   );
 
-  // Action button for PageHeader
   const actionButton = useMemo(
-    () => (
-      <Button onClick={() => setShowCreateClubPanel(true)}>
-        <Plus className="h-4 w-4 mr-2" />
-        Add Club
-      </Button>
-    ),
-    []
+    () =>
+      isAuthenticated ? (
+        <Button onClick={() => setShowCreateClubPanel(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Club
+        </Button>
+      ) : null,
+    [isAuthenticated]
   );
 
   const renderContent = () => {
@@ -141,8 +145,16 @@ const BrowseClubsPage: React.FC = () => {
         <EmptyState
           icon={Building2}
           title="No clubs yet"
-          description="Get started by creating your first club to manage organizations and events."
-          action={{ label: 'Add Club', onClick: () => setShowCreateClubPanel(true), icon: Plus }}
+          description={
+            isAuthenticated
+              ? 'Get started by creating your first club to manage organizations and events.'
+              : 'No clubs are listed yet. Sign in to add one.'
+          }
+          action={
+            isAuthenticated
+              ? { label: 'Add Club', onClick: () => setShowCreateClubPanel(true), icon: Plus }
+              : undefined
+          }
         />
       );
     }

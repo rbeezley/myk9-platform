@@ -32,6 +32,7 @@ const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
 const ShowDayPage = lazy(() => import('@/pages/ShowDayPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
+const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
 
 // TV Display
 const TVDisplay = lazy(() => import('@/pages/TVDisplay'));
@@ -162,6 +163,18 @@ export const PublicRoutes = () => (
     />
     <Route path="/exhibitor/profile" element={<Navigate to="/profile" replace />} />
     <Route path="/exhibitor/account" element={<Navigate to="/profile" replace />} />
+    <Route
+      path="/exhibitor/analytics"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <AnalyticsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
     <Route
       path="/exhibitor/entries"
       element={

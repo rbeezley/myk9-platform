@@ -59,11 +59,16 @@ For each route:
 ### Public (no login required)
 
 ```
-/               /login          /registration
-/browse-shows   /shows          /shows/:id        /calendar
-/clubs          /clubs/:id      /dogs             /dogs/:id
+/               /sign-in        /registration
+/browse-shows   /shows          /shows/:id
+/clubs          /clubs/:id
 /terms          /privacy
 ```
+
+> Notes:
+>
+> - `/login` exists only as a backwards-compat redirect to `/sign-in`. Audit `/sign-in` directly.
+> - `/calendar`, `/dogs`, `/dogs/:id` are authenticated routes (wrapped in `<ProtectedRoute>`). They redirect guests to `/sign-in`. Audit them under the relevant logged-in role group, not Public.
 
 ### Exhibitor (login as exhibitor)
 
@@ -88,8 +93,7 @@ For each route:
 /secretary/check-in         /secretary/run-order
 /secretary/results-control  /secretary/results-submission
 /secretary/reports          /secretary/settings
-/secretary/volunteers       /secretary/messages/:showId
-/secretary/shows/:showId/edit
+/secretary/volunteers
 /trials/:trialId/classes    /trials/:trialId/classes/create
 /shows/:showId/trials/:trialId/classes/:classId/secretary
 /scoring/classes/:classId/entries

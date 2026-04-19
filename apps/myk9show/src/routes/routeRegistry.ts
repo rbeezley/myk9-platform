@@ -45,7 +45,6 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/load-testing': () =>
     import('@/components/admin/LoadTestDashboard').then(m => ({ default: m.LoadTestDashboard })),
   '/admin/alerts': () => import('@/pages/AlertsPage'),
-  '/admin/analytics': () => import('@/pages/AnalyticsPage'),
 } as const;
 
 // Public/exhibitor route components
@@ -69,6 +68,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/show-day': () => import('@/pages/ShowDayPage'),
   '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/check-in/:entryId': () => import('@/components/exhibitor/ClassCheckIn'),
+  '/exhibitor/analytics': () => import('@/pages/AnalyticsPage'),
 
   // Dogs management
   '/dogs': () => import('@/pages/BrowseDogsPage'),
@@ -129,7 +129,13 @@ export const routeCategories = {
 
   high: ['/admin/templates', '/admin/sync', '/shows', '/dogs', '/calendar'],
 
-  medium: ['/admin/performance', '/admin/analytics', '/admin/alerts', '/clubs', '/subscription'],
+  medium: [
+    '/admin/performance',
+    '/exhibitor/analytics',
+    '/admin/alerts',
+    '/clubs',
+    '/subscription',
+  ],
 
   low: ['/admin/load-testing', '/tv/:showId'],
 };

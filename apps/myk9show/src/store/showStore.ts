@@ -10,6 +10,10 @@ import {
 } from '@/utils/cascadingDelete';
 import { replicatedShowsTable, type ReplicatedShow } from '@/services/replication';
 import {
+  replicatedClubsTable,
+  type ReplicatedClub,
+} from '@/services/replication/ReplicatedClubsTable';
+import {
   replicatedJudgeAssignmentsTable,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
@@ -85,6 +89,42 @@ function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): 
     trials: existing.trials || [],
     stats: existing.stats || [],
   };
+}
+
+/**
+ * Hydrate the club fields (clubName/clubAddress/clubEmail) on a Show from a
+ * lookup map keyed by clubId. The replication tables are normalized — these
+ * fields are not stored on the show row, so we have to join here so UI
+ * consumers (cards, headers) see a populated club name instead of "TBD".
+ */
+function hydrateClubFields(show: Show, clubsById: Map<string, ReplicatedClub>): Show {
+  if (!show.clubId) return show;
+  const club = clubsById.get(show.clubId);
+  if (!club) return show;
+  const next = {
+    clubName: club.name || show.clubName,
+    clubAddress: club.address || show.clubAddress,
+    clubEmail: club.email || show.clubEmail,
+    logoUrl: show.logoUrl || club.logoUrl || '',
+    coverImageUrl: show.coverImageUrl || club.coverImageUrl || '',
+    accentColor: show.accentColor || club.accentColor || '',
+  };
+  if (
+    next.clubName === show.clubName &&
+    next.clubAddress === show.clubAddress &&
+    next.clubEmail === show.clubEmail &&
+    next.logoUrl === show.logoUrl &&
+    next.coverImageUrl === show.coverImageUrl &&
+    next.accentColor === show.accentColor
+  ) {
+    return show;
+  }
+  return { ...show, ...next };
+}
+
+async function loadClubsById(): Promise<Map<string, ReplicatedClub>> {
+  const clubs = await replicatedClubsTable.getAllClubs();
+  return new Map(clubs.map(c => [c.id, c]));
 }
 
 // Input types for creating/updating shows
@@ -442,14 +482,18 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         set({ shows: mockShows, isLoading: false });
       } else {
         // Load from replicated table (IndexedDB)
-        const replicatedShows = await replicatedShowsTable.getAllShows();
+        const [replicatedShows, clubsById] = await Promise.all([
+          replicatedShowsTable.getAllShows(),
+          loadClubsById(),
+        ]);
 
         const currentShows = get().shows;
 
-        // Merge replicated data with existing local-only fields
+        // Merge replicated data with existing local-only fields, then hydrate
+        // club name/address/email by joining against the clubs replication.
         const mergedShows = replicatedShows.map(replicated => {
           const existing = currentShows.find(s => s.id === replicated.id);
-          return mergeShowData(replicated, existing);
+          return hydrateClubFields(mergeShowData(replicated, existing), clubsById);
         });
 
         set({ shows: mergedShows, isLoading: false });
@@ -531,13 +575,17 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
     // Subscribe to replicated table changes
     const unsubShows = replicatedShowsTable.subscribe(async shows => {
       const currentShows = get().shows;
-      const allAssignments = await replicatedJudgeAssignmentsTable.getAll();
+      const [allAssignments, clubsById] = await Promise.all([
+        replicatedJudgeAssignmentsTable.getAll(),
+        loadClubsById(),
+      ]);
       const { people } = useUserStore.getState();
 
-      // Merge replicated data with existing local-only fields
+      // Merge replicated data with existing local-only fields, then hydrate
+      // club name/address/email by joining against the clubs replication.
       const mergedShows = shows.map(replicated => {
         const existing = currentShows.find(s => s.id === replicated.id);
-        const show = mergeShowData(replicated, existing);
+        const show = hydrateClubFields(mergeShowData(replicated, existing), clubsById);
         show.assignedJudges = buildAssignedJudges(allAssignments, show.id, people);
         return show;
       });
@@ -545,6 +593,20 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       set({ shows: mergedShows });
 
       reportDebug('store', 'Shows updated from replicated table', { count: mergedShows.length });
+    });
+
+    // Subscribe to clubs replication — when clubs change (e.g., initial sync
+    // arrives after shows), re-hydrate the existing shows so clubName updates.
+    const unsubClubs = replicatedClubsTable.subscribe((clubs: ReplicatedClub[]) => {
+      const clubsById = new Map(clubs.map(c => [c.id, c]));
+      const currentShows = get().shows;
+      let changed = false;
+      const updatedShows = currentShows.map(show => {
+        const hydrated = hydrateClubFields(show, clubsById);
+        if (hydrated !== show) changed = true;
+        return hydrated;
+      });
+      if (changed) set({ shows: updatedShows });
     });
 
     // Subscribe to judge assignment changes — re-compute assignedJudges for all shows
@@ -575,6 +637,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       _unsubscribe: () => {
         unsubShows();
         unsubJudgeAssignments();
+        unsubClubs();
       },
     });
 

@@ -348,7 +348,7 @@ export function getTabQuickActions(currentTab: string, user: UserWithRoles | nul
         variant: 'default',
         onClick: () => {
           logger.logUserAction('view_analytics', 'shows', {});
-          window.location.href = '/admin/analytics';
+          window.location.href = '/exhibitor/analytics';
         },
       });
       break;

@@ -257,12 +257,6 @@ Non-North-Star items needed before real users hit the production URL. These are 
 
 ---
 
-## Audit All Pages for Console and Network Errors - 2026-04-18 08:38
-
-- **Audit all pages for console and network errors** - Systematically visit each page in the running dev server (localhost:5173), capturing console logs and network request logs for errors or warnings. Fix addressable errors inline; record unfixable ones as new TO-DOs. **Problem:** The app has undergone significant refactoring (PrimaryTabs standardization, design system token changes). Residual console errors, failed network requests, or broken components may exist across pages that haven't been manually verified. **Files:** All pages under `apps/myk9show/src/pages/` — visit each route using the Claude Desktop preview window tools (`preview_navigate`, `preview_console_logs`, `preview_network`, `preview_snapshot`). **Solution:** Navigate to each route; check console for errors/warnings and network for 4xx/5xx responses; fix trivial issues inline; open new TO-DO entries for anything requiring deeper investigation.
-
----
-
 ## Normalize `_requested` workflow values to hyphenated form — 2026-04-18
 
 - **Rename `scratch_requested`/`move_up_requested` → `scratch-requested`/`move-up-requested`** — `EntryStatus` mixes hyphen (`'checked-in'`, `'pending-payment'`) and underscore (`'scratch_requested'`, `'move_up_requested'`) conventions. Hyphen is the majority rule. **Deferred:** not a golden-path blocker; requires a two-phase DB migration. **Files:** `apps/myk9show/src/types/entry-lifecycle.ts`, `apps/myk9show/src/services/database/queries/scratchQueries.ts` + `moveUpQueries.ts`, new migration. **Solution:** (1) expand CHECK to allow both forms; (2) `UPDATE entries SET entry_status = 'scratch-requested' WHERE entry_status = 'scratch_requested'` (same for move-up); (3) update app writes to hyphen form; (4) later migration drops underscore form.
@@ -275,6 +269,70 @@ Non-North-Star items needed before real users hit the production URL. These are 
 
 - Removed `push: main` trigger — CI now only runs on PRs (post-merge runs on `main` were billing identical code twice, ~75% of total usage)
 - Consolidated `test-myk9q` + `test-myk9show` + `test-packages` into a single `test` job — saves 2 extra runner startups and `pnpm install` steps per run
+
+---
+
+## Page Audit Findings — 2026-04-18 21:36
+
+Full audit run via `audit-pages` skill. Site admin (Beezley@Cox.net) used as proxy for exhibitor routes since no dedicated exhibitor test account exists. Judge audit truncated — see setup issues below. Known noise (App-Wide Render Loop, ~258 errors/page) ignored throughout.
+
+### Sidebar nav coverage — intentional Phase 1 parking, defer to Phase 3
+
+Initial audit flagged ~17 missing sidebar links across roles. **On review these are deliberate Phase 1 "Quiet the Noise" parking decisions, not bugs.** Tests at `apps/myk9show/src/components/layout/sidebar/__tests__/unifiedSidebarConfig.test.ts:14-32, 50-66, 97-107` explicitly assert the parked items are absent. The North Star plan defers un-hiding decisions to Phase 3 ("revisit the 'park' pile and decide what to un-hide for a post-fall release").
+
+**Parked items (do not surface before Phase 3):**
+
+- Judge: entire Judging section (`/judge/dashboard`, `/judge/check-in`, `/judge/stats`, `/results/dashboard`) — the routes still work for direct links and from in-app deep links (e.g. judging from a class detail page).
+- Secretary: `/secretary/create-show`, `/secretary/waitlist`, `/secretary/check-in`, `/secretary/settings`, `/secretary/volunteers`, `/secretary/pipeline`, run-orders.
+- Site admin: `/admin/analytics`, `/admin/permissions/audit`, `/admin/permissions/roles`, `/admin/settings`, `/admin/templates`, `/admin/sync`, `/admin/alerts`, `/admin/onboarding`, `/admin/performance`, `/admin/judges/analytics`.
+
+**Open question for Phase 3:** judges currently have **zero** in-app entry point to their own dashboards — even direct links (e.g. "View my schedule" from an email) won't be discoverable in-app. Consider whether at least the judge dashboard belongs in nav even pre-Phase-3, since judges have no other landing surface.
+
+**Method correction for future audits:** The `audit-pages` skill should distinguish "URL works but is parked" from "URL works and should be reachable in nav". Cross-reference against the parked-items list in `unifiedSidebarConfig.test.ts` before logging nav-coverage findings.
+
+### Setup blockers (resolve before next audit)
+
+- **Create `club@myk9t.com` auth user** — **Problem:** Email is referenced in audit-pages skill credentials block but does not exist in `auth.users` (only 5 users present, no `club@` row). Could not audit `/club-admin/members`. **Files:** `.claude/skills/audit-pages/SKILL.md` (credential list), Supabase Auth dashboard. **Solution:** create auth user with CLUB_ADMIN role assigned in `user_roles`, set password to match doc.
+- **✅ Resolved 2026-04-18 21:50 — JUDGE role assigned via `/admin/users` row-actions → Manage Roles dialog. Re-audit clean: all 4 judge routes render.** (Login still redirects to `/exhibitor/entries` instead of `/judge/dashboard` — covered by separate known TODO "Login Redirects to Highest-Role Dashboard".)
+- **Create dedicated exhibitor test account** — **Problem:** No `exhibitor@myk9t.com` and no documented exhibitor credentials. Audit fell back to site admin, which masks role-gating bugs that only an exhibitor would hit. **Solution:** create `exhibitor@myk9t.com` with EXHIBITOR-only role; add to skill credentials block.
+
+### Routing & 404s
+
+- **✅ Resolved 2026-04-18 — `/login` already redirects to `/sign-in` via `App.tsx:291`. Skill route list updated to reference `/sign-in` directly.**
+- **✅ Resolved 2026-04-18 — `/secretary/messages/:showId` is an intentional Navigate redirect to `/secretary/dashboard` (Phase 1 parking). Removed from skill route list.**
+- **✅ Resolved 2026-04-18 — `/secretary/shows/:showId/edit` is an intentional redirect to `/shows/:showId?edit=true` which opens the edit form (handled in `ShowDetailsPage.tsx:102`). Removed from skill route list.**
+
+### Public route bugs
+
+- **✅ Resolved 2026-04-18 — Skill route list corrected: `/calendar`, `/dogs`, `/dogs/:id` are authenticated by design (wrapped in `<ProtectedRoute>`). Moved out of Public group in `audit-pages/SKILL.md`. Whether they _should_ be guest-browseable is a product call deferred to post-Phase-3.**
+- **✅ Resolved 2026-04-18 — `/clubs` "Add Club" CTA now hidden for unauthenticated users (`BrowseClubsPage.tsx`). Empty-state CTA also gated.**
+- **✅ Resolved 2026-04-18 — `/shows` count mismatch fixed collaterally with the HOST CLUB hydration fix below.**
+- **✅ Resolved 2026-04-18 — `/shows/:id` HOST CLUB now hydrated from `replicatedClubsTable` in `showStore.ts` (`hydrateClubFields` helper + clubs subscription). Verified live: "Test Club 1" displays.**
+- **Replication sync errors fire on every public/logged-out page load** — **Problem:** Pages like `/terms`, `/privacy` (which don't need replicated data) trigger `ReplicatedClassesTable.sync` errors in console. Replication should not initialize on guest sessions. **Files:** `apps/myk9show/src/services/replication/ReplicatedClassesTable.ts:157`, replication bootstrap. **Solution:** gate replication startup on authenticated session.
+
+### Secretary route bugs
+
+- **✅ Resolved 2026-04-18 — `/trials/:trialId/classes` rewritten to use `useClassesByTrialQuery` + `useTrialStore`. Now displays trial name + actual class count. Verified live: "Saturday Trial 1" + 5 classes.**
+
+### Site admin route bugs
+
+- **✅ Resolved 2026-04-18 — `/admin/analytics` now redirects to `/exhibitor/analytics` with a code comment clarifying that the AnalyticsPage is a personal/exhibitor stats view, not platform admin analytics. Existing CTAs still work.**
+- **`/admin/settings` is a stub** — **Problem:** Page renders "System Settings Coming Soon". Hidden/parked feature; do not implement now per North Star Phase 2 rules — log only.
+
+### Judge route findings (post role-assignment, 2026-04-18 21:50)
+
+- **`/results/dashboard` Base UI button warning** — **Status 2026-04-18:** Not reproducible on initial page load — only perf warnings appear in console. May only fire on specific interactions (filter open, date picker, etc.). Re-investigate next time it surfaces with a repro path. **Files:** components rendered by `/results/dashboard` page. **Solution:** find the Base UI component using `render` prop with non-`<button>` element; either pass a real `<button>` or set `nativeButton={false}`.
+- **Possible mock/seed data on judge surfaces** — **Problem:** `/judge/dashboard` shows "Today's Classes 8, 3 completed" and `/judge/check-in` shows "Total Entries 40 · Checked In 30 · Conflicts 3" but `/judge/stats` correctly shows 0 SHOWS JUDGED / 0 CLASSES JUDGED for the same judge. `/results/dashboard` also shows fictional "Container Expert - Results Posted, 1st: Luna (95.5 pts)" recent activity. **Solution:** confirm whether dashboards are reading real data or hardcoded seed values; if seeds, swap for real queries (likely empty-state for fresh judges).
+
+### Exhibitor route observations (audited as site admin proxy — re-verify with real exhibitor)
+
+- **`/exhibitor/dashboard`, `/exhibitor/entries`, `/exhibitor/entries/history`, `/my-entries` all render the same dashboard component** — Likely intentional aliasing; the page does include an entries summary section below the dashboard greeting. Flag for re-verification with a true exhibitor account: a fresh exhibitor probably wants `/exhibitor/entries` to land on a list view, not on the dashboard greeting.
+- **`/exhibitor/profile` and `/exhibitor/account` redirect to `/profile`** — Probably intended (single profile editor). No bug; documenting for journey doc.
+- **`/shows/:showId/trials/:trialId/classes/:classId/results` shows the class detail page (not a results-specific view)** — Could be intended (results render inline on detail page) or could be a missing route. Verify against exhibitor journey doc; if exhibitors are expected to deep-link to "just the results", a dedicated component is needed.
+
+### Audit method notes (for future runs)
+
+- **`pushState` + `popstate` does not trigger React Router re-renders in this app.** First nav after a real load works; subsequent SPA navigations via `history.pushState` change the URL but leave the previous component mounted. Always use `window.location.href = '...'` between routes during audits or you will record false negatives. (Discovered while auditing exhibitor parameterised routes — first run reported all 5 routes rendered the registration page; full reload showed each rendered correctly.)
 
 ---
 

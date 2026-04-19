@@ -108,11 +108,6 @@ const AlertsPage = createEnhancedLazy(() => import('@/pages/AlertsPage'), {
   displayName: 'AlertsPage',
 });
 
-const AnalyticsPage = createEnhancedLazy(() => import('@/pages/AnalyticsPage'), {
-  ...RouteLazyPresets.mediumPriority,
-  displayName: 'AnalyticsPage',
-});
-
 const JudgeAnalyticsPage = createEnhancedLazy(() => import('@/pages/admin/JudgeAnalyticsPage'), {
   ...RouteLazyPresets.mediumPriority,
   displayName: 'JudgeAnalyticsPage',
@@ -340,17 +335,10 @@ export const AdminRoutes = () => (
       )}
     />
 
-    {/* Analytics */}
-    <Route
-      path="/admin/analytics"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <AnalyticsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
+    {/* Analytics — /admin/analytics redirects to exhibitor analytics (the AnalyticsPage
+        is a personal/exhibitor stats view, not platform admin analytics). Keep the
+        redirect so existing links and CTAs don't 404. */}
+    <Route path="/admin/analytics" element={<Navigate to="/exhibitor/analytics" replace />} />
     <Route
       path="/admin/judges/analytics"
       element={adminGuard(

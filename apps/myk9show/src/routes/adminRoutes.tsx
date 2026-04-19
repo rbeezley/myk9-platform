@@ -118,6 +118,11 @@ const OnboardingRequestsPage = createEnhancedLazy(
   { ...RouteLazyPresets.mediumPriority, displayName: 'OnboardingRequestsPage' }
 );
 
+const RBACTestPage = createEnhancedLazy(
+  () => import('@/pages/admin/RBACTestPage').then(m => ({ default: m.RBACTestPage })),
+  { ...RouteLazyPresets.lowPriority, displayName: 'RBACTestPage' }
+);
+
 // Admin-specific components - Placeholder components for future development
 const SystemSettingsPage = () =>
   React.createElement('div', { className: 'p-6 text-center' }, 'System Settings Coming Soon');
@@ -357,6 +362,18 @@ export const AdminRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <OnboardingRequestsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* RBAC test/debug page — linked from PermissionManagementPage */}
+    <Route
+      path="/admin/rbac-test"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <RBACTestPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

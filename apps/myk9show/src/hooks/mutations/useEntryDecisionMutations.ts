@@ -2,10 +2,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateEntryStatus } from '@/services/database/queries/secretaryEntryQueries';
 import type { PendingEntry } from '@/hooks/queries/usePendingEntries';
 import { PENDING_ENTRIES_KEY } from '@/hooks/queries/usePendingEntries';
+import type { EntryStatus } from '@/types/entry-lifecycle';
 
 type Decision = 'accepted' | 'waitlist' | 'rejected';
 
-const DECISION_STATUS_MAP: Record<Decision, string> = {
+const DECISION_STATUS_MAP: Record<Decision, EntryStatus> = {
   accepted: 'confirmed',
   // TODO(waitlist-system): map to 'waitlisted' once waitlist system integration is complete
   waitlist: 'confirmed',

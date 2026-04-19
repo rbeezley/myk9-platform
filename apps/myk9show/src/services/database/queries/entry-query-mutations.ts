@@ -6,10 +6,8 @@
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
-import type {
-  DbEntryInsert,
-  DbEntryUpdate,
-} from '../../../types/database-mappings';
+import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappings';
+import type { EntryStatus } from '@/types/entry-lifecycle';
 
 // Create new entry
 export const createEntry = async (entryData: DbEntryInsert) => {
@@ -19,7 +17,8 @@ export const createEntry = async (entryData: DbEntryInsert) => {
     const { data, error } = await supabase
       .from('entries')
       .insert(entryData)
-      .select(`
+      .select(
+        `
         *,
         dog:dog_id (
           id,
@@ -45,7 +44,8 @@ export const createEntry = async (entryData: DbEntryInsert) => {
           start_date,
           end_date
         )
-      `)
+      `
+      )
       .single();
 
     const duration = Date.now() - startTime;
@@ -80,7 +80,8 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
       .from('entries')
       .update(updateData)
       .eq('id', id)
-      .select(`
+      .select(
+        `
         *,
         dog:dog_id (
           id,
@@ -106,7 +107,8 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
           start_date,
           end_date
         )
-      `)
+      `
+      )
       .single();
 
     const duration = Date.now() - startTime;
@@ -154,7 +156,7 @@ export const deleteEntry = async (id: string) => {
 // Update entry status
 export const updateEntryStatus = async (params: {
   id: string;
-  status: string;
+  status: EntryStatus;
   userId: string;
   reason?: string;
 }) => {
@@ -199,10 +201,7 @@ export const createMultipleEntries = async (entriesData: DbEntryInsert[]) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('entries')
-      .insert(entriesData)
-      .select(`
+    const { data, error } = await supabase.from('entries').insert(entriesData).select(`
         *,
         dog:dog_id (
           id,
@@ -326,10 +325,7 @@ export const withdrawEntry = async (entryId: string) => {
 };
 
 // Comp an entry (mark as comped with reason, set payment_status to waived)
-export const compEntry = async (params: {
-  entryId: string;
-  reason: string;
-}) => {
+export const compEntry = async (params: { entryId: string; reason: string }) => {
   const { entryId, reason } = params;
   const startTime = Date.now();
 

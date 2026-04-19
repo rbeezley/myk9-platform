@@ -1,7 +1,8 @@
 // React Query hooks for database entry operations
 // Entry Store Integration - React Query Implementation
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import type { EntryStatus } from '@/types/entry-lifecycle';
+import {
   getAllEntries,
   getEntryById,
   getEntriesByShow,
@@ -14,7 +15,7 @@ import {
   updateEntryStatus,
   createMultipleEntries,
   getEntryStatistics,
-  searchEntries
+  searchEntries,
 } from '@/services/database/queries/entryQueries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
@@ -90,7 +91,7 @@ export const useEntriesByDogQuery = (dogId: string, enabled = true) => {
 };
 
 // Get entries by status
-export const useEntriesByStatusQuery = (status: string, enabled = true) => {
+export const useEntriesByStatusQuery = (status: EntryStatus, enabled = true) => {
   return useQuery({
     queryKey: queryKeys.entriesByStatus(status),
     queryFn: async () => {
@@ -140,7 +141,7 @@ export const useCreateEntryMutation = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async (newEntry) => {
+    onMutate: async newEntry => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.entries });
 
@@ -148,8 +149,10 @@ export const useCreateEntryMutation = () => {
       const previousEntries = queryClient.getQueryData(queryKeys.entries);
 
       // Optimistically update to the new value
-      queryClient.setQueryData(queryKeys.entries, (old: unknown[]) => 
-        old ? [...old, { ...newEntry, id: `temp-${Date.now()}` }] : [{ ...newEntry, id: `temp-${Date.now()}` }]
+      queryClient.setQueryData(queryKeys.entries, (old: unknown[]) =>
+        old
+          ? [...old, { ...newEntry, id: `temp-${Date.now()}` }]
+          : [{ ...newEntry, id: `temp-${Date.now()}` }]
       );
 
       return { previousEntries };
@@ -187,13 +190,25 @@ export const useUpdateEntryMutation = () => {
       const previousEntries = queryClient.getQueryData(queryKeys.entries);
 
       // Optimistically update entry
-      queryClient.setQueryData(queryKeys.entry(id), (old: unknown) => 
-        old ? { ...old as Record<string, unknown>, ...updates, updated_at: new Date().toISOString() } : null
+      queryClient.setQueryData(queryKeys.entry(id), (old: unknown) =>
+        old
+          ? {
+              ...(old as Record<string, unknown>),
+              ...updates,
+              updated_at: new Date().toISOString(),
+            }
+          : null
       );
 
       // Optimistically update entries list
-      queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) => 
-        old ? old.map(entry => entry.id === id ? { ...entry, ...updates, updated_at: new Date().toISOString() } : entry) : []
+      queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) =>
+        old
+          ? old.map(entry =>
+              entry.id === id
+                ? { ...entry, ...updates, updated_at: new Date().toISOString() }
+                : entry
+            )
+          : []
       );
 
       return { previousEntry, previousEntries };
@@ -225,7 +240,7 @@ export const useDeleteEntryMutation = () => {
       if (error) throw error;
       return id;
     },
-    onMutate: async (id) => {
+    onMutate: async id => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.entries });
 
@@ -233,7 +248,7 @@ export const useDeleteEntryMutation = () => {
       const previousEntries = queryClient.getQueryData(queryKeys.entries);
 
       // Optimistically remove from entries list
-      queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) => 
+      queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) =>
         old ? old.filter(entry => entry.id !== id) : []
       );
 
@@ -262,7 +277,7 @@ export const useUpdateEntryStatusMutation = () => {
   return useMutation({
     mutationFn: async (params: {
       id: string;
-      status: string;
+      status: EntryStatus;
       userId: string;
       reason?: string;
     }) => {
@@ -285,13 +300,13 @@ export const useUpdateEntryStatusMutation = () => {
       };
 
       // Optimistically update entry
-      queryClient.setQueryData(queryKeys.entry(id), (old: unknown) => 
-        old ? { ...old as Record<string, unknown>, ...statusUpdate } : null
+      queryClient.setQueryData(queryKeys.entry(id), (old: unknown) =>
+        old ? { ...(old as Record<string, unknown>), ...statusUpdate } : null
       );
 
       // Optimistically update entries list
-      queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) => 
-        old ? old.map(entry => entry.id === id ? { ...entry, ...statusUpdate } : entry) : []
+      queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) =>
+        old ? old.map(entry => (entry.id === id ? { ...entry, ...statusUpdate } : entry)) : []
       );
 
       return { previousEntry, previousEntries };
@@ -323,7 +338,7 @@ export const useCreateMultipleEntriesMutation = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async (newEntries) => {
+    onMutate: async newEntries => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.entries });
 
@@ -333,10 +348,10 @@ export const useCreateMultipleEntriesMutation = () => {
       // Optimistically update to the new value
       const tempEntries = newEntries.map((entry, index) => ({
         ...entry,
-        id: `temp-bulk-${Date.now()}-${index}`
+        id: `temp-bulk-${Date.now()}-${index}`,
       }));
 
-      queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) => 
+      queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) =>
         old ? [...old, ...tempEntries] : tempEntries
       );
 

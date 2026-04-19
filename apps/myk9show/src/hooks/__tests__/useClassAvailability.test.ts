@@ -183,4 +183,37 @@ describe('useClassAvailability', () => {
 
     expect(result.current.error).toBe('network error');
   });
+
+  it('entry_status filter includes in-ring alongside competing', async () => {
+    // Regression: entries with entry_status='in-ring' (written by myK9Q) must be
+    // counted as active so class capacity is calculated correctly.
+    const inStatusSpy = vi.fn().mockResolvedValue({ data: [], error: null });
+    const inClassSpy = vi.fn().mockReturnValue({ in: inStatusSpy });
+    const selectSpy = vi.fn().mockReturnValue({ in: inClassSpy });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'classes') return makeClassQuery(CLASS_DATA);
+      if (table === 'shows')
+        return makeShowQuery({
+          default_judge_day_capacity: 125,
+          mail_in_strategy: 'none',
+          mail_in_value: null,
+        });
+      if (table === 'entries') return { select: selectSpy };
+      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
+      if (table === 'judge_assignments')
+        return makeJudgeQuery([
+          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
+        ]);
+      return makeClassQuery([]);
+    });
+
+    const { result } = renderHook(() => useClassAvailability('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(inStatusSpy).toHaveBeenCalledWith(
+      'entry_status',
+      expect.arrayContaining(['in-ring', 'competing'])
+    );
+  });
 });

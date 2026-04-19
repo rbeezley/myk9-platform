@@ -5,7 +5,7 @@
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  * Mutation functions remain in entry-query-mutations.ts (DO NOT TOUCH).
  */
-import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replicationUtils';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -19,6 +19,7 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+import type { EntryStatus } from '@/types/entry-lifecycle';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -393,7 +394,7 @@ async function postgrestGetEntriesByDog(dogId: string) {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetEntriesByStatus(status: string) {
+async function postgrestGetEntriesByStatus(status: EntryStatus) {
   const { data, error } = await supabase
     .from('entries')
     .select(
@@ -683,7 +684,7 @@ export const getEntriesByDog = async (dogId: string) => {
 };
 
 // Get entries by status
-export const getEntriesByStatus = async (status: string) => {
+export const getEntriesByStatus = async (status: EntryStatus) => {
   try {
     return await withReplicationFallback(
       async () => {

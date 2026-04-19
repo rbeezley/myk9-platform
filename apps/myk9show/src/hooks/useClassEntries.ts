@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { EntryDisplayStatus } from '@/constants/live-status-config';
+import { isInRingStatus } from '@/types/entry-lifecycle';
 
 export interface ClassEntry {
   id: string;
@@ -26,12 +27,12 @@ interface UseClassEntriesResult {
   isError: boolean;
 }
 
-function mapEntryStatus(entry: Record<string, unknown>): EntryDisplayStatus {
+export function mapEntryStatus(entry: Record<string, unknown>): EntryDisplayStatus {
   if (entry.is_scored) return 'completed';
   if (entry.is_in_ring) return 'in_ring';
   const entryStatus = String(entry.entry_status || '');
   if (entryStatus === 'scratched' || entryStatus === 'withdrawn') return 'pulled';
-  if (entryStatus === 'competing') return 'at_gate';
+  if (isInRingStatus(entryStatus)) return 'at_gate';
   if (entryStatus === 'confirmed' || entryStatus === 'scheduled') return 'checked_in';
   return 'not_checked_in';
 }

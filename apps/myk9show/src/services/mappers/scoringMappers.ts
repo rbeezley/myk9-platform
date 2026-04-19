@@ -11,7 +11,7 @@ import type {
   ScentWorkResult,
   QualificationStatus,
 } from '@/types/scent-work-types';
-import type { EntryStatus } from '@/types/entry-lifecycle';
+import { IN_RING_STATUSES, type EntryStatus } from '@/types/entry-lifecycle';
 import type { CheckInStatus } from '@myk9/core';
 import type { UnifiedEntryData } from '@/types/unified-entry-types';
 import { getTimeLimit, isMultiAreaClass, getAreaTimeLimits } from '@/types/scent-work-types';
@@ -224,7 +224,7 @@ function mapEntryStatus(dbStatus: string | null): EntryStatus {
     'paid',
     'confirmed',
     'scheduled',
-    'competing',
+    ...IN_RING_STATUSES,
     'completed',
     'withdrawn',
     'scratched',

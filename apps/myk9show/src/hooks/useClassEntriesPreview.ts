@@ -1,12 +1,7 @@
 import { useMemo } from 'react';
 import { useEntryStore } from '@/store/entryStore';
-import type { EntryStatus } from '@/types/entry-lifecycle';
+import { isInRingStatus } from '@/types/entry-lifecycle';
 import type { ClassCardEntry } from '@myk9/ui';
-
-/** Returns true for any status that means the dog is currently in the ring. */
-export function isInRingStatus(status: EntryStatus): boolean {
-  return status === 'competing' || status === 'in-ring';
-}
 
 /**
  * Entry preview data for a class

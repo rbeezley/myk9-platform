@@ -27,6 +27,17 @@ export type EntryStatus =
   | 'pending-payment' // Promoted from waitlist, awaiting Stripe checkout
   | 'promotion-expired'; // Did not pay within promotion deadline
 
+/**
+ * Statuses where the dog is currently in the ring.
+ * 'competing' is the myK9Show legacy name; 'in-ring' is what myK9Q writes.
+ * Kept as synonyms until a future migration collapses them.
+ */
+export const IN_RING_STATUSES = ['competing', 'in-ring'] as const satisfies readonly EntryStatus[];
+
+export function isInRingStatus(status: EntryStatus | string | null | undefined): boolean {
+  return status === 'competing' || status === 'in-ring';
+}
+
 export interface ShowEntry {
   // Identity
   id: string;

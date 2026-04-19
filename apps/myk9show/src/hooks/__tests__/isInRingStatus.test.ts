@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { isInRingStatus } from '@/hooks/useClassEntriesPreview';
+import { isInRingStatus } from '@/types/entry-lifecycle';
 
 describe('isInRingStatus', () => {
   it('returns true for competing', () => {

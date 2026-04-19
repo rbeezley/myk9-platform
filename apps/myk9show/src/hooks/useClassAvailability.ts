@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { IN_RING_STATUSES } from '@/types/entry-lifecycle';
 
 export interface ClassAvailability {
   classId: string;
@@ -140,8 +141,7 @@ export function useClassAvailability(
             'paid',
             'confirmed',
             'checked-in',
-            'competing',
-            'in-ring',
+            ...IN_RING_STATUSES,
             'pending-payment',
           ]),
         supabase

@@ -194,19 +194,26 @@ describe('useClassAvailability', () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'classes') return makeClassQuery(CLASS_DATA);
       if (table === 'shows')
-        return makeShowQuery({ default_judge_day_capacity: 125, mail_in_strategy: 'none', mail_in_value: null });
+        return makeShowQuery({
+          default_judge_day_capacity: 125,
+          mail_in_strategy: 'none',
+          mail_in_value: null,
+        });
       if (table === 'entries') return { select: selectSpy };
       if (table === 'waitlist_entries') return makeWaitlistQuery([]);
       if (table === 'judge_assignments')
-        return makeJudgeQuery([{ class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } }]);
+        return makeJudgeQuery([
+          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
+        ]);
       return makeClassQuery([]);
     });
 
     const { result } = renderHook(() => useClassAvailability('show-1'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    const statusFilter = inStatusSpy.mock.calls[0]?.[1] as string[] | undefined;
-    expect(statusFilter).toContain('in-ring');
-    expect(statusFilter).toContain('competing');
+    expect(inStatusSpy).toHaveBeenCalledWith(
+      'entry_status',
+      expect.arrayContaining(['in-ring', 'competing'])
+    );
   });
 });

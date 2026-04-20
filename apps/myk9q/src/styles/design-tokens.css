@@ -108,25 +108,23 @@
   --status-none: #9ca3af;
   --status-none-text: #ffffff;
 
-  /* Check-in Status Colors - Light Mode (Traffic Light System) */
-  /* None: Gray (no action taken) */
-  --checkin-none: #6b7280;
+  /* Check-in Status Colors — @deprecated: use --status-* instead.
+     These aliases will be removed in v2 Phase 3 once all
+     consumers (incl. packages/core/src/constants/check-in-status.ts)
+     have migrated to --status-* tokens. */
+  --checkin-none: var(--status-no-status);
   --checkin-none-text: #ffffff;
 
-  /* Checked In: Green (ready to compete) */
   --checkin-checked-in: var(--status-checked-in);
   --checkin-checked-in-text: #ffffff;
 
-  /* Conflict: Orange (warning - needs attention) */
-  --checkin-conflict: #f97316;
+  --checkin-conflict: var(--status-conflict);
   --checkin-conflict-text: #ffffff;
 
-  /* Pulled: Red (stopped - withdrawn) */
-  --checkin-pulled: #dc3545;
+  --checkin-pulled: var(--status-pulled);
   --checkin-pulled-text: #ffffff;
 
-  /* At Gate: Purple (final waiting stage) */
-  --checkin-at-gate: #6f42c1;
+  --checkin-at-gate: var(--status-at-gate);
   --checkin-at-gate-text: #ffffff;
 
   /* Result Status Colors */

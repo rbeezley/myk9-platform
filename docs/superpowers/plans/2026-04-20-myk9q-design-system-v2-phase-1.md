@@ -18,6 +18,17 @@ The spec (§7.1) proposed creating a new `packages/design-tokens/` workspace pac
 
 **Hex-value drift:** spec §4.1 lists `--background: #f5f4ed` / `--foreground: #141413`. myK9Show's live v2 (in [apps/myk9show/src/index.css:380-381](apps/myk9show/src/index.css)) has evolved to `#faf7f2` / `#181411` (annotated as "v2 ivory-50" / "v2 ink-900"). Because the spec's intent is "share the design language with myK9Show v2," we use **myK9Show's current live values** where they differ from the spec's snapshot. The spec will be patched to match at the end of Phase 1.
 
+**[ADDED] Accent palette is a deliberate no-op in Phase 1.** §9 Phase 1 point 2 lists "accent palette §4.3" in scope, but the spec §5.2 puts the actual class renaming (`.accent-green` → `.accent-teal`, `.accent-orange` → `.accent-terracotta`) in Phase 2. The hex value for current `.accent-green` already equals the v2 `.accent-teal` hex (`#14b8a6`), so no token movement is required in Phase 1 — only the class rename, which is Phase 2 work. This is why no task below touches accents.
+
+**[ADDED] Pre-flight hex-drift check (run before Task 1).** myK9Show's live v2 values may have drifted further between plan write (2026-04-20) and plan execution. Before starting Task 1, run:
+
+```bash
+grep -E "(--background|--foreground|--card|--border|--muted-foreground):" \
+  apps/myk9show/src/index.css | head -20
+```
+
+If any value differs from what Task 1 hardcodes in `tokens-v2.css`, update the hardcoded value to match myK9Show's current live value before writing the test. The plan's intent — "share the design language with myK9Show v2" — overrides any specific hex literal.
+
 ---
 
 ## File Structure
@@ -191,7 +202,12 @@ Expected: `dist/styles/index.css` exists and contains v2 hex values.
 
 Verify: `grep '#faf7f2' packages/ui/dist/styles/index.css` returns at least one line.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Typecheck (per root CLAUDE.md — before every commit)**
+
+Run: `pnpm typecheck`
+Expected: 0 errors. If the UI package now type-fails, fix before committing; do not `--no-verify`.
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add packages/ui/src/styles/tokens-v2.css \
@@ -302,7 +318,12 @@ Edit `packages/ui/src/styles/index.css`. Below the `@import './tokens-v2.css';` 
 Run: `cd packages/ui && pnpm build:css && grep '#252522' packages/ui/dist/styles/index.css`
 Expected: exit 0 with at least one matching line.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: 0 errors.
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add packages/ui/src/styles/dark-v2.css \
@@ -391,7 +412,12 @@ Immediately after that block, insert:
 Run: `cd apps/myk9q && pnpm vitest run tests/unit/index-html-v2.test.ts`
 Expected: PASS — 4/4 assertions green.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: 0 errors.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add apps/myk9q/index.html apps/myk9q/tests/unit/index-html-v2.test.ts
@@ -485,7 +511,12 @@ Locations (from exploration): lines 99 and 260.
 Run: `cd apps/myk9q && pnpm vitest run src/components/podium/__tests__/podium-css.test.ts`
 Expected: PASS — 3/3 green.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: 0 errors.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add apps/myk9q/src/components/podium/podium.css \
@@ -563,6 +594,22 @@ describe('apps/myk9q/src/styles/design-tokens.css', () => {
       const darkBody = darkBlockMatch[1];
       expect(darkBody).not.toMatch(/--background:\s*#1a1a1e/);
     }
+  });
+});
+
+// [ADDED] Cascade order guard — the whole v2 trim plan only works if
+// @myk9/ui/styles is imported BEFORE ./styles/design-tokens.css in
+// apps/myk9q/src/index.css. If a future refactor reverses the order,
+// myK9Q's app-level literals would silently override the shared layer
+// and v2 would regress without any test failing. Lock it down here.
+describe('apps/myk9q/src/index.css cascade order', () => {
+  it('imports @myk9/ui/styles before ./styles/design-tokens.css', () => {
+    const indexCss = fs.readFileSync(path.resolve(__dirname, '../../index.css'), 'utf-8');
+    const sharedImportIndex = indexCss.indexOf('@myk9/ui/styles');
+    const appImportIndex = indexCss.indexOf('./styles/design-tokens.css');
+    expect(sharedImportIndex).toBeGreaterThan(-1);
+    expect(appImportIndex).toBeGreaterThan(-1);
+    expect(sharedImportIndex).toBeLessThan(appImportIndex);
   });
 });
 ```
@@ -702,10 +749,13 @@ token set shipped in @myk9/ui/styles."
 
 - Modify: `apps/myk9show/DESIGN.md`
 
-- [ ] **Step 1: Survey Playfair Display mentions**
+- [ ] **Step 1: Survey Playfair Display mentions — record exact count**
 
-Run: `grep -n 'Playfair' apps/myk9show/DESIGN.md`
-Expected: roughly 12 lines matching.
+Run: `grep -cn 'Playfair' apps/myk9show/DESIGN.md`
+
+Record the actual line count in the PR description's "resolves sibling Todo" section so the claim matches reality. If the count is 0, the sibling Todo has already been resolved — skip Steps 2-4 and note that in the PR description instead. If the count is > 0, proceed with Step 2.
+
+Then run: `grep -n 'Playfair' apps/myk9show/DESIGN.md` — review the full list so you know which lines are "current stack" vs "historical annotation" before editing.
 
 - [ ] **Step 2: Replace every occurrence**
 
@@ -884,7 +934,52 @@ Expected: 10 `.png` baselines committed under `apps/myk9q/tests/visual/v2-smoke.
 Run: `cd apps/myk9q && pnpm test:e2e tests/visual/v2-smoke.spec.ts`
 Expected: PASS — 10 tests match baselines exactly.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Add offline Fraunces fallback test**
+
+Spec §4.2 `[ADDED]` requires that Fraunces gracefully falls back to Georgia when Google Fonts is unreachable (common ringside scenario: spotty cellular, captive-portal wifi). Add a regression test.
+
+Append to `apps/myk9q/tests/visual/v2-smoke.spec.ts`:
+
+```typescript
+test('Podium still renders with Georgia fallback when Google Fonts is blocked', async ({
+  page,
+}) => {
+  // Simulate offline or blocked Google Fonts CDN.
+  await page.route('**://fonts.googleapis.com/**', route => route.abort());
+  await page.route('**://fonts.gstatic.com/**', route => route.abort());
+
+  await navigateToLogin(page);
+  await enterPasscode(page, TEST_PASSCODE);
+  await page.waitForURL('**/home', { timeout: 15000 });
+  await page.goto('/podium');
+  await page.waitForLoadState('networkidle');
+
+  // The podium placement name must still render visible text.
+  // Locator target depends on actual podium markup — verify with a
+  // snapshot of the DOM before committing if the selector is uncertain.
+  const placement = page.locator('.podium-placement, [data-testid="podium-name"]').first();
+  await expect(placement).toBeVisible();
+
+  // Computed font-family must resolve to Georgia (the first fallback after Fraunces).
+  const fontFamily = await placement.evaluate(el => getComputedStyle(el).fontFamily);
+  // With Fraunces blocked, Georgia should be the effective font — the string
+  // still lists Fraunces first (that's the stack), but the browser renders
+  // Georgia. Assert Georgia is in the stack so the fallback is wired.
+  expect(fontFamily).toMatch(/Georgia/i);
+});
+```
+
+> **If the locator doesn't match:** run `pnpm test:e2e tests/visual/v2-smoke.spec.ts:<line> --debug` and use Playwright Inspector to find the real selector from `apps/myk9q/src/components/podium/Podium.tsx`. Update the locator before committing — do not merge a test that silently passes because the element isn't found.
+
+Run: `cd apps/myk9q && pnpm test:e2e tests/visual/v2-smoke.spec.ts -g "Georgia fallback"`
+Expected: PASS — 1/1 green.
+
+- [ ] **Step 5: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: 0 errors.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add apps/myk9q/tests/visual/v2-smoke.spec.ts \
@@ -892,8 +987,9 @@ git add apps/myk9q/tests/visual/v2-smoke.spec.ts \
 git commit -m "test(myk9q): add v2 visual smoke baseline
 
 Captures the five canonical screens (home, class list, entry list,
-settings, the podium) in light + dark. Future phases will diff
-against these baselines to catch unintended visual drift."
+settings, the podium) in light + dark, plus an offline-Fraunces
+fallback test. Future phases will diff against these baselines to
+catch unintended visual drift."
 ```
 
 ---

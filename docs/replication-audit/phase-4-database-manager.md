@@ -102,3 +102,17 @@ This is intentional and correctly documented in the code comment. However, if `d
 | R6  | LOW      | Spurious health-check transaction on every call              | Cache a boolean `sharedDBHealthy` flag and set it on open/close rather than probing with a transaction                                          |
 | R7  | LOW      | `reset()` doesn't drain active transactions                  | Call `waitForActiveTransactions()` before closing in `reset()`                                                                                  |
 | R8  | LOW      | `recover()` reason hardcoded                                 | Pass reason string through to the CustomEvent detail                                                                                            |
+
+---
+
+## Task 4.4 status
+
+Test file `packages/replication/src/core/DatabaseManager.multi-tab.test.ts` created with two `.skip`-ed tests encoding the R2 invariants. Tests will be un-skipped once R2 is implemented.
+
+**Deferred fix rationale:** The minimum-safe cross-tab lock requires `navigator.locks.request('myk9-replication-flush', ...)` inside `uploadPendingMutations`, with a graceful fallback when the Locks API is unavailable (old Safari, test environments). A partial implementation (in-memory mutex without cross-tab) was attempted but provides false comfort — it only protects same-tab concurrency, which is already mostly handled by `this.isUploading`. A proper fix needs:
+
+1. `navigator.locks.request` with a mode option (`exclusive`)
+2. A fallback path for environments without `navigator.locks` that returns immediately (acceptable risk: same-tab-only protection)
+3. Test harness support (stubbing `navigator.locks` in Vitest)
+
+This is a real HIGH finding and should be addressed in a dedicated follow-up PR where the fix can be properly tested in a real browser.

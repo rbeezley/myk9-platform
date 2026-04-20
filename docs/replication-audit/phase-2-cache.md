@@ -170,4 +170,18 @@ Timer-leak finding (C1) has no test.
 | REFRESH-DIRTY   | LOW      | ReplicatedTableCache.ts:87–89            | Skip dirty rows in refreshTimestamps                                                                       |
 | TIMER-LEAK      | MEDIUM   | ReplicatedTableCache.ts                  | Add `destroy()` method clearing `notifyDebounceTimer`                                                      |
 
-_Source fixes applied in Task 2.3 will be noted here with commit SHAs._
+### B1 — dirty-row guard in batchSet (Task 2.3)
+
+**Approach:** Before each `put` in `batchSet`, the implementation now reads the existing IDB row via `tx.store.get([tableName, id])`. If `existingRow?.isDirty === true` and the incoming item carries `isDirty: false` (a clean server value), the row is skipped and a log line is emitted — exactly mirroring the Phase 1 `set()` guard. The same read also fixes the pre-existing B3 finding: `version` is now written as `existingRow.version + 1` rather than the hardcoded `1`.
+
+The `batchSetChunked` path inherits the guard automatically because its inner chunk loop was rewritten to use the same per-row read-before-put pattern (duplicate of `batchSet`'s loop rather than delegating, to keep the chunked path's WAL rollback self-contained).
+
+### B2 — write-ahead log atomicity in batchSetChunked (Task 2.3)
+
+**Approach chosen:** Write-ahead log (WAL), not a single IDB transaction.
+
+A single spanning transaction was considered and rejected. The comment on `batchSetChunked` explains why chunking exists: to prevent transaction timeouts on large initial syncs. Wrapping hundreds of rows in one transaction would re-introduce that timeout risk.
+
+Instead, before the first chunk write begins, a read-only snapshot of every affected row's pre-existing IDB state is captured into a `Map<id, ReplicatedRow | undefined>`. If any chunk throws (e.g. `QuotaExceededError`), a rollback transaction iterates the snapshot: rows that did not exist before are deleted; rows that existed are restored to their snapshotted value. The error is re-thrown so callers can retry with a clean IDB state.
+
+Both fixes are covered by regression tests in `src/core/ReplicatedTableCache.batch-dirty.test.ts` (2 new tests, both GREEN as of this commit).

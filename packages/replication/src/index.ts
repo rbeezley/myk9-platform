@@ -142,3 +142,6 @@ export {
 // MutationManager
 export { MutationManager } from './MutationManager';
 export type { MutationManagerOptions } from './MutationManager';
+
+// Perf instrumentation
+export { markPerf, measurePerf } from './perf';

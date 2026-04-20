@@ -17,6 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
+import { markPerf, measurePerf } from './perf';
 import {
   withTimeout,
   calculateBackoffDelay,
@@ -243,6 +244,7 @@ export class MutationManager {
     }
     this.isUploading = true;
     const startTime = Date.now();
+    markPerf('replication:flush:start');
 
     try {
       const db = await databaseManager.getDatabase('MutationManager');
@@ -404,6 +406,9 @@ export class MutationManager {
       return [];
     } finally {
       this.isUploading = false;
+      measurePerf('replication:flush', 'replication:flush:start', {
+        durationMs: Date.now() - startTime,
+      });
     }
   }
 

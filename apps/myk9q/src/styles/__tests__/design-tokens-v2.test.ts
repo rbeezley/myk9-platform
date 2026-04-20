@@ -4,15 +4,16 @@ import path from 'node:path';
 
 describe('apps/myk9q/src/styles/design-tokens.css', () => {
   let css: string;
+  let rootBody: string;
 
   beforeAll(() => {
     css = fs.readFileSync(path.resolve(__dirname, '../design-tokens.css'), 'utf-8');
+    const rootBlockMatch = css.match(/:root\s*\{([\s\S]*?)\n\}/);
+    expect(rootBlockMatch).not.toBeNull();
+    rootBody = rootBlockMatch![1];
   });
 
   it('does not redeclare v2 canvas (comes from @myk9/ui/styles)', () => {
-    const rootBlockMatch = css.match(/:root\s*\{([\s\S]*?)\n\}/);
-    expect(rootBlockMatch).not.toBeNull();
-    const rootBody = rootBlockMatch![1];
     expect(rootBody).not.toMatch(/--background:\s*#F8F7F4/);
     expect(rootBody).not.toMatch(/--card:\s*#FEFDFB/);
   });
@@ -22,9 +23,6 @@ describe('apps/myk9q/src/styles/design-tokens.css', () => {
   });
 
   it('does not redeclare blurred-drop shadow tokens (ring shadows now canonical)', () => {
-    const rootBlockMatch = css.match(/:root\s*\{([\s\S]*?)\n\}/);
-    expect(rootBlockMatch).not.toBeNull();
-    const rootBody = rootBlockMatch![1];
     expect(rootBody).not.toMatch(/--token-shadow-sm:\s*0 1px 3px/);
   });
 

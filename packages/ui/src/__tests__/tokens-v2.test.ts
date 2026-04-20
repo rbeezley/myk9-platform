@@ -66,3 +66,42 @@ describe('dark-v2.css', () => {
     expect(css).toMatch(/--primary:\s*#14b8a6/);
   });
 });
+
+// Cascade-shadow guard — index.css imports tokens-v2.css/dark-v2.css, then
+// declares its own :root and .dark blocks. Because CSS cascade resolves
+// equal-specificity selectors by source order, any v2-owned token re-declared
+// in index.css's :root would silently shadow the v2 value for every consumer
+// (myK9Q imports @myk9/ui/styles directly). This test failed once in Phase 1
+// when --background, --card, --border, etc. were left over from v1. Keep it
+// so a future edit can't quietly reintroduce the shadow.
+describe('index.css does not shadow v2 tokens', () => {
+  let rootBody: string;
+
+  beforeAll(() => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../styles/index.css'), 'utf-8');
+    const rootMatch = css.match(/:root\s*\{([\s\S]*?)\n\}/);
+    expect(rootMatch).not.toBeNull();
+    rootBody = rootMatch![1];
+  });
+
+  const v2OwnedTokens = [
+    '--background',
+    '--background-alt',
+    '--foreground',
+    '--card',
+    '--card-secondary',
+    '--card-foreground',
+    '--muted',
+    '--muted-foreground',
+    '--border',
+    '--surface',
+  ];
+
+  for (const token of v2OwnedTokens) {
+    it(`:root does not redeclare ${token}`, () => {
+      // Match declarations only (token followed by `:`), not comments/references.
+      const pattern = new RegExp(`^\\s*${token}\\s*:`, 'm');
+      expect(rootBody).not.toMatch(pattern);
+    });
+  }
+});

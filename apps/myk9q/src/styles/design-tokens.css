@@ -16,8 +16,10 @@
   --brand-gradient: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
 
   /* ===== UI COLORS (Light Theme) ===== */
-  /* v2: Surfaces, muted-foreground, border, text-gray, text-light-gray
-     now come from @myk9/ui/styles/tokens-v2.css. */
+  /* v2: --background, --background-alt, --card, --card-secondary, --border,
+     --muted-foreground, --surface, --text-gray, and --text-light-gray now
+     come from @myk9/ui/styles/tokens-v2.css (imported via app index.css
+     BEFORE this file, so the app-specific tokens below take precedence). */
   --foreground: #0a0a0a;
   --card-foreground: #0a0a0a;
   --muted: #f6f6f6;
@@ -413,9 +415,10 @@
   --token-text-white: #ffffff;
 
   /* Shadows (Dark Mode) */
-  /* v2: Ring shadows now come from @myk9/ui/styles/tokens-v2.css and work
-     in both modes; the legacy hover shadows stay as they reference app-
-     specific motion tokens. */
+  /* v2: --token-shadow-sm / --token-shadow-md (ring shadows) now come from
+     @myk9/ui/styles/tokens-v2.css and apply in both modes. The hover
+     shadows below remain app-local because they compose app-specific
+     spacing tokens (--token-space-*). */
   --token-hover-shadow: 0 var(--token-space-md) var(--token-space-3xl) var(--shadow-strong);
   --token-hover-shadow-lg: 0 var(--token-space-lg) var(--token-space-4xl) var(--shadow-strong);
 

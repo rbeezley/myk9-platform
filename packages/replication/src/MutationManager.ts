@@ -17,7 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
-import { withTimeout, backoffDelay, isRetryableError, TIMEOUT_PRESETS } from './mutation-utils';
+import { withTimeout, calculateBackoffDelay, isRetryableError, TIMEOUT_PRESETS } from './mutation-utils';
 import type { PendingMutation, SyncResult } from './types';
 
 // ============================================
@@ -243,17 +243,25 @@ export class MutationManager {
 
       const results: SyncResult[] = [];
       const failedMutations: PendingMutation[] = [];
+      const now = Date.now();
 
       for (const mutation of sortedMutations) {
+        // Skip mutations that are waiting out their backoff window.
+        // This lets independent mutations proceed without being stalled by a
+        // failing mutation's retry delay.
+        if (mutation.nextRetryAt && mutation.nextRetryAt > now) {
+          this.logger.log(
+            `[MutationManager] Skipping ${mutation.id} — backoff until ${new Date(mutation.nextRetryAt).toISOString()}`
+          );
+          continue;
+        }
+
         try {
           // Execute mutation on server
           await this.executeMutation(mutation);
 
           // Delete from pending queue
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
-
-          // Backup after each successful mutation
-          await this.backupMutationsToLocalStorage();
 
           results.push({
             success: true,
@@ -288,16 +296,17 @@ export class MutationManager {
           } else {
             mutation.status = 'pending';
             mutation.error = message;
+            // Record when this mutation may next be retried so that
+            // subsequent upload passes skip it without blocking.
+            mutation.nextRetryAt =
+              Date.now() + calculateBackoffDelay(mutation.retries - 1, this.retryBackoffBase);
 
             this.logger.warn(
-              `[MutationManager] Mutation ${mutation.id} failed (retry ${mutation.retries}/${this.maxRetries}):`,
+              `[MutationManager] Mutation ${mutation.id} failed (retry ${mutation.retries}/${this.maxRetries}), next attempt after ${new Date(mutation.nextRetryAt).toISOString()}:`,
               error
             );
 
-            // Apply exponential backoff delay before next attempt
-            await backoffDelay(mutation.retries - 1, this.retryBackoffBase, this.logger);
-
-            // Update retryable mutation in queue
+            // Update retryable mutation in queue with new nextRetryAt
             await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
           }
 
@@ -315,9 +324,12 @@ export class MutationManager {
       // Notify user if any mutations permanently failed
       if (failedMutations.length > 0) {
         this.notifyUserOfSyncFailure(failedMutations);
-        // Update backup to reflect removed failed mutations
-        await this.backupMutationsToLocalStorage();
       }
+
+      // Fire-and-forget: backup after upload completes without blocking the caller.
+      this.backupMutationsToLocalStorage().catch(err => {
+        this.logger.warn('[MutationManager] Post-upload backup failed:', err);
+      });
 
       const successful = results.filter(r => r.success);
       const duration = Date.now() - startTime;
@@ -391,15 +403,26 @@ export class MutationManager {
       }
 
       case 'DELETE': {
-        const { error } = await withTimeout(
+        const { data: rows, error } = await withTimeout(
           this.supabase
             .from(tableName)
             .delete()
-            .eq('id', data.id as string),
+            .eq('id', data.id as string)
+            .select('id'),
           TIMEOUT_PRESETS.standard,
           `${tableName} delete`
         );
         if (error) throw error;
+        // 0 rows affected means either the row was already deleted (OK,
+        // idempotent) or RLS silently rejected the DELETE. We can't
+        // distinguish the two, so we log a warning and let the next sync
+        // determine whether the row still exists.
+        if (!rows || rows.length === 0) {
+          this.logger.warn(
+            `[MutationManager] DELETE on ${tableName} for row ${mutation.rowId} affected 0 rows. ` +
+              `Row may have already been deleted, or RLS policy blocked the operation.`
+          );
+        }
         break;
       }
 
@@ -581,7 +604,32 @@ export class MutationManager {
         return; // No backup to restore
       }
 
-      const mutations = JSON.parse(backup) as PendingMutation[];
+      const parsed: unknown = JSON.parse(backup);
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        return;
+      }
+
+      // Validate structure before touching IndexedDB — a corrupt backup must
+      // not introduce malformed mutations that crash executeMutation.
+      const validOps = new Set<string>(['INSERT', 'UPDATE', 'DELETE', 'BATCH_UPDATE']);
+      const mutations = parsed.filter((m): m is PendingMutation => {
+        if (typeof m !== 'object' || m === null) return false;
+        const candidate = m as Record<string, unknown>;
+        return (
+          typeof candidate.id === 'string' &&
+          typeof candidate.tableName === 'string' &&
+          typeof candidate.operation === 'string' &&
+          validOps.has(candidate.operation) &&
+          typeof candidate.rowId === 'string'
+        );
+      });
+
+      if (mutations.length < parsed.length) {
+        this.logger.warn(
+          `[MutationManager] Discarded ${parsed.length - mutations.length} malformed mutation(s) from localStorage backup`
+        );
+      }
 
       if (mutations.length === 0) {
         return;

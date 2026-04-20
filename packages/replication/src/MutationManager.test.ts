@@ -42,7 +42,9 @@ function createMockSupabaseClient() {
         })),
       })),
       delete: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
+        eq: vi.fn(() => ({
+          select: vi.fn(() => Promise.resolve({ data: [{ id: 'mock-id' }], error: null })),
+        })),
       })),
     })),
   };
@@ -831,6 +833,166 @@ describe('MutationManager', () => {
       const defaultManager = new MutationManager(mockSupabase);
       expect(defaultManager).toBeDefined();
       defaultManager.destroy();
+    });
+  });
+
+  // ========================================
+  // DELETE RLS DETECTION
+  // ========================================
+
+  describe('DELETE RLS detection', () => {
+    it('should succeed and log a warning when DELETE affects 0 rows', async () => {
+      vi.mocked(mockSupabase.from).mockReturnValue({
+        delete: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-del-0', operation: 'DELETE', data: { id: 'entry-1' } })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      // Mutation completes as success (idempotent delete)
+      expect(results).toHaveLength(1);
+      expect(results[0]!.success).toBe(true);
+
+      // Warning is logged so the operator can investigate RLS mismatches
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('0 rows')
+      );
+    });
+
+    it('should succeed normally when DELETE returns the deleted row', async () => {
+      // Default mock already returns [{ id: 'mock-id' }] for DELETE — just verify it passes
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-del-1', operation: 'DELETE', data: { id: 'entry-1' } })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results[0]!.success).toBe(true);
+      expect(mockLogger.warn).not.toHaveBeenCalledWith(expect.stringContaining('0 rows'));
+    });
+  });
+
+  // ========================================
+  // BACKOFF / nextRetryAt
+  // ========================================
+
+  describe('Backoff and nextRetryAt', () => {
+    it('should set nextRetryAt on a retryable failure', async () => {
+      const before = Date.now();
+
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-backoff', operation: 'UPDATE', data: { id: 'e1' } })
+      );
+
+      // Network timeout is retryable
+      vi.mocked(mockSupabase.from).mockReturnValue({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
+          })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+
+      await manager.uploadPendingMutations();
+
+      const stored = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-backoff');
+      expect(stored).toBeDefined();
+      expect(stored.nextRetryAt).toBeGreaterThan(before);
+      expect(stored.retries).toBe(1);
+    });
+
+    it('should skip a mutation whose nextRetryAt is in the future', async () => {
+      const futureRetry = Date.now() + 60_000; // 1 minute from now
+
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-skip', operation: 'UPDATE', data: { id: 'e1' }, nextRetryAt: futureRetry })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      // Mutation was skipped — no result entry and still in queue
+      expect(results).toHaveLength(0);
+      const still = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-skip');
+      expect(still).toBeDefined();
+    });
+
+    it('should not block an independent mutation when one mutation is waiting backoff', async () => {
+      const futureRetry = Date.now() + 60_000;
+
+      // Mutation A: in backoff, should be skipped
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-waiting', operation: 'UPDATE', data: { id: 'e1' }, nextRetryAt: futureRetry })
+      );
+
+      // Mutation B: independent, should proceed
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-independent', operation: 'UPDATE', data: { id: 'e2' } })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      // Only the independent mutation produced a result
+      expect(results).toHaveLength(1);
+      expect(results[0]!.success).toBe(true);
+
+      // Waiting mutation is still in queue
+      const waiting = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-waiting');
+      expect(waiting).toBeDefined();
+    });
+  });
+
+  // ========================================
+  // BACKUP RESTORE VALIDATION
+  // ========================================
+
+  describe('Backup restore validation', () => {
+    it('should discard malformed entries from localStorage backup', async () => {
+      const validMut = makeMutation({ id: 'valid-1' });
+      const malformed = [
+        { id: 'bad-1' }, // missing tableName and operation
+        { tableName: 'entries', operation: 'INSERT' }, // missing id and rowId
+        null,
+        42,
+        { id: 'bad-2', tableName: 'entries', operation: 'UNKNOWN_OP', rowId: 'r1' }, // bad op
+      ];
+
+      localStorageMock['replication_mutation_backup'] = JSON.stringify([validMut, ...malformed]);
+
+      await manager.restoreMutationsFromLocalStorage();
+
+      const restored = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(restored).toHaveLength(1);
+      expect(restored[0].id).toBe('valid-1');
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('malformed mutation')
+      );
+    });
+
+    it('should restore a fully valid backup without warnings', async () => {
+      const mutations = [makeMutation({ id: 'v-1' }), makeMutation({ id: 'v-2' })];
+      localStorageMock['replication_mutation_backup'] = JSON.stringify(mutations);
+
+      await manager.restoreMutationsFromLocalStorage();
+
+      const restored = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(restored).toHaveLength(2);
+      expect(mockLogger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('malformed mutation')
+      );
     });
   });
 });

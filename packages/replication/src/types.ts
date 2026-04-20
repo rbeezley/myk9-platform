@@ -61,6 +61,9 @@ export interface PendingMutation {
   /** Causal dependency tracking */
   dependsOn?: string[];     // IDs of mutations that must complete before this one
   sequenceNumber?: number;  // Global sequence for ordering
+
+  /** Earliest timestamp at which this mutation should be retried (backoff support) */
+  nextRetryAt?: number;
 }
 
 /**

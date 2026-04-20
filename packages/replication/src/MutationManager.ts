@@ -80,6 +80,7 @@ export class MutationManager {
   // Auto-upload: flush mutations to server shortly after queuing
   private uploadDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private backoffRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private backoffRetryAt: number | null = null;
   private isUploading: boolean = false;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
@@ -194,17 +195,29 @@ export class MutationManager {
   /**
    * Schedule an upload retry at the given timestamp so mutations stuck in
    * backoff get retried even if no new mutations are queued in the meantime.
-   * If a timer is already pending, keep whichever fires sooner.
+   * If a timer is already pending for an earlier time, keep it.
    */
   private scheduleBackoffRetry(atTimestamp: number): void {
+    if (
+      this.backoffRetryTimer &&
+      this.backoffRetryAt !== null &&
+      this.backoffRetryAt <= atTimestamp
+    ) {
+      return;
+    }
+
     const delay = Math.max(0, atTimestamp - Date.now());
 
     if (this.backoffRetryTimer) {
       clearTimeout(this.backoffRetryTimer);
     }
 
+    this.backoffRetryAt = atTimestamp;
+    this.logger.log(`[MutationManager] Scheduling backoff retry in ${delay}ms`);
+
     this.backoffRetryTimer = setTimeout(() => {
       this.backoffRetryTimer = null;
+      this.backoffRetryAt = null;
 
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         return;
@@ -772,6 +785,7 @@ export class MutationManager {
     if (this.backoffRetryTimer) {
       clearTimeout(this.backoffRetryTimer);
       this.backoffRetryTimer = null;
+      this.backoffRetryAt = null;
     }
 
     this.logger.log('[MutationManager] Destroyed');

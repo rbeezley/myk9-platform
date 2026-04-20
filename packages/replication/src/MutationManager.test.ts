@@ -862,9 +862,7 @@ describe('MutationManager', () => {
       expect(results[0]!.success).toBe(true);
 
       // Warning is logged so the operator can investigate RLS mismatches
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('0 rows')
-      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('0 rows'));
     });
 
     it('should succeed normally when DELETE returns the deleted row', async () => {
@@ -916,7 +914,12 @@ describe('MutationManager', () => {
 
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
-        makeMutation({ id: 'mut-skip', operation: 'UPDATE', data: { id: 'e1' }, nextRetryAt: futureRetry })
+        makeMutation({
+          id: 'mut-skip',
+          operation: 'UPDATE',
+          data: { id: 'e1' },
+          nextRetryAt: futureRetry,
+        })
       );
 
       const results = await manager.uploadPendingMutations();
@@ -933,7 +936,12 @@ describe('MutationManager', () => {
       // Mutation A: in backoff, should be skipped
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
-        makeMutation({ id: 'mut-waiting', operation: 'UPDATE', data: { id: 'e1' }, nextRetryAt: futureRetry })
+        makeMutation({
+          id: 'mut-waiting',
+          operation: 'UPDATE',
+          data: { id: 'e1' },
+          nextRetryAt: futureRetry,
+        })
       );
 
       // Mutation B: independent, should proceed
@@ -977,9 +985,7 @@ describe('MutationManager', () => {
       expect(restored).toHaveLength(1);
       expect(restored[0].id).toBe('valid-1');
 
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('malformed mutation')
-      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('malformed mutation'));
     });
 
     it('should restore a fully valid backup without warnings', async () => {
@@ -993,6 +999,74 @@ describe('MutationManager', () => {
       expect(mockLogger.warn).not.toHaveBeenCalledWith(
         expect.stringContaining('malformed mutation')
       );
+    });
+  });
+
+  // ========================================
+  // BACKOFF RETRY TIMER
+  // ========================================
+
+  describe('scheduleBackoffRetry timer', () => {
+    it('should log a scheduled backoff retry after a retryable failure', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-retry', operation: 'UPDATE', data: { id: 'e1' } })
+      );
+
+      vi.mocked(mockSupabase.from).mockReturnValue({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
+          })),
+        })),
+      } as unknown as ReturnType<typeof mockSupabase.from>);
+
+      await manager.uploadPendingMutations();
+
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        expect.stringMatching(/Scheduling backoff retry in \d+ms/)
+      );
+    });
+
+    it('should not reschedule when a sooner timer is already pending', async () => {
+      // Seed a mutation already in backoff with a near-term nextRetryAt.
+      const soon = Date.now() + 5_000;
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-soon',
+          operation: 'UPDATE',
+          data: { id: 'e1' },
+          nextRetryAt: soon,
+        })
+      );
+
+      // Pass 1: mutation skipped; timer scheduled for `soon`.
+      await manager.uploadPendingMutations();
+
+      const countScheduleLogs = () =>
+        (mockLogger.log as ReturnType<typeof vi.fn>).mock.calls.filter(
+          (call: unknown[]) =>
+            typeof call[0] === 'string' && call[0].includes('Scheduling backoff retry')
+        ).length;
+
+      expect(countScheduleLogs()).toBe(1);
+
+      // Add a second mutation whose nextRetryAt is LATER than `soon`.
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-later',
+          operation: 'UPDATE',
+          data: { id: 'e2' },
+          nextRetryAt: Date.now() + 120_000,
+        })
+      );
+
+      // Pass 2: earliest is still `soon` which matches the pending timer,
+      // so scheduleBackoffRetry should no-op — log count stays at 1.
+      await manager.uploadPendingMutations();
+      expect(countScheduleLogs()).toBe(1);
     });
   });
 });

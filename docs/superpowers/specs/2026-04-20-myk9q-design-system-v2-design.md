@@ -96,6 +96,8 @@ Font imports update in `apps/myk9q/index.html`:
 
 Font sizes, weights, and line heights from the current `DESIGN_REFERENCE.md` §Typography carry forward unchanged.
 
+**[ADDED] Font loading strategy.** Google Fonts URL uses `&display=swap` so the fallback stack renders immediately and swaps to Fraunces/Montserrat when the webfont arrives. Fraunces is only used on The Podium and similar celebration surfaces — if it fails to load (offline first-run, slow ringside LTE), the Georgia fallback is acceptable. Preload budget: do not add `<link rel="preload">` for Fraunces — it is not on the critical path. The existing service worker caches Google Fonts on first successful load so subsequent offline sessions render it.
+
 ### 4.3 Color System
 
 **Accent palette** — aligned 1:1 with myK9Show v2:
@@ -202,6 +204,8 @@ export function migrateV1AccentKeys(): void {
 
 Shim runs once on app bootstrap (in `main.tsx` before React mounts). Idempotent — safe to ship and leave in place.
 
+**[ADDED] Storage robustness.** Wrap every `localStorage` call in try/catch. Safari private mode throws on write; quota-exceeded can throw mid-session. If the shim throws, log and proceed — do not block app boot. All v2 localStorage reads must fall back to the default value when storage is unavailable.
+
 The CSS class names update atomically:
 
 ```css
@@ -262,6 +266,8 @@ Status color hexes stay the same (they're already high-contrast). The border thi
 
 **Settings surface:** add a "Display Mode" row alongside existing Theme / Accent / Density in the Settings page. Options: `Default` / `Outdoor`.
 
+**[ADDED] Accessibility target.** Outdoor mode must meet WCAG 2.1 AA contrast at minimum — 4.5:1 for body text, 3:1 for large text (18pt+ or 14pt bold) and UI components. Stretch target: AAA (7:1) for primary action buttons and status badges, since those are the scan-and-act elements at ringside. Default mode matches myK9Show v2's AA compliance and is not regressed by v2. Phase 2 testing includes a contrast sweep using axe-core or equivalent on the five canonical screens (show detail, class list, entry list, scoresheet, The Podium), in light + dark + outdoor.
+
 ### 6.2 Per-show accent honor
 
 myK9Show v2 introduced per-show branding via `resolveShowBranding()` in `apps/myk9show/src/lib/branding.ts`, which reads `shows.accent_color` from the replicated shows table.
@@ -295,6 +301,19 @@ export function useShowAccent(showId: string | undefined) {
 Components wrap show-scoped regions with `<div style={useShowAccent(showId)}>` and use `var(--show-accent, var(--primary))` where appropriate. Fallback to platform accent if the show has none set.
 
 No database changes — the column already exists in the replicated `shows` table.
+
+**[ADDED] Hex validation (security).** `shows.accent_color` is operator-entered data. Before injecting into a `style` prop, validate strictly: `/^#[0-9a-fA-F]{6}$/`. Any string that does not match the pattern is treated as "no accent set" — fall back to the platform accent. This prevents CSS injection (e.g., `red; background: url(...)`) from a malicious or malformed value.
+
+```typescript
+export function useShowAccent(showId: string | undefined) {
+  const { data: show } = useShowQuery(showId);
+  const hex = show?.accent_color;
+  const isValid = typeof hex === 'string' && /^#[0-9a-fA-F]{6}$/.test(hex);
+  return isValid ? ({ '--show-accent': hex } as React.CSSProperties) : undefined;
+}
+```
+
+**[ADDED] Replication compatibility.** `useShowQuery` must read from the replicated `shows` table (`@myk9/replication`), not call Supabase directly. Per root `CLAUDE.md`: "Always use replicated tables — never bypass with direct Supabase calls (breaks offline)." Phase 2 implementation confirms the hook is built on the replicated table before shipping.
 
 ---
 
@@ -334,6 +353,8 @@ export default {
 ```
 
 This package replaces duplicated hex values in both apps. **Only tokens move here** — component CSS stays in each app.
+
+**[ADDED] Performance budget.** New payload = Fraunces variable font (~60–70KB woff2, lazily loaded via `display: swap`) + token CSS package (<5KB). Initial-route bundle size must not increase by more than 10KB uncompressed. Phase 1 PR description includes before/after `pnpm build` size comparison for `apps/myk9q` to confirm.
 
 ### 7.2 CSS architecture stays semantic
 
@@ -400,6 +421,14 @@ The Phase 1 PR fills in this table definitively and may split some rows into sep
    - Settings page renders new accent options and persists selection.
 6. Visual smoke test across all roles on staging.
 
+**[ADDED] Phase 2 feature-flag rollout.** Outdoor mode and per-show accent honor ship behind a simple toggle gate. For outdoor mode, the gate is user-opt-in (default `off`) — no flag needed because the blast radius is one user. Per-show accent honor ships fleet-wide by default, but the hex-validation gate (§6.2 `[ADDED]`) means any show with a malformed or missing value falls back to platform accent automatically — no feature flag needed. If a post-launch issue appears, operators can clear `shows.accent_color` in the admin UI to disable per-show accent for a specific show without a code push.
+
+**[ADDED] Rollback per phase.**
+
+- **Phase 1 rollback:** revert the PR. Fonts, tokens, and visuals snap back to v1. Zero user-data impact.
+- **Phase 2 rollback:** revert the PR _and_ leave the `migrateV1AccentKeys` shim in place for one additional release — reverting alone leaves users whose localStorage has been rewritten (`green` → `teal`) with no matching class in the v1 codepath. Alternative: ship a compensating "reverse migration" shim as part of the revert commit. Capture this decision during Phase 2 code review.
+- **Phase 3 rollback:** revert the PR. Deprecation aliases come back. Safe.
+
 ### Phase 3 — Cleanup (one PR)
 
 **Scope:**
@@ -421,9 +450,15 @@ Per root `CLAUDE.md`: "Every plan must include a testing phase — unit tests fo
 
 ### Unit tests
 
-- `migrateV1AccentKeys()` — idempotence, handles `green`/`orange`/`teal`/`terracotta`/`null` inputs correctly.
-- `useShowAccent(showId)` — returns style object with hex when show has accent; returns `undefined` when show has no accent; returns `undefined` for undefined showId.
+- `migrateV1AccentKeys()` — idempotence, handles `green`/`orange`/`teal`/`terracotta`/`null` inputs correctly. **[EXPANDED]** Also covers: localStorage unavailable (Safari private mode) does not throw; quota-exceeded does not throw.
+- `useShowAccent(showId)` — returns style object with hex when show has accent; returns `undefined` when show has no accent; returns `undefined` for undefined showId. **[EXPANDED]** Also: returns `undefined` for malformed hex (`"red"`, `"#zzz"`, `"#ff0000; background:url(x)"`, empty string); verifies the hook reads from the replicated `shows` table, not direct Supabase.
 - Settings page accent picker — renders 4 options, persists selection to localStorage, applies class to `<html>`.
+- **[ADDED]** Outdoor mode toggle — persists to localStorage, toggles `.mode-outdoor` on `<html>`, survives reload.
+
+### [ADDED] Accessibility tests
+
+- Automated contrast sweep (axe-core or equivalent) on the five canonical screens (show detail, class list, entry list, scoresheet, The Podium), in light + dark + outdoor modes. WCAG 2.1 AA is the minimum bar; flag any regression vs. v1.
+- Spot-check status badges against `--card` and `--background` surfaces in all three modes — these are the highest-stakes combinations at ringside.
 
 ### Visual regression
 

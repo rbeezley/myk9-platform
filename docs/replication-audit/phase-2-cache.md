@@ -43,6 +43,23 @@ Out of scope: mutation queue (MutationManager), real-time subscriptions (Phase 1
 
 ## Findings
 
+**Summary:** 3 high, 4 medium, 7 low findings across correctness, error surfacing, invariants, resource cleanup, concurrency, offline semantics, and test coverage.
+
+| ID               | Sev    | Category                  | Short description                                                                  |
+| ---------------- | ------ | ------------------------- | ---------------------------------------------------------------------------------- |
+| B1               | HIGH   | Correctness / Invariants  | batchSet overwrites dirty rows — same class as Phase 1 set() bug                   |
+| B2               | HIGH   | Correctness / Concurrency | batchSetChunked partial-failure leaves IDB in inconsistent state                   |
+| B1-test          | HIGH   | Test coverage             | No test: batchSet + dirty row collision                                            |
+| B2-test          | HIGH   | Test coverage             | No test: batchSetChunked partial-failure semantics                                 |
+| C1               | MEDIUM | Resource cleanup          | Dangling setTimeout in getSyncMetadata / updateSyncMetadata                        |
+| EVICT-UNBOUNDED  | MEDIUM | Invariants                | No auto-eviction on batchSet — unbounded IDB growth                                |
+| CONCURRENT-CHUNK | MEDIUM | Concurrency               | Concurrent batchSetChunked calls can interleave dirty-row writes                   |
+| B3               | LOW    | Correctness               | batchSet hardcodes version:1 on every put                                          |
+| REFRESH-DIRTY    | LOW    | Invariants                | refreshTimestamps updates lastSyncedAt on dirty rows                               |
+| TIMER-LEAK       | MEDIUM | Resource cleanup          | notifyDebounceTimer not cleared on teardown (no destroy())                         |
+| ERR-CLEAN        | LOW    | Error surfacing           | cleanExpired errors propagate instead of being swallowed+logged                    |
+| NOTIFY-ERR       | LOW    | Error surfacing           | getAllData failure in actuallyNotifyListeners silently dropped by evictLRU callers |
+
 ### Correctness
 
 **[HIGH] batchSet silently overwrites dirty rows (B1)**

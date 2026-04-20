@@ -1,5 +1,5 @@
 /* Tailwind CSS - base, components, utilities */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Tailwind component layer utilities (migration helpers) */
 @import './styles/tailwind-utilities.css';
@@ -57,7 +57,7 @@ body,
 /* Root CSS Variables for Settings */
 :root {
   /* App Background - defaults to warm off-white, overridden by theme classes */
-  --bg-app: #F8F7F4;
+  --bg-app: #f8f7f4;
 
   /* Font Size Variables (Phase 1B) */
   --font-size-base: var(--token-space-xl);
@@ -139,7 +139,7 @@ html.font-large {
 /* Light Mode Overrides */
 @media (prefers-color-scheme: light) {
   :root.theme-auto {
-    --bg-app: #F8F7F4;
+    --bg-app: #f8f7f4;
     /* Warm premium off-white */
     --bg-card: rgba(255, 255, 255, 0.7);
     /* Glass Light */
@@ -162,12 +162,12 @@ html.font-large {
 /* Force native controls (scrollbars, selects) to match the theme */
 :root.theme-dark {
   color-scheme: dark;
-  --bg-app: #1a1a1e;  /* Warmer charcoal */
+  --bg-app: #1a1a1e; /* Warmer charcoal */
 }
 
 :root.theme-light {
   color-scheme: light;
-  --bg-app: #F8F7F4;  /* Warm premium off-white */
+  --bg-app: #f8f7f4; /* Warm premium off-white */
   --bg-card: rgba(255, 255, 255, 0.7);
   --bg-card-hover: rgba(255, 255, 255, 0.9);
   --border-glass: rgba(0, 0, 0, 0.05);
@@ -188,41 +188,62 @@ html.font-large {
   background-color: var(--bg-app);
 }
 
-/* Accent Color Themes */
-:root.accent-green {
+/* Accent Color Themes — v2 canonical classes */
+:root.accent-teal {
   --accent-primary: #14b8a6;
-  --primary: #14b8a6;  /* Map --primary to accent color */
+  --primary: #14b8a6;
   --primary-hover: #0d9488;
   --accent-glow: rgba(20, 184, 166, 0.3);
   --brand-gradient: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
   --brand-gradient-dark: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
 }
 
+:root.accent-terracotta {
+  --accent-primary: #c96442;
+  --primary: #c96442;
+  --primary-hover: #a0502f;
+  --accent-glow: rgba(201, 100, 66, 0.3);
+  --brand-gradient: linear-gradient(135deg, #c96442 0%, #a0502f 100%);
+  --brand-gradient-dark: linear-gradient(135deg, #a0502f 0%, #8a4225 100%);
+}
+
 :root.accent-blue {
   --accent-primary: #3b82f6;
-  --primary: #3b82f6;  /* Map --primary to accent color */
+  --primary: #3b82f6;
   --primary-hover: #2563eb;
   --accent-glow: rgba(59, 130, 246, 0.3);
   --brand-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   --brand-gradient-dark: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 
-:root.accent-orange {
-  --accent-primary: #f97316;
-  --primary: #f97316;  /* Map --primary to accent color */
-  --primary-hover: #ea580c;
-  --accent-glow: rgba(249, 115, 22, 0.3);
-  --brand-gradient: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  --brand-gradient-dark: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
-}
-
 :root.accent-purple {
   --accent-primary: #8b5cf6;
-  --primary: #8b5cf6;  /* Map --primary to accent color */
+  --primary: #8b5cf6;
   --primary-hover: #7c3aed;
   --accent-glow: rgba(139, 92, 246, 0.3);
   --brand-gradient: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   --brand-gradient-dark: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+/* @deprecated — legacy accent class aliases. Retained so users whose
+   localStorage has not yet run through the v2 migration shim still
+   render correctly. Will be removed in v2 Phase 3. */
+:root.accent-green {
+  --accent-primary: #14b8a6;
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
+  --accent-glow: rgba(20, 184, 166, 0.3);
+  --brand-gradient: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  --brand-gradient-dark: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+}
+
+:root.accent-orange {
+  --accent-primary: #c96442;
+  --primary: #c96442;
+  --primary-hover: #a0502f;
+  --accent-glow: rgba(201, 100, 66, 0.3);
+  --brand-gradient: linear-gradient(135deg, #c96442 0%, #a0502f 100%);
+  --brand-gradient-dark: linear-gradient(135deg, #a0502f 0%, #8a4225 100%);
 }
 
 body {
@@ -327,10 +348,10 @@ h6 {
 }
 
 /* Prevent flash of incorrectly styled content during hydration */
-.entry-list-container[data-loaded="false"] *,
-.class-list-container[data-loaded="false"] *,
-.page-container[data-loaded="false"] *,
-.app-container[data-loaded="false"] * {
+.entry-list-container[data-loaded='false'] *,
+.class-list-container[data-loaded='false'] *,
+.page-container[data-loaded='false'] *,
+.app-container[data-loaded='false'] * {
   transition: none;
   animation: none;
 }
@@ -339,9 +360,9 @@ h6 {
 /* Note: We only reset transition, NOT animation.
    Setting animation: inherit would override explicit animations like stagger-children.
    The cascade naturally applies correct animations once data-loaded="false" rule is inactive. */
-.entry-list-container[data-loaded="true"] *,
-.class-list-container[data-loaded="true"] *,
-.page-container[data-loaded="true"] *,
-.app-container[data-loaded="true"] * {
+.entry-list-container[data-loaded='true'] *,
+.class-list-container[data-loaded='true'] *,
+.page-container[data-loaded='true'] *,
+.app-container[data-loaded='true'] * {
   transition: revert;
 }

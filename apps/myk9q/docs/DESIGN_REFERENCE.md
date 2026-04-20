@@ -1,7 +1,9 @@
 # Design Reference
 
 **Source of Truth for myK9Q UI/UX patterns**
-Last updated: 2025-12-15
+Last updated: 2026-04-20
+
+> **v2 (2026-04-20):** This document reflects the v2 design system. Canonical tokens live in `@myk9/ui/styles/tokens-v2.css`. See [the v2 spec](../../../docs/superpowers/specs/2026-04-20-myk9q-design-system-v2-design.md) for rationale.
 
 > For layout standards (page structure, spacing, headers), see [LAYOUT_STANDARDS.md](./LAYOUT_STANDARDS.md)
 
@@ -13,62 +15,74 @@ Last updated: 2025-12-15
 
 Users choose their accent color in Settings. This maps to `--primary`:
 
-| Accent | Color | CSS Class |
-|--------|-------|-----------|
-| **Green (default)** | `#14b8a6` (Teal) | `.accent-green` |
-| **Blue** | `#3b82f6` | `.accent-blue` |
-| **Orange** | `#f97316` | `.accent-orange` |
-| **Purple** | `#8b5cf6` | `.accent-purple` |
+| Accent              | Color            | CSS Class        |
+| ------------------- | ---------------- | ---------------- |
+| **Green (default)** | `#14b8a6` (Teal) | `.accent-green`  |
+| **Blue**            | `#3b82f6`        | `.accent-blue`   |
+| **Orange**          | `#f97316`        | `.accent-orange` |
+| **Purple**          | `#8b5cf6`        | `.accent-purple` |
 
 ```css
 /* Accent colors automatically set --primary */
-:root.accent-green { --primary: #14b8a6; --primary-hover: #0d9488; }
-:root.accent-blue  { --primary: #3b82f6; --primary-hover: #2563eb; }
-:root.accent-orange { --primary: #f97316; --primary-hover: #ea580c; }
-:root.accent-purple { --primary: #8b5cf6; --primary-hover: #7c3aed; }
+:root.accent-green {
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
+}
+:root.accent-blue {
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+}
+:root.accent-orange {
+  --primary: #f97316;
+  --primary-hover: #ea580c;
+}
+:root.accent-purple {
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+}
 ```
 
 ### Theme Colors
 
-| Token | Light Mode | Dark Mode |
-|-------|------------|-----------|
-| `--background` | `#F8F7F4` (warm off-white) | `#1a1a1e` |
-| `--foreground` | `#0a0a0a` | `#ffffff` |
-| `--card` | `#FEFDFB` (subtle cream) | `#26292e` |
-| `--border` | `#e5e7eb` | `#4a5568` |
-| `--muted` | `#f6f6f6` | `#26292e` |
-| `--muted-foreground` | `#6b7280` | `#ffffff` |
+| Token                | Light Mode                   | Dark Mode                    |
+| -------------------- | ---------------------------- | ---------------------------- |
+| `--background`       | `#faf7f2` (parchment canvas) | `#181411` (warm olive-dark)  |
+| `--foreground`       | `#181411` (warm ink)         | `#faf7f2`                    |
+| `--card`             | `#ffffff` (pure white)       | `#1e1c19`                    |
+| `--border`           | `#e4dccc` (warm cream)       | `#2e2b27`                    |
+| `--muted`            | `#f0eee6`                    | `#1e1c19`                    |
+| `--muted-foreground` | `#8c8376` (warm silver)      | `#8c8376` (same warm silver) |
 
 ### Semantic Colors
 
 ```css
---success-green: #34C759;
---error-red: #FF3B30;
---warning-amber: #FF9500;
+--success-green: #34c759;
+--error-red: #ff3b30;
+--warning-amber: #ff9500;
 ```
 
 ### Status Colors (Check-in)
 
-| Status | Color | Usage |
-|--------|-------|-------|
-| No Status | `#9ca3af` | Default/unset |
+| Status     | Color     | Usage            |
+| ---------- | --------- | ---------------- |
+| No Status  | `#9ca3af` | Default/unset    |
 | Checked In | `#14b8a6` | Ready to compete |
-| At Gate | `#8b5cf6` | Final waiting |
-| In Ring | `#2563eb` | Active competing |
-| Conflict | `#f59e0b` | Needs attention |
-| Pulled | `#ef4444` | Withdrawn |
+| At Gate    | `#8b5cf6` | Final waiting    |
+| In Ring    | `#2563eb` | Active competing |
+| Conflict   | `#f59e0b` | Needs attention  |
+| Pulled     | `#ef4444` | Withdrawn        |
 
 ### Status Colors (Class)
 
-| Status | Color |
-|--------|-------|
-| Setup | `#b45309` |
-| Briefing | `#ff6b00` |
-| Break | `#c000ff` |
-| Start Time | `#14b8a6` |
-| In Progress | `#0066ff` |
+| Status          | Color     |
+| --------------- | --------- |
+| Setup           | `#b45309` |
+| Briefing        | `#ff6b00` |
+| Break           | `#c000ff` |
+| Start Time      | `#14b8a6` |
+| In Progress     | `#0066ff` |
 | Offline Scoring | `#f59e0b` |
-| Completed | `#00cc66` |
+| Completed       | `#00cc66` |
 
 ---
 
@@ -77,31 +91,34 @@ Users choose their accent color in Settings. This maps to `--primary`:
 ### Font Stack
 
 ```css
---font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
---font-display: 'Playfair Display', Georgia, serif; /* Celebration moments only (The Podium) */
+--font-family:
+  'Montserrat', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+--font-serif:
+  'Fraunces', Georgia, 'Times New Roman', serif; /* Celebration moments only (The Podium) */
+--font-display: var(--font-serif);
 ```
 
 ### Font Sizes
 
-| Token | Size |
-|-------|------|
-| `--token-font-xs` | 10px |
-| `--token-font-sm` | 12px |
-| `--token-font-md` | 14px |
-| `--token-font-lg` | 16px |
-| `--token-font-xl` | 18px |
+| Token              | Size |
+| ------------------ | ---- |
+| `--token-font-xs`  | 10px |
+| `--token-font-sm`  | 12px |
+| `--token-font-md`  | 14px |
+| `--token-font-lg`  | 16px |
+| `--token-font-xl`  | 18px |
 | `--token-font-2xl` | 20px |
 | `--token-font-3xl` | 24px |
 
 ### Font Weights
 
-| Token | Weight | Usage |
-|-------|--------|-------|
-| `--token-font-weight-normal` | 400 | Body text |
-| `--token-font-weight-medium` | 500 | Emphasis |
-| `--token-font-weight-semibold` | 590 | Buttons, badges |
-| `--token-font-weight-bold` | 600 | Headings |
-| `--token-font-weight-extrabold` | 700 | Strong emphasis |
+| Token                           | Weight | Usage           |
+| ------------------------------- | ------ | --------------- |
+| `--token-font-weight-normal`    | 400    | Body text       |
+| `--token-font-weight-medium`    | 500    | Emphasis        |
+| `--token-font-weight-semibold`  | 590    | Buttons, badges |
+| `--token-font-weight-bold`      | 600    | Headings        |
+| `--token-font-weight-extrabold` | 700    | Strong emphasis |
 
 ---
 
@@ -109,28 +126,28 @@ Users choose their accent color in Settings. This maps to `--primary`:
 
 8px-based grid system:
 
-| Token | Size | Usage |
-|-------|------|-------|
-| `--token-space-xs` | 2px | Micro spacing |
-| `--token-space-sm` | 4px | Tight spacing |
-| `--token-space-md` | 8px | Default gap |
-| `--token-space-lg` | 12px | **Mobile container padding** |
-| `--token-space-xl` | 16px | Section spacing |
-| `--token-space-2xl` | 20px | Large gaps |
+| Token               | Size | Usage                         |
+| ------------------- | ---- | ----------------------------- |
+| `--token-space-xs`  | 2px  | Micro spacing                 |
+| `--token-space-sm`  | 4px  | Tight spacing                 |
+| `--token-space-md`  | 8px  | Default gap                   |
+| `--token-space-lg`  | 12px | **Mobile container padding**  |
+| `--token-space-xl`  | 16px | Section spacing               |
+| `--token-space-2xl` | 20px | Large gaps                    |
 | `--token-space-3xl` | 24px | **Desktop container padding** |
-| `--token-space-4xl` | 32px | Major sections |
+| `--token-space-4xl` | 32px | Major sections                |
 
 ---
 
 ## Border Radius
 
-| Token | Size |
-|-------|------|
-| `--token-radius-sm` | 6px |
-| `--token-radius-md` | 8px |
-| `--token-radius-lg` | 12px |
-| `--token-radius-xl` | 16px |
-| `--token-radius-full` | 50% |
+| Token                 | Size |
+| --------------------- | ---- |
+| `--token-radius-sm`   | 6px  |
+| `--token-radius-md`   | 8px  |
+| `--token-radius-lg`   | 12px |
+| `--token-radius-xl`   | 16px |
+| `--token-radius-full` | 50%  |
 
 ---
 
@@ -142,7 +159,7 @@ Users choose their accent color in Settings. This maps to `--primary`:
 
 ```css
 .btn-primary {
-  background: var(--primary);  /* Solid, not gradient */
+  background: var(--primary); /* Solid, not gradient */
   color: var(--primary-foreground);
   border-radius: 0.75rem;
   font-weight: 590;
@@ -150,6 +167,7 @@ Users choose their accent color in Settings. This maps to `--primary`:
 ```
 
 **Variants:**
+
 - `.btn-primary` - Solid accent color (default)
 - `.btn-secondary` - Light background, border
 - `.btn-outline` - Transparent with border
@@ -157,6 +175,7 @@ Users choose their accent color in Settings. This maps to `--primary`:
 - `.btn-gradient` - Blue-to-purple gradient (special use only)
 
 **Sizes:**
+
 - `.btn-sm` - 36px min-height
 - `.btn-md` - 52px min-height (stress-optimized)
 - `.btn-lg` - 56px min-height
@@ -167,7 +186,7 @@ Users choose their accent color in Settings. This maps to `--primary`:
 
 ```css
 .card {
-  background: var(--card);  /* Solid, not gradient */
+  background: var(--card); /* Solid, not gradient */
   border: 1px solid var(--border);
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -180,6 +199,7 @@ Users choose their accent color in Settings. This maps to `--primary`:
 ```
 
 **Status variants** (left border accent):
+
 - `.card.scored` - Green left border
 - `.card.checkin-checked-in` - Green
 - `.card.checkin-conflict` - Yellow
@@ -203,14 +223,16 @@ Users choose their accent color in Settings. This maps to `--primary`:
 
 ---
 
-## Shadows
+## Elevation — Ring shadows
 
-| Token | Value |
-|-------|-------|
-| `--token-shadow-sm` | `0 1px 3px rgba(0, 0, 0, 0.1)` |
-| `--token-shadow-md` | `0 2px 8px rgba(0, 0, 0, 0.1)` |
-| `--token-shadow-lg` | `0 8px 24px rgba(0, 0, 0, 0.12)` |
-| `--token-shadow-xl` | `0 12px 32px rgba(0, 0, 0, 0.15)` |
+v2 uses ring shadows (1px inset-equivalent border rendered via `box-shadow`) plus a soft drop:
+
+- `--token-shadow-sm` — `0 0 0 1px rgba(20, 20, 19, 0.08)`
+- `--token-shadow-md` — `0 0 0 1px rgba(20, 20, 19, 0.08), 0 2px 8px rgba(20, 20, 19, 0.05)`
+- `--token-shadow-lg` — `0 0 0 1px rgba(20, 20, 19, 0.1), 0 4px 24px rgba(20, 20, 19, 0.05)`
+- `--token-shadow-xl` — `0 0 0 1px rgba(20, 20, 19, 0.12), 0 12px 32px rgba(20, 20, 19, 0.08)`
+
+Rationale: the 1px ring reads crisply in direct sunlight where blurred shadows wash out.
 
 ---
 
@@ -240,21 +262,21 @@ Users choose their accent color in Settings. This maps to `--primary`:
 ```css
 --min-touch-target: 44px;
 --comfortable-touch-target: 36px;
---stress-touch-target: 52px;  /* For high-stress scenarios */
+--stress-touch-target: 52px; /* For high-stress scenarios */
 ```
 
 ---
 
 ## Z-Index Scale
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--token-z-base` | 0 | Default |
-| `--token-z-raised` | 10 | Elevated cards |
-| `--token-z-overlay` | 100 | Overlays |
-| `--token-z-modal` | 1000 | Modals/dialogs |
-| `--token-z-toast` | 2000 | Toasts |
-| `--z-menu` | 10000 | Menus |
+| Token               | Value | Usage          |
+| ------------------- | ----- | -------------- |
+| `--token-z-base`    | 0     | Default        |
+| `--token-z-raised`  | 10    | Elevated cards |
+| `--token-z-overlay` | 100   | Overlays       |
+| `--token-z-modal`   | 1000  | Modals/dialogs |
+| `--token-z-toast`   | 2000  | Toasts         |
+| `--z-menu`          | 10000 | Menus          |
 
 ---
 
@@ -262,13 +284,13 @@ Users choose their accent color in Settings. This maps to `--primary`:
 
 These are applied via CSS classes on `<html>`:
 
-| Setting | Options | CSS Class |
-|---------|---------|-----------|
-| Theme | auto/light/dark | `.theme-auto`, `.theme-light`, `.theme-dark` |
-| Accent Color | green/blue/orange/purple | `.accent-green`, `.accent-blue`, etc. |
-| Font Size | small/medium/large | `.font-small`, `.font-medium`, `.font-large` |
-| Density | compact/comfortable/spacious | `.density-compact`, `.density-comfortable`, `.density-spacious` |
-| High Contrast | on/off | `.high-contrast` |
+| Setting       | Options                      | CSS Class                                                       |
+| ------------- | ---------------------------- | --------------------------------------------------------------- |
+| Theme         | auto/light/dark              | `.theme-auto`, `.theme-light`, `.theme-dark`                    |
+| Accent Color  | green/blue/orange/purple     | `.accent-green`, `.accent-blue`, etc.                           |
+| Font Size     | small/medium/large           | `.font-small`, `.font-medium`, `.font-large`                    |
+| Density       | compact/comfortable/spacious | `.density-compact`, `.density-comfortable`, `.density-spacious` |
+| High Contrast | on/off                       | `.high-contrast`                                                |
 
 ---
 
@@ -284,11 +306,11 @@ These are applied via CSS classes on `<html>`:
 
 ## Quick Reference: What NOT to Do
 
-| Don't | Do Instead |
-|-------|------------|
-| Gradient buttons by default | Use solid `.btn-primary` |
-| Gradient card backgrounds | Use solid `var(--card)` |
-| Backdrop blur on cards | Not implemented - skip it |
-| Blue as primary | Teal `#14b8a6` is default |
-| Hardcoded colors | Use CSS variables |
-| `max-width` on containers | Full width with padding |
+| Don't                       | Do Instead                |
+| --------------------------- | ------------------------- |
+| Gradient buttons by default | Use solid `.btn-primary`  |
+| Gradient card backgrounds   | Use solid `var(--card)`   |
+| Backdrop blur on cards      | Not implemented - skip it |
+| Blue as primary             | Teal `#14b8a6` is default |
+| Hardcoded colors            | Use CSS variables         |
+| `max-width` on containers   | Full width with padding   |

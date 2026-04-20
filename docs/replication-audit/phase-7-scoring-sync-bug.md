@@ -84,3 +84,23 @@ The myK9Q scenario test has three cases:
 1. **Real-time push does not clobber a locally-scored entry** — stresses Phase 1's guard through the `ReplicatedEntriesTable.markAsScored(..., true)` call path.
 2. **Queued scoring mutation flushes to Supabase on next sync** — wires a real `MutationManager` against a stub client and asserts `.update(...).eq('id', ...)` is called with the score payload and the pending queue drains.
 3. **Incremental sync's `batchSet` preserves local dirty state** — stresses Phase 2's guard through the same code path the real sync uses (`batchSet(entriesToCache)` in `ReplicatedEntriesTable.sync()`).
+
+## Verification
+
+All affected suites run on 2026-04-20 at HEAD `fcf235b0`:
+
+| Suite                                                                                              | Result                                       |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `packages/replication/src/core/ReplicatedTable.subscription.test.ts`                               | 6 passed                                     |
+| `packages/replication/src/core/ReplicatedTableCache.invariants.test.ts`                            | 3 passed                                     |
+| `packages/replication/src/conflict/ConflictResolver.merge.test.ts`                                 | 3 passed                                     |
+| `packages/replication/src/core/DatabaseManager.lifecycle.test.ts`                                  | 4 passed                                     |
+| `packages/replication/src/MutationManager.stress.test.ts`                                          | 1 passed, 1 failed (pre-existing — see note) |
+| `apps/myk9q/src/services/replication/tables/__tests__/ReplicatedShowsTable.test.ts`                | 16 passed                                    |
+| `apps/myk9q/src/services/replication/tables/__tests__/ReplicatedEntriesTable.scoring-sync.test.ts` | 3 passed                                     |
+
+**Scoring-sync guardrail outcome.** All three scoring-sync tests passed on first run after a `pnpm --filter @myk9/replication build` — the apps resolve `@myk9/replication` through its built dist, so the Phase 1–3 fixes must be rebuilt for the app-level tests to exercise them. The dist had gone stale from the previous session. No real regression surfaced.
+
+**Pre-existing failure — not caused by Phase 7.** `MutationManager.stress.test.ts > "survives a mid-flush failure at mutation 250"` fails deterministically with `observedSet.size === 499` (expected 500). Git diff between `a2d5b118` (parent of Phase 7 commits) and HEAD confirms Phase 7 added only docs + one new test file; no `MutationManager`-related source or test was touched. The off-by-one indicates the failed mutation's retry is being short-circuited (likely by the auto-upload debounce interacting with the stress test's manual flush sequence), which is a stress-test harness issue rather than a replication correctness bug. Separate ticket candidate — out of scope for the replication audit.
+
+**Pre-existing expected failure (noted in task brief, ignored):** `packages/replication/src/core/ReplicatedTable.test.ts` has `expect(GET_ALL_TIMEOUT_MS).toBe(5000)` when the actual value is `15000`. Not run.

@@ -79,7 +79,7 @@ describe('entry_status enum values used by query layer', () => {
       );
     });
 
-    it('denyMoveUpRequest reverts status to "confirmed" and matches "move_up_requested"', async () => {
+    it('denyMoveUpRequest reverts status to "confirmed" and matches "move-up-requested"', async () => {
       const chain = chainMock({
         single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
       });
@@ -90,7 +90,7 @@ describe('entry_status enum values used by query layer', () => {
       expect(chain.update).toHaveBeenCalledWith(
         expect.objectContaining({ entry_status: 'confirmed' })
       );
-      expect(chain.eq).toHaveBeenCalledWith('entry_status', 'move_up_requested');
+      expect(chain.eq).toHaveBeenCalledWith('entry_status', 'move-up-requested');
     });
   });
 
@@ -119,7 +119,7 @@ describe('entry_status enum values used by query layer', () => {
       );
     });
 
-    it('requestScratch writes entry_status = "scratch_requested"', async () => {
+    it('requestScratch writes entry_status = "scratch-requested"', async () => {
       const chain = chainMock({
         single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
       });
@@ -128,11 +128,11 @@ describe('entry_status enum values used by query layer', () => {
       await requestScratch('entry-1', 'sick dog');
 
       expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'scratch_requested' })
+        expect.objectContaining({ entry_status: 'scratch-requested' })
       );
     });
 
-    it('approveScratchRequest matches "scratch_requested" and writes "scratched"', async () => {
+    it('approveScratchRequest matches "scratch-requested" and writes "scratched"', async () => {
       const chain = chainMock({
         single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
       });
@@ -143,7 +143,7 @@ describe('entry_status enum values used by query layer', () => {
       expect(chain.update).toHaveBeenCalledWith(
         expect.objectContaining({ entry_status: 'scratched' })
       );
-      expect(chain.eq).toHaveBeenCalledWith('entry_status', 'scratch_requested');
+      expect(chain.eq).toHaveBeenCalledWith('entry_status', 'scratch-requested');
     });
 
     it('denyScratchRequest reverts to "confirmed"', async () => {

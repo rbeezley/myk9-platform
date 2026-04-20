@@ -257,10 +257,6 @@ Non-North-Star items needed before real users hit the production URL. These are 
 
 ---
 
-## Normalize `_requested` workflow values to hyphenated form — 2026-04-18
-
-- **Rename `scratch_requested`/`move_up_requested` → `scratch-requested`/`move-up-requested`** — `EntryStatus` mixes hyphen (`'checked-in'`, `'pending-payment'`) and underscore (`'scratch_requested'`, `'move_up_requested'`) conventions. Hyphen is the majority rule. **Deferred:** not a golden-path blocker; requires a two-phase DB migration. **Files:** `apps/myk9show/src/types/entry-lifecycle.ts`, `apps/myk9show/src/services/database/queries/scratchQueries.ts` + `moveUpQueries.ts`, new migration. **Solution:** (1) expand CHECK to allow both forms; (2) `UPDATE entries SET entry_status = 'scratch-requested' WHERE entry_status = 'scratch_requested'` (same for move-up); (3) update app writes to hyphen form; (4) later migration drops underscore form.
-
 ---
 
 ## ✅ Fix GitHub CI Billing / Efficiency - 2026-04-18 13:51

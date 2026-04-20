@@ -203,7 +203,7 @@ export const getPendingMoveUpRequests = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get entries with move-up requests (entry_status = 'move_up_requested')
+    // Get entries with move-up requests (entry_status = 'move-up-requested')
     const { data, error } = await supabase
       .from('entries')
       .select(
@@ -232,7 +232,7 @@ export const getPendingMoveUpRequests = async (showId: string) => {
       `
       )
       .eq('show_id', showId)
-      .eq('entry_status', 'move_up_requested')
+      .eq('entry_status', 'move-up-requested')
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
@@ -275,7 +275,7 @@ export const denyMoveUpRequest = async (entryId: string, reason?: string) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .eq('entry_status', 'move_up_requested')
+      .eq('entry_status', 'move-up-requested')
       .select(
         `
         id,

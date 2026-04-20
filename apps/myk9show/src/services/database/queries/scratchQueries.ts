@@ -180,7 +180,7 @@ export const requestScratch = async (entryId: string, reason?: string) => {
     const { data, error } = await supabase
       .from('entries')
       .update({
-        entry_status: 'scratch_requested',
+        entry_status: 'scratch-requested',
         special_requests: reason || null,
         updated_at: new Date().toISOString(),
       })
@@ -230,7 +230,7 @@ export const getPendingScratchRequests = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get entries with scratch_requested status
+    // Get entries with scratch-requested status
     const { data, error } = await supabase
       .from('entries')
       .select(
@@ -258,7 +258,7 @@ export const getPendingScratchRequests = async (showId: string) => {
       `
       )
       .eq('show_id', showId)
-      .eq('entry_status', 'scratch_requested')
+      .eq('entry_status', 'scratch-requested')
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
@@ -297,7 +297,7 @@ export const approveScratchRequest = async (
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .eq('entry_status', 'scratch_requested')
+      .eq('entry_status', 'scratch-requested')
       .select(
         `
         id,
@@ -350,7 +350,7 @@ export const denyScratchRequest = async (entryId: string, reason?: string) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
-      .eq('entry_status', 'scratch_requested')
+      .eq('entry_status', 'scratch-requested')
       .select()
       .single();
 

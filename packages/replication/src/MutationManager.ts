@@ -17,8 +17,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
-import { withTimeout, backoffDelay, isRetryableError, TIMEOUT_PRESETS } from './mutation-utils';
-import type { PendingMutation, SyncResult } from './types';
+import {
+  withTimeout,
+  calculateBackoffDelay,
+  isRetryableError,
+  TIMEOUT_PRESETS,
+} from './mutation-utils';
+import { MUTATION_OPERATIONS, type PendingMutation, type SyncResult } from './types';
 
 // ============================================
 // CONSTANTS
@@ -74,6 +79,8 @@ export class MutationManager {
 
   // Auto-upload: flush mutations to server shortly after queuing
   private uploadDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private backoffRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private backoffRetryAt: number | null = null;
   private isUploading: boolean = false;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
@@ -186,6 +193,43 @@ export class MutationManager {
   }
 
   /**
+   * Schedule an upload retry at the given timestamp so mutations stuck in
+   * backoff get retried even if no new mutations are queued in the meantime.
+   * If a timer is already pending for an earlier time, keep it.
+   */
+  private scheduleBackoffRetry(atTimestamp: number): void {
+    if (
+      this.backoffRetryTimer &&
+      this.backoffRetryAt !== null &&
+      this.backoffRetryAt <= atTimestamp
+    ) {
+      return;
+    }
+
+    const delay = Math.max(0, atTimestamp - Date.now());
+
+    if (this.backoffRetryTimer) {
+      clearTimeout(this.backoffRetryTimer);
+    }
+
+    this.backoffRetryAt = atTimestamp;
+    this.logger.log(`[MutationManager] Scheduling backoff retry in ${delay}ms`);
+
+    this.backoffRetryTimer = setTimeout(() => {
+      this.backoffRetryTimer = null;
+      this.backoffRetryAt = null;
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return;
+      }
+
+      this.uploadPendingMutations().catch(err => {
+        this.logger.error('[MutationManager] Backoff retry upload failed:', err);
+      });
+    }, delay);
+  }
+
+  /**
    * Upload pending mutations (offline changes) to server
    *
    * Processes mutations in topological order to respect causal dependencies.
@@ -243,17 +287,26 @@ export class MutationManager {
 
       const results: SyncResult[] = [];
       const failedMutations: PendingMutation[] = [];
+      const now = Date.now();
+      // Independent mutations shouldn't stall on one mutation's backoff; track the
+      // earliest skipped nextRetryAt so we can self-schedule a follow-up pass.
+      let earliestBackoff: number | null = null;
 
       for (const mutation of sortedMutations) {
+        if (mutation.nextRetryAt && mutation.nextRetryAt > now) {
+          this.logger.log(
+            `[MutationManager] Skipping ${mutation.id} — backoff until ${new Date(mutation.nextRetryAt).toISOString()}`
+          );
+          if (earliestBackoff === null || mutation.nextRetryAt < earliestBackoff) {
+            earliestBackoff = mutation.nextRetryAt;
+          }
+          continue;
+        }
+
         try {
-          // Execute mutation on server
           await this.executeMutation(mutation);
 
-          // Delete from pending queue
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
-
-          // Backup after each successful mutation
-          await this.backupMutationsToLocalStorage();
 
           results.push({
             success: true,
@@ -288,17 +341,19 @@ export class MutationManager {
           } else {
             mutation.status = 'pending';
             mutation.error = message;
+            mutation.nextRetryAt =
+              Date.now() + calculateBackoffDelay(mutation.retries - 1, this.retryBackoffBase);
 
             this.logger.warn(
-              `[MutationManager] Mutation ${mutation.id} failed (retry ${mutation.retries}/${this.maxRetries}):`,
+              `[MutationManager] Mutation ${mutation.id} failed (retry ${mutation.retries}/${this.maxRetries}), next attempt after ${new Date(mutation.nextRetryAt).toISOString()}:`,
               error
             );
 
-            // Apply exponential backoff delay before next attempt
-            await backoffDelay(mutation.retries - 1, this.retryBackoffBase, this.logger);
-
-            // Update retryable mutation in queue
             await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+
+            if (earliestBackoff === null || mutation.nextRetryAt < earliestBackoff) {
+              earliestBackoff = mutation.nextRetryAt;
+            }
           }
 
           results.push({
@@ -312,11 +367,19 @@ export class MutationManager {
         }
       }
 
-      // Notify user if any mutations permanently failed
       if (failedMutations.length > 0) {
         this.notifyUserOfSyncFailure(failedMutations);
-        // Update backup to reflect removed failed mutations
-        await this.backupMutationsToLocalStorage();
+      }
+
+      // Fire-and-forget so upload completion isn't blocked by the debounced backup.
+      this.backupMutationsToLocalStorage().catch(err => {
+        this.logger.warn('[MutationManager] Post-upload backup failed:', err);
+      });
+
+      // Self-schedule a retry pass so backoff-skipped mutations don't sit idle
+      // when no other activity triggers the upload debounce timer.
+      if (earliestBackoff !== null) {
+        this.scheduleBackoffRetry(earliestBackoff);
       }
 
       const successful = results.filter(r => r.success);
@@ -391,15 +454,26 @@ export class MutationManager {
       }
 
       case 'DELETE': {
-        const { error } = await withTimeout(
+        const { data: rows, error } = await withTimeout(
           this.supabase
             .from(tableName)
             .delete()
-            .eq('id', data.id as string),
+            .eq('id', data.id as string)
+            .select('id'),
           TIMEOUT_PRESETS.standard,
           `${tableName} delete`
         );
         if (error) throw error;
+        // 0 rows affected means either the row was already deleted (OK,
+        // idempotent) or RLS silently rejected the DELETE. We can't
+        // distinguish the two, so we log a warning and let the next sync
+        // determine whether the row still exists.
+        if (!rows || rows.length === 0) {
+          this.logger.warn(
+            `[MutationManager] DELETE on ${tableName} for row ${mutation.rowId} affected 0 rows. ` +
+              `Row may have already been deleted, or RLS policy blocked the operation.`
+          );
+        }
         break;
       }
 
@@ -581,7 +655,31 @@ export class MutationManager {
         return; // No backup to restore
       }
 
-      const mutations = JSON.parse(backup) as PendingMutation[];
+      const parsed: unknown = JSON.parse(backup);
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        return;
+      }
+
+      // A corrupt backup must not introduce malformed mutations that crash executeMutation.
+      const validOps = new Set<string>(MUTATION_OPERATIONS);
+      const mutations = parsed.filter((m): m is PendingMutation => {
+        if (typeof m !== 'object' || m === null) return false;
+        const candidate = m as Record<string, unknown>;
+        return (
+          typeof candidate.id === 'string' &&
+          typeof candidate.tableName === 'string' &&
+          typeof candidate.operation === 'string' &&
+          validOps.has(candidate.operation) &&
+          typeof candidate.rowId === 'string'
+        );
+      });
+
+      if (mutations.length < parsed.length) {
+        this.logger.warn(
+          `[MutationManager] Discarded ${parsed.length - mutations.length} malformed mutation(s) from localStorage backup`
+        );
+      }
 
       if (mutations.length === 0) {
         return;
@@ -683,6 +781,11 @@ export class MutationManager {
     if (this.uploadDebounceTimer) {
       clearTimeout(this.uploadDebounceTimer);
       this.uploadDebounceTimer = null;
+    }
+    if (this.backoffRetryTimer) {
+      clearTimeout(this.backoffRetryTimer);
+      this.backoffRetryTimer = null;
+      this.backoffRetryAt = null;
     }
 
     this.logger.log('[MutationManager] Destroyed');

@@ -32,8 +32,8 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 Low-priority cleanup items discovered during v2 implementation.
 
-- [ ] `apps/myk9show/DESIGN.md` references Playfair Display in ~12 places. Refresh to match v2 (Fraunces headings, Montserrat body).
-- [ ] myK9Q app (`apps/myk9q/`) design system v2 — separate plan needed; myK9Q uses semantic CSS (no Tailwind/shadcn).
+- [x] `apps/myk9show/DESIGN.md` references Playfair Display in ~12 places. Refresh to match v2 (Fraunces headings, Montserrat body). ✓ completed 2026-04-20 — resolved alongside Phase 1 in PR #62.
+- [~] myK9Q app (`apps/myk9q/`) design system v2 — **Phase 1 in review** as PR [#62](https://github.com/rbeezley/myk9-platform/pull/62) (2026-04-20). Hoists canonical tokens into `@myk9/ui/styles`, swaps Playfair for Fraunces, trims app-level design-tokens to ringside overrides. Phase 2 (status vocabulary consolidation, accent rename, outdoor mode, per-show accent, localStorage migration) and Phase 3 (delete legacy + deprecation aliases) still pending.
 
 ---
 

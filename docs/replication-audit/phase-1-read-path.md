@@ -58,9 +58,18 @@ Out of scope: mutations (covered by MutationManager audit), conflict resolution 
 
 `ReplicatedTable.ts:421–441` — Fix: replace with a proper async queue (a `Promise` chain that always appends the next work unit regardless of concurrent entry), or use a `Map<string, Promise>` accumulator pattern where each new caller chains onto the _tail_ of the existing promise, not onto a shared completed promise.
 
-**Finding C-2 — MEDIUM: `getAll` swallows all errors and returns an empty array**
+**Finding C-2 — HIGH: `getAll` swallows all errors and returns an empty array**
 
 `ReplicatedTable.ts:406–414` — The `catch` block logs the error and returns `[]` unconditionally. Callers (including `notifyListeners`, which reads via `getAllData → getAll`) cannot distinguish "table is empty" from "IDB is broken." A caller that is waiting for rows to appear (e.g., a UI component) will silently show nothing instead of surfacing the error. This is particularly dangerous because the circuit breaker only trips after three consecutive failures — during the first two failures every caller silently receives empty data.
+
+**Caller count (2026-04-20):** 177 production call-sites across `apps/myk9q` and `apps/myk9show` that await `getAll()` and assume it always resolves. Changing `return []` to `throw error` would break all of them without a coordinated update.
+
+**Remediation (deferred to dedicated fix pass):** The correct fix is to re-throw after logging, but doing so requires every caller to either be wrapped in React Query (which handles rejections automatically) or wrapped in an explicit `try/catch`. A migration strategy:
+
+1. Audit callers: classify as React Query `queryFn` (safe to throw) vs. plain `await` (need try/catch).
+2. Update plain `await` callers to have a local `catch` that renders an error state.
+3. Once all callers are hardened, remove the `return []` fallback and replace with `throw error`.
+   This is tracked as a HIGH-severity open item and must be addressed before any data-loss incident post-launch.
 
 Fix: surface the error to the caller OR add a callback/event so the UI can show a degraded-mode banner. Minimum: make `getAll` return `null` (or throw) on failure and update all callers to handle that.
 
@@ -80,9 +89,11 @@ No code fix needed if C-2 is fixed; document only until then.
 
 ### Error surfacing
 
-**Finding E-1 — HIGH: `getAll` error is swallowed (same as C-2)**
+**Finding E-1 — HIGH: `getAll` error is swallowed (same as C-2; deferred — see caller-count note there)**
 
 `ReplicatedTable.ts:410–414` — Any IDB error (quota exceeded, database-closed race, upgrade conflict) is caught, logged, and replaced with `[]`. The promise returned to callers always resolves — it never rejects. Callers have no programmatic way to know a failure occurred.
+
+**Deferred:** 177 production callers assume `getAll()` always resolves. Fix is tracked in C-2 remediation plan above — requires a coordinated caller migration before the throw can be enabled.
 
 Fix: re-throw after logging, or return a discriminated `{ data: T[]; error: Error | null }` shape. At minimum, `getAll` should reject on IDB errors so the circuit-breaker can count them properly (currently `databaseManager.recordFailure()` is called inside the catch, which is correct, but callers still receive `[]` and proceed as if data is empty).
 

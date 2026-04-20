@@ -235,6 +235,18 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       );
     }
 
+    // Guard: never overwrite a locally-dirty row with a clean server value.
+    // A dirty row has a pending mutation that hasn't been flushed to Supabase yet.
+    // Allowing a real-time push (isDirty=false) to clobber it would cause data loss
+    // — this is the scoring-sync-bug root cause.
+    if (!isDirty && existingRow?.isDirty) {
+      await tx.done;
+      this.logger.log(
+        `[${this.tableName}] Skipped server push for row ${normalizedId} — local mutation pending`
+      );
+      return;
+    }
+
     const normalizedData = { ...data, id: normalizedId } as T;
 
     const row: ReplicatedRow<T> = {

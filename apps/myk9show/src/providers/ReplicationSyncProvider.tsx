@@ -217,47 +217,35 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         // Continue to Phase 2 even if upload fails
       }
 
-      // Phase 2: Download sync — all tables in parallel.
-      // Each table's result is independent; a failure in one must not prevent
-      // others from completing. Promise.allSettled guarantees all finish.
+      // Phase 2: parallel download — one failure must not block others.
       setStatus(prev => ({
         ...prev,
         tablesStatus: Object.fromEntries(REPLICATED_TABLES.map(({ name }) => [name, 'syncing'])),
       }));
 
-      const syncResults = await Promise.allSettled(
+      const syncResults = await Promise.all(
         REPLICATED_TABLES.map(async ({ name, table }) => {
-          const result = await table.sync(licenseKey);
-          return { name, result };
+          try {
+            const result = await table.sync(licenseKey);
+            return { name, ok: result.success, error: result.error };
+          } catch (err) {
+            logger.error('Table sync threw', 'replication', { name }, err as Error);
+            return { name, ok: false, error: err instanceof Error ? err.message : String(err) };
+          }
         })
       );
 
       const downloadFailures: Array<{ name: string; error: string }> = [];
       const tableStatusUpdates: Record<string, 'success' | 'error'> = {};
 
-      for (const settled of syncResults) {
-        if (settled.status === 'fulfilled') {
-          const { name, result } = settled.value;
-          if (result.success) {
-            logger.info('Table sync success', 'replication', {
-              name,
-              rowsAffected: result.rowsAffected,
-            });
-            tableStatusUpdates[name] = 'success';
-          } else {
-            const errorMsg = result.error || 'Unknown error';
-            logger.warn('Table sync failed', 'replication', { name, error: errorMsg });
-            downloadFailures.push({ name, error: errorMsg });
-            tableStatusUpdates[name] = 'error';
-          }
+      for (const { name, ok, error } of syncResults) {
+        if (ok) {
+          tableStatusUpdates[name] = 'success';
         } else {
-          // Promise itself rejected (unexpected — table.sync should return SyncResult)
-          const errorMsg =
-            settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
-          // We don't know which table this came from at this level, so we log generically.
-          // Individual table errors are normally returned inside SyncResult, not thrown.
-          logger.error('Table sync threw unexpectedly', 'replication', {}, settled.reason as Error);
-          downloadFailures.push({ name: 'unknown', error: errorMsg });
+          const errorMsg = error || 'Unknown error';
+          logger.warn('Table sync failed', 'replication', { name, error: errorMsg });
+          downloadFailures.push({ name, error: errorMsg });
+          tableStatusUpdates[name] = 'error';
         }
       }
 

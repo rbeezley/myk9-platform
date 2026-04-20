@@ -13,15 +13,15 @@
  * Wraps any table row with replication metadata
  */
 export interface ReplicatedRow<T> {
-  tableName: string;        // e.g., 'entries', 'classes'
-  id: string;               // Primary key value
-  data: T;                  // Actual row data
-  version: number;          // For conflict detection (increments on update)
-  lastSyncedAt: number;     // Timestamp of last successful sync
-  lastAccessedAt: number;   // For LRU eviction
-  accessCount?: number;     // For LFU eviction (access frequency)
-  lastModifiedAt?: number;  // Protect recently edited data
-  isDirty: boolean;         // Has local changes not yet synced
+  tableName: string; // e.g., 'entries', 'classes'
+  id: string; // Primary key value
+  data: T; // Actual row data
+  version: number; // For conflict detection (increments on update)
+  lastSyncedAt: number; // Timestamp of last successful sync
+  lastAccessedAt: number; // For LRU eviction
+  accessCount?: number; // For LFU eviction (access frequency)
+  lastModifiedAt?: number; // Protect recently edited data
+  isDirty: boolean; // Has local changes not yet synced
   syncStatus: SyncStatus;
 }
 
@@ -37,7 +37,7 @@ export interface SyncMetadata {
   tableName: string;
   lastFullSyncAt: number;
   lastIncrementalSyncAt: number;
-  totalRows?: number;           // Total rows cached
+  totalRows?: number; // Total rows cached
   syncStatus?: 'idle' | 'syncing' | 'error';
   errorMessage?: string;
   conflictCount?: number;
@@ -48,28 +48,29 @@ export interface SyncMetadata {
  * Pending mutation queue item
  */
 export interface PendingMutation {
-  id: string;               // UUID for mutation
+  id: string; // UUID for mutation
   tableName: string;
   operation: MutationOperation;
-  rowId: string;            // ID of affected row
-  data: Record<string, unknown>;  // Mutation data (generic object)
-  timestamp: number;        // When mutation was queued
-  retries: number;          // Retry attempts
+  rowId: string; // ID of affected row
+  data: Record<string, unknown>; // Mutation data (generic object)
+  timestamp: number; // When mutation was queued
+  retries: number; // Retry attempts
   status: MutationStatus;
-  error?: string;           // Last error message
+  error?: string; // Last error message
 
   /** Causal dependency tracking */
-  dependsOn?: string[];     // IDs of mutations that must complete before this one
-  sequenceNumber?: number;  // Global sequence for ordering
+  dependsOn?: string[]; // IDs of mutations that must complete before this one
+  sequenceNumber?: number; // Global sequence for ordering
 
-  /** Earliest timestamp at which this mutation should be retried (backoff support) */
+  /** @internal Set by MutationManager; do not read or mutate externally. */
   nextRetryAt?: number;
 }
 
 /**
  * Mutation operation types
  */
-export type MutationOperation = 'INSERT' | 'UPDATE' | 'DELETE' | 'BATCH_UPDATE';
+export const MUTATION_OPERATIONS = ['INSERT', 'UPDATE', 'DELETE', 'BATCH_UPDATE'] as const;
+export type MutationOperation = (typeof MUTATION_OPERATIONS)[number];
 
 /**
  * Mutation processing status
@@ -83,16 +84,22 @@ export interface SyncResult {
   tableName: string;
   success: boolean;
   operation: SyncOperation;
-  rowsAffected: number;     // Rows inserted/updated/deleted
+  rowsAffected: number; // Rows inserted/updated/deleted
   conflictsResolved?: number;
-  duration: number;         // Milliseconds
-  error?: string;           // Error message if failed
+  duration: number; // Milliseconds
+  error?: string; // Error message if failed
 }
 
 /**
  * Sync operation types
  */
-export type SyncOperation = 'full-sync' | 'incremental-sync' | 'INSERT' | 'UPDATE' | 'DELETE' | 'BATCH_UPDATE';
+export type SyncOperation =
+  | 'full-sync'
+  | 'incremental-sync'
+  | 'INSERT'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'BATCH_UPDATE';
 
 /**
  * Sync options for controlling sync behavior
@@ -112,11 +119,11 @@ export interface SyncOptions {
  * Performance report for replication system
  */
 export interface PerformanceReport {
-  cacheHitRate: string;           // e.g., "95.2%"
-  avgSyncDuration: string;        // e.g., "234ms"
+  cacheHitRate: string; // e.g., "95.2%"
+  avgSyncDuration: string; // e.g., "234ms"
   conflictsResolved: number;
-  mutationSuccessRate: number;    // 0-100
-  storageUsedMB: string;          // e.g., "12.4"
+  mutationSuccessRate: number; // 0-100
+  storageUsedMB: string; // e.g., "12.4"
   tablesReplicated: number;
 }
 
@@ -126,9 +133,9 @@ export interface PerformanceReport {
 export interface SyncProgress {
   tableName: string;
   operation: 'full-sync' | 'incremental-sync' | 'upload-mutations';
-  processed: number;        // Items processed so far
-  total: number;            // Total items to process
-  percentage: number;       // 0-100
+  processed: number; // Items processed so far
+  total: number; // Total items to process
+  percentage: number; // 0-100
   status?: 'synced' | 'syncing' | 'error';
 }
 
@@ -145,10 +152,10 @@ export interface SyncFailure {
  * Conflict resolution strategy
  */
 export type ConflictStrategy =
-  | 'last-write-wins'           // Compare timestamps
-  | 'server-authoritative'      // Server always wins
-  | 'client-authoritative'      // Client always wins
-  | 'field-level-merge';        // Merge specific fields
+  | 'last-write-wins' // Compare timestamps
+  | 'server-authoritative' // Server always wins
+  | 'client-authoritative' // Client always wins
+  | 'field-level-merge'; // Merge specific fields
 
 /**
  * Result of a conflict resolution operation

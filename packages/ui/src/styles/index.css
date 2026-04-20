@@ -13,6 +13,7 @@
 
 /* v2 canonical tokens — see tokens-v2.css header */
 @import './tokens-v2.css';
+@import './dark-v2.css';
 
 :root {
   /* Base radius */

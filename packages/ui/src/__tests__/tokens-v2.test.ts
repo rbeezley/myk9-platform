@@ -41,3 +41,28 @@ describe('tokens-v2.css', () => {
     expect(css).toMatch(/--muted-foreground:\s*#8c8376/);
   });
 });
+
+describe('dark-v2.css', () => {
+  let css: string;
+
+  beforeAll(() => {
+    css = fs.readFileSync(path.resolve(__dirname, '../styles/dark-v2.css'), 'utf-8');
+  });
+
+  it('scopes to .theme-dark', () => {
+    expect(css).toMatch(/\.theme-dark\s*\{/);
+  });
+
+  it('uses warm olive-dark canvas (matches myK9Show live v2)', () => {
+    expect(css).toMatch(/--background:\s*#181411/);
+    expect(css).toMatch(/--card:\s*#1e1c19/);
+  });
+
+  it('uses warm-silver muted foreground (matches light mode per myK9Show)', () => {
+    expect(css).toMatch(/--muted-foreground:\s*#8c8376/);
+  });
+
+  it('keeps teal primary accent in dark mode', () => {
+    expect(css).toMatch(/--primary:\s*#14b8a6/);
+  });
+});

@@ -1,0 +1,29 @@
+/* =====================================================================
+   myK9 v2 Dark Mode — warm olive-dark
+   Values track myK9Show's live v2 dark-mode (apps/myk9show/src/index.css
+   .dark block) so both apps share the same dark palette.
+   See docs/superpowers/specs/2026-04-20-myk9q-design-system-v2-design.md §4.5
+   ===================================================================== */
+
+.theme-dark {
+  --background: #181411;
+  --background-alt: #1e1c19;
+  --background-subtle: #1e1c19;
+  --surface: #1e1c19;
+  --card: #1e1c19;
+  --card-foreground: #faf7f2;
+  --card-secondary: #181411;
+
+  --foreground: #faf7f2;
+  --foreground-muted: #8c8376;
+
+  --border: #2e2b27;
+  --border-strong: #3a3a36;
+
+  --muted: #1e1c19;
+  --muted-foreground: #8c8376;
+
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
+  --primary-foreground: #ffffff;
+}

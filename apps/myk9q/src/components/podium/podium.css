@@ -1,9 +1,8 @@
 /* src/components/podium/podium.css */
 /* Championship Gala Podium - Luxurious Awards Ceremony Aesthetic */
 
-/* Playfair Display: Reserved for celebration moments (The Podium) */
-/* Montserrat is loaded globally in index.html */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&display=swap');
+/* Fraunces: Reserved for celebration moments (The Podium). Loaded globally in index.html. */
+/* Montserrat is loaded globally in index.html. */
 
 /* ===== COLOR TOKENS ===== */
 :root {
@@ -34,18 +33,16 @@
 
 /* ===== PODIUM CARD ===== */
 .podium-card {
-  background: linear-gradient(
-    165deg,
-    rgba(30, 30, 38, 0.95) 0%,
-    rgba(22, 22, 28, 0.98) 100%
-  );
+  background: linear-gradient(165deg, rgba(30, 30, 38, 0.95) 0%, rgba(22, 22, 28, 0.98) 100%);
   border-radius: 20px;
   box-shadow:
     0 4px 24px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(212, 175, 55, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .podium-card:hover {
@@ -62,11 +59,7 @@
   align-items: center;
   gap: 16px;
   padding: 20px 24px;
-  background: linear-gradient(
-    135deg,
-    rgba(212, 175, 55, 0.08) 0%,
-    rgba(212, 175, 55, 0.02) 100%
-  );
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.02) 100%);
   border-bottom: 1px solid rgba(212, 175, 55, 0.15);
   position: relative;
 }
@@ -96,7 +89,7 @@
 }
 
 .podium-card__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-serif, 'Fraunces', Georgia, serif);
   font-size: 20px;
   font-weight: 700;
   color: #ffffff;
@@ -110,17 +103,28 @@
   justify-content: center;
   gap: 12px;
   padding: 32px 20px 24px;
-  background:
-    radial-gradient(ellipse at center bottom, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
+  background: radial-gradient(
+    ellipse at center bottom,
+    rgba(212, 175, 55, 0.05) 0%,
+    transparent 70%
+  );
   /* Consistent height regardless of placement count */
   min-height: 340px;
 }
 
 /* Podium order: 2nd, 1st, 3rd, 4th */
-.podium-card__podium .podium-position:nth-child(1) { order: 2; } /* 1st in center */
-.podium-card__podium .podium-position:nth-child(2) { order: 1; } /* 2nd on left */
-.podium-card__podium .podium-position:nth-child(3) { order: 3; } /* 3rd on right */
-.podium-card__podium .podium-position:nth-child(4) { order: 4; } /* 4th far right */
+.podium-card__podium .podium-position:nth-child(1) {
+  order: 2;
+} /* 1st in center */
+.podium-card__podium .podium-position:nth-child(2) {
+  order: 1;
+} /* 2nd on left */
+.podium-card__podium .podium-position:nth-child(3) {
+  order: 3;
+} /* 3rd on right */
+.podium-card__podium .podium-position:nth-child(4) {
+  order: 4;
+} /* 4th far right */
 
 /* ===== PODIUM POSITION ===== */
 .podium-position {
@@ -257,7 +261,7 @@
 
 /* Dog Name - The Star */
 .podium-position__dog {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-serif, 'Fraunces', Georgia, serif);
   font-size: 16px;
   font-weight: 700;
   color: #ffffff;
@@ -315,7 +319,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
 }
 
 /* 1st Place Platform - Tallest, most prestigious */
@@ -378,11 +382,14 @@
 
 /* Gold shimmer effect */
 @keyframes podium-gold-shimmer {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: var(--podium-first-glow);
   }
   50% {
-    box-shadow: 0 4px 30px rgba(212, 175, 55, 0.7), 0 0 60px rgba(212, 175, 55, 0.3);
+    box-shadow:
+      0 4px 30px rgba(212, 175, 55, 0.7),
+      0 0 60px rgba(212, 175, 55, 0.3);
   }
 }
 
@@ -404,10 +411,18 @@
 }
 
 /* Staggered delays */
-.podium-position--animate.podium-position--first { animation-delay: 0.2s; }
-.podium-position--animate.podium-position--second { animation-delay: 0.35s; }
-.podium-position--animate.podium-position--third { animation-delay: 0.5s; }
-.podium-position--animate.podium-position--fourth { animation-delay: 0.65s; }
+.podium-position--animate.podium-position--first {
+  animation-delay: 0.2s;
+}
+.podium-position--animate.podium-position--second {
+  animation-delay: 0.35s;
+}
+.podium-position--animate.podium-position--third {
+  animation-delay: 0.5s;
+}
+.podium-position--animate.podium-position--fourth {
+  animation-delay: 0.65s;
+}
 
 /* Badge pop animation */
 .podium-position--animate .podium-position__badge {
@@ -548,11 +563,7 @@
   }
 
   :root.theme-auto .podium-card__header {
-    background: linear-gradient(
-      135deg,
-      rgba(184, 134, 11, 0.08) 0%,
-      rgba(184, 134, 11, 0.02) 100%
-    );
+    background: linear-gradient(135deg, rgba(184, 134, 11, 0.08) 0%, rgba(184, 134, 11, 0.02) 100%);
     border-bottom-color: rgba(153, 101, 21, 0.15);
   }
 
@@ -568,11 +579,15 @@
   }
 
   :root.theme-auto .podium-card__title {
-    color: #2D2A26;
+    color: #2d2a26;
   }
 
   :root.theme-auto .podium-card__podium {
-    background: radial-gradient(ellipse at center bottom, rgba(184, 134, 11, 0.05) 0%, transparent 70%);
+    background: radial-gradient(
+      ellipse at center bottom,
+      rgba(184, 134, 11, 0.05) 0%,
+      transparent 70%
+    );
   }
 
   :root.theme-auto .podium-position__card {
@@ -586,11 +601,11 @@
   }
 
   :root.theme-auto .podium-position__handler {
-    color: #5C574F;
+    color: #5c574f;
   }
 
   :root.theme-auto .podium-position__dog {
-    color: #2D2A26;
+    color: #2d2a26;
   }
 
   :root.theme-auto .podium-position--first .podium-position__dog {
@@ -614,11 +629,7 @@
 
 /* Forced light mode */
 :root.theme-light .podium-card {
-  background: linear-gradient(
-    165deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(250, 248, 245, 0.98) 100%
-  );
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 248, 245, 0.98) 100%);
   box-shadow:
     0 4px 24px rgba(153, 101, 21, 0.12),
     0 0 0 1px rgba(153, 101, 21, 0.1),
@@ -633,11 +644,7 @@
 }
 
 :root.theme-light .podium-card__header {
-  background: linear-gradient(
-    135deg,
-    rgba(184, 134, 11, 0.08) 0%,
-    rgba(184, 134, 11, 0.02) 100%
-  );
+  background: linear-gradient(135deg, rgba(184, 134, 11, 0.08) 0%, rgba(184, 134, 11, 0.02) 100%);
   border-bottom-color: rgba(153, 101, 21, 0.15);
 }
 
@@ -653,11 +660,15 @@
 }
 
 :root.theme-light .podium-card__title {
-  color: #2D2A26;
+  color: #2d2a26;
 }
 
 :root.theme-light .podium-card__podium {
-  background: radial-gradient(ellipse at center bottom, rgba(184, 134, 11, 0.05) 0%, transparent 70%);
+  background: radial-gradient(
+    ellipse at center bottom,
+    rgba(184, 134, 11, 0.05) 0%,
+    transparent 70%
+  );
 }
 
 :root.theme-light .podium-position__card {
@@ -671,11 +682,11 @@
 }
 
 :root.theme-light .podium-position__handler {
-  color: #5C574F;
+  color: #5c574f;
 }
 
 :root.theme-light .podium-position__dog {
-  color: #2D2A26;
+  color: #2d2a26;
 }
 
 :root.theme-light .podium-position--first .podium-position__dog {

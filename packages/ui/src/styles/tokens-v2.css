@@ -1,0 +1,44 @@
+/* =====================================================================
+   myK9 v2 Design Tokens
+   Canonical surfaces, typography, neutrals, and elevation for v2.
+   Consumed by both myK9Q and myK9Show via @myk9/ui/styles.
+   See docs/superpowers/specs/2026-04-20-myk9q-design-system-v2-design.md
+   ===================================================================== */
+
+:root {
+  /* ---- Surfaces — Parchment canvas + pure white cards ---- */
+  --background: #faf7f2;
+  --background-alt: #f3efe6;
+  --background-subtle: #f3efe6;
+  --surface: #faf9f5;
+  --card: #ffffff;
+  --card-foreground: #141413;
+  --card-secondary: #f0eee6;
+
+  /* ---- Foreground — warm ink ---- */
+  --foreground: #181411;
+  --foreground-muted: #5e5d59;
+
+  /* ---- Borders — warm cream ---- */
+  --border: #e4dccc;
+  --border-strong: #b8b4a5;
+
+  /* ---- Warm-tone neutrals ---- */
+  --muted: #f0eee6;
+  --muted-foreground: #8c8376;
+  --text-gray: #87867f;
+  --text-light-gray: #87867f;
+
+  /* ---- Typography ---- */
+  --font-sans:
+    'Montserrat', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-family: var(--font-sans);
+  --font-display: var(--font-serif);
+
+  /* ---- Elevation — ring shadows (crisp edge for outdoor readability) ---- */
+  --token-shadow-sm: 0 0 0 1px rgba(20, 20, 19, 0.08);
+  --token-shadow-md: 0 0 0 1px rgba(20, 20, 19, 0.08), 0 2px 8px rgba(20, 20, 19, 0.05);
+  --token-shadow-lg: 0 0 0 1px rgba(20, 20, 19, 0.1), 0 4px 24px rgba(20, 20, 19, 0.05);
+  --token-shadow-xl: 0 0 0 1px rgba(20, 20, 19, 0.12), 0 12px 32px rgba(20, 20, 19, 0.08);
+}

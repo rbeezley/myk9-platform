@@ -34,6 +34,7 @@ if (import.meta.env.DEV) {
   window.addEventListener('replication:perf-measure', (event: Event) => {
     const { name, durationMs, ...rest } = (event as CustomEvent).detail ?? {};
     const ms = typeof durationMs === 'number' ? `${durationMs.toFixed(1)}ms` : 'n/a';
+    // eslint-disable-next-line no-console
     console.log(`[perf] ${name}: ${ms}`, rest);
   });
 }

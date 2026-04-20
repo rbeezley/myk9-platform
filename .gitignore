@@ -35,6 +35,9 @@ coverage/
 playwright-report/
 test-results/
 *-snapshots/
+# Exception: visual regression baselines are intentionally committed
+!apps/myk9q/tests/visual/**/*-snapshots/
+!apps/myk9q/tests/visual/**/*-snapshots/**
 screenshots/
 e2e-screenshots/
 e2e-test-report.md

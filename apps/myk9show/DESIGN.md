@@ -13,7 +13,7 @@ Where Claude's design feels like a literary salon, myK9Show feels like a **well-
 **Key Characteristics:**
 
 - Warm parchment canvas (`#f5f4ed`) — premium paper, not a screen
-- Playfair Display for editorial headings (authority, hierarchy, AKC catalog feel)
+- Fraunces for editorial headings (authority, hierarchy, AKC catalog feel)
 - Montserrat for all UI text (quiet efficiency, high legibility)
 - Teal (`#14b8a6`) as the semantic default accent — qualifying ribbons, AKC brand, achievement
 - Warm-toned neutrals everywhere — every gray carries a yellow-brown undertone
@@ -102,25 +102,25 @@ Per-show branding affects show-specific UI surfaces (cover image, logo, accent s
 
 ### Font Families
 
-| Family               | Use                            | Rationale                                                        |
-| -------------------- | ------------------------------ | ---------------------------------------------------------------- |
-| **Playfair Display** | h1, h2 — page/section headings | Graceful serif; carries the authority of a printed catalog entry |
-| **Montserrat**       | h3, h4, body, all UI           | Clean geometric sans; reliable at small sizes on mobile          |
+| Family         | Use                            | Rationale                                                        |
+| -------------- | ------------------------------ | ---------------------------------------------------------------- |
+| **Fraunces**   | h1, h2 — page/section headings | Graceful serif; carries the authority of a printed catalog entry |
+| **Montserrat** | h3, h4, body, all UI           | Clean geometric sans; reliable at small sizes on mobile          |
 
-_Note: Playfair Display is our substitute for Anthropic Serif. Montserrat substitutes for Anthropic Sans. Both are loaded from Google Fonts._
+_Note: Fraunces is our substitute for Anthropic Serif. Montserrat substitutes for Anthropic Sans. Both are loaded from Google Fonts._
 
-Google Fonts load line: `Montserrat:wght@400;500;600;700` and `Playfair+Display:wght@400;500;600;700`.
+Google Fonts load line: `Montserrat:wght@400;500;600;700` and `Fraunces:opsz,wght@9..144,600;9..144,700` (variable axis, `display=swap`).
 
 ### Heading Hierarchy
 
-| Level | Font             | Weight | Line Height  | Use                                             |
-| ----- | ---------------- | ------ | ------------ | ----------------------------------------------- |
-| h1    | Playfair Display | 500    | 1.10 (tight) | Page title, hero headline — book-title presence |
-| h2    | Playfair Display | 500    | 1.20         | Section anchor — feature section headers        |
-| h3    | Montserrat       | 600    | 1.30         | Sub-section — card titles, group headers        |
-| h4    | Montserrat       | 600    | 1.30         | Component heading — table titles, form sections |
+| Level | Font       | Weight | Line Height  | Use                                             |
+| ----- | ---------- | ------ | ------------ | ----------------------------------------------- |
+| h1    | Fraunces   | 500    | 1.10 (tight) | Page title, hero headline — book-title presence |
+| h2    | Fraunces   | 500    | 1.20         | Section anchor — feature section headers        |
+| h3    | Montserrat | 600    | 1.30         | Sub-section — card titles, group headers        |
+| h4    | Montserrat | 600    | 1.30         | Component heading — table titles, form sections |
 
-**Single weight for serifs**: All Playfair Display headings use weight 500. No bold serif. This creates a consistent editorial voice — like one author wrote every heading. Bold Playfair Display looks aggressive; weight 500 looks considered.
+**Single weight for serifs**: All Fraunces headings use weight 500. No bold serif. This creates a consistent editorial voice — like one author wrote every heading. Bold Fraunces looks aggressive; weight 500 looks considered.
 
 ### Body
 
@@ -132,8 +132,8 @@ Google Fonts load line: `Montserrat:wght@400;500;600;700` and `Playfair+Display:
 
 - Serif for **authority** (page/section headings that establish context)
 - Sans for **utility** (anything a user acts on — buttons, form labels, table headers, nav)
-- Never bold (`700`) a Playfair Display heading — weight 500 is the ceiling
-- Never use Playfair Display for UI elements (buttons, labels, inputs) — that's Montserrat's domain
+- Never bold (`700`) a Fraunces heading — weight 500 is the ceiling
+- Never use Fraunces for UI elements (buttons, labels, inputs) — that's Montserrat's domain
 
 ---
 
@@ -332,7 +332,7 @@ Every UI surface in myK9Show serves one of three roles. Read [`docs/INTENT.md`](
 ### Do
 
 - Use `#f5f4ed` (Parchment) as the light page background — the warmth IS the brand
-- Use Playfair Display weight 500 for h1/h2 — single weight, always
+- Use Fraunces weight 500 for h1/h2 — single weight, always
 - Use teal (`#14b8a6`) for the default primary accent — it carries semantic meaning
 - Use ring shadows (`0px 0px 0px 1px`) for interactive hover/focus states
 - Use status colors (`--status-*`) for pipeline states — never remap them to accent
@@ -343,11 +343,11 @@ Every UI surface in myK9Show serves one of three roles. Read [`docs/INTENT.md`](
 ### Don't
 
 - Don't swap teal for terracotta as the default without explicit user request — teal has semantic meaning
-- Don't bold (`weight: 700`) Playfair Display headings — 500 is the ceiling
+- Don't bold (`weight: 700`) Fraunces headings — 500 is the ceiling
 - Don't use status colors as decorative accent colors — they are semantic
 - Don't apply heavy drop shadows — ring shadows + whisper shadows only
 - Don't use cool blue-grays anywhere outside of the focus ring accessibility context
-- Don't use Playfair Display for button labels, form inputs, or navigation
+- Don't use Fraunces for button labels, form inputs, or navigation
 - Don't apply platform accent color to TV display pages — they have their own display-optimized palette
 - Don't introduce pure `#ffffff` as a page background — always Parchment or Ivory
 
@@ -371,7 +371,7 @@ Ring shadow:         var(--shadow-ring)  = 0px 0px 0px 1px var(--border)
 
 ### Example Component Prompts
 
-- "Create a page heading at `text-3xl` in Playfair Display weight 500, `text-foreground`, `line-height: 1.1`."
+- "Create a page heading at `text-3xl` in Fraunces weight 500, `text-foreground`, `line-height: 1.1`."
 - "Design a hoverable card on `var(--card)` background with `1px solid var(--border)` border, `rounded-lg`, shadow `var(--shadow-card)` at rest, `var(--shadow-card-hover)` on hover."
 - "Add a status badge using `var(--status-in-ring)` background and white text, `rounded-full`, `text-xs` with `letter-spacing: 0.01em`."
 - "Build a primary CTA button with `var(--primary)` background, `var(--primary-foreground)` text, `rounded-lg`, focus ring via `box-shadow: 0 0 0 2px var(--ring)`."
@@ -381,7 +381,7 @@ Ring shadow:         var(--shadow-ring)  = 0px 0px 0px 1px var(--border)
 
 1. Reference specific variable names — `var(--muted-foreground)` not "gray text"
 2. Always specify warm-toned variants — no cool grays
-3. Specify serif vs sans explicitly — "Playfair Display for the heading, Montserrat for the label"
+3. Specify serif vs sans explicitly — "Fraunces for the heading, Montserrat for the label"
 4. For shadows, use ring or whisper patterns — never generic drop shadow
 5. For status indicators, use `--status-*` variables — never accent colors
 6. Check `docs/INTENT.md` before changing role-facing page layouts

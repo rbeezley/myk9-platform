@@ -11,19 +11,18 @@
   --apple-system-gray: #8e8e93;
 
   /* Brand Colors */
-  --brand-blue: #007AFF;
-  --brand-purple: #5856D6;
-  --brand-gradient: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  --brand-blue: #007aff;
+  --brand-purple: #5856d6;
+  --brand-gradient: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
 
   /* ===== UI COLORS (Light Theme) ===== */
-  /* Warm premium backgrounds for Hero/Ruler brand archetype */
-  --background: #F8F7F4;  /* Warm off-white (was #fefefe) */
+  /* v2: --background, --background-alt, --card, --card-secondary, --border,
+     --muted-foreground, --surface, --text-gray, and --text-light-gray now
+     come from @myk9/ui/styles/tokens-v2.css (imported via app index.css
+     BEFORE this file, so the app-specific tokens below take precedence). */
   --foreground: #0a0a0a;
-  --card: #FEFDFB;        /* Subtle cream tint (was #ffffff) */
   --card-foreground: #0a0a0a;
   --muted: #f6f6f6;
-  --muted-foreground: #6b7280;
-  --border: #e5e7eb;
   --input: #f3f4f6;
   --input-bg: #ffffff;
   --input-border: #d1d5db;
@@ -33,22 +32,17 @@
   --primary-hover: #0d9488;
   --primary-foreground: #ffffff;
   --accent-color: var(--primary);
-  --secondary: #F8F7F4;  /* Warm off-white (was #f1f5f9) - page container backgrounds */
   --secondary-foreground: #0f172a;
 
   /* Neutral Grays (Light Theme) - for theme switching */
-  --surface: #F8F7F4;              /* Warm off-white (was #f1f5f9) */
-  --surface-subtle: #f3f4f6;        /* Very light surface */
-  --surface-muted: #f5f5f5;         /* Light subtle surface */
-  --surface-elevated: #ffffff;      /* Elevated card/modal background */
-  --background-subtle: #f8fafc;     /* Lightest surface */
-  --background-soft: #f8f9fa;       /* Subtle background */
-  --foreground-muted: #374151;      /* Muted text color */
-  --foreground-dark: #1e293b;       /* Dark text on light bg */
-  --border-light: #e0e0e0;          /* Light border */
-  --border-subtle: #e5e7eb;         /* Very light border */
-  --text-gray: #6b7280;             /* Gray text/muted */
-  --text-light-gray: #9ca3af;       /* Light gray text */
+  --surface-subtle: #f3f4f6; /* Very light surface */
+  --surface-muted: #f5f5f5; /* Light subtle surface */
+  --surface-elevated: #ffffff; /* Elevated card/modal background */
+  --background-soft: #f8f9fa; /* Subtle background */
+  --foreground-muted: #374151; /* Muted text color */
+  --foreground-dark: #1e293b; /* Dark text on light bg */
+  --border-light: #e0e0e0; /* Light border */
+  --border-subtle: #e5e7eb; /* Very light border */
 
   /* ===== STATUS COLORS ===== */
   /* Check-in Status Colors */
@@ -153,15 +147,15 @@
   --status-pending-text: #6b7280;
 
   /* Semantic Colors */
-  --pending-orange: #FF9500;
+  --pending-orange: #ff9500;
   --pending-glow: 0 0 var(--token-space-2xl) rgba(255, 149, 0, 0.3);
-  --success-green: #34C759;
-  --error-red: #FF3B30;
-  --warning-amber: #FF9500;
+  --success-green: #34c759;
+  --error-red: #ff3b30;
+  --warning-amber: #ff9500;
 
-  --token-success: #34C759;
-  --token-warning: #FF9500;
-  --token-error: #FF3B30;
+  --token-success: #34c759;
+  --token-warning: #ff9500;
+  --token-error: #ff3b30;
   --token-success-contrast: var(--status-checked-in);
 
   /* Onboarding Colors - All Teal for Brand Consistency */
@@ -216,14 +210,14 @@
   --token-status-done-bg: var(--status-completed-bg);
 
   /* ===== SPACING ===== */
-  --token-space-xs: 0.125rem;   /* var(--token-space-xs) */
-  --token-space-sm: 0.25rem;    /* var(--token-space-sm) */
-  --token-space-md: 0.5rem;     /* var(--token-space-md) */
-  --token-space-lg: 0.75rem;    /* var(--token-space-lg) - mobile container padding */
-  --token-space-xl: 1rem;       /* var(--token-space-xl) */
-  --token-space-2xl: 1.25rem;   /* var(--token-space-2xl) */
-  --token-space-3xl: 1.5rem;    /* var(--token-space-3xl) - desktop container padding */
-  --token-space-4xl: 2rem;      /* var(--token-space-4xl) */
+  --token-space-xs: 0.125rem; /* var(--token-space-xs) */
+  --token-space-sm: 0.25rem; /* var(--token-space-sm) */
+  --token-space-md: 0.5rem; /* var(--token-space-md) */
+  --token-space-lg: 0.75rem; /* var(--token-space-lg) - mobile container padding */
+  --token-space-xl: 1rem; /* var(--token-space-xl) */
+  --token-space-2xl: 1.25rem; /* var(--token-space-2xl) */
+  --token-space-3xl: 1.5rem; /* var(--token-space-3xl) - desktop container padding */
+  --token-space-4xl: 2rem; /* var(--token-space-4xl) */
 
   /* Density Spacing (multipliers for element spacing) */
   --spacing-multiplier: 1;
@@ -237,17 +231,14 @@
   --element-gap: calc(var(--spacing-comfortable) * var(--spacing-multiplier));
 
   /* ===== BORDER RADIUS ===== */
-  --token-radius-sm: 0.375rem;  /* 6px */
-  --token-radius-md: 0.5rem;    /* var(--token-space-md) */
-  --token-radius-lg: 0.75rem;   /* var(--token-space-lg) */
-  --token-radius-xl: 1rem;      /* var(--token-space-xl) */
+  --token-radius-sm: 0.375rem; /* 6px */
+  --token-radius-md: 0.5rem; /* var(--token-space-md) */
+  --token-radius-lg: 0.75rem; /* var(--token-space-lg) */
+  --token-radius-xl: 1rem; /* var(--token-space-xl) */
   --token-radius-full: 50%;
 
   /* ===== SHADOWS ===== */
-  --token-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --token-shadow-md: 0 var(--token-space-xs) var(--token-space-md) rgba(0, 0, 0, 0.1);
-  --token-shadow-lg: 0 var(--token-space-md) var(--token-space-3xl) rgba(0, 0, 0, 0.12);
-  --token-shadow-xl: 0 var(--token-space-lg) var(--token-space-4xl) rgba(0, 0, 0, 0.15);
+  /* v2: Ring shadows now come from @myk9/ui/styles/tokens-v2.css. */
 
   /* ===== GLASS MORPHISM ===== */
   --glass-bg: rgba(255, 255, 255, 0.1);
@@ -256,28 +247,28 @@
 
   /* ===== OPACITY VARIANTS ===== */
   /* White overlays (for light backgrounds) */
-  --overlay-white-subtle: rgba(255, 255, 255, 0.1);      /* 34x - subtle white overlay */
-  --overlay-white-light: rgba(255, 255, 255, 0.2);       /* 23x - light white overlay */
-  --overlay-white-moderate: rgba(255, 255, 255, 0.3);    /* 21x - moderate white overlay */
-  --overlay-white-strong: rgba(255, 255, 255, 0.6);      /* 13x - strong white overlay */
-  --overlay-white-heavy: rgba(255, 255, 255, 0.8);       /* 32x - very strong white overlay */
+  --overlay-white-subtle: rgba(255, 255, 255, 0.1); /* 34x - subtle white overlay */
+  --overlay-white-light: rgba(255, 255, 255, 0.2); /* 23x - light white overlay */
+  --overlay-white-moderate: rgba(255, 255, 255, 0.3); /* 21x - moderate white overlay */
+  --overlay-white-strong: rgba(255, 255, 255, 0.6); /* 13x - strong white overlay */
+  --overlay-white-heavy: rgba(255, 255, 255, 0.8); /* 32x - very strong white overlay */
 
   /* Black shadows/overlays (for dark effects) */
-  --shadow-barely: rgba(0, 0, 0, 0.05);                  /* 13x - barely visible shadow */
-  --shadow-subtle: rgba(0, 0, 0, 0.1);                   /* 29x - subtle shadow */
-  --shadow-light: rgba(0, 0, 0, 0.15);                   /* 12x - light shadow */
-  --shadow-moderate: rgba(0, 0, 0, 0.2);                 /* 17x - moderate shadow */
-  --shadow-medium: rgba(0, 0, 0, 0.3);                   /* 26x - medium shadow */
-  --shadow-strong: rgba(0, 0, 0, 0.4);                   /* 6x - strong shadow/overlay */
-  --shadow-modal: rgba(0, 0, 0, 0.5);                    /* 19x - modal backdrop */
+  --shadow-barely: rgba(0, 0, 0, 0.05); /* 13x - barely visible shadow */
+  --shadow-subtle: rgba(0, 0, 0, 0.1); /* 29x - subtle shadow */
+  --shadow-light: rgba(0, 0, 0, 0.15); /* 12x - light shadow */
+  --shadow-moderate: rgba(0, 0, 0, 0.2); /* 17x - moderate shadow */
+  --shadow-medium: rgba(0, 0, 0, 0.3); /* 26x - medium shadow */
+  --shadow-strong: rgba(0, 0, 0, 0.4); /* 6x - strong shadow/overlay */
+  --shadow-modal: rgba(0, 0, 0, 0.5); /* 19x - modal backdrop */
 
   /* Status color overlays (for highlights/badges) */
-  --overlay-error: rgba(239, 68, 68, 0.1);               /* 21x - red error highlight */
-  --overlay-info: rgba(99, 102, 241, 0.1);               /* 21x - blue info highlight */
-  --overlay-success: rgba(16, 185, 129, 0.1);            /* 13x - green success highlight */
+  --overlay-error: rgba(239, 68, 68, 0.1); /* 21x - red error highlight */
+  --overlay-info: rgba(99, 102, 241, 0.1); /* 21x - blue info highlight */
+  --overlay-success: rgba(16, 185, 129, 0.1); /* 13x - green success highlight */
 
   /* Dark theme overlays */
-  --overlay-dark-heavy: rgba(26, 29, 35, 0.8);           /* 22x - dark glass morphism */
+  --overlay-dark-heavy: rgba(26, 29, 35, 0.8); /* 22x - dark glass morphism */
 
   /* ===== SKELETON LOADERS ===== */
   --skeleton-gradient: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -298,18 +289,16 @@
   --apple-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
   /* ===== TYPOGRAPHY ===== */
-  /* Primary: Montserrat (loaded via Google Fonts in index.html) */
-  /* Fallback: System fonts for offline/slow connections */
-  --font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
-  --font-display: 'Playfair Display', Georgia, serif; /* Reserved for celebration moments (The Podium) */
+  /* v2: --font-family (Montserrat) and --font-display/--font-serif (Fraunces)
+     now come from @myk9/ui/styles/tokens-v2.css. */
 
-  --token-font-xs: 0.625rem;    /* 10px */
-  --token-font-sm: 0.75rem;     /* var(--token-space-lg) */
-  --token-font-md: 0.875rem;    /* 14px */
-  --token-font-lg: 1rem;        /* var(--token-space-xl) */
-  --token-font-xl: 1.125rem;    /* 18px */
-  --token-font-2xl: 1.25rem;    /* var(--token-space-2xl) */
-  --token-font-3xl: 1.5rem;     /* var(--token-space-3xl) */
+  --token-font-xs: 0.625rem; /* 10px */
+  --token-font-sm: 0.75rem; /* var(--token-space-lg) */
+  --token-font-md: 0.875rem; /* 14px */
+  --token-font-lg: 1rem; /* var(--token-space-xl) */
+  --token-font-xl: 1.125rem; /* 18px */
+  --token-font-2xl: 1.25rem; /* var(--token-space-2xl) */
+  --token-font-3xl: 1.5rem; /* var(--token-space-3xl) */
 
   --token-font-weight-normal: 400;
   --token-font-weight-medium: 500;
@@ -322,7 +311,7 @@
   --token-z-raised: 10;
   --token-z-dropdown: 100;
   --token-z-overlay: 100;
-  --token-z-popover: 1500;  /* Above modals, below toasts */
+  --token-z-popover: 1500; /* Above modals, below toasts */
   --token-z-modal: 1000;
   --token-z-toast: 2000;
   --z-menu-overlay: 9999;
@@ -337,13 +326,9 @@
 /* ===== DARK THEME ===== */
 .theme-dark {
   /* UI Colors (Dark Mode) */
-  --background: #1a1a1e;  /* Warmer charcoal (was #1a1d23) */
-  --foreground: #ffffff;
-  --card: #26292e;              /* Elevated card background - lighter than page for contrast */
+  /* v2: Canvas, card, muted, border, foreground, muted-foreground now come
+     from @myk9/ui/styles/dark-v2.css (warm olive-dark matching myK9Show v2). */
   --card-foreground: #ffffff;
-  --muted: #26292e;
-  --muted-foreground: #ffffff;
-  --border: #4a5568;
   --input: #2a2a2a;
   --input-bg: #1f2937;
   --input-border: #374151;
@@ -356,18 +341,18 @@
   --secondary-foreground: #ffffff;
 
   /* Neutral Grays (Dark Theme) - for theme switching */
-  --surface: #2a2a2a;              /* Dark surface */
-  --surface-subtle: #262626;        /* Slightly darker surface */
-  --surface-muted: #1a1a1a;         /* Very dark surface */
-  --surface-elevated: #2c3e50;      /* Dark elevated surface */
-  --background-subtle: #1f2937;     /* Dark surface elevated */
-  --background-soft: #334155;       /* Medium dark gray */
-  --foreground-muted: #e5e7eb;      /* Light muted text on dark */
-  --foreground-dark: #ffffff;       /* White text on dark bg */
-  --border-light: #3a3a3a;          /* Dark border */
-  --border-subtle: #4a5568;         /* Subtle dark border */
-  --text-gray: #9ca3af;             /* Gray text on dark */
-  --text-light-gray: #6b7280;       /* Darker gray text */
+  --surface: #2a2a2a; /* Dark surface */
+  --surface-subtle: #262626; /* Slightly darker surface */
+  --surface-muted: #1a1a1a; /* Very dark surface */
+  --surface-elevated: #2c3e50; /* Dark elevated surface */
+  --background-subtle: #1f2937; /* Dark surface elevated */
+  --background-soft: #334155; /* Medium dark gray */
+  --foreground-muted: #e5e7eb; /* Light muted text on dark */
+  --foreground-dark: #ffffff; /* White text on dark bg */
+  --border-light: #3a3a3a; /* Dark border */
+  --border-subtle: #4a5568; /* Subtle dark border */
+  --text-gray: #9ca3af; /* Gray text on dark */
+  --text-light-gray: #6b7280; /* Darker gray text */
 
   /* Glass Morphism (Dark Mode) */
   --glass-bg: rgba(26, 29, 35, 0.9);
@@ -429,11 +414,11 @@
   --token-text-muted: #6b7280;
   --token-text-white: #ffffff;
 
-  /* Shadows (Dark Mode - stronger) */
-  --token-shadow-sm: 0 1px 3px var(--shadow-medium);
-  --token-shadow-md: 0 var(--token-space-xs) var(--token-space-md) var(--shadow-medium);
-  --token-shadow-lg: 0 var(--token-space-md) var(--token-space-3xl) var(--shadow-strong);
-  --token-shadow-xl: 0 var(--token-space-lg) var(--token-space-4xl) var(--shadow-strong);
+  /* Shadows (Dark Mode) */
+  /* v2: --token-shadow-sm / --token-shadow-md (ring shadows) now come from
+     @myk9/ui/styles/tokens-v2.css and apply in both modes. The hover
+     shadows below remain app-local because they compose app-specific
+     spacing tokens (--token-space-*). */
   --token-hover-shadow: 0 var(--token-space-md) var(--token-space-3xl) var(--shadow-strong);
   --token-hover-shadow-lg: 0 var(--token-space-lg) var(--token-space-4xl) var(--shadow-strong);
 
@@ -514,12 +499,16 @@ html.density-spacious .card {
 /* Status color utilities */
 .token-status-in-ring-hover:hover {
   transform: var(--token-hover-scale-sm) var(--token-hover-lift);
-  box-shadow: 0 var(--token-space-lg) var(--token-space-4xl) rgba(249, 115, 22, 0.2), 0 var(--token-space-md) var(--token-space-xl) rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 var(--token-space-lg) var(--token-space-4xl) rgba(249, 115, 22, 0.2),
+    0 var(--token-space-md) var(--token-space-xl) rgba(0, 0, 0, 0.15);
   border-color: rgba(249, 115, 22, 0.4);
 }
 
 .theme-dark .token-status-in-ring-hover:hover {
-  box-shadow: 0 var(--token-space-lg) var(--token-space-4xl) rgba(249, 115, 22, 0.3), 0 var(--token-space-md) var(--token-space-xl) var(--shadow-strong);
+  box-shadow:
+    0 var(--token-space-lg) var(--token-space-4xl) rgba(249, 115, 22, 0.3),
+    0 var(--token-space-md) var(--token-space-xl) var(--shadow-strong);
   border-color: rgba(249, 115, 22, 0.5);
 }
 
@@ -529,16 +518,16 @@ html.density-spacious .card {
    =================================================================== */
 
 /* Optimize notification icons and logos for crisp rendering */
-img[src*="notification-icon"],
-img[src*="logo"] {
+img[src*='notification-icon'],
+img[src*='logo'] {
   image-rendering: -webkit-optimize-contrast; /* Webkit/Blink - Safari, Chrome */
   image-rendering: crisp-edges; /* Standard CSS - Modern browsers */
   image-rendering: -moz-crisp-edges; /* Firefox */
 }
 
 /* Smooth scaling for larger images (photos, screenshots) */
-img[src*="screenshot"],
-img[src*="photo"] {
+img[src*='screenshot'],
+img[src*='photo'] {
   image-rendering: auto; /* Use default smooth scaling */
 }
 

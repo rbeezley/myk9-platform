@@ -7,14 +7,16 @@
   <style>
     /* Hardcoded backgrounds - no dependencies on external CSS */
     /* EXCEPTION: Landing and Login pages have their own dark theme */
+    /* Values MUST mirror v2 canvas tokens in packages/ui/src/styles/{tokens-v2,dark-v2}.css
+       to prevent an FOUC flash of v1 colors on first paint. */
     html, body, #root, .page-loader-container {
-      background-color: #F8F7F4;
+      background-color: #faf7f2;
     }
     .theme-dark,
     .theme-dark body,
     .theme-dark #root,
     .theme-dark .page-loader-container {
-      background-color: #1a1a1e;
+      background-color: #181411;
     }
     /* Landing/Login pages - force dark backgrounds (override warm theme) */
     /* .landing-theme is set by theme-init.js for instant dark background */
@@ -65,6 +67,14 @@
 
   <!-- Self-hosted Montserrat font (eliminates render-blocking Google Fonts request) -->
   <link rel="stylesheet" href="/fonts/fonts.css" />
+
+  <!-- Fraunces — celebration only (The Podium). Lazy via display=swap; falls back to Georgia. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
+    rel="stylesheet"
+  />
 
   <!-- Critical CSS to prevent FOUC -->
   <link rel="stylesheet" href="/critical.css?v=13" />

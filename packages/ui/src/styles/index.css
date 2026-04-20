@@ -107,19 +107,12 @@
   --status-excused: #fef3c7;
 }
 
-/* Dark theme */
+/* Dark theme — non-v2 tokens only. Canvas/card/border/foreground/muted come
+   from dark-v2.css (scoped to .theme-dark for myK9Q). myK9Show's app-level
+   index.css defines its own .dark block with v2 values that override these. */
 .dark {
-  --surface: #2a2a2a;
   --surface-subtle: #262626;
   --surface-elevated: #2c3e50;
-
-  --background: #1a1d23;
-  --background-alt: #22262e;
-  --foreground: #f8fafc;
-
-  --card: #1f2229;
-  --card-secondary: #2a2d35;
-  --card-foreground: #f8fafc;
 
   --popover: #1f2229;
   --popover-foreground: #f8fafc;
@@ -130,16 +123,12 @@
   --secondary: #2a2d35;
   --secondary-foreground: #f8fafc;
 
-  --muted: #2a2d35;
-  --muted-foreground: #9ca3af;
-
   --accent: #2a2d35;
   --accent-foreground: #f8fafc;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
-  --border: #374151;
   --input: #2a2d35;
   --ring: #3b82f6;
 }

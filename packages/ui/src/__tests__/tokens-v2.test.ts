@@ -74,14 +74,17 @@ describe('dark-v2.css', () => {
 // (myK9Q imports @myk9/ui/styles directly). This test failed once in Phase 1
 // when --background, --card, --border, etc. were left over from v1. Keep it
 // so a future edit can't quietly reintroduce the shadow.
+//
+// Scoping note: .dark is myK9Show's shadcn convention; dark-v2.css scopes to
+// .theme-dark (myK9Q). These are separate selectors today, but a future edit
+// could add .theme-dark to the index.css .dark block (e.g. `.dark, .theme-dark`)
+// or rename myK9Q to use .dark. Assert no v2-owned tokens appear in .dark so
+// either change would trip the guard.
 describe('index.css does not shadow v2 tokens', () => {
-  let rootBody: string;
+  let css: string;
 
   beforeAll(() => {
-    const css = fs.readFileSync(path.resolve(__dirname, '../styles/index.css'), 'utf-8');
-    const rootMatch = css.match(/:root\s*\{([\s\S]*?)\n\}/);
-    expect(rootMatch).not.toBeNull();
-    rootBody = rootMatch![1];
+    css = fs.readFileSync(path.resolve(__dirname, '../styles/index.css'), 'utf-8');
   });
 
   const v2OwnedTokens = [
@@ -97,11 +100,37 @@ describe('index.css does not shadow v2 tokens', () => {
     '--surface',
   ];
 
-  for (const token of v2OwnedTokens) {
-    it(`:root does not redeclare ${token}`, () => {
-      // Match declarations only (token followed by `:`), not comments/references.
-      const pattern = new RegExp(`^\\s*${token}\\s*:`, 'm');
-      expect(rootBody).not.toMatch(pattern);
+  describe(':root block', () => {
+    let rootBody: string;
+
+    beforeAll(() => {
+      const rootMatch = css.match(/:root\s*\{([\s\S]*?)\n\}/);
+      expect(rootMatch).not.toBeNull();
+      rootBody = rootMatch![1];
     });
-  }
+
+    for (const token of v2OwnedTokens) {
+      it(`does not redeclare ${token}`, () => {
+        const pattern = new RegExp(`^\\s*${token}\\s*:`, 'm');
+        expect(rootBody).not.toMatch(pattern);
+      });
+    }
+  });
+
+  describe('.dark block', () => {
+    let darkBody: string;
+
+    beforeAll(() => {
+      const darkMatch = css.match(/\.dark\s*\{([\s\S]*?)\n\}/);
+      expect(darkMatch).not.toBeNull();
+      darkBody = darkMatch![1];
+    });
+
+    for (const token of v2OwnedTokens) {
+      it(`does not redeclare ${token}`, () => {
+        const pattern = new RegExp(`^\\s*${token}\\s*:`, 'm');
+        expect(darkBody).not.toMatch(pattern);
+      });
+    }
+  });
 });

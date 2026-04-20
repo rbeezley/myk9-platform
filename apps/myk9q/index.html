@@ -7,14 +7,16 @@
   <style>
     /* Hardcoded backgrounds - no dependencies on external CSS */
     /* EXCEPTION: Landing and Login pages have their own dark theme */
+    /* Values MUST mirror v2 canvas tokens in packages/ui/src/styles/{tokens-v2,dark-v2}.css
+       to prevent an FOUC flash of v1 colors on first paint. */
     html, body, #root, .page-loader-container {
-      background-color: #F8F7F4;
+      background-color: #faf7f2;
     }
     .theme-dark,
     .theme-dark body,
     .theme-dark #root,
     .theme-dark .page-loader-container {
-      background-color: #1a1a1e;
+      background-color: #181411;
     }
     /* Landing/Login pages - force dark backgrounds (override warm theme) */
     /* .landing-theme is set by theme-init.js for instant dark background */

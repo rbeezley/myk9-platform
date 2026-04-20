@@ -29,6 +29,15 @@ configureLogger({
   },
 });
 
+// DEV-only: log replication perf measures for Phase 6 SLO work
+if (import.meta.env.DEV) {
+  window.addEventListener('replication:perf-measure', (event: Event) => {
+    const { name, durationMs, ...rest } = (event as CustomEvent).detail ?? {};
+    const ms = typeof durationMs === 'number' ? `${durationMs.toFixed(1)}ms` : 'n/a';
+    console.log(`[perf] ${name}: ${ms}`, rest);
+  });
+}
+
 // Global error handlers - catch unhandled async errors and uncaught exceptions
 // These provide a safety net for errors that escape try/catch blocks
 window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {

@@ -13,6 +13,7 @@
 
 import { SyncEngine, type SyncOptions } from './SyncEngine';
 import type { ReplicatedTable, SyncResult } from '@myk9/replication';
+import { markPerf, measurePerf } from '@myk9/replication';
 import { logger } from '@/utils/logger';
 import { getReplicationMonitor } from './ReplicationMonitor';
 
@@ -58,7 +59,9 @@ export interface SyncOrchestratorConfig {
 /**
  * Callback type for getting a table by name
  */
-export type GetTableCallback = <T extends { id: string }>(tableName: string) => ReplicatedTable<T> | null;
+export type GetTableCallback = <T extends { id: string }>(
+  tableName: string
+) => ReplicatedTable<T> | null;
 
 /**
  * Callback type for getting all table names
@@ -144,7 +147,7 @@ export class SyncOrchestrator {
       const tableNames = this.getTableNames();
 
       // Load all metadata in parallel instead of sequentially
-      const metadataPromises = tableNames.map(async (tableName) => {
+      const metadataPromises = tableNames.map(async tableName => {
         const table = this.getTable(tableName);
         if (table) {
           const metadata = await table.getSyncMetadata();
@@ -212,10 +215,7 @@ export class SyncOrchestrator {
    * Day 25-26: Periodically force full sync to detect server deletions
    * RELIABILITY FIX: Full sync timestamps now persisted to IndexedDB
    */
-  async syncTable(
-    tableName: string,
-    options?: Partial<SyncOptions>
-  ): Promise<SyncResult> {
+  async syncTable(tableName: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     // Load persisted full sync timestamps on first sync
     await this.loadFullSyncTimesFromMetadata();
 
@@ -298,12 +298,14 @@ export class SyncOrchestrator {
       logger.warn('[SyncOrchestrator] Sync already in progress, queuing request...');
 
       // Dispatch event to notify UI
-      window.dispatchEvent(new CustomEvent('replication:sync-queued', {
-        detail: { message: 'Sync queued - will start after current sync completes' }
-      }));
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-queued', {
+          detail: { message: 'Sync queued - will start after current sync completes' },
+        })
+      );
 
       // Return a promise that resolves when the queued sync completes
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         this.syncQueue.push(async () => {
           const results = await this._syncAllInternal(options);
           resolve(results);
@@ -325,13 +327,18 @@ export class SyncOrchestrator {
 
     const startTime = Date.now();
     const results: SyncResult[] = [];
+    markPerf('replication:syncAll:start');
 
     try {
       // Phase 1 - Upload mutations BEFORE download sync
       // This prevents race conditions where download overwrites pending uploads
       logger.log('[SyncOrchestrator] Phase 1: Uploading pending mutations...');
       const mutationResults = await this.syncEngine.uploadPendingMutations();
-      logger.log('[SyncOrchestrator] Phase 1 complete:', mutationResults.length, 'mutations uploaded');
+      logger.log(
+        '[SyncOrchestrator] Phase 1 complete:',
+        mutationResults.length,
+        'mutations uploaded'
+      );
       results.push(...mutationResults);
 
       // Phase 2 - Download sync (mutations are now synced)
@@ -345,10 +352,7 @@ export class SyncOrchestrator {
           logger.log(`[SyncOrchestrator] Table ${tableName} sync result:`, result);
           results.push(result);
         } catch (error) {
-          logger.error(
-            `[SyncOrchestrator] Failed to sync table ${tableName}:`,
-            error
-          );
+          logger.error(`[SyncOrchestrator] Failed to sync table ${tableName}:`, error);
 
           results.push({
             tableName,
@@ -356,35 +360,38 @@ export class SyncOrchestrator {
             operation: 'incremental-sync',
             rowsAffected: 0,
             duration: 0,
-            error:
-              error instanceof Error ? error.message : 'Unknown sync error',
+            error: error instanceof Error ? error.message : 'Unknown sync error',
           });
         }
       }
 
       // RELIABILITY FIX: Dispatch event if any sync failed so UI can notify user
-      const failedSyncs = results.filter((r) => !r.success);
+      const failedSyncs = results.filter(r => !r.success);
       if (failedSyncs.length > 0) {
-        window.dispatchEvent(new CustomEvent('replication:sync-failed', {
-          detail: {
-            failedTables: failedSyncs.map(r => r.tableName),
-            errors: failedSyncs.map(r => r.error).filter(Boolean),
-            message: `Sync failed for ${failedSyncs.length} table(s). Data may be stale.`,
-          }
-        }));
+        window.dispatchEvent(
+          new CustomEvent('replication:sync-failed', {
+            detail: {
+              failedTables: failedSyncs.map(r => r.tableName),
+              errors: failedSyncs.map(r => r.error).filter(Boolean),
+              message: `Sync failed for ${failedSyncs.length} table(s). Data may be stale.`,
+            },
+          })
+        );
         logger.warn(`[SyncOrchestrator] ${failedSyncs.length} tables failed to sync`);
       } else {
         // Dispatch success event
-        window.dispatchEvent(new CustomEvent('replication:sync-success', {
-          detail: {
-            tablesCount: results.length,
-            timestamp: Date.now(),
-          }
-        }));
+        window.dispatchEvent(
+          new CustomEvent('replication:sync-success', {
+            detail: {
+              tablesCount: results.length,
+              timestamp: Date.now(),
+            },
+          })
+        );
       }
 
       const duration = Date.now() - startTime;
-      const successCount = results.filter((r) => r.success).length;
+      const successCount = results.filter(r => r.success).length;
 
       logger.log(
         `✅ [SyncOrchestrator] Sync complete: ${successCount}/${results.length} tables synced in ${duration}ms`
@@ -398,6 +405,11 @@ export class SyncOrchestrator {
       return results;
     } finally {
       this.isSyncing = false;
+      measurePerf('replication:syncAll', 'replication:syncAll:start', {
+        durationMs: Date.now() - startTime,
+        tables: results.length,
+        successful: results.filter(r => r.success).length,
+      });
 
       // Process queued sync requests
       this.processQueueIfNeeded();
@@ -407,10 +419,7 @@ export class SyncOrchestrator {
   /**
    * Force full sync for a single table
    */
-  async fullSyncTable(
-    tableName: string,
-    options?: Partial<SyncOptions>
-  ): Promise<SyncResult> {
+  async fullSyncTable(tableName: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     const table = this.getTable(tableName);
 
     if (!table) {
@@ -454,10 +463,7 @@ export class SyncOrchestrator {
         const result = await this.fullSyncTable(tableName, options);
         results.push(result);
       } catch (error) {
-        logger.error(
-          `[SyncOrchestrator] Failed to full sync table ${tableName}:`,
-          error
-        );
+        logger.error(`[SyncOrchestrator] Failed to full sync table ${tableName}:`, error);
 
         results.push({
           tableName,
@@ -477,10 +483,7 @@ export class SyncOrchestrator {
    * Refresh a single table (alias for fullSyncTable for pull-to-refresh UIs)
    * Forces a full sync to get the latest data from server
    */
-  async refreshTable(
-    tableName: string,
-    options?: Partial<SyncOptions>
-  ): Promise<SyncResult> {
+  async refreshTable(tableName: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[SyncOrchestrator] Refreshing table: ${tableName}`);
     return this.fullSyncTable(tableName, options);
   }
@@ -511,20 +514,18 @@ export class SyncOrchestrator {
 
     this.syncTimer = setInterval(() => {
       if (!this.isSyncing) {
-        this.syncAll().catch((error) => {
+        this.syncAll().catch(error => {
           logger.error('[SyncOrchestrator] Auto-sync failed:', error);
         });
       }
     }, interval);
 
-    logger.log(
-      `🔄 [SyncOrchestrator] Auto-sync started (every ${interval / 1000}s)`
-    );
+    logger.log(`🔄 [SyncOrchestrator] Auto-sync started (every ${interval / 1000}s)`);
 
     // Run initial sync if enabled
     if (this.config.autoSyncOnStartup) {
       logger.log('[SyncOrchestrator] Running initial sync...');
-      this.syncAll().catch((error) => {
+      this.syncAll().catch(error => {
         logger.error('[SyncOrchestrator] Initial sync failed:', error);
       });
     }
@@ -560,7 +561,9 @@ export class SyncOrchestrator {
       while (this.syncQueue.length > 0) {
         const syncFn = this.syncQueue.shift();
         if (syncFn) {
-          logger.log(`[SyncOrchestrator] Processing queued sync (${this.syncQueue.length} remaining)...`);
+          logger.log(
+            `[SyncOrchestrator] Processing queued sync (${this.syncQueue.length} remaining)...`
+          );
           await syncFn();
         }
       }
@@ -640,15 +643,11 @@ export class SyncOrchestrator {
       if (sizeBytes > tableTargetSize) {
         const evicted = await table.evictLRU(tableTargetSize);
         totalEvicted += evicted;
-        logger.log(
-          `[SyncOrchestrator] Evicted ${evicted} rows from ${tableName}`
-        );
+        logger.log(`[SyncOrchestrator] Evicted ${evicted} rows from ${tableName}`);
       }
     }
 
-    logger.log(
-      `[SyncOrchestrator] LRU eviction complete: ${totalEvicted} rows evicted`
-    );
+    logger.log(`[SyncOrchestrator] LRU eviction complete: ${totalEvicted} rows evicted`);
 
     return totalEvicted;
   }
@@ -664,7 +663,7 @@ export class SyncOrchestrator {
     logger.log('[SyncOrchestrator] Network online, triggering sync...');
 
     if (!this.isSyncing) {
-      await this.syncAll().catch((error) => {
+      await this.syncAll().catch(error => {
         logger.error('[SyncOrchestrator] Online sync failed:', error);
       });
     }

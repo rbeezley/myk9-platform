@@ -146,6 +146,9 @@ The only test for `handleSyncConflict` uses LWW. No test verifies the `isAutomat
 **T3 — Missing — Simultaneous-timestamp tiebreaker with no `id` field**
 `resolveLWW` has an `id` tiebreaker but no test for the path where both `id` fields are absent or empty strings.
 
+**T4 — Missing — `resolveFieldLevel` overwrites server field with local `null` (B1 regression)**
+The existing null test (`should not report conflict when local client field is null`) checks `hadConflict` only. It does not assert that `merged.status` retains the server value `'registered'` after the merge. This gap means B1 was live with passing tests.
+
 ## Remediation plan
 
 | #   | Finding                                                               | Action                                                                                                                                                 |

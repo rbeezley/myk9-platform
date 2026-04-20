@@ -158,3 +158,75 @@ The existing null test (`should not report conflict when local client field is n
 | R3  | E2 (LOW)                                                              | Wrap each handler call in try/catch so one throwing handler does not silence the rest.                                                                                |
 | R4  | B3 (LOW)                                                              | Document `base` parameter as "stored for manual UI only; not used in automated path." Add TODO for three-way merge.                                                   |
 | R5  | I2 (LOW)                                                              | Rename `total` to `totalManualRequired` or count all conflicts including automatic ones.                                                                              |
+
+---
+
+# Phase 3.4: mutation-utils.ts
+
+**Audited:** packages/replication/src/mutation-utils.ts (274 lines)
+
+## Method map
+
+| Helper                      | Lines   | Purpose                                                                                                                                                                              |
+| --------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TimeoutError` (class)      | 38–45   | Custom error subclass carrying `timeoutMs`; used to distinguish timeout failures from network failures in `isRetryableError`.                                                        |
+| `withTimeout`               | 68–92   | Wraps any `PromiseLike<T>` in a race against a `setTimeout` reject; clears the timer on both success and error paths. Accepts Supabase thenables via `Promise.resolve(promiseLike)`. |
+| `calculateBackoffDelay`     | 114–128 | Computes `base * 2^attempt * jitter`, capped at `MAX_BACKOFF_MS`. Pure function; no side effects.                                                                                    |
+| `backoffDelay`              | 138–148 | Calls `calculateBackoffDelay`, optionally logs the wait, returns a `Promise` that resolves after `setTimeout`.                                                                       |
+| `isSupabaseError` (private) | 164–171 | Type guard: checks that `error` is a non-null object with a string `message` field.                                                                                                  |
+| `isRetryableError`          | 190–256 | Classifies an unknown error as retryable or not; handles `TimeoutError`, `TypeError` (fetch), Supabase error shape, and generic `Error` by message-string matching.                  |
+
+## Findings
+
+### Correctness
+
+**U1 — LOW — `calculateBackoffDelay` accepts negative `attempt` values without validation**
+File: `mutation-utils.ts` line 120
+
+`baseDelayMs * Math.pow(2, attempt)` — a negative attempt (e.g. `-1`) yields `base * 0.5 = 500ms`, which is below the intended minimum of `baseDelayMs`. No caller currently passes a negative attempt (the MutationManager always starts at 0), so there is no runtime impact. The contract is undocumented and a future caller could misuse it. Fix: add `const clampedAttempt = Math.max(0, attempt)` before the formula, or document the precondition.
+
+**U2 — LOW — `isRetryableError` Supabase 5xx branch matches on string prefix `'5'`**
+File: `mutation-utils.ts` lines 212–213
+
+```ts
+if (code?.startsWith('5') || message.includes('server error')) {
+```
+
+Supabase PostgreSQL error codes are 5-character SQLSTATE strings (e.g. `'23505'` for unique violation), not HTTP status codes. A SQLSTATE beginning with `'5'` (e.g. `'55P03'` — lock not available) would be incorrectly treated as a retryable server error. HTTP status codes arrive as numeric strings like `'500'`, which also start with `'5'`. The ambiguity means some non-retryable DB constraint errors could be retried unnecessarily. Severity low because the retry is bounded by `DEFAULT_MAX_RETRIES=3`, so worst case is 3 wasted attempts.
+
+### Error surfacing
+
+**U3 — LOW — `withTimeout` re-throws the original error unchanged**
+File: `mutation-utils.ts` lines 88–91
+
+When the underlying promise rejects, the error passes through without any context enrichment (no table name, no operation name wrapped). The `operationName` parameter is only used in the `TimeoutError` message, not in passthrough rejections. This is by design for most cases, but makes stack traces harder to attribute. Documented only.
+
+### Invariants
+
+**U4 — LOW — `BACKOFF_JITTER = 0.1` produces ±10% spread but the comment says "±10%"**
+File: `mutation-utils.ts` lines 27–28
+
+The formula is `1 + (Math.random() * 2 - 1) * BACKOFF_JITTER`, which correctly produces `[0.9, 1.1]`. The comment and formula are consistent. No bug — documented as confirmed-correct.
+
+### Concurrency
+
+n/a for helper functions — all are stateless pure functions or produce independent `Promise` chains with no shared mutable state.
+
+### Test coverage gaps
+
+**U5 — Missing — `calculateBackoffDelay` with negative attempt**
+No test for `attempt < 0`; documents the undocumented precondition (U1).
+
+**U6 — Missing — `isRetryableError` with a SQLSTATE code starting with `'5'`**
+No test distinguishes SQLSTATE `'55P03'` (lock not available — non-retryable) from HTTP `'500'` (server error — retryable). The ambiguity in U2 has no regression test.
+
+**U7 — Missing — `withTimeout` resource cleanup: timer cleared when promise rejects**
+The error path `clearTimeout(timeoutId)` is exercised by code but no unit test verifies the timer is cleared when the wrapped promise rejects before the timeout fires (potential timer leak in test environments).
+
+## Remediation plan
+
+| #    | Finding                                   | Action                                                                                                                                                    |
+| ---- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| U-R1 | U1 (LOW) — negative attempt not validated | Add `Math.max(0, attempt)` clamp or JSDoc precondition note.                                                                                              |
+| U-R2 | U2 (LOW) — Supabase 5xx prefix ambiguity  | Separate HTTP-status check (`parseInt(code) >= 500`) from SQLSTATE prefix check, or document that `code` is always an HTTP status string in this context. |
+| U-R3 | U5/U6 (LOW)                               | Add unit tests for negative-attempt backoff and SQLSTATE-vs-HTTP-code disambiguation if U2 is fixed.                                                      |

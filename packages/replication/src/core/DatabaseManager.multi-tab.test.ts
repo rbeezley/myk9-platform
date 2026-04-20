@@ -45,7 +45,7 @@ function createTrackingSupabaseClient() {
           ),
         };
       }),
-      update: vi.fn((data: { id?: string }) => ({
+      update: vi.fn((_data: { id?: string }) => ({
         eq: vi.fn((_col: string, id: string) => {
           seen.push(id);
           return {
@@ -193,8 +193,8 @@ describe('MutationManager multi-tab concurrent-write safety', () => {
     const m2 = makeMutation('mut-tab-b-1');
 
     // Enqueue one mutation per "tab"
-    await mgrA.queueMutation(m1);
-    await mgrB.queueMutation(m2);
+    await mgrA.queueMutation(m1.tableName, m1.operation, m1.rowId, m1.data);
+    await mgrB.queueMutation(m2.tableName, m2.operation, m2.rowId, m2.data);
 
     // Both tabs flush concurrently — the race condition under test
     await Promise.all([mgrA.uploadPendingMutations(), mgrB.uploadPendingMutations()]);
@@ -227,7 +227,7 @@ describe('MutationManager multi-tab concurrent-write safety', () => {
 
     // Prime shared IDB with a single mutation via mgrA
     const m1 = makeMutation('mut-shared-1');
-    await mgrA.queueMutation(m1);
+    await mgrA.queueMutation(m1.tableName, m1.operation, m1.rowId, m1.data);
 
     // Both tabs attempt to flush the same queue simultaneously
     await Promise.all([mgrA.uploadPendingMutations(), mgrB.uploadPendingMutations()]);

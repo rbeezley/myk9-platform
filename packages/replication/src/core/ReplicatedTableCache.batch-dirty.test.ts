@@ -123,7 +123,9 @@ describe('ReplicatedTableCache batch-write dirty protection', () => {
             return realTransaction(storeNames as Parameters<typeof realTransaction>[0], mode);
           };
         }
-        const val = (target as Record<string | symbol, unknown>)[prop as string | symbol];
+        const val = (target as unknown as Record<string | symbol, unknown>)[
+          prop as string | symbol
+        ];
         return typeof val === 'function' ? val.bind(target) : val;
       },
     });
@@ -148,5 +150,79 @@ describe('ReplicatedTableCache batch-write dirty protection', () => {
       .map(r => r.data.name)
       .sort();
     expect(afterNames).toEqual(preNames);
+  });
+
+  it('rollback preserves a row that became dirty after the WAL snapshot', async () => {
+    // Arrange: pre-populate row '0' as clean/synced so the snapshot captures a
+    // clean pre-state.
+    await batchManager.batchSet([{ id: '0', name: 'CleanPre' }]);
+
+    const newItems: TestEntity[] = Array.from({ length: 15 }, (_, i) => ({
+      id: String(i),
+      name: `NewValue ${i}`,
+    }));
+
+    // Inject a concurrent dirty write on the 2nd tx, then fail to trigger rollback.
+    let txCount = 0;
+    const realTransaction = db.transaction.bind(db);
+    const dirtyRow: ReplicatedRow<TestEntity> = {
+      tableName,
+      id: '0',
+      data: { id: '0', name: 'ConcurrentDirty' },
+      version: 99,
+      lastSyncedAt: Date.now(),
+      lastAccessedAt: Date.now(),
+      isDirty: true,
+      syncStatus: 'pending',
+    };
+    const dbProxy = new Proxy(db, {
+      get(target, prop) {
+        if (prop === 'transaction') {
+          return (storeNames: string | string[], mode?: IDBTransactionMode) => {
+            txCount++;
+            if (txCount === 2 && mode === 'readwrite') {
+              const fakeTx = {
+                store: {
+                  get: async () => {
+                    const injectTx = realTransaction(
+                      REPLICATION_STORES.REPLICATED_TABLES,
+                      'readwrite'
+                    );
+                    await injectTx.store.put(dirtyRow);
+                    await injectTx.done;
+                    throw new Error('Simulated failure after concurrent dirty write');
+                  },
+                },
+                done: Promise.resolve(),
+              };
+              return fakeTx as unknown as ReturnType<typeof realTransaction>;
+            }
+            return realTransaction(storeNames as Parameters<typeof realTransaction>[0], mode);
+          };
+        }
+        const val = (target as unknown as Record<string | symbol, unknown>)[
+          prop as string | symbol
+        ];
+        return typeof val === 'function' ? val.bind(target) : val;
+      },
+    });
+
+    const failingBatchManager = new ReplicatedTableBatchManager<TestEntity>(
+      tableName,
+      { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      async () => dbProxy as unknown as IDBPDatabase,
+      vi.fn() as () => void
+    );
+
+    // Act
+    await expect(failingBatchManager.batchSetChunked(newItems, 5)).rejects.toThrow();
+
+    // Assert: row '0' must still be the dirty concurrent write, NOT the
+    // snapshot's clean 'CleanPre' value.
+    const rows = await getAllRows();
+    const row0 = rows.find(r => r.id === '0');
+    expect(row0).toBeDefined();
+    expect(row0!.isDirty).toBe(true);
+    expect(row0!.data.name).toBe('ConcurrentDirty');
   });
 });

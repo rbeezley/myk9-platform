@@ -174,7 +174,7 @@ describe('ReplicatedTable subscription lifecycle', () => {
     // Confirm rows are expired online (they should be filtered out)
     const originalOnLine = Object.getOwnPropertyDescriptor(navigator, 'onLine');
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    const onlineResult = await table.getAll();
+    await table.getAll();
     // Rows have expired TTL online — should be empty (or near-empty depending on
     // lastSuccessfulSyncAt guard). Either way, restore offline mode.
 

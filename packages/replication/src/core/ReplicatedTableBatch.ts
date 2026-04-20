@@ -175,6 +175,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       }
     } catch (err) {
       // ── Rollback: restore pre-existing state for all affected rows ─────────
+      // Skip rows that became dirty after snapshot — concurrent set() wins.
       this.logger.log(
         `[${this.tableName}] Chunk failed after committing up to index ${lastCommittedChunk}; rolling back`
       );
@@ -182,6 +183,15 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
         const rbDb = await this.getDb();
         const rbTx = rbDb.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
         for (const [id, snapshot] of preState) {
+          const current = (await rbTx.store.get([this.tableName, id])) as
+            | ReplicatedRow<T>
+            | undefined;
+          if (current?.isDirty) {
+            this.logger.log(
+              `[${this.tableName}] Rollback skipped row ${id} — concurrent local mutation pending`
+            );
+            continue;
+          }
           if (snapshot === undefined) {
             // Row did not exist before — delete it if it was partially written.
             await rbTx.store.delete([this.tableName, id]);

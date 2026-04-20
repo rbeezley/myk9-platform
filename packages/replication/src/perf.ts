@@ -37,6 +37,14 @@ export function measurePerf(
     } catch {
       // Start mark may be missing; fall through
     }
+    // Clear the consumed mark and measure so repeated calls (e.g. per flush
+    // cycle) don't accumulate unboundedly in the performance buffer.
+    try {
+      performance.clearMarks(startName);
+      performance.clearMeasures(name);
+    } catch {
+      // Ignore — environments without clear* APIs
+    }
   }
 
   if (hasWindow) {

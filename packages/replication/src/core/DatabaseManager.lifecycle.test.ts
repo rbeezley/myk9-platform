@@ -71,14 +71,15 @@ describe('DatabaseManager lifecycle', () => {
     // We spy on the IDBObjectStore.put via the idb wrapper: intercept the
     // first `put` call on the pending_mutations store and reject it.
     const originalPut = db.put.bind(db);
-    const putSpy = vi
-      .spyOn(db, 'put')
-      .mockImplementationOnce((storeName: string, ...args: unknown[]) => {
-        if (storeName === REPLICATION_STORES.PENDING_MUTATIONS) {
-          return Promise.reject(quotaError) as ReturnType<typeof db.put>;
-        }
-        return originalPut(storeName, ...args);
-      });
+    const putSpy = vi.spyOn(db, 'put').mockImplementationOnce(((
+      storeName: string,
+      ...args: unknown[]
+    ) => {
+      if (storeName === REPLICATION_STORES.PENDING_MUTATIONS) {
+        return Promise.reject(quotaError) as ReturnType<typeof db.put>;
+      }
+      return (originalPut as (...a: unknown[]) => ReturnType<typeof db.put>)(storeName, ...args);
+    }) as typeof db.put);
 
     // The rejection must propagate — not be swallowed.
     await expect(
@@ -110,7 +111,10 @@ describe('DatabaseManager lifecycle', () => {
     // This mimics another tab requesting an upgrade.
     expect(db.onversionchange).toBeTruthy();
     // IDBVersionChangeEvent doesn't require arguments for this test.
-    db.onversionchange!(new IDBVersionChangeEvent('versionchange'));
+    (db as unknown as IDBDatabase).onversionchange!.call(
+      db as unknown as IDBDatabase,
+      new IDBVersionChangeEvent('versionchange')
+    );
 
     // After the handler runs: the manager should report no longer initialized.
     // (The handler closes the underlying IDBDatabase and nulls sharedDB.)

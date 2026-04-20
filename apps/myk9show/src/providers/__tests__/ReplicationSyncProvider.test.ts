@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSyncFailureToast } from '../ReplicationSyncProvider';
+import { formatSyncFailureToast, formatDownloadFailureToast } from '../ReplicationSyncProvider';
 
 describe('formatSyncFailureToast', () => {
   it('renders the first failing mutation including its error detail', () => {
@@ -48,5 +48,25 @@ describe('formatSyncFailureToast', () => {
     });
 
     expect(msg).toBe('Failed to save 1 change. dogs delete');
+  });
+});
+
+describe('formatDownloadFailureToast', () => {
+  it('names the first failing table and its error', () => {
+    const msg = formatDownloadFailureToast([
+      { name: 'shows', error: 'permission denied for table shows' },
+    ]);
+
+    expect(msg).toBe('Failed to load data from server. shows: permission denied for table shows');
+  });
+
+  it('indicates how many additional tables also failed', () => {
+    const msg = formatDownloadFailureToast([
+      { name: 'shows', error: 'RLS violation' },
+      { name: 'trials', error: 'timeout' },
+      { name: 'entries', error: 'network error' },
+    ]);
+
+    expect(msg).toBe('Failed to load data from server. shows: RLS violation (and 2 more)');
   });
 });

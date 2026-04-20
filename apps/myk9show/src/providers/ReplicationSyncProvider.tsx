@@ -105,6 +105,16 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
   return `Failed to save ${detail.count} change${detail.count === 1 ? '' : 's'}. ${detailText}`;
 }
 
+// Exposed for unit testing — the download-sync failure toast formatter
+export function formatDownloadFailureToast(
+  failures: Array<{ name: string; error: string }>
+): string {
+  const first = failures[0];
+  const tail = failures.length > 1 ? ` (and ${failures.length - 1} more)` : '';
+  const detail = first ? `${first.name}: ${first.error}` : '';
+  return `Failed to load data from server. ${detail}${tail}`;
+}
+
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
   children,
   licenseKey = '',
@@ -208,6 +218,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       }
 
       // Phase 2: Download sync (shows first, then dependent tables)
+      const downloadFailures: Array<{ name: string; error: string }> = [];
       for (const { name, table } of REPLICATED_TABLES) {
         setStatus(prev => ({
           ...prev,
@@ -227,23 +238,32 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
               tablesStatus: { ...prev.tablesStatus, [name]: 'success' },
             }));
           } else {
-            logger.warn('Table sync failed', 'replication', {
-              name,
-              error: result.error || 'Unknown error',
-            });
+            const errorMsg = result.error || 'Unknown error';
+            logger.warn('Table sync failed', 'replication', { name, error: errorMsg });
+            downloadFailures.push({ name, error: errorMsg });
             setStatus(prev => ({
               ...prev,
               tablesStatus: { ...prev.tablesStatus, [name]: 'error' },
             }));
           }
         } catch (tableError) {
+          const errorMsg = tableError instanceof Error ? tableError.message : String(tableError);
           logger.error('Table sync error', 'replication', { name }, tableError as Error);
+          downloadFailures.push({ name, error: errorMsg });
           setStatus(prev => ({
             ...prev,
             tablesStatus: { ...prev.tablesStatus, [name]: 'error' },
           }));
           // Continue with other tables
         }
+      }
+
+      // Surface download-sync failures so the UI doesn't silently show empty
+      // lists when data exists in the database but couldn't be fetched
+      // (RLS rejection, network blip, auth race). Mirrors the mutation-failure
+      // toast added after the 2026-04-16 RLS data-loss incident.
+      if (downloadFailures.length > 0) {
+        notifications.error(formatDownloadFailureToast(downloadFailures));
       }
 
       setStatus(prev => ({
@@ -275,15 +295,17 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     triggerSyncRef.current = triggerSync;
   });
 
-  // Initial sync on startup
+  // Initial sync on startup — defer by one tick so render completes first,
+  // but don't wait any longer. The 2s delay this replaced was a source of
+  // "UI shows empty on cold load" confusion: users navigated around in the
+  // gap before IndexedDB got populated.
   useEffect(() => {
     if (autoSync && isOnline && !hasInitialSynced.current) {
       hasInitialSynced.current = true;
-      // Delay initial sync to not block app startup
       const timer = setTimeout(() => {
         logger.info('Starting initial sync', 'replication');
         triggerSyncRef.current?.();
-      }, 2000);
+      }, 0);
 
       return () => {
         clearTimeout(timer);
@@ -325,7 +347,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         triggerSyncRef.current?.();
       }
     };
-    const startupTimer = setTimeout(startupUpload, 2000);
+    const startupTimer = setTimeout(startupUpload, 0);
     return () => {
       clearTimeout(startupTimer);
       hasStartedFlush.current = false; // Reset so StrictMode remount can re-trigger

@@ -142,7 +142,60 @@ Seven-question rubric applied to each file:
 
 ## Bucket B + C findings
 
-(populated in Task 5.3)
+### Bucket B — Config / Visibility (spot-check)
+
+**ReplicatedClassVisibilityOverridesTable.ts**
+No direct Supabase writes from app code. The `sync()` method uses per-row `this.set()` (same un-batched pattern as Shows/Trials). The `getByClassId()` helper calls `getAll()` without a licenseKey, but the object stores licenseKey on each row so callers can further filter — acceptable for a query helper. The "is cache empty?" guard is absent here (no `isCacheEmpty` check at all — always uses `lastSync`), which means a cleared cache produces an incremental sync from `lastIncrementalSyncAt` rather than forcing a full-sync. LOW — mild risk only on first-load after cache clear. Otherwise clean.
+
+**ReplicatedShowVisibilityDefaultsTable.ts**
+No direct Supabase writes from app code. The `show_visibility_settings` table has a native `license_key` column, so the sync filters correctly with `.eq('license_key', licenseKey)`. No `isCacheEmpty` check. Per-row `this.set()` sync loop (same pattern as above). No issues beyond the low-severity no-`isCacheEmpty`-guard.
+
+**ReplicatedTrialVisibilityOverridesTable.ts**
+Identical structure to ClassVisibilityOverrides — joins `trial_visibility_overrides → trials → shows` to get `license_key`. No direct writes. Per-row sync loop (same unbatched pattern). No `isCacheEmpty` guard. LOW — same mild risk.
+
+**ReplicatedClassRequirementsTable.ts**
+`sport_class_rules` is organization-level config (AKC, UKC, ASCA) — **intentionally has no `license_key`** column. The `sync(_licenseKey)` parameter is unused by design, and all rules are fetched globally. This is correctly documented in the file. No direct Supabase writes. Per-row `this.set()` loop (same unbatched pattern). No issues.
+
+### Bucket B Summary
+
+| File                                       | Issues                                        |
+| ------------------------------------------ | --------------------------------------------- |
+| ReplicatedClassVisibilityOverridesTable.ts | LOW: no isCacheEmpty guard; per-row sync loop |
+| ReplicatedShowVisibilityDefaultsTable.ts   | LOW: no isCacheEmpty guard; per-row sync loop |
+| ReplicatedTrialVisibilityOverridesTable.ts | LOW: no isCacheEmpty guard; per-row sync loop |
+| ReplicatedClassRequirementsTable.ts        | None — intentionally global, no licenseKey    |
+
+---
+
+### Bucket C — Views + Notifications (read-only verification)
+
+**ReplicatedAnnouncementReadsTable.ts**
+No app-code writes to Supabase. `handleRealtimeEvent()` and `sync()` write only to the local IDB cache via `this.set()` / `this.batchSet()`. **Verified read-only** (from Supabase perspective).
+
+**ReplicatedAnnouncementsTable.ts**
+No app-code writes to Supabase. Announcements are created server-side by admins. `handleRealtimeEvent()` caches incoming changes into IDB only. **Verified read-only**.
+
+**ReplicatedAuditLogViewTable.ts**
+Wraps the `view_audit_log` PostgreSQL view. `sync()` clears and repopulates IDB via `clearTable()` + `batchSet()` — both are IDB-only operations. `handleRealtimeEvent()` writes only to `syncMetadata` (IDB). No Supabase writes. **Verified read-only**.
+
+**ReplicatedNationalsRankingsTable.ts**
+Marked DORMANT in the file. `sync()` is a stub that returns immediately with zero rows. `handleRealtimeEvent()` writes to IDB cache only. `fetchFromSupabase()` is defined but only called by tests or when activated. **Verified read-only** (and effectively inert while dormant).
+
+**ReplicatedPushNotificationConfigTable.ts**
+Stores push config (API keys, secrets) as a singleton row. `sync()` reads from Supabase and stores in IDB only. `handleRealtimeEvent()` writes to IDB cache only. No Supabase writes from app code. **Verified read-only**.
+
+**ReplicatedPushSubscriptionsTable.ts**
+Subscriptions are created when users subscribe via the browser Push API (separate flow, not in this file). This wrapper only reads subscriptions and caches them locally. `handleRealtimeEvent()` writes to IDB only. **Verified read-only**.
+
+**ReplicatedStatsViewTable.ts**
+Wraps `view_stats_summary` PostgreSQL view. `sync()` clears and repopulates IDB via private `clearTable()` + `batchSet()`. `handleRealtimeEvent()` writes to `syncMetadata` only. No Supabase writes. **Verified read-only**.
+
+**ReplicatedEventStatisticsTable.ts**
+Statistics are computed server-side by triggers. `sync()` clears and repopulates IDB via private `clearTable()` + `batchSet()`. `handleRealtimeEvent()` writes to IDB cache only. No Supabase writes. **Verified read-only**.
+
+### Bucket C Summary
+
+All 8 Bucket C wrappers verified read-only — no `insert`/`update`/`delete` calls to Supabase from app code in any of them.
 
 ## Remediation plan
 

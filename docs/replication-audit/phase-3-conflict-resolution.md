@@ -151,10 +151,10 @@ The existing null test (`should not report conflict when local client field is n
 
 ## Remediation plan
 
-| #   | Finding                                                               | Action                                                                                                                                                 |
-| --- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| R1  | B1 (MEDIUM) — null local clobbers server value in `resolveFieldLevel` | Guard `merged[field] = localValue` behind `!isUndefinedOrNull(localValue)` check. Add regression test.                                                 |
-| R2  | I1 (MEDIUM) — `isAutomatic` gate contradicts resolver semantics       | Respect `result.automatic` from resolver instead of re-deriving from strategy+conflictingFields; or document the manager's override intent explicitly. |
-| R3  | E2 (LOW)                                                              | Wrap each handler call in try/catch so one throwing handler does not silence the rest.                                                                 |
-| R4  | B3 (LOW)                                                              | Document `base` parameter as "stored for manual UI only; not used in automated path." Add TODO for three-way merge.                                    |
-| R5  | I2 (LOW)                                                              | Rename `total` to `totalManualRequired` or count all conflicts including automatic ones.                                                               |
+| #   | Finding                                                               | Action                                                                                                                                                                |
+| --- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | B1 (MEDIUM) — null local clobbers server value in `resolveFieldLevel` | **FIXED** in `ConflictResolver.ts` line 114: guarded assignment with `!isUndefinedOrNull(localValue)`. Regression covered by `ConflictResolver.merge.test.ts` test 3. |
+| R2  | I1 (MEDIUM) — `isAutomatic` gate contradicts resolver semantics       | Respect `result.automatic` from resolver instead of re-deriving from strategy+conflictingFields; or document the manager's override intent explicitly.                |
+| R3  | E2 (LOW)                                                              | Wrap each handler call in try/catch so one throwing handler does not silence the rest.                                                                                |
+| R4  | B3 (LOW)                                                              | Document `base` parameter as "stored for manual UI only; not used in automated path." Add TODO for three-way merge.                                                   |
+| R5  | I2 (LOW)                                                              | Rename `total` to `totalManualRequired` or count all conflicts including automatic ones.                                                                              |

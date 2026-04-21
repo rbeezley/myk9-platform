@@ -1,3 +1,5 @@
+import { safeLocalStorageGet, safeLocalStorageSet } from './localStorageUtils';
+
 const STORAGE_KEY = 'myK9Q_settings';
 
 const ACCENT_RENAMES: Record<string, string> = {
@@ -10,82 +12,34 @@ interface PersistedSettings {
   settings?: { accentColor?: unknown };
 }
 
-function safeGetItem(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
+function migrateWith(renames: Record<string, string>): void {
+  const parsed = safeLocalStorageGet<PersistedSettings | null>(STORAGE_KEY, null);
+  if (!parsed) return;
 
-function safeSetItem(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Quota exceeded or Safari private mode. Migration is best-effort;
-    // bail quietly so app boot continues.
-  }
+  const settings = parsed.state?.settings ?? parsed.settings;
+  if (!settings || typeof settings !== 'object') return;
+
+  const current = settings.accentColor;
+  if (typeof current !== 'string') return;
+
+  const next = renames[current];
+  if (!next) return;
+
+  settings.accentColor = next;
+  safeLocalStorageSet(STORAGE_KEY, parsed);
 }
 
 export function runAccentMigration(): void {
-  const raw = safeGetItem(STORAGE_KEY);
-  if (!raw) return;
-
-  let parsed: PersistedSettings;
-  try {
-    parsed = JSON.parse(raw) as PersistedSettings;
-  } catch {
-    // Malformed — let downstream validation handle it.
-    return;
-  }
-
-  const settings = parsed.state?.settings ?? parsed.settings;
-  if (!settings || typeof settings !== 'object') return;
-
-  const current = settings.accentColor;
-  if (typeof current !== 'string') return;
-
-  const next = ACCENT_RENAMES[current];
-  if (!next) return;
-
-  settings.accentColor = next;
-  safeSetItem(STORAGE_KEY, JSON.stringify(parsed));
+  migrateWith(ACCENT_RENAMES);
 }
 
 /**
- * Reverse shim — rewrites canonical v2 accent values back to legacy
- * values (teal -> green, terracotta -> orange). Not invoked in normal
- * operation. A revert commit can swap `runAccentMigration` with
- * `runAccentMigrationReverse` in main.tsx to un-strand users whose
- * localStorage has already been migrated.
- *
- * Kept in the repo (rather than written fresh during a revert) so the
- * reverse path is tested and ready before it is needed.
+ * Reverse shim — rewrites canonical v2 accent values back to legacy values.
+ * Not invoked in normal operation. A revert commit can swap runAccentMigration
+ * for this in main.tsx to un-strand users whose localStorage already holds v2
+ * values. Kept in the repo so the reverse path is tested and ready.
  */
 export function runAccentMigrationReverse(): void {
-  const raw = safeGetItem(STORAGE_KEY);
-  if (!raw) return;
-
-  let parsed: PersistedSettings;
-  try {
-    parsed = JSON.parse(raw) as PersistedSettings;
-  } catch {
-    return;
-  }
-
-  const settings = parsed.state?.settings ?? parsed.settings;
-  if (!settings || typeof settings !== 'object') return;
-
-  const current = settings.accentColor;
-  if (typeof current !== 'string') return;
-
-  const reverseMap: Record<string, string> = {
-    teal: 'green',
-    terracotta: 'orange',
-  };
-  const next = reverseMap[current];
-  if (!next) return;
-
-  settings.accentColor = next;
-  safeSetItem(STORAGE_KEY, JSON.stringify(parsed));
+  const reverse = Object.fromEntries(Object.entries(ACCENT_RENAMES).map(([k, v]) => [v, k]));
+  migrateWith(reverse);
 }

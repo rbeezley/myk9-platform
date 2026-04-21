@@ -13,8 +13,7 @@ const ACCENT_OPTIONS = [
 
 type AccentOption = (typeof ACCENT_OPTIONS)[number]['id'];
 
-// prefers-contrast: more hint (spec §6.1 "Optional auto-detection").
-// Reads once on mount and on the MQ's change event. Never forces — only hints.
+// Hints when the OS is in high-contrast mode. Never forces — only hints.
 function usePrefersHighContrast(): boolean {
   const [prefers, setPrefers] = React.useState(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;

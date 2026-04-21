@@ -21,7 +21,7 @@ interface ClassListHeaderProps {
   onOpenFilterPanel: () => void;
   onRefresh: () => void;
   refreshLongPressHandlers: LongPressHandlers;
-  /** ID of the show for per-show accent honoring (spec §6.2 trial-detail). */
+  /** ID of the show for per-show accent honoring. */
   showId?: string;
 }
 

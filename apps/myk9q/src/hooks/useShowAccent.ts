@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { CSSProperties } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { replicatedShowsTable } from '@/services/replication';
 
 const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
@@ -9,7 +9,9 @@ const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
  * accent hex, or `undefined` if the show has no (or malformed) accent.
  *
  * Reads from the replicated shows table so it works offline. Strict hex
- * validation prevents CSS injection from operator-entered data.
+ * validation prevents CSS injection from operator-entered data. Memoized so
+ * the returned object has a stable reference across renders — matters when
+ * the style is passed down to memoized children.
  */
 export function useShowAccent(showId: string | undefined): CSSProperties | undefined {
   const { data: show } = useQuery({
@@ -20,9 +22,8 @@ export function useShowAccent(showId: string | undefined): CSSProperties | undef
   });
 
   const hex = show?.accent_color;
-  if (typeof hex !== 'string' || !HEX_PATTERN.test(hex)) {
-    return undefined;
-  }
-
-  return { '--show-accent': hex } as CSSProperties;
+  return useMemo(() => {
+    if (typeof hex !== 'string' || !HEX_PATTERN.test(hex)) return undefined;
+    return { '--show-accent': hex } as CSSProperties;
+  }, [hex]);
 }

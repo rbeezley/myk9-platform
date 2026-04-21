@@ -36,8 +36,7 @@
 /* Header - extends page-header */
 .show-details-header {
   justify-content: space-between;
-  /* Per-show accent honor — falls back to platform accent.
-     Scoped to show-scoped chrome only (spec §6.2). */
+  /* Per-show accent; falls back to platform accent. */
   border-bottom: 2px solid var(--show-accent, var(--primary));
 }
 

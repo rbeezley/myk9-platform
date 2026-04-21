@@ -44,7 +44,7 @@
 /* Header inherits from global .page-header in page-container.css */
 .class-list-header {
   justify-content: space-between;
-  /* Per-show accent honor (spec §6.2 trial-detail). Falls back to platform accent. */
+  /* Per-show accent; falls back to platform accent when unset. */
   border-bottom: 2px solid var(--show-accent, var(--primary));
 }
 
@@ -322,9 +322,8 @@
 .class-card {
   background: var(--card);
   border: 1px solid var(--border);
-  /* Per-show accent honor — left border tints to the show's color when
-     shows.accent_color is set. Falls back to the platform primary. Status
-     semantic color still wins via the ::after strip (spec §6.2). */
+  /* Per-show accent; falls back to platform primary. Status semantic color
+     still wins via the ::after strip below. */
   border-left: 4px solid var(--show-accent, var(--primary));
   border-radius: var(--token-space-xl);
   margin-bottom: 0;

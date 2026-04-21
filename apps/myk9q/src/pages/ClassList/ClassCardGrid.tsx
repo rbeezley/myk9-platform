@@ -1,6 +1,7 @@
 import React from 'react';
 import { ClassCard } from './ClassCard';
 import { getStatusColor, getFormattedStatus } from './utils/statusFormatting';
+import { useShowAccent } from '@/hooks/useShowAccent';
 import type { ClassEntry } from './hooks/useClassListData';
 import type { UserPermissions } from '../../utils/auth';
 
@@ -34,6 +35,9 @@ export const ClassCardGrid: React.FC<ClassCardGridProps> = ({
   justToggledClassId,
   showId,
 }) => {
+  // One subscription for the whole grid — cards receive a stable style prop.
+  const accentStyle = useShowAccent(showId);
+
   return (
     <div className="class-list-scrollable">
       <div className={`grid-responsive ${isLoaded ? 'stagger-children' : ''}`}>
@@ -55,7 +59,7 @@ export const ClassCardGrid: React.FC<ClassCardGridProps> = ({
             }}
             onPrefetch={() => handleClassPrefetch(classEntry.id)}
             justToggledClassId={justToggledClassId}
-            showId={showId}
+            accentStyle={accentStyle}
           />
         ))}
       </div>

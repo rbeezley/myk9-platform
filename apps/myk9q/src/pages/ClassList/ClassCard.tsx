@@ -22,7 +22,7 @@ import { ClassDetailsPopover } from '@/components/dialogs/ClassDetailsPopover';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { ClassDetailsContent } from '@/components/dialogs/ClassDetailsContent';
 import { useIsTouchDevice } from '@myk9/scoring-ui';
-import { useShowAccent } from '@/hooks/useShowAccent';
+import type { CSSProperties } from 'react';
 
 interface ClassEntry {
   id: number;
@@ -83,8 +83,8 @@ interface ClassCardProps {
   onMenuClick?: (classId: number) => void;
   onPrefetch?: () => void;
   justToggledClassId?: number | null;
-  /** ID of the show owning these classes, for per-show accent honoring (spec §6.2). */
-  showId?: string;
+  /** Per-show accent style (--show-accent) from useShowAccent. Stable reference. */
+  accentStyle?: CSSProperties;
 }
 
 export const ClassCard: React.FC<ClassCardProps> = ({
@@ -101,12 +101,10 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   onMenuClick,
   onPrefetch,
   justToggledClassId,
-  showId,
+  accentStyle,
 }) => {
   // Detect touch device to choose between bottom sheet (mobile) and popover (desktop)
   const isTouchDevice = useIsTouchDevice();
-  // Per-show accent — left-border color picks up shows.accent_color when set.
-  const accentStyle = useShowAccent(showId);
 
   // Memoize computed values to prevent redundant function calls
   const statusColor = useMemo(

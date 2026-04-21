@@ -311,14 +311,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   });
 
   // Trigger sync when session becomes available — covers both "page load while
-  // already signed in" (initial sync fires before getSession resolves) and
-  // "user signs in mid-session".
+  // already signed in" (initial sync fires before INITIAL_SESSION is delivered)
+  // and "user signs in mid-session".
   useEffect(() => {
-    if (isAuthenticated && !prevIsAuthenticated.current && isOnline) {
+    if (autoSync && isAuthenticated && !prevIsAuthenticated.current && isOnline) {
       triggerSyncRef.current?.();
     }
     prevIsAuthenticated.current = isAuthenticated;
-  }, [isAuthenticated, isOnline]);
+  }, [autoSync, isAuthenticated, isOnline]);
 
   // Initial sync on startup — defer by one tick so render completes first,
   // but don't wait any longer. The 2s delay this replaced was a source of

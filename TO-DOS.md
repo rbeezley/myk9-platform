@@ -304,7 +304,7 @@ Initial audit flagged ~17 missing sidebar links across roles. **On review these 
 - **✅ Resolved 2026-04-18 — `/clubs` "Add Club" CTA now hidden for unauthenticated users (`BrowseClubsPage.tsx`). Empty-state CTA also gated.**
 - **✅ Resolved 2026-04-18 — `/shows` count mismatch fixed collaterally with the HOST CLUB hydration fix below.**
 - **✅ Resolved 2026-04-18 — `/shows/:id` HOST CLUB now hydrated from `replicatedClubsTable` in `showStore.ts` (`hydrateClubFields` helper + clubs subscription). Verified live: "Test Club 1" displays.**
-- **✅ Resolved 2026-04-21 — Replication sync errors on public pages** — Added `isAuthenticated` state to `ReplicationSyncProvider` (backed by `supabase.auth.getSession` + `onAuthStateChange`). `triggerSync` now bails early when not authenticated. A new `prevIsAuthenticated` transition effect fires the first sync when the session becomes available, covering both "page loaded while already signed in" and "user signs in mid-session".
+- **✅ Resolved 2026-04-21 — Replication sync errors on public pages** — Added `isAuthenticated` state to `ReplicationSyncProvider` (backed by `supabase.auth.onAuthStateChange`, which fires `INITIAL_SESSION` on subscribe). `triggerSync` now bails early when not authenticated. A `prevIsAuthenticated` transition effect (gated on `autoSync`) fires the first sync when the session becomes available, covering both "page loaded while already signed in" and "user signs in mid-session".
 
 ### Secretary route bugs
 

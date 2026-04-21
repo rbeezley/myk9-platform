@@ -489,6 +489,7 @@ export const ClassList: React.FC = () => {
         onOpenFilterPanel={() => setIsFilterPanelOpen(true)}
         onRefresh={handleRefresh}
         refreshLongPressHandlers={refreshLongPressHandlers}
+        showId={showContext?.showId}
       />
 
       <ClassFilters

@@ -44,6 +44,8 @@
 /* Header inherits from global .page-header in page-container.css */
 .class-list-header {
   justify-content: space-between;
+  /* Per-show accent honor (spec §6.2 trial-detail). Falls back to platform accent. */
+  border-bottom: 2px solid var(--show-accent, var(--primary));
 }
 
 .header-buttons {

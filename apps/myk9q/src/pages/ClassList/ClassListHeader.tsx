@@ -1,8 +1,15 @@
 import React from 'react';
-import { HamburgerMenu, CompactOfflineIndicator, TrialDateBadge, RefreshIndicator, FilterTriggerButton } from '../../components/ui';
+import {
+  HamburgerMenu,
+  CompactOfflineIndicator,
+  TrialDateBadge,
+  RefreshIndicator,
+  FilterTriggerButton,
+} from '../../components/ui';
 import { RefreshCw, List } from 'lucide-react';
 import type { LongPressHandlers } from '@myk9/scoring-ui';
 import type { TrialInfo } from './hooks/useClassListData';
+import { useShowAccent } from '@/hooks/useShowAccent';
 
 interface ClassListHeaderProps {
   trialInfo: TrialInfo;
@@ -14,6 +21,8 @@ interface ClassListHeaderProps {
   onOpenFilterPanel: () => void;
   onRefresh: () => void;
   refreshLongPressHandlers: LongPressHandlers;
+  /** ID of the show for per-show accent honoring (spec §6.2 trial-detail). */
+  showId?: string;
 }
 
 export const ClassListHeader: React.FC<ClassListHeaderProps> = ({
@@ -26,14 +35,16 @@ export const ClassListHeader: React.FC<ClassListHeaderProps> = ({
   onOpenFilterPanel,
   onRefresh,
   refreshLongPressHandlers,
+  showId,
 }) => {
+  const accentStyle = useShowAccent(showId);
   return (
-    <header className="page-header class-list-header">
+    <header className="page-header class-list-header" style={accentStyle}>
       <HamburgerMenu
         currentPage="entries"
         backNavigation={{
-          label: "Back to Home",
-          action: onNavigateHome
+          label: 'Back to Home',
+          action: onNavigateHome,
         }}
       />
       <CompactOfflineIndicator />
@@ -51,16 +62,16 @@ export const ClassListHeader: React.FC<ClassListHeaderProps> = ({
                 trialNumber={trialInfo.trial_number}
                 dateOnly={true}
               />
-              <span className="trial-detail">
-                Trial {trialInfo.trial_number}
-              </span>
+              <span className="trial-detail">Trial {trialInfo.trial_number}</span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="header-buttons">
-        {(isRefreshing || isManualRefreshing) && <RefreshIndicator isRefreshing={isRefreshing || isManualRefreshing} />}
+        {(isRefreshing || isManualRefreshing) && (
+          <RefreshIndicator isRefreshing={isRefreshing || isManualRefreshing} />
+        )}
 
         <FilterTriggerButton
           onClick={onOpenFilterPanel}
@@ -75,7 +86,9 @@ export const ClassListHeader: React.FC<ClassListHeaderProps> = ({
           title="Refresh (long press for full reload)"
           {...refreshLongPressHandlers}
         >
-          <RefreshCw className={`h-5 w-5 ${(isRefreshing || isManualRefreshing) ? 'rotating' : ''}`} />
+          <RefreshCw
+            className={`h-5 w-5 ${isRefreshing || isManualRefreshing ? 'rotating' : ''}`}
+          />
         </button>
       </div>
     </header>

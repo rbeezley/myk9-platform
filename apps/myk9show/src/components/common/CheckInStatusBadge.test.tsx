@@ -17,7 +17,7 @@ describe('CheckInStatusBadge', () => {
   it('renders with correct color CSS variable as inline style', () => {
     render(<CheckInStatusBadge status="checked-in" />);
     const badge = screen.getByText('Checked-in').closest('span');
-    expect(badge).toHaveStyle({ backgroundColor: 'var(--checkin-checked-in)' });
+    expect(badge).toHaveStyle({ backgroundColor: 'var(--status-checked-in)' });
   });
 
   it('calls onClick when provided and clicked', async () => {

@@ -47,6 +47,6 @@ describe('CheckInClassRow', () => {
   it('renders status dot with correct color variable', () => {
     const { container } = render(<CheckInClassRow {...defaultProps} checkInStatus="checked-in" />);
     const dot = container.querySelector('[data-testid="status-dot"]');
-    expect(dot).toHaveStyle({ backgroundColor: 'var(--checkin-checked-in)' });
+    expect(dot).toHaveStyle({ backgroundColor: 'var(--status-checked-in)' });
   });
 });

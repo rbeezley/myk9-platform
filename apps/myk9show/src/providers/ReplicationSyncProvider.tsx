@@ -127,6 +127,20 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const hasInitialSynced = useRef(false);
   const triggerSyncRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
+  // Auth guard — only sync when there is an active session
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const prevIsAuthenticated = useRef(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setIsAuthenticated(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Subscribe all Zustand stores to replicated table changes
   useStoreSubscriptions();
 
@@ -188,6 +202,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
    * Trigger sync for all tables
    */
   const triggerSync = useCallback(async () => {
+    if (!isAuthenticated) {
+      logger.debug('Skipping sync - not authenticated', 'replication');
+      return;
+    }
+
     if (!isOnline) {
       logger.debug('Skipping sync - offline', 'replication');
       return;
@@ -284,12 +303,22 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         error: errorMessage,
       }));
     }
-  }, [isOnline, status.isSyncing, licenseKey, queryClient]);
+  }, [isAuthenticated, isOnline, status.isSyncing, licenseKey, queryClient]);
 
   // Keep ref in sync so effects always call latest version without re-triggering
   useEffect(() => {
     triggerSyncRef.current = triggerSync;
   });
+
+  // Trigger sync when session becomes available — covers both "page load while
+  // already signed in" (initial sync fires before getSession resolves) and
+  // "user signs in mid-session".
+  useEffect(() => {
+    if (isAuthenticated && !prevIsAuthenticated.current && isOnline) {
+      triggerSyncRef.current?.();
+    }
+    prevIsAuthenticated.current = isAuthenticated;
+  }, [isAuthenticated, isOnline]);
 
   // Initial sync on startup — defer by one tick so render completes first,
   // but don't wait any longer. The 2s delay this replaced was a source of

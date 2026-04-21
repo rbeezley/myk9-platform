@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalLink, MapPin, Navigation } from 'lucide-react';
 
 interface VenueMapProps {
@@ -7,6 +9,14 @@ interface VenueMapProps {
 }
 
 export function VenueMap({ location, venueName }: VenueMapProps) {
+  // Defer iframe mount so fast navigation away won't fire an aborted network request.
+  const [iframeReady, setIframeReady] = useState(false);
+  useEffect(() => {
+    if (!location?.trim()) return;
+    const id = setTimeout(() => setIframeReady(true), 200);
+    return () => clearTimeout(id);
+  }, [location]);
+
   if (!location?.trim()) return null;
 
   const encodedAddress = encodeURIComponent(location);
@@ -25,14 +35,18 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
 
   return (
     <Card className="overflow-hidden">
-      <iframe
-        src={mapSrc}
-        title={`Map showing ${venueName || location}`}
-        className="w-full h-[300px] border-0"
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        allowFullScreen
-      />
+      {iframeReady ? (
+        <iframe
+          src={mapSrc}
+          title={`Map showing ${venueName || location}`}
+          className="w-full h-[300px] border-0"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          allowFullScreen
+        />
+      ) : (
+        <Skeleton className="w-full h-[300px] rounded-none" />
+      )}
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-2">
           <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />

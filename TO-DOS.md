@@ -42,7 +42,6 @@ Low-priority cleanup items discovered during v2 implementation.
 Logged-in-as `secretary@myk9t.com` route sweep of `apps/myk9show/src/routes/*.tsx`. All ~56 routes loaded without rendering an error boundary. Fixes landed in commit `b642853e`. Remaining items:
 
 - **Admin / judge / club-admin interior audit pending** — Routes under `/admin/*`, `/judge/*`, `/club-admin/*` render the "You don't have permission to access this page" gate for a secretary session and were not walked end-to-end. Need a second pass logged in as a SITE_ADMIN (and a judge for `/judge/*`) to surface any 400s, broken UI, or missing data. `/results/dashboard` is accessible to secretaries and loaded cleanly.
-- **Google Maps embed aborts on fast navigation** — `/clubs/:id` fires a `https://maps.google.com/maps?q=...&output=embed` that gets aborted when the user navigates away mid-load. Cosmetic only (the club card renders fine); lazy-mount the iframe after idle or debounce to avoid wasted requests.
 
 ---
 

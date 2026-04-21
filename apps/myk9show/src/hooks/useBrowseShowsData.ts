@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useEffect } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
 import { useShowStore } from '@/store/showStore';
 import { logger } from '@/services/LoggingService';
@@ -82,9 +83,20 @@ export function useBrowseShowsData({
   const storeErrorMsg = useShowStore(s => s.error);
   const showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
   const { entries, isLoading: entriesLoading, error: entriesError, loadEntries } = useEntryStore();
+  const { status: syncStatus } = useReplicationSync();
 
-  // Consolidated loading and error states
-  const isLoading = authLoading || showsLoading || entriesLoading;
+  // The auth-gated initial sync only fires once authLoading flips to false
+  // and a session is available, so for signed-in users there's a window where
+  // the store is empty but shows haven't been downloaded yet. Treat that
+  // window as loading so the skeleton stays up instead of the empty-state
+  // flash that previously required a hard refresh to clear. Skip for guests
+  // because sync never runs without a session — otherwise the skeleton would
+  // be stuck forever.
+  const showsSyncPending =
+    !!user &&
+    (syncStatus.tablesStatus.shows === 'idle' || syncStatus.tablesStatus.shows === 'syncing');
+  const isLoading =
+    authLoading || showsLoading || entriesLoading || (shows.length === 0 && showsSyncPending);
   const hasError = !!(showsError || entriesError);
 
   // Get user show context for filtering with caching

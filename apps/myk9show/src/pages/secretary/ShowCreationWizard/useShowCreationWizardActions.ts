@@ -24,7 +24,6 @@ import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
-import { rbacService } from '@/services/rbac';
 import { UserRole } from '@/types/auth-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { persistShowJudgeAssignments } from '@/services/database/queries/judgeQueries';
@@ -347,8 +346,12 @@ export function useShowCreationWizardActions({
           }
         }
 
-        // Grant official roles scoped to the show — fire-and-forget so this doesn't
-        // block navigation. Invalidate the officials cache after all grants settle.
+        // Grant official roles scoped to the show via the grant_show_official
+        // RPC (migration 144). The RPC is SECURITY DEFINER and runs the
+        // authorization check + club_id lookup server-side, bypassing the
+        // user_roles RLS gate that previously silently rejected every grant.
+        // Fire-and-forget so this doesn't block navigation, but surface a toast
+        // if any grants fail so the bug isn't hidden again.
         const officialGrants = [
           ...show.officials.secretary.map(id => ({ id, role: UserRole.SECRETARY })),
           ...show.officials.chairman.map(id => ({ id, role: UserRole.CHAIRMAN })),
@@ -356,16 +359,27 @@ export function useShowCreationWizardActions({
         ];
 
         Promise.allSettled(
-          officialGrants.map(grant =>
-            rbacService.ensureUserHasRole(grant.id, grant.role, { showId: realShowId }).catch(err =>
-              logger.warn('Failed to auto-grant official role', 'wizard', {
-                personId: grant.id,
-                role: grant.role,
-                error: err instanceof Error ? err.message : String(err),
-              })
-            )
-          )
-        ).then(() => {
+          officialGrants.map(async grant => {
+            const { error } = await supabase.rpc('grant_show_official', {
+              p_person_id: grant.id,
+              p_role_name: grant.role,
+              p_show_id: realShowId,
+            });
+            if (error) throw error;
+          })
+        ).then(results => {
+          const failures = results.filter(r => r.status === 'rejected');
+          failures.forEach(r => {
+            const err = (r as PromiseRejectedResult).reason;
+            logger.warn('Failed to auto-grant official role', 'wizard', {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+          if (failures.length > 0) {
+            notifications.warning(
+              `Show created, but ${failures.length} official role ${failures.length === 1 ? 'grant' : 'grants'} failed. Check console for details.`
+            );
+          }
           queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
         });
 

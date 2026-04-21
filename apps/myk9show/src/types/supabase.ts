@@ -7163,6 +7163,10 @@ export type Database = {
           user_role_id: string;
         }[];
       };
+      grant_show_official: {
+        Args: { p_person_id: string; p_role_name: string; p_show_id: string };
+        Returns: string;
+      };
       hard_delete_show: { Args: { p_show_id: string }; Returns: undefined };
       has_role: {
         Args: { role_name: string; scope_club_id?: string };

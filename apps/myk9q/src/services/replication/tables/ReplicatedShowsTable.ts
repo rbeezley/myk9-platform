@@ -50,6 +50,9 @@ export interface Show {
   event_url?: string;
   logo_url?: string;
 
+  // Branding
+  accent_color?: string | null;
+
   // Other
   notes?: string;
   description?: string;

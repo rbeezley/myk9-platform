@@ -1,39 +1,54 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 
-describe('design-tokens.css — status vocabulary consolidation', () => {
-  let css: string;
+const REPO_ROOT = path.resolve(__dirname, '../../../../../');
 
-  beforeAll(() => {
-    css = fs.readFileSync(path.resolve(__dirname, '../design-tokens.css'), 'utf-8');
+function grepCount(pattern: string, paths: string[]): number {
+  try {
+    const out = execSync(
+      `rg --count-matches --no-messages --glob '!**/node_modules/**' -e ${JSON.stringify(pattern)} ${paths.map(p => JSON.stringify(p)).join(' ')}`,
+      { cwd: REPO_ROOT, encoding: 'utf-8' }
+    );
+    return out
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .reduce((sum, line) => sum + Number(line.split(':').pop() ?? 0), 0);
+  } catch (err: unknown) {
+    const e = err as { status?: number; stdout?: string };
+    if (e.status === 1) return 0;
+    throw err;
+  }
+}
+
+describe('design-tokens.css — Phase 3 regression (--checkin-* removed)', () => {
+  it('no --checkin-* references remain in apps/myk9q/src', () => {
+    const count = grepCount('--checkin-', ['apps/myk9q/src']);
+    expect(count).toBe(0);
   });
 
-  it('aliases --checkin-none to --status-no-status (not a literal hex)', () => {
-    expect(css).toMatch(/--checkin-none:\s*var\(--status-no-status\)/);
+  it('no --checkin-* references remain in apps/myk9q/public', () => {
+    const count = grepCount('--checkin-', ['apps/myk9q/public']);
+    expect(count).toBe(0);
   });
 
-  it('aliases --checkin-conflict to --status-conflict (not a literal hex)', () => {
-    expect(css).toMatch(/--checkin-conflict:\s*var\(--status-conflict\)/);
+  it('no --checkin-* references remain in packages/core/src', () => {
+    const count = grepCount('--checkin-', ['packages/core/src']);
+    expect(count).toBe(0);
   });
 
-  it('aliases --checkin-pulled to --status-pulled (not a literal hex)', () => {
-    expect(css).toMatch(/--checkin-pulled:\s*var\(--status-pulled\)/);
+  it('design-tokens.css does not define any --checkin-* aliases', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../design-tokens.css'), 'utf-8');
+    expect(css).not.toMatch(/--checkin-[a-z-]+\s*:/);
   });
 
-  it('aliases --checkin-at-gate to --status-at-gate (not a literal hex)', () => {
-    expect(css).toMatch(/--checkin-at-gate:\s*var\(--status-at-gate\)/);
-  });
-
-  it('marks the --checkin-* block as @deprecated', () => {
-    expect(css).toMatch(/@deprecated.*--status-\*/);
-  });
-
-  it('keeps --checkin-checked-in as alias (already was — guard against regression)', () => {
-    expect(css).toMatch(/--checkin-checked-in:\s*var\(--status-checked-in\)/);
-  });
-
-  it('keeps --checkin-in-ring as alias (already was — guard against regression)', () => {
-    expect(css).toMatch(/--checkin-in-ring:\s*var\(--status-in-ring\)/);
+  it('canonical --status-* namespace still exists (smoke)', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../design-tokens.css'), 'utf-8');
+    expect(css).toMatch(/--status-checked-in:/);
+    expect(css).toMatch(/--status-pulled:/);
+    expect(css).toMatch(/--status-in-ring:/);
+    expect(css).toMatch(/--status-completed:/);
   });
 });

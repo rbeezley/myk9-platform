@@ -10,6 +10,10 @@
 /* myK9Q-specific design token overrides (warm backgrounds, teal primary, etc.) */
 @import './styles/design-tokens.css';
 
+/* Outdoor mode — high-contrast overrides, scoped to html.mode-outdoor.
+   Must come AFTER design-tokens so overrides win the cascade. */
+@import './styles/mode-outdoor.css';
+
 /* App-specific styles */
 @import './styles/apple-design-system.css';
 @import './styles/shared-components.css';

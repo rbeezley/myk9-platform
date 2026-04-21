@@ -3,14 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { logger } from '@/utils/logger';
 import { authenticatePasscode } from '../../services/authService';
-import { detectDatabaseWithValidation, isMigrationModeEnabled, V3ShowData } from '../../services/databaseDetectionService';
+import {
+  detectDatabaseWithValidation,
+  isMigrationModeEnabled,
+  V3ShowData,
+} from '../../services/databaseDetectionService';
 import { useHapticFeedback } from '@myk9/scoring-ui';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { checkRateLimit, recordFailedAttempt, clearRateLimit } from '../../utils/rateLimiter';
 import { TransitionMessage } from '../../components/TransitionMessage/TransitionMessage';
 import { LoadingSplash } from '../../components/SplashScreen/LoadingSplash';
 import { autoDownloadShow } from '../../services/autoDownloadService';
-import { prepareForOffline, wasRecentlyPrepared, type OfflinePreparationProgress } from '../../utils/chunkPrefetch';
+import {
+  prepareForOffline,
+  wasRecentlyPrepared,
+  type OfflinePreparationProgress,
+} from '../../utils/chunkPrefetch';
 import PushNotificationService from '../../services/pushNotificationService';
 import './Login.css';
 
@@ -43,7 +51,7 @@ export const Login: React.FC = () => {
 
   // Focus first input on mount
   useEffect(() => {
-inputRefs.current[0]?.focus();
+    inputRefs.current[0]?.focus();
   }, []);
 
   // Preload splash image for instant display during post-login loading
@@ -60,7 +68,7 @@ inputRefs.current[0]?.focus();
     }
 
     const interval = setInterval(() => {
-      setFunMessageIndex((prev) => (prev + 1) % funMessages.length);
+      setFunMessageIndex(prev => (prev + 1) % funMessages.length);
     }, 2500);
 
     return () => clearInterval(interval);
@@ -128,13 +136,13 @@ inputRefs.current[0]?.focus();
     e.preventDefault();
     const pastedText = e.clipboardData.getData('text').toUpperCase().slice(0, 5);
     const newPasscode = [...passcode];
-    
+
     for (let i = 0; i < pastedText.length && i < 5; i++) {
       newPasscode[i] = pastedText[i];
     }
-    
+
     setPasscode(newPasscode);
-    
+
     // Focus last filled input or last input if all filled
     const lastFilledIndex = Math.min(pastedText.length - 1, 4);
     inputRefs.current[lastFilledIndex]?.focus();
@@ -152,21 +160,25 @@ inputRefs.current[0]?.focus();
    * Runs in background, non-blocking
    */
   const triggerAutoDownload = (licenseKey: string) => {
-// Start background download (don't await - non-blocking)
-    autoDownloadShow(licenseKey, (_progress) => { /* Progress callback not needed */ }).then(result => {
-      // Download complete - only log failures
-      if (!result.success) {
-        if (result.downloaded > 0) {
-          logger.warn(
-            `⚠️ [AUTO-DOWNLOAD] Partial success: ${result.downloaded}/${result.total} classes cached`
-          );
-        } else {
-          logger.error('❌ [AUTO-DOWNLOAD] Failed to cache any classes');
+    // Start background download (don't await - non-blocking)
+    autoDownloadShow(licenseKey, _progress => {
+      /* Progress callback not needed */
+    })
+      .then(result => {
+        // Download complete - only log failures
+        if (!result.success) {
+          if (result.downloaded > 0) {
+            logger.warn(
+              `⚠️ [AUTO-DOWNLOAD] Partial success: ${result.downloaded}/${result.total} classes cached`
+            );
+          } else {
+            logger.error('❌ [AUTO-DOWNLOAD] Failed to cache any classes');
+          }
         }
-      }
-    }).catch(error => {
-      logger.error('[AUTO-DOWNLOAD] Unexpected error:', error);
-    });
+      })
+      .catch(error => {
+        logger.error('[AUTO-DOWNLOAD] Unexpected error:', error);
+      });
   };
 
   /**
@@ -197,7 +209,7 @@ inputRefs.current[0]?.focus();
         // First time for this show - run full offline preparation
         await prepareForOffline(
           licenseKey,
-          (progress) => setOfflineProgress(progress),
+          progress => setOfflineProgress(progress),
           20000 // 20 second timeout (then continues in background)
         );
 
@@ -259,12 +271,12 @@ inputRefs.current[0]?.focus();
     try {
       // Check if migration mode is enabled (dual-database detection)
       if (isMigrationModeEnabled()) {
-// Detect which database contains this show
+        // Detect which database contains this show
         const detectionResult = await detectDatabaseWithValidation(fullPasscode);
 
         if (detectionResult.database === 'legacy' && detectionResult.redirectUrl) {
           // Show is in legacy database - redirect to Flutter app
-// Clear rate limit before redirecting
+          // Clear rate limit before redirecting
           clearRateLimit('login');
           hapticFeedback.success();
 
@@ -287,7 +299,7 @@ inputRefs.current[0]?.focus();
           hapticFeedback.success();
           const showDataWithType = {
             ...v3ShowData,
-            showType: v3ShowData.competition_type || v3ShowData.show_type
+            showType: v3ShowData.competition_type || v3ShowData.show_type,
           };
           login(fullPasscode, showDataWithType);
 
@@ -313,7 +325,7 @@ inputRefs.current[0]?.focus();
       hapticFeedback.success();
       const showDataWithType = {
         ...showData,
-        showType: showData.competition_type
+        showType: showData.competition_type,
       };
       login(fullPasscode, showDataWithType);
 
@@ -342,7 +354,9 @@ inputRefs.current[0]?.focus();
         setError(newRateLimitResult.message);
       } else if (newRateLimitResult.remainingAttempts <= 2) {
         // Show warning when getting close to limit
-        setError(`Invalid passcode. ${newRateLimitResult.remainingAttempts} attempt${newRateLimitResult.remainingAttempts === 1 ? '' : 's'} remaining before temporary block.`);
+        setError(
+          `Invalid passcode. ${newRateLimitResult.remainingAttempts} attempt${newRateLimitResult.remainingAttempts === 1 ? '' : 's'} remaining before temporary block.`
+        );
       } else {
         setError('Invalid passcode. Please check and try again.');
       }
@@ -366,9 +380,7 @@ inputRefs.current[0]?.focus();
   return (
     <>
       {/* Show transition message when redirecting to legacy app */}
-      {showTransition && (
-        <TransitionMessage onComplete={handleTransitionComplete} />
-      )}
+      {showTransition && <TransitionMessage onComplete={handleTransitionComplete} />}
 
       {/* Loading Splash - Post-login preparation */}
       {preparingOffline && (
@@ -381,116 +393,109 @@ inputRefs.current[0]?.focus();
 
       {/* Login page */}
       <div className="login-container page-transition">
-      {/* Integrated background matching Landing page */}
-      <div className="login-background">
-        <div className="background-diagonal"></div>
-        <div className="background-grid"></div>
-      </div>
-      
-      <div className="login-content">
-        {/* Logo and Branding */}
-        <div className="logo-container">
-          <div className="logo-image">
-            <img
-              src="/myK9Q-teal-192.png"
-              alt="myK9Q Logo"
-              className="logo-img"
-            />
-          </div>
-
-          <h1 className="app-title">myK9Q</h1>
-          <div className="tagline">
-            <span className="tagline-queue">Queue</span>
-            <span className="tagline-and"> & </span>
-            <span className="tagline-qualify">Qualify</span>
-          </div>
+        {/* Integrated background matching Landing page */}
+        <div className="login-background">
+          <div className="background-diagonal"></div>
+          <div className="background-grid"></div>
         </div>
 
-        {/* Passcode Input Section - Frosted Glass Card */}
-        <div className="passcode-card">
-          <div className="passcode-section">
-            <p className="instruction">Enter Pass Code provided by Club</p>
-
-            <div className="passcode-input-container">
-              <div className={`passcode-inputs ${passcode.every(d => d !== '') ? 'all-filled' : ''}`}>
-                {passcode.map((digit, index) => (
-                  <div key={index} className="input-wrapper">
-                    <input
-                      ref={(el) => { inputRefs.current[index] = el; }}
-                      type="text"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleInputChange(index, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(index, e)}
-                      onPaste={index === 0 ? handlePaste : undefined}
-                      className={`passcode-input ${error ? 'error' : ''} ${digit ? 'filled' : ''}`}
-                      disabled={isLoading}
-                      inputMode="email"
-                      autoComplete="off"
-                      aria-label={`Passcode digit ${index + 1}`}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Reset Button */}
-              {passcode.some(digit => digit !== '') && (
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="reset-button"
-                  disabled={isLoading}
-                  aria-label="Clear passcode"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M18 6L6 18M6 6L18 18"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              )}
+        <div className="login-content">
+          {/* Logo and Branding */}
+          <div className="logo-container">
+            <div className="logo-image">
+              <img src="/myK9Q-teal-192.png" alt="myK9Q Logo" className="logo-img" />
             </div>
 
-            {/* Error Message */}
-            {error && (
-              <div className="error-message">
-                {error}
-              </div>
-            )}
+            <h1 className="app-title">myK9Q</h1>
+            <div className="tagline">
+              <span className="tagline-queue">Queue</span>
+              <span className="tagline-and"> & </span>
+              <span className="tagline-qualify">Qualify</span>
+            </div>
+          </div>
 
-            {/* Loading State */}
-            {isLoading && (
-              <div className="loading-message">
-                Validating passcode...
+          {/* Passcode Input Section - Frosted Glass Card */}
+          <div className="passcode-card">
+            <div className="passcode-section">
+              <p className="instruction">Enter Pass Code provided by Club</p>
+
+              <div className="passcode-input-container">
+                <div
+                  className={`passcode-inputs ${passcode.every(d => d !== '') ? 'all-filled' : ''}`}
+                >
+                  {passcode.map((digit, index) => (
+                    <div key={index} className="input-wrapper">
+                      <input
+                        ref={el => {
+                          inputRefs.current[index] = el;
+                        }}
+                        type="text"
+                        maxLength={1}
+                        value={digit}
+                        onChange={e => handleInputChange(index, e.target.value)}
+                        onKeyDown={e => handleKeyDown(index, e)}
+                        onPaste={index === 0 ? handlePaste : undefined}
+                        className={`passcode-input ${error ? 'error' : ''} ${digit ? 'filled' : ''}`}
+                        disabled={isLoading}
+                        inputMode="email"
+                        autoComplete="off"
+                        aria-label={`Passcode digit ${index + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Reset Button */}
+                {passcode.some(digit => digit !== '') && (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="reset-button"
+                    disabled={isLoading}
+                    aria-label="Clear passcode"
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M18 6L6 18M6 6L18 18"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                )}
               </div>
-            )}
+
+              {/* Error Message */}
+              {error && <div className="error-message">{error}</div>}
+
+              {/* Loading State */}
+              {isLoading && <div className="loading-message">Validating passcode...</div>}
+            </div>
+          </div>
+
+          {/* Information Section */}
+          <div className="info-section">
+            <p className="info-text">Real-time check-in, conflict management, and results.</p>
+            <p className="info-text">Efficient shows. Simplified.</p>
+            <a
+              href="https://myk9show.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="website-link"
+            >
+              Powered by myK9Show.com
+            </a>
           </div>
         </div>
-
-        {/* Information Section */}
-        <div className="info-section">
-          <p className="info-text">
-            Real-time check-in, conflict management, and results.
-          </p>
-          <p className="info-text">
-            Efficient shows. Simplified.
-          </p>
-          <p className="website-link">
-            www.myk9t.com
-          </p>
-        </div>
       </div>
-    </div>
     </>
   );
 };

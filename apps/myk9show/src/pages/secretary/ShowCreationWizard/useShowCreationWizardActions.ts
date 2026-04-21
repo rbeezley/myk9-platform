@@ -17,7 +17,6 @@ import {
   replicatedClassesTable,
   type ReplicatedClass,
 } from '@/services/replication/ReplicatedClassesTable';
-import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { supabase } from '@/services/database/supabaseClient';
 import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
@@ -36,41 +35,7 @@ import {
   showToShowInput,
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
-
-/**
- * Verify a newly-created show actually landed on the server after sync.
- * If the row is missing (e.g., RLS rejected the INSERT), roll back the local
- * optimistic state so the UI doesn't show a ghost record and throw a clear
- * error for the caller to surface to the user.
- *
- * Exported for unit testing.
- */
-export async function verifyShowCreatedOnServer(deps: {
-  showId: string;
-  supabase: typeof import('@/services/database/supabaseClient').supabase;
-  replicatedShowsTable: typeof import('@/services/replication/ReplicatedShowsTable').replicatedShowsTable;
-  removeShow: (id: string) => void;
-  queryClient: import('@tanstack/react-query').QueryClient;
-}): Promise<void> {
-  const { data: serverRow, error: verifyError } = await deps.supabase
-    .from('shows')
-    .select('id')
-    .eq('id', deps.showId)
-    .maybeSingle();
-
-  if (verifyError || !serverRow) {
-    deps.removeShow(deps.showId);
-    await deps.replicatedShowsTable.delete(deps.showId);
-    deps.queryClient.removeQueries({ queryKey: showQueryKeys.detail(deps.showId) });
-    deps.queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old =>
-      old ? old.filter(s => s.id !== deps.showId) : []
-    );
-    throw new Error(
-      verifyError?.message ||
-        'Show was not saved. You may not have permission to create shows for this club.'
-    );
-  }
-}
+import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 
 /**
  * Convert wizard ClassData to ReplicatedClass for offline-first storage
@@ -279,6 +244,67 @@ export function useShowCreationWizardActions({
       try {
         setIsLoading(true);
 
+        // New-show + online path: single atomic RPC
+        // (create_show_with_children, migration 145) writes shows + trials +
+        // classes + judge_assignments in one transaction. Replaces the legacy
+        // multi-step flow below, which could leave orphaned rows on partial
+        // failure. Edit-mode and offline paths still use the multi-step flow.
+        if (!editMode?.showId && isOnline) {
+          const {
+            showId: realShowId,
+            savedShow,
+            officialGrantsPromise,
+          } = await saveShowAtomicOnline({
+            show,
+            trials,
+            judgeDetails,
+            clubs,
+            status,
+            queryClient,
+            triggerSync,
+          });
+
+          // officialGrantsPromise logs failures and invalidates the officials
+          // query internally; nothing to await here.
+          void officialGrantsPromise;
+
+          triggerSync().catch(syncError => {
+            logger.warn('Post-create sync failed', 'wizard', {
+              error: syncError instanceof Error ? syncError.message : String(syncError),
+            });
+          });
+
+          loadTrialClasses().catch(() => {
+            /* non-critical */
+          });
+
+          if (status === 'draft') {
+            saveProgress();
+          } else if (shouldResetWizard) {
+            resetWizard();
+          }
+
+          if (status === 'draft') {
+            navigate(`/shows/${realShowId}`);
+          } else if (onCreatedRef.current) {
+            onCreatedRef.current(realShowId, savedShow.name);
+          } else {
+            navigate('/secretary/dashboard');
+          }
+
+          if (status === 'draft') {
+            notifications.success(`"${savedShow.name}" saved as draft`);
+          } else if (!onCreatedRef.current) {
+            notifications.success(`"${savedShow.name}" created successfully`);
+          }
+
+          logger.info(`Show saved successfully (${status})`, 'wizard', {
+            showId: realShowId,
+            showName: savedShow.name,
+          });
+          return;
+        }
+
         // Transform wizard data to Show format
         const wizardShow = transformWizardDataToShow(
           show,
@@ -307,24 +333,6 @@ export function useShowCreationWizardActions({
           const exists = old.some(s => s.id === realShowId);
           return exists ? old.map(s => (s.id === realShowId ? savedShow : s)) : [savedShow, ...old];
         });
-
-        // For NEW shows while online, verify the parent INSERT landed on the
-        // server BEFORE queuing any child rows (trials/classes/judges). This
-        // prevents an RLS rejection on `shows` from leaving orphaned locally-
-        // optimistic children that can never sync (FK would fail anyway). If
-        // we're offline, skip the verify — the global `replication:sync-failed`
-        // listener will surface any eventual RLS/upload failure when we
-        // reconnect.
-        if (!editMode?.showId && isOnline) {
-          await triggerSync();
-          await verifyShowCreatedOnServer({
-            showId: realShowId,
-            supabase,
-            replicatedShowsTable,
-            removeShow: useShowStore.getState().removeShow,
-            queryClient,
-          });
-        }
 
         // Create trials (awaited) and get wizard-ID → real-UUID mapping
         const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);

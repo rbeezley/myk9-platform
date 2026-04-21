@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
@@ -30,7 +30,6 @@ import './styles/containers.css';
 
 // Eager load critical components
 import { Login } from './pages/Login/Login';
-import { Landing } from './pages/Landing/Landing';
 
 // Debug components - only imported in development mode
 // These expose internal tools that should never be accessible in production
@@ -506,7 +505,7 @@ function AppWithAuth() {
             </ProtectedRoute>
           }
         />
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </MainLayout>
   );

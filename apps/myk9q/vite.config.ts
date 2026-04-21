@@ -1,9 +1,9 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
-import { visualizer } from 'rollup-plugin-visualizer'
-import path from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+import { visualizer } from 'rollup-plugin-visualizer';
+import path from 'path';
 
 export default defineConfig({
   // Build-time constants - injected at compile time
@@ -65,6 +65,7 @@ export default defineConfig({
     },
   },
   server: {
+    port: 5174,
     host: true,
     // Enable HTTPS for mobile testing (optional)
     // https: {
@@ -102,8 +103,8 @@ export default defineConfig({
           if (id.includes('/services/')) {
             return 'services';
           }
-        }
-      }
+        },
+      },
     },
     // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000,
@@ -112,7 +113,7 @@ export default defineConfig({
     // Minify CSS
     cssMinify: true,
     // Source maps only for errors in production
-    sourcemap: 'hidden'
+    sourcemap: 'hidden',
   },
   optimizeDeps: {
     // Pre-bundle heavy dependencies
@@ -122,20 +123,22 @@ export default defineConfig({
       'react-router-dom',
       '@supabase/supabase-js',
       'zustand',
-      'lucide-react'
-    ]
+      'lucide-react',
+    ],
   },
   plugins: [
     react(),
     // Bundle visualizer - generates stats.html after build
     // Run with: ANALYZE=true npm run build
-    process.env.ANALYZE === 'true' ? visualizer({
-      filename: 'stats.html',
-      open: true,
-      gzipSize: true,
-      brotliSize: true,
-      template: 'treemap' // or 'sunburst', 'network'
-    }) : null,
+    process.env.ANALYZE === 'true'
+      ? visualizer({
+          filename: 'stats.html',
+          open: true,
+          gzipSize: true,
+          brotliSize: true,
+          template: 'treemap', // or 'sunburst', 'network'
+        })
+      : null,
     VitePWA({
       strategies: 'injectManifest', // Use our custom service worker
       srcDir: 'src',
@@ -144,10 +147,10 @@ export default defineConfig({
       devOptions: {
         enabled: false, // Disabled to prevent stale chunk caching during development
         // Set to true temporarily when testing offline functionality
-        type: 'module' // Use ES module service worker (bundled locally, no CDN)
+        type: 'module', // Use ES module service worker (bundled locally, no CDN)
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
       },
       manifest: {
         name: 'myK9Q',
@@ -165,14 +168,14 @@ export default defineConfig({
             src: '/myK9Q-teal-192.png',
             sizes: '192x192',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any maskable',
           },
           {
             src: '/myK9Q-teal-512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
-          }
+            purpose: 'any maskable',
+          },
         ],
         shortcuts: [
           {
@@ -180,9 +183,9 @@ export default defineConfig({
             short_name: 'Score',
             description: 'Start scoring a new dog',
             url: '/score/new',
-            icons: [{ src: '/myK9Q-teal-192.png', sizes: '192x192' }]
-          }
-        ]
+            icons: [{ src: '/myK9Q-teal-192.png', sizes: '192x192' }],
+          },
+        ],
       },
       workbox: {
         // Precache all build artifacts including lazy-loaded chunks
@@ -203,12 +206,12 @@ export default defineConfig({
               cacheName: 'supabase-api',
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 // 1 hour
+                maxAgeSeconds: 60 * 60, // 1 hour
               },
               cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
+                statuses: [0, 200],
+              },
+            },
           },
           // Cache navigation requests (SPA routes) with CacheFirst strategy
           {
@@ -221,9 +224,9 @@ export default defineConfig({
               cacheName: 'navigation-cache',
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              }
-            }
+                maxAgeSeconds: 60 * 60 * 24, // 24 hours
+              },
+            },
           },
           // Cache JavaScript chunks with CacheFirst strategy
           {
@@ -233,12 +236,12 @@ export default defineConfig({
               cacheName: 'js-assets-cache',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
               },
               cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
+                statuses: [0, 200],
+              },
+            },
           },
           // CacheFirst for CSS - matches JS strategy to prevent FOUC (Flash of Unstyled Content)
           // Vite generates content-hashed filenames, so no risk of serving stale CSS
@@ -249,20 +252,20 @@ export default defineConfig({
               cacheName: 'css-assets-cache',
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days (same as JS)
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days (same as JS)
               },
               cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
-      }
-    })
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
+      },
+    }),
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    }
-  }
-})
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+});

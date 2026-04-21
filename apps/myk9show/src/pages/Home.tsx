@@ -2,6 +2,7 @@ import React, { useMemo, Suspense } from 'react';
 import Hero from '@/components/landing/Hero';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import HowItWorks from '@/components/landing/HowItWorks';
+import MyK9QCallout from '@/components/landing/MyK9QCallout';
 import Pricing from '@/components/landing/Pricing';
 import ClubOnboardingForm from '@/components/landing/ClubOnboardingForm';
 import FAQSection from '@/components/landing/FAQSection';
@@ -55,6 +56,11 @@ const Home: React.FC = () => {
       {/* Features Section */}
       <FadeIn>
         <FeaturesSection features={memoizedFeatures} />
+      </FadeIn>
+
+      {/* myK9Q Companion App */}
+      <FadeIn>
+        <MyK9QCallout />
       </FadeIn>
 
       {/* Pricing Section */}

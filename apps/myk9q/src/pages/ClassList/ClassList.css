@@ -11,7 +11,9 @@
 .class-list-container {
   height: 100vh;
   overflow: hidden;
-  background: var(--secondary); /* Light: light gray background for better contrast with white containers */
+  background: var(
+    --secondary
+  ); /* Light: light gray background for better contrast with white containers */
   color: var(--foreground);
   font-family: var(--font-family);
   transition: background-color 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -50,7 +52,7 @@
   gap: var(--token-space-md);
   margin-left: auto;
   flex-shrink: 0;
-  position: relative;  /* Ensure dropdown positioning works correctly */
+  position: relative; /* Ensure dropdown positioning works correctly */
 }
 
 /* ========== TRIAL INFO ========== */
@@ -91,12 +93,12 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  gap: var(--token-space-lg);  /* Reduced from xl for less cramped feel */
+  gap: var(--token-space-lg); /* Reduced from xl for less cramped feel */
 }
 
 .class-list-header .trial-details-group {
   display: flex;
-  gap: var(--token-space-md);  /* Reduced from lg - items are visually related */
+  gap: var(--token-space-md); /* Reduced from lg - items are visually related */
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
@@ -136,7 +138,7 @@
 /* ========== TRIAL INFO SECTION ========== */
 
 .trial-info-section {
-  padding: var(--token-space-lg) 0;  /* No horizontal padding - inherited from container */
+  padding: var(--token-space-lg) 0; /* No horizontal padding - inherited from container */
 }
 
 .trial-info-card {
@@ -263,12 +265,18 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes subtlePulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
     box-shadow: 0 var(--token-space-xs) var(--token-space-sm) var(--primary-subtle);
@@ -312,6 +320,10 @@
 .class-card {
   background: var(--card);
   border: 1px solid var(--border);
+  /* Per-show accent honor — left border tints to the show's color when
+     shows.accent_color is set. Falls back to the platform primary. Status
+     semantic color still wins via the ::after strip (spec §6.2). */
+  border-left: 4px solid var(--show-accent, var(--primary));
   border-radius: var(--token-space-xl);
   margin-bottom: 0;
   cursor: pointer;
@@ -379,7 +391,9 @@
   border-radius: var(--token-space-xl);
   padding: 2px;
   background: linear-gradient(135deg, var(--status-color, var(--primary)) 0%, var(--primary) 100%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0;
@@ -406,7 +420,7 @@
 
 .class-content {
   padding: var(--token-space-lg);
-  padding-bottom: var(--token-space-sm);  /* Minimal bottom padding */
+  padding-bottom: var(--token-space-sm); /* Minimal bottom padding */
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -437,7 +451,10 @@
   margin: 0;
   margin-top: 0.5rem; /* Align with status badge */
   margin-bottom: 0.75rem; /* Breathing room before metadata */
-  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-family:
+    'Montserrat',
+    -apple-system,
+    sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--foreground);
@@ -647,7 +664,7 @@
 
 .meta-row {
   font-size: 0.8125rem;
-  color: var(--muted-foreground);  /* Theme-aware: darker in light mode, lighter in dark mode */
+  color: var(--muted-foreground); /* Theme-aware: darker in light mode, lighter in dark mode */
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -665,8 +682,8 @@
 .meta-row.time {
   font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Courier New', monospace;
   font-weight: 500;
-  font-size: 0.6875rem;  /* Mobile: 11px - smaller to prevent wrapping */
-  flex-wrap: wrap;  /* Mobile: allow wrapping if needed */
+  font-size: 0.6875rem; /* Mobile: 11px - smaller to prevent wrapping */
+  flex-wrap: wrap; /* Mobile: allow wrapping if needed */
 }
 
 .time-value {
@@ -676,26 +693,26 @@
 
 /* Area time units - keep each "(1) 03:00" together as a unit */
 .area-time {
-  white-space: nowrap;  /* Prevent breaking within area:time */
-  margin-right: 0.5rem;  /* Space between area times */
-  display: inline-block;  /* Ensure spacing works */
+  white-space: nowrap; /* Prevent breaking within area:time */
+  margin-right: 0.5rem; /* Space between area times */
+  display: inline-block; /* Ensure spacing works */
 }
 
 .area-time:last-child {
-  margin-right: 0;  /* No trailing margin */
+  margin-right: 0; /* No trailing margin */
 }
 
 /* Area label "(1)" - subtle gray to distinguish from accent-colored time */
 .area-label {
-  color: #6b7280;  /* Gray-500 - subtle but readable */
-  font-weight: 400;  /* Normal weight */
-  font-size: 0.85em;  /* Slightly smaller than time */
+  color: #6b7280; /* Gray-500 - subtle but readable */
+  font-weight: 400; /* Normal weight */
+  font-size: 0.85em; /* Slightly smaller than time */
 }
 
 /* Tablet+: restore time row font size */
 @media (min-width: 640px) {
   .meta-row.time {
-    font-size: 0.8125rem;  /* Tablet: 13px - restore normal size */
+    font-size: 0.8125rem; /* Tablet: 13px - restore normal size */
   }
 }
 
@@ -1124,7 +1141,11 @@
 }
 
 .class-menu-button:hover {
-  background: linear-gradient(135deg, var(--accent-color, var(--primary)) 0%, var(--accent-color, var(--primary)) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent-color, var(--primary)) 0%,
+    var(--accent-color, var(--primary)) 100%
+  );
   color: white;
   border-color: transparent;
   transform: scale(1.1) rotate(-5deg);
@@ -1488,8 +1509,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Empty state styles moved to shared /styles/empty-state.css */
@@ -1555,18 +1580,17 @@
 
   /* Popup Content */
   .class-content {
-    padding-bottom: var(--token-space-4xl);  /* Tablet: larger bottom padding */
+    padding-bottom: var(--token-space-4xl); /* Tablet: larger bottom padding */
   }
 
   .popup-container {
-    max-width: 500px;  /* Desktop: fixed width */
-    max-height: calc(100vh - 2rem);  /* Desktop: smaller max-height with margin */
+    max-width: 500px; /* Desktop: fixed width */
+    max-height: calc(100vh - 2rem); /* Desktop: smaller max-height with margin */
   }
 
   .popup-content {
-    border-radius: 1rem;  /* Desktop: rounded corners */
+    border-radius: 1rem; /* Desktop: rounded corners */
   }
-
 
   /* Show planned start time on tablet+ */
   .class-planned-time {
@@ -1595,7 +1619,7 @@
 
   .class-content {
     padding: var(--token-space-lg);
-    padding-bottom: var(--token-space-2xl);  /* Desktop: reduced padding for tighter layout */
+    padding-bottom: var(--token-space-2xl); /* Desktop: reduced padding for tighter layout */
   }
 
   /* Class List */
@@ -1626,8 +1650,8 @@
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   box-shadow: 0 var(--token-space-md) var(--token-space-3xl) rgba(0, 0, 0, 0.15);
-  z-index: var(--token-z-toast);  /* Very high z-index to appear above all content */
-  min-width: 220px;  /* Increased width to prevent text wrapping */
+  z-index: var(--token-z-toast); /* Very high z-index to appear above all content */
+  min-width: 220px; /* Increased width to prevent text wrapping */
   max-width: calc(100vw - 2rem);
   overflow: hidden;
   margin-right: var(--token-space-md);
@@ -1668,8 +1692,12 @@
 }
 
 @keyframes rotate-dropdown {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ========== CLASS OPTIONS POPUP ========== */
@@ -1707,13 +1735,13 @@
 .popup-container {
   position: relative;
   width: 100%;
-  max-width: 100%;  /* Mobile: full width */
-  max-height: 100vh;  /* Mobile: full viewport height */
+  max-width: 100%; /* Mobile: full width */
+  max-height: 100vh; /* Mobile: full viewport height */
   animation: slideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* When positioned at top-center */
-.popup-container[style*="position: fixed"] {
+.popup-container[style*='position: fixed'] {
   position: fixed !important;
   width: auto;
   max-width: 500px;
@@ -1745,7 +1773,7 @@
 
 .popup-content {
   background: var(--card);
-  border-radius: 0;  /* Mobile: no border radius (full screen) */
+  border-radius: 0; /* Mobile: no border radius (full screen) */
   box-shadow: var(--token-shadow-xl);
   overflow: hidden;
   display: flex;

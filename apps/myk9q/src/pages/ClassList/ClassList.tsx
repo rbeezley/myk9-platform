@@ -511,6 +511,7 @@ export const ClassList: React.FC = () => {
           activePopup={activePopup}
           handleClassPrefetch={handleClassPrefetch}
           justToggledClassId={justToggledClassId}
+          showId={showContext?.showId}
         />
       </PullToRefresh>
 

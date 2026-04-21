@@ -1,11 +1,28 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Heart, MoreHorizontal, Users, UserCheck, Circle, Wrench, MessageSquare, Coffee, CalendarClock, PlayCircle, CheckCircle, Calendar, WifiOff, AlertTriangle, Info } from 'lucide-react';
+import {
+  Heart,
+  MoreHorizontal,
+  Users,
+  UserCheck,
+  Circle,
+  Wrench,
+  MessageSquare,
+  Coffee,
+  CalendarClock,
+  PlayCircle,
+  CheckCircle,
+  Calendar,
+  WifiOff,
+  AlertTriangle,
+  Info,
+} from 'lucide-react';
 import { getStaleDataStatus, formatStaleTime } from '../../utils/staleDataUtils';
 import { UserPermissions } from '../../utils/auth';
 import { ClassDetailsPopover } from '@/components/dialogs/ClassDetailsPopover';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { ClassDetailsContent } from '@/components/dialogs/ClassDetailsContent';
 import { useIsTouchDevice } from '@myk9/scoring-ui';
+import { useShowAccent } from '@/hooks/useShowAccent';
 
 interface ClassEntry {
   id: number;
@@ -17,7 +34,15 @@ interface ClassEntry {
   judge_name: string;
   entry_count: number;
   completed_count: number;
-  class_status: 'no-status' | 'setup' | 'briefing' | 'break' | 'start_time' | 'in_progress' | 'offline-scoring' | 'completed';
+  class_status:
+    | 'no-status'
+    | 'setup'
+    | 'briefing'
+    | 'break'
+    | 'start_time'
+    | 'in_progress'
+    | 'offline-scoring'
+    | 'completed';
   is_scoring_finalized?: boolean;
   is_favorite: boolean;
   time_limit_seconds?: number;
@@ -58,6 +83,8 @@ interface ClassCardProps {
   onMenuClick?: (classId: number) => void;
   onPrefetch?: () => void;
   justToggledClassId?: number | null;
+  /** ID of the show owning these classes, for per-show accent honoring (spec §6.2). */
+  showId?: string;
 }
 
 export const ClassCard: React.FC<ClassCardProps> = ({
@@ -74,9 +101,12 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   onMenuClick,
   onPrefetch,
   justToggledClassId,
+  showId,
 }) => {
   // Detect touch device to choose between bottom sheet (mobile) and popover (desktop)
   const isTouchDevice = useIsTouchDevice();
+  // Per-show accent — left-border color picks up shows.accent_color when set.
+  const accentStyle = useShowAccent(showId);
 
   // Memoize computed values to prevent redundant function calls
   const statusColor = useMemo(
@@ -92,10 +122,11 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   // Check if run order data may be stale (for automatic offline detection)
   // Uses class_status === 'in_progress' which is automatically set when first dog is scored
   const staleStatus = useMemo(
-    () => getStaleDataStatus({
-      class_status: classEntry.class_status,
-      last_result_at: classEntry.last_result_at,
-    }),
+    () =>
+      getStaleDataStatus({
+        class_status: classEntry.class_status,
+        last_result_at: classEntry.last_result_at,
+      }),
     [classEntry.class_status, classEntry.last_result_at]
   );
 
@@ -122,19 +153,22 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   const infoIndicatorRef = useRef<HTMLDivElement>(null);
 
   // Class details data (shared between popover and bottom sheet)
-  const classDetailsData = useMemo(() => ({
-    classId: classEntry.id,
-    status: classEntry.class_status,
-    totalEntries: classEntry.entry_count,
-    completedEntries: classEntry.completed_count,
-    judgeName: classEntry.judge_name,
-    timeLimitSeconds: classEntry.time_limit_seconds,
-    timeLimitArea2Seconds: classEntry.time_limit_area2_seconds,
-    timeLimitArea3Seconds: classEntry.time_limit_area3_seconds,
-    areaCount: classEntry.area_count,
-    visibilityPreset: classEntry.visibility_preset,
-    selfCheckinEnabled: classEntry.self_checkin_enabled
-  }), [classEntry]);
+  const classDetailsData = useMemo(
+    () => ({
+      classId: classEntry.id,
+      status: classEntry.class_status,
+      totalEntries: classEntry.entry_count,
+      completedEntries: classEntry.completed_count,
+      judgeName: classEntry.judge_name,
+      timeLimitSeconds: classEntry.time_limit_seconds,
+      timeLimitArea2Seconds: classEntry.time_limit_area2_seconds,
+      timeLimitArea3Seconds: classEntry.time_limit_area3_seconds,
+      areaCount: classEntry.area_count,
+      visibilityPreset: classEntry.visibility_preset,
+      selfCheckinEnabled: classEntry.self_checkin_enabled,
+    }),
+    [classEntry]
+  );
 
   // Format planned start time for display
   const formatPlannedStartTime = (timestamp: string | undefined) => {
@@ -145,7 +179,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     });
   };
 
@@ -153,23 +187,77 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   const getStatusIcon = (status: ClassEntry['class_status']) => {
     switch (status) {
       case 'no-status':
-        return <Circle size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <Circle
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
       case 'setup':
-        return <Wrench size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <Wrench
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
       case 'briefing':
-        return <MessageSquare size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <MessageSquare
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
       case 'break':
-        return <Coffee size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <Coffee
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
       case 'start_time':
-        return <CalendarClock size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <CalendarClock
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
       case 'in_progress':
-        return <PlayCircle size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <PlayCircle
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
       case 'offline-scoring':
-        return <WifiOff size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <WifiOff
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
       case 'completed':
-        return <CheckCircle size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <CheckCircle
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
       default:
-        return <Circle size={18} className="status-icon" style={{ width: '18px', height: '18px', flexShrink: 0 }} />;
+        return (
+          <Circle
+            size={18}
+            className="status-icon"
+            style={{ width: '18px', height: '18px', flexShrink: 0 }}
+          />
+        );
     }
   };
 
@@ -177,9 +265,10 @@ export const ClassCard: React.FC<ClassCardProps> = ({
     <div
       key={classEntry.id}
       className={`class-card touchable status-${classEntry.class_status.replace('_', '-')}`}
+      style={accentStyle}
       onMouseEnter={() => onPrefetch?.()}
       onTouchStart={() => onPrefetch?.()}
-      onClick={(e) => {
+      onClick={e => {
         // Don't navigate if clicking on interactive elements (buttons) or status badge
         const target = e.target as HTMLElement;
         if (
@@ -199,18 +288,18 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             <button
               type="button"
               className={`favorite-button ${classEntry.is_favorite ? 'favorited' : ''} ${justToggledClassId === classEntry.id ? 'favorite-just-toggled' : ''}`}
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault();
                 e.stopPropagation();
                 e.nativeEvent.stopImmediatePropagation();
                 toggleFavorite(classEntry.id);
                 return false;
               }}
-              onMouseDown={(e) => {
+              onMouseDown={e => {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              onTouchStart={(e) => {
+              onTouchStart={e => {
                 e.preventDefault();
                 e.stopPropagation();
               }}
@@ -221,7 +310,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
 
             <button
               className="class-menu-button"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 if (activePopup === classEntry.id) {
                   setActivePopup(null);
@@ -252,7 +341,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                   setShowDetailsPopup(false);
                 }
               }}
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 if (isTouchDevice) {
                   // Mobile: open bottom sheet on tap
@@ -303,7 +392,9 @@ export const ClassCard: React.FC<ClassCardProps> = ({
               <div className="class-planned-time">
                 <Calendar size={14} style={{ width: '14px', height: '14px', flexShrink: 0 }} />
                 <span className="planned-time-label">Planned:</span>
-                <span className="planned-time-value">{formatPlannedStartTime(classEntry.planned_start_time)}</span>
+                <span className="planned-time-value">
+                  {formatPlannedStartTime(classEntry.planned_start_time)}
+                </span>
               </div>
             )}
           </div>
@@ -316,11 +407,11 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             {hasPermission('canManageClasses') ? (
               <button
                 className={`status-badge class-status-badge ${statusColor} ${statusPulseClass}`}
-                onMouseDown={(e) => {
+                onMouseDown={e => {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
-                onClick={(e) => {
+                onClick={e => {
                   e.preventDefault();
                   e.stopPropagation();
                   e.nativeEvent.stopImmediatePropagation();
@@ -362,7 +453,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
               <div
                 className="class-progress-fill"
                 style={{
-                  width: `${(classEntry.completed_count / classEntry.entry_count) * 100}%`
+                  width: `${(classEntry.completed_count / classEntry.entry_count) * 100}%`,
                 }}
               />
             </div>
@@ -375,10 +466,8 @@ export const ClassCard: React.FC<ClassCardProps> = ({
               {(() => {
                 const inRingDog = classEntry.dogs.find(dog => dog.in_ring);
                 const nextDogs = classEntry.dogs
-                  .filter(dog =>
-                    !dog.is_scored &&
-                    !dog.in_ring &&
-                    dog.checkin_status !== 3 // Exclude pulled dogs (checkin_status 3 = pulled)
+                  .filter(
+                    dog => !dog.is_scored && !dog.in_ring && dog.checkin_status !== 3 // Exclude pulled dogs (checkin_status 3 = pulled)
                   )
                   .slice(0, 3);
 
@@ -387,12 +476,17 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                     {/* In-ring dog with visual indicator */}
                     {inRingDog && (
                       <span key={inRingDog.id} className="armband-number in-ring">
-                        <Circle size={8} fill="#f59e0b" stroke="#f59e0b" style={{ marginRight: '2px' }} />
+                        <Circle
+                          size={8}
+                          fill="#f59e0b"
+                          stroke="#f59e0b"
+                          style={{ marginRight: '2px' }}
+                        />
                         #{inRingDog.armband}
                       </span>
                     )}
                     {/* Next dogs waiting */}
-                    {nextDogs.map((dog) => (
+                    {nextDogs.map(dog => (
                       <span key={dog.id} className="armband-number">
                         #{dog.armband}
                       </span>
@@ -403,13 +497,12 @@ export const ClassCard: React.FC<ClassCardProps> = ({
               {/* Show remaining count */}
               {classEntry.entry_count - classEntry.completed_count > 0 && (
                 <span className="remaining-count">
-                  {classEntry.entry_count - classEntry.completed_count} of {classEntry.entry_count} remaining
+                  {classEntry.entry_count - classEntry.completed_count} of {classEntry.entry_count}{' '}
+                  remaining
                 </span>
               )}
               {classEntry.class_status === 'completed' && (
-                <span className="remaining-count">
-                  All complete
-                </span>
+                <span className="remaining-count">All complete</span>
               )}
             </div>
           ) : (
@@ -437,7 +530,6 @@ export const ClassCard: React.FC<ClassCardProps> = ({
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

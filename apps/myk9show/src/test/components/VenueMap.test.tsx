@@ -1,7 +1,7 @@
 import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import type { ReactElement } from 'react';
-import { VenueMap } from '@/components/shows/overview/VenueMap';
+import { VenueMap, IFRAME_DEFER_MS } from '@/components/shows/overview/VenueMap';
 
 describe('VenueMap', () => {
   beforeEach(() => {
@@ -15,7 +15,7 @@ describe('VenueMap', () => {
 
   function renderAndMount(jsx: ReactElement) {
     const result = render(jsx);
-    act(() => vi.advanceTimersByTime(200));
+    act(() => vi.advanceTimersByTime(IFRAME_DEFER_MS));
     return result;
   }
 
@@ -75,7 +75,7 @@ describe('VenueMap', () => {
   it('does not mount iframe before debounce fires', () => {
     render(<VenueMap location="Olathe, KS" />);
     expect(document.querySelector('iframe')).toBeNull();
-    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
+    expect(screen.getByTestId('map-skeleton')).toBeInTheDocument();
   });
 
   it('returns null when no location provided', () => {

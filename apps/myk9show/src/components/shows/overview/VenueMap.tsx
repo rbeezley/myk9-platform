@@ -3,17 +3,19 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalLink, MapPin, Navigation } from 'lucide-react';
 
+// Fast navigation away within this window avoids firing an aborted map request.
+export const IFRAME_DEFER_MS = 200;
+
 interface VenueMapProps {
   location?: string | null;
   venueName?: string | null;
 }
 
 export function VenueMap({ location, venueName }: VenueMapProps) {
-  // Defer iframe mount so fast navigation away won't fire an aborted network request.
   const [iframeReady, setIframeReady] = useState(false);
   useEffect(() => {
     if (!location?.trim()) return;
-    const id = setTimeout(() => setIframeReady(true), 200);
+    const id = setTimeout(() => setIframeReady(true), IFRAME_DEFER_MS);
     return () => clearTimeout(id);
   }, [location]);
 
@@ -45,7 +47,7 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
           allowFullScreen
         />
       ) : (
-        <Skeleton className="w-full h-[300px] rounded-none" />
+        <Skeleton data-testid="map-skeleton" className="w-full h-[300px] rounded-none" />
       )}
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-2">

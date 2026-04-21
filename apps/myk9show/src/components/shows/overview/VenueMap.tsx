@@ -1,5 +1,10 @@
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalLink, MapPin, Navigation } from 'lucide-react';
+
+// Fast navigation away within this window avoids firing an aborted map request.
+export const IFRAME_DEFER_MS = 200;
 
 interface VenueMapProps {
   location?: string | null;
@@ -7,6 +12,13 @@ interface VenueMapProps {
 }
 
 export function VenueMap({ location, venueName }: VenueMapProps) {
+  const [iframeReady, setIframeReady] = useState(false);
+  useEffect(() => {
+    if (!location?.trim()) return;
+    const id = setTimeout(() => setIframeReady(true), IFRAME_DEFER_MS);
+    return () => clearTimeout(id);
+  }, [location]);
+
   if (!location?.trim()) return null;
 
   const encodedAddress = encodeURIComponent(location);
@@ -25,14 +37,18 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
 
   return (
     <Card className="overflow-hidden">
-      <iframe
-        src={mapSrc}
-        title={`Map showing ${venueName || location}`}
-        className="w-full h-[300px] border-0"
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        allowFullScreen
-      />
+      {iframeReady ? (
+        <iframe
+          src={mapSrc}
+          title={`Map showing ${venueName || location}`}
+          className="w-full h-[300px] border-0"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          allowFullScreen
+        />
+      ) : (
+        <Skeleton data-testid="map-skeleton" className="w-full h-[300px] rounded-none" />
+      )}
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-2">
           <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />

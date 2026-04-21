@@ -127,15 +127,15 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const hasInitialSynced = useRef(false);
   const triggerSyncRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
-  // Auth guard — only sync when there is an active session
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const prevIsAuthenticated = useRef(false);
 
+  // INITIAL_SESSION fires on subscribe with the current session (null for guests),
+  // so getSession() is not needed — onAuthStateChange covers both initial state and changes.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_, session) => {
       setIsAuthenticated(!!session);
     });
     return () => subscription.unsubscribe();

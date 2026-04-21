@@ -114,6 +114,7 @@ export function ShowDetails() {
         isRefreshing={isManualRefreshing}
         onRefresh={handleRefresh}
         showRefreshButton
+        showId={show.id}
         refreshLongPressHandlers={refreshLongPressHandlers}
       />
 

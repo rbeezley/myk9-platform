@@ -1169,7 +1169,7 @@ button.filter-option.high.active {
 :root {
   --purple: var(--status-at-gate);
   --purple-subtle: rgba(139, 92, 246, 0.1);
-  --blue: var(--checkin-in-ring);
+  --blue: var(--status-in-ring);
   --blue-subtle: rgba(59, 130, 246, 0.1);
   --green: var(--status-checked-in);
   --green-subtle: rgba(16, 185, 129, 0.1);

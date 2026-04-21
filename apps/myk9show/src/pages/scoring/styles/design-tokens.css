@@ -114,27 +114,6 @@
   --status-none: #9ca3af;
   --status-none-text: #ffffff;
 
-  /* Check-in Status Colors - Light Mode (Traffic Light System) */
-  /* None: Gray (no action taken) */
-  --checkin-none: #6b7280;
-  --checkin-none-text: #ffffff;
-
-  /* Checked In: Green (ready to compete) */
-  --checkin-checked-in: var(--status-checked-in);
-  --checkin-checked-in-text: #ffffff;
-
-  /* Conflict: Orange (warning - needs attention) */
-  --checkin-conflict: #f97316;
-  --checkin-conflict-text: #ffffff;
-
-  /* Pulled: Red (stopped - withdrawn) */
-  --checkin-pulled: #dc3545;
-  --checkin-pulled-text: #ffffff;
-
-  /* At Gate: Purple (final waiting stage) */
-  --checkin-at-gate: #6f42c1;
-  --checkin-at-gate-text: #ffffff;
-
   /* Result Status Colors */
   --status-qualified: var(--status-checked-in);
   --status-qualified-bg: var(--status-checked-in);
@@ -176,7 +155,7 @@
   --token-error-bg: rgba(239, 68, 68, 0.1);
 
   /* Placement Colors (for emoji badges) */
-  --token-placement-1: var(--checkin-in-ring); /* Blue */
+  --token-placement-1: var(--status-in-ring); /* Blue */
   --token-placement-2: #dc2626; /* Red */
   --token-placement-3: var(--status-conflict); /* Yellow/Gold */
   --token-placement-4: #6b7280; /* Gray */
@@ -195,10 +174,6 @@
   --token-text-muted: #b0aea5;
   --token-text-white: #ffffff;
 
-  /* In Ring: Blue (active competing) */
-  --checkin-in-ring: var(--status-in-ring);
-  --checkin-in-ring-text: var(--status-in-ring-text);
-
   /* Legacy Token Names (backwards compatibility) */
   --token-status-no-status: var(--status-no-status);
   --token-status-no-status-bg: var(--status-no-status-bg);
@@ -206,8 +181,8 @@
   --token-status-checked-in-bg: var(--status-checked-in-bg);
   --token-status-at-gate: var(--status-at-gate);
   --token-status-at-gate-bg: var(--status-at-gate-bg);
-  --token-status-in-ring: var(--checkin-in-ring);
-  --token-status-in-ring-bg: var(--checkin-in-ring);
+  --token-status-in-ring: var(--status-in-ring);
+  --token-status-in-ring-bg: var(--status-in-ring);
   --token-status-conflict: var(--status-conflict);
   --token-status-conflict-bg: var(--status-conflict-bg);
   --token-status-pulled: var(--status-pulled);
@@ -515,8 +490,8 @@
   --token-status-checked-in-bg: var(--status-checked-in-bg);
   --token-status-at-gate: var(--status-at-gate);
   --token-status-at-gate-bg: var(--status-at-gate-bg);
-  --token-status-in-ring: var(--checkin-in-ring);
-  --token-status-in-ring-bg: var(--checkin-in-ring);
+  --token-status-in-ring: var(--status-in-ring);
+  --token-status-in-ring-bg: var(--status-in-ring);
   --token-status-conflict: var(--status-conflict);
   --token-status-conflict-bg: var(--status-conflict-bg);
   --token-status-pulled: var(--status-pulled);

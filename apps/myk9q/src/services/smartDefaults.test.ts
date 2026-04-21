@@ -96,7 +96,7 @@ Object.defineProperty(navigator, 'getBattery', {
 const createMockSettings = (overrides: Partial<AppSettings> = {}): AppSettings => ({
   // Display
   theme: 'dark',
-  accentColor: 'green',
+  accentColor: 'teal',
 
   // Performance
   enableAnimations: true,

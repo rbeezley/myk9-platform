@@ -240,7 +240,7 @@ setRequirements(requirementsData);
 
             {/* Required Calls (AKC) or Final Response (UKC) */}
             <div className="requirement-item">
-              <div className="requirement-icon" style={{ background: 'var(--checkin-at-gate)' }}>
+              <div className="requirement-icon" style={{ background: 'var(--status-at-gate)' }}>
                 <Speech size={20} />
               </div>
               <div className="requirement-content">

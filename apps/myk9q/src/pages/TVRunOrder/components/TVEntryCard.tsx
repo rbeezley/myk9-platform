@@ -66,11 +66,11 @@ const styles = {
     "py-[var(--token-space-sm)] px-[var(--token-space-md)]",
     "rounded-md font-semibold text-sm whitespace-nowrap"
   ),
-  checkin0: "bg-[var(--checkin-none)] text-[var(--checkin-none-text)]",
-  checkin1: "bg-[var(--checkin-checked-in)] text-[var(--checkin-checked-in-text)]",
-  checkin2: "bg-[var(--checkin-conflict)] text-[var(--checkin-conflict-text)]",
-  checkin3: "bg-[var(--checkin-pulled)] text-[var(--checkin-pulled-text)]",
-  checkin4: "bg-[var(--checkin-at-gate)] text-[var(--checkin-at-gate-text)]",
+  checkin0: "bg-[var(--status-no-status)] text-[var(--status-no-status-text)]",
+  checkin1: "bg-[var(--status-checked-in)] text-[var(--status-checked-in-text)]",
+  checkin2: "bg-[var(--status-conflict)] text-[var(--status-conflict-text)]",
+  checkin3: "bg-[var(--status-pulled)] text-[var(--status-pulled-text)]",
+  checkin4: "bg-[var(--status-at-gate)] text-[var(--status-at-gate-text)]",
 };
 
 interface TVEntryCardProps {

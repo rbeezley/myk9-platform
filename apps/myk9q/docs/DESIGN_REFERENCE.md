@@ -15,26 +15,26 @@ Last updated: 2026-04-20
 
 Users choose their accent color in Settings. This maps to `--primary`:
 
-| Accent              | Color            | CSS Class        |
-| ------------------- | ---------------- | ---------------- |
-| **Green (default)** | `#14b8a6` (Teal) | `.accent-green`  |
-| **Blue**            | `#3b82f6`        | `.accent-blue`   |
-| **Orange**          | `#f97316`        | `.accent-orange` |
-| **Purple**          | `#8b5cf6`        | `.accent-purple` |
+| Accent             | Color     | CSS Class            |
+| ------------------ | --------- | -------------------- |
+| **Teal (default)** | `#14b8a6` | `.accent-teal`       |
+| **Terracotta**     | `#c96442` | `.accent-terracotta` |
+| **Blue (Ocean)**   | `#3b82f6` | `.accent-blue`       |
+| **Purple (Royal)** | `#8b5cf6` | `.accent-purple`     |
 
 ```css
 /* Accent colors automatically set --primary */
-:root.accent-green {
+:root.accent-teal {
   --primary: #14b8a6;
   --primary-hover: #0d9488;
+}
+:root.accent-terracotta {
+  --primary: #c96442;
+  --primary-hover: #a0502f;
 }
 :root.accent-blue {
   --primary: #3b82f6;
   --primary-hover: #2563eb;
-}
-:root.accent-orange {
-  --primary: #f97316;
-  --primary-hover: #ea580c;
 }
 :root.accent-purple {
   --primary: #8b5cf6;
@@ -284,13 +284,13 @@ Rationale: the 1px ring reads crisply in direct sunlight where blurred shadows w
 
 These are applied via CSS classes on `<html>`:
 
-| Setting       | Options                      | CSS Class                                                       |
-| ------------- | ---------------------------- | --------------------------------------------------------------- |
-| Theme         | auto/light/dark              | `.theme-auto`, `.theme-light`, `.theme-dark`                    |
-| Accent Color  | green/blue/orange/purple     | `.accent-green`, `.accent-blue`, etc.                           |
-| Font Size     | small/medium/large           | `.font-small`, `.font-medium`, `.font-large`                    |
-| Density       | compact/comfortable/spacious | `.density-compact`, `.density-comfortable`, `.density-spacious` |
-| High Contrast | on/off                       | `.high-contrast`                                                |
+| Setting       | Options                      | CSS Class                                                              |
+| ------------- | ---------------------------- | ---------------------------------------------------------------------- |
+| Theme         | auto/light/dark              | `.theme-auto`, `.theme-light`, `.theme-dark`                           |
+| Accent Color  | teal/terracotta/blue/purple  | `.accent-teal`, `.accent-terracotta`, `.accent-blue`, `.accent-purple` |
+| Font Size     | small/medium/large           | `.font-small`, `.font-medium`, `.font-large`                           |
+| Density       | compact/comfortable/spacious | `.density-compact`, `.density-comfortable`, `.density-spacious`        |
+| High Contrast | on/off                       | `.high-contrast`                                                       |
 
 ---
 
@@ -314,3 +314,9 @@ These are applied via CSS classes on `<html>`:
 | Blue as primary             | Teal `#14b8a6` is default |
 | Hardcoded colors            | Use CSS variables         |
 | `max-width` on containers   | Full width with padding   |
+
+---
+
+## Changelog
+
+- **2026-04-20 — v2 Phase 3 (cleanup):** Removed `--checkin-*` deprecation aliases from `design-tokens.css`; migrated all consumers to canonical `--status-*` tokens. Removed `.accent-green` / `.accent-orange` CSS class aliases. Narrowed `AppSettings.accentColor` to `'teal' | 'terracotta' | 'blue' | 'purple'`. Deleted `runAccentMigrationReverse()` (see plan `docs/superpowers/plans/2026-04-20-myk9q-design-system-v2-phase-3.md`).

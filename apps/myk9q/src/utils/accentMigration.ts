@@ -2,6 +2,9 @@ import { safeLocalStorageGet, safeLocalStorageSet } from './localStorageUtils';
 
 const STORAGE_KEY = 'myK9Q_settings';
 
+// Mirror of LEGACY_ACCENT_RENAMES in public/theme-init.js. Any change here
+// MUST be applied there too — theme-init.js runs before React and normalizes
+// legacy values at first paint; this shim rewrites localStorage at boot.
 const ACCENT_RENAMES: Record<string, string> = {
   green: 'teal',
   orange: 'terracotta',
@@ -31,15 +34,4 @@ function migrateWith(renames: Record<string, string>): void {
 
 export function runAccentMigration(): void {
   migrateWith(ACCENT_RENAMES);
-}
-
-/**
- * Reverse shim — rewrites canonical v2 accent values back to legacy values.
- * Not invoked in normal operation. A revert commit can swap runAccentMigration
- * for this in main.tsx to un-strand users whose localStorage already holds v2
- * values. Kept in the repo so the reverse path is tested and ready.
- */
-export function runAccentMigrationReverse(): void {
-  const reverse = Object.fromEntries(Object.entries(ACCENT_RENAMES).map(([k, v]) => [v, k]));
-  migrateWith(reverse);
 }

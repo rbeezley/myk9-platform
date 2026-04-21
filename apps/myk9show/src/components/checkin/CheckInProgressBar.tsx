@@ -31,30 +31,30 @@ export function CheckInProgressBar({
         <div
           data-testid="progress-segment"
           className="transition-all duration-500"
-          style={{ width: `${checkedInPct}%`, backgroundColor: 'var(--checkin-checked-in)' }}
+          style={{ width: `${checkedInPct}%`, backgroundColor: 'var(--status-checked-in)' }}
         />
         <div
           data-testid="progress-segment"
           className="transition-all duration-500"
-          style={{ width: `${partialPct}%`, backgroundColor: 'var(--checkin-conflict)' }}
+          style={{ width: `${partialPct}%`, backgroundColor: 'var(--status-conflict)' }}
         />
         <div
           data-testid="progress-segment"
           className="transition-all duration-500"
-          style={{ width: `${nonePct}%`, backgroundColor: 'var(--checkin-none)' }}
+          style={{ width: `${nonePct}%`, backgroundColor: 'var(--status-no-status)' }}
         />
       </div>
 
       <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
         <span>
-          <span style={{ color: 'var(--checkin-checked-in)' }}>&bull;</span> Checked In{' '}
+          <span style={{ color: 'var(--status-checked-in)' }}>&bull;</span> Checked In{' '}
           {checkedInCount}
         </span>
         <span>
-          <span style={{ color: 'var(--checkin-conflict)' }}>&bull;</span> Partial {partialCount}
+          <span style={{ color: 'var(--status-conflict)' }}>&bull;</span> Partial {partialCount}
         </span>
         <span>
-          <span style={{ color: 'var(--checkin-none)' }}>&bull;</span> Not Checked In {noneCount}
+          <span style={{ color: 'var(--status-no-status)' }}>&bull;</span> Not Checked In {noneCount}
         </span>
       </div>
     </div>

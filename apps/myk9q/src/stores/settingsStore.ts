@@ -20,11 +20,11 @@ export const SETTINGS_VERSION = '1.0.0';
 export interface AppSettings {
   // Display
   theme: 'light' | 'dark' | 'auto';
-  // Includes legacy values ('green', 'orange') for persisted-state
-  // tolerance. The accent migration shim rewrites them to canonical
-  // 'teal'/'terracotta' on first app load; new writes from the UI use
-  // canonical values only.
-  accentColor: 'teal' | 'terracotta' | 'blue' | 'purple' | 'green' | 'orange';
+  // Narrow union is safe despite pre-v2 persisted 'green'/'orange'
+  // values: runAccentMigration() (main.tsx) rewrites localStorage on
+  // boot, and theme-init.js's inline shim normalizes before the class
+  // is applied on first paint.
+  accentColor: 'teal' | 'terracotta' | 'blue' | 'purple';
   // Display mode: 'outdoor' toggles the high-contrast outdoor stylesheet.
   displayMode: 'default' | 'outdoor';
 
@@ -242,27 +242,16 @@ function setupSystemThemeListener() {
 /**
  * Apply accent color to document and update meta theme-color
  */
-function applyAccentColor(color: 'teal' | 'terracotta' | 'blue' | 'purple' | 'green' | 'orange') {
+function applyAccentColor(color: 'teal' | 'terracotta' | 'blue' | 'purple') {
   const root = document.documentElement;
-  root.classList.remove(
-    'accent-green',
-    'accent-blue',
-    'accent-orange',
-    'accent-purple',
-    'accent-teal',
-    'accent-terracotta'
-  );
+  root.classList.remove('accent-teal', 'accent-terracotta', 'accent-blue', 'accent-purple');
   root.classList.add(`accent-${color}`);
 
-  // Meta theme-color values. Legacy values (green/orange) render the
-  // v2 hex so the browser chrome matches the deprecation-aliased CSS.
   const accentColors: Record<string, string> = {
     teal: '#14b8a6',
     terracotta: '#c96442',
     blue: '#3b82f6',
     purple: '#8b5cf6',
-    green: '#14b8a6',
-    orange: '#c96442',
   };
   const themeColor = accentColors[color] || '#14b8a6';
   document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {

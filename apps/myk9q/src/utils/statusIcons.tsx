@@ -112,12 +112,12 @@ export function getClassStatusLabel(status: string): string {
  */
 export function getCheckinStatusColorVar(status: string): string {
   const config = getCheckinStatus(status);
-  return config?.colorVar || '--checkin-none';
+  return config?.colorVar || '--status-no-status';
 }
 
 export function getCheckinStatusTextColorVar(status: string): string {
   const config = getCheckinStatus(status);
-  return config?.textColorVar || '--checkin-none-text';
+  return config?.textColorVar || '--status-no-status-text';
 }
 
 export function getClassStatusColorVar(status: string): string {

@@ -337,10 +337,10 @@ export const DogStatistics: React.FC<DogStatisticsProps> = ({ classes, dogName }
 
   const getCheckInStatusColor = (status: string) => {
     switch (status) {
-      case 'checked-in': return 'var(--checkin-checked-in)';
-      case 'at-gate': return 'var(--checkin-at-gate)';
-      case 'conflict': return 'var(--checkin-conflict)';
-      case 'pulled': return 'var(--checkin-pulled)';
+      case 'checked-in': return 'var(--status-checked-in)';
+      case 'at-gate': return 'var(--status-at-gate)';
+      case 'conflict': return 'var(--status-conflict)';
+      case 'pulled': return 'var(--status-pulled)';
       default: return 'var(--status-no-status)';
     }
   };

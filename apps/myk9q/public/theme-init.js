@@ -3,7 +3,7 @@
  * This runs BEFORE React to prevent FOUC
  *
  * CRITICAL: Must be loaded as blocking script in index.html
- * VERSION: 2.2 - v2 teal/terracotta accents + outdoor mode
+ * VERSION: 2.3
  */
 
 (function () {
@@ -94,29 +94,25 @@
   function applyAccentColorClass(color) {
     const html = document.documentElement;
 
-    // Remove all accent color classes (canonical + legacy aliases)
-    html.classList.remove(
-      'accent-teal',
-      'accent-terracotta',
-      'accent-blue',
-      'accent-purple',
-      'accent-green',
-      'accent-orange'
-    );
+    // Normalize legacy values from pre-v2 localStorage so first paint matches v2 classes.
+    // runAccentMigration() in main.tsx persists the rewrite after React mounts.
+    var LEGACY_ACCENT_RENAMES = { green: 'teal', orange: 'terracotta' };
+    if (LEGACY_ACCENT_RENAMES[color]) {
+      color = LEGACY_ACCENT_RENAMES[color];
+    }
+
+    // Remove all accent color classes
+    html.classList.remove('accent-teal', 'accent-terracotta', 'accent-blue', 'accent-purple');
 
     // Add selected accent color class
     html.classList.add('accent-' + color);
 
     // Update meta theme-color to match accent (affects browser chrome and mobile status bar).
-    // Legacy values (green/orange) render the v2 hex so browser chrome matches the
-    // deprecation-aliased CSS.
     var accentColors = {
       teal: '#14b8a6',
       terracotta: '#c96442',
       blue: '#3b82f6',
       purple: '#8b5cf6',
-      green: '#14b8a6',
-      orange: '#c96442',
     };
     updateMetaThemeColor(accentColors[color] || '#14b8a6');
   }

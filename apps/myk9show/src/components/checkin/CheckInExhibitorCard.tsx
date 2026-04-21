@@ -5,9 +5,9 @@ import { CheckInClassRow } from './CheckInClassRow';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 
 const SUMMARY_BORDER_COLOR: Record<string, string> = {
-  none: 'var(--checkin-none)',
-  partial: 'var(--checkin-conflict)',
-  'checked-in': 'var(--checkin-checked-in)',
+  none: 'var(--status-no-status)',
+  partial: 'var(--status-conflict)',
+  'checked-in': 'var(--status-checked-in)',
 };
 
 interface CheckInExhibitorCardProps {
@@ -29,7 +29,7 @@ export function CheckInExhibitorCard({
     .filter(e => e.checkInStatus === 'no-status' || !e.checkInStatus)
     .map(e => e.entryId);
 
-  const borderColor = SUMMARY_BORDER_COLOR[group.summaryStatus] ?? 'var(--checkin-none)';
+  const borderColor = SUMMARY_BORDER_COLOR[group.summaryStatus] ?? 'var(--status-no-status)';
   const isDone = group.summaryStatus === 'checked-in';
 
   return (
@@ -65,7 +65,7 @@ export function CheckInExhibitorCard({
           )}
 
           {isDone ? (
-            <Check className="h-5 w-5" style={{ color: 'var(--checkin-checked-in)' }} />
+            <Check className="h-5 w-5" style={{ color: 'var(--status-checked-in)' }} />
           ) : (
             <Button
               size="sm"

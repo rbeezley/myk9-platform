@@ -68,7 +68,7 @@
 }
 
 .dog-statistics .card-icon.total {
-  background: linear-gradient(135deg, var(--checkin-in-ring) 0%, #2563eb 100%);
+  background: linear-gradient(135deg, var(--status-in-ring) 0%, #2563eb 100%);
 }
 
 .dog-statistics .card-icon.qualified {

@@ -7,7 +7,7 @@
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
-  --primary: var(--checkin-in-ring);
+  --primary: var(--status-in-ring);
   --primary-foreground: var(--background-subtle);
   --muted: var(--surface);
   --muted-foreground: #64748b;
@@ -24,7 +24,7 @@
     --foreground: var(--background-subtle);
     --card: var(--foreground-dark);
     --card-foreground: var(--background-subtle);
-    --primary: var(--checkin-in-ring);
+    --primary: var(--status-in-ring);
     --primary-foreground: var(--background-subtle);
     --muted: var(--background-soft);
     --muted-foreground: #94a3b8;

@@ -1246,7 +1246,7 @@
 
 /* Ring management statuses (white text inherited from base) */
 .status-badge.in-ring {
-  background: var(--checkin-in-ring);
+  background: var(--status-in-ring);
 }
 
 /* Result status colors - Solid backgrounds (white text inherited from base) */
@@ -2196,7 +2196,7 @@
 
 /* Syncing Mode - Blue */
 .syncing-mode {
-  background: linear-gradient(135deg, var(--checkin-in-ring) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--status-in-ring) 0%, #6366f1 100%);
   color: white;
 }
 
@@ -5272,7 +5272,7 @@
   background: var(--info-light, #eff6ff);
   padding: var(--token-space-lg) var(--token-space-xl);
   border-radius: var(--token-space-md);
-  border-left: 3px solid var(--info, var(--checkin-in-ring));
+  border-left: 3px solid var(--info, var(--status-in-ring));
 }
 
 /* Dark Mode */

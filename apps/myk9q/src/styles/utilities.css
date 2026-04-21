@@ -398,7 +398,7 @@
 
 /* In-ring indicator - amber to contrast with teal */
 .armband-number.in-ring {
-  color: var(--checkin-in-ring, #f59e0b);
+  color: var(--status-in-ring, #f59e0b);
 }
 
 /* =================================================================

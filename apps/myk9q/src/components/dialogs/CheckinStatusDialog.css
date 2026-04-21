@@ -116,7 +116,7 @@
 .status-option:hover {
   transform: translateY(-2px);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.15);
-  border-color: var(--status-color, var(--checkin-in-ring));
+  border-color: var(--status-color, var(--status-in-ring));
 }
 
 .status-option:active {
@@ -154,7 +154,7 @@
 .theme-light .status-option:hover {
   transform: translateY(-2px);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.15);
-  border-color: var(--status-color, var(--checkin-in-ring));
+  border-color: var(--status-color, var(--status-in-ring));
 }
 
 .theme-light .status-option .status-text {
@@ -234,8 +234,8 @@
 }
 
 .status-option.status-in-ring .popup-icon {
-  background: var(--checkin-in-ring);
-  color: var(--checkin-in-ring-text);
+  background: var(--status-in-ring);
+  color: var(--status-in-ring-text);
 }
 
 .status-option.status-completed .popup-icon {
@@ -277,7 +277,7 @@
 .status-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.15);
-  border-color: var(--status-color, var(--checkin-in-ring));
+  border-color: var(--status-color, var(--status-in-ring));
 }
 
 .status-item:active {
@@ -287,7 +287,7 @@
 
 .status-item:focus {
   outline: none;
-  box-shadow: 0 0 0 var(--token-space-xs) var(--status-color, var(--checkin-in-ring));
+  box-shadow: 0 0 0 var(--token-space-xs) var(--status-color, var(--status-in-ring));
 }
 
 .status-item .status-icon {
@@ -335,38 +335,38 @@
 
 /* Solid colored icon backgrounds - using standardized check-in colors */
 .status-item.status-no-status .status-icon {
-  background: var(--checkin-none);
-  color: var(--checkin-none-text);
+  background: var(--status-no-status);
+  color: var(--status-no-status-text);
 }
 
 .status-item.status-checked-in .status-icon {
-  background: var(--checkin-checked-in);
-  color: var(--checkin-checked-in-text);
+  background: var(--status-checked-in);
+  color: var(--status-checked-in-text);
 }
 
 .status-item.status-at-gate .status-icon {
-  background: var(--checkin-at-gate);
-  color: var(--checkin-at-gate-text);
+  background: var(--status-at-gate);
+  color: var(--status-at-gate-text);
 }
 
 .status-item.status-come-to-gate .status-icon {
-  background: var(--checkin-at-gate);
-  color: var(--checkin-at-gate-text);
+  background: var(--status-at-gate);
+  color: var(--status-at-gate-text);
 }
 
 .status-item.status-conflict .status-icon {
-  background: var(--checkin-conflict);
-  color: var(--checkin-conflict-text);
+  background: var(--status-conflict);
+  color: var(--status-conflict-text);
 }
 
 .status-item.status-pulled .status-icon {
-  background: var(--checkin-pulled);
-  color: var(--checkin-pulled-text);
+  background: var(--status-pulled);
+  color: var(--status-pulled-text);
 }
 
 .status-item.status-in-ring .status-icon {
-  background: var(--checkin-in-ring);
-  color: var(--checkin-in-ring-text);
+  background: var(--status-in-ring);
+  color: var(--status-in-ring-text);
 }
 
 .status-item.status-completed .status-icon {
@@ -383,7 +383,7 @@
 .theme-light .status-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.15);
-  border-color: var(--status-color, var(--checkin-in-ring));
+  border-color: var(--status-color, var(--status-in-ring));
 }
 
 .theme-light .status-item .status-label {
@@ -404,7 +404,7 @@
   background: var(--background-soft);
   transform: translateY(-2px);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.4);
-  border-color: var(--status-color, var(--checkin-in-ring));
+  border-color: var(--status-color, var(--status-in-ring));
 }
 
 .theme-dark .status-item .status-label {

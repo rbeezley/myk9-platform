@@ -18,7 +18,7 @@ export function CheckInClassRow({
 }: CheckInClassRowProps) {
   const config = getCheckinStatusConfig(checkInStatus);
   const isNone = checkInStatus === 'no-status' || !checkInStatus;
-  const colorVar = config?.colorVar ?? '--checkin-none';
+  const colorVar = config?.colorVar ?? '--status-no-status';
   const label = config?.label ?? 'No Status';
 
   return (

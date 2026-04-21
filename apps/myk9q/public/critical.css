@@ -17,9 +17,9 @@
    ============================================ */
 :root {
   /* Base Theme Colors (Light) - Warm premium backgrounds */
-  --background: #F8F7F4;  /* Warm off-white */
+  --background: #f8f7f4; /* Warm off-white */
   --foreground: #0a0a0a;
-  --card: #FEFDFB;        /* Subtle cream tint */
+  --card: #fefdfb; /* Subtle cream tint */
   --border: #e5e7eb;
   --muted: #f6f6f6;
   --input: #f3f4f6;
@@ -28,7 +28,7 @@
   --primary: #14b8a6;
   --primary-hover: #0d9488;
   --primary-foreground: #ffffff;
-  
+
   /* Accent Color - Defaults to primary, overridden by accent classes */
   --accent-color: var(--primary);
 
@@ -75,22 +75,22 @@
   --status-break-bg: #c000ff;
 
   /* Check-in status colors */
-  --checkin-none: #6b7280;
-  --checkin-none-text: #ffffff;
-  --checkin-checked-in: #22c55e;
-  --checkin-checked-in-text: #ffffff;
-  --checkin-conflict: #f97316;
-  --checkin-conflict-text: #ffffff;
-  --checkin-pulled: #dc3545;
-  --checkin-pulled-text: #ffffff;
-  --checkin-at-gate: #6f42c1;
-  --checkin-at-gate-text: #ffffff;
-  --checkin-in-ring: #f59e0b;
-  --checkin-in-ring-text: #1a1a1a;
+  --status-no-status: #6b7280;
+  --status-no-status-text: #ffffff;
+  --status-checked-in: #22c55e;
+  --status-checked-in-text: #ffffff;
+  --status-conflict: #f97316;
+  --status-conflict-text: #ffffff;
+  --status-pulled: #dc3545;
+  --status-pulled-text: #ffffff;
+  --status-at-gate: #6f42c1;
+  --status-at-gate-text: #ffffff;
+  --status-in-ring: #f59e0b;
+  --status-in-ring-text: #1a1a1a;
   --token-text-secondary: #6b7280;
 
   /* Secondary/Surface Colors - Warm premium backgrounds */
-  --secondary: #F8F7F4;  /* Warm off-white - page container backgrounds */
+  --secondary: #f8f7f4; /* Warm off-white - page container backgrounds */
   --secondary-foreground: #0f172a;
 
   /* Shadows */
@@ -108,7 +108,7 @@
    DARK THEME
    ============================================ */
 .theme-dark {
-  --background: #1a1a1e;  /* Warmer charcoal */
+  --background: #1a1a1e; /* Warmer charcoal */
   --foreground: #ffffff;
   --card: rgba(30, 41, 59, 0.7);
   --border: #4a5568;
@@ -125,8 +125,8 @@
    ACCENT COLOR THEMES
    (Applied by theme-init.js synchronously)
    ============================================ */
-:root.accent-green,
-html.accent-green {
+:root.accent-teal,
+html.accent-teal {
   --primary: #14b8a6;
   --primary-hover: #0d9488;
   --accent-primary: #14b8a6;
@@ -143,13 +143,13 @@ html.accent-blue {
   --accent-glow: rgba(59, 130, 246, 0.3);
 }
 
-:root.accent-orange,
-html.accent-orange {
-  --primary: #f97316;
-  --primary-hover: #ea580c;
-  --accent-primary: #f97316;
-  --accent-color: #f97316;
-  --accent-glow: rgba(249, 115, 22, 0.3);
+:root.accent-terracotta,
+html.accent-terracotta {
+  --primary: #c96442;
+  --primary-hover: #a0502f;
+  --accent-primary: #c96442;
+  --accent-color: #c96442;
+  --accent-glow: rgba(201, 100, 66, 0.3);
 }
 
 :root.accent-purple,
@@ -164,14 +164,21 @@ html.accent-purple {
 /* ============================================
    BASE LAYOUT (minimal - prevents white flash)
    ============================================ */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
   background-color: var(--background);
   color: var(--foreground);
   /* Montserrat is primary, system fonts as fallback */
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  font-family:
+    'Montserrat',
+    -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Display',
+    system-ui,
+    sans-serif;
 }
 
 #root {
@@ -272,21 +279,37 @@ body:has(.login-container) #root {
 
 /* Status-specific background colors (text color inherited from base) */
 .status-badge.no-status,
-.class-status-badge.no-status { background: #9ca3af; }
+.class-status-badge.no-status {
+  background: #9ca3af;
+}
 .status-badge.setup,
-.class-status-badge.setup { background: #b45309; }
+.class-status-badge.setup {
+  background: #b45309;
+}
 .status-badge.briefing,
-.class-status-badge.briefing { background: #ff6b00; }
+.class-status-badge.briefing {
+  background: #ff6b00;
+}
 .status-badge.break,
-.class-status-badge.break { background: #c000ff; }
+.class-status-badge.break {
+  background: #c000ff;
+}
 .status-badge.start-time,
-.class-status-badge.start-time { background: #14b8a6; }
+.class-status-badge.start-time {
+  background: #14b8a6;
+}
 .status-badge.in-progress,
-.class-status-badge.in-progress { background: #0066ff; }
+.class-status-badge.in-progress {
+  background: #0066ff;
+}
 .status-badge.completed,
-.class-status-badge.completed { background: #00cc66; }
+.class-status-badge.completed {
+  background: #00cc66;
+}
 .status-badge.pending,
-.class-status-badge.pending { background: #9ca3af; }
+.class-status-badge.pending {
+  background: #9ca3af;
+}
 
 /* Status text inherits white from parent badge */
 .status-badge .status-text,
@@ -366,7 +389,7 @@ body:has(.login-container) #root {
   cursor: pointer;
 }
 
-.apple-tab-trigger[data-state="active"],
+.apple-tab-trigger[data-state='active'],
 .apple-tab-trigger.active {
   background: var(--card);
   color: var(--foreground);
@@ -406,7 +429,7 @@ body:has(.login-container) #root {
    (Shows while React is loading)
    ============================================ */
 #root:empty::before {
-  content: "";
+  content: '';
   position: fixed;
   top: 50%;
   left: 50%;

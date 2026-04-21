@@ -256,7 +256,7 @@ export const styles = {
   ),
 
   subTypeAnnouncement: cn(
-    "bg-[rgba(59,130,246,0.1)] text-[var(--checkin-in-ring)]"
+    "bg-[rgba(59,130,246,0.1)] text-[var(--status-in-ring)]"
   ),
 
   subTypeNationals: cn(

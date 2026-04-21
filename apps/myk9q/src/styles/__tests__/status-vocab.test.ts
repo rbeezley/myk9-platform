@@ -1,42 +1,69 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 
 const REPO_ROOT = path.resolve(__dirname, '../../../../../');
+const SELF_BASENAME = 'status-vocab.test.ts';
+const PATTERN = '--' + 'checkin-';
 
-function grepCount(pattern: string, paths: string[]): number {
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.next', '.turbo', 'coverage']);
+
+function* walk(dir: string): Generator<string> {
+  let entries: fs.Dirent[];
   try {
-    const out = execSync(
-      `rg --count-matches --no-messages --glob '!**/node_modules/**' -e ${JSON.stringify(pattern)} ${paths.map(p => JSON.stringify(p)).join(' ')}`,
-      { cwd: REPO_ROOT, encoding: 'utf-8' }
-    );
-    return out
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .reduce((sum, line) => sum + Number(line.split(':').pop() ?? 0), 0);
-  } catch (err: unknown) {
-    const e = err as { status?: number; stdout?: string };
-    if (e.status === 1) return 0;
-    throw err;
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
   }
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (SKIP_DIRS.has(entry.name)) continue;
+      yield* walk(full);
+    } else if (entry.isFile()) {
+      yield full;
+    }
+  }
+}
+
+function countOccurrences(root: string): { total: number; files: string[] } {
+  const absRoot = path.resolve(REPO_ROOT, root);
+  const files: string[] = [];
+  let total = 0;
+  for (const file of walk(absRoot)) {
+    if (path.basename(file) === SELF_BASENAME) continue;
+    let contents: string;
+    try {
+      contents = fs.readFileSync(file, 'utf-8');
+    } catch {
+      continue;
+    }
+    if (!contents.includes(PATTERN)) continue;
+    const matches = contents.split(PATTERN).length - 1;
+    total += matches;
+    files.push(path.relative(REPO_ROOT, file) + ':' + matches);
+  }
+  return { total, files };
 }
 
 describe('design-tokens.css — Phase 3 regression (--checkin-* removed)', () => {
   it('no --checkin-* references remain in apps/myk9q/src', () => {
-    const count = grepCount('--checkin-', ['apps/myk9q/src']);
-    expect(count).toBe(0);
+    const { total, files } = countOccurrences('apps/myk9q/src');
+    expect(files).toEqual([]);
+    expect(total).toBe(0);
   });
 
   it('no --checkin-* references remain in apps/myk9q/public', () => {
-    const count = grepCount('--checkin-', ['apps/myk9q/public']);
-    expect(count).toBe(0);
+    const { total, files } = countOccurrences('apps/myk9q/public');
+    expect(files).toEqual([]);
+    expect(total).toBe(0);
   });
 
   it('no --checkin-* references remain in packages/core/src', () => {
-    const count = grepCount('--checkin-', ['packages/core/src']);
-    expect(count).toBe(0);
+    const { total, files } = countOccurrences('packages/core/src');
+    expect(files).toEqual([]);
+    expect(total).toBe(0);
   });
 
   it('design-tokens.css does not define any --checkin-* aliases', () => {

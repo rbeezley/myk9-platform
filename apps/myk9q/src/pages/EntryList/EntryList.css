@@ -266,7 +266,7 @@
 }
 
 .class-status-badge.status-briefing {
-  background: var(--status-briefing, var(--checkin-in-ring));
+  background: var(--status-briefing, var(--status-in-ring));
   color: white;
 }
 

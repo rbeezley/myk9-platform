@@ -75,18 +75,18 @@
   --status-break-bg: #c000ff;
 
   /* Check-in status colors */
-  --checkin-none: #6b7280;
-  --checkin-none-text: #ffffff;
-  --checkin-checked-in: #22c55e;
-  --checkin-checked-in-text: #ffffff;
-  --checkin-conflict: #f97316;
-  --checkin-conflict-text: #ffffff;
-  --checkin-pulled: #dc3545;
-  --checkin-pulled-text: #ffffff;
-  --checkin-at-gate: #6f42c1;
-  --checkin-at-gate-text: #ffffff;
-  --checkin-in-ring: #f59e0b;
-  --checkin-in-ring-text: #1a1a1a;
+  --status-no-status: #6b7280;
+  --status-no-status-text: #ffffff;
+  --status-checked-in: #22c55e;
+  --status-checked-in-text: #ffffff;
+  --status-conflict: #f97316;
+  --status-conflict-text: #ffffff;
+  --status-pulled: #dc3545;
+  --status-pulled-text: #ffffff;
+  --status-at-gate: #6f42c1;
+  --status-at-gate-text: #ffffff;
+  --status-in-ring: #f59e0b;
+  --status-in-ring-text: #1a1a1a;
   --token-text-secondary: #6b7280;
 
   /* Secondary/Surface Colors - Warm premium backgrounds */

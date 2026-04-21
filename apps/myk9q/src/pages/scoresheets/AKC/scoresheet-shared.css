@@ -259,7 +259,7 @@
 .scoresheet-armband {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, var(--checkin-in-ring) 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--status-in-ring) 0%, #1d4ed8 100%);
   color: var(--scoresheet-badge-text);
   display: flex;
   align-items: center;

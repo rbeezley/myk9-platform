@@ -237,7 +237,7 @@ export const styles = {
   ),
 
   scopeClassLevel: cn(
-    "bg-[rgba(59,130,246,0.1)] text-[var(--checkin-in-ring)] border border-[var(--checkin-in-ring)]"
+    "bg-[rgba(59,130,246,0.1)] text-[var(--status-in-ring)] border border-[var(--status-in-ring)]"
   ),
 
   // Change Description

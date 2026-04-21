@@ -220,7 +220,7 @@
 .scoresheet-alert-info {
   background: #dbeafe;
   color: var(--primary);
-  border-left: var(--token-space-sm) solid var(--checkin-in-ring);
+  border-left: var(--token-space-sm) solid var(--status-in-ring);
 }
 
 .scoresheet-alert-warning {

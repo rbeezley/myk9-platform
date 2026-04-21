@@ -52,30 +52,30 @@
 
 /* Status border indicators */
 .dog-card.checked-in {
-  border-left: 3px solid var(--checkin-checked-in);
+  border-left: 3px solid var(--status-checked-in);
 }
 
 .dog-card.conflict {
-  border-left: 3px solid var(--checkin-conflict);
+  border-left: 3px solid var(--status-conflict);
 }
 
 .dog-card.pulled {
-  border-left: 3px solid var(--checkin-pulled);
+  border-left: 3px solid var(--status-pulled);
 }
 
 .dog-card.at-gate {
-  border-left: 3px solid var(--checkin-at-gate);
+  border-left: 3px solid var(--status-at-gate);
 }
 
 .dog-card.come-to-gate {
-  border-left: 3px solid var(--checkin-at-gate);
+  border-left: 3px solid var(--status-at-gate);
 }
 
 .dog-card.in-ring {
-  border-left: 5px solid var(--checkin-in-ring);
-  border-color: var(--checkin-in-ring);
+  border-left: 5px solid var(--status-in-ring);
+  border-color: var(--status-in-ring);
   box-shadow:
-    0 0 0 1px var(--checkin-in-ring),
+    0 0 0 1px var(--status-in-ring),
     0 4px 12px rgba(37, 99, 235, 0.15),
     inset -2px 0 8px rgba(37, 99, 235, 0.08);
   background: linear-gradient(
@@ -88,7 +88,7 @@
 
 .theme-dark .dog-card.in-ring {
   box-shadow:
-    0 0 0 1px var(--checkin-in-ring),
+    0 0 0 1px var(--status-in-ring),
     0 4px 12px rgba(59, 130, 246, 0.25),
     inset -2px 0 8px rgba(59, 130, 246, 0.12);
   background: linear-gradient(
@@ -380,33 +380,33 @@
 }
 
 .dog-card-action .status-badge.checked-in {
-  background: var(--checkin-checked-in);
-  color: var(--checkin-checked-in-text);
+  background: var(--status-checked-in);
+  color: var(--status-checked-in-text);
 }
 
 .dog-card-action .status-badge.at-gate {
-  background: var(--checkin-at-gate);
-  color: var(--checkin-at-gate-text);
+  background: var(--status-at-gate);
+  color: var(--status-at-gate-text);
 }
 
 .dog-card-action .status-badge.come-to-gate {
-  background: var(--checkin-at-gate);
-  color: var(--checkin-at-gate-text);
+  background: var(--status-at-gate);
+  color: var(--status-at-gate-text);
 }
 
 .dog-card-action .status-badge.in-ring {
-  background: var(--checkin-in-ring);
-  color: var(--checkin-in-ring-text);
+  background: var(--status-in-ring);
+  color: var(--status-in-ring-text);
 }
 
 .dog-card-action .status-badge.conflict {
-  background: var(--checkin-conflict);
-  color: var(--checkin-conflict-text);
+  background: var(--status-conflict);
+  color: var(--status-conflict-text);
 }
 
 .dog-card-action .status-badge.pulled {
-  background: var(--checkin-pulled);
-  color: var(--checkin-pulled-text);
+  background: var(--status-pulled);
+  color: var(--status-pulled-text);
 }
 
 .dog-card-action .status-badge.disabled {

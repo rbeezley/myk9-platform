@@ -12,7 +12,8 @@ import { logger } from '@/utils/logger';
 
 interface ThemeSettings {
   theme?: 'light' | 'dark' | 'system';
-  accentColor?: 'blue' | 'green' | 'orange' | 'purple';
+  accentColor?: 'teal' | 'terracotta' | 'blue' | 'purple' | 'green' | 'orange';
+  displayMode?: 'default' | 'outdoor';
 }
 
 /**
@@ -27,9 +28,10 @@ export function initializeThemeBlocking(): void {
     const savedSettings = localStorage.getItem('myK9Q_settings');
 
     if (!savedSettings) {
-      // No saved settings - use defaults (light theme, green color)
+      // No saved settings - use defaults (light theme, teal accent, default display mode)
       applyThemeClass('light');
-      applyAccentColorClass('green');
+      applyAccentColorClass('teal');
+      applyDisplayModeClass('default');
       return;
     }
 
@@ -58,9 +60,12 @@ export function initializeThemeBlocking(): void {
     }
 
     // Apply accent color class
-    const accentColor = settings.accentColor || 'green';
+    const accentColor = settings.accentColor || 'teal';
     applyAccentColorClass(accentColor);
 
+    // Apply display mode (outdoor high-contrast)
+    const displayMode = settings.displayMode || 'default';
+    applyDisplayModeClass(displayMode);
   } catch (error) {
     // Fail silently - use default light theme
     logger.warn('Failed to initialize theme from localStorage:', error);
@@ -86,14 +91,35 @@ function applyThemeClass(theme: 'light' | 'dark'): void {
 /**
  * Apply accent color class to HTML element
  */
-function applyAccentColorClass(color: 'blue' | 'green' | 'orange' | 'purple'): void {
+function applyAccentColorClass(
+  color: 'teal' | 'terracotta' | 'blue' | 'purple' | 'green' | 'orange'
+): void {
   const html = document.documentElement;
 
-  // Remove all accent color classes
-  html.classList.remove('accent-blue', 'accent-green', 'accent-orange', 'accent-purple');
+  // Remove all accent color classes (canonical + legacy aliases)
+  html.classList.remove(
+    'accent-teal',
+    'accent-terracotta',
+    'accent-blue',
+    'accent-purple',
+    'accent-green',
+    'accent-orange'
+  );
 
   // Add selected accent color class
   html.classList.add(`accent-${color}`);
+}
+
+/**
+ * Apply display mode (default or outdoor) class to HTML element
+ */
+function applyDisplayModeClass(mode: 'default' | 'outdoor'): void {
+  const html = document.documentElement;
+  if (mode === 'outdoor') {
+    html.classList.add('mode-outdoor');
+  } else {
+    html.classList.remove('mode-outdoor');
+  }
 }
 
 // Auto-run if called directly (when imported as script in HTML)

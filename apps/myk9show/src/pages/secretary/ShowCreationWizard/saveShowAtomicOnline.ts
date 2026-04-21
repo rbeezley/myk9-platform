@@ -5,14 +5,13 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { useShowStore } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
 import { logger } from '@/services/LoggingService';
 import { UserRole } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { Club } from '@/types/club-types';
-import type { SportClassRuleRow } from '@/types/sport-template-types';
 import type { JudgeDetailsMap } from './show-creation-wizard-types';
 import { buildCreateShowPayload } from './buildCreateShowPayload';
+import { buildRuleMap } from './buildRuleMap';
 import type { WizardShowData, WizardTrial } from './showCreationWizardTransformers';
 
 export interface SaveShowAtomicOnlineArgs {
@@ -28,7 +27,6 @@ export interface SaveShowAtomicOnlineArgs {
 export interface SaveShowAtomicOnlineResult {
   showId: string;
   savedShow: Show;
-  officialGrantsPromise: Promise<void>;
 }
 
 function joinAddress(club: Club | undefined): string {
@@ -48,27 +46,7 @@ export async function saveShowAtomicOnline(
 ): Promise<SaveShowAtomicOnlineResult> {
   const { show, trials, judgeDetails, clubs, status, queryClient, triggerSync } = args;
 
-  // Pre-fetch sport_class_rules so rule fields bake into class rows at creation time.
-  const ruleMap = new Map<string, SportClassRuleRow>();
-  const templateIds = new Set(
-    trials.flatMap(t => t.classes.map(c => c.templateId)).filter(Boolean)
-  );
-  await Promise.all(
-    [...templateIds].map(async templateId => {
-      try {
-        const rules = await fetchClassRulesForTemplate(templateId);
-        for (const rule of rules) {
-          const key = `${templateId}|${rule.element}|${rule.level ?? ''}`;
-          ruleMap.set(key, rule);
-        }
-      } catch (err) {
-        logger.warn('Failed to fetch rules for template', 'wizard', {
-          templateId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    })
-  );
+  const ruleMap = await buildRuleMap(trials.flatMap(t => t.classes.map(c => c.templateId)));
 
   const { rpcInput, localEntities, showId } = buildCreateShowPayload(
     show,
@@ -80,6 +58,7 @@ export async function saveShowAtomicOnline(
 
   // `create_show_with_children` is defined in migration 145; cast the RPC
   // name until the Supabase type generator picks it up post-deploy.
+  // TODO: drop the cast after `supabase gen types typescript` runs.
   const { error: rpcError } = await (
     supabase.rpc as unknown as (
       fn: string,
@@ -91,9 +70,11 @@ export async function saveShowAtomicOnline(
   }
 
   try {
-    await replicatedShowsTable.set(showId, localEntities.show, false);
-    await Promise.all(localEntities.trials.map(t => replicatedTrialsTable.set(t.id, t, false)));
-    await Promise.all(localEntities.classes.map(c => replicatedClassesTable.set(c.id, c, false)));
+    await Promise.all([
+      replicatedShowsTable.set(showId, localEntities.show, false),
+      ...localEntities.trials.map(t => replicatedTrialsTable.set(t.id, t, false)),
+      ...localEntities.classes.map(c => replicatedClassesTable.set(c.id, c, false)),
+    ]);
   } catch (cacheError) {
     logger.warn('Post-RPC IndexedDB seed failed — triggering sync', 'wizard', {
       showId,
@@ -148,12 +129,14 @@ export async function saveShowAtomicOnline(
       : [savedShow, ...old];
   });
 
+  // Fire-and-forget role grants. Failures are logged and the officials query
+  // is invalidated either way, so downstream UI refreshes without waiting.
   const officialGrants = [
     ...show.officials.secretary.map(id => ({ id, role: UserRole.SECRETARY })),
     ...show.officials.chairman.map(id => ({ id, role: UserRole.CHAIRMAN })),
     ...show.officials.steward.map(id => ({ id, role: UserRole.STEWARD })),
   ];
-  const officialGrantsPromise = Promise.allSettled(
+  void Promise.allSettled(
     officialGrants.map(async grant => {
       const { error } = await supabase.rpc('grant_show_official', {
         p_person_id: grant.id,
@@ -175,5 +158,5 @@ export async function saveShowAtomicOnline(
 
   queryClient.invalidateQueries({ queryKey: ['shows', showId, 'schedule-timeline'] });
 
-  return { showId, savedShow, officialGrantsPromise };
+  return { showId, savedShow };
 }

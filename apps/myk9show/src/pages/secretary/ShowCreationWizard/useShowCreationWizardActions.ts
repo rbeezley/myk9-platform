@@ -18,7 +18,6 @@ import {
   type ReplicatedClass,
 } from '@/services/replication/ReplicatedClassesTable';
 import { supabase } from '@/services/database/supabaseClient';
-import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -36,6 +35,7 @@ import {
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
+import { buildRuleMap } from './buildRuleMap';
 
 /**
  * Convert wizard ClassData to ReplicatedClass for offline-first storage
@@ -192,29 +192,7 @@ export function useShowCreationWizardActions({
         });
       }
 
-      // Build a lookup map of sport_class_rules by (templateId, element, level)
-      // so we can bake rule fields into each class record at creation time.
-      const ruleMap = new Map<string, SportClassRuleRow>();
-      const templateIds = new Set(
-        classesToCreate.map(c => c.templateId).filter((id): id is string => Boolean(id))
-      );
-
-      await Promise.all(
-        [...templateIds].map(async templateId => {
-          try {
-            const rules = await fetchClassRulesForTemplate(templateId);
-            for (const rule of rules) {
-              const key = `${templateId}|${rule.element}|${rule.level ?? ''}`;
-              ruleMap.set(key, rule);
-            }
-          } catch (err) {
-            logger.warn('Failed to fetch rules for template', 'wizard', {
-              templateId,
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        })
-      );
+      const ruleMap = await buildRuleMap(classesToCreate.map(c => c.templateId ?? ''));
 
       await Promise.all(
         classesToCreate.map(classData => {
@@ -250,11 +228,7 @@ export function useShowCreationWizardActions({
         // multi-step flow below, which could leave orphaned rows on partial
         // failure. Edit-mode and offline paths still use the multi-step flow.
         if (!editMode?.showId && isOnline) {
-          const {
-            showId: realShowId,
-            savedShow,
-            officialGrantsPromise,
-          } = await saveShowAtomicOnline({
+          const { showId: realShowId, savedShow } = await saveShowAtomicOnline({
             show,
             trials,
             judgeDetails,
@@ -262,16 +236,6 @@ export function useShowCreationWizardActions({
             status,
             queryClient,
             triggerSync,
-          });
-
-          // officialGrantsPromise logs failures and invalidates the officials
-          // query internally; nothing to await here.
-          void officialGrantsPromise;
-
-          triggerSync().catch(syncError => {
-            logger.warn('Post-create sync failed', 'wizard', {
-              error: syncError instanceof Error ? syncError.message : String(syncError),
-            });
           });
 
           loadTrialClasses().catch(() => {

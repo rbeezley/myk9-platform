@@ -1,17 +1,17 @@
 import React from 'react';
 import { SettingsSection } from '../components/SettingsSection';
 import { SettingsRow } from '../components/SettingsRow';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useSettingsStore, type AppSettings } from '@/stores/settingsStore';
 import { Moon, Sun, Sunrise } from 'lucide-react';
+
+type AccentOption = AppSettings['accentColor'];
 
 const ACCENT_OPTIONS = [
   { id: 'teal', color: '#14b8a6', label: 'Teal' },
   { id: 'terracotta', color: '#c96442', label: 'Terracotta' },
   { id: 'blue', color: '#3b82f6', label: 'Ocean' },
   { id: 'purple', color: '#8b5cf6', label: 'Royal' },
-] as const;
-
-type AccentOption = (typeof ACCENT_OPTIONS)[number]['id'];
+] as const satisfies ReadonlyArray<{ id: AccentOption; color: string; label: string }>;
 
 // Hints when the OS is in high-contrast mode. Never forces — only hints.
 function usePrefersHighContrast(): boolean {
@@ -33,10 +33,6 @@ export const AppearanceSettings: React.FC = () => {
   const { settings, updateSettings } = useSettingsStore();
   const prefersHighContrast = usePrefersHighContrast();
 
-  // Phase 3: AppSettings.accentColor is narrowed to canonical values only.
-  // Legacy 'green' / 'orange' persisted values are rewritten to canonical
-  // by runAccentMigration() on app boot and by theme-init.js's inline
-  // normalize shim, so settings.accentColor is always an AccentOption here.
   const selectedAccent: AccentOption = settings.accentColor;
 
   return (

@@ -3,7 +3,7 @@
  * This runs BEFORE React to prevent FOUC
  *
  * CRITICAL: Must be loaded as blocking script in index.html
- * VERSION: 2.3 - v2 Phase 3 cleanup (legacy accent classes removed)
+ * VERSION: 2.3
  */
 
 (function () {

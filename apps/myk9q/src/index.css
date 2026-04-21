@@ -192,7 +192,7 @@ html.font-large {
   background-color: var(--bg-app);
 }
 
-/* Accent Color Themes — v2 canonical classes */
+/* Accent color themes */
 :root.accent-teal {
   --accent-primary: #14b8a6;
   --primary: #14b8a6;

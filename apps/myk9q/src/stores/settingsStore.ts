@@ -20,11 +20,10 @@ export const SETTINGS_VERSION = '1.0.0';
 export interface AppSettings {
   // Display
   theme: 'light' | 'dark' | 'auto';
-  // Phase 3: legacy 'green' / 'orange' values removed from the union.
-  // runAccentMigration() in main.tsx still rewrites any stale persisted
-  // value on boot; theme-init.js also normalizes legacy values before
-  // applying the class, so in-flight persisted legacy values render
-  // correctly even before the migration shim fires.
+  // Narrow union is safe despite pre-v2 persisted 'green'/'orange'
+  // values: runAccentMigration() (main.tsx) rewrites localStorage on
+  // boot, and theme-init.js's inline shim normalizes before the class
+  // is applied on first paint.
   accentColor: 'teal' | 'terracotta' | 'blue' | 'purple';
   // Display mode: 'outdoor' toggles the high-contrast outdoor stylesheet.
   displayMode: 'default' | 'outdoor';

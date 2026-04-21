@@ -2,6 +2,9 @@ import { safeLocalStorageGet, safeLocalStorageSet } from './localStorageUtils';
 
 const STORAGE_KEY = 'myK9Q_settings';
 
+// Mirror of LEGACY_ACCENT_RENAMES in public/theme-init.js. Any change here
+// MUST be applied there too — theme-init.js runs before React and normalizes
+// legacy values at first paint; this shim rewrites localStorage at boot.
 const ACCENT_RENAMES: Record<string, string> = {
   green: 'teal',
   orange: 'terracotta',

@@ -10,6 +10,11 @@ import { devtools, persist } from 'zustand/middleware';
 import { importSettingsWithMigration } from '@/utils/settingsMigration';
 import { logger } from '@/utils/logger';
 
+// INVARIANT: runAccentMigration() in main.tsx must run BEFORE this store is
+// imported so Zustand's persist middleware hydrates from the rewritten
+// localStorage value. Bumping SETTINGS_VERSION does not relax this — if the
+// store imports first, legacy accent values hit the store before the shim
+// rewrites them.
 export const SETTINGS_VERSION = '1.0.0';
 
 export interface AppSettings {

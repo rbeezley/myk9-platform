@@ -7,7 +7,7 @@ import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
 
-interface WizardShowData {
+export interface WizardShowData {
   name: string;
   organization: string;
   startDate: string;
@@ -34,6 +34,7 @@ export interface WizardTrial {
   name: string;
   dateTime: string;
   eventNumber: string;
+  trialType?: string | undefined;
   classes: Array<{
     templateId: string;
     customizations: Record<string, unknown>;

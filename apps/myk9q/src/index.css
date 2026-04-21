@@ -229,27 +229,6 @@ html.font-large {
   --brand-gradient-dark: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
 }
 
-/* @deprecated — legacy accent class aliases. Retained so users whose
-   localStorage has not yet run through the v2 migration shim still
-   render correctly. Will be removed in v2 Phase 3. */
-:root.accent-green {
-  --accent-primary: #14b8a6;
-  --primary: #14b8a6;
-  --primary-hover: #0d9488;
-  --accent-glow: rgba(20, 184, 166, 0.3);
-  --brand-gradient: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
-  --brand-gradient-dark: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
-}
-
-:root.accent-orange {
-  --accent-primary: #c96442;
-  --primary: #c96442;
-  --primary-hover: #a0502f;
-  --accent-glow: rgba(201, 100, 66, 0.3);
-  --brand-gradient: linear-gradient(135deg, #c96442 0%, #a0502f 100%);
-  --brand-gradient-dark: linear-gradient(135deg, #a0502f 0%, #8a4225 100%);
-}
-
 body {
   background: var(--bg-app);
   color: var(--text-primary);

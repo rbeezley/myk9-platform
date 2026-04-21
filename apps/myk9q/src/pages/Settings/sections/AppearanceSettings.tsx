@@ -33,15 +33,11 @@ export const AppearanceSettings: React.FC = () => {
   const { settings, updateSettings } = useSettingsStore();
   const prefersHighContrast = usePrefersHighContrast();
 
-  // Legacy persisted values ('green', 'orange') render as teal/terracotta
-  // respectively — map to the canonical option for the picker's selection
-  // ring so the UI reflects what the user actually sees on screen.
-  const selectedAccent: AccentOption =
-    settings.accentColor === 'green'
-      ? 'teal'
-      : settings.accentColor === 'orange'
-        ? 'terracotta'
-        : (settings.accentColor as AccentOption);
+  // Phase 3: AppSettings.accentColor is narrowed to canonical values only.
+  // Legacy 'green' / 'orange' persisted values are rewritten to canonical
+  // by runAccentMigration() on app boot and by theme-init.js's inline
+  // normalize shim, so settings.accentColor is always an AccentOption here.
+  const selectedAccent: AccentOption = settings.accentColor;
 
   return (
     <SettingsSection title="Appearance">

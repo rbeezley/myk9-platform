@@ -27,7 +27,7 @@ vi.mock('./logger', () => ({
 const createMockSettings = (overrides: Partial<AppSettings> = {}): AppSettings => ({
   // Display
   theme: 'dark',
-  accentColor: 'green',
+  accentColor: 'teal',
 
   // Performance
   enableAnimations: true,
@@ -140,7 +140,7 @@ describe('settingsMigration', () => {
     it('should accept settings with required fields', () => {
       const minimal = {
         theme: 'dark',
-        accentColor: 'green',
+        accentColor: 'teal',
       };
       expect(validateSettings(minimal)).toBe(true);
     });
@@ -327,7 +327,7 @@ describe('settingsMigration', () => {
       const defaults = createMockSettings();
       const settingsWithExtra = {
         theme: 'dark',
-        accentColor: 'green',
+        accentColor: 'teal',
         customField: 'preserved',
       } as AppSettings & { customField: string };
 

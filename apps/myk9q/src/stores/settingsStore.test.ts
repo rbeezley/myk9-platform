@@ -56,6 +56,22 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
+describe('accentColor invariants (Phase 3)', () => {
+  it('defaultSettings.accentColor is a canonical v2 value', () => {
+    const { settings } = useSettingsStore.getState();
+    expect(['teal', 'terracotta', 'blue', 'purple']).toContain(settings.accentColor);
+  });
+
+  it('updateSettings rejects legacy accent values at the type level', () => {
+    // Compile-time invariant — this file will fail `tsc --noEmit` if
+    // AppSettings.accentColor still includes 'green' | 'orange'.
+    // @ts-expect-error — 'green' is not an AppSettings.accentColor variant
+    useSettingsStore.getState().updateSettings({ accentColor: 'green' });
+    // @ts-expect-error — 'orange' is not an AppSettings.accentColor variant
+    useSettingsStore.getState().updateSettings({ accentColor: 'orange' });
+  });
+});
+
 describe('settingsStore', () => {
   beforeEach(() => {
     // Reset store state before each test
@@ -152,12 +168,10 @@ describe('settingsStore', () => {
       store.updateSettings({ accentColor: 'blue' });
 
       expect(mockClassList.remove).toHaveBeenCalledWith(
-        'accent-green',
-        'accent-blue',
-        'accent-orange',
-        'accent-purple',
         'accent-teal',
-        'accent-terracotta'
+        'accent-terracotta',
+        'accent-blue',
+        'accent-purple'
       );
       expect(mockClassList.add).toHaveBeenCalledWith('accent-blue');
     });
@@ -319,7 +333,7 @@ describe('settingsStore', () => {
         settings: {
           ...store.settings,
           theme: 'light',
-          accentColor: 'orange',
+          accentColor: 'purple',
         },
       };
 
@@ -330,14 +344,14 @@ describe('settingsStore', () => {
 
       // Should apply visual settings
       expect(mockClassList.add).toHaveBeenCalledWith('theme-light');
-      expect(mockClassList.add).toHaveBeenCalledWith('accent-orange');
+      expect(mockClassList.add).toHaveBeenCalledWith('accent-purple');
     });
 
     it('should handle legacy format without version', () => {
       const store = useSettingsStore.getState();
       const legacySettings = {
         theme: 'dark',
-        accentColor: 'green',
+        accentColor: 'teal',
       };
 
       // Should not throw error
@@ -477,18 +491,6 @@ describe('settingsStore', () => {
       const { updateSettings } = useSettingsStore.getState();
       updateSettings({ accentColor: 'terracotta' });
       expect(mockClassList.add).toHaveBeenCalledWith('accent-terracotta');
-    });
-
-    it('accepts legacy accentColor: green (persisted state) and adds accent-green class', () => {
-      const { updateSettings } = useSettingsStore.getState();
-      updateSettings({ accentColor: 'green' });
-      expect(mockClassList.add).toHaveBeenCalledWith('accent-green');
-    });
-
-    it('accepts legacy accentColor: orange (persisted state) and adds accent-orange class', () => {
-      const { updateSettings } = useSettingsStore.getState();
-      updateSettings({ accentColor: 'orange' });
-      expect(mockClassList.add).toHaveBeenCalledWith('accent-orange');
     });
 
     it('defaults displayMode to "default"', () => {

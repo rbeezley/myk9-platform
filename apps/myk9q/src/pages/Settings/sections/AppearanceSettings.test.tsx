@@ -40,15 +40,6 @@ describe('AppearanceSettings — v2 accent picker + Display Mode', () => {
     expect(document.documentElement.classList.contains('mode-outdoor')).toBe(true);
   });
 
-  it('maps legacy persisted "green" to teal for picker selection ring', () => {
-    useSettingsStore.setState({
-      settings: { ...useSettingsStore.getState().settings, accentColor: 'green' },
-    });
-    render(<AppearanceSettings />);
-    const tealBtn = screen.getByLabelText('Set accent color to Teal');
-    expect(tealBtn.getAttribute('style')).toMatch(/2px solid white/);
-  });
-
   it('shows prefers-contrast hint when media query matches and mode is default', () => {
     const mq = {
       matches: true,

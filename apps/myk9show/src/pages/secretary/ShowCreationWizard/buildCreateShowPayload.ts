@@ -3,7 +3,7 @@ import type { SportClassRuleRow } from '@/types/sport-template-types';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
-import type { JudgeDetailsMap } from './show-creation-wizard-types';
+import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
 import {
   createClassDataFromWizard,
   type WizardShowData,
@@ -76,23 +76,8 @@ export interface CreateShowPayloadResult {
   trialIdMap: Record<string, string>;
 }
 
-function mapShowStatus(status: string): string {
-  switch (status) {
-    case 'published':
-      return 'published';
-    case 'in_progress':
-      return 'in_progress';
-    case 'completed':
-      return 'completed';
-    case 'cancelled':
-      return 'cancelled';
-    case 'upcoming':
-      return 'upcoming';
-    case 'unpublished':
-    case 'draft':
-    default:
-      return 'draft';
-  }
+function mapShowStatus(status: ShowStatus): 'draft' | 'published' {
+  return status === 'published' ? 'published' : 'draft';
 }
 
 /**
@@ -108,7 +93,7 @@ export function buildCreateShowPayload(
   trials: WizardTrial[],
   judgeDetails: JudgeDetailsMap,
   ruleMap: Map<string, SportClassRuleRow>,
-  status: string
+  status: ShowStatus
 ): CreateShowPayloadResult {
   const showId = crypto.randomUUID();
   const dbStatus = mapShowStatus(status);
@@ -179,8 +164,8 @@ export function buildCreateShowPayload(
     clubId: show.clubId,
     entryOpenDate: show.entryOpenDate || undefined,
     entryCloseDate: show.entryCloseDate || undefined,
-    preEntryFee: show.preEntryFee || undefined,
-    dayOfShowFee: show.dayOfShowFee || undefined,
+    preEntryFee: show.preEntryFee ?? undefined,
+    dayOfShowFee: show.dayOfShowFee ?? undefined,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
     _version: 1,

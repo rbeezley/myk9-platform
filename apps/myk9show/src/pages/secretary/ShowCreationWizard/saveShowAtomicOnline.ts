@@ -9,9 +9,10 @@ import { logger } from '@/services/LoggingService';
 import { UserRole } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { Club } from '@/types/club-types';
-import type { JudgeDetailsMap } from './show-creation-wizard-types';
+import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
 import { buildCreateShowPayload } from './buildCreateShowPayload';
 import { buildRuleMap } from './buildRuleMap';
+import { formatClubAddress } from '@/utils/clubAddress';
 import type { WizardShowData, WizardTrial } from './showCreationWizardTransformers';
 
 export interface SaveShowAtomicOnlineArgs {
@@ -19,7 +20,7 @@ export interface SaveShowAtomicOnlineArgs {
   trials: WizardTrial[];
   judgeDetails: JudgeDetailsMap;
   clubs: Club[];
-  status: string;
+  status: ShowStatus;
   queryClient: QueryClient;
   triggerSync: () => Promise<unknown>;
 }
@@ -27,12 +28,6 @@ export interface SaveShowAtomicOnlineArgs {
 export interface SaveShowAtomicOnlineResult {
   showId: string;
   savedShow: Show;
-}
-
-function joinAddress(club: Club | undefined): string {
-  if (!club) return '';
-  const a = club.address;
-  return [a.street, a.city, a.state, a.zipCode].filter(Boolean).join(', ');
 }
 
 /**
@@ -98,11 +93,11 @@ export async function saveShowAtomicOnline(
     source: 'myK9Show',
     entryOpenDate: show.entryOpenDate || '',
     entryCloseDate: show.entryCloseDate || '',
-    preEntryFee: String(show.preEntryFee || 0),
-    dayOfShowFee: String(show.dayOfShowFee || 0),
+    preEntryFee: String(show.preEntryFee ?? 0),
+    dayOfShowFee: String(show.dayOfShowFee ?? 0),
     clubId: show.clubId,
     clubName: selectedClub?.name || '',
-    clubAddress: joinAddress(selectedClub),
+    clubAddress: formatClubAddress(selectedClub),
     clubEmail: selectedClub?.email || '',
     logoUrl: selectedClub?.logo || '',
     coverImageUrl: selectedClub?.coverImage || '',

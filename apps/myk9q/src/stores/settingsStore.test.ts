@@ -44,7 +44,7 @@ Object.defineProperty(document, 'documentElement', {
 // Mock window.matchMedia for auto theme detection
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query) => ({
+  value: vi.fn().mockImplementation(query => ({
     matches: query === '(prefers-color-scheme: dark)',
     media: query,
     onchange: null,
@@ -69,7 +69,8 @@ describe('settingsStore', () => {
       settings: {
         // Display
         theme: 'auto',
-        accentColor: 'green',
+        accentColor: 'teal',
+        displayMode: 'default',
 
         // Performance
         enableAnimations: null,
@@ -154,7 +155,9 @@ describe('settingsStore', () => {
         'accent-green',
         'accent-blue',
         'accent-orange',
-        'accent-purple'
+        'accent-purple',
+        'accent-teal',
+        'accent-terracotta'
       );
       expect(mockClassList.add).toHaveBeenCalledWith('accent-blue');
     });
@@ -184,7 +187,7 @@ describe('settingsStore', () => {
 
       const state = useSettingsStore.getState();
       expect(state.settings.theme).toBe('auto');
-      expect(state.settings.accentColor).toBe('green');
+      expect(state.settings.accentColor).toBe('teal');
       expect(state.settings.hapticFeedback).toBe(true);
     });
 
@@ -198,7 +201,7 @@ describe('settingsStore', () => {
       // Should apply auto theme (detects mock dark)
       expect(mockClassList.remove).toHaveBeenCalledWith('theme-light', 'theme-dark');
       expect(mockClassList.add).toHaveBeenCalledWith('theme-dark');
-      expect(mockClassList.add).toHaveBeenCalledWith('accent-green');
+      expect(mockClassList.add).toHaveBeenCalledWith('accent-teal');
     });
   });
 
@@ -349,7 +352,7 @@ describe('settingsStore', () => {
       initializeSettings();
 
       // Should apply default accent color
-      expect(mockClassList.add).toHaveBeenCalledWith('accent-green');
+      expect(mockClassList.add).toHaveBeenCalledWith('accent-teal');
     });
   });
 
@@ -380,7 +383,7 @@ describe('settingsStore', () => {
 
     it('should have correct default accent color', () => {
       const state = useSettingsStore.getState();
-      expect(state.settings.accentColor).toBe('green');
+      expect(state.settings.accentColor).toBe('teal');
     });
 
     it('should have haptic feedback enabled by default', () => {
@@ -455,6 +458,60 @@ describe('settingsStore', () => {
       const state = useSettingsStore.getState();
       expect(state.settings.theme).toBe('dark');
       expect(state.settings.accentColor).toBe('purple');
+    });
+  });
+
+  describe('v2 accent + displayMode additions', () => {
+    beforeEach(() => {
+      mockClassList.add.mockClear();
+      mockClassList.remove.mockClear();
+    });
+
+    it('accepts accentColor: teal and adds accent-teal class', () => {
+      const { updateSettings } = useSettingsStore.getState();
+      updateSettings({ accentColor: 'teal' });
+      expect(mockClassList.add).toHaveBeenCalledWith('accent-teal');
+    });
+
+    it('accepts accentColor: terracotta and adds accent-terracotta class', () => {
+      const { updateSettings } = useSettingsStore.getState();
+      updateSettings({ accentColor: 'terracotta' });
+      expect(mockClassList.add).toHaveBeenCalledWith('accent-terracotta');
+    });
+
+    it('accepts legacy accentColor: green (persisted state) and adds accent-green class', () => {
+      const { updateSettings } = useSettingsStore.getState();
+      updateSettings({ accentColor: 'green' });
+      expect(mockClassList.add).toHaveBeenCalledWith('accent-green');
+    });
+
+    it('accepts legacy accentColor: orange (persisted state) and adds accent-orange class', () => {
+      const { updateSettings } = useSettingsStore.getState();
+      updateSettings({ accentColor: 'orange' });
+      expect(mockClassList.add).toHaveBeenCalledWith('accent-orange');
+    });
+
+    it('defaults displayMode to "default"', () => {
+      const { settings } = useSettingsStore.getState();
+      expect(settings.displayMode).toBe('default');
+    });
+
+    it('adds mode-outdoor class when displayMode is "outdoor"', () => {
+      const { updateSettings } = useSettingsStore.getState();
+      updateSettings({ displayMode: 'outdoor' });
+      expect(mockClassList.add).toHaveBeenCalledWith('mode-outdoor');
+    });
+
+    it('removes mode-outdoor class when displayMode is "default"', () => {
+      const { updateSettings } = useSettingsStore.getState();
+      updateSettings({ displayMode: 'default' });
+      expect(mockClassList.remove).toHaveBeenCalledWith('mode-outdoor');
+    });
+
+    it('persists displayMode into store state', () => {
+      const { updateSettings } = useSettingsStore.getState();
+      updateSettings({ displayMode: 'outdoor' });
+      expect(useSettingsStore.getState().settings.displayMode).toBe('outdoor');
     });
   });
 });

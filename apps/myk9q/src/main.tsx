@@ -1,3 +1,9 @@
+// Run v2 accent migration BEFORE any module that touches the settings store.
+// Must be the very first import so Zustand's persist middleware reads the
+// migrated values on first hydration.
+import { runAccentMigration } from './utils/accentMigration';
+runAccentMigration();
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';

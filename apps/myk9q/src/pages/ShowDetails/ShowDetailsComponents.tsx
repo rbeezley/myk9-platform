@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { HamburgerMenu, CompactOfflineIndicator } from '@/components/ui';
 import type { Show } from '@/services/replication';
+import { useShowAccent } from '@/hooks/useShowAccent';
 import {
   type ContactInfo,
   formatDateRange,
@@ -40,6 +41,8 @@ export interface ShowDetailsHeaderProps {
   isRefreshing?: boolean;
   onRefresh?: () => void;
   showRefreshButton?: boolean;
+  /** ID of the show for per-show accent honoring. Omit to use platform accent. */
+  showId?: string;
   /** Long press handlers for hard refresh */
   refreshLongPressHandlers?: {
     onMouseDown: (e: React.MouseEvent) => void;
@@ -62,10 +65,12 @@ export function ShowDetailsHeader({
   isRefreshing,
   onRefresh,
   showRefreshButton = false,
+  showId,
   refreshLongPressHandlers,
 }: ShowDetailsHeaderProps) {
+  const accentStyle = useShowAccent(showId);
   return (
-    <header className="page-header show-details-header">
+    <header className="page-header show-details-header" style={accentStyle}>
       <div className="header-left">
         <HamburgerMenu currentPage="show" />
         <CompactOfflineIndicator />

@@ -489,6 +489,7 @@ export const ClassList: React.FC = () => {
         onOpenFilterPanel={() => setIsFilterPanelOpen(true)}
         onRefresh={handleRefresh}
         refreshLongPressHandlers={refreshLongPressHandlers}
+        showId={showContext?.showId}
       />
 
       <ClassFilters
@@ -511,6 +512,7 @@ export const ClassList: React.FC = () => {
           activePopup={activePopup}
           handleClassPrefetch={handleClassPrefetch}
           justToggledClassId={justToggledClassId}
+          showId={showContext?.showId}
         />
       </PullToRefresh>
 

@@ -1,28 +1,42 @@
 import { test, expect, Page } from '@playwright/test';
 
-// v2 Phase 1 visual smoke baseline.
+// v2 Phase 2 visual smoke baseline.
 //
-// Scope for Phase 1: public screens only (landing page, pre-auth). The
-// authenticated canonical screens from the plan — home, settings,
-// class-list, entry-list, podium — require:
+// Scope: public screens only (landing page, pre-auth login) in four modes:
+//   light, dark, outdoor, outdoor-dark.
+//
+// Authenticated canonical screens from spec §10 — show detail, class list,
+// entry list, scoresheet, settings, podium — remain deferred because they
+// require:
 //   (a) a valid passcode that resolves against the shared Supabase backend,
 //       which is not guaranteed in every dev environment, and
-//   (b) for class-list and entry-list, seeded class/entry IDs.
-// They are deliberately deferred and noted in the PR description for
-// Phase 2, when a seed-data harness is in place.
+//   (b) seeded show/trial/class/entry IDs.
+// They are tracked as a follow-up for a future sprint, when a seed-data
+// harness is in place.
 //
 // Run: pnpm exec playwright test --config=playwright.visual.config.ts
 // Regenerate: add --update-snapshots
 
-async function setMode(page: Page, mode: 'light' | 'dark') {
-  await page.evaluate((m: 'light' | 'dark') => {
+type Mode = 'light' | 'dark' | 'outdoor' | 'outdoor-dark';
+
+async function setMode(page: Page, mode: Mode) {
+  await page.evaluate((m: Mode) => {
     const html = document.documentElement;
-    html.classList.remove('theme-auto', 'theme-light', 'theme-dark');
-    html.classList.add(m === 'dark' ? 'theme-dark' : 'theme-light');
+    html.classList.remove('theme-auto', 'theme-light', 'theme-dark', 'mode-outdoor');
+    if (m === 'dark' || m === 'outdoor-dark') {
+      html.classList.add('theme-dark');
+    } else {
+      html.classList.add('theme-light');
+    }
+    if (m === 'outdoor' || m === 'outdoor-dark') {
+      html.classList.add('mode-outdoor');
+    }
   }, mode);
 }
 
-for (const mode of ['light', 'dark'] as const) {
+const MODES: readonly Mode[] = ['light', 'dark', 'outdoor', 'outdoor-dark'] as const;
+
+for (const mode of MODES) {
   test(`v2 smoke — landing (${mode})`, async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');

@@ -3,10 +3,10 @@
  * This runs BEFORE React to prevent FOUC
  *
  * CRITICAL: Must be loaded as blocking script in index.html
- * VERSION: 2.1 - Also updates meta theme-color for notification styling
+ * VERSION: 2.2 - v2 teal/terracotta accents + outdoor mode
  */
 
-(function() {
+(function () {
   try {
     // CRITICAL: Check if we're on landing or login pages FIRST
     // These pages have their own dark theme regardless of user settings
@@ -23,9 +23,10 @@
     const savedSettings = localStorage.getItem('myK9Q_settings');
 
     if (!savedSettings) {
-      // No saved settings - use defaults (light theme, green accent)
+      // No saved settings - use defaults (light theme, teal accent)
       applyThemeClass('light');
-      applyAccentColorClass('green');
+      applyAccentColorClass('teal');
+      applyDisplayModeClass('default');
       return;
     }
 
@@ -54,9 +55,12 @@
     }
 
     // Apply accent color class (new system)
-    const accentColor = settings.accentColor || 'green';
+    const accentColor = settings.accentColor || 'teal';
     applyAccentColorClass(accentColor);
 
+    // Apply display mode (outdoor high-contrast)
+    var displayMode = settings.displayMode || 'default';
+    applyDisplayModeClass(displayMode);
   } catch (error) {
     // Fail silently - use default light theme
     console.warn('Failed to initialize theme from localStorage:', error);
@@ -82,7 +86,7 @@
   function updateMetaThemeColor(color) {
     // Find and update all meta theme-color tags
     const themeColorMetas = document.querySelectorAll('meta[name="theme-color"]');
-    themeColorMetas.forEach(function(meta) {
+    themeColorMetas.forEach(function (meta) {
       meta.setAttribute('content', color);
     });
   }
@@ -90,20 +94,40 @@
   function applyAccentColorClass(color) {
     const html = document.documentElement;
 
-    // Remove all accent color classes
-    html.classList.remove('accent-blue', 'accent-green', 'accent-orange', 'accent-purple');
+    // Remove all accent color classes (canonical + legacy aliases)
+    html.classList.remove(
+      'accent-teal',
+      'accent-terracotta',
+      'accent-blue',
+      'accent-purple',
+      'accent-green',
+      'accent-orange'
+    );
 
     // Add selected accent color class
     html.classList.add('accent-' + color);
 
-    // Update meta theme-color to match accent (affects browser chrome and mobile status bar)
+    // Update meta theme-color to match accent (affects browser chrome and mobile status bar).
+    // Legacy values (green/orange) render the v2 hex so browser chrome matches the
+    // deprecation-aliased CSS.
     var accentColors = {
-      green: '#14b8a6',  // teal
+      teal: '#14b8a6',
+      terracotta: '#c96442',
       blue: '#3b82f6',
-      orange: '#f97316',
-      purple: '#8b5cf6'
+      purple: '#8b5cf6',
+      green: '#14b8a6',
+      orange: '#c96442',
     };
     updateMetaThemeColor(accentColors[color] || '#14b8a6');
+  }
+
+  function applyDisplayModeClass(mode) {
+    const html = document.documentElement;
+    if (mode === 'outdoor') {
+      html.classList.add('mode-outdoor');
+    } else {
+      html.classList.remove('mode-outdoor');
+    }
   }
 
   /**
@@ -120,6 +144,6 @@
     html.style.backgroundColor = '#09090b';
 
     // Also apply teal accent for landing pages
-    html.classList.add('accent-green');
+    html.classList.add('accent-teal');
   }
 })();

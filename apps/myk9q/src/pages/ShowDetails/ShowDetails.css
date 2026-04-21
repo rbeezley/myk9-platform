@@ -12,7 +12,15 @@
   overflow: hidden;
   background: var(--secondary);
   color: var(--foreground);
-  font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif);
+  font-family: var(
+    --font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Display',
+    'SF Pro Text',
+    system-ui,
+    sans-serif
+  );
   transition: background-color var(--token-transition-normal);
   display: flex;
   flex-direction: column;
@@ -28,6 +36,8 @@
 /* Header - extends page-header */
 .show-details-header {
   justify-content: space-between;
+  /* Per-show accent; falls back to platform accent. */
+  border-bottom: 2px solid var(--show-accent, var(--primary));
 }
 
 .show-details-header .header-left,
@@ -103,8 +113,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Main content area - compact to avoid scrollbar */

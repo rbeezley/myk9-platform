@@ -1,6 +1,7 @@
 import React from 'react';
 import { ClassCard } from './ClassCard';
 import { getStatusColor, getFormattedStatus } from './utils/statusFormatting';
+import { useShowAccent } from '@/hooks/useShowAccent';
 import type { ClassEntry } from './hooks/useClassListData';
 import type { UserPermissions } from '../../utils/auth';
 
@@ -16,6 +17,8 @@ interface ClassCardGridProps {
   activePopup: number | null;
   handleClassPrefetch: (classId: number) => void;
   justToggledClassId: number | null;
+  /** ID of the show owning these classes, for per-show accent honoring. */
+  showId?: string;
 }
 
 export const ClassCardGrid: React.FC<ClassCardGridProps> = ({
@@ -30,11 +33,15 @@ export const ClassCardGrid: React.FC<ClassCardGridProps> = ({
   activePopup,
   handleClassPrefetch,
   justToggledClassId,
+  showId,
 }) => {
+  // One subscription for the whole grid — cards receive a stable style prop.
+  const accentStyle = useShowAccent(showId);
+
   return (
     <div className="class-list-scrollable">
       <div className={`grid-responsive ${isLoaded ? 'stagger-children' : ''}`}>
-        {filteredClasses.map((classEntry) => (
+        {filteredClasses.map(classEntry => (
           <ClassCard
             key={classEntry.id}
             classEntry={classEntry}
@@ -47,11 +54,12 @@ export const ClassCardGrid: React.FC<ClassCardGridProps> = ({
             activePopup={activePopup}
             getStatusColor={getStatusColor}
             getFormattedStatus={getFormattedStatus}
-            onMenuClick={(classId) => {
+            onMenuClick={classId => {
               setActivePopup(classId);
             }}
             onPrefetch={() => handleClassPrefetch(classEntry.id)}
             justToggledClassId={justToggledClassId}
+            accentStyle={accentStyle}
           />
         ))}
       </div>

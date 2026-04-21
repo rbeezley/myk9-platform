@@ -10,12 +10,23 @@ import { devtools, persist } from 'zustand/middleware';
 import { importSettingsWithMigration } from '@/utils/settingsMigration';
 import { logger } from '@/utils/logger';
 
+// INVARIANT: runAccentMigration() in main.tsx must run BEFORE this store is
+// imported so Zustand's persist middleware hydrates from the rewritten
+// localStorage value. Bumping SETTINGS_VERSION does not relax this — if the
+// store imports first, legacy accent values hit the store before the shim
+// rewrites them.
 export const SETTINGS_VERSION = '1.0.0';
 
 export interface AppSettings {
   // Display
   theme: 'light' | 'dark' | 'auto';
-  accentColor: 'green' | 'blue' | 'orange' | 'purple';
+  // Includes legacy values ('green', 'orange') for persisted-state
+  // tolerance. The accent migration shim rewrites them to canonical
+  // 'teal'/'terracotta' on first app load; new writes from the UI use
+  // canonical values only.
+  accentColor: 'teal' | 'terracotta' | 'blue' | 'purple' | 'green' | 'orange';
+  // Display mode: 'outdoor' toggles the high-contrast outdoor stylesheet.
+  displayMode: 'default' | 'outdoor';
 
   // Performance
   enableAnimations: boolean | null; // null = auto-detect
@@ -63,7 +74,8 @@ interface SettingsState {
 const defaultSettings: AppSettings = {
   // Display
   theme: 'auto',
-  accentColor: 'green',
+  accentColor: 'teal',
+  displayMode: 'default',
 
   // Performance
   enableAnimations: null,
@@ -103,8 +115,8 @@ export const useSettingsStore = create<SettingsState>()(
       (set, get) => ({
         settings: defaultSettings,
 
-        updateSettings: (updates) => {
-          set((state) => ({
+        updateSettings: updates => {
+          set(state => ({
             settings: {
               ...state.settings,
               ...updates,
@@ -120,17 +132,23 @@ export const useSettingsStore = create<SettingsState>()(
           if (updates.accentColor) {
             applyAccentColor(updates.accentColor);
           }
+
+          // Apply display mode immediately
+          if (updates.displayMode !== undefined) {
+            applyDisplayMode(updates.displayMode);
+          }
         },
 
         resetSettings: () => {
           set({ settings: defaultSettings });
           applyTheme('auto');
-          applyAccentColor('green');
+          applyAccentColor('teal');
+          applyDisplayMode('default');
         },
 
-        resetSection: (_section) => {
+        resetSection: _section => {
           // This would reset specific sections - implement as needed
-},
+        },
 
         exportSettings: () => {
           const exportData = {
@@ -141,7 +159,7 @@ export const useSettingsStore = create<SettingsState>()(
           return JSON.stringify(exportData, null, 2);
         },
 
-        importSettings: (json) => {
+        importSettings: json => {
           try {
             const imported = JSON.parse(json);
 
@@ -159,7 +177,8 @@ export const useSettingsStore = create<SettingsState>()(
             // Apply settings immediately
             const newSettings = get().settings;
             applyTheme(newSettings.theme);
-            applyAccentColor(newSettings.accentColor || 'green');
+            applyAccentColor(newSettings.accentColor || 'teal');
+            applyDisplayMode(newSettings.displayMode || 'default');
 
             return true;
           } catch (error) {
@@ -223,22 +242,44 @@ function setupSystemThemeListener() {
 /**
  * Apply accent color to document and update meta theme-color
  */
-function applyAccentColor(color: 'green' | 'blue' | 'orange' | 'purple') {
+function applyAccentColor(color: 'teal' | 'terracotta' | 'blue' | 'purple' | 'green' | 'orange') {
   const root = document.documentElement;
-  root.classList.remove('accent-green', 'accent-blue', 'accent-orange', 'accent-purple');
+  root.classList.remove(
+    'accent-green',
+    'accent-blue',
+    'accent-orange',
+    'accent-purple',
+    'accent-teal',
+    'accent-terracotta'
+  );
   root.classList.add(`accent-${color}`);
 
-  // Update meta theme-color to match accent (affects browser chrome and mobile status bar)
+  // Meta theme-color values. Legacy values (green/orange) render the
+  // v2 hex so the browser chrome matches the deprecation-aliased CSS.
   const accentColors: Record<string, string> = {
-    green: '#14b8a6',  // teal
+    teal: '#14b8a6',
+    terracotta: '#c96442',
     blue: '#3b82f6',
-    orange: '#f97316',
-    purple: '#8b5cf6'
+    purple: '#8b5cf6',
+    green: '#14b8a6',
+    orange: '#c96442',
   };
   const themeColor = accentColors[color] || '#14b8a6';
   document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
     meta.setAttribute('content', themeColor);
   });
+}
+
+/**
+ * Apply display mode (default or outdoor) to document
+ */
+function applyDisplayMode(mode: 'default' | 'outdoor') {
+  const root = document.documentElement;
+  if (mode === 'outdoor') {
+    root.classList.add('mode-outdoor');
+  } else {
+    root.classList.remove('mode-outdoor');
+  }
 }
 
 /**
@@ -248,7 +289,8 @@ function applyAccentColor(color: 'green' | 'blue' | 'orange' | 'purple') {
 export function initializeSettings() {
   const { settings } = useSettingsStore.getState();
   // Theme already applied by blocking script in index.html
-  applyAccentColor(settings.accentColor || 'green');
+  applyAccentColor(settings.accentColor || 'teal');
+  applyDisplayMode(settings.displayMode || 'default');
   // Listen for system theme changes (for 'auto' mode)
   setupSystemThemeListener();
 }

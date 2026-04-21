@@ -108,8 +108,6 @@
   --status-none: #9ca3af;
   --status-none-text: #ffffff;
 
-  /* Legacy check-in alias block removed in v2 Phase 3 — consumers reference --status-* directly. */
-
   /* Result Status Colors */
   --status-qualified: var(--status-checked-in);
   --status-qualified-bg: var(--status-checked-in);

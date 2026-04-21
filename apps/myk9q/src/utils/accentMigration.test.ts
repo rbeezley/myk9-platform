@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { runAccentMigration } from './accentMigration';
+import { runAccentMigration, runAccentMigrationReverse } from './accentMigration';
 
 // The global test setup at src/test/setup.ts replaces localStorage with
 // a vi.fn() mock that doesn't retain state. Restore an in-memory
@@ -132,5 +132,48 @@ describe('runAccentMigration', () => {
     expect(stored.state.settings.voiceRate).toBe(1.5);
     expect(stored.state.settings.accentColor).toBe('teal');
     expect(stored.version).toBe(0);
+  });
+});
+
+describe('runAccentMigrationReverse', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('rewrites teal -> green', () => {
+    localStorage.setItem(STORAGE_KEY, makePersistedSettings('teal'));
+    runAccentMigrationReverse();
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+    expect(stored.state.settings.accentColor).toBe('green');
+  });
+
+  it('rewrites terracotta -> orange', () => {
+    localStorage.setItem(STORAGE_KEY, makePersistedSettings('terracotta'));
+    runAccentMigrationReverse();
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+    expect(stored.state.settings.accentColor).toBe('orange');
+  });
+
+  it('leaves blue / purple / green / orange untouched', () => {
+    for (const value of ['blue', 'purple', 'green', 'orange']) {
+      localStorage.setItem(STORAGE_KEY, makePersistedSettings(value));
+      runAccentMigrationReverse();
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+      expect(stored.state.settings.accentColor).toBe(value);
+    }
+  });
+
+  it('no-ops when storage is empty', () => {
+    expect(() => runAccentMigrationReverse()).not.toThrow();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('is idempotent across repeated runs', () => {
+    localStorage.setItem(STORAGE_KEY, makePersistedSettings('teal'));
+    runAccentMigrationReverse();
+    runAccentMigrationReverse();
+    runAccentMigrationReverse();
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+    expect(stored.state.settings.accentColor).toBe('green');
   });
 });

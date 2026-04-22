@@ -48,14 +48,24 @@ export function getShowDetailsValidationMessages(show: ShowData): string[] {
   if (!show.entryOpenDate) messages.push('Entry open date is required');
   if (!show.entryCloseDate) messages.push('Entry close date is required');
 
-  if (show.startDate && show.endDate && show.startDate > show.endDate)
-    messages.push('End date must be on or after start date');
-  if (show.entryOpenDate && show.entryCloseDate && show.entryOpenDate > show.entryCloseDate)
+  // Normalize to YYYY-MM-DD so lexicographic comparison is date-only safe
+  // regardless of whether the picker stores dates or ISO datetimes.
+  const start = toDatePart(show.startDate);
+  const end = toDatePart(show.endDate);
+  const open = toDatePart(show.entryOpenDate);
+  const close = toDatePart(show.entryCloseDate);
+
+  if (start && end && start > end) messages.push('End date must be on or after start date');
+  if (open && close && open > close)
     messages.push('Entry close date must be on or after entry open date');
-  if (show.entryCloseDate && show.startDate && show.entryCloseDate > show.startDate)
+  if (close && start && close > start)
     messages.push('Entry close date must be on or before the show start date');
 
   return messages;
+}
+
+function toDatePart(value: string | undefined | null): string {
+  return value ? value.slice(0, 10) : '';
 }
 
 /**

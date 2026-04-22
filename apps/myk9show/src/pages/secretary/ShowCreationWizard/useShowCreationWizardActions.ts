@@ -407,6 +407,12 @@ export function useShowCreationWizardActions({
         // Compensating soft-delete: if the show was created but trials/classes
         // failed, remove it so the user isn't left with an orphaned show.
         if (createdShowId) {
+          // Sync-remove from Zustand first so the orphan doesn't linger in the
+          // list if the server-side soft delete fails (e.g. network down).
+          useShowStore.setState(s => ({
+            shows: s.shows.filter(sh => sh.id !== createdShowId),
+            selectedShowId: s.selectedShowId === createdShowId ? '' : s.selectedShowId,
+          }));
           deleteShowCascading(createdShowId).catch(deleteErr => {
             logger.warn('Compensating show delete failed after partial creation', 'wizard', {
               showId: createdShowId,

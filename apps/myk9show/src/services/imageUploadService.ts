@@ -9,7 +9,8 @@ import { logger } from './LoggingService';
 
 const BUCKET_NAME = 'images';
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
+const ALLOWED_TYPES: readonly string[] = ALLOWED_IMAGE_TYPES;
 
 export interface UploadResult {
   success: boolean;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -17,6 +17,18 @@ import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { calculateAge } from './validation';
 import type { DogFormData } from './types';
 
+/**
+ * First Unicode code point of a string, uppercased. `Array.from` iterates by
+ * code point, so surrogate pairs (e.g. most emoji) stay intact. ZWJ-joined
+ * grapheme clusters (👨‍👩‍👧, flag emoji) still split at the first code point —
+ * good enough for an avatar initial; use Intl.Segmenter if true grapheme
+ * support is ever required.
+ */
+const firstGraphemeUpper = (str: string): string => {
+  const first = Array.from(str)[0] ?? '';
+  return first.toUpperCase();
+};
+
 interface BasicInfoTabProps {
   userRole: UserRole;
   currentUserPersonId?: string | undefined;
@@ -29,7 +41,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   onPhotoOpen,
 }) => {
   const { form } = useEditPanel<DogFormData>();
-  const people = useUserStore(state => state.people);
+  const allPeople = useUserStore(state => state.people);
+  const people = useMemo(
+    () => allPeople.filter(p => !p.deletedAt && p.status !== 'suspended'),
+    [allPeople]
+  );
 
   if (!form) return null;
 
@@ -62,7 +78,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               ) : (
                 <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/8 text-2xl font-semibold text-primary">
                   {formData.callName ? (
-                    formData.callName[0].toUpperCase()
+                    firstGraphemeUpper(formData.callName)
                   ) : (
                     <PawPrint className="h-8 w-8 text-primary/60" />
                   )}

@@ -9,8 +9,10 @@ import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistration
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { DogInput } from '@/store/dogStore';
 import { UserRole } from '@/types/auth-types';
+import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import type { AddDogPanelProps, DogFormData } from './types';
-import { INITIAL_FORM_DATA } from './types';
+import { createInitialFormData } from './types';
 import { addDogSchema, isTabValid } from './validation';
 import { useAddDogForm } from './useAddDogForm';
 import { TabNavigation } from './TabNavigation';
@@ -33,7 +35,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
   // Stable initial data — recalculated when userRole or currentUserPersonId changes
   const initialFormData = useMemo<DogFormData>(
     () => ({
-      ...INITIAL_FORM_DATA,
+      ...createInitialFormData(),
       ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
     }),
     [userRole, currentUserPersonId]
@@ -41,6 +43,8 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
 
   // Handle save: map DogFormData -> DogInput and persist
   const handleSave = async (formData: DogFormData) => {
+    const weight = formData.weight ? parseFloat(formData.weight) : undefined;
+    const height = formData.height ? parseFloat(formData.height) : undefined;
     const dogInput: DogInput = {
       name: formData.callName,
       callName: formData.callName,
@@ -48,21 +52,37 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
       birthDate: formData.dateOfBirth,
       sex: formData.gender === 'Female' ? 'female' : 'male',
       color: formData.color,
-      weight: formData.weight ? parseFloat(formData.weight) : undefined,
-      height: formData.height ? parseFloat(formData.height) : undefined,
+      weight: typeof weight === 'number' && Number.isFinite(weight) ? weight : undefined,
+      height: typeof height === 'number' && Number.isFinite(height) ? height : undefined,
       ownerId: formData.ownerId,
       microchipNumber: formData.microchip || undefined,
+      imageUrl: formData.imageUrl || undefined,
+      spayedNeutered: formData.spayedNeutered,
       registrations: formData.registrations?.map(reg => ({
         organization: reg.organization,
         number: reg.registrationNumber,
         registeredName: reg.registeredName,
         type: reg.breed,
-        status: reg.status || 'active',
+        status: reg.status || 'Active',
       })),
     };
 
     const newDog = await addDog(dogInput);
-    onDogCreated(newDog);
+    // Once the dog is persisted, a failure in the parent callback must not
+    // bubble up as a save error — the dog already exists in the DB.
+    try {
+      onDogCreated(newDog);
+    } catch (err) {
+      logger.error(
+        'onDogCreated callback threw after successful dog create',
+        'dogs',
+        undefined,
+        err instanceof Error ? err : new Error(String(err))
+      );
+      notifications.warning(
+        'Dog saved, but a post-save step failed. Refresh to see the latest list.'
+      );
+    }
   };
 
   return (
@@ -147,7 +167,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
     setPrevOpen(open);
     if (open && form) {
       form.reset({
-        ...INITIAL_FORM_DATA,
+        ...createInitialFormData(),
         ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
       });
     }

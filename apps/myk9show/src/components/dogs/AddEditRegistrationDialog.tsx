@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Registration } from '@/types/dog-types';
+import { Registration, REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { z } from 'zod';
@@ -54,17 +54,21 @@ const REGISTRATION_ORGS = [
 ];
 
 const registrationFormSchema = z.object({
-  id: z.string(),
-  organization: z.string().min(1, 'Please select an organization.'),
-  registeredName: z.string().min(1, 'Please enter a registered name.'),
-  breed: z.string().min(1, 'Please select a breed.'),
-  variety: z.string().optional(),
-  registrationNumber: z.string().min(1, 'Please enter a registration number.'),
-  status: z.string(),
-  applicationNumber: z.string().optional(),
-  submissionDate: z.string().optional(),
-  registrationDate: z.string().optional(),
-  certificate: z.string().optional(),
+  id: z.string().max(64),
+  organization: z.string().min(1, 'Please select an organization.').max(120),
+  registeredName: z.string().min(1, 'Please enter a registered name.').max(200),
+  breed: z.string().min(1, 'Please select a breed.').max(120),
+  variety: z.string().max(120).optional(),
+  registrationNumber: z
+    .string()
+    .min(1, 'Please enter a registration number.')
+    .max(64)
+    .regex(/^[A-Za-z0-9\-/]+$/, 'Only letters, numbers, hyphens, and slashes are allowed.'),
+  status: z.enum(REGISTRATION_STATUS_VALUES),
+  applicationNumber: z.string().max(64).optional(),
+  submissionDate: z.string().max(40).optional(),
+  registrationDate: z.string().max(40).optional(),
+  certificate: z.string().max(500).optional(),
 });
 
 type RegistrationFormData = z.infer<typeof registrationFormSchema>;
@@ -80,7 +84,10 @@ const INITIAL_REGISTRATION_DATA: RegistrationFormData = {
 };
 
 function generateRegistrationId(): string {
-  return `reg-${Date.now()}`;
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `reg-${crypto.randomUUID()}`;
+  }
+  return `reg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps> = ({
@@ -89,19 +96,24 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
   onSave,
   initialData,
 }) => {
-  const toFormData = (reg: Registration): RegistrationFormData => ({
-    id: reg.id,
-    organization: reg.organization,
-    registeredName: reg.registeredName,
-    breed: reg.breed,
-    variety: reg.variety,
-    registrationNumber: reg.registrationNumber,
-    status: reg.status,
-    applicationNumber: reg.applicationNumber,
-    submissionDate: reg.submissionDate,
-    registrationDate: reg.registrationDate,
-    certificate: reg.certificate,
-  });
+  const toFormData = (reg: Registration): RegistrationFormData => {
+    const status = (REGISTRATION_STATUS_VALUES as readonly string[]).includes(reg.status)
+      ? (reg.status as (typeof REGISTRATION_STATUS_VALUES)[number])
+      : 'Active';
+    return {
+      id: reg.id,
+      organization: reg.organization,
+      registeredName: reg.registeredName,
+      breed: reg.breed,
+      variety: reg.variety,
+      registrationNumber: reg.registrationNumber,
+      status,
+      applicationNumber: reg.applicationNumber,
+      submissionDate: reg.submissionDate,
+      registrationDate: reg.registrationDate,
+      certificate: reg.certificate,
+    };
+  };
 
   const formInitial = initialData ? toFormData(initialData) : INITIAL_REGISTRATION_DATA;
   const form = useFormValidation(registrationFormSchema, formInitial);

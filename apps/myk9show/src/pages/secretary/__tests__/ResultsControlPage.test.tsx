@@ -8,10 +8,12 @@ import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 
 // --- Store mocks ---
 const mockSelectedShowId = { value: 'show-1' };
+const mockSelectShow = vi.fn();
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
     selectedShowId: mockSelectedShowId.value,
     shows: [{ id: 'show-1', name: 'Spring Agility Trial' }],
+    selectShow: mockSelectShow,
   }),
 }));
 

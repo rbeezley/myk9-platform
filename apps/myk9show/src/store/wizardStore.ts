@@ -272,13 +272,26 @@ export const useWizardStore = create<WizardState & WizardActions>()(
   )
 );
 
+/**
+ * Normalize `show.officials` to the canonical shape. Old persisted drafts
+ * (pre-officials) have no `officials` at all; malformed drafts (corrupted
+ * storage, manual edits, partial migrations) might have the key but with one
+ * or more role arrays missing or non-array. We backfill each missing role with
+ * `[]` and drop non-array values rather than trust persisted storage blindly.
+ */
 function ensureOfficialsDefault<T extends { show: WizardState['show'] }>(state: T): T {
-  if (state.show.officials) return state;
+  const o = state.show.officials as Partial<WizardState['show']['officials']> | undefined;
+  const secretary = Array.isArray(o?.secretary) ? o!.secretary : [];
+  const chairman = Array.isArray(o?.chairman) ? o!.chairman : [];
+  const steward = Array.isArray(o?.steward) ? o!.steward : [];
+  if (o && o.secretary === secretary && o.chairman === chairman && o.steward === steward) {
+    return state;
+  }
   return {
     ...state,
     show: {
       ...state.show,
-      officials: { secretary: [], chairman: [], steward: [] },
+      officials: { secretary, chairman, steward },
     },
   };
 }

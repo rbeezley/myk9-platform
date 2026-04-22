@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Registration } from '@/types/dog-types';
+import { Registration, REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { z } from 'zod';
@@ -52,8 +52,6 @@ const REGISTRATION_ORGS = [
   'Mixed Breed',
   'Other',
 ];
-
-const REGISTRATION_STATUS_VALUES = ['Active', 'Pending', 'Expired', 'Under review'] as const;
 
 const registrationFormSchema = z.object({
   id: z.string().max(64),

@@ -132,7 +132,9 @@ export const useDogStoreCompat = () => {
   };
 
   const deleteDog = async (id: string, deletedBy?: string): Promise<void> => {
-    await deleteMutation.mutateAsync({ id, ...(deletedBy !== undefined && { deletedBy }) });
+    await runDogMutation(() =>
+      deleteMutation.mutateAsync({ id, ...(deletedBy !== undefined && { deletedBy }) })
+    );
   };
 
   const getDogById = (id: string): Dog | null => {

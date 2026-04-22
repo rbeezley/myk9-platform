@@ -3,6 +3,15 @@ export type { User, UserRole, JudgeQualification } from './user-types';
 
 export type DogStatus = 'active' | 'retired' | 'deceased';
 
+/**
+ * Registration statuses accepted by the Zod schema and UI.
+ * Shared between `AddEditRegistrationDialog` and `AddDogPanel/validation`
+ * so the form, validator, and type stay in lockstep.
+ */
+export const REGISTRATION_STATUS_VALUES = ['Active', 'Pending', 'Expired', 'Under review'] as const;
+
+export type RegistrationStatus = (typeof REGISTRATION_STATUS_VALUES)[number];
+
 // Judge-specific information
 export interface JudgeInfo {
   judgeNumber: string;

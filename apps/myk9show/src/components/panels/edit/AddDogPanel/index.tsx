@@ -10,6 +10,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { DogInput } from '@/store/dogStore';
 import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import type { AddDogPanelProps, DogFormData } from './types';
 import { createInitialFormData } from './types';
 import { addDogSchema, isTabValid } from './validation';
@@ -77,6 +78,9 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
         'dogs',
         undefined,
         err instanceof Error ? err : new Error(String(err))
+      );
+      notifications.warning(
+        'Dog saved, but a post-save step failed. Refresh to see the latest list.'
       );
     }
   };

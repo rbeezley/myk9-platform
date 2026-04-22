@@ -118,15 +118,23 @@ describe('addDogSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects malformed date of birth', () => {
-    const result = addDogSchema.safeParse(validFormData({ dateOfBirth: 'March 15, 2020' }));
-    // String like "March 15, 2020" parses via Date fallback, which works in V8.
-    // So it MIGHT succeed. What we care about is that nonsense is rejected:
-    const nonsense = addDogSchema.safeParse(validFormData({ dateOfBirth: 'not-a-date' }));
-    expect(nonsense.success).toBe(false);
-    // Still check the behavior for the "March 15" case without asserting
-    // about the implementation's fallback — it's acceptable either way.
-    expect(typeof result.success).toBe('boolean');
+  it('rejects non-ISO date formats', () => {
+    // Only YYYY-MM-DD is accepted (what `<input type="date">` emits).
+    expect(addDogSchema.safeParse(validFormData({ dateOfBirth: 'March 15, 2020' })).success).toBe(
+      false
+    );
+    expect(addDogSchema.safeParse(validFormData({ dateOfBirth: '03/15/2020' })).success).toBe(
+      false
+    );
+    expect(addDogSchema.safeParse(validFormData({ dateOfBirth: '2020-3-15' })).success).toBe(false);
+    expect(addDogSchema.safeParse(validFormData({ dateOfBirth: 'not-a-date' })).success).toBe(
+      false
+    );
+  });
+
+  it('rejects ISO dates with invalid day (Feb 30)', () => {
+    const result = addDogSchema.safeParse(validFormData({ dateOfBirth: '2024-02-30' }));
+    expect(result.success).toBe(false);
   });
 
   it('rejects missing gender', () => {

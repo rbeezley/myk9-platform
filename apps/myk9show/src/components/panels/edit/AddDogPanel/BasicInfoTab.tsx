@@ -18,8 +18,11 @@ import { calculateAge } from './validation';
 import type { DogFormData } from './types';
 
 /**
- * First grapheme of a string, safe for emoji/surrogate pairs.
- * `str[0]` slices by UTF-16 code unit and splits multi-unit characters.
+ * First Unicode code point of a string, uppercased. `Array.from` iterates by
+ * code point, so surrogate pairs (e.g. most emoji) stay intact. ZWJ-joined
+ * grapheme clusters (👨‍👩‍👧, flag emoji) still split at the first code point —
+ * good enough for an avatar initial; use Intl.Segmenter if true grapheme
+ * support is ever required.
  */
 const firstGraphemeUpper = (str: string): string => {
   const first = Array.from(str)[0] ?? '';

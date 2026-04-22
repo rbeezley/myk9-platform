@@ -5,6 +5,10 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Club } from '@/types/club-types';
 
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: { id: 'test-user' } }),
+}));
+
 // ── Mock data ───────────────────────────────────────────────────────────────
 
 const makeClub = (overrides: Partial<Club> = {}): Club => ({

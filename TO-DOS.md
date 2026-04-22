@@ -339,14 +339,15 @@ Initial audit flagged ~17 missing sidebar links across roles. **On review these 
 
 ---
 
-## Pre-existing Failing Unit Tests — 2026-04-22
+## ✅ Pre-existing Failing Unit Tests — 2026-04-22
 
-Surfaced while running the full Vitest suite for the Add Dog wizard hardening pass. These are **not** caused by the hardening changes — the same 11 failures reproduce on the base branch with no uncommitted changes.
+Resolved 2026-04-22. All three files fixed:
 
-- [ ] **Fix 11 failing unit tests across 3 files.** **Files:**
-  - `apps/myk9show/src/test/integration/secretary-tasks-rls.integration.test.ts` — integration-style test, file-level failure (error before per-test output).
-  - `apps/myk9show/src/pages/__tests__/BrowseClubsPage.test.tsx` (9 failures) — every test throws `useAuthContext must be used within an AuthProvider`. Test render isn't wrapping the component in the Auth provider. Likely needs to switch to the custom `render` from `src/test/utils/testUtils.tsx` (per `CLAUDE.md` — it wraps with QueryClient, Auth, and Router providers) instead of plain `render` from RTL.
-  - `apps/myk9show/src/pages/secretary/__tests__/ResultsControlPage.test.tsx` (1 failure: "shows no-show state when no show selected") — `selectShow is not a function`. Test is mocking a store but omitting `selectShow` from the mock shape; real component calls `selectShow(shows[0].id)` inside a `useEffect`. Add `selectShow: vi.fn()` to the mock return value. **Effort:** ~30 min total — all three are test-infra issues, not product bugs.
+- `secretary-tasks-rls.integration.test.ts` — added `**/*.integration.test.ts` to `vitest.config.ts` exclude list; integration tests now run only via `pnpm test:integration`.
+- `BrowseClubsPage.test.tsx` — mocked `@/hooks/useAuthContext` at the top of the test to return a user, so `isAuthenticated` branches render the expected authenticated copy.
+- `ResultsControlPage.test.tsx` — added `selectShow: vi.fn()` to the `useShowStore` mock shape.
+
+Full suite: 485 files / 5466 tests pass.
 
 ---
 

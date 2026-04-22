@@ -18,6 +18,7 @@ export default defineConfig({
       '**/dist/**',
       '**/e2e/**',
       '**/*.spec.ts', // Playwright specs
+      '**/*.integration.test.ts', // Integration tests run via vitest.integration.config.ts
     ],
     coverage: {
       provider: 'v8',

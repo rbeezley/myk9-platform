@@ -32,7 +32,11 @@ export interface DogFormData extends Record<string, unknown> {
   registrations: Registration[];
 }
 
-export const INITIAL_FORM_DATA: DogFormData = {
+/**
+ * Factory for a fresh initial form-data object. A factory (not a shared const)
+ * prevents accidental cross-instance mutation of the `registrations` array.
+ */
+export const createInitialFormData = (): DogFormData => ({
   callName: '',
   gender: '',
   dateOfBirth: '',
@@ -44,6 +48,6 @@ export const INITIAL_FORM_DATA: DogFormData = {
   imageUrl: '',
   ownerId: '',
   registrations: [],
-};
+});
 
 export type TabValue = 'basic' | 'registration' | 'optional';

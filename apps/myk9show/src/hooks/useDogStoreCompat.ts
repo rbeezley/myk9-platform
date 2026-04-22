@@ -24,6 +24,7 @@ import { logger } from '@/services/LoggingService';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
+import { translateDogDbError } from '@/hooks/translateDogDbError';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -48,32 +49,55 @@ export const useDogStoreCompat = () => {
     dogsQuery.isLoading,
     createMutation.isPending,
     updateMutation.isPending,
-    deleteMutation.isPending,
+    deleteMutation.isPending
   );
 
-  const error = useMemo(() => aggregateQueryErrors(
-    dogsQuery.error,
-    createMutation.error,
-    updateMutation.error,
-    deleteMutation.error,
-  ), [dogsQuery.error, createMutation.error, updateMutation.error, deleteMutation.error]);
+  const error = useMemo(
+    () =>
+      aggregateQueryErrors(
+        dogsQuery.error,
+        createMutation.error,
+        updateMutation.error,
+        deleteMutation.error
+      ),
+    [dogsQuery.error, createMutation.error, updateMutation.error, deleteMutation.error]
+  );
+
+  const runDogMutation = async <T>(op: () => Promise<T>): Promise<T> => {
+    try {
+      return await op();
+    } catch (err) {
+      throw translateDogDbError(err);
+    }
+  };
 
   // dogStore-compatible API
   const addDog = async (dogData: DogInput): Promise<Dog> => {
     const dbData = mapDogInputToInsert(dogData);
-    const result = await createMutation.mutateAsync(dbData);
+    const result = await runDogMutation(() => createMutation.mutateAsync(dbData));
     const newDog = mapDatabaseToDog(result);
 
-    // Sync registrations if provided (registrations are stored in a separate table)
+    // Registrations live in a separate table, written in a second call. If this
+    // fails the dog row already exists — rethrow so the UI surfaces a save
+    // failure rather than silently orphaning the dog record.
+    // TODO: replace with a single create_dog_with_children RPC for atomicity
+    // (see migration 145's create_show_with_children pattern).
     if (dogData.registrations && dogData.registrations.length > 0) {
       try {
         const changed = await syncDogRegistrations(newDog.id, dogData.registrations);
         if (changed) {
           queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(newDog.id) });
-          dogsQuery.refetch();
         }
       } catch (err) {
-        logger.error('Failed to create registrations for new dog', 'dogs', { dogId: newDog.id }, err as Error);
+        logger.error(
+          'Failed to create registrations for new dog',
+          'dogs',
+          { dogId: newDog.id },
+          err as Error
+        );
+        throw err instanceof Error
+          ? err
+          : new Error('Failed to save dog registrations. Please try again.');
       }
     }
 
@@ -89,15 +113,15 @@ export const useDogStoreCompat = () => {
     });
 
     const dbUpdates = mapDogInputToUpdate(updates);
-    const result = await updateMutation.mutateAsync({ id, updates: dbUpdates });
+    const result = await runDogMutation(() =>
+      updateMutation.mutateAsync({ id, updates: dbUpdates })
+    );
 
-    // Sync registrations if provided
     if (updates.registrations && updates.registrations.length > 0) {
       try {
         const changed = await syncDogRegistrations(id, updates.registrations);
         if (changed) {
           queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(id) });
-          dogsQuery.refetch();
         }
       } catch (err) {
         logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, err as Error);

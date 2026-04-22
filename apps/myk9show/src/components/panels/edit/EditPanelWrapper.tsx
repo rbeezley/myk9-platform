@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { z } from 'zod';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
@@ -100,11 +100,17 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // --- Schema path: useFormValidation owns state ---
   const form = useFormValidation((schema ?? DUMMY_SCHEMA) as z.ZodSchema<T>, initialData);
 
-  // Reset form when initialData changes (schema path)
+  // Reset form when initialData *value* changes (schema path). Consumers that
+  // forget to memoize initialData would otherwise wipe in-progress user edits
+  // on every parent re-render — deep-equality guards against that. Legacy path
+  // skips the stringify cost entirely.
+  const lastInitialDataJsonRef = useRef<string | null>(null);
   useEffect(() => {
-    if (useSchemaPath) {
-      form.reset(initialData);
-    }
+    if (!useSchemaPath) return;
+    const nextJson = JSON.stringify(initialData);
+    if (nextJson === lastInitialDataJsonRef.current) return;
+    lastInitialDataJsonRef.current = nextJson;
+    form.reset(initialData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData, useSchemaPath]);
 

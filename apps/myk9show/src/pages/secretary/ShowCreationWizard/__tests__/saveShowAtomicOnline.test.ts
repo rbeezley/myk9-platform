@@ -25,8 +25,11 @@ vi.mock('@/services/sportTemplateService', () => ({
 }));
 
 const addShowLegacyMock = vi.fn();
+const existingShowsMock: { current: unknown[] } = { current: [] };
 vi.mock('@/store/showStore', () => ({
-  useShowStore: { getState: () => ({ addShowLegacy: addShowLegacyMock }) },
+  useShowStore: {
+    getState: () => ({ shows: existingShowsMock.current, addShowLegacy: addShowLegacyMock }),
+  },
 }));
 
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
@@ -38,6 +41,16 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
 
 vi.mock('@/services/LoggingService', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+const notificationsWarningMock = vi.fn();
+vi.mock('@/lib/notifications', () => ({
+  notifications: {
+    warning: (...a: unknown[]) => notificationsWarningMock(...a),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
 }));
 
 // Import after mocks so the module-under-test picks them up.
@@ -77,6 +90,8 @@ describe('saveShowAtomicOnline', () => {
     trialsSetMock.mockReset();
     classesSetMock.mockReset();
     addShowLegacyMock.mockReset();
+    notificationsWarningMock.mockReset();
+    existingShowsMock.current = [];
   });
 
   it('calls supabase.rpc with create_show_with_children and the built payload', async () => {
@@ -160,5 +175,61 @@ describe('saveShowAtomicOnline', () => {
     ).resolves.toBeDefined();
 
     expect(triggerSync).toHaveBeenCalled();
+  });
+
+  it('surfaces a warning notification when grant_show_official fails', async () => {
+    rpcMock.mockImplementation(async (fn: string) => {
+      if (fn === 'grant_show_official') return { error: { message: 'forbidden' } };
+      return { error: null };
+    });
+
+    const showWithOfficial: WizardShowData = {
+      ...baseShow,
+      officials: { secretary: ['11111111-0000-4000-8000-000000000001'], chairman: [], steward: [] },
+    };
+
+    const { showId } = await saveShowAtomicOnline({
+      show: showWithOfficial,
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient: makeQueryClient(),
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(showId).toBeTruthy();
+    // Fire-and-forget allSettled chain resolves after the function returns;
+    // vi.waitFor polls microtasks until the warning fires.
+    await vi.waitFor(() => expect(notificationsWarningMock).toHaveBeenCalled());
+    expect(notificationsWarningMock.mock.calls[0]![0]).toMatch(
+      /1 official role grant failed\. Check the Officials tab/
+    );
+  });
+
+  it('skips addShowLegacy when the show is already in the store (idempotent retry)', async () => {
+    rpcMock.mockResolvedValue({ error: null });
+
+    // Seed the store with the id that buildCreateShowPayload will generate next
+    // so the dedup guard trips. baseTrials is empty, so randomUUID is only
+    // called once (for the showId).
+    const seededId = '22222222-0000-4000-8000-000000000002';
+    const uuidSpy = vi
+      .spyOn(crypto, 'randomUUID')
+      .mockReturnValueOnce(seededId as `${string}-${string}-${string}-${string}-${string}`);
+    existingShowsMock.current = [{ id: seededId }];
+
+    await saveShowAtomicOnline({
+      show: baseShow,
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient: makeQueryClient(),
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(addShowLegacyMock).not.toHaveBeenCalled();
+    uuidSpy.mockRestore();
   });
 });

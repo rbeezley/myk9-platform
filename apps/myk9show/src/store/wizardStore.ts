@@ -239,11 +239,10 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       resetWizard: () => set(initialState),
 
       loadDraft: draft =>
-        set(state => ({
-          ...state,
-          ...draft,
-          isDirty: false,
-        })),
+        set(state => {
+          const merged = { ...state, ...draft, isDirty: false };
+          return ensureOfficialsDefault(merged);
+        }),
     }),
     {
       name: 'myk9show-wizard-storage',
@@ -258,16 +257,28 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         judgeDetails: state.judgeDetails,
       }),
       merge: (persisted, current) => {
-        const state = { ...current, ...(persisted as Partial<WizardState>) };
-        // Ensure officials field exists for drafts saved before this field was added
-        if (!state.show.officials) {
-          state.show = {
-            ...state.show,
-            officials: { secretary: [], chairman: [], steward: [] },
-          };
+        const state = ensureOfficialsDefault({
+          ...current,
+          ...(persisted as Partial<WizardState>),
+        });
+        // Zustand persist serializes Date via JSON.stringify → ISO string.
+        const rawLastSaved: unknown = state.lastSaved;
+        if (typeof rawLastSaved === 'string') {
+          state.lastSaved = new Date(rawLastSaved);
         }
         return state;
       },
     }
   )
 );
+
+function ensureOfficialsDefault<T extends { show: WizardState['show'] }>(state: T): T {
+  if (state.show.officials) return state;
+  return {
+    ...state,
+    show: {
+      ...state.show,
+      officials: { secretary: [], chairman: [], steward: [] },
+    },
+  };
+}

@@ -6,6 +6,7 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { useShowStore } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import { UserRole } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { Club } from '@/types/club-types';
@@ -102,7 +103,7 @@ export async function saveShowAtomicOnline(
     logoUrl: selectedClub?.logo || '',
     coverImageUrl: selectedClub?.coverImage || '',
     accentColor: selectedClub?.accentColor || '',
-    assignedJudges: show.judgeIds.map(judgeId => ({
+    assignedJudges: (show.judgeIds ?? []).map(judgeId => ({
       judgeId,
       judgeName: judgeDetails[judgeId]?.name || 'Unknown Judge',
       assignedDate: new Date().toISOString().split('T')[0]!,
@@ -114,7 +115,10 @@ export async function saveShowAtomicOnline(
     acceptCashPayments: show.acceptCashPayments,
   };
 
-  useShowStore.getState().addShowLegacy(savedShow);
+  const { shows, addShowLegacy } = useShowStore.getState();
+  if (!shows.some(s => s.id === showId)) {
+    addShowLegacy(savedShow);
+  }
 
   queryClient.setQueryData<Show>(showQueryKeys.detail(showId), savedShow);
   queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
@@ -127,9 +131,9 @@ export async function saveShowAtomicOnline(
   // Fire-and-forget role grants. Failures are logged and the officials query
   // is invalidated either way, so downstream UI refreshes without waiting.
   const officialGrants = [
-    ...show.officials.secretary.map(id => ({ id, role: UserRole.SECRETARY })),
-    ...show.officials.chairman.map(id => ({ id, role: UserRole.CHAIRMAN })),
-    ...show.officials.steward.map(id => ({ id, role: UserRole.STEWARD })),
+    ...(show.officials.secretary ?? []).map(id => ({ id, role: UserRole.SECRETARY })),
+    ...(show.officials.chairman ?? []).map(id => ({ id, role: UserRole.CHAIRMAN })),
+    ...(show.officials.steward ?? []).map(id => ({ id, role: UserRole.STEWARD })),
   ];
   void Promise.allSettled(
     officialGrants.map(async grant => {
@@ -148,6 +152,11 @@ export async function saveShowAtomicOnline(
         error: err instanceof Error ? err.message : String(err),
       });
     });
+    if (failures.length > 0) {
+      notifications.warning(
+        `Show created, but ${failures.length} official role ${failures.length === 1 ? 'grant' : 'grants'} failed. Check the Officials tab to verify assignments.`
+      );
+    }
     queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
   });
 

@@ -90,7 +90,7 @@ export function useShowCreationWizardActions({
   const queryClient = useQueryClient();
 
   const { show, trials, judgeDetails, saveProgress, resetWizard } = useWizardStore();
-  const { addShow, updateShow } = useShowStore();
+  const { addShow, updateShow, deleteShowCascading } = useShowStore();
   const { clubs } = useClubStore();
   const { addTrial: addTrialToStore, trials: existingTrials, loadTrialClasses } = useTrialStore();
   const { classes: existingDBClasses } = useClassStoreCompat();
@@ -128,29 +128,29 @@ export function useShowCreationWizardActions({
         });
       }
 
-      // Create new trials in parallel and collect their real UUIDs
-      await Promise.all(
-        trialsToAdd.map(async (wizardTrial, index) => {
-          const trialName = wizardTrial.name || `Trial ${index + 1}`;
-          const newTrial: TrialInput = {
-            showId,
-            showName,
-            name: trialName,
-            trialDate: wizardTrial.dateTime,
-            trialNumber: trialName,
-            status: 'Upcoming',
-            eventNumber: wizardTrial.eventNumber || '',
-            type: trialName,
-            trialType: wizardTrial.trialType || showOrganization,
-            plannedStartTime: wizardTrial.dateTime
-              ? format(new Date(wizardTrial.dateTime), 'h:mm a')
-              : '09:00 AM',
-            order: String(index + 1),
-          };
-          const savedTrial = await addTrialToStore(newTrial, user?.id || 'unknown');
-          trialIdMap[wizardTrial.id] = savedTrial.id;
-        })
-      );
+      // Create trials sequentially — parallel Promise.all would leave a
+      // partially-populated trialIdMap if one insert fails, causing classes
+      // for the failed trial to be silently dropped with no trialId.
+      for (const [index, wizardTrial] of trialsToAdd.entries()) {
+        const trialName = wizardTrial.name || `Trial ${index + 1}`;
+        const newTrial: TrialInput = {
+          showId,
+          showName,
+          name: trialName,
+          trialDate: wizardTrial.dateTime,
+          trialNumber: trialName,
+          status: 'Upcoming',
+          eventNumber: wizardTrial.eventNumber || '',
+          type: trialName,
+          trialType: wizardTrial.trialType || showOrganization,
+          plannedStartTime: wizardTrial.dateTime
+            ? format(new Date(wizardTrial.dateTime), 'h:mm a')
+            : '09:00 AM',
+          order: String(index + 1),
+        };
+        const savedTrial = await addTrialToStore(newTrial, user?.id || 'unknown');
+        trialIdMap[wizardTrial.id] = savedTrial.id;
+      }
 
       return trialIdMap;
     },
@@ -172,18 +172,19 @@ export function useShowCreationWizardActions({
         judgeDetails,
         showId,
         existingTrials,
-        editMode
+        editMode,
+        { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee }
       );
 
       // In add-classes mode, trial.classes includes both existing and new classes.
       // Filter out classes that already exist in the DB to avoid duplicates.
       let classesToCreate = allClasses;
       if (editMode?.mode === 'add-classes') {
-        const existingClassNames = new Set(
-          existingDBClasses.map(c => `${c.trialId}|${c.className}`)
+        const existingClassKeys = new Set(
+          existingDBClasses.map(c => `${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
         );
         classesToCreate = allClasses.filter(
-          c => !existingClassNames.has(`${c.trialId}|${c.className}`)
+          c => !existingClassKeys.has(`${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
         );
         logger.debug('Filtered existing classes for add-classes mode', 'wizard', {
           total: allClasses.length,
@@ -218,6 +219,8 @@ export function useShowCreationWizardActions({
       // Prevent double submission
       if (isSavingRef.current) return;
       isSavingRef.current = true;
+
+      let createdShowId: string | undefined;
 
       try {
         setIsLoading(true);
@@ -286,6 +289,7 @@ export function useShowCreationWizardActions({
           savedShow = updated || wizardShow;
         } else {
           savedShow = await addShow(showToShowInput(wizardShow));
+          createdShowId = savedShow.id;
         }
 
         const realShowId = savedShow.id;
@@ -349,7 +353,7 @@ export function useShowCreationWizardActions({
           });
           if (failures.length > 0) {
             notifications.warning(
-              `Show created, but ${failures.length} official role ${failures.length === 1 ? 'grant' : 'grants'} failed. Check console for details.`
+              `Show created, but ${failures.length} official role ${failures.length === 1 ? 'grant' : 'grants'} failed. Check the Officials tab to verify assignments.`
             );
           }
           queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
@@ -400,6 +404,24 @@ export function useShowCreationWizardActions({
           showName: savedShow.name,
         });
       } catch (error) {
+        // Compensating soft-delete: if the show was created but trials/classes
+        // failed, remove it so the user isn't left with an orphaned show.
+        if (createdShowId) {
+          // Sync-remove from Zustand first so the orphan doesn't linger in the
+          // list if the server-side soft delete fails (e.g. network down).
+          useShowStore.setState(s => ({
+            shows: s.shows.filter(sh => sh.id !== createdShowId),
+            selectedShowId: s.selectedShowId === createdShowId ? '' : s.selectedShowId,
+          }));
+          deleteShowCascading(createdShowId).catch(deleteErr => {
+            logger.warn('Compensating show delete failed after partial creation', 'wizard', {
+              showId: createdShowId,
+              error: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+            });
+          });
+          queryClient.removeQueries({ queryKey: showQueryKeys.detail(createdShowId) });
+          queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
+        }
         logger.error('Error saving show', 'wizard', {}, error as Error);
         notifications.error(
           error instanceof Error
@@ -419,6 +441,7 @@ export function useShowCreationWizardActions({
       editMode,
       addShow,
       updateShow,
+      deleteShowCascading,
       createTrials,
       createClasses,
       saveProgress,

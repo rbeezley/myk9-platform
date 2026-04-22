@@ -26,7 +26,7 @@ vi.mock('@/services/sportTemplateService', () => ({
 
 const addShowLegacyMock = vi.fn();
 vi.mock('@/store/showStore', () => ({
-  useShowStore: { getState: () => ({ addShowLegacy: addShowLegacyMock }) },
+  useShowStore: { getState: () => ({ shows: [], addShowLegacy: addShowLegacyMock }) },
 }));
 
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({

@@ -266,6 +266,10 @@ export const useWizardStore = create<WizardState & WizardActions>()(
             officials: { secretary: [], chairman: [], steward: [] },
           };
         }
+        // lastSaved is serialized as an ISO string by JSON.stringify; restore to Date
+        if (typeof state.lastSaved === 'string') {
+          state.lastSaved = new Date(state.lastSaved as unknown as string);
+        }
         return state;
       },
     }

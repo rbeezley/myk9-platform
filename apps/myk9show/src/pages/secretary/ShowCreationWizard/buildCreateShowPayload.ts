@@ -127,7 +127,8 @@ export function buildCreateShowPayload(
     judgeDetails,
     showId,
     [],
-    undefined
+    undefined,
+    { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee }
   );
 
   const classPayloads: ClassRpcPayload[] = allClassData.map(cls => {

@@ -108,7 +108,8 @@ export function createClassDataFromWizard(
   judgeDetails: JudgeDetailsMap,
   showId: string,
   existingTrials: ExistingTrial[],
-  editMode?: EditMode
+  editMode?: EditMode,
+  showFees?: { preEntryFee?: number; dayOfShowFee?: number }
 ): ClassData[] {
   const classes: ClassData[] = [];
 
@@ -154,10 +155,13 @@ export function createClassDataFromWizard(
           timeLimit3: '',
           photoUrl: '',
           className: className,
-          entryFee: 30,
-          preEntryFee: 30,
-          dayOfShowFee: 35,
-          maxEntries: 40,
+          entryFee:
+            (cls.customizations?.entryFee as number | undefined) ?? showFees?.preEntryFee ?? 0,
+          preEntryFee:
+            (cls.customizations?.preEntryFee as number | undefined) ?? showFees?.preEntryFee ?? 0,
+          dayOfShowFee:
+            (cls.customizations?.dayOfShowFee as number | undefined) ?? showFees?.dayOfShowFee ?? 0,
+          maxEntries: undefined,
           templateId: cls.templateId,
         };
 

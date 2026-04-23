@@ -98,6 +98,17 @@ function RegistrationWizardContent() {
 
   const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
 
+  // Reset step state when workflow mode changes mid-session (e.g. role change)
+  // to prevent stale completions from a previous mode allowing skipping payment.
+  const prevWorkflowMode = useRef(currentWorkflowMode);
+  useEffect(() => {
+    if (prevWorkflowMode.current !== currentWorkflowMode) {
+      prevWorkflowMode.current = currentWorkflowMode;
+      setStepCompletionState({});
+      setCurrentStep(0);
+    }
+  }, [currentWorkflowMode]);
+
   // Build steps for VerticalProgressIndicator
   const steps = useMemo(() => {
     return currentWorkflowConfig.steps.map((stepId, index) => ({
@@ -148,7 +159,14 @@ function RegistrationWizardContent() {
   const clampedStep = Math.min(currentStep, currentWorkflowConfig.steps.length - 1);
   const currentStepId: StepId = currentWorkflowConfig.steps[clampedStep];
 
-  useDraftPersistence(showId || '', userId, currentStepId, {
+  const {
+    saveDraft: draftSave,
+    loadDraft: draftLoad,
+    deleteDraft: draftDelete,
+    availableDrafts,
+    clearAllDrafts,
+    hasUnsavedChanges,
+  } = useDraftPersistence(showId || '', userId, currentStepId, {
     autoSaveInterval: 30000,
     debug: import.meta.env.DEV,
   });
@@ -603,9 +621,12 @@ function RegistrationWizardContent() {
                       <span>{steps[currentStep]?.label}</span>
                     </div>
                     <DraftManager
-                      showId={showId}
-                      userId={userId}
-                      currentStep={currentStepId}
+                      saveDraft={draftSave}
+                      loadDraft={draftLoad}
+                      deleteDraft={draftDelete}
+                      availableDrafts={availableDrafts}
+                      clearAllDrafts={clearAllDrafts}
+                      hasUnsavedChanges={!!hasUnsavedChanges}
                       onDraftLoaded={handleDraftLoaded}
                       onDraftSaved={() => notifications.success('Draft saved')}
                     />

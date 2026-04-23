@@ -7,6 +7,7 @@ async function firstRow<T extends Record<string, unknown>>(
   columns: string
 ): Promise<T | null> {
   const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic table name; typed Supabase client can't infer a union of table literals at runtime
     .from(table as any)
     .select(columns)
     .limit(1)

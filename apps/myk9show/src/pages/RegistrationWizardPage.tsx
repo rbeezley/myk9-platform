@@ -34,7 +34,6 @@ import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useOptimisticRegistration } from '@/hooks/useOptimisticRegistration';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import VerticalProgressIndicator from '@/components/shows/wizard/components/VerticalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
@@ -139,6 +138,8 @@ function RegistrationWizardContent() {
     currentRegistration,
     setDraftData,
     updateRegistration: updateShowRegistration,
+    updatePaymentStatus: storeUpdatePaymentStatus,
+    updateEntryStatus: storeUpdateEntryStatus,
   } = useShowRegistrationStore();
 
   // Draft persistence
@@ -150,35 +151,6 @@ function RegistrationWizardContent() {
     autoSaveInterval: 30000,
     debug: import.meta.env.DEV,
   });
-
-  // Optimistic updates
-  const {
-    registrationState: optimisticState,
-    updateDogSelection,
-    updateClassSelections,
-    updateHandlerAssignments,
-    updatePaymentStatus: updatePaymentStatusOptimistic,
-    updateEntryStatus: updateEntryStatusOptimistic,
-    batchUpdate,
-  } = useOptimisticRegistration(showId || '', {
-    formData: registrationData,
-    classSelections,
-    handlerAssignments,
-    paymentStatus,
-    entryStatus,
-    stepCompletionState,
-  });
-
-  // Merge local state into optimistic state
-  const effectiveOptimisticState = useMemo(
-    () => ({
-      ...optimisticState,
-      formData: registrationData,
-      handlerAssignments,
-      classSelections,
-    }),
-    [optimisticState, registrationData, handlerAssignments, classSelections]
-  );
 
   // Step helpers
   const isStepCompleted = (stepIndex: number) => {
@@ -479,32 +451,16 @@ function RegistrationWizardContent() {
       setRegistrationId(reg.id);
       setIsCreatingRegistration(false);
     }
-
-    try {
-      await updateDogSelection(selectedDogs);
-    } catch (error: unknown) {
-      notifications.error(getErrorMessage(error));
-    }
   };
 
   // Class selection handler
   const handleClassSelectionChange = async (selections: ClassSelectionData[]) => {
     setClassSelections(selections);
-    try {
-      await updateClassSelections(selections);
-    } catch (error: unknown) {
-      notifications.error(getErrorMessage(error));
-    }
   };
 
   // Handler assignment handler
   const handleHandlerAssignmentChange = async (assignments: Record<string, HandlerInfo>) => {
     setHandlerAssignments(assignments);
-    try {
-      await updateHandlerAssignments(assignments);
-    } catch (error: unknown) {
-      notifications.error(getErrorMessage(error));
-    }
   };
 
   // Draft loading handler
@@ -536,20 +492,10 @@ function RegistrationWizardContent() {
       specialRequests: draft.data.specialRequests,
     });
 
-    batchUpdate({
-      formData: {
-        selectedDogs: draft.data.selectedDogs || [],
-        entries: draft.data.entries || [],
-        documents: draft.data.documents || [],
-        paymentMethod: draft.data.paymentMethod,
-        specialRequests: draft.data.specialRequests,
-      },
-      classSelections: draft.data._workflowState?.classSelections || [],
-      handlerAssignments: draft.data._workflowState?.handlerAssignments || {},
-      paymentStatus: draft.data._workflowState?.paymentStatus || PaymentStatus.PENDING,
-      entryStatus: draft.data._workflowState?.entryStatus || EntryStatus.PENDING,
-      stepCompletionState: draft.data._workflowState?.stepCompletionState || {},
-    });
+    if (!registrationId && (draft.data.selectedDogs?.length ?? 0) > 0) {
+      const reg = createRegistration(showId, userId);
+      setRegistrationId(reg.id);
+    }
 
     notifications.success('Draft loaded successfully');
   };
@@ -649,7 +595,7 @@ function RegistrationWizardContent() {
                     currentStepId={currentStepId}
                     currentWorkflowConfig={currentWorkflowConfig}
                     registrationData={registrationData}
-                    optimisticState={effectiveOptimisticState}
+                    optimisticState={{ formData: registrationData, classSelections, handlerAssignments, paymentStatus, entryStatus }}
                     showId={showId}
                     registrationId={registrationId}
                     registrationNumber={registrationNumber}
@@ -667,8 +613,12 @@ function RegistrationWizardContent() {
                     onPaymentDetailsChange={(details: PaymentDetails) => {
                       paymentDetailsRef.current = details;
                     }}
-                    onPaymentStatusChange={updatePaymentStatusOptimistic}
-                    onEntryStatusChange={updateEntryStatusOptimistic}
+                    onPaymentStatusChange={async (regId: string, status: PaymentStatus) => {
+                      storeUpdatePaymentStatus(regId, status);
+                    }}
+                    onEntryStatusChange={async (regId: string, status: EntryStatus, reason?: string) => {
+                      storeUpdateEntryStatus(regId, status, reason);
+                    }}
                     setPaymentStatus={setPaymentStatus}
                     setEntryStatus={setEntryStatus}
                     dogsLoading={dogsLoading}

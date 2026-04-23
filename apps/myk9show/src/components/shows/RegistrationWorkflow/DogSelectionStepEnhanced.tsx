@@ -261,6 +261,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   // Server-side dog search for roles that can view all dogs (secretary, admin).
   // The local replication store only holds the logged-in user's dogs, so a
   // secretary entering a mail-in registration needs to search the full system.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!workflowConfig.features.advancedSearch) {
       setServerDogs(prev => (prev.length === 0 ? prev : []));
@@ -294,6 +295,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
       cancelled = true;
     };
   }, [debouncedSearchQuery, workflowConfig.features.advancedSearch]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Combined dog set passed to DogSearchInterface: locally-accessible dogs
   // (owned / club-scoped) plus any server-search results, de-duplicated by id.

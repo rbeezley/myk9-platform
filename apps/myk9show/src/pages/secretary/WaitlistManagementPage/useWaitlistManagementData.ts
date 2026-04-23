@@ -15,12 +15,11 @@ import {
 import { getSecretaryShows } from '@/services/database/queries/showQueries';
 import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
 
-export function useWaitlistManagementData() {
+export function useWaitlistManagementData(showId?: string) {
   const { user } = useAuthContext();
 
-  // Selection state
   const [shows, setShows] = useState<Show[]>([]);
-  const [selectedShowId, setSelectedShowId] = useState<string>('');
+  const [selectedShowId, setSelectedShowId] = useState<string>(showId ?? '');
   const [classes, setClasses] = useState<ClassWithWaitlistCount[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
@@ -39,6 +38,12 @@ export function useWaitlistManagementData() {
     action: null,
     entry: null,
   });
+
+  useEffect(() => {
+    if (showId !== undefined) {
+      setSelectedShowId(showId);
+    }
+  }, [showId]);
 
   // Data loading callbacks
   const loadShows = useCallback(async () => {

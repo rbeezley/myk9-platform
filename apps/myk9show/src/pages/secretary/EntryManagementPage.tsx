@@ -479,7 +479,7 @@ const EntryManagementPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="waitlist">
-          <WaitlistManagementPage />
+          <WaitlistManagementPage showId={selectedShowId || undefined} />
         </TabsContent>
       </PrimaryTabs>
 

@@ -22,8 +22,10 @@ function useModeChangeReset(currentWorkflowMode: string) {
   useEffect(() => {
     if (prevWorkflowMode.current !== currentWorkflowMode) {
       prevWorkflowMode.current = currentWorkflowMode;
+      /* eslint-disable react-hooks/set-state-in-effect */
       setStepCompletionState({});
       setCurrentStep(0);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [currentWorkflowMode]);
 
@@ -85,7 +87,7 @@ describe('RegistrationWizardPage — step state reset on mode change', () => {
   });
 
   it('does NOT reset when re-rendering with the same mode', () => {
-    let mode = 'exhibitor';
+    const mode = 'exhibitor';
     const { result, rerender } = renderHook(() => useModeChangeReset(mode));
 
     act(() => {

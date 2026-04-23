@@ -7,7 +7,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@/test/utils/testUtils';
-import { useState } from 'react';
 
 // ─── Hoisted mocks ─────────────────────────────────────────────────────────────
 
@@ -123,37 +122,6 @@ function setupBaseMocks(trialIds: string[]) {
     totalSpotsAvailable: 10,
     fullClasses: 0,
   });
-}
-
-// ─── Wrapper that can update trialStore state ──────────────────────────────────
-
-/**
- * A harness that renders ClassSelectionStep and lets tests change the
- * trialStore mock return value between renders via `updateTrials`.
- */
-function UpdatableWrapper({ initialTrialIds }: { initialTrialIds: string[] }) {
-  const [trialIds, setTrialIds] = useState<string[]>(initialTrialIds);
-
-  // Update the mock whenever trialIds changes
-  const state = makeTrialStoreState(trialIds);
-  mockUseTrialStore.mockImplementation((selector: (s: unknown) => unknown) => selector(state));
-
-  return (
-    <div>
-      <button
-        data-testid="add-trials"
-        onClick={() => setTrialIds([TRIAL_ID_A, TRIAL_ID_B])}
-      >
-        Add Trials
-      </button>
-      <ClassSelectionStep
-        selectedDogs={[DOG_ID]}
-        classSelections={[]}
-        onSelectionChange={vi.fn()}
-        showId={SHOW_ID}
-      />
-    </div>
-  );
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────

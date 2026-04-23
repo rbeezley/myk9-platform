@@ -13,10 +13,7 @@ const fullIds: ExampleIds = {
   clubId: 'CLUB_1',
   roleId: 'ROLE_1',
   templateId: 'TEMPLATE_1',
-  personId: 'PERSON_1',
   entryId: 'ENTRY_1',
-  registrationId: 'REG_1',
-  userId: 'USER_1',
 };
 
 describe('resolveExamplePath', () => {

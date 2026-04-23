@@ -34,7 +34,7 @@ const ROUTE_DIFF = routeDiff(fullRouteRegistry, pageDirectory);
 
 export function AdminHelpPage() {
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>(ALL);
+  const [roleFilter, setRoleFilter] = useState<UserRole | typeof ALL>(ALL);
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
   const [classificationFilter, setClassificationFilter] = useState<string>(ALL);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
@@ -48,7 +48,7 @@ export function AdminHelpPage() {
     return pageDirectory.filter(entry => {
       if (!showParked && entry.classification === 'park') return false;
       if (!showHidden && entry.classification === 'hidden') return false;
-      if (roleFilter !== ALL && !entry.roles.includes(roleFilter as UserRole)) return false;
+      if (roleFilter !== ALL && !entry.roles.includes(roleFilter)) return false;
       if (categoryFilter !== ALL && entry.category !== categoryFilter) return false;
       if (
         classificationFilter !== ALL &&
@@ -99,7 +99,7 @@ export function AdminHelpPage() {
           onChange={e => setSearch(e.target.value)}
         />
         <div className="grid gap-2 md:grid-cols-4">
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <Select value={roleFilter} onValueChange={v => setRoleFilter(v as UserRole | typeof ALL)}>
             <SelectTrigger>
               <SelectValue placeholder="Role" />
             </SelectTrigger>

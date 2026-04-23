@@ -26,6 +26,30 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 ---
 
+## Phase 2 Secretary Walk — Findings (2026-04-22)
+
+Live triage log from walking the secretary golden path on `localhost:5173`. Items here block Phase 2 exit. Resolved items get struck through with the resolving PR/commit linked.
+
+### ✅ Resolved 2026-04-22 — [PR #71](https://github.com/rbeezley/myk9-platform/pull/71)
+
+- **Show creation failed when class `start_time` was empty** — `create_show_with_children` used `NULLIF(v_class->>'start_time', '')` (TEXT) without a `::TIME` cast; Postgres has no implicit TEXT→TIME, fails even on NULL. Fixed in [`supabase/migrations/149_fix_class_start_time_cast.sql`](supabase/migrations/149_fix_class_start_time_cast.sql).
+- **Show creation failed when boolean payment fields were JSON null** — Three fields (`accept_check_payments`, `accept_cash_payments`, `hides_known`) used `(payload->'flag')::boolean`; jsonb-null has no implicit cast to boolean (SQL NULL does). Switched to `->>`. Fixed in [`supabase/migrations/150_fix_jsonb_null_boolean_cast.sql`](supabase/migrations/150_fix_jsonb_null_boolean_cast.sql).
+- **Pipeline checklist showed "Judge(s) assigned" as incomplete after wizard run** — `evalCtx.judge_count` was hardcoded to `0` in [`TrialPipelineDetail.tsx`](apps/myk9show/src/features/pipeline/components/TrialPipelineDetail.tsx). Now queries `judge_assignments` by `show_id`.
+
+### Open — In-flight (next session)
+
+- **Mail-in entry: secretary can't see non-owned dogs in the registration wizard** — `RegistrationWizardPage` uses `useDogStoreCompat()` which only loads the logged-in user's dogs. Secretaries running mail-in entry on behalf of an exhibitor see "No dogs found." **Files:** [`DogSelectionStepEnhanced.tsx:364`](apps/myk9show/src/components/shows/RegistrationWorkflow/DogSelectionStepEnhanced.tsx) (empty-state block), [`dogQueries.ts`](apps/myk9show/src/services/database/queries/dogQueries.ts) (needs new `searchAllDogs` server query), `apps/myk9show/src/pages/RegistrationWizardPage.tsx` (mode wiring). **Solution:** add `searchAllDogs(searchTerm)` server query (search by name/call_name/breed/akc_registration_number, limit 50, exclude soft-deleted) and wire a search input + result list into the empty-state when `workflowConfig.features.advancedSearch === true`. Map DB rows to the `Dog` domain type before merging with `accessibleDogs`. Add unit test for the search→select→submit path under the secretary workflow mode.
+
+### Open — Found-but-deferred during this walk
+
+- **Waitlist tab does not honor top-level show selection** — Selecting a show in the secretary header doesn't filter the Waitlist tab; it shows all/unrelated waitlist entries. **Files:** check `apps/myk9show/src/pages/secretary/` for the Waitlist tab component, the show-selection store/context, and ensure the waitlist query is keyed on the active show id.
+- **Cannot test Accept / Waitlist / Bulk-email paths without an exhibitor account** — These flows require online entries that only the exhibitor self-service path can produce. Need: (a) a seeded exhibitor test account, (b) a script or fixture that submits 3–5 sample online entries against a draft show. Document the seed in `docs/testing/` so future walks can reproduce.
+- **`RunOrderPage` reads from in-memory `classCreationStore`, not Supabase** — Run-order operations work only on shows just created in the same browser session. **File:** `apps/myk9show/src/pages/secretary/RunOrderPage.tsx` (or equivalent — verify path). **Solution:** load classes/entries from Supabase keyed by `trial_id` from the URL; drop the `classCreationStore` dependency for read paths.
+- **"Close Out Show" action not built (Phase 4 closeout blocker)** — Pipeline stage 6 has no UI affordance to mark a show closed; secretary cannot complete the journey. Needs a button in `TrialPipelineDetail` (or `PipelineDashboard`) that calls a `close_show` RPC and transitions stage to "Closed."
+- **Financial reconciliation report not built (Phase 4)** — Per `docs/journeys/secretary.md` and the mySWT reference (Financial Report — Accepted, Financial Report — Waitlist screenshots), the secretary needs a per-show financial reconciliation export. Currently absent.
+
+---
+
 ---
 
 ## Design system v2 follow-ups — 2026-04-18

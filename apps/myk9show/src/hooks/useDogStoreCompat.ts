@@ -85,8 +85,7 @@ export const useDogStoreCompat = () => {
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
     await replicatedDogsTable.set(dogId, replicatedDog, false);
 
-    const dbData = mapDogInputToInsert(dogData);
-    (dbData as Record<string, unknown>).id = dogId;
+    const dbData = { ...mapDogInputToInsert(dogData), id: dogId };
 
     try {
       const result = await runDogMutation(() => createMutation.mutateAsync(dbData));
@@ -116,7 +115,15 @@ export const useDogStoreCompat = () => {
 
       return newDog;
     } catch (err) {
-      await replicatedDogsTable.delete(dogId);
+      // Don't mask the original PostgREST error with an IndexedDB cleanup failure.
+      await replicatedDogsTable.delete(dogId).catch(cleanupErr => {
+        logger.warn(
+          'Failed to roll back IndexedDB after PostgREST insert failure',
+          'dogs',
+          { dogId },
+          cleanupErr as Error
+        );
+      });
       throw err;
     }
   };

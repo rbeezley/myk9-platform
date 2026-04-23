@@ -95,7 +95,9 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
   // status column added via migration 039 — not yet in generated Supabase types
   (dbInsert as Record<string, unknown>).status = input.status || 'active';
 
-  // Defensive programming: Ensure no id field is accidentally included
+  // Strip any `id` that leaked in from DogInput — callers that need a
+  // client-specified id (local-first create) spread this result and set
+  // `id` explicitly afterward.
   if ('id' in dbInsert) {
     delete (dbInsert as Record<string, unknown>)['id'];
   }

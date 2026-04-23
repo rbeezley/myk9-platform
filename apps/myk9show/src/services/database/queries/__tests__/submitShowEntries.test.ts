@@ -48,7 +48,10 @@ const baseParams = {
 
 const rpcSuccess = {
   data: {
-    entry_ids: ['e1', 'e2'],
+    entries: [
+      { entry_id: 'e1', dog_id: 'dog-uuid-1' },
+      { entry_id: 'e2', dog_id: 'dog-uuid-2' },
+    ],
     registration_id: 'enrollment-uuid-1',
     submission_id: 'sub-uuid-1',
   },
@@ -68,7 +71,7 @@ describe('submitShowEntries', () => {
     expect(mockRpc).toHaveBeenCalledWith('submit_show_entries', {
       p_show_id: 'show-uuid-1',
       p_registration_id: 'enrollment-uuid-1',
-      p_entries: JSON.stringify([
+      p_entries: [
         {
           dog_id: 'dog-uuid-1',
           class_id: 'class-uuid-1',
@@ -83,13 +86,16 @@ describe('submitShowEntries', () => {
           payment_method: 'credit_card',
           client_fee_cents: 2500,
         },
-      ]),
+      ],
       p_submission_id: 'sub-uuid-1',
       p_payment_method: 'credit_card',
     });
 
     expect(result).toEqual({
-      entryIds: ['e1', 'e2'],
+      entries: [
+        { entryId: 'e1', dogId: 'dog-uuid-1' },
+        { entryId: 'e2', dogId: 'dog-uuid-2' },
+      ],
       registrationId: 'enrollment-uuid-1',
       submissionId: 'sub-uuid-1',
     });
@@ -104,7 +110,10 @@ describe('submitShowEntries', () => {
 
     expect(mockRpc).toHaveBeenCalledTimes(2);
     expect(first).toEqual(second);
-    expect(first.entryIds).toEqual(['e1', 'e2']);
+    expect(first.entries).toEqual([
+      { entryId: 'e1', dogId: 'dog-uuid-1' },
+      { entryId: 'e2', dogId: 'dog-uuid-2' },
+    ]);
   });
 
   it('RPC error — throws when supabase returns an error', async () => {

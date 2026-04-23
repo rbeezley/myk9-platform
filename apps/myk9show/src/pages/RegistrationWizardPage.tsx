@@ -184,6 +184,17 @@ function RegistrationWizardContent() {
     }
   };
 
+  const optimisticState = useMemo(
+    () => ({
+      formData: registrationData,
+      classSelections,
+      handlerAssignments,
+      paymentStatus,
+      entryStatus,
+    }),
+    [registrationData, classSelections, handlerAssignments, paymentStatus, entryStatus]
+  );
+
   const completedSteps = useMemo(() => {
     return steps
       .map((_step, index) => index)
@@ -431,19 +442,13 @@ function RegistrationWizardContent() {
             // Write armband back to each DB entry so confirmation email includes it
             const armbandByDog = new Map(armbandResults.map(r => [r.dogId, r.armband]));
             await Promise.all(
-              rpcResult.entryIds
-                .map(entryId => {
-                  // Match entry to dogId by position in rpcEntries (same order as submission)
-                  const idx = rpcResult.entryIds.indexOf(entryId);
-                  const dogId = rpcEntries[idx]?.dogId;
-                  return dogId && armbandByDog.has(dogId)
-                    ? updateRegistration(
-                        entryId,
-                        { armband: armbandByDog.get(dogId) },
-                        userId
-                      ).catch(() => {}) // Non-blocking — armband display still works via state
-                    : Promise.resolve();
-                })
+              rpcResult.entries.map(({ entryId, dogId }) =>
+                armbandByDog.has(dogId)
+                  ? updateRegistration(entryId, { armband: armbandByDog.get(dogId) }, userId).catch(
+                      () => {}
+                    ) // Non-blocking — armband display still works via state
+                  : Promise.resolve()
+              )
             );
           }
         }
@@ -495,12 +500,12 @@ function RegistrationWizardContent() {
   };
 
   // Class selection handler
-  const handleClassSelectionChange = async (selections: ClassSelectionData[]) => {
+  const handleClassSelectionChange = (selections: ClassSelectionData[]) => {
     setClassSelections(selections);
   };
 
   // Handler assignment handler
-  const handleHandlerAssignmentChange = async (assignments: Record<string, HandlerInfo>) => {
+  const handleHandlerAssignmentChange = (assignments: Record<string, HandlerInfo>) => {
     setHandlerAssignments(assignments);
   };
 
@@ -534,6 +539,7 @@ function RegistrationWizardContent() {
     });
 
     if (!registrationId && (draft.data.selectedDogs?.length ?? 0) > 0) {
+      // createRegistration is synchronous — returns the new local registration directly
       const reg = createRegistration(showId, userId);
       setRegistrationId(reg.id);
     }
@@ -639,7 +645,7 @@ function RegistrationWizardContent() {
                     currentStepId={currentStepId}
                     currentWorkflowConfig={currentWorkflowConfig}
                     registrationData={registrationData}
-                    optimisticState={{ formData: registrationData, classSelections, handlerAssignments, paymentStatus, entryStatus }}
+                    optimisticState={optimisticState}
                     showId={showId}
                     registrationId={registrationId}
                     registrationNumber={registrationNumber}
@@ -657,10 +663,10 @@ function RegistrationWizardContent() {
                     onPaymentDetailsChange={(details: PaymentDetails) => {
                       paymentDetailsRef.current = details;
                     }}
-                    onPaymentStatusChange={async (regId: string, status: PaymentStatus) => {
+                    onPaymentStatusChange={(regId: string, status: PaymentStatus) => {
                       storeUpdatePaymentStatus(regId, status);
                     }}
-                    onEntryStatusChange={async (regId: string, status: EntryStatus, reason?: string) => {
+                    onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) => {
                       storeUpdateEntryStatus(regId, status, reason);
                     }}
                     setPaymentStatus={setPaymentStatus}

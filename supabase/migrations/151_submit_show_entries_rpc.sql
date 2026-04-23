@@ -27,18 +27,13 @@ CREATE TABLE IF NOT EXISTS public.entry_submissions (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Only the owner (SECURITY DEFINER function) and admins need to read this table.
--- Regular users should not be able to read other users' submission records.
+-- Exhibitors never query this table directly — idempotency checks happen inside
+-- the SECURITY DEFINER function. Only site admins need SELECT access for support.
 ALTER TABLE public.entry_submissions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "entry_submissions_select_own" ON public.entry_submissions
+CREATE POLICY "entry_submissions_select_admin" ON public.entry_submissions
   FOR SELECT TO authenticated
-  USING (
-    -- The result contains the submission_id; allow reading if caller can also
-    -- see at least one entry_id in the result. This is a coarse guard —
-    -- SECURITY DEFINER handles the real gating.
-    public.is_site_admin()
-  );
+  USING (public.is_site_admin());
 
 -- =============================================================================
 -- 2. submit_show_entries function
@@ -74,7 +69,7 @@ DECLARE
   v_is_official   boolean;
 
   v_entry_id      uuid;
-  v_entry_ids     uuid[] := '{}';
+  v_entry_pairs   jsonb[] := '{}';
 
   v_result        jsonb;
 BEGIN
@@ -146,9 +141,16 @@ BEGIN
     -- 5b. Server-side fee computation
     --     Priority: show-level fee (day-of-show if show has started, else pre-entry)
     --               → class-level fee → 0 (classes can be free)
+    --     AND show_id = p_show_id prevents cross-show class injection.
     SELECT entry_fee INTO v_class_fee
     FROM   public.classes
-    WHERE  id = v_class_id;
+    WHERE  id = v_class_id
+      AND  show_id = p_show_id;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'class % does not belong to show %', v_class_id, p_show_id
+        USING ERRCODE = '22023';
+    END IF;
 
     IF CURRENT_DATE >= v_show_start AND v_show_dos_fee IS NOT NULL THEN
       v_server_fee := v_show_dos_fee;
@@ -197,14 +199,15 @@ BEGIN
     )
     RETURNING id INTO v_entry_id;
 
-    v_entry_ids := array_append(v_entry_ids, v_entry_id);
+    v_entry_pairs := array_append(v_entry_pairs,
+      jsonb_build_object('entry_id', v_entry_id, 'dog_id', v_dog_id));
   END LOOP;
 
   -- -------------------------------------------------------------------------
   -- 6. Record submission for idempotency
   -- -------------------------------------------------------------------------
   v_result := jsonb_build_object(
-    'entry_ids',       to_jsonb(v_entry_ids),
+    'entries',         to_jsonb(v_entry_pairs),
     'registration_id', to_jsonb(p_registration_id),
     'submission_id',   to_jsonb(p_submission_id)
   );

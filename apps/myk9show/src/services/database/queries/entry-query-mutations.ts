@@ -404,7 +404,11 @@ export async function submitShowEntries(params: {
   }>;
   submissionId: string;
   paymentMethod: string;
-}): Promise<{ entryIds: string[]; registrationId: string; submissionId: string }> {
+}): Promise<{
+  entries: Array<{ entryId: string; dogId: string }>;
+  registrationId: string;
+  submissionId: string;
+}> {
   const { showId, registrationId, entries, submissionId, paymentMethod } = params;
 
   const rpcEntries = entries.map(e => ({
@@ -415,21 +419,28 @@ export async function submitShowEntries(params: {
     client_fee_cents: e.clientFeeCents,
   }));
 
-  const { data, error } = await supabase.rpc('submit_show_entries' as never, {
-    p_show_id: showId,
-    p_registration_id: registrationId,
-    p_entries: JSON.stringify(rpcEntries),
-    p_submission_id: submissionId,
-    p_payment_method: paymentMethod,
-  } as never);
+  const { data, error } = await supabase.rpc(
+    'submit_show_entries' as never,
+    {
+      p_show_id: showId,
+      p_registration_id: registrationId,
+      p_entries: rpcEntries,
+      p_submission_id: submissionId,
+      p_payment_method: paymentMethod,
+    } as never
+  );
 
   if (error) {
     throw createDatabaseError(error, 'entry_submissions', 'rpc_submit');
   }
 
-  const result = (data as unknown) as { entry_ids: string[]; registration_id: string; submission_id: string };
+  const result = data as unknown as {
+    entries: Array<{ entry_id: string; dog_id: string }>;
+    registration_id: string;
+    submission_id: string;
+  };
   return {
-    entryIds: result.entry_ids,
+    entries: result.entries.map(e => ({ entryId: e.entry_id, dogId: e.dog_id })),
     registrationId: result.registration_id,
     submissionId: result.submission_id,
   };

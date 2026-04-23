@@ -59,7 +59,7 @@ function RegistrationWizardContent() {
   // Auth and permissions
   const { canCreateExhibitor, isSecretary, isClubAdmin, isSiteAdmin } =
     useRegistrationPermissions();
-  const { mode } = useRegistrationContext();
+  useRegistrationContext(); // ensure RegistrationProvider context is active
   const { user } = useAuthContext();
   const { triggerSync } = useReplicationSync();
 
@@ -86,15 +86,17 @@ function RegistrationWizardContent() {
   const { updateRegistration } = useEntryStore();
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
-  // Determine workflow mode
+  // Determine workflow mode from the logged-in user's actual role flags.
+  // Deliberately does NOT use `mode` from RegistrationContext — that value
+  // defaults to 'exhibitor' while RBAC data is still loading, causing
+  // secretaries to see the exhibitor (no-search) UI until the page re-renders.
   const currentWorkflowMode: WorkflowMode = useMemo(() => {
-    if (mode) return mode as WorkflowMode;
     if (isSiteAdmin) return 'site_admin';
     if (isClubAdmin) return 'club_admin';
     if (isSecretary && canCreateExhibitor) return 'secretary_new';
     if (isSecretary) return 'secretary_existing';
     return 'exhibitor';
-  }, [mode, isSiteAdmin, isClubAdmin, isSecretary, canCreateExhibitor]);
+  }, [isSiteAdmin, isClubAdmin, isSecretary, canCreateExhibitor]);
 
   const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
 

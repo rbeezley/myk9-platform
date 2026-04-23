@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,16 +20,40 @@ import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
 import type { DogFormData } from './DogEditPanel.types';
 import { DogEditContext } from './DogEditPanel';
+import { supabase } from '@/services/database/supabaseClient';
 
 // ── Owner Selection Field (admin only) ──────────────────────────────
 
 export const OwnerSelectionField: React.FC = () => {
-  const { isAdmin, people } = useContext(DogEditContext);
+  const { isAdmin, people: contextPeople } = useContext(DogEditContext);
   const { data, updateData } = useEditPanel<DogFormData>();
+
+  const { data: loadedPeople = [], isLoading } = useQuery({
+    queryKey: ['people', 'all'],
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from('people')
+        .select('id, first_name, last_name, email')
+        .order('last_name')
+        .limit(500);
+      if (error) throw error;
+      return rows.map(p => ({
+        id: p.id,
+        firstName: p.first_name,
+        lastName: p.last_name,
+        email: p.email ?? undefined,
+      }));
+    },
+    enabled: isAdmin,
+  });
 
   if (!isAdmin) return null;
 
-  const currentOwner = people.find(p => p.id === data.ownerId);
+  // Use context people as fallback for resolving currently-selected owner display name
+  // (shows immediately without waiting for the query)
+  const currentOwner =
+    loadedPeople.find(p => p.id === data.ownerId) ??
+    contextPeople.find(p => p.id === data.ownerId);
 
   const displayText = currentOwner
     ? `${currentOwner.firstName} ${currentOwner.lastName}`
@@ -36,7 +61,25 @@ export const OwnerSelectionField: React.FC = () => {
       ? 'Unknown Owner'
       : 'Select owner';
 
-  if (people.length === 0) {
+  if (isLoading) {
+    return (
+      <div className="pt-4 border-t border-border/30">
+        <FormField label="Owner" fieldId="ownerId" hint="Change the owner of this dog">
+          <select
+            id="ownerId"
+            disabled
+            value={data.ownerId || ''}
+            className="w-full border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium opacity-50 cursor-not-allowed"
+          >
+            <option value={data.ownerId || ''}>{displayText}</option>
+          </select>
+          <p className="text-xs text-muted-foreground/60 mt-1">Loading people...</p>
+        </FormField>
+      </div>
+    );
+  }
+
+  if (loadedPeople.length === 0) {
     return (
       <div className="space-y-2 pt-4 border-t border-border/30">
         <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
@@ -51,9 +94,9 @@ export const OwnerSelectionField: React.FC = () => {
   return (
     <div className="pt-4 border-t border-border/30">
       <FormField
-        label={`Owner (${people.length} available)`}
+        label={`Owner (${loadedPeople.length} available)`}
         fieldId="ownerId"
-        hint="Change the owner of this dog (admin only)"
+        hint="Change the owner of this dog"
       >
         <select
           id="ownerId"
@@ -67,7 +110,7 @@ export const OwnerSelectionField: React.FC = () => {
           {data.ownerId && !currentOwner && (
             <option value={data.ownerId}>Unknown Owner (ID: {data.ownerId.slice(0, 8)}...)</option>
           )}
-          {people.map(person => (
+          {loadedPeople.map(person => (
             <option key={person.id} value={person.id}>
               {person.firstName} {person.lastName}
               {person.email ? ` (${person.email})` : ''}

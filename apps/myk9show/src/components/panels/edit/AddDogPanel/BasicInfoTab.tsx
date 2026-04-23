@@ -1,4 +1,5 @@
-import React, { useMemo, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -9,8 +10,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, User, Camera, Edit, PawPrint } from 'lucide-react';
-import { useUserStore } from '@/store/userStore';
+import { Heart, User, Camera, Edit, PawPrint, Loader2 } from 'lucide-react';
+import { supabase } from '@/services/database/supabaseClient';
 import { UserRole } from '@/types/auth-types';
 import { FormField } from '@/components/common/FormField';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
@@ -41,16 +42,30 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   onPhotoOpen,
 }) => {
   const { form } = useEditPanel<DogFormData>();
-  const allPeople = useUserStore(state => state.people);
-  const loadUsers = useUserStore(state => state.loadUsers);
-  const people = useMemo(
-    () => allPeople.filter(p => !p.deletedAt && p.status !== 'suspended'),
-    [allPeople]
-  );
 
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+  const isAdminRole =
+    userRole === UserRole.SECRETARY ||
+    userRole === UserRole.CLUB_ADMIN ||
+    userRole === UserRole.SITE_ADMIN;
+
+  const { data: people = [], isLoading: isPeopleLoading } = useQuery({
+    queryKey: ['people', 'all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('people')
+        .select('id, first_name, last_name, email')
+        .order('last_name')
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []).map(p => ({
+        id: p.id,
+        firstName: p.first_name,
+        lastName: p.last_name,
+        email: p.email ?? undefined,
+      }));
+    },
+    enabled: isAdminRole,
+  });
 
   if (!form) return null;
 
@@ -198,9 +213,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         ></div>
 
         {/* Owner Selection (admin/secretary roles) */}
-        {(userRole === UserRole.SECRETARY ||
-          userRole === UserRole.CLUB_ADMIN ||
-          userRole === UserRole.SITE_ADMIN) && (
+        {isAdminRole && (
           <FormField label="Owner" fieldId="owner" required error={form.getError('ownerId')}>
             <Select
               value={formData.ownerId}
@@ -208,19 +221,29 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 form.setValue('ownerId', value);
                 form.touchField('ownerId');
               }}
+              disabled={isPeopleLoading}
             >
               <SelectTrigger
                 {...form.getFieldProps('ownerId')}
                 onBlur={() => form.touchField('ownerId')}
               >
-                <SelectValue placeholder="Choose dog owner">
-                  {formData.ownerId
-                    ? (() => {
-                        const owner = people.find(p => p.id === formData.ownerId);
-                        return owner ? `${owner.firstName} ${owner.lastName}` : formData.ownerId;
-                      })()
-                    : undefined}
-                </SelectValue>
+                {isPeopleLoading ? (
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading people…
+                  </span>
+                ) : (
+                  <SelectValue placeholder="Choose dog owner">
+                    {formData.ownerId
+                      ? (() => {
+                          const owner = people.find(p => p.id === formData.ownerId);
+                          return owner
+                            ? `${owner.firstName} ${owner.lastName}`
+                            : formData.ownerId;
+                        })()
+                      : undefined}
+                  </SelectValue>
+                )}
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60">
                 {people.map(person => (

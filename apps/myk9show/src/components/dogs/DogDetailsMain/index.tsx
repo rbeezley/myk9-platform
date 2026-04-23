@@ -4,8 +4,7 @@ import { toast } from 'sonner';
 import { Trophy, Calendar, Award, Star, Heart, Activity, User as UserIcon } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useEntryStore } from '@/store/entryStore';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { getPrimaryRole } from '@/context/AuthContext';
+import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { RecordStatsRow, type RecordStat } from '@/components/common/RecordStatsRow';
@@ -26,12 +25,7 @@ import type { DogDetailsMainProps } from './types';
 const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDelete, onUpdate }) => {
   const [searchParams] = useSearchParams();
   const people = useUserStore(state => state.people);
-  const loadUsers = useUserStore(state => state.loadUsers);
   const { getUserRoles } = useAuthContext();
-
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
   const userRole = getPrimaryRole(getUserRoles());
 
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);

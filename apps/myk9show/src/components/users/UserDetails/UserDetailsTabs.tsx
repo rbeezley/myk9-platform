@@ -8,8 +8,7 @@ import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { User, Dog } from '@/types/dog-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { getPrimaryRole } from '@/context/AuthContext';
+import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { mapDogToDogInput } from '@/services/mappers/dogMappers';
 
 interface PeopleDetailsTabsProps {

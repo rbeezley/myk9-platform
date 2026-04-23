@@ -1,6 +1,7 @@
 // React Query hooks for database dog operations
 // Phase 0: Performance Infrastructure - React Query Integration
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import {
   getAllDogs,
   getDogById,
@@ -15,27 +16,30 @@ import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
 import { mapDatabaseToDog, mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { getPrimaryRole } from '@/context/AuthContext';
+import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { replicatedDogsTable } from '@/services/replication';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
+// Roles that can see all dogs; mirrors useRoleBasedDogs. JUDGE is excluded —
+// judges are scoped to their own dogs at the UI layer just like exhibitors.
 const ELEVATED_ROLES = new Set<UserRole>([
   UserRole.SECRETARY,
   UserRole.CLUB_ADMIN,
   UserRole.SITE_ADMIN,
-  UserRole.JUDGE,
 ]);
 
 // Get all dogs visible to the current user.
-// Elevated roles (secretary/admin/judge) get showAll=true: no app-level ownership filter, RLS handles scoping.
-// Exhibitors get showAll=false: filter to own dogs in both replication and PostgREST paths.
+// Elevated roles get showAll=true: no app-level ownership filter, RLS handles scoping.
+// Exhibitors (and judges) get showAll=false: filter to own dogs in both paths.
 export const useDogsQuery = () => {
   const personId = useCurrentPersonId();
   const { getUserRoles } = useAuthContext();
-  const primaryRole = getPrimaryRole(getUserRoles());
-  const showAll = ELEVATED_ROLES.has(primaryRole);
+  const showAll = useMemo(
+    () => ELEVATED_ROLES.has(getPrimaryRole(getUserRoles())),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getUserRoles]
+  );
 
   return useQuery({
     queryKey: [...queryKeys.dogs, personId, showAll],

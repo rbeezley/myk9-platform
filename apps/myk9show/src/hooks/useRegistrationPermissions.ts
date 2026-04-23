@@ -1,4 +1,3 @@
-// import { useMemo } from 'react'; // Currently unused
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   Permission,
@@ -196,28 +195,20 @@ export function useRegistrationPermissions() {
     );
   };
 
-  /**
-   * Filter dogs based on user permissions
-   */
   const filterAccessibleDogs = <T extends { id: string; ownerId?: string; clubId?: string }>(
     dogs: T[]
   ): T[] => {
     if (!userWithRoles) return [];
 
-    // Site admins can see all dogs
     if (hasRole(UserRole.SITE_ADMIN)) return dogs;
 
-    // Club admins and secretaries can see dogs within their scoped clubs
     if (hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SECRETARY)) {
       const scopedClubs = getScopedClubs();
       return dogs.filter(
-        dog =>
-          dog.ownerId === userWithRoles.id || // Own dogs
-          (dog.clubId && scopedClubs.includes(dog.clubId)) // Club-scoped dogs
+        dog => dog.ownerId === userWithRoles.id || (dog.clubId && scopedClubs.includes(dog.clubId))
       );
     }
 
-    // Exhibitors can only see their own dogs
     return dogs.filter(dog => dog.ownerId === userWithRoles.id);
   };
 

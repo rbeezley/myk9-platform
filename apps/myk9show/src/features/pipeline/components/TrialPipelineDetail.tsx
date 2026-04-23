@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, ChevronLeft, Lock } from 'lucide-react';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { useTrialStore } from '@/store/trialStore';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/services/database/supabaseClient';
 import { StageNavigation } from './StageNavigation';
 import { ChecklistSection } from './ChecklistSection';
 import { ActivityLogFeed } from './ActivityLogFeed';
@@ -32,6 +34,24 @@ export const TrialPipelineDetail: React.FC = () => {
   const [viewingStage, setViewingStage] = useState<PipelineStage>(pipelineStage);
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
 
+  // Show settings + trial overrides — declared before evalCtx so hooks run unconditionally.
+  const showId = trial?.showId ?? null;
+
+  // Judge count from judge_assignments for this show (show-level assignment from wizard)
+  const { data: judgeCount = 0 } = useQuery({
+    queryKey: ['judge_assignments_count', showId],
+    queryFn: async () => {
+      if (!showId) return 0;
+      const { count } = await supabase
+        .from('judge_assignments')
+        .select('*', { count: 'exact', head: true })
+        .eq('show_id', showId);
+      return count ?? 0;
+    },
+    enabled: !!showId,
+    staleTime: 30_000,
+  });
+
   // Build evaluation context
   const evalCtx = useMemo<ChecklistEvalContext | undefined>(() => {
     if (!trial) return undefined;
@@ -45,7 +65,7 @@ export const TrialPipelineDetail: React.FC = () => {
         status: trial.status,
         venue_name: null,
         planned_start_time: trial.plannedStartTime ?? null,
-        judge_count: 0,
+        judge_count: judgeCount,
         has_fee_schedule: false,
         entry_open_date: null,
         entry_close_date: null,
@@ -58,15 +78,12 @@ export const TrialPipelineDetail: React.FC = () => {
       hasConflicts: false,
       hasWaitlist: false,
     };
-  }, [trial, pipelineStage]);
+  }, [trial, pipelineStage, judgeCount]);
 
   const { data: checklistItems } = useTrialChecklist(trialId, viewingStage, evalCtx);
   const canAdvance = canAdvanceStage(checklistItems);
   const mutations = usePipelineMutations(trialId ?? '');
 
-  // Show settings + trial overrides for the SettingsOverrideCard.
-  // Hooks must be called unconditionally — trial?.showId is null-safe.
-  const showId = trial?.showId ?? null;
   const { data: showSettings, isLoading: showSettingsLoading } = useShowSettings(showId);
   const { data: trialOverrides, isLoading: trialOverridesLoading } = useTrialOverrides(showId);
 

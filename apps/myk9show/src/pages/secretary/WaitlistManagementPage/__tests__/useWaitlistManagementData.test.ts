@@ -30,12 +30,12 @@ const createWrapper = () => {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 };
 
-describe('useWaitlistManagementData — externalShowId sync', () => {
+describe('useWaitlistManagementData — showId sync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('selectedShowId defaults to empty string when no externalShowId provided', async () => {
+  it('selectedShowId defaults to empty string when no showId provided', async () => {
     const { result } = renderHook(() => useWaitlistManagementData(), {
       wrapper: createWrapper(),
     });
@@ -44,7 +44,7 @@ describe('useWaitlistManagementData — externalShowId sync', () => {
     expect(result.current.selectedShowId).toBe('');
   });
 
-  it('selectedShowId is initialized from externalShowId', async () => {
+  it('selectedShowId is initialized from showId', async () => {
     const { result } = renderHook(() => useWaitlistManagementData('show-abc'), {
       wrapper: createWrapper(),
     });
@@ -53,34 +53,34 @@ describe('useWaitlistManagementData — externalShowId sync', () => {
     expect(result.current.selectedShowId).toBe('show-abc');
   });
 
-  it('selectedShowId updates when externalShowId changes', async () => {
-    let externalShowId = 'show-1';
+  it('selectedShowId updates when showId changes', async () => {
+    let showId = 'show-1';
     const { result, rerender } = renderHook(
-      () => useWaitlistManagementData(externalShowId),
+      () => useWaitlistManagementData(showId),
       { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.selectedShowId).toBe('show-1'));
 
     act(() => {
-      externalShowId = 'show-2';
+      showId = 'show-2';
     });
     rerender();
 
     await waitFor(() => expect(result.current.selectedShowId).toBe('show-2'));
   });
 
-  it('selectedShowId clears when externalShowId becomes empty string', async () => {
-    let externalShowId: string | undefined = 'show-1';
+  it('selectedShowId clears when showId becomes empty string', async () => {
+    let showId: string | undefined = 'show-1';
     const { result, rerender } = renderHook(
-      () => useWaitlistManagementData(externalShowId),
+      () => useWaitlistManagementData(showId),
       { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(result.current.selectedShowId).toBe('show-1'));
 
     act(() => {
-      externalShowId = '';
+      showId = '';
     });
     rerender();
 

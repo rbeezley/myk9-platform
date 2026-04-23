@@ -15,12 +15,11 @@ import {
 import { getSecretaryShows } from '@/services/database/queries/showQueries';
 import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
 
-export function useWaitlistManagementData(externalShowId?: string) {
+export function useWaitlistManagementData(showId?: string) {
   const { user } = useAuthContext();
 
-  // Selection state — initialized from parent; stays in sync when parent changes.
   const [shows, setShows] = useState<Show[]>([]);
-  const [selectedShowId, setSelectedShowId] = useState<string>(externalShowId ?? '');
+  const [selectedShowId, setSelectedShowId] = useState<string>(showId ?? '');
   const [classes, setClasses] = useState<ClassWithWaitlistCount[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
@@ -40,12 +39,11 @@ export function useWaitlistManagementData(externalShowId?: string) {
     entry: null,
   });
 
-  // Keep local selection in sync when the parent page changes its show selection.
   useEffect(() => {
-    if (externalShowId !== undefined) {
-      setSelectedShowId(externalShowId);
+    if (showId !== undefined) {
+      setSelectedShowId(showId);
     }
-  }, [externalShowId]);
+  }, [showId]);
 
   // Data loading callbacks
   const loadShows = useCallback(async () => {

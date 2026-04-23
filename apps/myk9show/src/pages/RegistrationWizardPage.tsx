@@ -475,7 +475,7 @@ function RegistrationWizardContent() {
 
     if (selectedDogs.length > 0 && !registrationId && !isCreatingRegistration) {
       setIsCreatingRegistration(true);
-      const reg = createRegistration(showId || '', userId || 'current-user-id');
+      const reg = createRegistration(showId || '', userId);
       setRegistrationId(reg.id);
       setIsCreatingRegistration(false);
     }

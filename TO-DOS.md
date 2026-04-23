@@ -82,8 +82,6 @@ Adversarial `/harden` pass on `RegistrationWizardPage` + `RegistrationWorkflow` 
 
 ---
 
----
-
 ## Design system v2 follow-ups — 2026-04-18
 
 Low-priority cleanup items discovered during v2 implementation.

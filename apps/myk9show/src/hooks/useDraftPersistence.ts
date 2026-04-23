@@ -140,6 +140,12 @@ export function useDraftPersistence(
         log('Skipping empty draft save');
         return null;
       }
+      // Without a userId, the key collapses to a shared "anonymous" bucket
+      // that different sessions would overwrite. Bail rather than persist.
+      if (!userId) {
+        log('Skipping draft save: no userId');
+        return null;
+      }
 
       const draftMetadata = metadata || generateDraftMetadata(data);
       const savedDraft: SavedDraft = { metadata: draftMetadata, data };
@@ -175,7 +181,15 @@ export function useDraftPersistence(
         return null;
       }
     },
-    [generateDraftMetadata, getDraftKey, getDraftMetadata, saveDraftMetadata, maxDraftsPerShow, log]
+    [
+      userId,
+      generateDraftMetadata,
+      getDraftKey,
+      getDraftMetadata,
+      saveDraftMetadata,
+      maxDraftsPerShow,
+      log,
+    ]
   );
 
   // Load draft from localStorage
@@ -190,9 +204,9 @@ export function useDraftPersistence(
 
         const savedDraft: SavedDraft = JSON.parse(draftData);
 
-        // Scope drafts to the current user to prevent cross-user data leaks on
-        // shared devices. Drafts persisted before this check have no userId to
-        // verify against — treat them as belonging to the anonymous bucket.
+        // Defense-in-depth: storage keys already scope by userId, but re-verify
+        // the payload's userId in case a draft was stored under a legacy key
+        // format or manually copied between buckets.
         const draftUserId = savedDraft.metadata?.userId;
         if (draftUserId && draftUserId !== userId) {
           log('Draft belongs to a different user, refusing to load:', draftId);

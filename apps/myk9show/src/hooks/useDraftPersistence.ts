@@ -97,7 +97,7 @@ export function useDraftPersistence(
       }
 
       return {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: crypto.randomUUID(),
         showId,
         userId,
         timestamp: Date.now(),

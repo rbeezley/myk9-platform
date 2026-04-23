@@ -331,13 +331,12 @@ export const createDog = async (dogData: DbDogInsert) => {
   const startTime = Date.now();
 
   try {
-    // Defensive programming: ensure no id field exists in the data
-    // Database will auto-generate UUID using extensions.uuid_generate_v4()
-    const { id: _discardedId, ...cleanDogData } = dogData as DbDogInsert & { id?: string };
-
+    // Pass dogData directly — client-provided id (if any) is preserved so the
+    // local-first IndexedDB write and the PostgREST INSERT share the same UUID.
+    // Callers without an id will still get a database-generated UUID.
     const { data, error } = await supabase
       .from('dogs')
-      .insert([cleanDogData])
+      .insert([dogData])
       .select(
         `
         *,

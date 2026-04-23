@@ -5,6 +5,7 @@ import { mapFields } from './mapperUtils';
 import type { Dog, DogStatus } from '@/types/dog-types';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import type { DogInput } from '@/store/dogStore';
+import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 
 /**
  * Health record row from the database (health_records table)
@@ -244,6 +245,29 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
  */
 export const mapDatabaseDogsArray = (dbDogs: Record<string, unknown>[]): Dog[] => {
   return dbDogs.map(mapDatabaseToDog);
+};
+
+/**
+ * Map a DogInput + explicit id to a ReplicatedDog for IndexedDB storage.
+ * Used by the local-first create path: write to IndexedDB before PostgREST.
+ * weight/height are numbers in DogInput but strings in ReplicatedDog.
+ */
+export const mapDogInputToReplicated = (input: DogInput, id: string): ReplicatedDog => {
+  return {
+    id,
+    name: input.name,
+    callName: input.callName || undefined,
+    breed: input.breed,
+    sex: input.sex || undefined,
+    dateOfBirth: input.birthDate || undefined,
+    ownerId: input.ownerId || undefined,
+    color: input.color || undefined,
+    weight: input.weight != null ? String(input.weight) : undefined,
+    height: input.height != null ? String(input.height) : undefined,
+    microchipNumber: input.microchipNumber || undefined,
+    imageUrl: input.imageUrl || undefined,
+    isSpayedNeutered: input.spayedNeutered ?? undefined,
+  };
 };
 
 /**

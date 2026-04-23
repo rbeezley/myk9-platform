@@ -57,9 +57,21 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
 // Mock the mappers
 vi.mock('@/services/mappers/dogMappers', () => ({
   mapDogInputToInsert: vi.fn(input => ({ ...input, id: `db-${Date.now()}` })),
+  mapDogInputToReplicated: vi.fn((input, id) => ({ id, ...input })),
   mapDogInputToUpdate: vi.fn(input => ({ ...input })),
   mapDatabaseToDog: vi.fn(dbDog => ({ ...dbDog })),
   mapDatabaseDogsArray: vi.fn(dbDogs => dbDogs || []),
+}));
+
+// Mock the replicated dogs table (local-first path in addDog)
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: {
+    set: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue(null),
+    getAll: vi.fn().mockResolvedValue([]),
+    getAllDogs: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 // Test wrapper with QueryClient

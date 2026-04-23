@@ -28,13 +28,13 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { assignArmband } from '@/services/database/queries/armbandQueries';
+import { submitShowEntries } from '@/services/database/queries/entry-query-mutations';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { registrationToEntries } from '@/utils/registrationToEntries';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useOptimisticRegistration } from '@/hooks/useOptimisticRegistration';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import VerticalProgressIndicator from '@/components/shows/wizard/components/VerticalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
@@ -83,7 +83,7 @@ function RegistrationWizardContent() {
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
-  const { createMultipleEntries, updateRegistration } = useEntryStore();
+  const { updateRegistration } = useEntryStore();
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
   // Determine workflow mode
@@ -97,6 +97,17 @@ function RegistrationWizardContent() {
   }, [mode, isSiteAdmin, isClubAdmin, isSecretary, canCreateExhibitor]);
 
   const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
+
+  // Reset step state when workflow mode changes mid-session (e.g. role change)
+  // to prevent stale completions from a previous mode allowing skipping payment.
+  const prevWorkflowMode = useRef(currentWorkflowMode);
+  useEffect(() => {
+    if (prevWorkflowMode.current !== currentWorkflowMode) {
+      prevWorkflowMode.current = currentWorkflowMode;
+      setStepCompletionState({});
+      setCurrentStep(0);
+    }
+  }, [currentWorkflowMode]);
 
   // Build steps for VerticalProgressIndicator
   const steps = useMemo(() => {
@@ -139,6 +150,8 @@ function RegistrationWizardContent() {
     currentRegistration,
     setDraftData,
     updateRegistration: updateShowRegistration,
+    updatePaymentStatus: storeUpdatePaymentStatus,
+    updateEntryStatus: storeUpdateEntryStatus,
   } = useShowRegistrationStore();
 
   // Draft persistence
@@ -146,39 +159,17 @@ function RegistrationWizardContent() {
   const clampedStep = Math.min(currentStep, currentWorkflowConfig.steps.length - 1);
   const currentStepId: StepId = currentWorkflowConfig.steps[clampedStep];
 
-  useDraftPersistence(showId || '', userId, currentStepId, {
+  const {
+    saveDraft: draftSave,
+    loadDraft: draftLoad,
+    deleteDraft: draftDelete,
+    availableDrafts,
+    clearAllDrafts,
+    hasUnsavedChanges,
+  } = useDraftPersistence(showId || '', userId, currentStepId, {
     autoSaveInterval: 30000,
     debug: import.meta.env.DEV,
   });
-
-  // Optimistic updates
-  const {
-    registrationState: optimisticState,
-    updateDogSelection,
-    updateClassSelections,
-    updateHandlerAssignments,
-    updatePaymentStatus: updatePaymentStatusOptimistic,
-    updateEntryStatus: updateEntryStatusOptimistic,
-    batchUpdate,
-  } = useOptimisticRegistration(showId || '', {
-    formData: registrationData,
-    classSelections,
-    handlerAssignments,
-    paymentStatus,
-    entryStatus,
-    stepCompletionState,
-  });
-
-  // Merge local state into optimistic state
-  const effectiveOptimisticState = useMemo(
-    () => ({
-      ...optimisticState,
-      formData: registrationData,
-      handlerAssignments,
-      classSelections,
-    }),
-    [optimisticState, registrationData, handlerAssignments, classSelections]
-  );
 
   // Step helpers
   const isStepCompleted = (stepIndex: number) => {
@@ -192,6 +183,17 @@ function RegistrationWizardContent() {
       setStepCompletionState(prev => ({ ...prev, [stepId]: true }));
     }
   };
+
+  const optimisticState = useMemo(
+    () => ({
+      formData: registrationData,
+      classSelections,
+      handlerAssignments,
+      paymentStatus,
+      entryStatus,
+    }),
+    [registrationData, classSelections, handlerAssignments, paymentStatus, entryStatus]
+  );
 
   const completedSteps = useMemo(() => {
     return steps
@@ -349,25 +351,16 @@ function RegistrationWizardContent() {
       const previousStatus = currentRegistration.status;
       const paymentDetails = paymentDetailsRef.current;
       try {
-        // Convert wizard data into real entry records and persist via replication layer
-        const entryInputs = registrationToEntries(
-          showId,
-          classSelections,
-          handlerAssignments,
-          classes,
-          {
-            preEntryFee: currentShow.preEntryFee || '0',
-            dayOfShowFee: currentShow.dayOfShowFee,
-            startDate: currentShow.startDate,
-          }
-        );
-
+        // Update local Zustand state to reflect submission in progress
         await submitRegistration(registrationId, paymentDetails);
         if (!mountedRef.current) return;
 
-        // Create DB registration — all payment methods get a confirmation number
+        // Step 1: Create or fetch the DB enrollment to get a real UUID and
+        // confirmation number. All payment methods get a confirmation number.
         let dbRegistrationId: string | undefined;
-        if (registrationData.paymentMethod === 'credit_card') {
+        const paymentMethod = registrationData.paymentMethod ?? 'credit_card';
+
+        if (paymentMethod === 'credit_card') {
           const result = await confirmRegistration(
             registrationId,
             'MOCK-PAYMENT-REF',
@@ -379,7 +372,7 @@ function RegistrationWizardContent() {
           );
           dbRegistrationId = result.dbRegistrationId;
         } else {
-          // Non-credit-card: create DB registration with full payment details
+          // Non-credit-card: create DB enrollment with full payment details
           const { createShowRegistration } =
             await import('@/services/database/queries/showRegistrationQueries');
           const result = await createShowRegistration(
@@ -395,19 +388,46 @@ function RegistrationWizardContent() {
           }
         }
 
-        let createdEntries: Awaited<ReturnType<typeof createMultipleEntries>> = [];
-        if (entryInputs.length > 0) {
-          createdEntries = await createMultipleEntries(
-            entryInputs,
-            userId,
-            'submitted',
-            dbRegistrationId
-          );
+        // Step 2: Build entry inputs from wizard data (for fee computation and
+        // armband write-back — the RPC validates fees server-side independently)
+        const showFeeInfo = {
+          preEntryFee: currentShow.preEntryFee || '0',
+          dayOfShowFee: currentShow.dayOfShowFee,
+          startDate: currentShow.startDate,
+        };
+        const entryInputs = registrationToEntries(
+          showId,
+          classSelections,
+          handlerAssignments,
+          classes,
+          showFeeInfo
+        );
+
+        // Step 3: Submit entries via RPC (transactional, server-side auth + fee validation)
+        if (entryInputs.length > 0 && dbRegistrationId) {
+          const submissionId = crypto.randomUUID();
+
+          const rpcEntries = entryInputs.map(e => ({
+            dogId: e.dogId,
+            classId: e.classId,
+            handlerName: e.registrationData.handler,
+            paymentMethod,
+            // entryFee from getShowEntryFee is in dollars; convert to cents for RPC
+            clientFeeCents: Math.round((e.registrationData.entryFee ?? 0) * 100),
+          }));
+
+          const rpcResult = await submitShowEntries({
+            showId,
+            registrationId: dbRegistrationId,
+            entries: rpcEntries,
+            submissionId,
+            paymentMethod,
+          });
           if (!mountedRef.current) return;
 
-          // Assign armbands — one per unique dog (non-blocking on failure)
+          // Step 4: Assign armbands — one per unique dog (non-blocking on failure)
           const uniqueDogIds = [...new Set(entryInputs.map(e => e.dogId))];
-          const results = (
+          const armbandResults = (
             await Promise.all(
               uniqueDogIds.map(async dogId => {
                 const { armband } = await assignArmband(showId, dogId);
@@ -416,25 +436,23 @@ function RegistrationWizardContent() {
             )
           ).filter((r): r is ArmbandAssignment => r !== null);
 
-          if (results.length > 0 && mountedRef.current) {
-            setArmbandAssignments(results);
+          if (armbandResults.length > 0 && mountedRef.current) {
+            setArmbandAssignments(armbandResults);
 
-            // Write armband back to each entry so confirmation email includes it
-            const armbandByDog = new Map(results.map(r => [r.dogId, r.armband]));
+            // Write armband back to each DB entry so confirmation email includes it
+            const armbandByDog = new Map(armbandResults.map(r => [r.dogId, r.armband]));
             await Promise.all(
-              createdEntries
-                .filter(entry => armbandByDog.has(entry.dogId))
-                .map(
-                  entry =>
-                    updateRegistration(
-                      entry.id,
-                      { armband: armbandByDog.get(entry.dogId) },
-                      userId
-                    ).catch(() => {}) // Non-blocking — armband display still works via state
-                )
+              rpcResult.entries.map(({ entryId, dogId }) =>
+                armbandByDog.has(dogId)
+                  ? updateRegistration(entryId, { armband: armbandByDog.get(dogId) }, userId).catch(
+                      () => {}
+                    ) // Non-blocking — armband display still works via state
+                  : Promise.resolve()
+              )
             );
           }
         }
+
         if (!mountedRef.current) return;
         markStepComplete(currentStep);
         setCurrentStep(prev => prev + 1);
@@ -479,32 +497,16 @@ function RegistrationWizardContent() {
       setRegistrationId(reg.id);
       setIsCreatingRegistration(false);
     }
-
-    try {
-      await updateDogSelection(selectedDogs);
-    } catch (error: unknown) {
-      notifications.error(getErrorMessage(error));
-    }
   };
 
   // Class selection handler
-  const handleClassSelectionChange = async (selections: ClassSelectionData[]) => {
+  const handleClassSelectionChange = (selections: ClassSelectionData[]) => {
     setClassSelections(selections);
-    try {
-      await updateClassSelections(selections);
-    } catch (error: unknown) {
-      notifications.error(getErrorMessage(error));
-    }
   };
 
   // Handler assignment handler
-  const handleHandlerAssignmentChange = async (assignments: Record<string, HandlerInfo>) => {
+  const handleHandlerAssignmentChange = (assignments: Record<string, HandlerInfo>) => {
     setHandlerAssignments(assignments);
-    try {
-      await updateHandlerAssignments(assignments);
-    } catch (error: unknown) {
-      notifications.error(getErrorMessage(error));
-    }
   };
 
   // Draft loading handler
@@ -536,20 +538,11 @@ function RegistrationWizardContent() {
       specialRequests: draft.data.specialRequests,
     });
 
-    batchUpdate({
-      formData: {
-        selectedDogs: draft.data.selectedDogs || [],
-        entries: draft.data.entries || [],
-        documents: draft.data.documents || [],
-        paymentMethod: draft.data.paymentMethod,
-        specialRequests: draft.data.specialRequests,
-      },
-      classSelections: draft.data._workflowState?.classSelections || [],
-      handlerAssignments: draft.data._workflowState?.handlerAssignments || {},
-      paymentStatus: draft.data._workflowState?.paymentStatus || PaymentStatus.PENDING,
-      entryStatus: draft.data._workflowState?.entryStatus || EntryStatus.PENDING,
-      stepCompletionState: draft.data._workflowState?.stepCompletionState || {},
-    });
+    if (!registrationId && (draft.data.selectedDogs?.length ?? 0) > 0) {
+      // createRegistration is synchronous — returns the new local registration directly
+      const reg = createRegistration(showId, userId);
+      setRegistrationId(reg.id);
+    }
 
     notifications.success('Draft loaded successfully');
   };
@@ -634,9 +627,12 @@ function RegistrationWizardContent() {
                       <span>{steps[currentStep]?.label}</span>
                     </div>
                     <DraftManager
-                      showId={showId}
-                      userId={userId}
-                      currentStep={currentStepId}
+                      saveDraft={draftSave}
+                      loadDraft={draftLoad}
+                      deleteDraft={draftDelete}
+                      availableDrafts={availableDrafts}
+                      clearAllDrafts={clearAllDrafts}
+                      hasUnsavedChanges={!!hasUnsavedChanges}
                       onDraftLoaded={handleDraftLoaded}
                       onDraftSaved={() => notifications.success('Draft saved')}
                     />
@@ -649,7 +645,7 @@ function RegistrationWizardContent() {
                     currentStepId={currentStepId}
                     currentWorkflowConfig={currentWorkflowConfig}
                     registrationData={registrationData}
-                    optimisticState={effectiveOptimisticState}
+                    optimisticState={optimisticState}
                     showId={showId}
                     registrationId={registrationId}
                     registrationNumber={registrationNumber}
@@ -667,8 +663,12 @@ function RegistrationWizardContent() {
                     onPaymentDetailsChange={(details: PaymentDetails) => {
                       paymentDetailsRef.current = details;
                     }}
-                    onPaymentStatusChange={updatePaymentStatusOptimistic}
-                    onEntryStatusChange={updateEntryStatusOptimistic}
+                    onPaymentStatusChange={(regId: string, status: PaymentStatus) => {
+                      storeUpdatePaymentStatus(regId, status);
+                    }}
+                    onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) => {
+                      storeUpdateEntryStatus(regId, status, reason);
+                    }}
                     setPaymentStatus={setPaymentStatus}
                     setEntryStatus={setEntryStatus}
                     dogsLoading={dogsLoading}

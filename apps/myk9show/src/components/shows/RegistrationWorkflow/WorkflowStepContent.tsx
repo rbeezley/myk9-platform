@@ -40,17 +40,17 @@ interface WorkflowStepContentProps {
   currentRegistrationTotalFees: number;
   /** Armband assignments from the RPC call */
   armbandAssignments?: ArmbandAssignment[];
-  onDogSelectionChange: (dogs: string[]) => Promise<void>;
-  onClassSelectionChange: (selections: ClassSelectionData[]) => Promise<void>;
-  onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => Promise<void>;
+  onDogSelectionChange: (dogs: string[]) => void | Promise<void>;
+  onClassSelectionChange: (selections: ClassSelectionData[]) => void | Promise<void>;
+  onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void | Promise<void>;
   onPaymentMethodChange: (method: PaymentMethod) => void;
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
-  onPaymentStatusChange: (registrationId: string, status: PaymentStatus) => Promise<unknown>;
+  onPaymentStatusChange: (registrationId: string, status: PaymentStatus) => void | Promise<unknown>;
   onEntryStatusChange: (
     registrationId: string,
     status: EntryStatus,
     reason?: string
-  ) => Promise<unknown>;
+  ) => void | Promise<unknown>;
   setPaymentStatus: (status: PaymentStatus) => void;
   setEntryStatus: (status: EntryStatus) => void;
   /** True while dogs are loading (used for auto-select loading state) */

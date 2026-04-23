@@ -97,6 +97,17 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     });
   }, []);
 
+  // Re-expand when trials load from empty (replication delayed hydration)
+  useEffect(() => {
+    if (showTrials.length === 0) return;
+    setExpandedTrials(prev => {
+      if (prev.size > 0) return prev; // already has expansions, don't override
+      return new Set(showTrials.map(t => t.id));
+    });
+  // only on length change, not full deep compare
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTrials.length]);
+
   // Build grouped class data: Map<trialId, ElementGroup[]>
   const classesByTrialElement = useMemo(() => {
     const result = new Map<string, ElementGroup[]>();

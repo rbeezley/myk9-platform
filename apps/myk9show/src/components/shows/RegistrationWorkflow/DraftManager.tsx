@@ -6,33 +6,39 @@ import { Label } from '../../ui/label';
 import { Badge } from '../../ui/badge';
 import { Separator } from '../../ui/separator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import { 
-  Save, 
-  FolderOpen, 
-  Trash2, 
-  Clock, 
-  FileText, 
+import {
+  Save,
+  FolderOpen,
+  Trash2,
+  Clock,
+  FileText,
   CheckCircle,
   Archive
 } from 'lucide-react';
-import { useDraftPersistence, SavedDraft, DraftMetadata } from '../../../hooks/useDraftPersistence';
+import { SavedDraft, DraftMetadata } from '../../../hooks/useDraftPersistence';
 import { formatDistanceToNow } from 'date-fns';
 import { useShowRegistrationStore } from '../../../store/showRegistrationStore';
 
 interface DraftManagerProps {
-  showId: string;
-  userId: string;
-  currentStep: string;
+  saveDraft: (title: string) => string | null;
+  loadDraft: (draftId: string) => SavedDraft | null;
+  deleteDraft: (draftId: string) => void;
+  availableDrafts: DraftMetadata[];
+  clearAllDrafts: () => void;
+  hasUnsavedChanges: boolean;
   onDraftLoaded?: (draft: SavedDraft) => void;
   onDraftSaved?: (draftId: string) => void;
 }
 
-export function DraftManager({ 
-  showId, 
-  userId, 
-  currentStep, 
+export function DraftManager({
+  saveDraft,
+  loadDraft,
+  deleteDraft,
+  availableDrafts,
+  clearAllDrafts,
+  hasUnsavedChanges,
   onDraftLoaded,
-  onDraftSaved 
+  onDraftSaved
 }: DraftManagerProps) {
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -40,14 +46,6 @@ export function DraftManager({
   const [selectedDraft, setSelectedDraft] = useState<DraftMetadata | null>(null);
 
   const { setDraftData } = useShowRegistrationStore();
-  const {
-    saveDraft,
-    loadDraft,
-    deleteDraft,
-    availableDrafts,
-    clearAllDrafts,
-    hasUnsavedChanges
-  } = useDraftPersistence(showId, userId, currentStep, { debug: true });
 
   const handleSaveDraft = async () => {
     if (!saveTitle.trim()) {
@@ -108,7 +106,7 @@ export function DraftManager({
   return (
     <div className="flex items-center gap-3">
       {/* Save Status Indicator */}
-      <DraftIndicator showId={showId} userId={userId} currentStep={currentStep} />
+      <DraftIndicator hasUnsavedChanges={!!hasUnsavedChanges} />
       
       {/* Save Draft Button */}
       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
@@ -264,17 +262,13 @@ export function DraftManager({
 }
 
 interface DraftIndicatorProps {
-  showId: string;
-  userId: string;
-  currentStep: string;
+  hasUnsavedChanges: boolean;
 }
 
 /**
  * Simple indicator component showing draft status
  */
-export function DraftIndicator({ showId, userId, currentStep }: DraftIndicatorProps) {
-  const { hasUnsavedChanges } = useDraftPersistence(showId, userId, currentStep);
-
+export function DraftIndicator({ hasUnsavedChanges }: DraftIndicatorProps) {
   if (!hasUnsavedChanges) {
     return (
       <div className="flex items-center gap-1 text-xs text-muted-foreground">

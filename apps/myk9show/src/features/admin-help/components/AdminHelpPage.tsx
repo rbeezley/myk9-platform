@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -26,7 +26,11 @@ const ROLE_ORDER: { role: UserRole; title: string; key: string }[] = [
   { role: UserRole.EXHIBITOR, title: 'Exhibitor', key: 'exhibitor' },
 ];
 
-const ALL = '__all__';
+const ALL = 'all';
+
+const CATEGORIES = Array.from(new Set(pageDirectory.map(e => e.category))).sort();
+
+const ROUTE_DIFF = routeDiff(fullRouteRegistry, pageDirectory);
 
 export function AdminHelpPage() {
   const [search, setSearch] = useState('');
@@ -38,11 +42,6 @@ export function AdminHelpPage() {
   const [showHidden, setShowHidden] = useState(false);
 
   const { data: ids, isLoading } = useExampleIds();
-
-  const categories = useMemo(
-    () => Array.from(new Set(pageDirectory.map(e => e.category))).sort(),
-    []
-  );
 
   const filtered: PageEntry[] = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -81,9 +80,10 @@ export function AdminHelpPage() {
     })).filter(group => group.entries.length > 0);
   }, [filtered]);
 
-  const resolvePath = (path: string): string | null => (ids ? resolveExamplePath(path, ids) : null);
-
-  const diff = useMemo(() => routeDiff(fullRouteRegistry, pageDirectory), []);
+  const resolvePath = useCallback(
+    (path: string): string | null => (ids ? resolveExamplePath(path, ids) : null),
+    [ids]
+  );
 
   return (
     <div className="container mx-auto max-w-5xl space-y-4 py-6">
@@ -118,7 +118,7 @@ export function AdminHelpPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>All categories</SelectItem>
-              {categories.map(c => (
+              {CATEGORIES.map(c => (
                 <SelectItem key={c} value={c}>
                   {c}
                 </SelectItem>
@@ -187,7 +187,7 @@ export function AdminHelpPage() {
         ))}
       </div>
 
-      <UndocumentedRoutesPanel missing={diff.missing} extra={diff.extra} />
+      <UndocumentedRoutesPanel missing={ROUTE_DIFF.missing} extra={ROUTE_DIFF.extra} />
     </div>
   );
 }

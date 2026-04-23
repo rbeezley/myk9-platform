@@ -32,8 +32,5 @@ export interface ExampleIds {
   clubId?: string;
   roleId?: string;
   templateId?: string;
-  personId?: string;
   entryId?: string;
-  registrationId?: string;
-  userId?: string;
 }

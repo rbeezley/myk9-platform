@@ -21,23 +21,19 @@ export function useExampleIds(): UseQueryResult<ExampleIds, Error> {
     queryKey: ['admin-help', 'example-ids'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const [show, trial, classRow, dog, club, role, template, person, entry, registration, user] =
-        await Promise.all([
-          firstRow<{ id: string }>('shows', 'id'),
-          firstRow<{ id: string; show_id: string }>('trials', 'id, show_id'),
-          firstRow<{ id: string; trial_id: string; show_id: string }>(
-            'classes',
-            'id, trial_id, show_id'
-          ),
-          firstRow<{ id: string }>('dogs', 'id'),
-          firstRow<{ id: string }>('clubs', 'id'),
-          firstRow<{ id: string }>('roles', 'id'),
-          firstRow<{ id: string }>('organization_templates', 'id'),
-          firstRow<{ id: string }>('people', 'id'),
-          firstRow<{ id: string }>('entries', 'id'),
-          firstRow<{ id: string }>('show_registrations', 'id'),
-          firstRow<{ id: string }>('profiles', 'id'),
-        ]);
+      const [show, trial, classRow, dog, club, role, template, entry] = await Promise.all([
+        firstRow<{ id: string }>('shows', 'id'),
+        firstRow<{ id: string; show_id: string }>('trials', 'id, show_id'),
+        firstRow<{ id: string; trial_id: string; show_id: string }>(
+          'classes',
+          'id, trial_id, show_id'
+        ),
+        firstRow<{ id: string }>('dogs', 'id'),
+        firstRow<{ id: string }>('clubs', 'id'),
+        firstRow<{ id: string }>('roles', 'id'),
+        firstRow<{ id: string }>('organization_templates', 'id'),
+        firstRow<{ id: string }>('entries', 'id'),
+      ]);
 
       const result: ExampleIds = {};
       if (show?.id) result.showId = show.id;
@@ -50,10 +46,7 @@ export function useExampleIds(): UseQueryResult<ExampleIds, Error> {
       if (club?.id) result.clubId = club.id;
       if (role?.id) result.roleId = role.id;
       if (template?.id) result.templateId = template.id;
-      if (person?.id) result.personId = person.id;
       if (entry?.id) result.entryId = entry.id;
-      if (registration?.id) result.registrationId = registration.id;
-      if (user?.id) result.userId = user.id;
       return result;
     },
   });

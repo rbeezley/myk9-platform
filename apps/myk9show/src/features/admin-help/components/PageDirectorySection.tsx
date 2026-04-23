@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { getAdminHelpSectionKey } from '@/constants/storageKeys';
 import { PageDirectoryRow } from './PageDirectoryRow';
 import type { PageEntry } from '../types';
 
@@ -15,8 +16,6 @@ export interface PageDirectorySectionProps {
   loading: boolean;
 }
 
-const storageKey = (roleKey: string) => `admin-help:section:${roleKey}`;
-
 export function PageDirectorySection({
   roleKey,
   title,
@@ -26,12 +25,12 @@ export function PageDirectorySection({
 }: PageDirectorySectionProps) {
   const [open, setOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem(storageKey(roleKey)) !== 'closed';
+    return window.localStorage.getItem(getAdminHelpSectionKey(roleKey)) !== 'closed';
   });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(storageKey(roleKey), open ? 'open' : 'closed');
+    window.localStorage.setItem(getAdminHelpSectionKey(roleKey), open ? 'open' : 'closed');
   }, [roleKey, open]);
 
   const toggle = useCallback(() => setOpen(v => !v), []);

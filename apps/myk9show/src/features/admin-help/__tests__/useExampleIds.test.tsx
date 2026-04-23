@@ -46,10 +46,7 @@ describe('useExampleIds', () => {
       clubs: { id: 'CLUB_1' },
       roles: { id: 'ROLE_1' },
       organization_templates: { id: 'TEMPLATE_1' },
-      people: { id: 'PERSON_1' },
       entries: { id: 'ENTRY_1' },
-      show_registrations: { id: 'REG_1' },
-      profiles: { id: 'USER_1' },
     };
     getFromMock().mockImplementation((table: string) =>
       makeSelectChain({ data: mocks[table] ?? null, error: null })
@@ -72,10 +69,7 @@ describe('useExampleIds', () => {
       clubId: 'CLUB_1',
       roleId: 'ROLE_1',
       templateId: 'TEMPLATE_1',
-      personId: 'PERSON_1',
       entryId: 'ENTRY_1',
-      registrationId: 'REG_1',
-      userId: 'USER_1',
     });
   });
 

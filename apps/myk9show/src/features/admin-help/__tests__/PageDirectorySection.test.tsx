@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render, userEvent } from '@/test/utils/testUtils';
+import { getAdminHelpSectionKey } from '@/constants/storageKeys';
 import { PageDirectorySection } from '../components/PageDirectorySection';
 import { UserRole } from '@/types/auth-types';
 import type { PageEntry } from '../types';
@@ -60,11 +61,11 @@ describe('PageDirectorySection', () => {
       />
     );
     await user.click(screen.getByRole('button', { name: /site admin/i }));
-    expect(window.localStorage.getItem('admin-help:section:site-admin')).toBe('closed');
+    expect(window.localStorage.getItem(getAdminHelpSectionKey('site-admin'))).toBe('closed');
   });
 
   it('reads saved collapsed state on mount', () => {
-    window.localStorage.setItem('admin-help:section:site-admin', 'closed');
+    window.localStorage.setItem(getAdminHelpSectionKey('site-admin'), 'closed');
     render(
       <PageDirectorySection
         roleKey="site-admin"

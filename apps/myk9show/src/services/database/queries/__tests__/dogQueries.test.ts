@@ -10,6 +10,7 @@ import {
   searchAllDogs,
   getDogStatistics,
 } from '../dogQueries';
+import { mapDogInputToReplicated } from '@/services/mappers/dogMappers';
 import type { DbDogInsert, DbDogUpdate } from '../../../../types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
@@ -173,6 +174,75 @@ describe('Dog Queries', () => {
           message: 'Invalid input',
         })
       );
+    });
+
+    it('passes client-supplied id to Supabase INSERT', async () => {
+      const newDog = {
+        id: 'client-uuid-abc',
+        name: 'Charlie',
+        breed: 'Beagle',
+        owner_id: '1',
+        sex: 'male',
+      } as DbDogInsert & { id: string };
+      const mockCreatedDog = { ...newDog, owner: null };
+      const chainable = createChainableQuery({ data: mockCreatedDog, error: null });
+      mockSupabase.from.mockReturnValue(chainable);
+
+      await createDog(newDog);
+
+      const insertCall = chainable.insert.mock.calls[0][0];
+      expect(insertCall[0]).toHaveProperty('id', 'client-uuid-abc');
+    });
+  });
+
+  describe('mapDogInputToReplicated', () => {
+    it('maps DogInput to ReplicatedDog with supplied id', () => {
+      const input = {
+        name: 'Daisy',
+        breed: 'Beagle',
+        sex: 'female' as const,
+        ownerId: 'person-1',
+        callName: 'Daisy',
+        birthDate: '2021-03-15',
+        color: 'tricolor',
+        weight: 22,
+        height: 13,
+        microchipNumber: '123456789',
+        imageUrl: 'https://example.com/daisy.jpg',
+        spayedNeutered: true,
+      };
+      const result = mapDogInputToReplicated(input, 'dog-uuid-999');
+      expect(result).toEqual({
+        id: 'dog-uuid-999',
+        name: 'Daisy',
+        callName: 'Daisy',
+        breed: 'Beagle',
+        sex: 'female',
+        dateOfBirth: '2021-03-15',
+        ownerId: 'person-1',
+        color: 'tricolor',
+        weight: '22',
+        height: '13',
+        microchipNumber: '123456789',
+        imageUrl: 'https://example.com/daisy.jpg',
+        isSpayedNeutered: true,
+      });
+    });
+
+    it('omits undefined optional fields', () => {
+      const input = {
+        name: 'Rex',
+        breed: 'Lab',
+        sex: 'male' as const,
+        ownerId: 'person-2',
+      };
+      const result = mapDogInputToReplicated(input, 'dog-uuid-000');
+      expect(result.id).toBe('dog-uuid-000');
+      expect(result.name).toBe('Rex');
+      expect(result.callName).toBeUndefined();
+      expect(result.dateOfBirth).toBeUndefined();
+      expect(result.weight).toBeUndefined();
+      expect(result.height).toBeUndefined();
     });
   });
 

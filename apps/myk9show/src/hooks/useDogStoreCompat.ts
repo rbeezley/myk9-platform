@@ -16,10 +16,12 @@ import {
 } from '@/hooks/queries/useDogsDatabase';
 import {
   mapDogInputToInsert,
+  mapDogInputToReplicated,
   mapDogInputToUpdate,
   mapDatabaseToDog,
   mapDatabaseDogsArray,
 } from '@/services/mappers/dogMappers';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
@@ -71,37 +73,59 @@ export const useDogStoreCompat = () => {
     }
   };
 
-  // dogStore-compatible API
+  // dogStore-compatible API.
+  // Local-first create: write to IndexedDB before PostgREST so the next
+  // dogsQuery refetch (triggered by createMutation.onSuccess) finds the new
+  // dog in the replication read path alongside any pre-existing dogs.
+  // Rollback on PostgREST failure so the list doesn't show a dog that never
+  // reached Supabase.
   const addDog = async (dogData: DogInput): Promise<Dog> => {
-    const dbData = mapDogInputToInsert(dogData);
-    const result = await runDogMutation(() => createMutation.mutateAsync(dbData));
-    const newDog = mapDatabaseToDog(result);
+    const dogId = crypto.randomUUID();
 
-    // Registrations live in a separate table, written in a second call. If this
-    // fails the dog row already exists — rethrow so the UI surfaces a save
-    // failure rather than silently orphaning the dog record.
-    // TODO: replace with a single create_dog_with_children RPC for atomicity
-    // (see migration 145's create_show_with_children pattern).
-    if (dogData.registrations && dogData.registrations.length > 0) {
-      try {
-        const changed = await syncDogRegistrations(newDog.id, dogData.registrations);
-        if (changed) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(newDog.id) });
+    const replicatedDog = mapDogInputToReplicated(dogData, dogId);
+    await replicatedDogsTable.set(dogId, replicatedDog, false);
+
+    const dbData = { ...mapDogInputToInsert(dogData), id: dogId };
+
+    try {
+      const result = await runDogMutation(() => createMutation.mutateAsync(dbData));
+      const newDog = mapDatabaseToDog(result);
+
+      // Registrations live in a separate table, written in a second call.
+      // TODO: replace with a single create_dog_with_children RPC for atomicity
+      // (see migration 145's create_show_with_children pattern).
+      if (dogData.registrations && dogData.registrations.length > 0) {
+        try {
+          const changed = await syncDogRegistrations(newDog.id, dogData.registrations);
+          if (changed) {
+            queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(newDog.id) });
+          }
+        } catch (err) {
+          logger.error(
+            'Failed to create registrations for new dog',
+            'dogs',
+            { dogId: newDog.id },
+            err as Error
+          );
+          throw err instanceof Error
+            ? err
+            : new Error('Failed to save dog registrations. Please try again.');
         }
-      } catch (err) {
-        logger.error(
-          'Failed to create registrations for new dog',
-          'dogs',
-          { dogId: newDog.id },
-          err as Error
-        );
-        throw err instanceof Error
-          ? err
-          : new Error('Failed to save dog registrations. Please try again.');
       }
-    }
 
-    return newDog;
+      return newDog;
+    } catch (err) {
+      // Don't mask the original PostgREST error with an IndexedDB cleanup failure.
+      await replicatedDogsTable.delete(dogId).catch(cleanupErr => {
+        logger.warn(
+          'Failed to roll back IndexedDB after PostgREST insert failure',
+          'dogs',
+          { dogId },
+          cleanupErr as Error
+        );
+      });
+      throw err;
+    }
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {

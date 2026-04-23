@@ -7,6 +7,7 @@ import {
   updateDog,
   deleteDog,
   searchDogs,
+  searchAllDogs,
   getDogStatistics,
 } from '../dogQueries';
 import type { DbDogInsert, DbDogUpdate } from '../../../../types/database-mappings';
@@ -235,6 +236,53 @@ describe('Dog Queries', () => {
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
       expect(result.data).toEqual(mockResults);
       expect(result.error).toBeNull();
+    });
+  });
+
+  describe('searchAllDogs', () => {
+    it('returns empty array without hitting the DB when query is shorter than 2 chars', async () => {
+      const result = await searchAllDogs('a');
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+      expect(result).toEqual({ data: [], error: null });
+    });
+
+    it('returns empty array when query is only whitespace', async () => {
+      const result = await searchAllDogs('   ');
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+      expect(result).toEqual({ data: [], error: null });
+    });
+
+    it('queries dogs across the system (no ownership filter) on match', async () => {
+      const mockResults = [
+        {
+          id: '1',
+          name: 'Ranger',
+          breed: 'Labrador',
+          owner: { id: 'p1', first_name: 'Alice', last_name: 'Smith' },
+        },
+      ];
+      const chain = createChainableQuery({ data: mockResults, error: null });
+      mockSupabase.from.mockReturnValue(chain);
+
+      const result = await searchAllDogs('rang');
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
+      expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('name.ilike.%rang%'));
+      expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('akc_number.ilike.%rang%'));
+      expect(chain.limit).toHaveBeenCalledWith(50);
+      expect(result.data).toEqual(mockResults);
+      expect(result.error).toBeNull();
+    });
+
+    it('surfaces database errors instead of throwing', async () => {
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: null, error: { message: 'boom', code: 'X1' } })
+      );
+
+      const result = await searchAllDogs('foo');
+
+      expect(result.data).toEqual([]);
+      expect(result.error).not.toBeNull();
     });
   });
 

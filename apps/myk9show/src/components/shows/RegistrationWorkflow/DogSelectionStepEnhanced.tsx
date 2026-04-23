@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Users,
   ChevronDown,
@@ -26,7 +26,11 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getDogDisplayName, Dog, User } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
+import { UserRole } from '@/types/auth-types';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
+import { useDebounce } from '@myk9/scoring-ui';
+import { searchAllDogs } from '@/services/database/queries/dogQueries';
+import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import { DogSearchInterface } from './DogSearchInterface';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
@@ -85,7 +89,11 @@ interface DogRowProps {
   };
 }
 
-function getEmptyStateMessage(searchQuery: string, activeQuickFilter: string): string {
+function getEmptyStateMessage(
+  searchQuery: string,
+  activeQuickFilter: string,
+  advancedSearch: boolean
+): string {
   if (searchQuery.trim()) return 'No dogs match your search. Try a different name or breed.';
   switch (activeQuickFilter) {
     case 'registered':
@@ -95,7 +103,9 @@ function getEmptyStateMessage(searchQuery: string, activeQuickFilter: string): s
     case 'recent':
       return 'No recently active dogs found. Clear the filter to see all your dogs.';
     default:
-      return "You don't have any dogs yet. Add a dog from your profile to get started.";
+      return advancedSearch
+        ? 'Search by name, breed, or AKC number to find a dog to register.'
+        : "You don't have any dogs yet. Add a dog from your profile to get started.";
   }
 }
 
@@ -202,7 +212,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   onSelectionChange,
 }) => {
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
-  const { filterAccessibleDogs, canBulkOperations, getMaxDogsPerRegistration } =
+  const { user, roles, canBulkOperations, canCreateExhibitor, getMaxDogsPerRegistration } =
     useRegistrationPermissions();
   const { workflowConfig } = useRegistrationContext();
 
@@ -214,6 +224,10 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [activeQuickFilter, setActiveQuickFilter] = useState('');
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [serverDogs, setServerDogs] = useState<Dog[]>([]);
+  const [isServerSearching, setIsServerSearching] = useState(false);
+
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -231,13 +245,63 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   };
 
   const accessibleDogs = useMemo(() => {
-    return filterAccessibleDogs(dogs).filter(
-      dog => !dog.deletedAt && (!dog.status || dog.status === 'active')
-    );
-  }, [dogs, filterAccessibleDogs]);
+    if (!user) return [];
+    const isSiteAdmin = roles.includes(UserRole.SITE_ADMIN);
+    return dogs.filter(dog => {
+      if (dog.deletedAt) return false;
+      if (dog.status && dog.status !== 'active') return false;
+      if (isSiteAdmin) return true;
+      return dog.ownerId === user.id;
+    });
+  }, [dogs, user, roles]);
 
-  const { canCreateExhibitor } = useRegistrationPermissions();
   const canCreateNew = workflowConfig?.features?.createNew && canCreateExhibitor;
+
+  // Server-side dog search for roles that can view all dogs (secretary, admin).
+  // The local replication store only holds the logged-in user's dogs, so a
+  // secretary entering a mail-in registration needs to search the full system.
+  useEffect(() => {
+    if (!workflowConfig.features.advancedSearch) {
+      if (serverDogs.length > 0) setServerDogs([]);
+      return;
+    }
+    const query = debouncedSearchQuery.trim();
+    if (query.length < 2) {
+      if (serverDogs.length > 0) setServerDogs([]);
+      return;
+    }
+    let cancelled = false;
+    setIsServerSearching(true);
+    searchAllDogs(query)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setServerDogs(mapDatabaseDogsArray(data as Record<string, unknown>[]));
+      })
+      .catch(err => {
+        if (cancelled) return;
+        logger.warn('searchAllDogs failed', 'shows', { data: { error: String(err) } });
+        setServerDogs([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsServerSearching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // serverDogs.length is intentionally omitted — it is written inside this
+    // effect and reading it would create a feedback loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, workflowConfig.features.advancedSearch]);
+
+  // Combined dog set passed to DogSearchInterface: locally-accessible dogs
+  // (owned / club-scoped) plus any server-search results, de-duplicated by id.
+  const searchableDogs = useMemo(() => {
+    if (!workflowConfig.features.advancedSearch) return accessibleDogs;
+    if (serverDogs.length === 0) return accessibleDogs;
+    const seen = new Set(accessibleDogs.map(d => d.id));
+    const extras = serverDogs.filter(d => !seen.has(d.id));
+    return [...accessibleDogs, ...extras];
+  }, [accessibleDogs, serverDogs, workflowConfig.features.advancedSearch]);
 
   const unsortedDogs = workflowConfig.features.advancedSearch ? filteredDogs : accessibleDogs;
 
@@ -361,7 +425,10 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     );
   }
 
-  if (accessibleDogs.length === 0) {
+  // Only bail to the "no dogs" state for roles that can't search the full
+  // system. Secretaries/admins keep the search interface so they can find
+  // and register mail-in dogs they don't own.
+  if (accessibleDogs.length === 0 && !workflowConfig.features.advancedSearch) {
     return (
       <div className="space-y-4">
         <div className="mb-4">
@@ -424,12 +491,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
           {workflowConfig.features.advancedSearch && (
             <div className="p-4 pb-0">
               <DogSearchInterface
-                dogs={accessibleDogs}
+                dogs={searchableDogs}
                 onDogsFiltered={setFilteredDogs}
                 onSearchQueryChange={setSearchQuery}
                 onActiveFilterChange={setActiveQuickFilter}
                 showQuickFilters={true}
                 showAdvancedFilters={true}
+                placeholder="Search all dogs by name, breed, or AKC number..."
               />
             </div>
           )}
@@ -556,9 +624,17 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             </List>
           ) : (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                {getEmptyStateMessage(searchQuery, activeQuickFilter)}
-              </p>
+              {isServerSearching ? (
+                <p className="text-muted-foreground">Searching…</p>
+              ) : (
+                <p className="text-muted-foreground">
+                  {getEmptyStateMessage(
+                    searchQuery,
+                    activeQuickFilter,
+                    workflowConfig.features.advancedSearch
+                  )}
+                </p>
+              )}
             </div>
           )}
         </CardContent>

@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, PawPrint } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { getPrimaryRole } from '@/context/AuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
@@ -202,7 +203,7 @@ const BrowseDogsPage: React.FC = () => {
         open={showCreateDogPanel}
         onClose={() => setShowCreateDogPanel(false)}
         onDogCreated={handleDogCreated}
-        userRole={getUserRoles()[0]}
+        userRole={getPrimaryRole(getUserRoles())}
         currentUserPersonId={currentUserPersonId || undefined}
       />
     </PageShell>

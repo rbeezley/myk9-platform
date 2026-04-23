@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -42,10 +42,15 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 }) => {
   const { form } = useEditPanel<DogFormData>();
   const allPeople = useUserStore(state => state.people);
+  const loadUsers = useUserStore(state => state.loadUsers);
   const people = useMemo(
     () => allPeople.filter(p => !p.deletedAt && p.status !== 'suspended'),
     [allPeople]
   );
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   if (!form) return null;
 

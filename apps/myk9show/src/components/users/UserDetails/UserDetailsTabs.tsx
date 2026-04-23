@@ -9,6 +9,7 @@ import { AddDogPanel } from '@/components/panels/edit';
 import type { User, Dog } from '@/types/dog-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { getPrimaryRole } from '@/context/AuthContext';
 import { mapDogToDogInput } from '@/services/mappers/dogMappers';
 
 interface PeopleDetailsTabsProps {
@@ -123,7 +124,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         open={isCreatePanelOpen}
         onClose={() => setIsCreatePanelOpen(false)}
         onDogCreated={() => setIsCreatePanelOpen(false)}
-        userRole={getUserRoles()[0]}
+        userRole={getPrimaryRole(getUserRoles())}
         currentUserPersonId={selectedUser.id}
       />
     </div>

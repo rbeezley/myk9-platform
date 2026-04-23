@@ -179,9 +179,7 @@ function UserDataInitializer() {
       try {
         const { useUserStore } = await import('./store/userStore');
         const store = useUserStore.getState();
-        if (store.users.length === 0) {
-          await store.loadUsers();
-        }
+        await store.loadUsers();
       } catch (error) {
         logger.error('Failed to load user data after auth:', 'app', {}, error as Error);
       }

@@ -15,25 +15,35 @@ import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
 import { mapDatabaseToDog, mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { getPrimaryRole } from '@/context/AuthContext';
+import { UserRole } from '@/types/auth-types';
 import { replicatedDogsTable } from '@/services/replication';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
-// Get all dogs visible to the current user
-// RLS (migration 120) handles scoping: exhibitors see own dogs, secretaries/judges/admins see all
-// useRoleBasedDogs further filters in the UI layer for exhibitors
+const ELEVATED_ROLES = new Set<UserRole>([
+  UserRole.SECRETARY,
+  UserRole.CLUB_ADMIN,
+  UserRole.SITE_ADMIN,
+  UserRole.JUDGE,
+]);
+
+// Get all dogs visible to the current user.
+// Elevated roles (secretary/admin/judge) get showAll=true: no app-level ownership filter, RLS handles scoping.
+// Exhibitors get showAll=false: filter to own dogs in both replication and PostgREST paths.
 export const useDogsQuery = () => {
   const personId = useCurrentPersonId();
+  const { getUserRoles } = useAuthContext();
+  const primaryRole = getPrimaryRole(getUserRoles());
+  const showAll = ELEVATED_ROLES.has(primaryRole);
 
   return useQuery({
-    queryKey: [...queryKeys.dogs, personId],
+    queryKey: [...queryKeys.dogs, personId, showAll],
     queryFn: async () => {
-      // Try PostgREST first (rich data with owner join + registrations)
-      // RLS handles access control — no application-level owner filter needed
-      const { data, error } = await getAllDogs(personId!);
+      const { data, error } = await getAllDogs(personId!, showAll);
       if (!error && data && data.length > 0) return data;
 
       // Fallback to replication layer (offline-first, service-role synced)
-      // Returns ALL dogs — useRoleBasedDogs handles UI-level role filtering
       const replicatedDogs = await replicatedDogsTable.getAllDogs();
       return replicatedDogs.map(d => mapReplicatedDogToDbRow(d)) as typeof data;
     },

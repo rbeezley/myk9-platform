@@ -69,8 +69,8 @@ function mapDogsWithOwners(
 // PostgREST fallback wrappers (original implementations)
 // ---------------------------------------------------------------------------
 
-async function postgrestGetAllDogs(personId: string) {
-  const { data, error } = await supabase
+async function postgrestGetAllDogs(personId: string, showAll = false) {
+  let query = supabase
     .from('dogs')
     .select(
       `
@@ -85,10 +85,14 @@ async function postgrestGetAllDogs(personId: string) {
       registrations:dog_registrations(*)
     `
     )
-    .or(ownedByPerson(personId))
     .is('deleted_at', null)
     .order('name', { ascending: true });
 
+  if (!showAll) {
+    query = query.or(ownedByPerson(personId));
+  }
+
+  const { data, error } = await query;
   if (error) throw createDatabaseError(error, 'dog', 'select_all');
   return { data: data || [], error: null };
 }
@@ -194,13 +198,15 @@ async function postgrestGetDogStatistics(personId: string) {
 // SELECT functions — read from replication store, fallback to PostgREST
 // ---------------------------------------------------------------------------
 
-// Get all dogs owned or co-owned by the given person
-export const getAllDogs = async (personId: string) => {
+// Get all dogs visible to the current user.
+// showAll=true: skip ownership filter (for secretary/admin roles — RLS handles scoping).
+// showAll=false (default): filter to own dogs (for exhibitor role).
+export const getAllDogs = async (personId: string, showAll = false) => {
   try {
     return await withReplicationFallback(
       async () => {
         const allDogs = await replicatedDogsTable.getAllDogs();
-        const filtered = filterByOwnership(allDogs, personId);
+        const filtered = showAll ? allDogs : filterByOwnership(allDogs, personId);
         // Sort by name ascending (matching original PostgREST behavior)
         filtered.sort((a, b) => a.name.localeCompare(b.name));
         // Batch-load owner data from PostgREST (people is not replicated)
@@ -209,7 +215,7 @@ export const getAllDogs = async (personId: string) => {
         const data = mapDogsWithOwners(filtered, ownersMap);
         return { data, error: null };
       },
-      () => postgrestGetAllDogs(personId),
+      () => postgrestGetAllDogs(personId, showAll),
       'dog',
       'select_all_with_owners'
     );

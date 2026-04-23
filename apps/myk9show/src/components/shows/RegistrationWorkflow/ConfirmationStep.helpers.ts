@@ -73,14 +73,24 @@ export function generateReceiptText(data: ReceiptData): string {
   return lines.join('\n');
 }
 
+/** Escape a string for safe interpolation into HTML. */
+function escapeHtml(value: string | number): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /** Generate an HTML receipt for download */
 export function generateReceiptHtml(data: ReceiptData): string {
   const dogSections = data.dogs
     .map(
       dog => `
       <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
-        <h3 style="margin: 0 0 5px 0; font-size: 16px;">${dog.name}</h3>
-        <p style="margin: 0 0 10px 0; color: #666; font-size: 13px;">${dog.breed}</p>
+        <h3 style="margin: 0 0 5px 0; font-size: 16px;">${escapeHtml(dog.name)}</h3>
+        <p style="margin: 0 0 10px 0; color: #666; font-size: 13px;">${escapeHtml(dog.breed)}</p>
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr style="border-bottom: 1px solid #e5e7eb;">
@@ -94,9 +104,9 @@ export function generateReceiptHtml(data: ReceiptData): string {
               .map(
                 cls => `
               <tr style="border-bottom: 1px solid #f0f0f0;">
-                <td style="padding: 8px; font-size: 14px;">${cls.className} #${cls.classNumber}</td>
-                <td style="padding: 8px; font-size: 14px;">${cls.trialName}</td>
-                <td style="padding: 8px; font-size: 14px;">${cls.jumpHeight ? `${cls.jumpHeight}"` : '-'}</td>
+                <td style="padding: 8px; font-size: 14px;">${escapeHtml(cls.className)} #${escapeHtml(cls.classNumber)}</td>
+                <td style="padding: 8px; font-size: 14px;">${escapeHtml(cls.trialName)}</td>
+                <td style="padding: 8px; font-size: 14px;">${cls.jumpHeight ? `${escapeHtml(cls.jumpHeight)}&quot;` : '-'}</td>
               </tr>`
               )
               .join('')}
@@ -110,7 +120,7 @@ export function generateReceiptHtml(data: ReceiptData): string {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Registration Receipt - ${data.registrationNumber}</title>
+  <title>Registration Receipt - ${escapeHtml(data.registrationNumber)}</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -133,15 +143,15 @@ export function generateReceiptHtml(data: ReceiptData): string {
 
   <div style="background: #f3f4f6; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 25px;">
     <div style="font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px;">Confirmation Number</div>
-    <div style="font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace;">${data.registrationNumber}</div>
+    <div style="font-size: 24px; font-weight: 700; font-family: 'Courier New', monospace;">${escapeHtml(data.registrationNumber)}</div>
   </div>
 
   <div style="margin-bottom: 25px;">
     <h2 style="font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">Show Information</h2>
-    <p style="margin: 8px 0;"><strong>${data.showName}</strong></p>
-    <p style="margin: 4px 0; color: #666; font-size: 14px;">${data.showClub}</p>
-    <p style="margin: 4px 0; color: #666; font-size: 14px;">${data.showDate}</p>
-    <p style="margin: 4px 0; color: #666; font-size: 14px;">${data.showLocation}</p>
+    <p style="margin: 8px 0;"><strong>${escapeHtml(data.showName)}</strong></p>
+    <p style="margin: 4px 0; color: #666; font-size: 14px;">${escapeHtml(data.showClub)}</p>
+    <p style="margin: 4px 0; color: #666; font-size: 14px;">${escapeHtml(data.showDate)}</p>
+    <p style="margin: 4px 0; color: #666; font-size: 14px;">${escapeHtml(data.showLocation)}</p>
   </div>
 
   <div style="margin-bottom: 25px;">
@@ -157,17 +167,17 @@ export function generateReceiptHtml(data: ReceiptData): string {
     </div>
     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
       <span>Payment Method</span>
-      <span>${getPaymentMethodDisplay(data.paymentMethod)}</span>
+      <span>${escapeHtml(getPaymentMethodDisplay(data.paymentMethod))}</span>
     </div>
     <div style="display: flex; justify-content: space-between; padding: 8px 0;">
       <span>Payment Status</span>
-      <span>${data.paymentStatus}</span>
+      <span>${escapeHtml(data.paymentStatus)}</span>
     </div>
   </div>
 
   <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #999;">
     <p>Thank you for your entry!</p>
-    <p>Generated on ${data.generatedAt}</p>
+    <p>Generated on ${escapeHtml(data.generatedAt)}</p>
   </div>
 </body>
 </html>`;

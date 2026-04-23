@@ -61,20 +61,28 @@ export function getShowEntryFee(
   if (show) {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    const showStart = new Date(show.startDate);
+    // Parse startDate as local midnight; "YYYY-MM-DD" alone parses as UTC and
+    // shifts by a day in negative timezones. (Note: @/utils/dateLocal has a
+    // shared parseLocalDateString, but importing it here pulls LoggingService
+    // into the tree, which many registration tests don't mock.)
+    const startDateStr = show.startDate.includes('T')
+      ? show.startDate
+      : `${show.startDate}T00:00:00`;
+    const showStart = new Date(startDateStr);
     showStart.setHours(0, 0, 0, 0);
 
     if (now >= showStart && show.dayOfShowFee) {
       const dayFee = parseFloat(show.dayOfShowFee.replace(/[$,]/g, ''));
-      if (!isNaN(dayFee) && dayFee > 0) return dayFee;
+      if (!isNaN(dayFee) && dayFee >= 0) return dayFee;
     }
 
     const preFee = parseFloat(show.preEntryFee.replace(/[$,]/g, ''));
-    if (!isNaN(preFee) && preFee > 0) return preFee;
+    if (!isNaN(preFee) && preFee >= 0) return preFee;
   }
 
-  // Class-level fee as fallback
-  return classEntryFee || DEFAULT_ENTRY_FEE;
+  // Class-level fee as fallback. Use ?? so an explicit 0 is respected
+  // (a legitimately free class should not silently fall back to $25).
+  return classEntryFee ?? DEFAULT_ENTRY_FEE;
 }
 
 /** Multi-dog discount threshold (number of dogs). */

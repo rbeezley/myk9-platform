@@ -33,6 +33,7 @@ import {
   FileBarChart,
   Send,
   ListChecks,
+  HelpCircle,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup, NavItem } from './types';
@@ -105,6 +106,12 @@ export function buildUnifiedSidebarConfig(
             href: '/admin/permissions',
             icon: Shield,
             description: 'Access control',
+          },
+          {
+            title: 'Help',
+            href: '/admin/help',
+            icon: HelpCircle,
+            description: 'Directory of every page in myK9Show',
           },
         ],
       });

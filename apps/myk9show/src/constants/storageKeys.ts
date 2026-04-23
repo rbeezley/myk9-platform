@@ -92,6 +92,13 @@ export const STORAGE_KEYS = {
 
   /** Encryption key identifier (internal use) */
   _ENCRYPTION_KEY_ID: '_sec_key_id',
+
+  // ==========================================================================
+  // Admin Help / Page Directory
+  // ==========================================================================
+
+  /** Prefix for collapsed-section state — append roleKey */
+  ADMIN_HELP_SECTION_PREFIX: 'admin-help:section:',
 } as const;
 
 /**
@@ -125,6 +132,13 @@ export function getRecentSearchesKey(category: string): string {
  */
 export function getMobileCacheKey(key: string): string {
   return `${STORAGE_KEYS.MOBILE_CACHE_PREFIX}${key}`;
+}
+
+/**
+ * Helper to get admin-help section collapse key for a given roleKey
+ */
+export function getAdminHelpSectionKey(roleKey: string): string {
+  return `${STORAGE_KEYS.ADMIN_HELP_SECTION_PREFIX}${roleKey}`;
 }
 
 /**

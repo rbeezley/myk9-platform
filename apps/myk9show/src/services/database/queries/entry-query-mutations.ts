@@ -391,6 +391,50 @@ export const uncompEntry = async (entryId: string) => {
   }
 };
 
+// Submit show entries via the server-side RPC (enforces ownership, fees, and payment auth)
+export async function submitShowEntries(params: {
+  showId: string;
+  registrationId: string;
+  entries: Array<{
+    dogId: string;
+    classId: string;
+    handlerName: string;
+    paymentMethod: string;
+    clientFeeCents: number;
+  }>;
+  submissionId: string;
+  paymentMethod: string;
+}): Promise<{ entryIds: string[]; registrationId: string; submissionId: string }> {
+  const { showId, registrationId, entries, submissionId, paymentMethod } = params;
+
+  const rpcEntries = entries.map(e => ({
+    dog_id: e.dogId,
+    class_id: e.classId,
+    handler_name: e.handlerName,
+    payment_method: e.paymentMethod,
+    client_fee_cents: e.clientFeeCents,
+  }));
+
+  const { data, error } = await supabase.rpc('submit_show_entries' as never, {
+    p_show_id: showId,
+    p_registration_id: registrationId,
+    p_entries: JSON.stringify(rpcEntries),
+    p_submission_id: submissionId,
+    p_payment_method: paymentMethod,
+  } as never);
+
+  if (error) {
+    throw createDatabaseError(error, 'entry_submissions', 'rpc_submit');
+  }
+
+  const result = (data as unknown) as { entry_ids: string[]; registration_id: string; submission_id: string };
+  return {
+    entryIds: result.entry_ids,
+    registrationId: result.registration_id,
+    submissionId: result.submission_id,
+  };
+}
+
 // Apply a promo code to an entry
 export const applyPromoCodeToEntry = async (params: {
   entryId: string;

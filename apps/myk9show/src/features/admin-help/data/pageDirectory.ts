@@ -19,6 +19,15 @@ export const pageDirectory: readonly PageEntry[] = [
     status: 'working',
   },
   {
+    path: '/admin/help',
+    title: 'Help — Page Directory',
+    description: 'Directory of every page in myK9Show, grouped by role.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Admin',
+    status: 'working',
+  },
+  {
     path: '/admin/permissions',
     title: 'Roles & Permissions',
     description: 'Grant roles (secretary, club admin, exhibitor, site admin) to users.',

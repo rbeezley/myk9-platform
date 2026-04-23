@@ -133,6 +133,12 @@ const UserManagementPage = createEnhancedLazy(() => import('@/pages/admin/UserMa
   displayName: 'UserManagementPage',
 });
 
+// Admin Help / Page Directory — enhanced lazy loading
+const AdminHelpPage = createEnhancedLazy(
+  () => import('@/features/admin-help').then(m => ({ default: m.AdminHelpPage })),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'AdminHelpPage' }
+);
+
 /** Helper to wrap an element with admin ProtectedRoute */
 const adminGuard = (element: React.ReactNode) => (
   <ProtectedRoute requiredRole={UserRole.SITE_ADMIN}>{element}</ProtectedRoute>
@@ -374,6 +380,18 @@ export const AdminRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <RBACTestPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Help / Page Directory */}
+    <Route
+      path="/admin/help"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <AdminHelpPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

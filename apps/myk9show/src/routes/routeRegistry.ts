@@ -45,6 +45,7 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/load-testing': () =>
     import('@/components/admin/LoadTestDashboard').then(m => ({ default: m.LoadTestDashboard })),
   '/admin/alerts': () => import('@/pages/AlertsPage'),
+  '/admin/help': () => import('@/features/admin-help').then(m => ({ default: m.AdminHelpPage })),
 } as const;
 
 // Public/exhibitor route components

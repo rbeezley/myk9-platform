@@ -29,7 +29,7 @@ import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDebounce } from '@myk9/scoring-ui';
-import { searchAllDogs } from '@/services/database/queries/dogQueries';
+import { searchAllDogs, SEARCH_ALL_DOGS_LIMIT } from '@/services/database/queries/dogQueries';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import { DogSearchInterface } from './DogSearchInterface';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
@@ -226,6 +226,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [serverDogs, setServerDogs] = useState<Dog[]>([]);
   const [isServerSearching, setIsServerSearching] = useState(false);
+  const [serverHitLimit, setServerHitLimit] = useState(false);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
@@ -262,25 +263,29 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   // secretary entering a mail-in registration needs to search the full system.
   useEffect(() => {
     if (!workflowConfig.features.advancedSearch) {
-      if (serverDogs.length > 0) setServerDogs([]);
+      setServerDogs(prev => (prev.length === 0 ? prev : []));
+      setServerHitLimit(false);
       return;
     }
     const query = debouncedSearchQuery.trim();
     if (query.length < 2) {
-      if (serverDogs.length > 0) setServerDogs([]);
+      setServerDogs(prev => (prev.length === 0 ? prev : []));
+      setServerHitLimit(false);
       return;
     }
     let cancelled = false;
     setIsServerSearching(true);
     searchAllDogs(query)
-      .then(({ data }) => {
+      .then(({ data, hitLimit }) => {
         if (cancelled) return;
-        setServerDogs(mapDatabaseDogsArray(data as Record<string, unknown>[]));
+        setServerDogs(mapDatabaseDogsArray(data));
+        setServerHitLimit(hitLimit);
       })
       .catch(err => {
         if (cancelled) return;
         logger.warn('searchAllDogs failed', 'shows', { data: { error: String(err) } });
         setServerDogs([]);
+        setServerHitLimit(false);
       })
       .finally(() => {
         if (!cancelled) setIsServerSearching(false);
@@ -288,9 +293,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     return () => {
       cancelled = true;
     };
-    // serverDogs.length is intentionally omitted — it is written inside this
-    // effect and reading it would create a feedback loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchQuery, workflowConfig.features.advancedSearch]);
 
   // Combined dog set passed to DogSearchInterface: locally-accessible dogs
@@ -557,6 +559,11 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             </div>
             <div className="text-sm text-muted-foreground">
               {visibleDogs.length} dog{visibleDogs.length !== 1 ? 's' : ''}
+              {serverHitLimit && (
+                <span className="ml-2 text-xs text-yellow-600">
+                  (showing top {SEARCH_ALL_DOGS_LIMIT} — refine your search for more)
+                </span>
+              )}
               {selectedDogs.length > 0 && (
                 <span className="ml-2 font-medium text-primary">
                   &bull; {selectedDogs.length} selected

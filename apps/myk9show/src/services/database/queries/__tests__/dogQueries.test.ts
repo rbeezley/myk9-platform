@@ -243,13 +243,13 @@ describe('Dog Queries', () => {
     it('returns empty array without hitting the DB when query is shorter than 2 chars', async () => {
       const result = await searchAllDogs('a');
       expect(mockSupabase.from).not.toHaveBeenCalled();
-      expect(result).toEqual({ data: [], error: null });
+      expect(result).toEqual({ data: [], error: null, hitLimit: false });
     });
 
     it('returns empty array when query is only whitespace', async () => {
       const result = await searchAllDogs('   ');
       expect(mockSupabase.from).not.toHaveBeenCalled();
-      expect(result).toEqual({ data: [], error: null });
+      expect(result).toEqual({ data: [], error: null, hitLimit: false });
     });
 
     it('queries dogs across the system (no ownership filter) on match', async () => {
@@ -272,6 +272,20 @@ describe('Dog Queries', () => {
       expect(chain.limit).toHaveBeenCalledWith(50);
       expect(result.data).toEqual(mockResults);
       expect(result.error).toBeNull();
+      expect(result.hitLimit).toBe(false);
+    });
+
+    it('flags hitLimit when the result count meets the requested limit', async () => {
+      const mockResults = Array.from({ length: 5 }, (_, i) => ({
+        id: `${i}`,
+        name: `Dog ${i}`,
+      }));
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockResults, error: null }));
+
+      const result = await searchAllDogs('dog', 5);
+
+      expect(result.data).toHaveLength(5);
+      expect(result.hitLimit).toBe(true);
     });
 
     it('surfaces database errors instead of throwing', async () => {
@@ -283,6 +297,7 @@ describe('Dog Queries', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).not.toBeNull();
+      expect(result.hitLimit).toBe(false);
     });
   });
 

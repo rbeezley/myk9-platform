@@ -461,16 +461,27 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
   }
 };
 
+// Default cap for searchAllDogs. Also used by UI to show a "refine your
+// search" hint when the returned row count hits this limit.
+export const SEARCH_ALL_DOGS_LIMIT = 50;
+
 // Search dogs across the entire system (not scoped to ownership).
 // Used by secretaries/admins entering mail-in registrations — the secretary
 // rarely owns the dog being registered, so ownership-scoped search is useless.
 // RLS still enforces that only privileged roles can read non-owned rows.
-export const searchAllDogs = async (searchTerm: string, limit = 50) => {
+export const searchAllDogs = async (
+  searchTerm: string,
+  limit: number = SEARCH_ALL_DOGS_LIMIT
+): Promise<{
+  data: Record<string, unknown>[];
+  error: DatabaseError | null;
+  hitLimit: boolean;
+}> => {
   const startTime = Date.now();
   try {
     const trimmed = searchTerm.trim();
     if (trimmed.length < 2) {
-      return { data: [], error: null };
+      return { data: [], error: null, hitLimit: false };
     }
     const sanitized = sanitizePostgRESTFilter(trimmed);
     const { data, error } = await supabase
@@ -499,12 +510,13 @@ export const searchAllDogs = async (searchTerm: string, limit = 50) => {
     logQuery('dog', 'search_all', duration, error?.message);
 
     if (error) throw createDatabaseError(error, 'dog', 'search_all');
-    return { data: data || [], error: null };
+    const rows = (data as Record<string, unknown>[] | null) ?? [];
+    return { data: rows, error: null, hitLimit: rows.length >= limit };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'dog', 'search_all');
     logQuery('dog', 'search_all', duration, dbError.message);
-    return { data: [], error: dbError };
+    return { data: [], error: dbError, hitLimit: false };
   }
 };
 

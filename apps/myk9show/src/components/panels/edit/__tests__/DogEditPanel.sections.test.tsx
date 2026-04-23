@@ -5,7 +5,6 @@ import { render } from '@/test/utils/testUtils';
 import { EditPanelWrapper } from '../EditPanelWrapper';
 import { DogEditContext } from '../DogEditPanel';
 import { OwnerSelectionField } from '../DogEditPanel.sections';
-import { UserRole } from '../DogEditPanel.types';
 import type { DogFormData } from '../DogEditPanel.types';
 import type { User as PersonType } from '@/types/user-types';
 
@@ -27,11 +26,6 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 import { supabase } from '@/services/database/supabaseClient';
-
-const mockPeople: PersonType[] = [
-  { id: 'p1', firstName: 'Alice', lastName: 'Smith', email: 'alice@example.com' },
-  { id: 'p2', firstName: 'Bob', lastName: 'Jones', email: 'bob@example.com' },
-];
 
 const defaultFormData: DogFormData = {
   callName: 'Rex',
@@ -67,30 +61,6 @@ function buildSupabaseMock(people: PersonType[]) {
       limit: limitMock,
     }),
   };
-}
-
-function renderOwnerField(isAdmin: boolean, contextPeople: PersonType[] = []) {
-  const supabaseMocked = supabase as ReturnType<typeof vi.fn>;
-  Object.assign(supabaseMocked, buildSupabaseMock(mockPeople));
-
-  // Reassign the mock implementation on the already-mocked module
-  const fromMock = buildSupabaseMock(mockPeople).from;
-  (supabase.from as ReturnType<typeof vi.fn>).mockImplementation(fromMock);
-
-  return render(
-    <DogEditContext.Provider value={{ isAdmin, people: contextPeople }}>
-      <EditPanelWrapper
-        open={true}
-        onClose={vi.fn()}
-        title="Test"
-        initialData={defaultFormData}
-        onSave={vi.fn()}
-        forceHasChanges
-      >
-        <OwnerSelectionField />
-      </EditPanelWrapper>
-    </DogEditContext.Provider>
-  );
 }
 
 describe('OwnerSelectionField', () => {

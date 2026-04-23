@@ -92,16 +92,6 @@ const mockSupabasePeople = (
   return chain;
 };
 
-const mockSupabaseError = (message: string) => {
-  const chain = {
-    select: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockResolvedValue({ data: null, error: { message } }),
-  };
-  vi.mocked(supabase.from).mockReturnValue(chain as unknown as ReturnType<typeof supabase.from>);
-  return chain;
-};
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------

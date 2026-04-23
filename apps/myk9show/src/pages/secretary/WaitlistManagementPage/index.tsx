@@ -20,7 +20,11 @@ import { AccessRestrictedState, NoShowSelectedState } from './EmptyStates';
 import { JudgeCapacityOverview } from '@/components/waitlist/JudgeCapacityOverview';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 
-const WaitlistManagementPage: React.FC = () => {
+interface WaitlistManagementPageProps {
+  showId?: string | undefined;
+}
+
+const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId }) => {
   const { hasRole } = useAuthContext();
 
   const {
@@ -44,7 +48,7 @@ const WaitlistManagementPage: React.FC = () => {
     handleOfferSpot,
     handleRemoveFromWaitlist,
     handleRefresh,
-  } = useWaitlistManagementData();
+  } = useWaitlistManagementData(showId);
 
   const { judgeDays } = useJudgeDayCapacity(selectedShowId || undefined);
 

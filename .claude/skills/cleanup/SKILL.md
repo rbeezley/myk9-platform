@@ -19,14 +19,13 @@ git worktree list
 
 - Worktrees under `.claude/worktrees/` are agent leftovers.
 - A worktree is _stale_ if its branch has been merged into `main` OR its remote tracking branch is gone (`git rev-parse --abbrev-ref <branch>@{u}` fails or prints "(gone)"). The remote-branch-gone signal is reliable because the repo auto-deletes branches on PR merge.
-- **Self-unmount case:** if cwd is inside a stale worktree, you can't `git worktree remove` from within it. Resolve by `cd`-ing to the main worktree first:
+- **Self-unmount case:** if cwd is inside a stale worktree, **do not run the removal yet** — removing the directory breaks Claude Code's CWD tracking and blocks all subsequent Bash calls. Collect all stale worktrees to remove, then execute the removal as the very **last** Bash call of the entire cleanup run, after all other checks are complete. Chain everything into one command so no further calls are needed after the directory disappears:
   ```bash
-  MAIN=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
-  cd "$MAIN"
-  git worktree remove --force <stale-path>
-  git branch -D <stale-branch>
+  MAIN="/absolute/path/to/main/repo"
+  git -C "$MAIN" worktree remove --force "/absolute/path/to/stale-worktree" \
+    && git -C "$MAIN" branch -D <stale-branch>
   ```
-  After this, the shell's original cwd no longer exists — report that to the user so they know to `cd` somewhere valid.
+  Claude Code will automatically recover the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
 - **Auto-fix** (safe when the branch is merged or upstream is gone): remove the worktree and delete the orphan branch. If the branch has unpushed work or isn't merged, ask first.
 - Report how many were cleaned.
 
@@ -125,4 +124,5 @@ Action needed:
 - Run all checks even if early ones find issues
 - Auto-fix only safe operations (stale worktrees, merged branches)
 - Always ask before: committing, pushing, deploying, deleting unmerged branches
+- **Worktree removal goes last** — if the current session CWD is a stale worktree, defer its removal to the final Bash call after all other checks are done
 - Be concise -- one line per check in the report unless action is needed

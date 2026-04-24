@@ -17,6 +17,10 @@ interface HeroAction {
 }
 
 interface DetailHeroProps {
+  /** Small label rendered above the title — e.g. a date range or entity subtype. */
+  eyebrow?: string | undefined;
+  /** Optional media slot rendered to the left (200px wide). Pass a date block, avatar, or photo. */
+  cover?: React.ReactNode | undefined;
   name: string;
   subtitle?: string | undefined;
   metadata?: MetadataItem[];
@@ -36,6 +40,8 @@ const badgeStyles: Record<string, string> = {
 };
 
 export function DetailHero({
+  eyebrow,
+  cover,
   name,
   subtitle,
   metadata,
@@ -48,8 +54,22 @@ export function DetailHero({
 }: DetailHeroProps) {
   return (
     <div className={cn('rounded-xl border border-border/50 bg-card overflow-hidden', className)}>
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-6">
-        <div className="space-y-1.5">
+      <div
+        className={cn(
+          'gap-6 p-6',
+          cover
+            ? 'flex flex-row items-start sm:items-center'
+            : 'flex flex-col sm:flex-row sm:items-start sm:justify-between'
+        )}
+      >
+        {cover && <div className="w-[200px] flex-shrink-0 self-start">{cover}</div>}
+
+        <div className="space-y-1.5 flex-1 min-w-0">
+          {eyebrow && (
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              {eyebrow}
+            </p>
+          )}
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-bold tracking-tight">{name}</h2>
             {badges?.map((badge, i) => (
@@ -76,6 +96,7 @@ export function DetailHero({
             </div>
           )}
         </div>
+
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
           <div className="flex items-center gap-2">
             {secondaryActions}

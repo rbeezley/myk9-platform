@@ -56,6 +56,37 @@ describe('DogDetailsTabs', () => {
     vi.clearAllMocks();
   });
 
+  describe('registration count badge', () => {
+    beforeEach(() => {
+      vi.mocked(useSubscriptionGate).mockReturnValue({
+        isPremium: false,
+        tier: 'free',
+        isExpired: false,
+        isInTrial: false,
+        isLoading: false,
+      });
+    });
+
+    it('shows registration count on the Registrations tab when registrations exist', () => {
+      const dogWithRegs = {
+        ...mockDog,
+        registrations: [
+          { id: 'r1', organization: 'AKC', registrationNumber: 'DN12345' },
+          { id: 'r2', organization: 'UKC', registrationNumber: 'U98765' },
+        ],
+      } as Dog;
+      render(<DogDetailsTabs dog={dogWithRegs} />);
+      // PrimaryTabs renders count as a Badge with the numeric value
+      expect(screen.getByText('2')).toBeInTheDocument();
+    });
+
+    it('shows 0 count when dog has no registrations', () => {
+      const dogNoRegs = { ...mockDog, registrations: [] } as Dog;
+      render(<DogDetailsTabs dog={dogNoRegs} />);
+      expect(screen.getByText('0')).toBeInTheDocument();
+    });
+  });
+
   describe('free user (isPremium=false)', () => {
     beforeEach(() => {
       vi.mocked(useSubscriptionGate).mockReturnValue({

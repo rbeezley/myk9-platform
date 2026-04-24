@@ -51,6 +51,8 @@ import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
+import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
+import { formatDateRange } from '@/utils/date-format';
 
 const ENTRY_STATUS_HERO_VARIANT: Record<
   EntryStatus,
@@ -303,6 +305,19 @@ const ShowDetailsPage: React.FC = () => {
         />
 
         <DetailHero
+          eyebrow={
+            actualCurrentShow.startDate && actualCurrentShow.endDate
+              ? formatDateRange(actualCurrentShow.startDate, actualCurrentShow.endDate, 'short')
+              : undefined
+          }
+          cover={
+            actualCurrentShow.startDate ? (
+              <ShowDateBlock
+                startDate={actualCurrentShow.startDate}
+                endDate={actualCurrentShow.endDate}
+              />
+            ) : undefined
+          }
           name={actualCurrentShow.name || 'Untitled Show'}
           subtitle={actualCurrentShow.clubName || undefined}
           badges={[
@@ -348,7 +363,11 @@ const ShowDetailsPage: React.FC = () => {
 
         <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
           <TabsContent value="overview">
-            <ShowOverviewTab show={actualCurrentShow} canManageShow={canManageShow} judges={effectiveJudges} />
+            <ShowOverviewTab
+              show={actualCurrentShow}
+              canManageShow={canManageShow}
+              judges={effectiveJudges}
+            />
           </TabsContent>
 
           <TabsContent value="trials">

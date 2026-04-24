@@ -90,7 +90,7 @@ describe('OwnerSelectionField', () => {
     expect(container.querySelector('#ownerId')).toBeNull();
   });
 
-  it('renders and shows people for SITE_ADMIN role', async () => {
+  it('renders and shows people when isAdmin=true (covers SECRETARY, CLUB_ADMIN, SITE_ADMIN)', async () => {
     const fromImpl = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
@@ -123,44 +123,7 @@ describe('OwnerSelectionField', () => {
       expect(screen.getByRole('option', { name: /Alice Smith/ })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: /Bob Jones/ })).toBeInTheDocument();
     });
-  });
 
-  it('renders and shows people for SECRETARY role (isAdmin=true)', async () => {
-    const fromImpl = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({
-        data: [
-          { id: 'p1', first_name: 'Alice', last_name: 'Smith', email: 'alice@example.com' },
-          { id: 'p2', first_name: 'Bob', last_name: 'Jones', email: 'bob@example.com' },
-        ],
-        error: null,
-      }),
-    });
-    (supabase.from as ReturnType<typeof vi.fn>).mockImplementation(fromImpl);
-
-    // SECRETARY maps to isAdmin=true via isAdminRole()
-    render(
-      <DogEditContext.Provider value={{ isAdmin: true, people: [] }}>
-        <EditPanelWrapper
-          open={true}
-          onClose={vi.fn()}
-          title="Test"
-          initialData={defaultFormData}
-          onSave={vi.fn()}
-          forceHasChanges
-        >
-          <OwnerSelectionField />
-        </EditPanelWrapper>
-      </DogEditContext.Provider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByRole('option', { name: /Alice Smith/ })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /Bob Jones/ })).toBeInTheDocument();
-    });
-
-    // Confirm query was fired (secretary can reach the DB)
     expect(fromImpl).toHaveBeenCalledWith('people');
   });
 

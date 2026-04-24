@@ -137,23 +137,19 @@ describe('BasicInfoTab', () => {
       });
     });
 
-    it('populates the owner dropdown with fetched people', async () => {
-      const chain = mockSupabasePeople([
+    it('resolves and displays selected owner name from fetched people', async () => {
+      mockSupabasePeople([
         { id: 'p1', first_name: 'Alice', last_name: 'Smith', email: 'alice@example.com' },
         { id: 'p2', first_name: 'Bob', last_name: 'Jones', email: null },
       ]);
 
-      renderBasicInfoTab(UserRole.SECRETARY);
+      // Pre-select Alice so selectedOwnerDisplay resolves to her name
+      renderBasicInfoTab(UserRole.SECRETARY, undefined, { ownerId: 'p1' });
 
-      // Wait for query to finish — placeholder renders once loading is false
-      await screen.findByText('Choose dog owner');
-
-      // Verify the Supabase query returned both people
-      expect(vi.mocked(supabase.from)).toHaveBeenCalledWith('people');
-      const result = await chain.limit.mock.results[0].value;
-      expect(result.data).toHaveLength(2);
-      expect(result.data[0].first_name).toBe('Alice');
-      expect(result.data[1].first_name).toBe('Bob');
+      // Once the query resolves, Alice's name should appear in the trigger
+      await waitFor(() => {
+        expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+      });
     });
 
     it('shows validation error when ownerId is empty after touch', async () => {

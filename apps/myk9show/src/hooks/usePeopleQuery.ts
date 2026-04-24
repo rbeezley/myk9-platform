@@ -26,5 +26,6 @@ export function usePeopleQuery(enabled = true) {
       }));
     },
     enabled,
+    staleTime: 5 * 60 * 1000,
   });
 }

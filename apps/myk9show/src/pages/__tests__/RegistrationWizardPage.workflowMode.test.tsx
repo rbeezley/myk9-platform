@@ -89,14 +89,10 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => ({ classes: [] }),
 }));
 
-// ─── RegistrationContext — always returns 'exhibitor' to simulate RBAC not yet
-//     loaded. The page must NOT rely on this to derive workflowMode.
+// ─── RegistrationContext — page wraps content in RegistrationProvider.
+//     The page must NOT derive workflowMode from RegistrationContext.mode.
 vi.mock('@/context/RegistrationContext', () => ({
   RegistrationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
-vi.mock('@/hooks/useRegistrationContext', () => ({
-  useRegistrationContext: () => ({ mode: 'exhibitor', workflowConfig: null }),
 }));
 
 // ─── useRegistrationPermissions — mutable per test ───────────────────────────

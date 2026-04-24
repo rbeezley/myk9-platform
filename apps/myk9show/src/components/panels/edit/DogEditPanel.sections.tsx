@@ -54,7 +54,7 @@ export const OwnerSelectionField: React.FC = () => {
           >
             <option value={data.ownerId || ''}>{displayText}</option>
           </select>
-          <p className="text-xs text-muted-foreground/60 mt-1">Loading people...</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Loading people…</p>
         </FormField>
       </div>
     );

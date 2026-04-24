@@ -208,6 +208,8 @@ export function useShowCreationWizardActions({
 
       logger.debug(`Created ${classesToCreate.length} classes`, 'wizard');
     },
+    // show.dayOfShowFee / show.preEntryFee intentionally excluded — fee changes
+    // should not invalidate already-built class arrays mid-wizard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [trials, judgeDetails, existingTrials, editMode, existingDBClasses]
   );

@@ -57,12 +57,15 @@ vi.mock('@/hooks/useBrowseDogsData', () => ({
   useBrowseDogsData: () => mockBrowseDogsReturn,
 }));
 
-vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({
-    getUserRoles: () => ['exhibitor'],
-  }),
-  getPrimaryRole: (roles: string[]) => roles[0] ?? 'exhibitor',
-}));
+vi.mock('@/hooks/useAuthContext', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useAuthContext: () => ({
+      getUserRoles: () => ['exhibitor'],
+    }),
+  };
+});
 
 vi.mock('@/hooks/useRoleBasedData', () => ({
   useCurrentUserPersonId: () => 'person-1',

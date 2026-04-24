@@ -1,9 +1,9 @@
 import { faker } from '@faker-js/faker';
 import type { Dog, DogRegistration } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
-import type { Show, Trial, TrialClass, ShowStatus } from '@/types/show-types';
+import type { Show, Trial } from '@/types/show-types';
 import type { Club } from '@/types/club-types';
-import type { User } from '@/types';
+import type { TrialClass } from '@/types';
 
 // Set seed for consistent test data
 faker.seed(123);
@@ -77,35 +77,35 @@ export const personFactory = {
 // Show Factory
 export const showFactory = {
   build: (overrides: Partial<Show> = {}): Show => {
-    const startDate = faker.date.future();
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + faker.number.int({ min: 1, max: 3 }));
-    
+    const startDate = overrides.startDate ?? new Date(Date.now() + 30 * 86_400_000).toISOString().split('T')[0];
     return {
-      id: nextId(),
+      id: overrides.id ?? nextId(),
       name: `${faker.location.city()} Dog Show`,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      location: `${faker.location.city()} Fairgrounds, ${faker.location.state({ abbreviated: true })}`,
-      hostClubId: nextId(),
-      superintendentId: nextId(),
+      organization: 'AKC',
+      startDate,
+      endDate: startDate,
+      location: `${faker.location.city()}, ${faker.location.state({ abbreviated: true })}`,
+      status: 'published',
+      events: [],
+      source: 'myK9Show',
+      entryOpenDate: '',
+      entryCloseDate: '',
+      preEntryFee: '25',
+      clubId: 'club-1',
+      clubName: `${faker.location.city()} Kennel Club`,
+      clubAddress: '',
+      clubEmail: '',
+      logoUrl: '',
+      coverImageUrl: '',
+      accentColor: '',
+      assignedJudges: [],
       trials: [],
-      status: 'upcoming' as ShowStatus,
-      entriesOpenDate: faker.date.recent({ days: 30 }).toISOString(),
-      entriesCloseDate: faker.date.soon({ days: 30 }).toISOString(),
-      createdAt: faker.date.past().toISOString(),
-      updatedAt: faker.date.recent().toISOString(),
+      stats: [],
+      acceptCheckPayments: false,
+      acceptCashPayments: false,
       ...overrides,
     };
   },
-
-  withTrial: (show: Show, trial: Partial<Trial> = {}): Show => ({
-    ...show,
-    trials: [
-      ...show.trials,
-      trialFactory.build({ showId: show.id, ...trial }),
-    ],
-  }),
 
   createMany: (count: number, overrides: Partial<Show> = {}): Show[] =>
     Array.from({ length: count }, () => showFactory.build(overrides)),
@@ -235,7 +235,7 @@ export class TestDataBuilder {
     return this;
   }
 
-  addUser(overrides?: Partial<User>): this {
+  addAuthUser(overrides?: Partial<User>): this {
     this.users.push(userFactory.build(overrides));
     return this;
   }
@@ -247,8 +247,8 @@ export class TestDataBuilder {
     const secretary = personFactory.build({ roles: ['secretary'] });
     
     const show = showFactory.build({
-      hostClubId: club.id,
-      superintendentId: secretary.id,
+      clubId: club.id,
+      clubName: club.name,
     });
 
     const trial = trialFactory.build({

@@ -1,15 +1,3 @@
-/**
- * MyEntriesTab — redesigned exhibitor "My entries at this show" view (Fall 2026).
- *
- * Renders:
- *   1. "Where to be & when" timeline — all classes sorted by day + start time.
- *   2. Per-dog sections — each dog's entries with element icon, class title,
- *      schedule metadata, and result or "Upcoming" chip.
- *
- * Secretary / admin users see the old DataTable-based view via the secretary
- * dashboard (not this tab) so the exhibitor-first layout is safe here.
- */
-
 import { useNavigate } from 'react-router-dom';
 import { Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';

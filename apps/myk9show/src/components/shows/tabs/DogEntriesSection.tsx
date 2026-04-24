@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { PlacementPill } from '@/components/base/PlacementPill';
+import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { DogEntriesGroup, EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 
 type ElementIconConfig = { icon: React.ElementType; bg: string; fg: string };
@@ -46,7 +47,7 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
   return (
     <section aria-label={`${dogName}'s entries`} className="space-y-3">
       <div className="flex items-center gap-3 pb-2 border-b border-border">
-        <DogInitialAvatar name={dogName} />
+        <PersonAvatar name={dogName} size="sm" className="h-10 w-10" />
         <div className="flex-1 min-w-0">
           <h3 className="text-xl font-semibold truncate">{dogName}</h3>
         </div>
@@ -64,17 +65,6 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
   );
 }
 
-function DogInitialAvatar({ name }: { name: string }) {
-  const initial = name.charAt(0).toUpperCase();
-  return (
-    <span
-      className="h-10 w-10 shrink-0 rounded-full bg-primary/15 flex items-center justify-center text-base font-bold text-primary"
-      aria-hidden
-    >
-      {initial}
-    </span>
-  );
-}
 
 interface EntryRowProps {
   entry: EnrichedShowEntry;

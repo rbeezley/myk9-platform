@@ -136,10 +136,25 @@ Existing components already fit: `Button size="xl"` (56px),
 - Score-sheet button deliberately omitted — judges keep paper scoresheets
   per DESIGN-NOTES "Not in v1".
 
-### 7. Secretary My Shows — _queued_
+### 7. Secretary My Shows — _landed_ (2026-04-24)
 
-4 phase groups (Happening today / Upcoming / Draft / Past) + Attention
-Needed strip. Extends existing dashboard — do not rebuild.
+- `useMyShows.ts` — pure partitioning hook; takes filtered `Show[]` and
+  returns `{ today, upcoming, draft, past, attentionNeeded }` buckets.
+  Dates parsed as local midnight to avoid UTC-offset edge cases.
+  18 unit tests.
+- `ShowPhaseCard.tsx` — single card per phase; today (live chip + class
+  stats), upcoming (entries-open/closed chip + days countdown + deadline
+  warning), draft (amber chip + "Continue setup" CTA), past (compact
+  name + "View" link). 13 unit tests.
+- `MyShowsSection.tsx` — collapsible section header (phase dot + title +
+  count) wrapping ShowPhaseCard list. Past shows start collapsed. 9 unit
+  tests.
+- `AttentionNeededStrip.tsx` — stacked card pinned above phase groups;
+  urgent items (red icon) before info items; links to show detail.
+  Returns null when empty. 5 unit tests.
+- Wired into `SecretaryDashboardPage/index.tsx` — replaced `TodayHero`
+  and `UpcomingShowsStrip` with the new components; class-stage stats
+  from `useMissionControlData` forwarded to today cards.
 
 ### 8. Class Run Sheet — _queued, multi-session_
 

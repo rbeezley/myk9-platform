@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isToday } from 'date-fns';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,10 +9,11 @@ import { useMessageStore } from '@/store/messageStore';
 import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
+import { useMyShows } from '@/hooks/useMyShows';
 import type { SecretaryTask } from './types';
 import { ScopeType } from '@/types/auth-types';
-import { TodayHero } from './TodayHero';
-import { UpcomingShowsStrip } from './UpcomingShowsStrip';
+import { AttentionNeededStrip } from './AttentionNeededStrip';
+import { MyShowsSection } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
 import { MessagesTab } from './MessagesTab';
 import { EntriesTab } from './EntriesTab';
@@ -56,13 +56,7 @@ export function SecretaryDashboardPage() {
     });
   }, [rawShows, isAdmin, clubScopeKey]);
 
-  // Separate today's show from upcoming shows
-  const todayShow = useMemo(() => shows.find(s => isToday(new Date(s.startDate))) ?? null, [shows]);
-
-  const upcomingShows = useMemo(
-    () => shows.filter(s => !isToday(new Date(s.startDate)) && new Date(s.startDate) > new Date()),
-    [shows]
-  );
+  const { today, upcoming, draft, past, attentionNeeded } = useMyShows(shows);
 
   const { data: allTasks = [] } = useSecretaryTasks();
   const openTaskCount = allTasks.filter((t: SecretaryTask) => t.status === 'todo').length;
@@ -110,17 +104,47 @@ export function SecretaryDashboardPage() {
         </Button>
       </div>
 
-      {/* Today Hero */}
-      <TodayHero
-        todayShow={todayShow}
-        nextShow={upcomingShows[0] ?? null}
-        liveClassCount={liveClassCount}
-        notStartedCount={notStartedCount}
-        closedCount={closedCount}
-      />
+      {/* Attention strip */}
+      <AttentionNeededStrip items={attentionNeeded} />
 
-      {/* Upcoming Shows Strip */}
-      <UpcomingShowsStrip shows={upcomingShows} />
+      {/* Phase-grouped show sections */}
+      <div className="px-5 pb-2">
+        {today.length === 0 && upcoming.length === 0 && draft.length === 0 && past.length === 0 && (
+          <div className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">No shows yet.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Create your first show to get started.
+            </p>
+          </div>
+        )}
+        <MyShowsSection
+          phase="today"
+          title="Happening today"
+          subtitle="Check-in is open. Tap to manage rings and results."
+          shows={today}
+          liveClassCount={liveClassCount}
+          notStartedCount={notStartedCount}
+          closedCount={closedCount}
+        />
+        <MyShowsSection
+          phase="upcoming"
+          title="Upcoming"
+          subtitle="Shows that haven't started yet."
+          shows={upcoming}
+        />
+        <MyShowsSection
+          phase="draft"
+          title="Draft — not yet published"
+          subtitle="Complete setup before exhibitors can enter."
+          shows={draft}
+        />
+        <MyShowsSection
+          phase="past"
+          title="Past shows"
+          shows={past}
+          defaultCollapsed
+        />
+      </div>
 
       {/* Tab Bar */}
       <div className="flex border-b px-5">

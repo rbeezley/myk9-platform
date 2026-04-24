@@ -29,6 +29,7 @@ export interface DogEditPanelProps {
 export interface DogFormData extends Record<string, unknown> {
   callName: string;
   registeredName: string;
+  breed: string;
   gender: string;
   dateOfBirth: string;
   color: string;

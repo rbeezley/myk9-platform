@@ -18,6 +18,7 @@ const SignUp: React.FC = () => {
   const { signUp, signInWithGoogle, loading: authLoading } = useAuthContext();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(['exhibitor']);
 
   const isLoading = loading || authLoading;
 
@@ -55,7 +56,11 @@ const SignUp: React.FC = () => {
     setLoading(true);
 
     try {
-      await signUp(email, password, { firstName: firstName.trim(), lastName: lastName.trim() });
+      await signUp(email, password, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        roles: selectedRoles,
+      });
       setEmailSent(true);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
@@ -247,6 +252,32 @@ const SignUp: React.FC = () => {
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
+            </div>
+          </div>
+
+          {/* Role selection */}
+          <div className="mb-4">
+            <p className="mb-2 font-medium text-sm">I am a… (select all that apply)</p>
+            <div className="space-y-1.5">
+              {[
+                { value: 'exhibitor', label: 'Exhibitor (I show dogs)' },
+                { value: 'club_officer', label: 'Club officer / show host' },
+                { value: 'secretary', label: 'Show secretary' },
+              ].map(({ value, label }) => (
+                <label key={value} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedRoles.includes(value)}
+                    onChange={e =>
+                      setSelectedRoles(prev =>
+                        e.target.checked ? [...prev, value] : prev.filter(r => r !== value)
+                      )
+                    }
+                    className="h-4 w-4 rounded border-input accent-primary"
+                  />
+                  <span className="text-sm">{label}</span>
+                </label>
+              ))}
             </div>
           </div>
 

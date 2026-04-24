@@ -46,7 +46,7 @@ describe('SignUpPage', () => {
           <SignUpPage />
         </MemoryRouter>
       );
-      expect(screen.getByRole('checkbox')).toBeInTheDocument();
+      expect(screen.getByLabelText(/I agree to the/i)).toBeInTheDocument();
       expect(screen.getByText(/I agree to the/)).toBeInTheDocument();
     });
 
@@ -86,7 +86,7 @@ describe('SignUpPage', () => {
           <SignUpPage />
         </MemoryRouter>
       );
-      fireEvent.click(screen.getByRole('checkbox'));
+      fireEvent.click(screen.getByLabelText(/I agree to the/i));
       expect(screen.getByRole('button', { name: /sign up/i })).not.toBeDisabled();
     });
 
@@ -96,7 +96,7 @@ describe('SignUpPage', () => {
           <SignUpPage />
         </MemoryRouter>
       );
-      fireEvent.click(screen.getByRole('checkbox'));
+      fireEvent.click(screen.getByLabelText(/I agree to the/i));
       expect(screen.getByRole('button', { name: /continue with google/i })).not.toBeDisabled();
     });
 
@@ -106,7 +106,7 @@ describe('SignUpPage', () => {
           <SignUpPage />
         </MemoryRouter>
       );
-      fireEvent.click(screen.getByRole('checkbox'));
+      fireEvent.click(screen.getByLabelText(/I agree to the/i));
       fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
       expect(mockSignInWithGoogle).toHaveBeenCalled();
     });

@@ -5,7 +5,6 @@
  * Shows entry fees, platform fee, and total with expiration countdown.
  */
 
-
 import { useNavigate } from 'react-router-dom';
 import { Clock, CreditCard, AlertTriangle, ShoppingCart, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -30,11 +29,11 @@ export function CartSummary({
   className,
 }: CartSummaryProps) {
   const navigate = useNavigate();
-  const cart = useCartStore((state) => state.cart);
-  const getTotalEntryFees = useCartStore((state) => state.getTotalEntryFees);
-  const getPlatformFee = useCartStore((state) => state.getPlatformFee);
-  const getTotalAmount = useCartStore((state) => state.getTotalAmount);
-  const getItemCount = useCartStore((state) => state.getItemCount);
+  const cart = useCartStore(state => state.cart);
+  const getTotalEntryFees = useCartStore(state => state.getTotalEntryFees);
+  const getPlatformFee = useCartStore(state => state.getPlatformFee);
+  const getTotalAmount = useCartStore(state => state.getTotalAmount);
+  const getItemCount = useCartStore(state => state.getItemCount);
 
   const {
     timeRemainingFormatted,
@@ -179,15 +178,11 @@ export function CartSummary({
           ) : (
             <>
               <CreditCard className="h-4 w-4 mr-2" />
-              Proceed to Checkout
+              Pay {formatCurrency(total)} and confirm {itemCount === 1 ? 'entry' : 'entries'}
             </>
           )}
         </Button>
-        <Button
-          variant="outline"
-          onClick={handleContinueShopping}
-          className="w-full"
-        >
+        <Button variant="outline" onClick={handleContinueShopping} className="w-full">
           Continue Shopping
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>

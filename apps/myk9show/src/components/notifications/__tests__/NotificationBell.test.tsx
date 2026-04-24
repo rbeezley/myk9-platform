@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
+import { screen, fireEvent } from '@testing-library/react';
 import { NotificationBell } from '../NotificationBell';
 import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';

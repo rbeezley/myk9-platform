@@ -6,9 +6,7 @@ function rawToEntry(row: RawEntryRow): RunSheetEntry {
   const dog = row.dog;
   const dogName = dog?.call_name ?? dog?.name ?? 'Unknown Dog';
   const owner = dog?.owner;
-  const ownerName = owner
-    ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim()
-    : '';
+  const ownerName = owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '';
 
   const isCheckedIn = row.check_in_status === 'checked-in';
   const isScratched = row.check_in_status === 'pulled';
@@ -41,11 +39,10 @@ function rawToEntry(row: RawEntryRow): RunSheetEntry {
 
 export function buildRunSheetEntries(rows: RawEntryRow[], sortMode: SortMode): RunSheetEntry[] {
   const entries = rows.map(rawToEntry);
-  if (sortMode === 'armband-asc') {
-    return [...entries].sort((a, b) => parseInt(a.armband, 10) - parseInt(b.armband, 10));
-  }
-  if (sortMode === 'armband-desc') {
-    return [...entries].sort((a, b) => parseInt(b.armband, 10) - parseInt(a.armband, 10));
+  if (sortMode === 'armband-asc' || sortMode === 'armband-desc') {
+    const withParsed = entries.map(e => ({ e, n: parseInt(e.armband, 10) }));
+    withParsed.sort((a, b) => (sortMode === 'armband-asc' ? a.n - b.n : b.n - a.n));
+    return withParsed.map(({ e }) => e);
   }
   if (sortMode === 'random') {
     return [...entries].sort(() => Math.random() - 0.5);

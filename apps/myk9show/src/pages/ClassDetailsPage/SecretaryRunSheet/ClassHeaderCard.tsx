@@ -47,9 +47,14 @@ export function ClassHeaderCard({
   const [c1, c2] = cfg.gradient;
   const { Icon } = cfg;
 
-  const checkedIn = entries.filter(e => e.isCheckedIn || e.isScored).length;
-  const finished = entries.filter(e => e.isScored).length;
-  const scratched = entries.filter(e => e.isScratched).length;
+  const { checkedIn, finished, scratched } = entries.reduce(
+    (acc, e) => ({
+      checkedIn: acc.checkedIn + (e.isCheckedIn || e.isScored ? 1 : 0),
+      finished: acc.finished + (e.isScored ? 1 : 0),
+      scratched: acc.scratched + (e.isScratched ? 1 : 0),
+    }),
+    { checkedIn: 0, finished: 0, scratched: 0 }
+  );
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 mb-5">

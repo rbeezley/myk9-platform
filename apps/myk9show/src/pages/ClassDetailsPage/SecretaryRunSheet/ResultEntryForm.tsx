@@ -42,7 +42,6 @@ export function ResultEntryForm({
       </div>
 
       <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: '1.2fr 1fr 1fr 1fr' }}>
-        {/* Q / NQ toggle */}
         <div>
           <FieldLabel>Result</FieldLabel>
           <div className="flex gap-2">
@@ -71,7 +70,6 @@ export function ResultEntryForm({
           </div>
         </div>
 
-        {/* Time input */}
         <div>
           <FieldLabel>Search time</FieldLabel>
           <input
@@ -83,7 +81,6 @@ export function ResultEntryForm({
           />
         </div>
 
-        {/* Faults stepper */}
         <div>
           <FieldLabel>Faults</FieldLabel>
           <div className="flex h-12 rounded-xl border border-border bg-background overflow-hidden">
@@ -105,7 +102,6 @@ export function ResultEntryForm({
           </div>
         </div>
 
-        {/* Placement pills */}
         <div>
           <FieldLabel>Placement</FieldLabel>
           <div className="flex gap-1 h-12">
@@ -127,7 +123,6 @@ export function ResultEntryForm({
         </div>
       </div>
 
-      {/* Notes */}
       <div className="mb-4">
         <FieldLabel>
           Notes{' '}

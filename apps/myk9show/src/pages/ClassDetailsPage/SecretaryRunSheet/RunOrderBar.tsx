@@ -5,7 +5,6 @@ import type { SortMode } from './types';
 interface RunOrderBarProps {
   sortMode: SortMode;
   onSort: (mode: SortMode) => void;
-  onRandom: () => void;
 }
 
 function SortChip({
@@ -32,7 +31,7 @@ function SortChip({
   );
 }
 
-export function RunOrderBar({ sortMode, onSort, onRandom }: RunOrderBarProps) {
+export function RunOrderBar({ sortMode, onSort }: RunOrderBarProps) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 mb-4">
       <ListOrdered size={18} className="text-muted-foreground shrink-0" />
@@ -53,7 +52,7 @@ export function RunOrderBar({ sortMode, onSort, onRandom }: RunOrderBarProps) {
           active={sortMode === 'armband-desc'}
           onClick={() => onSort('armband-desc')}
         />
-        <SortChip label="Random" active={sortMode === 'random'} onClick={onRandom} />
+        <SortChip label="Random" active={sortMode === 'random'} onClick={() => onSort('random')} />
       </div>
       <div className="flex-1" />
       <span className="flex items-center gap-1 text-xs text-muted-foreground">

@@ -22,7 +22,6 @@ export function SecretaryRunSheet({
   const {
     sortMode,
     onSort,
-    onRandom,
     expandedId,
     setExpandedId,
     classPhase,
@@ -37,7 +36,7 @@ export function SecretaryRunSheet({
   const timeLimit = currentClass.timeLimit1 ?? '–';
 
   return (
-    <div>
+    <>
       <ClassHeaderCard
         element={currentClass.element ?? 'Container'}
         level={currentClass.level ?? ''}
@@ -50,7 +49,7 @@ export function SecretaryRunSheet({
         onCloseClass={onCloseClass}
       />
 
-      <RunOrderBar sortMode={sortMode} onSort={onSort} onRandom={onRandom} />
+      <RunOrderBar sortMode={sortMode} onSort={onSort} />
 
       <div className="space-y-2.5">
         {sortedEntries.map((entry, idx) => (
@@ -72,6 +71,6 @@ export function SecretaryRunSheet({
           </p>
         )}
       </div>
-    </div>
+    </>
   );
 }

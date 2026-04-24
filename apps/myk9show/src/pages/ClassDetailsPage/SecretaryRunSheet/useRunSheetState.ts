@@ -18,7 +18,6 @@ interface UseRunSheetStateProps {
 interface UseRunSheetStateReturn {
   sortMode: SortMode;
   onSort: (mode: SortMode) => void;
-  onRandom: () => void;
   expandedId: string | null;
   setExpandedId: (id: string | null) => void;
   classPhase: ClassPhase;
@@ -47,30 +46,28 @@ export function useRunSheetState({
     return buildRunSheetEntries(rawEntries, sortMode);
   }, [rawEntries, sortMode, randomSnapshot]);
 
-  const onSort = (mode: SortMode) => setSortMode(mode);
-
-  const onRandom = () => {
-    setRandomSnapshot(buildRunSheetEntries(rawEntries, 'random'));
-    setSortMode('random');
+  const onSort = (mode: SortMode) => {
+    if (mode === 'random') setRandomSnapshot(buildRunSheetEntries(rawEntries, 'random'));
+    setSortMode(mode);
   };
 
-  const onCheckIn = async (entryId: string, checked: boolean) => {
-    const { updateCheckInStatus } = useEntryStore.getState();
+  const setCheckInStatus = async (
+    entryId: string,
+    status: 'checked-in' | 'no-status' | 'pulled',
+    errorMsg: string
+  ) => {
     try {
-      await updateCheckInStatus(entryId, checked ? 'checked-in' : 'no-status', userId);
+      await useEntryStore.getState().updateCheckInStatus(entryId, status, userId);
     } catch {
-      toast.error('Failed to update check-in');
+      toast.error(errorMsg);
     }
   };
 
-  const onScratch = async (entryId: string, scratched: boolean) => {
-    const { updateCheckInStatus } = useEntryStore.getState();
-    try {
-      await updateCheckInStatus(entryId, scratched ? 'pulled' : 'no-status', userId);
-    } catch {
-      toast.error('Failed to scratch entry');
-    }
-  };
+  const onCheckIn = (entryId: string, checked: boolean) =>
+    setCheckInStatus(entryId, checked ? 'checked-in' : 'no-status', 'Failed to update check-in');
+
+  const onScratch = (entryId: string, scratched: boolean) =>
+    setCheckInStatus(entryId, scratched ? 'pulled' : 'no-status', 'Failed to scratch entry');
 
   const onSaveResult = async (entryId: string, result: RunSheetResult) => {
     const { recordResult } = useEntryStore.getState();
@@ -111,7 +108,6 @@ export function useRunSheetState({
   return {
     sortMode,
     onSort,
-    onRandom,
     expandedId,
     setExpandedId,
     classPhase,

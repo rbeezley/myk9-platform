@@ -49,19 +49,16 @@ export function RunSheetRow({
         !isScored && !isScratched && 'border-border'
       )}
     >
-      {/* Collapsed row */}
       <div
         className="grid items-center gap-4 px-4 py-3.5"
         style={{ gridTemplateColumns: '24px 44px 44px 1fr auto auto' }}
       >
-        {/* Drag handle — visual only */}
         <GripVertical
           size={18}
           className="text-muted-foreground/25 cursor-not-allowed"
           aria-hidden
         />
 
-        {/* Position badge */}
         <div
           className={cn(
             'w-11 h-11 rounded-xl flex items-center justify-center font-mono text-lg font-bold',
@@ -71,10 +68,8 @@ export function RunSheetRow({
           {isScratched ? '–' : position}
         </div>
 
-        {/* Dog avatar */}
         <PersonAvatar name={entry.dogName} size="sm" className="h-11 w-11" />
 
-        {/* Dog info */}
         <div className="min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-base font-bold text-foreground">{entry.dogName}</span>
@@ -91,7 +86,6 @@ export function RunSheetRow({
           </div>
         </div>
 
-        {/* Status indicator */}
         <div className="flex items-center gap-2">
           {isScored && result && (
             <>
@@ -145,7 +139,6 @@ export function RunSheetRow({
           )}
         </div>
 
-        {/* Action buttons */}
         <div className="flex items-center gap-2">
           {!isScratched && (
             <Button
@@ -176,7 +169,6 @@ export function RunSheetRow({
         </div>
       </div>
 
-      {/* Expanded result form */}
       {expanded && !isScratched && (
         <ResultEntryForm
           dogName={entry.dogName}

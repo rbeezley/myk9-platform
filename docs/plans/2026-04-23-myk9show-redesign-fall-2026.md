@@ -85,21 +85,43 @@ Existing components already fit: `Button size="xl"` (56px),
 - `BrowsePeoplePage` page shell migration (uses old raw div layout,
   not `PageShell`/`PageHeader`) deferred to a future cleanup pass.
 
-### 3. Unified Detail shell — _queued_
+### 3. Unified Detail shell — _landed_ (2026-04-23)
 
-Hero + tabs pattern for Show / Dog / Club / Person detail. Extend
-existing detail pages. Tabs are count-labeled (e.g. "Trials (3)").
+- `DetailHero`: added `eyebrow` (small label above title) and `cover`
+  (200px media slot on the left) props; all detail pages now share the
+  same hero layout.
+- `ShowDateBlock`: calendar-style date block used as the show cover
+  image in `ShowDetailsPage`.
+- `BrowseCard`: Direction-B horizontal row card (avatar | facts | action)
+  applied to Dogs, Clubs, People browse pages; grid changed to `xl:cols-2`.
+- Count-labeled tabs (`"Trials (3)"`) wired into `ShowDetailsPage`.
+- 13 unit tests for `BrowseCard`.
 
-### 4. Dog detail with rolling title progress — _queued_
+### 4. Dog detail with rolling title progress — _landed_ (2026-04-24)
 
-"Novice Container — 2/3 Qs" with a 3-pip progress row. One row per
-in-progress title track; completed titles render as a solid Chip.
-Placed above the shows/results tab.
+- `RollingTitleProgress`: pip row + earned-pill card placed above
+  `PrimaryTabs` in `DogDetailsTabs`. One row per in-progress title
+  track (element/level label, pip dots, Q count, last-Q date/show);
+  completed titles as green Chip pills in a footer.
+- `formatMonthDay()` added to `dateFormat.ts` for "Apr 12" formatting.
+- 14 unit tests covering empty states, pips, labels, last-Q date,
+  multi-sport, accessible aria-label.
 
-### 5. Exhibitor "My entries at this show" + "Where to be & when" timeline — _queued_
+### 5. Exhibitor "My entries at this show" + "Where to be & when" timeline — _landed_ (2026-04-24)
 
-Single page, threads exhibitor flow end-to-end. Grouped by dog; top
-timeline shows every class across the weekend.
+- `useShowEntriesForUser.ts` — new hook joining entry store + class store +
+  dog store. Produces `allEntries` (sorted by date+time, for the timeline)
+  and `dogGroups` (grouped by dog). Fields: element, level, classTitle,
+  trialDate, dayLabel, startTime, judgeName, dogsAhead, hasResult, result.
+  14 unit tests.
+- `WhereToBe.tsx` — "Where to be & when" timeline card: day-grouped rows of
+  [time | dog initial | dog · class | result/Upcoming chip | chevron]. 11
+  unit tests.
+- `DogEntriesSection.tsx` — per-dog block: avatar + name + class-count chip
+  header, then entry rows (element icon square | class | meta | result/chip |
+  link to class detail).
+- `MyEntriesTab.tsx` — replaced old DataTable/LiveClassCard view with
+  WhereToBe + DogEntriesSection. Summary count line above the timeline.
 
 ### 6. Class detail — before/after views — _queued_
 

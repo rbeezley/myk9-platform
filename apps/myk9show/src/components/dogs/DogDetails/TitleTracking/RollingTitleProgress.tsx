@@ -108,7 +108,7 @@ const RollingTitleProgress: React.FC<RollingTitleProgressProps> = ({ dogId, dogN
   const displayName = dogName ?? 'this dog';
 
   return (
-    <div className="rounded-xl border bg-card mb-6 overflow-hidden">
+    <div className="rounded-xl border bg-card overflow-hidden">
       <div className="px-4 pt-5 pb-2 flex items-start justify-between gap-4">
         <div>
           <div className="text-sm font-semibold">Title progress</div>
@@ -116,6 +116,7 @@ const RollingTitleProgress: React.FC<RollingTitleProgressProps> = ({ dogId, dogN
             How close {displayName} is to the next title in each track
           </div>
         </div>
+        {/* TODO: derive sport label from template when multi-sport dogs are supported */}
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pt-0.5">
           Scent work
         </span>

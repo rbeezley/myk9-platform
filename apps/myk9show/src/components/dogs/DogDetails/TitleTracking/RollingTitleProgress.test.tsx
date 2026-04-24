@@ -27,15 +27,32 @@ function makeTrack(overrides: Partial<TitleProgressResult>): TitleProgressResult
     prerequisiteMet: true,
     isSuperseded: false,
     legs: [
-      { id: 'leg-1', source: 'platform', element: 'Container', level: 'Novice', trial_date: '2026-04-12', show_name: 'Millbrook' },
-      { id: 'leg-2', source: 'platform', element: 'Container', level: 'Novice', trial_date: '2026-03-29', show_name: 'Hudson Valley' },
+      {
+        id: 'leg-1',
+        source: 'platform',
+        element: 'Container',
+        level: 'Novice',
+        trial_date: '2026-04-12',
+        show_name: 'Millbrook',
+      },
+      {
+        id: 'leg-2',
+        source: 'platform',
+        element: 'Container',
+        level: 'Novice',
+        trial_date: '2026-03-29',
+        show_name: 'Hudson Valley',
+      },
     ],
     sortOrder: 1,
     ...overrides,
   };
 }
 
-function mockTitleProgress(progressBySport: Record<string, TitleProgressResult[]>, isLoading = false) {
+function mockTitleProgress(
+  progressBySport: Record<string, TitleProgressResult[]>,
+  isLoading = false
+) {
   vi.mocked(useTitleProgress).mockReturnValue({
     progressBySport,
     templates: [],
@@ -110,7 +127,12 @@ describe('RollingTitleProgress', () => {
   });
 
   it('shows the "Titles earned" section for earned non-superseded titles', () => {
-    const earned = makeTrack({ isEarned: true, isSuperseded: false, earnedDate: '2026-02-22', earnedLegs: 3 });
+    const earned = makeTrack({
+      isEarned: true,
+      isSuperseded: false,
+      earnedDate: '2026-02-22',
+      earnedLegs: 3,
+    });
     mockTitleProgress({ sport1: [earned] });
     render(<RollingTitleProgress dogId="dog-1" />);
     expect(screen.getByText('Titles earned')).toBeInTheDocument();
@@ -125,7 +147,12 @@ describe('RollingTitleProgress', () => {
   });
 
   it('renders multiple in-progress tracks from multiple sports', () => {
-    const track1 = makeTrack({ titleId: 't1', abbreviation: 'SCN', earnedLegs: 1, requiredLegs: 3 });
+    const track1 = makeTrack({
+      titleId: 't1',
+      abbreviation: 'SCN',
+      earnedLegs: 1,
+      requiredLegs: 3,
+    });
     const track2 = makeTrack({
       titleId: 't2',
       abbreviation: 'SIN',
@@ -133,7 +160,14 @@ describe('RollingTitleProgress', () => {
       earnedLegs: 2,
       requiredLegs: 3,
       legs: [
-        { id: 'leg-3', source: 'platform', element: 'Interior', level: 'Novice', trial_date: '2026-04-01', show_name: 'Bergen Co' },
+        {
+          id: 'leg-3',
+          source: 'platform',
+          element: 'Interior',
+          level: 'Novice',
+          trial_date: '2026-04-01',
+          show_name: 'Bergen Co',
+        },
       ],
     });
     mockTitleProgress({ sport1: [track1], sport2: [track2] });
@@ -147,5 +181,24 @@ describe('RollingTitleProgress', () => {
     mockTitleProgress({ sport1: [makeTrack({ earnedLegs: 2, requiredLegs: 3 })] });
     render(<RollingTitleProgress dogId="dog-1" />);
     expect(screen.getByLabelText('2 of 3 qualifying runs')).toBeInTheDocument();
+  });
+
+  it('falls back to fullName as row label when legs have no element/level', () => {
+    const track = makeTrack({
+      fullName: 'Scent Work Container Novice',
+      legs: [
+        {
+          id: 'leg-1',
+          source: 'platform',
+          element: '',
+          level: '',
+          trial_date: '2026-04-12',
+          show_name: 'Millbrook',
+        },
+      ],
+    });
+    mockTitleProgress({ sport1: [track] });
+    render(<RollingTitleProgress dogId="dog-1" />);
+    expect(screen.getByText('Scent Work Container Novice')).toBeInTheDocument();
   });
 });

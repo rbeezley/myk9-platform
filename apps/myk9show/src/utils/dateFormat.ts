@@ -3,6 +3,21 @@
  * Re-exports core functions from dateLocal.ts and adds additional formatters.
  */
 
+const MONTH_ABBR = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
 // Re-export core date handling from dateLocal
 export {
   formatDateDisplay,
@@ -44,27 +59,12 @@ export function formatDateMMDDYYYY(dateStr?: string): string {
 export function formatMonthDay(dateStr?: string): string {
   if (!dateStr) return '';
 
-  const MONTHS = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     const parts = dateStr.split('-');
     const monthIdx = parseInt(parts[1], 10) - 1;
     const day = parseInt(parts[2], 10);
     if (monthIdx < 0 || monthIdx > 11) return dateStr;
-    return `${MONTHS[monthIdx]} ${day}`;
+    return `${MONTH_ABBR[monthIdx]} ${day}`;
   }
 
   return '';
@@ -77,30 +77,15 @@ export function formatMonthDay(dateStr?: string): string {
 export function formatDateShortMonth(dateStr?: string): string {
   if (!dateStr) return '';
 
-  const MONTHS = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
   if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
     const [year, month] = dateStr.split('-');
     const monthIdx = parseInt(month, 10) - 1;
-    return `${MONTHS[monthIdx]} '${year.slice(2)}`;
+    return `${MONTH_ABBR[monthIdx]} '${year.slice(2)}`;
   }
 
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return '';
-  return `${MONTHS[date.getMonth()]} '${String(date.getFullYear()).slice(2)}`;
+  return `${MONTH_ABBR[date.getMonth()]} '${String(date.getFullYear()).slice(2)}`;
 }
 
 /**

@@ -1,53 +1,58 @@
-import { render, screen } from '@/test/utils/testUtils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
 import { MyEntriesTab } from '../MyEntriesTab';
 
-vi.mock('@/hooks/useMyEntries', () => ({
-  useMyEntries: () => ({
-    entriesByClass: [
-      {
-        classId: 'c1',
-        className: 'Detective Novice',
-        scored: false,
-        dogsAhead: 3,
-        dogName: 'Tera',
-        armband: '101',
-      },
-      {
-        classId: 'c2',
-        className: 'Handler Discrimination',
-        scored: true,
-        dogsAhead: 0,
-        dogName: 'Tera',
-        armband: '101',
-      },
-    ],
-    isLoading: false,
-    isError: false,
-  }),
+vi.mock('@/hooks/useShowEntriesForUser', () => ({ useShowEntriesForUser: vi.fn() }));
+vi.mock('@/store/entryStore', () => ({ useEntryStore: vi.fn() }));
+vi.mock('@/components/shows/tabs/WhereToBe', () => ({
+  WhereToBe: () => <div data-testid="where-to-be" />,
+}));
+vi.mock('@/components/shows/tabs/DogEntriesSection', () => ({
+  DogEntriesSection: ({ group }: { group: { dogName: string } }) => (
+    <div data-testid="dog-section">{group.dogName}</div>
+  ),
 }));
 
-async function renderInTableView() {
-  const result = render(<MyEntriesTab showId="s1" />);
-  const tableToggle = screen.getByRole('button', { name: /table/i });
-  await result.user.click(tableToggle);
-  return result;
+import { useShowEntriesForUser } from '@/hooks/useShowEntriesForUser';
+import { useEntryStore } from '@/store/entryStore';
+
+function setupEntryStore() {
+  vi.mocked(useEntryStore).mockImplementation(
+    (sel: (s: unknown) => unknown) => sel({ loadEntries: vi.fn() })
+  );
 }
 
-describe('MyEntriesTab table view', () => {
-  it('renders sortable column headers', async () => {
-    await renderInTableView();
-    expect(screen.getByRole('button', { name: /class/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /status/i })).toBeInTheDocument();
+describe('MyEntriesTab copy variants', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupEntryStore();
   });
 
-  it('renders data rows', async () => {
-    await renderInTableView();
-    expect(screen.getByText('Detective Novice')).toBeInTheDocument();
-    expect(screen.getByText('Handler Discrimination')).toBeInTheDocument();
+  it('uses singular "class" and "dog" for counts of 1', () => {
+    vi.mocked(useShowEntriesForUser).mockReturnValue({
+      dogGroups: [{ dogId: 'd1', dogName: 'Maggie', entries: [] }],
+      allEntries: [{}] as never,
+      totalClasses: 1,
+      isLoading: false,
+      isError: false,
+    });
+    render(<MyEntriesTab showId="s1" />);
+    expect(screen.getByText(/1 class across 1 dog/)).toBeInTheDocument();
   });
 
-  it('renders search input', async () => {
-    await renderInTableView();
-    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+  it('uses plural for counts > 1', () => {
+    vi.mocked(useShowEntriesForUser).mockReturnValue({
+      dogGroups: [
+        { dogId: 'd1', dogName: 'Maggie', entries: [] },
+        { dogId: 'd2', dogName: 'Daisy', entries: [] },
+      ],
+      allEntries: [{}, {}] as never,
+      totalClasses: 4,
+      isLoading: false,
+      isError: false,
+    });
+    render(<MyEntriesTab showId="s1" />);
+    expect(screen.getByText(/4 classes across 2 dogs/)).toBeInTheDocument();
   });
 });

@@ -1,11 +1,3 @@
-/**
- * useShowEntriesForUser — enriched entry data for the "My entries at this show" redesign.
- *
- * Joins the entry store with class store and dog store to produce a richer
- * view than useMyEntries: element, level, trialDate, startTime, and result
- * are all resolved here so display components stay pure.
- */
-
 import { useMemo } from 'react';
 import { useEntryStore } from '@/store/entryStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -13,11 +5,8 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import { getClassName } from '@/components/classes/types/classTypes';
+import { entryIsScored } from '@/utils/entryPredicates';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
-
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
 
 export interface EnrichedShowEntry {
   entryId: string;
@@ -60,18 +49,6 @@ export interface UseShowEntriesForUserResult {
   isError: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const EMPTY: UseShowEntriesForUserResult = {
-  dogGroups: [],
-  allEntries: [],
-  totalClasses: 0,
-  isLoading: false,
-  isError: false,
-};
-
 function formatDayLabel(isoDate: string): string {
   const dateOnly = isoDate.split('T')[0];
   if (!dateOnly) return '';
@@ -79,40 +56,34 @@ function formatDayLabel(isoDate: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-function entryIsScored(entry: SyncableShowEntry): boolean {
-  return entry.status === 'completed' || !!entry.competitionData;
-}
-
 function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
   if (a.trialDate !== b.trialDate) return a.trialDate.localeCompare(b.trialDate);
   return a.startTime.localeCompare(b.startTime);
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
 export function useShowEntriesForUser(showId: string | undefined): UseShowEntriesForUserResult {
   const { userWithRoles } = useAuthContext();
-  const storeEntries = useEntryStore(s => s.entries);
-  const isLoading = useEntryStore(s => s.isLoading);
-  const error = useEntryStore(s => s.error);
+  const { entries: storeEntries, isLoading, error } = useEntryStore(s => ({
+    entries: s.entries,
+    isLoading: s.isLoading,
+    error: s.error,
+  }));
   const { classes } = useClassStoreCompat();
   const { dogs } = useDogStoreCompat();
 
   const databaseUserId = userWithRoles?.databaseUserId;
 
   return useMemo(() => {
-    if (!showId || !databaseUserId) {
-      return { ...EMPTY, isLoading, isError: !!error };
-    }
+    const empty = { dogGroups: [], allEntries: [], totalClasses: 0, isLoading, isError: !!error };
+
+    if (!showId || !databaseUserId) return empty;
 
     const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
-    if (myDogIds.size === 0) return { ...EMPTY, isLoading, isError: !!error };
+    if (myDogIds.size === 0) return empty;
 
     const allShowEntries = storeEntries.filter(e => e.showId === showId);
     const myEntries = allShowEntries.filter(e => myDogIds.has(e.dogId));
-    if (myEntries.length === 0) return { ...EMPTY, isLoading, isError: !!error };
+    if (myEntries.length === 0) return empty;
 
     const classMap = new Map(classes.map(c => [c.id, c]));
     const dogNameMap = new Map(
@@ -175,9 +146,9 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
           ? {
               result: {
                 qualified: compData.qualified ?? false,
-                time: compData.time ?? undefined,
-                placement: compData.placement ? parseInt(compData.placement, 10) : undefined,
-                faults: compData.faults ?? undefined,
+                ...(compData.time != null ? { time: compData.time } : {}),
+                ...(compData.placement ? { placement: parseInt(compData.placement, 10) } : {}),
+                ...(compData.faults != null ? { faults: compData.faults } : {}),
               },
             }
           : {}),
@@ -186,7 +157,6 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
 
     const allEntries = [...enriched].sort(compareByTime);
 
-    // Group by dog, preserving dog order from the store.
     const dogGroupMap = new Map<string, EnrichedShowEntry[]>();
     for (const entry of enriched) {
       const bucket = dogGroupMap.get(entry.dogId);

@@ -1,10 +1,3 @@
-/**
- * DogEntriesSection — per-dog block in the exhibitor "My entries" redesign.
- *
- * Shows a dog header (name, armband, class count) followed by a list of
- * entry rows (element | class title | day/time | result or upcoming | link).
- */
-
 import { Link } from 'react-router-dom';
 import {
   Package,
@@ -18,11 +11,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
+import { PlacementPill } from '@/components/base/PlacementPill';
 import type { DogEntriesGroup, EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
-
-// ---------------------------------------------------------------------------
-// Element icon mapping (Scent Work elements → Lucide icons)
-// ---------------------------------------------------------------------------
 
 type ElementIconConfig = { icon: React.ElementType; bg: string; fg: string };
 
@@ -45,10 +35,6 @@ function getElementIcon(element: string): ElementIconConfig {
   return ELEMENT_ICONS[element] ?? FALLBACK_ICON;
 }
 
-// ---------------------------------------------------------------------------
-// Components
-// ---------------------------------------------------------------------------
-
 interface DogEntriesSectionProps {
   group: DogEntriesGroup;
   showId: string;
@@ -59,7 +45,6 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
 
   return (
     <section aria-label={`${dogName}'s entries`} className="space-y-3">
-      {/* Dog header */}
       <div className="flex items-center gap-3 pb-2 border-b border-border">
         <DogInitialAvatar name={dogName} />
         <div className="flex-1 min-w-0">
@@ -70,7 +55,6 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
         </Chip>
       </div>
 
-      {/* Entry rows */}
       <div className="space-y-2">
         {entries.map(entry => (
           <EntryRow key={entry.entryId} entry={entry} showId={showId} />
@@ -115,18 +99,15 @@ function EntryRow({ entry, showId }: EntryRowProps) {
       className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/40 transition-colors"
       aria-label={`${entry.classTitle} — view class`}
     >
-      {/* Element icon */}
       <span className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${bg}`}>
         <Icon className={`h-5 w-5 ${fg}`} />
       </span>
 
-      {/* Class info */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">{entry.classTitle || 'Unnamed Class'}</p>
         {meta && <p className="text-xs text-muted-foreground truncate mt-0.5">{meta}</p>}
       </div>
 
-      {/* Result or status */}
       <EntryResultBadge entry={entry} />
 
       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -161,22 +142,7 @@ function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
           {time}
         </span>
       )}
-      {qualified && placement && <PlacementPill placement={placement} />}
+      {qualified && placement && <PlacementPill placement={placement} size="sm" />}
     </div>
-  );
-}
-
-const PLACEMENT_STYLES: Record<number, string> = {
-  1: 'bg-yellow-400 text-yellow-900',
-  2: 'bg-zinc-300 text-zinc-800',
-  3: 'bg-amber-600 text-amber-50',
-  4: 'bg-indigo-400 text-indigo-50',
-};
-
-function PlacementPill({ placement }: { placement: number }) {
-  const label = ['1st', '2nd', '3rd', '4th'][placement - 1] ?? `${placement}th`;
-  const style = PLACEMENT_STYLES[placement] ?? 'bg-muted text-muted-foreground';
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${style}`}>{label}</span>
   );
 }

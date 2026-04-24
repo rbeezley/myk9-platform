@@ -1,8 +1,13 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { SyncableShowEntry } from '@/store/entry-store-types';
 
 interface EntryWithStatus {
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
+}
+
+export function entryIsScored(e: SyncableShowEntry): boolean {
+  return e.status === 'completed' || !!e.competitionData;
 }
 
 export function isPendingEntry(e: EntryWithStatus): boolean {

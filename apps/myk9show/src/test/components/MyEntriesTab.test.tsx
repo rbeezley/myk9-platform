@@ -1,148 +1,93 @@
-import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { screen } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 
-let mockViewMode = 'cards';
-vi.mock('@/hooks/useViewPreference', () => ({
-  useViewPreference: () => [
-    mockViewMode,
-    (m: string) => {
-      mockViewMode = m;
-    },
-  ],
-  CARD_TABLE_MODES: [
-    { key: 'cards', label: 'Cards', icon: 'grid' },
-    { key: 'table', label: 'Table', icon: 'table' },
-  ],
-}));
-
-vi.mock('@/components/common/ViewToggle', () => ({
-  ViewToggle: ({ onChange }: { active: string; onChange: (k: string) => void }) => (
-    <div data-testid="view-toggle">
-      <button data-testid="toggle-cards" onClick={() => onChange('cards')}>
-        Cards
-      </button>
-      <button data-testid="toggle-table" onClick={() => onChange('table')}>
-        Table
-      </button>
-    </div>
+vi.mock('@/hooks/useShowEntriesForUser', () => ({ useShowEntriesForUser: vi.fn() }));
+vi.mock('@/store/entryStore', () => ({ useEntryStore: vi.fn() }));
+vi.mock('@/components/shows/tabs/WhereToBe', () => ({
+  WhereToBe: ({ entries }: { entries: unknown[] }) => (
+    <div data-testid="where-to-be">{entries.length} entries</div>
   ),
 }));
-
-vi.mock('@/hooks/useMyEntries', () => ({
-  useMyEntries: vi.fn().mockReturnValue({
-    entriesByClass: [
-      {
-        classId: 'c1',
-        className: 'Novice JWW',
-        dogName: 'Bella',
-        armband: '148',
-        dogsAhead: 3,
-        scored: false,
-      },
-      {
-        classId: 'c2',
-        className: 'Open Standard',
-        dogName: 'Bella',
-        armband: '148',
-        dogsAhead: 8,
-        scored: false,
-      },
-    ],
-    isLoading: false,
-    isError: false,
-  }),
-}));
-
-// Mock LiveClassCard to simplify testing
-vi.mock('@/components/live/LiveClassCard', () => ({
-  LiveClassCard: ({
-    classTitle,
-    userDogsAhead,
-  }: {
-    classTitle: string;
-    userDogsAhead?: number;
-  }) => (
-    <div data-testid="live-class-card">
-      <span>{classTitle}</span>
-      {userDogsAhead !== undefined && <span>{userDogsAhead} dogs ahead</span>}
-    </div>
+vi.mock('@/components/shows/tabs/DogEntriesSection', () => ({
+  DogEntriesSection: ({ group }: { group: { dogName: string } }) => (
+    <div data-testid="dog-entries-section">{group.dogName}</div>
   ),
 }));
-
-// Mock EmptyState
+vi.mock('@/components/common/LoadingSkeleton', () => ({
+  LoadingSkeleton: () => <div data-testid="loading-skeleton" />,
+}));
 vi.mock('@/components/common/EmptyState', () => ({
   EmptyState: ({ title }: { title: string }) => <div data-testid="empty-state">{title}</div>,
 }));
 
-// Mock LoadingSkeleton
-vi.mock('@/components/common/LoadingSkeleton', () => ({
-  LoadingSkeleton: () => <div data-testid="loading-skeleton" />,
-}));
+import { useShowEntriesForUser } from '@/hooks/useShowEntriesForUser';
+import { useEntryStore } from '@/store/entryStore';
 
-// Mock useRBAC (needed by MyEntriesTab)
-vi.mock('@/hooks/useRBAC', () => ({
-  useRBAC: () => ({
-    hasPermission: () => false,
-  }),
-}));
+function setupEntryStore() {
+  vi.mocked(useEntryStore).mockImplementation(
+    (sel: (s: unknown) => unknown) => sel({ loadEntries: vi.fn() })
+  );
+}
+
+function makeGroup(dogName: string) {
+  return { dogId: dogName, dogName, entries: [] };
+}
 
 describe('MyEntriesTab', () => {
   beforeEach(() => {
-    mockViewMode = 'cards';
+    vi.clearAllMocks();
+    setupEntryStore();
   });
 
-  it('renders a LiveClassCard for each class entry', () => {
-    render(
-      <MemoryRouter>
-        <MyEntriesTab showId="show-1" />
-      </MemoryRouter>
-    );
-    expect(screen.getByText('Novice JWW')).toBeInTheDocument();
-    expect(screen.getByText('Open Standard')).toBeInTheDocument();
+  it('shows loading skeleton while loading', () => {
+    vi.mocked(useShowEntriesForUser).mockReturnValue({
+      dogGroups: [], allEntries: [], totalClasses: 0, isLoading: true, isError: false,
+    });
+    render(<MyEntriesTab showId="s1" />);
+    expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
   });
 
-  it('shows DogsAheadBadge on each card', () => {
-    render(
-      <MemoryRouter>
-        <MyEntriesTab showId="show-1" />
-      </MemoryRouter>
-    );
-    expect(screen.getByText('3 dogs ahead')).toBeInTheDocument();
-    expect(screen.getByText('8 dogs ahead')).toBeInTheDocument();
+  it('shows error state with retry button', () => {
+    vi.mocked(useShowEntriesForUser).mockReturnValue({
+      dogGroups: [], allEntries: [], totalClasses: 0, isLoading: false, isError: true,
+    });
+    render(<MyEntriesTab showId="s1" />);
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
-  it('renders ViewToggle', () => {
-    render(
-      <MemoryRouter>
-        <MyEntriesTab showId="show-1" />
-      </MemoryRouter>
-    );
-    expect(screen.getByTestId('view-toggle')).toBeInTheDocument();
+  it('shows empty state when no entries', () => {
+    vi.mocked(useShowEntriesForUser).mockReturnValue({
+      dogGroups: [], allEntries: [], totalClasses: 0, isLoading: false, isError: false,
+    });
+    render(<MyEntriesTab showId="s1" />);
+    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
   });
 
-  it('renders table view with entry data when mode is table', () => {
-    mockViewMode = 'table';
-    render(
-      <MemoryRouter>
-        <MyEntriesTab showId="show-1" />
-      </MemoryRouter>
-    );
-    expect(screen.getByText('Class')).toBeInTheDocument();
-    expect(screen.getByText('My Dog')).toBeInTheDocument();
-    expect(screen.getByText('Novice JWW')).toBeInTheDocument();
-    expect(screen.getAllByText('Bella')).toHaveLength(2);
-    expect(screen.getByText('3 ahead')).toBeInTheDocument();
+  it('renders WhereToBe and one DogEntriesSection per dog', () => {
+    vi.mocked(useShowEntriesForUser).mockReturnValue({
+      dogGroups: [makeGroup('Maggie'), makeGroup('Daisy')],
+      allEntries: [{}] as never,
+      totalClasses: 3,
+      isLoading: false,
+      isError: false,
+    });
+    render(<MyEntriesTab showId="s1" />);
+    expect(screen.getByTestId('where-to-be')).toBeInTheDocument();
+    expect(screen.getByText('Maggie')).toBeInTheDocument();
+    expect(screen.getByText('Daisy')).toBeInTheDocument();
   });
 
-  it('shows Pending status for unscored entries in table', () => {
-    mockViewMode = 'table';
-    render(
-      <MemoryRouter>
-        <MyEntriesTab showId="show-1" />
-      </MemoryRouter>
-    );
-    expect(screen.getAllByText('Pending')).toHaveLength(2);
+  it('shows summary count line', () => {
+    vi.mocked(useShowEntriesForUser).mockReturnValue({
+      dogGroups: [makeGroup('Maggie'), makeGroup('Daisy')],
+      allEntries: [{}] as never,
+      totalClasses: 3,
+      isLoading: false,
+      isError: false,
+    });
+    render(<MyEntriesTab showId="s1" />);
+    expect(screen.getByText(/3 classes across 2 dogs/i)).toBeInTheDocument();
   });
 });

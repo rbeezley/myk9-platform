@@ -1,11 +1,3 @@
-/**
- * WhereToBe — "Where to be & when" timeline in the exhibitor My Entries tab.
- *
- * Groups enriched entries by day (trialDate), sorts within each day by
- * startTime, and renders a compact timeline row per class:
- *   [time] [dog initial] [dog · class] [result or Upcoming chip] [>]
- */
-
 import { Link } from 'react-router-dom';
 import { MapPin, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
@@ -64,15 +56,12 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2.5 hover:bg-muted/70 transition-colors"
       aria-label={`${entry.classTitle} — ${entry.dayLabel} ${entry.startTime}`}
     >
-      {/* Time */}
       <span className="w-16 shrink-0 font-mono text-sm font-semibold tabular-nums">
         {entry.startTime || '—'}
       </span>
 
-      {/* Dog initial avatar */}
       <DogInitial name={entry.dogName} />
 
-      {/* Dog + class */}
       <div className="flex-1 min-w-0">
         <p className="truncate text-sm font-semibold">
           {entry.dogName}
@@ -89,7 +78,6 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
         )}
       </div>
 
-      {/* Result or upcoming */}
       <ResultChip entry={entry} />
 
       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

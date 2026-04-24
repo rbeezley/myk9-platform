@@ -37,6 +37,7 @@ import { DeleteClassDialog } from './DeleteClassDialog';
 import { EditEntryDialog } from './EditEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
+import { SecretaryRunSheet } from './SecretaryRunSheet';
 import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 
@@ -283,18 +284,27 @@ const ClassDetailsPage: React.FC = () => {
 
       <ExhibitorClassCallout classId={classId} />
 
-      <ClassDetailsMain
-        classData={currentClass}
-        classEntries={classEntries}
-        rawEntries={dbRawEntries}
-        parentShow={parentShow}
-        onAddEntry={() => {
-          if (parentShow?.id) {
-            navigate(`/shows/${parentShow.id}/register`);
-          }
-        }}
-        onDeleteEntry={handleDeleteEntry}
-      />
+      {isSecretary || isAdmin ? (
+        <SecretaryRunSheet
+          currentClass={currentClass}
+          dbRawEntries={dbRawEntries}
+          updateClass={updateClass}
+          userId={user?.id ?? ''}
+        />
+      ) : (
+        <ClassDetailsMain
+          classData={currentClass}
+          classEntries={classEntries}
+          rawEntries={dbRawEntries}
+          parentShow={parentShow}
+          onAddEntry={() => {
+            if (parentShow?.id) {
+              navigate(`/shows/${parentShow.id}/register`);
+            }
+          }}
+          onDeleteEntry={handleDeleteEntry}
+        />
+      )}
 
       {/* Dialogs */}
       <ClassEditPanel

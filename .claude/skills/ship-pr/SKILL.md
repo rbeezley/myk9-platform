@@ -1,11 +1,11 @@
 # Ship PR
 
-Use when the user wants to address PR review feedback and merge — or just merge a clean PR. Bundles fix → verify → squash-merge → worktree cleanup in the correct order to avoid the cwd-lockup failure mode.
+Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → self-review loop → squash-merge → worktree cleanup in the correct order.
 
 ## Trigger Phrases
 
-- "ship this PR", "merge the PR", "address review and merge"
-- "fix review comments", "fix review feedback"
+- "ship this PR", "merge the PR", "ship this branch"
+- "address review and merge", "fix review comments"
 - `/ship-pr`
 
 ## Workflow
@@ -13,88 +13,165 @@ Use when the user wants to address PR review feedback and merge — or just merg
 ### Step 0: Establish Context
 
 ```bash
-# Identify current branch and PR
 git branch --show-current
-gh pr view --json number,title,url,reviewDecision,comments
+gh pr view --json number,title,url,reviewDecision,state 2>/dev/null || echo "NO_PR"
 ```
 
-Note the PR number. Note the MAIN REPO path — this is needed for Step 4.
+Note the branch name. Note the MAIN REPO path (always `/Users/richardbeezley/AI Projects/myk9-platform`) — needed for merge step.
 
-The main repo is always: `/Users/richardbeezley/AI Projects/myk9-platform`
+**Branch check:** Never run on `main`. If the current branch is `main`, stop and tell the user.
 
-### Step 1: Read Review Comments
+---
+
+### If NO PR exists → Steps A–D first
+
+#### Step A: Simplify
+
+Invoke `/simplify` against all uncommitted changes. Wait for it to complete. If it makes changes, re-run typecheck and lint before continuing.
+
+#### Step B: Commit
+
+Invoke `/commit` — it handles staging, typecheck, lint, scoped tests, commit message, and push.
+
+#### Step C: Open PR
+
+```bash
+gh pr create --title "<conventional-commit-style title>" --body "$(cat <<'EOF'
+## Summary
+- <bullet per logical change>
+
+## Test Plan
+- [ ] pnpm typecheck passes
+- [ ] pnpm lint passes
+- [ ] related tests pass
+
+🤖 Generated with [Claude Code](https://claude.ai/claude-code)
+EOF
+)"
+
+PR_NUMBER=$(gh pr view --json number -q '.number')
+BASE_SHA=$(git rev-parse origin/main)
+HEAD_SHA=$(git rev-parse HEAD)
+```
+
+Then continue to **Step 1** (self-review loop).
+
+---
+
+### If PR already exists → Steps 1–3 first
+
+#### Step 1: Read Review Comments
 
 ```bash
 gh pr view <number> --comments
 ```
 
-Read ALL comments. Group them by: (a) blocking issues to fix, (b) suggestions/nits to address, (c) praise/resolved items to skip.
+Read ALL comments. Group: (a) blocking issues, (b) nits, (c) resolved/praise — skip (c).
 
-### Step 2: Apply Fixes
+If no unresolved comments, skip to Step 2 (verify).
 
-Work through blocking issues first, then nits. For each fix:
-- Read the relevant file before editing
-- Make the minimal change that addresses the comment
-- Do not refactor unrelated code
+#### Step 2: Apply Fixes
 
-### Step 3: Verify
+Work through blocking issues first, then nits:
 
-Run in parallel:
+- Read each file before editing
+- Minimal change — no surrounding refactors
+
+#### Step 3: Verify
 
 ```bash
-pnpm typecheck
-pnpm lint
+pnpm typecheck && pnpm lint
 ```
 
-Then run related tests (use the same scoping logic as the `/commit` skill: full suite if >3 source files changed, related tests only if ≤3).
+Run related tests (full suite if >3 source files changed, otherwise scoped). Fix failures — max 5 iterations, stop and report if still failing.
 
-**If checks fail:** fix the root cause, re-run. Max 5 iterations — stop and report if still failing after 5.
+After fixes, invoke `/commit` to push.
 
-### Step 4: Commit and Push
+---
 
-Use the `/commit` skill for this step. It handles staging, commit message, push, and migration check.
+### Step 4: Self-Review via Subagent
+
+```bash
+BASE_SHA=$(git rev-parse origin/main)
+HEAD_SHA=$(git rev-parse HEAD)
+PR_NUMBER=$(gh pr view --json number -q '.number')
+```
+
+Spawn a `superpowers:code-reviewer` subagent:
+
+```
+Review the following implementation.
+
+WHAT_WAS_IMPLEMENTED: <one-line description of the branch>
+PLAN_OR_REQUIREMENTS: <plan file if one exists, otherwise "feature branch">
+BASE_SHA: <base_sha>
+HEAD_SHA: <head_sha>
+DESCRIPTION: PR #<number> — <title>
+
+Repo path: /Users/richardbeezley/AI Projects/myk9-platform
+
+Run `gh pr diff <number>` to see the full diff.
+
+Check for:
+1. TypeScript correctness — no `any`, correct exactOptionalPropertyTypes usage
+2. Test coverage — new logic has tests, no tests disabled
+3. Logic errors, edge cases, boundary conditions
+4. Security — RLS bypass, privilege escalation, unvalidated input, data integrity
+5. CLAUDE.md conventions — pnpm not npm, offline-first patterns, files under 500 lines
+
+Return EXACTLY one of:
+- APPROVED
+- A numbered list of issues with file:line, description, severity (critical/high/medium/low)
+```
+
+If `APPROVED` → skip to Step 5.
+
+Otherwise apply findings (critical + high required; medium if straightforward), invoke `/commit`, re-spawn subagent with updated `HEAD_SHA`. **Max 5 review rounds** — escalate to user if not clean after 5.
+
+---
 
 ### Step 5: Squash-Merge from MAIN REPO
 
 **CRITICAL: Never run `gh pr merge` from inside the feature worktree.**
 
 ```bash
-# 1. Confirm push succeeded and CI is green (or approved)
-gh pr view <number> --json statusCheckRollup,reviewDecision
+# 1. Verify PR state
+gh pr view $PR_NUMBER --json state,mergedAt
 
-# 2. Switch to main repo directory BEFORE merging
+# 2. Switch to main repo BEFORE merging
 cd "/Users/richardbeezley/AI Projects/myk9-platform"
 
 # 3. Squash-merge
-gh pr merge <number> --squash --delete-branch
+gh pr merge $PR_NUMBER --squash --delete-branch
+
+# 4. Confirm
+gh pr view $PR_NUMBER --json state,mergedAt
 ```
 
-Wait for the merge to complete and confirm with:
+Do not proceed until `state == "MERGED"`.
+
+---
+
+### Step 6: Cleanup — LAST STEP ONLY
 
 ```bash
-gh pr view <number> --json state,mergedAt
-```
-
-### Step 6: Cleanup Worktree — LAST STEP ONLY
-
-Only after merge is confirmed. Do NOT do this earlier.
-
-```bash
-# From MAIN repo dir (already there from Step 5)
+# Already in main repo from Step 5
 git fetch --prune
-
-# Update main BEFORE removing the worktree
 git checkout main
 git pull --ff-only
 
 # git worktree remove is the ABSOLUTE LAST command — nothing runs after this
-git worktree remove "/Users/richardbeezley/AI Projects/myk9-platform/.claude/worktrees/<worktree-name>" --force 2>/dev/null || true
+git worktree remove "/Users/richardbeezley/AI Projects/myk9-platform/.claude/worktrees/<branch-name>" --force 2>/dev/null || true
 ```
+
+---
 
 ## Rules
 
+- NEVER run on `main` directly
 - NEVER run `gh pr merge` from inside a worktree directory
-- NEVER remove the worktree before the merge is confirmed
+- NEVER remove the worktree before merge is confirmed AND main is updated
 - Worktree removal is ALWAYS the final command
-- If the branch was squash-merged, `git log` comparison will show it as "unmerged" — verify via `gh pr view --json state` instead
-- Use `pnpm`, not `npm` or `npx`, for all package commands
+- Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
+- Use `pnpm`, not `npm` or `npx`
+- Max 5 verify iterations, max 5 review rounds — escalate if limits hit

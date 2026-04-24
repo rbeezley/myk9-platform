@@ -3,6 +3,7 @@
 @import './pages/scoring/styles/containers.css';
 
 /* Import custom styles */
+@import './styles/redesign-tokens.css';
 @import './styles/calendar.css';
 @import './styles/myk9-template-management.css';
 @import './styles/myk9-dog-details.css';

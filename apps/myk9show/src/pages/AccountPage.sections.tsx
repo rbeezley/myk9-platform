@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Camera, Dog, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,18 +14,19 @@ import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { Dog as DogType } from '@/types/dog-types';
 
-// ── Profile ───────────────────────────────────────────────────────────────────
-
 export function ProfileSection() {
   const form = useProfileForm();
   const updatePerson = useUpdatePerson();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { upload, uploading } = useAvatarUpload({
-    userId: form.personId || '',
-    onSuccess: url => {
+
+  const onSuccess = useCallback(
+    (url: string) => {
       if (form.person) updatePerson.mutate({ ...form.person, profileImage: url });
     },
-  });
+    [form.person, updatePerson]
+  );
+
+  const { upload, uploading } = useAvatarUpload({ userId: form.personId || '', onSuccess });
   const fullName = `${form.person?.firstName || ''} ${form.person?.lastName || ''}`.trim();
 
   return (
@@ -165,8 +166,6 @@ export function ProfileSection() {
   );
 }
 
-// ── Linked dogs ───────────────────────────────────────────────────────────────
-
 export function DogsSection() {
   const { data: rawDogs, isLoading } = useDogsQuery();
   // mapDogsWithOwners returns Record<string,unknown>[]; cast is intentional pending mapper fix
@@ -226,8 +225,6 @@ export function DogsSection() {
     </Card>
   );
 }
-
-// ── Delete ────────────────────────────────────────────────────────────────────
 
 export function DeleteSection() {
   const { signOut } = useAuthContext();

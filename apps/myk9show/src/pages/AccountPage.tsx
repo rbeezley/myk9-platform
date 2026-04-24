@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   AlertTriangle,
   Bell,
@@ -29,9 +29,14 @@ import { DeviceManager } from '@/components/preferences/DeviceManager';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { downloadFile } from '@/lib/export';
 import { ProfileSection, DogsSection, DeleteSection } from './AccountPage.sections';
 import type { Section, NavGroup } from './AccountPage.types';
 import type { PreferencesUpdate } from '@/types/user-preferences';
+
+type ActionKey = 'reset' | 'export' | 'import';
+
+const NON_PREF_SECTIONS: ReadonlySet<Section> = new Set(['profile', 'dogs', 'delete']);
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -73,17 +78,6 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-const PREF_SECTIONS: Section[] = [
-  'appearance',
-  'general',
-  'notifications',
-  'privacy',
-  'security',
-  'data',
-  'devices',
-  'install',
-];
-
 export default function AccountPage() {
   const [active, setActive] = useState<Section>('profile');
   const user = useAuthUser();
@@ -97,60 +91,72 @@ export default function AccountPage() {
     exportPreferences,
     importPreferences,
   } = useUserPreferences(user?.id ?? null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<ActionKey | null>(null);
+  const [flash, setFlash] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const flash = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 3000);
-  };
-  const flashErr = (msg: string) => {
-    setErrorMsg(msg);
-    setTimeout(() => setErrorMsg(null), 5000);
-  };
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    },
+    []
+  );
 
-  const handleUpdate = async (updates: PreferencesUpdate) => {
-    try {
-      await updatePreferences(updates);
-      flash('Saved');
-    } catch (e) {
-      flashErr(e instanceof Error ? e.message : 'Failed to save');
-    }
-  };
+  const showFlash = useCallback((msg: string, kind: 'success' | 'error' = 'success') => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    setFlash({ msg, kind });
+    flashTimerRef.current = setTimeout(() => setFlash(null), kind === 'error' ? 5000 : 3000);
+  }, []);
 
-  const handleReset = async (category?: keyof PreferencesUpdate) => {
-    try {
-      setActionLoading('reset');
-      await resetToDefaults(category);
-      flash(`${category ?? 'All preferences'} reset to defaults`);
-    } catch (e) {
-      flashErr(e instanceof Error ? e.message : 'Failed to reset');
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  const withAction = useCallback(
+    async (key: ActionKey, fn: () => Promise<void>) => {
+      try {
+        setActionLoading(key);
+        await fn();
+      } catch (e) {
+        showFlash(e instanceof Error ? e.message : 'Something went wrong', 'error');
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [showFlash]
+  );
 
-  const handleExport = async () => {
-    try {
-      setActionLoading('export');
-      const data = await exportPreferences();
-      const a = Object.assign(document.createElement('a'), {
-        href: URL.createObjectURL(new Blob([data], { type: 'application/json' })),
-        download: `myK9Show-prefs-${new Date().toISOString().slice(0, 10)}.json`,
+  const handleUpdate = useCallback(
+    async (updates: PreferencesUpdate) => {
+      try {
+        await updatePreferences(updates);
+        showFlash('Saved');
+      } catch (e) {
+        showFlash(e instanceof Error ? e.message : 'Failed to save', 'error');
+      }
+    },
+    [updatePreferences, showFlash]
+  );
+
+  const handleReset = useCallback(
+    async (category?: keyof PreferencesUpdate) => {
+      await withAction('reset', async () => {
+        await resetToDefaults(category);
+        showFlash(`${category ?? 'All preferences'} reset to defaults`);
       });
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      flash('Exported');
-    } catch (e) {
-      flashErr(e instanceof Error ? e.message : 'Export failed');
-    } finally {
-      setActionLoading(null);
-    }
-  };
+    },
+    [withAction, resetToDefaults, showFlash]
+  );
 
-  const handleImport = () => {
+  const handleExport = useCallback(async () => {
+    await withAction('export', async () => {
+      const data = await exportPreferences();
+      downloadFile(
+        data,
+        `myK9Show-prefs-${new Date().toISOString().slice(0, 10)}.json`,
+        'application/json'
+      );
+      showFlash('Exported');
+    });
+  }, [withAction, exportPreferences, showFlash]);
+
+  const handleImport = useCallback(() => {
     const input = Object.assign(document.createElement('input'), {
       type: 'file',
       accept: '.json',
@@ -158,21 +164,35 @@ export default function AccountPage() {
     input.onchange = async (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      try {
-        setActionLoading('import');
+      await withAction('import', async () => {
         await importPreferences(await file.text());
-        flash('Imported');
-      } catch (err) {
-        flashErr(err instanceof Error ? err.message : 'Import failed');
-      } finally {
-        setActionLoading(null);
-      }
+        showFlash('Imported');
+      });
     };
     input.click();
-  };
+  }, [withAction, importPreferences, showFlash]);
+
+  const actionButtons = useMemo(
+    () => [
+      {
+        key: 'export' as ActionKey,
+        label: 'Export settings',
+        Icon: Download,
+        action: handleExport,
+      },
+      { key: 'import' as ActionKey, label: 'Import settings', Icon: Upload, action: handleImport },
+      {
+        key: 'reset' as ActionKey,
+        label: 'Reset all settings',
+        Icon: RotateCcw,
+        action: () => handleReset(),
+      },
+    ],
+    [handleExport, handleImport, handleReset]
+  );
 
   const renderSection = () => {
-    if (PREF_SECTIONS.includes(active) && prefsLoading) {
+    if (!NON_PREF_SECTIONS.has(active) && prefsLoading) {
       return (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -232,21 +252,20 @@ export default function AccountPage() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <h1 className="text-2xl font-bold mb-8">Account</h1>
 
-        {successMsg && (
+        {flash?.kind === 'success' && (
           <Alert className="mb-4 border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
             <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-            <AlertDescription>{successMsg}</AlertDescription>
+            <AlertDescription>{flash.msg}</AlertDescription>
           </Alert>
         )}
-        {errorMsg && (
+        {flash?.kind === 'error' && (
           <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{errorMsg}</AlertDescription>
+            <AlertDescription>{flash.msg}</AlertDescription>
           </Alert>
         )}
 
         <div className="flex gap-8">
-          {/* Left rail */}
           <nav className="w-52 shrink-0">
             {NAV_GROUPS.map(group => (
               <div key={group.label || 'danger'} className="mb-4">
@@ -279,54 +298,27 @@ export default function AccountPage() {
               </div>
             ))}
 
-            {/* Preference actions */}
             <div className="mt-4 pt-4 border-t border-border/50 space-y-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground text-xs"
-                onClick={handleExport}
-                disabled={!!actionLoading}
-              >
-                {actionLoading === 'export' ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
-                ) : (
-                  <Download className="h-3.5 w-3.5 mr-2" />
-                )}
-                Export settings
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground text-xs"
-                onClick={handleImport}
-                disabled={!!actionLoading}
-              >
-                {actionLoading === 'import' ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
-                ) : (
-                  <Upload className="h-3.5 w-3.5 mr-2" />
-                )}
-                Import settings
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground text-xs"
-                onClick={() => handleReset()}
-                disabled={!!actionLoading}
-              >
-                {actionLoading === 'reset' ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
-                ) : (
-                  <RotateCcw className="h-3.5 w-3.5 mr-2" />
-                )}
-                Reset all settings
-              </Button>
+              {actionButtons.map(({ key, label, Icon, action }) => (
+                <Button
+                  key={key}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-muted-foreground text-xs"
+                  onClick={action}
+                  disabled={!!actionLoading}
+                >
+                  {actionLoading === key ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                  ) : (
+                    <Icon className="h-3.5 w-3.5 mr-2" />
+                  )}
+                  {label}
+                </Button>
+              ))}
             </div>
           </nav>
 
-          {/* Content */}
           <div className="flex-1 min-w-0">{renderSection()}</div>
         </div>
       </div>

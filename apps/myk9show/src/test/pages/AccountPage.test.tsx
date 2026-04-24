@@ -3,8 +3,6 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
 import AccountPage from '@/pages/AccountPage';
 
-// ── Mock hooks ────────────────────────────────────────────────────────────────
-
 const mockForm = {
   personId: 'p-1',
   person: { id: 'p-1', firstName: 'Jane', lastName: 'Doe', profileImage: null },
@@ -82,8 +80,6 @@ vi.mock('@/components/preferences/DeviceManager', () => ({
 vi.mock('@/components/preferences/InstallAppSettings', () => ({
   InstallAppSettings: () => <div data-testid="install-settings" />,
 }));
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('AccountPage', () => {
   beforeEach(() => {

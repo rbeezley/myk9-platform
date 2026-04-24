@@ -123,10 +123,18 @@ Existing components already fit: `Button size="xl"` (56px),
 - `MyEntriesTab.tsx` — replaced old DataTable/LiveClassCard view with
   WhereToBe + DogEntriesSection. Summary count line above the timeline.
 
-### 6. Class detail — before/after views — _queued_
+### 6. Class detail — before/after views — _landed_ (2026-04-24)
 
-Two states, same page. "Your dogs in this class" callout → "Your
-results" callouts post-class.
+- `useMyEntriesInClass.ts` — hook that joins entry store + dog store to
+  return the current user's entries in a single class with position,
+  dogsAhead, and result data. 11 unit tests.
+- `ExhibitorClassCallout.tsx` — mounts above `ClassDetailsMain` in
+  `ClassDetailsPage`. Renders "Your dogs in this class" (before: position
+  badge, ~N min estimate, "You're up next!" chip) or "Your results" (after:
+  Q/NQ Chip, mono search time, faults, placement pill). Returns null when
+  the user has no entries in this class. 11 unit tests.
+- Score-sheet button deliberately omitted — judges keep paper scoresheets
+  per DESIGN-NOTES "Not in v1".
 
 ### 7. Secretary My Shows — _queued_
 

@@ -36,6 +36,7 @@ import { ClassNotFoundState, EmptyClassState, LoadingClassState } from './ClassS
 import { DeleteClassDialog } from './DeleteClassDialog';
 import { EditEntryDialog } from './EditEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
+import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 
@@ -279,6 +280,8 @@ const ClassDetailsPage: React.FC = () => {
         parentTrial={parentTrial}
         actions={headerActions}
       />
+
+      <ExhibitorClassCallout classId={classId} />
 
       <ClassDetailsMain
         classData={currentClass}

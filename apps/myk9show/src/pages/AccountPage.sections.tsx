@@ -12,6 +12,7 @@ import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import type { Dog as DogType } from '@/types/dog-types';
 
 export function ProfileSection() {
@@ -168,8 +169,7 @@ export function ProfileSection() {
 
 export function DogsSection() {
   const { data: rawDogs, isLoading } = useDogsQuery();
-  // mapDogsWithOwners returns Record<string,unknown>[]; cast is intentional pending mapper fix
-  const dogs = (rawDogs ?? []) as unknown as DogType[];
+  const dogs: DogType[] = mapDatabaseDogsArray((rawDogs ?? []) as Record<string, unknown>[]);
 
   if (isLoading)
     return (

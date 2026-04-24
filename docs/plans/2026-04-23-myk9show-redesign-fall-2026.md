@@ -163,7 +163,14 @@ entry (Q/NQ, time, faults, placement, judge notes), Start/Close class.
 `SecretaryRunSheet` shown to secretary/admin; exhibitors see unchanged
 `ClassDetailsMain`. PR [#83](https://github.com/rbeezley/myk9-platform/pull/83).
 
-### 9. Auth / Settings polish, premium-list wizard, notifications, transactional emails — _last_
+### 9. Auth / Settings polish, premium-list wizard, notifications, transactional emails — **landed** ✓
+
+Role-selection checkboxes on sign-up; post-sign-in redirect to `/shows`; unified `/settings` page
+(profile, notifications, payment, dogs, exports, delete); migration 153 (`notifications` table + RLS);
+`useDbNotifications` React Query hook; `/notifications` history page (day-grouped, type chips);
+History link in bell dropdown; dog breed field with AKC datalist autocomplete; CartSummary dynamic
+pay-and-confirm button; `send-notification` Edge Function (Deno) with HTML email templates via Resend.
+PR [#84](https://github.com/rbeezley/myk9-platform/pull/84).
 
 ## Explicit non-goals
 

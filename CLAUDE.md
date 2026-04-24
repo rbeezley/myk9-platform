@@ -105,6 +105,7 @@ Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render
 
 **Assertion-first for value-sensitive bugs.** When a bug involves a specific value going to a specific place (enum string to a DB column, key in a response object, header in an HTTP call), write the `expect(...).toHaveBeenCalledWith(...)` line first and run it red before touching the implementation. A failing test proves the current wrong value; the fix then flips it green. This catches silent overwrites that visual inspection and typechecking miss.
 
+
 ## Workflow
 
 Update plan/tracking documents (TO-DOS.md, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
@@ -112,6 +113,17 @@ Update plan/tracking documents (TO-DOS.md, sprint docs, debt register) after com
 ## Debugging seed-data / config bugs
 
 Before writing a migration or code fix for a "why doesn't this data flow" bug, **inventory every related table up front** with a single query pass: the role table(s), the permission/config table(s), and the join/link table(s). Writing one migration, pushing it, then discovering a second missing row in a different table is a sign you didn't survey first. For RBAC specifically: check `roles`, `permissions`, and `role_permissions` in the same query batch before writing any `INSERT`. This also means `systematic-debugging`'s full four-phase ceremony can be collapsed when the data path is obvious — go straight to Phase 1 Step 4 (gather evidence across all layers at once).
+
+## Worktree & Merge Workflow
+
+- ALWAYS run `gh pr merge` from the main repo directory, NEVER from inside a feature worktree (causes stale worktree + cwd lockup).
+- Before reporting a branch as having unpushed work, run `gh pr list --state merged --head <branch>` AND grep merged PR titles for the branch's commit messages. Only flag as truly unpushed if both checks return empty.
+- Defer worktree removal to the FINAL step of cleanup, after all other commands have run, to avoid orphaning the shell cwd.
+
+## Database Migrations
+
+- Before writing a migration that references existing rows (e.g., permissions), QUERY the target table first to confirm referenced values exist.
+- Run migration commands from the worktree linked to Supabase, not the main repo.
 
 ## Auto Mode — shared-system writes
 

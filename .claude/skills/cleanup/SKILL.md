@@ -19,11 +19,18 @@ git worktree list
 
 - Worktrees under `.claude/worktrees/` are agent leftovers.
 - A worktree is _stale_ if its branch has been merged into `main` OR its remote tracking branch is gone (`git rev-parse --abbrev-ref <branch>@{u}` fails or prints "(gone)"). The remote-branch-gone signal is reliable because the repo auto-deletes branches on PR merge.
+- **Squash-merge detection:** `git log` comparisons will show a squash-merged branch as "unmerged" because the SHA is rewritten. Before flagging any branch as having unpushed work, run BOTH checks:
+  ```bash
+  gh pr list --state merged --head <branch>
+  gh pr list --state merged | grep -F "$(git log <branch> --not main --oneline | head -1 | cut -d' ' -f2-)"
+  ```
+  Only flag as truly unpushed if both checks return empty.
 - **Self-unmount case:** if cwd is inside a stale worktree, **do not run the removal yet** — removing the directory breaks Claude Code's CWD tracking and blocks all subsequent Bash calls. Collect all stale worktrees to remove, then execute the removal as the very **last** Bash call of the entire cleanup run, after all other checks are complete. Chain everything into one command so no further calls are needed after the directory disappears:
   ```bash
   MAIN="/absolute/path/to/main/repo"
-  git -C "$MAIN" worktree remove --force "/absolute/path/to/stale-worktree" \
-    && git -C "$MAIN" branch -D <stale-branch>
+  # Delete the branch BEFORE removing the worktree — worktree remove is the last command
+  git -C "$MAIN" branch -D <stale-branch> \
+    && git -C "$MAIN" worktree remove --force "/absolute/path/to/stale-worktree"
   ```
   Claude Code will automatically recover the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
 - **Auto-fix** (safe when the branch is merged or upstream is gone): remove the worktree and delete the orphan branch. If the branch has unpushed work or isn't merged, ask first.

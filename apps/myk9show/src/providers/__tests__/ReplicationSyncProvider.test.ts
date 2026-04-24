@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSyncFailureToast, formatDownloadFailureToast } from '../ReplicationSyncProvider';
+import { formatSyncFailureToast, formatDownloadFailureToast } from '../replicationSyncFormatters';
 
 describe('formatSyncFailureToast', () => {
   it('renders the first failing mutation including its error detail', () => {

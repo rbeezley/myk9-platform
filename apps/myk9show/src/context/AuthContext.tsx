@@ -539,6 +539,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       firstName: userProfile?.first_name ?? null,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       // Use auth.user and auth.loading instead of the whole auth object.
       // auth is a plain object literal recreated on every useAuth() call, so including it

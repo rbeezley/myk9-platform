@@ -35,11 +35,7 @@ const ELEVATED_ROLES = new Set<UserRole>([
 export const useDogsQuery = () => {
   const personId = useCurrentPersonId();
   const { getUserRoles } = useAuthContext();
-  const showAll = useMemo(
-    () => ELEVATED_ROLES.has(getPrimaryRole(getUserRoles())),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [getUserRoles]
-  );
+  const showAll = useMemo(() => ELEVATED_ROLES.has(getPrimaryRole(getUserRoles())), [getUserRoles]);
 
   return useQuery({
     queryKey: [...queryKeys.dogs, personId, showAll],

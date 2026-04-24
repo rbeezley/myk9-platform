@@ -34,6 +34,8 @@ import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTabl
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import type { SyncFailedEventDetail } from './replicationSyncFormatters';
+import { formatSyncFailureToast, formatDownloadFailureToast } from './replicationSyncFormatters';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -88,31 +90,6 @@ const replicationLogger = {
 const mutationManager = new MutationManager(supabase, { logger: replicationLogger });
 for (const { table } of REPLICATED_TABLES) {
   table.setMutationManager(mutationManager);
-}
-
-export interface SyncFailedEventDetail {
-  count: number;
-  mutations: Array<{ tableName: string; operation: string; error?: string }>;
-  message: string;
-}
-
-// Exposed for unit testing — the sync-failed event handler logic without DOM wiring
-export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
-  const first = detail.mutations[0];
-  const detailText = first
-    ? `${first.tableName} ${first.operation.toLowerCase()}${first.error ? `: ${first.error}` : ''}`
-    : detail.message;
-  return `Failed to save ${detail.count} change${detail.count === 1 ? '' : 's'}. ${detailText}`;
-}
-
-// Exposed for unit testing — the download-sync failure toast formatter
-export function formatDownloadFailureToast(
-  failures: Array<{ name: string; error: string }>
-): string {
-  const first = failures[0];
-  const tail = failures.length > 1 ? ` (and ${failures.length - 1} more)` : '';
-  const detail = first ? `${first.name}: ${first.error}` : '';
-  return `Failed to load data from server. ${detail}${tail}`;
 }
 
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({

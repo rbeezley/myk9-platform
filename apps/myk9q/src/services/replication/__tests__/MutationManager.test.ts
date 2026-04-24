@@ -38,7 +38,9 @@ function createMockSupabaseClient() {
         })),
       })),
       delete: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
+        eq: vi.fn(() => ({
+          select: vi.fn(() => Promise.resolve({ data: [{ id: 'mock-id' }], error: null })),
+        })),
       })),
     })),
   };

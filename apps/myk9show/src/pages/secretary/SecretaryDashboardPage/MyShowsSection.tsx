@@ -47,6 +47,7 @@ export function MyShowsSection({
         onClick={() => setOpen(v => !v)}
         className="flex w-full items-center gap-2.5 mb-3 text-left group"
         aria-expanded={open}
+        aria-controls={`section-${phase}`}
       >
         <span
           className={`h-3 w-3 rounded-full shrink-0 ${dotClass} ${pulse ? 'animate-pulse' : ''}`}
@@ -62,7 +63,7 @@ export function MyShowsSection({
       </button>
 
       {open && (
-        <div className="flex flex-col gap-2">
+        <div id={`section-${phase}`} className="flex flex-col gap-2">
           {shows.map(show => (
             <ShowPhaseCard
               key={show.id}

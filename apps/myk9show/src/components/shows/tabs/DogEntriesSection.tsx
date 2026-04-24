@@ -47,7 +47,7 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
   return (
     <section aria-label={`${dogName}'s entries`} className="space-y-3">
       <div className="flex items-center gap-3 pb-2 border-b border-border">
-        <PersonAvatar name={dogName} size="sm" />
+        <PersonAvatar name={dogName} size="sm" className="h-10 w-10" />
         <div className="flex-1 min-w-0">
           <h3 className="text-xl font-semibold truncate">{dogName}</h3>
         </div>

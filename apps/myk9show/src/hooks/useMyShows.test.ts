@@ -148,6 +148,20 @@ describe('useMyShows', () => {
     expect(item?.kind).toBe('info');
   });
 
+  it('generates an urgent attention item when entry close date is today (0 days)', () => {
+    const show = makeShow({
+      id: 'closing-today',
+      startDate: FUTURE_30,
+      status: 'published',
+      entryCloseDate: TODAY,
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    const item = result.current.attentionNeeded.find(i => i.showId === 'closing-today');
+    expect(item).toBeDefined();
+    expect(item?.kind).toBe('urgent');
+    expect(item?.text).toMatch(/entries close in 0 days/i);
+  });
+
   it('omits attention item when entry close date is > 14 days away', () => {
     const FUTURE_20 = new Date(Date.now() + 20 * 86_400_000).toISOString().split('T')[0];
     const show = makeShow({

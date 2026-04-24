@@ -75,7 +75,7 @@ function buildAttentionItems(shows: Show[], phases: Map<string, ShowPhase>): Att
     }
   }
 
-  return items.sort((a, b) => (a.kind === 'urgent' ? -1 : 1) - (b.kind === 'urgent' ? -1 : 1));
+  return items.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'urgent' ? -1 : 1));
 }
 
 export function useMyShows(shows: Show[]): MyShowsBuckets {

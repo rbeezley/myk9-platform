@@ -62,7 +62,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
           <Chip color="green" size="sm">
             {entriesOpen ? 'Entries open' : 'Entries closed'}
           </Chip>
-          <span className="text-xs text-muted-foreground">In {daysUntil} days</span>
+          <span className="text-xs text-muted-foreground">In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}</span>
           {deadlineUrgent && (
             <Chip color="amber" size="sm">
               Closes in {daysUntilClose}d
@@ -73,7 +73,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
             daysUntilClose <= 14 &&
             daysUntilClose >= 0 && (
               <span className="text-xs text-warning-orange">
-                Entries close in {daysUntilClose} days
+                Entries close in {daysUntilClose} {daysUntilClose === 1 ? 'day' : 'days'}
               </span>
             )}
         </div>

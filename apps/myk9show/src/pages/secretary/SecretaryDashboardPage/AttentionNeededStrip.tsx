@@ -20,7 +20,7 @@ export function AttentionNeededStrip({ items }: AttentionNeededStripProps) {
       <div className="flex flex-col divide-y divide-border">
         {items.map(item => (
           <Link
-            key={`${item.showId}-${item.text}`}
+            key={item.showId}
             to={item.href}
             className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
           >

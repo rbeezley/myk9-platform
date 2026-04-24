@@ -109,6 +109,14 @@ export function SecretaryDashboardPage() {
 
       {/* Phase-grouped show sections */}
       <div className="px-5 pb-2">
+        {today.length === 0 && upcoming.length === 0 && draft.length === 0 && past.length === 0 && (
+          <div className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">No shows yet.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Create your first show to get started.
+            </p>
+          </div>
+        )}
         <MyShowsSection
           phase="today"
           title="Happening today"
@@ -120,8 +128,8 @@ export function SecretaryDashboardPage() {
         />
         <MyShowsSection
           phase="upcoming"
-          title="Upcoming — entries open"
-          subtitle="Published shows accepting entries."
+          title="Upcoming"
+          subtitle="Shows that haven't started yet."
           shows={upcoming}
         />
         <MyShowsSection

@@ -61,7 +61,7 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
         {entry.startTime || '—'}
       </span>
 
-      <PersonAvatar name={entry.dogName} size="sm" />
+      <PersonAvatar name={entry.dogName} size="sm" className="h-7 w-7" />
 
       <div className="flex-1 min-w-0">
         <p className="truncate text-sm font-semibold">

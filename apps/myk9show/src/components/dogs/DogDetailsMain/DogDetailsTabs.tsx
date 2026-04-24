@@ -16,6 +16,8 @@ import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/Reg
 import { BlurGate } from '@/components/common/BlurGate';
 import { TabContentSkeleton } from './Skeletons';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
+import RollingTitleProgress from '@/components/dogs/DogDetails/TitleTracking/RollingTitleProgress';
+import { getDogDisplayName } from '@/types/dog-types';
 import type { DogDetailsTabsProps } from './types';
 
 // Lazy load heavy components
@@ -73,6 +75,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
 
   return (
     <div className="space-y-6">
+      <RollingTitleProgress dogId={dog.id} dogName={getDogDisplayName(dog)} />
       <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
         <TabsContent value="registrations" className="pt-6">
           <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />

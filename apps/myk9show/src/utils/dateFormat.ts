@@ -38,6 +38,39 @@ export function formatDateMMDDYYYY(dateStr?: string): string {
 }
 
 /**
+ * Formats an ISO date string (YYYY-MM-DD) to "Mon D" (e.g. "Apr 12").
+ * Uses direct string manipulation to avoid timezone issues.
+ */
+export function formatMonthDay(dateStr?: string): string {
+  if (!dateStr) return '';
+
+  const MONTHS = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    const parts = dateStr.split('-');
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (monthIdx < 0 || monthIdx > 11) return dateStr;
+    return `${MONTHS[monthIdx]} ${day}`;
+  }
+
+  return '';
+}
+
+/**
  * Formats an ISO date string (YYYY-MM-DD) to "Jan '24" style.
  * Uses direct string manipulation to avoid timezone issues.
  */

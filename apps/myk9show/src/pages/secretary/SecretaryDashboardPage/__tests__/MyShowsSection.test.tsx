@@ -1,0 +1,107 @@
+import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect } from 'vitest';
+import { MyShowsSection } from '../MyShowsSection';
+import type { Show } from '@/types/show-types';
+
+const FUTURE = new Date(Date.now() + 14 * 86_400_000).toISOString().split('T')[0];
+
+function makeShow(id: string): Show {
+  return {
+    id,
+    name: `Show ${id}`,
+    organization: 'AKC',
+    startDate: FUTURE,
+    endDate: FUTURE,
+    location: 'Test City',
+    status: 'published',
+    events: [],
+    source: 'myK9Show',
+    entryOpenDate: '',
+    entryCloseDate: '',
+    preEntryFee: '25',
+    clubId: 'club-1',
+    clubName: 'Test Club',
+    clubAddress: '',
+    clubEmail: '',
+    logoUrl: '',
+    coverImageUrl: '',
+    accentColor: '',
+    assignedJudges: [],
+    trials: [],
+    stats: [],
+    acceptCheckPayments: false,
+    acceptCashPayments: false,
+    _version: 1,
+    _lastModified: new Date(),
+    _lastModifiedBy: '',
+    _syncStatus: 'synced',
+    _localOnly: false,
+  } as Show;
+}
+
+function renderSection(props: Partial<Parameters<typeof MyShowsSection>[0]> = {}) {
+  return render(
+    <MemoryRouter>
+      <MyShowsSection
+        phase="upcoming"
+        title="Upcoming shows"
+        shows={[makeShow('s1')]}
+        {...props}
+      />
+    </MemoryRouter>
+  );
+}
+
+describe('MyShowsSection', () => {
+  it('renders null when shows array is empty', () => {
+    const { container } = renderSection({ shows: [] });
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders the section title', () => {
+    renderSection({ title: 'Upcoming shows' });
+    expect(screen.getByText('Upcoming shows')).toBeInTheDocument();
+  });
+
+  it('renders subtitle when provided', () => {
+    renderSection({ subtitle: 'Published and accepting entries' });
+    expect(screen.getByText('Published and accepting entries')).toBeInTheDocument();
+  });
+
+  it('renders show count in the toggle button', () => {
+    renderSection({ shows: [makeShow('a'), makeShow('b')] });
+    expect(screen.getByText(/2 shows/i)).toBeInTheDocument();
+  });
+
+  it('shows show cards by default when defaultCollapsed is false', () => {
+    renderSection({ shows: [makeShow('s1')], defaultCollapsed: false });
+    expect(screen.getByText('Show s1')).toBeInTheDocument();
+  });
+
+  it('hides show cards by default when defaultCollapsed is true', () => {
+    renderSection({ shows: [makeShow('s1')], defaultCollapsed: true });
+    expect(screen.queryByText('Show s1')).not.toBeInTheDocument();
+  });
+
+  it('toggles cards on header click', () => {
+    renderSection({ shows: [makeShow('s1')], defaultCollapsed: true });
+    expect(screen.queryByText('Show s1')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText('Show s1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.queryByText('Show s1')).not.toBeInTheDocument();
+  });
+
+  it('renders multiple show cards', () => {
+    renderSection({ shows: [makeShow('a'), makeShow('b'), makeShow('c')] });
+    expect(screen.getByText('Show a')).toBeInTheDocument();
+    expect(screen.getByText('Show b')).toBeInTheDocument();
+    expect(screen.getByText('Show c')).toBeInTheDocument();
+  });
+
+  it('toggle button has aria-expanded attribute', () => {
+    renderSection({ defaultCollapsed: false });
+    expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+  });
+});

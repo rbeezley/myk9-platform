@@ -1,3 +1,9 @@
+/** Parse a YYYY-MM-DD or ISO timestamp as local midnight to avoid UTC-offset surprises. */
+export function toLocalDate(isoStr: string): Date {
+  const dateOnly = isoStr.split('T')[0] ?? isoStr;
+  return new Date(dateOnly + 'T00:00:00');
+}
+
 /**
  * Formats a date range for display. Used by SPA components.
  * Note: API functions (api/og-show.ts, api/og-show-image.tsx) duplicate this function

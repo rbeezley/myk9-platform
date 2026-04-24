@@ -18,7 +18,7 @@ export default function ProfilePage() {
 
   const { upload, uploading } = useAvatarUpload({
     userId: form.personId || '',
-    onSuccess: (publicUrl) => {
+    onSuccess: publicUrl => {
       // Update person record with new photo URL
       if (form.person) {
         updatePerson.mutate({ ...form.person, profileImage: publicUrl });
@@ -126,7 +126,7 @@ export default function ProfilePage() {
                   <Input
                     id="firstName"
                     value={form.values.firstName}
-                    onChange={(e) => form.setValue('firstName', e.target.value)}
+                    onChange={e => form.setValue('firstName', e.target.value)}
                     className="pl-9"
                     required
                     autoComplete="given-name"
@@ -141,7 +141,7 @@ export default function ProfilePage() {
                 <Input
                   id="lastName"
                   value={form.values.lastName}
-                  onChange={(e) => form.setValue('lastName', e.target.value)}
+                  onChange={e => form.setValue('lastName', e.target.value)}
                   required
                   autoComplete="family-name"
                 />
@@ -176,7 +176,7 @@ export default function ProfilePage() {
                   id="phone"
                   type="tel"
                   value={form.values.phone}
-                  onChange={(e) => form.setValue('phone', e.target.value)}
+                  onChange={e => form.setValue('phone', e.target.value)}
                   placeholder="(555) 123-4567"
                   className="pl-9"
                   autoComplete="tel"
@@ -202,7 +202,7 @@ export default function ProfilePage() {
                 <Input
                   id="streetAddress"
                   value={form.values.streetAddress}
-                  onChange={(e) => form.setValue('streetAddress', e.target.value)}
+                  onChange={e => form.setValue('streetAddress', e.target.value)}
                   className="pl-9"
                   required
                   autoComplete="street-address"
@@ -219,20 +219,18 @@ export default function ProfilePage() {
                 <Input
                   id="city"
                   value={form.values.city}
-                  onChange={(e) => form.setValue('city', e.target.value)}
+                  onChange={e => form.setValue('city', e.target.value)}
                   required
                   autoComplete="address-level2"
                 />
-                {form.errors.city && (
-                  <p className="text-sm text-destructive">{form.errors.city}</p>
-                )}
+                {form.errors.city && <p className="text-sm text-destructive">{form.errors.city}</p>}
               </div>
               <div className="col-span-1 space-y-2">
                 <Label htmlFor="state">State *</Label>
                 <Input
                   id="state"
                   value={form.values.state}
-                  onChange={(e) => form.setValue('state', e.target.value)}
+                  onChange={e => form.setValue('state', e.target.value)}
                   required
                   autoComplete="address-level1"
                 />
@@ -245,7 +243,7 @@ export default function ProfilePage() {
                 <Input
                   id="zipCode"
                   value={form.values.zipCode}
-                  onChange={(e) => form.setValue('zipCode', e.target.value)}
+                  onChange={e => form.setValue('zipCode', e.target.value)}
                   required
                   autoComplete="postal-code"
                 />
@@ -260,7 +258,7 @@ export default function ProfilePage() {
         {/* Footer */}
         <div className="flex items-center justify-between">
           <Link
-            to="/preferences"
+            to="/account"
             className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
           >
             <Lock className="h-3.5 w-3.5" />

@@ -117,7 +117,6 @@ describe('AccountPage', () => {
     [
       'Profile',
       'Linked dogs',
-      'Payment',
       'Appearance',
       'General',
       'Notifications',
@@ -224,12 +223,6 @@ describe('AccountPage', () => {
     render();
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /discard/i })).toBeInTheDocument();
-  });
-
-  it('Payment section renders placeholder text', () => {
-    render();
-    fireEvent.click(screen.getByRole('button', { name: 'Payment' }));
-    expect(screen.getByText(/no payment methods saved/i)).toBeInTheDocument();
   });
 
   it('shows success flash after reset', async () => {

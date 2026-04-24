@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MapPin, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
+import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 
 interface WhereToBeProps {
@@ -60,7 +61,7 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
         {entry.startTime || '—'}
       </span>
 
-      <DogInitial name={entry.dogName} />
+      <PersonAvatar name={entry.dogName} size="sm" />
 
       <div className="flex-1 min-w-0">
         <p className="truncate text-sm font-semibold">
@@ -85,17 +86,6 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
   );
 }
 
-function DogInitial({ name }: { name: string }) {
-  const initial = name.charAt(0).toUpperCase();
-  return (
-    <span
-      className="h-7 w-7 shrink-0 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary"
-      aria-hidden
-    >
-      {initial}
-    </span>
-  );
-}
 
 function ResultChip({ entry }: { entry: EnrichedShowEntry }) {
   if (!entry.hasResult || !entry.result) {

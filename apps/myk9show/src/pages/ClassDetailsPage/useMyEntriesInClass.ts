@@ -58,6 +58,14 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
     // Build position map once (O(N)) rather than calling findIndex per entry (O(N²)).
     const positionByEntryId = new Map(sorted.map((e, i) => [e.id, i + 1]));
 
+    const aheadCountByRunOrder = new Map<number, number>();
+    for (const e of classEntries) {
+      const ro = e.registrationData.runOrder ?? 0;
+      if (ro > 0 && !entryIsScored(e)) {
+        aheadCountByRunOrder.set(ro, (aheadCountByRunOrder.get(ro) ?? 0) + 1);
+      }
+    }
+
     const myEntries: MyClassEntry[] = [];
 
     for (const entry of classEntries) {
@@ -67,12 +75,9 @@ export function useMyEntriesInClass(classId: string | undefined): UseMyEntriesIn
       const position = runOrder > 0 ? (positionByEntryId.get(entry.id) ?? 0) : 0;
       const dogsAhead =
         runOrder > 0
-          ? classEntries.filter(
-              e =>
-                (e.registrationData.runOrder ?? 0) > 0 &&
-                (e.registrationData.runOrder ?? 0) < runOrder &&
-                !entryIsScored(e)
-            ).length
+          ? Array.from(aheadCountByRunOrder.entries())
+              .filter(([ro]) => ro < runOrder)
+              .reduce((sum, [, count]) => sum + count, 0)
           : 0;
 
       const compData = entry.competitionData;

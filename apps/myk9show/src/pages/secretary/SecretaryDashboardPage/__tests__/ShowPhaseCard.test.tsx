@@ -2,44 +2,14 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect } from 'vitest';
 import { ShowPhaseCard } from '../ShowPhaseCard';
+import { showFactory } from '@/test/utils/factories';
 import type { Show } from '@/types/show-types';
 
 const TODAY = new Date().toISOString().split('T')[0];
 const FUTURE = new Date(Date.now() + 14 * 86_400_000).toISOString().split('T')[0];
 const PAST = new Date(Date.now() - 14 * 86_400_000).toISOString().split('T')[0];
 
-function makeShow(overrides: Partial<Show> & Pick<Show, 'id' | 'startDate' | 'status'>): Show {
-  return {
-    name: 'Spring Trial',
-    organization: 'AKC',
-    endDate: overrides.startDate,
-    location: 'Allentown, PA',
-    status: 'published',
-    events: [],
-    source: 'myK9Show',
-    entryOpenDate: '',
-    entryCloseDate: '',
-    preEntryFee: '25',
-    clubId: 'club-1',
-    clubName: 'Test Club',
-    clubAddress: '',
-    clubEmail: '',
-    logoUrl: '',
-    coverImageUrl: '',
-    accentColor: '',
-    assignedJudges: [],
-    trials: [],
-    stats: [],
-    acceptCheckPayments: false,
-    acceptCashPayments: false,
-    _version: 1,
-    _lastModified: new Date(),
-    _lastModifiedBy: '',
-    _syncStatus: 'synced',
-    _localOnly: false,
-    ...overrides,
-  } as Show;
-}
+const makeShow = (overrides: Partial<Show>) => showFactory.build(overrides);
 
 function renderCard(props: Parameters<typeof ShowPhaseCard>[0]) {
   return render(

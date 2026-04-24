@@ -2,42 +2,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect } from 'vitest';
 import { MyShowsSection } from '../MyShowsSection';
-import type { Show } from '@/types/show-types';
+import { showFactory } from '@/test/utils/factories';
 
 const FUTURE = new Date(Date.now() + 14 * 86_400_000).toISOString().split('T')[0];
 
-function makeShow(id: string): Show {
-  return {
-    id,
-    name: `Show ${id}`,
-    organization: 'AKC',
-    startDate: FUTURE,
-    endDate: FUTURE,
-    location: 'Test City',
-    status: 'published',
-    events: [],
-    source: 'myK9Show',
-    entryOpenDate: '',
-    entryCloseDate: '',
-    preEntryFee: '25',
-    clubId: 'club-1',
-    clubName: 'Test Club',
-    clubAddress: '',
-    clubEmail: '',
-    logoUrl: '',
-    coverImageUrl: '',
-    accentColor: '',
-    assignedJudges: [],
-    trials: [],
-    stats: [],
-    acceptCheckPayments: false,
-    acceptCashPayments: false,
-    _version: 1,
-    _lastModified: new Date(),
-    _lastModifiedBy: '',
-    _syncStatus: 'synced',
-    _localOnly: false,
-  } as Show;
+function makeShow(id: string) {
+  return showFactory.build({ id, name: `Show ${id}`, startDate: FUTURE, status: 'published' });
 }
 
 function renderSection(props: Partial<Parameters<typeof MyShowsSection>[0]> = {}) {

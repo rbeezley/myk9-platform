@@ -13,6 +13,9 @@ export type { EntitySidebarProps, EntitySidebarItem } from './EntitySidebar';
 export { EntityCard } from './EntityCard';
 export type { EntityCardProps } from './EntityCard';
 
+export { Chip } from './Chip';
+export type { ChipProps, ChipColor, ChipSize } from './Chip';
+
 // Skeleton loaders
 export {
   SkeletonCard,

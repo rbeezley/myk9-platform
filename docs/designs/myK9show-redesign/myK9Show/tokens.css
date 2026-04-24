@@ -1,0 +1,126 @@
+/* myK9Show tokens — extended from base design system for senior-friendly UI */
+@import url('assets/colors_and_type.css');
+
+:root {
+  /* Large-by-default type scale (senior-friendly) */
+  --ui-base: 18px;          /* body */
+  --ui-sm: 15px;            /* meta */
+  --ui-lg: 20px;            /* emphasized body */
+  --ui-xl: 24px;            /* card titles */
+  --display-sm: 32px;
+  --display-md: 44px;
+  --display-lg: 60px;
+
+  /* Tap targets */
+  --tap-min: 48px;
+  --tap-primary: 56px;
+
+  /* Layout */
+  --sidebar-w: 248px;
+  --content-max: 1240px;
+  --topbar-h: 72px;
+
+  /* Additional warm neutrals used in detail pages */
+  --ivory-300: #ddd9cb;
+  --terracotta-200: #fcd6ba;
+  --stone-100: #f1efe7;
+  --stone-200: #d8d5c6;
+  --stone-600: #5b5a52;
+  --stone-800: #2a2a27;
+
+  /* Status chips */
+  --chip-green-bg: #dcfce7;
+  --chip-green-fg: #166534;
+  --chip-amber-bg: #fef3c7;
+  --chip-amber-fg: #92400e;
+  --chip-red-bg: #fee2e2;
+  --chip-red-fg: #991b1b;
+  --chip-blue-bg: #dbeafe;
+  --chip-blue-fg: #1e40af;
+  --chip-purple-bg: #ede9fe;
+  --chip-purple-fg: #5b21b6;
+  --chip-teal-bg: #ccfbf1;
+  --chip-teal-fg: #0f766e;
+  --chip-stone-bg: #f1efe7;
+  --chip-stone-fg: #3a3a36;
+}
+
+/* High contrast mode */
+.hc {
+  --muted-foreground: #2a2a27;
+  --stone-500: #2a2a27;
+  --border: #5b5a52;
+  --ivory-200: #b7b5a9;
+}
+
+/* ─── Tweaks-driven behavior ───────────────────────────────────────── */
+
+/* Density scalar. --density-scale is set by app.jsx (compact .88 / comfy 1 / spacious 1.12).
+   We rescale the type and card chrome so the effect is visible without re-laying everything out. */
+:root { --density-scale: 1; }
+body {
+  font-size: calc(var(--ui-base) * var(--density-scale));
+  line-height: calc(1.5 + (var(--density-scale) - 1) * 0.2);
+}
+/* Card padding + gap respond to density so rows breathe / tighten */
+[data-browse-row] {
+  padding: var(--density-pad, 18px) !important;
+  gap: calc(20px * var(--density-scale, 1)) !important;
+}
+
+/* Card style — affects the browse row cards */
+body.cs-text [data-browse-cover] { display: none; }
+body.cs-text [data-browse-row] { padding-left: 24px; }
+
+body.cs-icon [data-browse-cover] {
+  width: 56px !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  border-radius: 10px;
+  font-size: 11px;
+}
+body.cs-icon [data-browse-cover] [data-cover-day] { font-size: 18px; }
+body.cs-icon [data-browse-cover] [data-cover-month] { font-size: 10px; }
+
+/* Show secondary info — hide the meta row in browse cards when off */
+body.no-secondary [data-browse-meta] { display: none !important; }
+
+/* Role-based accent. Secretary = terracotta, Exhibitor = teal. */
+body[data-role="secretary"] {
+  --role-accent: var(--terracotta-500, #c96442);
+  --role-accent-50: #fdf0e9;
+  --role-accent-100: #fcd6ba;
+}
+body[data-role="exhibitor"] {
+  --role-accent: var(--teal-500, #14b8a6);
+  --role-accent-50: #ecfdf5;
+  --role-accent-100: #ccfbf1;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--ui-base);
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+
+/* Reset for our app */
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+/* Shared atoms */
+.serif { font-family: var(--font-serif); font-weight: 500; letter-spacing: -0.015em; }
+.mono  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--stone-500); font-weight: 600; }
+
+/* Focus ring - visible for keyboard users */
+:focus-visible {
+  outline: 3px solid var(--teal-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

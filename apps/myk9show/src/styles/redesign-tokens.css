@@ -1,0 +1,53 @@
+/* ===================================================================
+   REDESIGN TOKENS — Fall 2026 additive layer
+   Source: docs/designs/myK9show-redesign/myK9Show/tokens.css
+   These are additive to index.css — they do not override existing
+   --background / --primary / --border / accent-system tokens.
+   The user-selectable accent (clay / grove / dusk / heather) is
+   preserved; role-awareness ships through copy, nav, and chips.
+   =================================================================== */
+
+:root {
+  /* ---- Layout ----
+     Consumed by the Browse / Detail shell work (next redesign step). */
+  --sidebar-w: 248px;
+  --content-max: 1240px;
+  --topbar-h: 72px;
+
+  /* ---- Chip color tokens (bg/fg pairs) ----
+     Consumed by components/base/Chip.tsx. Named by hue not meaning —
+     use with intent: green=good, amber=caution, red=problem,
+     blue=informational, purple=tag, teal=brand-neutral, stone=inactive. */
+  --chip-green-bg: #dcfce7;
+  --chip-green-fg: #166534;
+  --chip-amber-bg: #fef3c7;
+  --chip-amber-fg: #92400e;
+  --chip-red-bg: #fee2e2;
+  --chip-red-fg: #991b1b;
+  --chip-blue-bg: #dbeafe;
+  --chip-blue-fg: #1e40af;
+  --chip-purple-bg: #ede9fe;
+  --chip-purple-fg: #5b21b6;
+  --chip-teal-bg: #ccfbf1;
+  --chip-teal-fg: #0f766e;
+  --chip-stone-bg: #f1efe7;
+  --chip-stone-fg: #3a3a36;
+}
+
+/* Dark-mode overrides for chip tokens — warm, muted, readable on dark bg */
+.dark {
+  --chip-green-bg: #14321f;
+  --chip-green-fg: #86efac;
+  --chip-amber-bg: #3a2a0c;
+  --chip-amber-fg: #fbbf24;
+  --chip-red-bg: #3a1515;
+  --chip-red-fg: #fca5a5;
+  --chip-blue-bg: #17263f;
+  --chip-blue-fg: #93c5fd;
+  --chip-purple-bg: #251e3a;
+  --chip-purple-fg: #c4b5fd;
+  --chip-teal-bg: #0f2e2a;
+  --chip-teal-fg: #5eead4;
+  --chip-stone-bg: #2a2a27;
+  --chip-stone-fg: #d6d4c6;
+}

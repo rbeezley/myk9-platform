@@ -61,6 +61,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     getUserRoles: () => ['exhibitor'],
   }),
+  getPrimaryRole: (roles: string[]) => roles[0] ?? 'exhibitor',
 }));
 
 vi.mock('@/hooks/useRoleBasedData', () => ({

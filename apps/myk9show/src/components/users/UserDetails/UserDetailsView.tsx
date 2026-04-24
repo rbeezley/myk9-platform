@@ -60,11 +60,11 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   // Sync formData when navigating to a different person (ID changes).
   // Using person.id (stable string) avoids re-running when React Query returns a new
   // object reference for the same person after a background refetch.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     if (person) {
       setFormData(buildFormData(person));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
 
   const handleDeleteUser = async () => {

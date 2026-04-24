@@ -208,6 +208,7 @@ export function useShowCreationWizardActions({
 
       logger.debug(`Created ${classesToCreate.length} classes`, 'wizard');
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [trials, judgeDetails, existingTrials, editMode, existingDBClasses]
   );
 

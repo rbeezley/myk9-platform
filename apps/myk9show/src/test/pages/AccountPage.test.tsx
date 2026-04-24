@@ -27,7 +27,7 @@ vi.mock('@/hooks/useUsers', () => ({
   useUpdatePerson: () => ({ mutate: vi.fn() }),
 }));
 
-let mockDogs: Array<{ id: string; name: string; callName?: string; breed?: string }> = [];
+let mockDogs: Array<{ id: string; name: string; call_name?: string; breed?: string }> = [];
 let mockDogsLoading = false;
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsQuery: () => ({ data: mockDogs, isLoading: mockDogsLoading }),

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Bell, Megaphone } from 'lucide-react';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useAnnouncementStore } from '@/store/announcementStore';
@@ -123,6 +124,13 @@ export function NotificationBell() {
                 >
                   View all
                 </button>
+                <Link
+                  to="/notifications"
+                  onClick={() => setIsOpen(false)}
+                  className="flex-1 p-2 text-center text-sm text-muted-foreground hover:bg-muted border-l border-border"
+                >
+                  History
+                </Link>
               </div>
             </>
           )}

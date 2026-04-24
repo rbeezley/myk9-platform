@@ -7,6 +7,7 @@ import { UserRole } from './DogEditPanel.types';
 export const dogFormSchema = z.object({
   callName: z.string().min(1, 'Please enter a call name'),
   registeredName: z.string().min(1, 'Please enter a registered name'),
+  breed: z.string(),
   gender: z.string().min(1, 'Please select a gender'),
   dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
   color: z.string(),
@@ -37,6 +38,7 @@ export const dogToFormData = (dog: Partial<DogType>): DogFormData => {
   return {
     callName: getDogDisplayName({ callName: dog.callName, name: dog.name || '' }),
     registeredName,
+    breed: dog.breed || dog.registrations?.[0]?.breed || '',
     gender,
     dateOfBirth: dog.dateOfBirth || dog.birthDate || '',
     color: dog.color || '',
@@ -83,6 +85,7 @@ export const formDataToDog = (formData: DogFormData): Partial<DogType> => {
   return {
     callName: formData.callName,
     name: formData.callName, // Keep both for compatibility
+    breed: formData.breed,
     gender: formData.gender as 'Male' | 'Female' | '',
     ...(formData.gender ? { sex: formData.gender.toLowerCase() as 'male' | 'female' } : {}),
     dateOfBirth: formData.dateOfBirth,

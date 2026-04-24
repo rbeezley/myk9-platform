@@ -69,7 +69,7 @@ export interface AuthContextType {
   signUp: (
     email: string,
     password: string,
-    metadata?: { firstName?: string; lastName?: string }
+    metadata?: { firstName?: string; lastName?: string; roles?: string[] }
   ) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;

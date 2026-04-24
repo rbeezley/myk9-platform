@@ -40,6 +40,12 @@ const TVDisplay = lazy(() => import('@/pages/TVDisplay'));
 // Messages
 const ChatPage = lazy(() => import('@/features/messages/pages/ChatPage'));
 
+// Notifications history
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
+
+// Settings
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+
 // Cart and checkout pages
 const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
@@ -219,6 +225,34 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <ProfilePage />
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+
+    {/* Notifications history */}
+    <Route
+      path="/notifications"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <NotificationsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+
+    {/* Unified settings */}
+    <Route
+      path="/settings"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <SettingsPage />
+            </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
       }

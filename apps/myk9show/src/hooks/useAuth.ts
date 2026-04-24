@@ -128,7 +128,7 @@ export function useAuth() {
     async (
       email: string,
       password: string,
-      metadata?: { firstName?: string; lastName?: string }
+      metadata?: { firstName?: string; lastName?: string; roles?: string[] }
     ) => {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -137,6 +137,7 @@ export function useAuth() {
           data: {
             first_name: metadata?.firstName || 'First',
             last_name: metadata?.lastName || 'Name',
+            ...(metadata?.roles?.length ? { intended_roles: metadata.roles } : {}),
           },
         },
       });

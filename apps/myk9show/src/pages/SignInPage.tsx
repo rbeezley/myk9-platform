@@ -37,7 +37,7 @@ const SignIn: React.FC = () => {
     try {
       await signIn(email, password);
       const returnTo = searchParams.get('returnTo');
-      navigate(returnTo || '/');
+      navigate(returnTo || '/shows');
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {

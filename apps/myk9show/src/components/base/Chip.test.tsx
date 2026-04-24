@@ -61,7 +61,7 @@ describe('Chip', () => {
     const el = screen.getByTestId('chip-custom');
     expect(el.className).toContain('uppercase');
     expect(el.style.letterSpacing).toBe('0.1em');
-    // Color tokens still present
+    // Non-color styles merge without clobbering the color tokens
     expect(el.style.background).toBe('var(--chip-amber-bg)');
   });
 });

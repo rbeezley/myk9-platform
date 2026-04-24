@@ -11,6 +11,12 @@ landed in the kickoff session and what remains.
 - `docs/designs/myK9show-redesign/myK9Show/myK9Show Redesign.html` — visual canvas
 - `.jsx` files — mockup implementations (read for copy / patterns, do not port line-for-line)
 
+> **Sunset note:** `docs/designs/myK9show-redesign/` is a reference snapshot of
+> the delivered mockup package. Once the redesign lands (all build steps below
+> complete), this directory should be removed — the implemented components
+> become the source of truth. Do not edit mockup files to reflect later
+> changes; update the code and let the mockups go stale.
+
 ## Resolved scope decisions (2026-04-23)
 
 1. **Redesign takes priority over Phase 2 Walk-the-Golden-Paths.**

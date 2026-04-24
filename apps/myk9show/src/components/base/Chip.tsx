@@ -1,6 +1,17 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Chip — informational, hue-keyed pill for row cards and detail shells in the
+ * Fall 2026 redesign. Colors are named by hue (green / amber / red / blue /
+ * purple / teal / stone) and themed via `--chip-*-bg/fg` tokens in
+ * `styles/redesign-tokens.css`, so light/dark mode are handled at the token
+ * layer.
+ *
+ * Use `Chip` when the meaning is carried by the hue itself (good / caution /
+ * problem / info / tag / brand-neutral / inactive). Use the existing `Badge`
+ * for entity-status tokens keyed to the project palette (e.g. show status).
+ */
 export type ChipColor = 'green' | 'amber' | 'red' | 'blue' | 'purple' | 'teal' | 'stone';
 
 export type ChipSize = 'sm' | 'md';

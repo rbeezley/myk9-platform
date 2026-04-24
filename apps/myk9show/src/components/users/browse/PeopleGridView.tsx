@@ -15,7 +15,7 @@ function formatRole(role: string): string {
 
 export const PeopleGridView: React.FC<PeopleGridViewProps> = ({ people }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {people.map(person => {
         const { fullName } = extractPersonName(person);
         const personRecord = person as unknown as Record<string, unknown>;
@@ -58,11 +58,9 @@ export const PeopleGridView: React.FC<PeopleGridViewProps> = ({ people }) => {
             }
           >
             {person.email && (
-              <div className="mt-3">
-                <BrowseCardDetail icon={<Mail className="h-3.5 w-3.5 shrink-0" />}>
-                  {person.email}
-                </BrowseCardDetail>
-              </div>
+              <BrowseCardDetail icon={<Mail className="h-3.5 w-3.5 shrink-0" />}>
+                {person.email}
+              </BrowseCardDetail>
             )}
           </BrowseCard>
         );

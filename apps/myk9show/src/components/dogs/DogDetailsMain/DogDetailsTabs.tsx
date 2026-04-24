@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useMemo } from 'react';
 import {
   Activity,
   BarChart3,
@@ -48,24 +48,32 @@ const TAB_IDS = [
   'activity',
 ] as const;
 
-const DOG_TAB_DEFS: PrimaryTabDef[] = [
-  { id: 'registrations', label: 'Registrations', icon: FileText },
-  { id: 'competitions', label: 'Competitions', icon: Trophy },
-  { id: 'title-progress', label: 'Title Progress', icon: Crown },
-  { id: 'statistics', label: 'Statistics', icon: BarChart3 },
-  { id: 'health-records', label: 'Health Records', icon: Stethoscope },
-  { id: 'training-journal', label: 'Training Journal', icon: BookOpen },
-  { id: 'pedigree', label: 'Pedigree', icon: GitBranch },
-  { id: 'activity', label: 'Activity', icon: Activity },
-];
-
 const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistration }) => {
   const { isPremium, isLoading } = useSubscriptionGate();
   const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'registrations');
 
+  const tabDefs: PrimaryTabDef[] = useMemo(
+    () => [
+      {
+        id: 'registrations',
+        label: 'Registrations',
+        icon: FileText,
+        count: dog.registrations?.length ?? 0,
+      },
+      { id: 'competitions', label: 'Competitions', icon: Trophy },
+      { id: 'title-progress', label: 'Title Progress', icon: Crown },
+      { id: 'statistics', label: 'Statistics', icon: BarChart3 },
+      { id: 'health-records', label: 'Health Records', icon: Stethoscope },
+      { id: 'training-journal', label: 'Training Journal', icon: BookOpen },
+      { id: 'pedigree', label: 'Pedigree', icon: GitBranch },
+      { id: 'activity', label: 'Activity', icon: Activity },
+    ],
+    [dog.registrations]
+  );
+
   return (
     <div className="space-y-6">
-      <PrimaryTabs tabs={DOG_TAB_DEFS} value={activeTab} onValueChange={setActiveTab}>
+      <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
         <TabsContent value="registrations" className="pt-6">
           <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
         </TabsContent>

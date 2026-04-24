@@ -50,6 +50,12 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     [club.accentColor]
   );
 
+  const foundedYear = club.founded
+    ? club.founded instanceof Date
+      ? club.founded.getFullYear()
+      : new Date(club.founded).getFullYear()
+    : null;
+
   // Gradient fallback when no cover image — uses org-inspired dark gradient
   const gradientFallback = palette
     ? `linear-gradient(135deg, ${palette.primaryDark} 0%, ${palette.primary} 60%, ${palette.primaryLight} 100%)`
@@ -187,6 +193,11 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
         {/* Club details */}
         <div className="flex flex-col md:flex-row items-start gap-4">
           <div className="flex-1 text-left">
+            {foundedYear && (
+              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">
+                Founded {foundedYear}
+              </p>
+            )}
             <h1 className="text-3xl font-bold text-foreground mb-2">{club.name}</h1>
             {(club.address?.city || club.address?.state) && (
               <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -207,13 +218,10 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                   {club.clubType.charAt(0).toUpperCase() + club.clubType.slice(1)} Club
                 </div>
               )}
-              {club.founded && (
+              {foundedYear && (
                 <div className="flex items-center gap-1 px-3 py-1 bg-secondary/10 text-secondary-foreground rounded-full text-xs font-medium">
                   <Shield className="w-3 h-3" />
-                  Founded{' '}
-                  {club.founded instanceof Date
-                    ? club.founded.getFullYear()
-                    : new Date(club.founded).getFullYear()}
+                  Founded {foundedYear}
                 </div>
               )}
             </div>

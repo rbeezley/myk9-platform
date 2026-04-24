@@ -74,18 +74,16 @@ is already modeled.
 Existing components already fit: `Button size="xl"` (56px),
 `Badge`, `Card`, `PageLayout`, `SidebarLayout`. No new Button size needed.
 
-### 2. Browse row-card shell — _NEXT SESSION_
+### 2. Browse row-card shell — _landed_ (2026-04-23)
 
-Extend existing Browse pages (`BrowseShowsPage`,`BrowseDogsPage`,
-`BrowseClubsPage`, `BrowsePeoplePage`, plus Trials/Classes Browse) to
-use a shared Direction-B row-card pattern:
-
-- Cover/thumbnail on left, facts stack in middle, action buttons on
-  right, all visible in a single row without a tap.
-- Consumes the `--sidebar-w` / `--content-max` layout tokens.
-- Extend `EntityCard` or `PageLayout` rather than creating a new shell.
-
-Highest leverage — one change unlocks 6+ pages.
+- `BrowseCard`: horizontal flex layout (avatar 48px | facts | action
+  button) replacing the old vertical card. Grid changed from
+  `lg:cols-2 xl:cols-3` → `xl:cols-2` across Dogs, Clubs, People.
+  Children flattened to `flex-wrap` rows.
+- `ShowCardHorizontal` (Shows) unchanged — already Direction-B.
+- 13 unit tests in `BrowseCard.test.tsx`.
+- `BrowsePeoplePage` page shell migration (uses old raw div layout,
+  not `PageShell`/`PageHeader`) deferred to a future cleanup pass.
 
 ### 3. Unified Detail shell — _queued_
 

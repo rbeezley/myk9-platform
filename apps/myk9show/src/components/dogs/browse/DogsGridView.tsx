@@ -31,7 +31,7 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
 
 export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {dogs.map(dog => {
         const sexLabel = formatSex(dog.sex);
         const displayName = dog.callName || dog.name;
@@ -70,7 +70,7 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
             }
           >
             {(dog.breed || dog.ownerName) && (
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {dog.breed && (
                   <BrowseCardDetail icon={<PawPrint className="h-3.5 w-3.5 shrink-0" />}>
                     {dog.breed}
@@ -84,7 +84,7 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
               </div>
             )}
             {dog.registrations && dog.registrations.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="mt-1 flex flex-wrap gap-1.5">
                 {dog.registrations.map(reg => (
                   <span
                     key={reg.id}

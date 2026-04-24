@@ -1,5 +1,4 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -11,8 +10,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Heart, User, Camera, Edit, PawPrint, Loader2 } from 'lucide-react';
-import { supabase } from '@/services/database/supabaseClient';
 import { UserRole } from '@/types/auth-types';
+import { isAdminRole } from '@/components/panels/edit/DogEditPanel.helpers';
+import { usePeopleQuery } from '@/hooks/usePeopleQuery';
 import { FormField } from '@/components/common/FormField';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { calculateAge } from './validation';
@@ -43,33 +43,19 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 }) => {
   const { form } = useEditPanel<DogFormData>();
 
-  const isAdminRole =
-    userRole === UserRole.SECRETARY ||
-    userRole === UserRole.CLUB_ADMIN ||
-    userRole === UserRole.SITE_ADMIN;
+  const isAdmin = isAdminRole(userRole);
+  const { data: people = [], isLoading: isPeopleLoading } = usePeopleQuery(isAdmin);
 
-  const { data: people = [], isLoading: isPeopleLoading } = useQuery({
-    queryKey: ['people', 'all'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('people')
-        .select('id, first_name, last_name, email')
-        .order('last_name')
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []).map(p => ({
-        id: p.id,
-        firstName: p.first_name,
-        lastName: p.last_name,
-        email: p.email ?? undefined,
-      }));
-    },
-    enabled: isAdminRole,
-  });
+  const formData = form?.data;
+  const ownerIdForMemo = formData?.ownerId;
 
-  if (!form) return null;
+  const selectedOwnerDisplay = useMemo(() => {
+    if (!ownerIdForMemo) return undefined;
+    const match = people.find(p => p.id === ownerIdForMemo);
+    return match ? `${match.firstName} ${match.lastName}` : ownerIdForMemo;
+  }, [people, ownerIdForMemo]);
 
-  const { data: formData } = form;
+  if (!form || !formData) return null;
 
   return (
     <Card className="group relative overflow-hidden border border-border/30 rounded-2xl transition-all duration-300 hover:shadow-md">
@@ -213,7 +199,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         ></div>
 
         {/* Owner Selection (admin/secretary roles) */}
-        {isAdminRole && (
+        {isAdmin && (
           <FormField label="Owner" fieldId="owner" required error={form.getError('ownerId')}>
             <Select
               value={formData.ownerId}
@@ -233,16 +219,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     Loading people…
                   </span>
                 ) : (
-                  <SelectValue placeholder="Choose dog owner">
-                    {formData.ownerId
-                      ? (() => {
-                          const owner = people.find(p => p.id === formData.ownerId);
-                          return owner
-                            ? `${owner.firstName} ${owner.lastName}`
-                            : formData.ownerId;
-                        })()
-                      : undefined}
-                  </SelectValue>
+                  <SelectValue placeholder="Choose dog owner">{selectedOwnerDisplay}</SelectValue>
                 )}
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60">

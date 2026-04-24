@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Trophy, Calendar, Award, Star, Heart, Activity, User as UserIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
 import { useEntryStore } from '@/store/entryStore';
@@ -55,8 +56,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       : null;
   }, [people, dog.ownerId]);
 
-  const ownerKnown = storeOwner !== null;
-
   const { data: fetchedOwner, isLoading: isOwnerLoading } = useQuery({
     queryKey: ['person', dog.ownerId],
     queryFn: async () => {
@@ -68,12 +67,11 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       if (error) throw error;
       return data;
     },
-    enabled: !!dog.ownerId && !ownerKnown,
+    enabled: !!dog.ownerId && storeOwner === null,
   });
 
   const owner: Owner = useMemo(() => {
     if (storeOwner) return storeOwner;
-    if (isOwnerLoading) return { id: 'loading', name: 'Loading\u2026', email: 'N/A', phone: 'N/A' };
     if (fetchedOwner) {
       return {
         id: fetchedOwner.id,
@@ -83,7 +81,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       };
     }
     return { id: 'unknown', name: 'Unknown Owner', email: 'N/A', phone: 'N/A' };
-  }, [storeOwner, isOwnerLoading, fetchedOwner]);
+  }, [storeOwner, fetchedOwner]);
 
   // Panel/dialog state
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
@@ -225,18 +223,17 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         fields: [
           {
             label: 'Owner',
-            value: owner.id === 'loading' ? 'Loading\u2026' : owner.name,
-            ...(owner.id !== 'unknown' &&
-              owner.id !== 'loading' && {
-                render: (
-                  <a
-                    href={`/people/${owner.id}?fromDog=${updatedDog.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    {owner.name}
-                  </a>
-                ),
-              }),
+            value: isOwnerLoading ? 'Loading\u2026' : owner.name,
+            ...(owner.id !== 'unknown' && {
+              render: (
+                <Link
+                  to={`/people/${owner.id}?fromDog=${updatedDog.id}`}
+                  className="text-primary hover:underline"
+                >
+                  {owner.name}
+                </Link>
+              ),
+            }),
           },
           {
             label: 'Sex',
@@ -319,7 +316,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     }
 
     return sections;
-  }, [updatedDog, canEdit, saveField, owner]);
+  }, [updatedDog, canEdit, saveField, owner, isOwnerLoading]);
 
   // Right sidebar: associations
   const { stats: perfStats } = usePerformanceStatistics(updatedDog.id);

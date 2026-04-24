@@ -187,8 +187,8 @@ describe('AccountPage', () => {
 
   it('DogsSection shows dog list when dogs present', () => {
     mockDogs = [
-      { id: 'd-1', name: 'Biscuit', callName: 'Biscuit', breed: 'Border Collie' },
-      { id: 'd-2', name: 'Max', callName: 'Max', breed: '' },
+      { id: 'd-1', name: 'Biscuit', call_name: 'Biscuit', breed: 'Border Collie' },
+      { id: 'd-2', name: 'Max', call_name: 'Max', breed: '' },
     ];
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Linked dogs' }));

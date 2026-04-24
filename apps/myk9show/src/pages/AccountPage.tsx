@@ -172,6 +172,7 @@ export default function AccountPage() {
         showFlash('Imported');
       });
     };
+    input.addEventListener('cancel', () => setActionLoading(null));
     setActionLoading('import');
     input.click();
   }, [withAction, importPreferences, showFlash]);

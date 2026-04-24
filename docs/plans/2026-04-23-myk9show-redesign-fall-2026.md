@@ -156,10 +156,12 @@ Existing components already fit: `Button size="xl"` (56px),
   and `UpcomingShowsStrip` with the new components; class-stage stats
   from `useMissionControlData` forwarded to today cards.
 
-### 8. Class Run Sheet — _queued, multi-session_
+### 8. Class Run Sheet — _landed_ (2026-04-24)
 
-The magic page: check-in + run order + inline result entry. Budget
-2–3 sessions. Data flow is entries table only (see data-model section).
+Check-in, scratch, run-order sort (custom/armband/random), inline result
+entry (Q/NQ, time, faults, placement, judge notes), Start/Close class.
+`SecretaryRunSheet` shown to secretary/admin; exhibitors see unchanged
+`ClassDetailsMain`. PR [#83](https://github.com/rbeezley/myk9-platform/pull/83).
 
 ### 9. Auth / Settings polish, premium-list wizard, notifications, transactional emails — _last_
 

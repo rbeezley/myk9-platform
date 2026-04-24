@@ -19,7 +19,7 @@ interface UseRunSheetStateReturn {
   sortMode: SortMode;
   onSort: (mode: SortMode) => void;
   expandedId: string | null;
-  setExpandedId: (id: string | null) => void;
+  onToggleExpand: (id: string) => void;
   classPhase: ClassPhase;
   sortedEntries: RunSheetEntry[];
   onCheckIn: (entryId: string, checked: boolean) => Promise<void>;
@@ -105,11 +105,13 @@ export function useRunSheetState({
     }
   };
 
+  const onToggleExpand = (id: string) => setExpandedId(expandedId === id ? null : id);
+
   return {
     sortMode,
     onSort,
     expandedId,
-    setExpandedId,
+    onToggleExpand,
     classPhase,
     sortedEntries,
     onCheckIn,

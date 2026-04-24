@@ -23,7 +23,7 @@ export function SecretaryRunSheet({
     sortMode,
     onSort,
     expandedId,
-    setExpandedId,
+    onToggleExpand,
     classPhase,
     sortedEntries,
     onCheckIn,
@@ -59,7 +59,7 @@ export function SecretaryRunSheet({
             position={idx + 1}
             expanded={expandedId === entry.id}
             timeLimit={timeLimit}
-            onToggleExpand={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+            onToggleExpand={() => onToggleExpand(entry.id)}
             onCheckIn={checked => onCheckIn(entry.id, checked)}
             onScratch={scratched => onScratch(entry.id, scratched)}
             onSaveResult={result => onSaveResult(entry.id, result)}

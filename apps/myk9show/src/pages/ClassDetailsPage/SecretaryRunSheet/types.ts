@@ -26,7 +26,7 @@ export interface RunSheetEntry {
 export function formatSearchTime(secs: number): string {
   const m = Math.floor(secs / 60);
   const s = Math.floor(secs % 60);
-  const h = Math.round((secs % 1) * 100);
+  const h = Math.floor((secs % 1) * 100);
   return `${m}:${String(s).padStart(2, '0')}.${String(h).padStart(2, '0')}`;
 }
 

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
+import { logger } from '@/services/LoggingService';
 import type { ClassPhase, RunSheetEntry } from './types';
 
 const ELEMENT_CONFIG: Record<string, { gradient: [string, string]; Icon: React.ElementType }> = {
@@ -43,7 +44,9 @@ export function ClassHeaderCard({
   onStartClass,
   onCloseClass,
 }: ClassHeaderCardProps) {
-  const cfg = ELEMENT_CONFIG[element] ?? ELEMENT_CONFIG.Container;
+  const cfg =
+    ELEMENT_CONFIG[element] ??
+    (logger.warn('Unknown element type', 'run-sheet', { element }), ELEMENT_CONFIG.Container);
   const [c1, c2] = cfg.gradient;
   const { Icon } = cfg;
 

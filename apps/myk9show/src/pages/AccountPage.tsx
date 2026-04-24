@@ -163,12 +163,16 @@ export default function AccountPage() {
     });
     input.onchange = async (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+      if (!file) {
+        setActionLoading(null);
+        return;
+      }
       await withAction('import', async () => {
         await importPreferences(await file.text());
         showFlash('Imported');
       });
     };
+    setActionLoading('import');
     input.click();
   }, [withAction, importPreferences, showFlash]);
 
@@ -279,6 +283,7 @@ export default function AccountPage() {
                     <li key={key}>
                       <button
                         onClick={() => setActive(key)}
+                        aria-current={active === key ? 'page' : undefined}
                         className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
                           active === key
                             ? key === 'delete'

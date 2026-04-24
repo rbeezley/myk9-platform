@@ -167,7 +167,7 @@ export const PublicRoutes = () => (
       }
     />
     <Route path="/exhibitor/profile" element={<Navigate to="/profile" replace />} />
-    <Route path="/exhibitor/account" element={<Navigate to="/profile" replace />} />
+    <Route path="/exhibitor/account" element={<Navigate to="/account" replace />} />
     <Route
       path="/exhibitor/analytics"
       element={

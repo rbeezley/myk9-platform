@@ -23,7 +23,6 @@ import {
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
-import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
@@ -59,7 +58,6 @@ function RegistrationWizardContent() {
   // Auth and permissions
   const { canCreateExhibitor, isSecretary, isClubAdmin, isSiteAdmin } =
     useRegistrationPermissions();
-  const { mode } = useRegistrationContext();
   const { user } = useAuthContext();
   const { triggerSync } = useReplicationSync();
 
@@ -86,15 +84,15 @@ function RegistrationWizardContent() {
   const { updateRegistration } = useEntryStore();
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
-  // Determine workflow mode
+  // Derived from role flags, not RegistrationContext.mode — that value defaults
+  // to 'exhibitor' while RBAC loads, which would hide the secretary search UI.
   const currentWorkflowMode: WorkflowMode = useMemo(() => {
-    if (mode) return mode as WorkflowMode;
     if (isSiteAdmin) return 'site_admin';
     if (isClubAdmin) return 'club_admin';
     if (isSecretary && canCreateExhibitor) return 'secretary_new';
     if (isSecretary) return 'secretary_existing';
     return 'exhibitor';
-  }, [mode, isSiteAdmin, isClubAdmin, isSecretary, canCreateExhibitor]);
+  }, [isSiteAdmin, isClubAdmin, isSecretary, canCreateExhibitor]);
 
   const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
 

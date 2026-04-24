@@ -19,16 +19,22 @@ import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
 import type { DogFormData } from './DogEditPanel.types';
 import { DogEditContext } from './DogEditPanel';
+import { usePeopleQuery } from '@/hooks/usePeopleQuery';
 
 // ── Owner Selection Field (admin only) ──────────────────────────────
 
 export const OwnerSelectionField: React.FC = () => {
-  const { isAdmin, people } = useContext(DogEditContext);
+  const { isAdmin, people: contextPeople } = useContext(DogEditContext);
   const { data, updateData } = useEditPanel<DogFormData>();
+
+  const { data: loadedPeople = [], isLoading } = usePeopleQuery(isAdmin);
 
   if (!isAdmin) return null;
 
-  const currentOwner = people.find(p => p.id === data.ownerId);
+  // Use context people as fallback for resolving currently-selected owner display name
+  // (shows immediately without waiting for the query)
+  const currentOwner =
+    loadedPeople.find(p => p.id === data.ownerId) ?? contextPeople.find(p => p.id === data.ownerId);
 
   const displayText = currentOwner
     ? `${currentOwner.firstName} ${currentOwner.lastName}`
@@ -36,7 +42,25 @@ export const OwnerSelectionField: React.FC = () => {
       ? 'Unknown Owner'
       : 'Select owner';
 
-  if (people.length === 0) {
+  if (isLoading) {
+    return (
+      <div className="pt-4 border-t border-border/30">
+        <FormField label="Owner" fieldId="ownerId" hint="Change the owner of this dog">
+          <select
+            id="ownerId"
+            disabled
+            value={data.ownerId || ''}
+            className="w-full border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium opacity-50 cursor-not-allowed"
+          >
+            <option value={data.ownerId || ''}>{displayText}</option>
+          </select>
+          <p className="text-xs text-muted-foreground/60 mt-1">Loading people…</p>
+        </FormField>
+      </div>
+    );
+  }
+
+  if (loadedPeople.length === 0) {
     return (
       <div className="space-y-2 pt-4 border-t border-border/30">
         <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
@@ -51,9 +75,9 @@ export const OwnerSelectionField: React.FC = () => {
   return (
     <div className="pt-4 border-t border-border/30">
       <FormField
-        label={`Owner (${people.length} available)`}
+        label={`Owner (${loadedPeople.length} available)`}
         fieldId="ownerId"
-        hint="Change the owner of this dog (admin only)"
+        hint="Change the owner of this dog"
       >
         <select
           id="ownerId"
@@ -67,7 +91,7 @@ export const OwnerSelectionField: React.FC = () => {
           {data.ownerId && !currentOwner && (
             <option value={data.ownerId}>Unknown Owner (ID: {data.ownerId.slice(0, 8)}...)</option>
           )}
-          {people.map(person => (
+          {loadedPeople.map(person => (
             <option key={person.id} value={person.id}>
               {person.firstName} {person.lastName}
               {person.email ? ` (${person.email})` : ''}
@@ -149,12 +173,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            label="Call Name"
-            fieldId="callName"
-            required
-            error={callNameError}
-          >
+          <FormField label="Call Name" fieldId="callName" required error={callNameError}>
             <Input
               id="callName"
               value={data.callName}
@@ -185,12 +204,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            label="Gender"
-            fieldId="gender"
-            required
-            error={genderError}
-          >
+          <FormField label="Gender" fieldId="gender" required error={genderError}>
             <Select
               value={data.gender}
               onValueChange={v => {
@@ -211,12 +225,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </Select>
           </FormField>
 
-          <FormField
-            label="Date of Birth"
-            fieldId="dateOfBirth"
-            required
-            error={dobError}
-          >
+          <FormField label="Date of Birth" fieldId="dateOfBirth" required error={dobError}>
             <Input
               id="dateOfBirth"
               type="date"

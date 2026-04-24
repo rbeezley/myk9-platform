@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Trophy, Calendar, Award, Star, Heart, Activity, User as UserIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
@@ -13,6 +15,7 @@ import type { PropertySectionConfig, AssociationConfig } from '@/components/layo
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
 import { usePerformanceStatistics } from '@/hooks/usePerformanceStatistics';
 import { useTitleProgress } from '@/hooks/useTitleProgress';
+import { supabase } from '@/services/database/supabaseClient';
 import '@/styles/myk9-show-details.css';
 
 import HeroProfileCard from './HeroProfileCard';
@@ -40,7 +43,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     }
   }, [searchParams]);
 
-  const owner: Owner = useMemo(() => {
+  const storeOwner: Owner | null = useMemo(() => {
     const person = people.find(p => p.id === dog.ownerId);
     return person
       ? {
@@ -50,13 +53,35 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
           phone: person.phone,
           profileImage: person.profileImage,
         }
-      : {
-          id: 'unknown',
-          name: 'Unknown Owner',
-          email: 'N/A',
-          phone: 'N/A',
-        };
+      : null;
   }, [people, dog.ownerId]);
+
+  const { data: fetchedOwner, isLoading: isOwnerLoading } = useQuery({
+    queryKey: ['person', dog.ownerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('people')
+        .select('id, first_name, last_name, email, phone')
+        .eq('id', dog.ownerId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!dog.ownerId && storeOwner === null,
+  });
+
+  const owner: Owner = useMemo(() => {
+    if (storeOwner) return storeOwner;
+    if (fetchedOwner) {
+      return {
+        id: fetchedOwner.id,
+        name: `${fetchedOwner.first_name} ${fetchedOwner.last_name}`,
+        email: fetchedOwner.email ?? undefined,
+        phone: fetchedOwner.phone ?? undefined,
+      };
+    }
+    return { id: 'unknown', name: 'Unknown Owner', email: 'N/A', phone: 'N/A' };
+  }, [storeOwner, fetchedOwner]);
 
   // Panel/dialog state
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
@@ -197,6 +222,20 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         iconColor: 'text-pink-500',
         fields: [
           {
+            label: 'Owner',
+            value: isOwnerLoading ? 'Loading\u2026' : owner.name,
+            ...(owner.id !== 'unknown' && {
+              render: (
+                <Link
+                  to={`/people/${owner.id}?fromDog=${updatedDog.id}`}
+                  className="text-primary hover:underline"
+                >
+                  {owner.name}
+                </Link>
+              ),
+            }),
+          },
+          {
             label: 'Sex',
             value: gender,
             ...(canEdit && {
@@ -277,7 +316,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     }
 
     return sections;
-  }, [updatedDog, canEdit, saveField]);
+  }, [updatedDog, canEdit, saveField, owner, isOwnerLoading]);
 
   // Right sidebar: associations
   const { stats: perfStats } = usePerformanceStatistics(updatedDog.id);

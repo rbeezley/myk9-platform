@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -9,9 +9,10 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, User, Camera, Edit, PawPrint } from 'lucide-react';
-import { useUserStore } from '@/store/userStore';
+import { Heart, User, Camera, Edit, PawPrint, Loader2 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
+import { isAdminRole } from '@/components/panels/edit/DogEditPanel.helpers';
+import { usePeopleQuery } from '@/hooks/usePeopleQuery';
 import { FormField } from '@/components/common/FormField';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { calculateAge } from './validation';
@@ -41,20 +42,20 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   onPhotoOpen,
 }) => {
   const { form } = useEditPanel<DogFormData>();
-  const allPeople = useUserStore(state => state.people);
-  const loadUsers = useUserStore(state => state.loadUsers);
-  const people = useMemo(
-    () => allPeople.filter(p => !p.deletedAt && p.status !== 'suspended'),
-    [allPeople]
-  );
 
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+  const isAdmin = isAdminRole(userRole);
+  const { data: people = [], isLoading: isPeopleLoading } = usePeopleQuery(isAdmin);
 
-  if (!form) return null;
+  const formData = form?.data;
+  const ownerIdForMemo = formData?.ownerId;
 
-  const { data: formData } = form;
+  const selectedOwnerDisplay = useMemo(() => {
+    if (!ownerIdForMemo) return undefined;
+    const match = people.find(p => p.id === ownerIdForMemo);
+    return match ? `${match.firstName} ${match.lastName}` : ownerIdForMemo;
+  }, [people, ownerIdForMemo]);
+
+  if (!form || !formData) return null;
 
   return (
     <Card className="group relative overflow-hidden border border-border/30 rounded-2xl transition-all duration-300 hover:shadow-md">
@@ -198,9 +199,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         ></div>
 
         {/* Owner Selection (admin/secretary roles) */}
-        {(userRole === UserRole.SECRETARY ||
-          userRole === UserRole.CLUB_ADMIN ||
-          userRole === UserRole.SITE_ADMIN) && (
+        {isAdmin && (
           <FormField label="Owner" fieldId="owner" required error={form.getError('ownerId')}>
             <Select
               value={formData.ownerId}
@@ -208,19 +207,20 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 form.setValue('ownerId', value);
                 form.touchField('ownerId');
               }}
+              disabled={isPeopleLoading}
             >
               <SelectTrigger
                 {...form.getFieldProps('ownerId')}
                 onBlur={() => form.touchField('ownerId')}
               >
-                <SelectValue placeholder="Choose dog owner">
-                  {formData.ownerId
-                    ? (() => {
-                        const owner = people.find(p => p.id === formData.ownerId);
-                        return owner ? `${owner.firstName} ${owner.lastName}` : formData.ownerId;
-                      })()
-                    : undefined}
-                </SelectValue>
+                {isPeopleLoading ? (
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading people…
+                  </span>
+                ) : (
+                  <SelectValue placeholder="Choose dog owner">{selectedOwnerDisplay}</SelectValue>
+                )}
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60">
                 {people.map(person => (

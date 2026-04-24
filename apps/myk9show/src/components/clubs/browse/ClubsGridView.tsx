@@ -18,7 +18,7 @@ function getClubTypeLabel(clubType: string | undefined): string | null {
 
 export const ClubsGridView: React.FC<ClubsGridViewProps> = ({ clubs, clubShowCounts }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {clubs.map(club => {
         const upcomingCount = clubShowCounts.get(club.id) || 0;
         const memberCount = club.memberIds?.length || 0;
@@ -47,11 +47,7 @@ export const ClubsGridView: React.FC<ClubsGridViewProps> = ({ clubs, clubShowCou
               ) : undefined
             }
           >
-            {club.description && (
-              <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{club.description}</p>
-            )}
-
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
               {location && (
                 <BrowseCardDetail icon={<MapPin className="h-3.5 w-3.5 shrink-0" />}>
                   {location}

@@ -17,34 +17,40 @@ export function BrowseCard({ href, actionLabel, badges, avatar, name, children }
 
   return (
     <div
-      className="group cursor-pointer rounded-xl bg-card p-4 shadow-card transition-all hover:shadow-card-hover"
+      className="group cursor-pointer rounded-xl bg-card shadow-card transition-all hover:shadow-card-hover"
       onClick={() => navigate(href)}
       role="link"
       tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && navigate(href)}
     >
-      {badges && <div className="mb-3 flex flex-wrap gap-1.5">{badges}</div>}
+      <div className="flex items-center gap-4 p-4">
+        {/* Cover / avatar */}
+        <div className="shrink-0">{avatar}</div>
 
-      <div className="flex items-center gap-3">
-        {avatar}
-        <h3 className="truncate text-sm font-semibold text-card-foreground">{name}</h3>
-      </div>
+        {/* Facts */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-base font-semibold text-card-foreground truncate">{name}</h3>
+            {badges && <div className="flex flex-wrap gap-1">{badges}</div>}
+          </div>
+          {children && <div className="mt-1.5">{children}</div>}
+        </div>
 
-      {children}
-
-      <div className="mt-4 flex justify-end border-t border-border pt-3">
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs transition-colors group-hover:border-primary/40 group-hover:text-primary"
-          onClick={e => {
-            e.stopPropagation();
-            navigate(href);
-          }}
-        >
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          {actionLabel}
-        </Button>
+        {/* Action */}
+        <div className="shrink-0 ml-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs transition-colors group-hover:border-primary/40 group-hover:text-primary"
+            onClick={e => {
+              e.stopPropagation();
+              navigate(href);
+            }}
+          >
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            {actionLabel}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -65,14 +71,14 @@ export function BrowseCardAvatar({ src, fallback, alt, shape = 'circle' }: Brows
       <img
         src={src}
         alt={alt}
-        className={`h-10 w-10 shrink-0 object-cover ring-2 ring-border ${rounded}`}
+        className={`h-12 w-12 shrink-0 object-cover ring-2 ring-border ${rounded}`}
       />
     );
   }
 
   return (
     <div
-      className={`flex h-10 w-10 shrink-0 items-center justify-center bg-primary/10 text-sm font-semibold text-primary ring-2 ring-border ${rounded}`}
+      className={`flex h-12 w-12 shrink-0 items-center justify-center bg-primary/10 text-sm font-semibold text-primary ring-2 ring-border ${rounded}`}
     >
       {fallback}
     </div>

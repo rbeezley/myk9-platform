@@ -23,8 +23,10 @@ const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
 const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
-const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
+
+// Account (merged profile + preferences + settings)
+const AccountPage = lazy(() => import('@/pages/AccountPage'));
 
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
@@ -42,9 +44,6 @@ const ChatPage = lazy(() => import('@/features/messages/pages/ChatPage'));
 
 // Notifications history
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
-
-// Settings
-const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 
 // Cart and checkout pages
 const CartPage = lazy(() => import('@/pages/CartPage'));
@@ -168,7 +167,7 @@ export const PublicRoutes = () => (
       }
     />
     <Route path="/exhibitor/profile" element={<Navigate to="/profile" replace />} />
-    <Route path="/exhibitor/account" element={<Navigate to="/profile" replace />} />
+    <Route path="/exhibitor/account" element={<Navigate to="/account" replace />} />
     <Route
       path="/exhibitor/analytics"
       element={
@@ -244,19 +243,22 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* Unified settings */}
+    {/* Account (unified profile + preferences + settings) */}
     <Route
-      path="/settings"
+      path="/account"
       element={
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <SettingsPage />
+              <AccountPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
       }
     />
+
+    {/* Legacy redirects */}
+    <Route path="/settings" element={<Navigate to="/account" replace />} />
 
     {/* Cart and Checkout */}
     <Route
@@ -349,18 +351,7 @@ export const PublicRoutes = () => (
     />
 
     {/* Feature Pages */}
-    <Route
-      path="/preferences"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <PreferencesPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/preferences" element={<Navigate to="/account" replace />} />
 
     <Route
       path="/calendar"

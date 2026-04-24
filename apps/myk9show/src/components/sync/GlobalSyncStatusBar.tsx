@@ -1,6 +1,6 @@
 /**
  * GlobalSyncStatusBar - Always-visible sync status component for app header
- * 
+ *
  * Provides real-time sync status information including:
  * - Current sync status with visual indicators
  * - Queue size and active operations
@@ -16,12 +16,7 @@ import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
+import {
   WifiOff,
   CloudOff,
   Cloud,
@@ -40,7 +35,7 @@ import {
   Eye,
   RefreshCw,
   Pause,
-  Play
+  Play,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -61,27 +56,22 @@ interface SyncOperation {
   estimatedCompletion?: Date;
 }
 
-export function GlobalSyncStatusBar({ 
-  className, 
-  compact = false, 
-  showDetails = true 
+export function GlobalSyncStatusBar({
+  className,
+  compact = false,
+  showDetails = true,
 }: GlobalSyncStatusBarProps) {
   const navigate = useNavigate();
-  const { 
-    status: syncStatus, 
-    queueSize, 
+  const {
+    status: syncStatus,
+    queueSize,
     isOnline,
     lastSyncAt: lastSyncTime,
-    conflictCount
+    conflictCount,
   } = useGlobalSyncStatus();
-  
-  const {
-    isSyncing,
-    pauseAllSync,
-    resumeAllSync,
-    forceFullSync,
-    failedOperations
-  } = useSyncStore();
+
+  const { isSyncing, pauseAllSync, resumeAllSync, forceFullSync, failedOperations } =
+    useSyncStore();
 
   const [showProgress, setShowProgress] = useState(false);
   const [activeOperations, setActiveOperations] = useState<SyncOperation[]>([]);
@@ -99,8 +89,8 @@ export function GlobalSyncStatusBar({
           progress: 65,
           status: 'processing',
           startTime: new Date(now - 30000),
-          estimatedCompletion: new Date(now + 15000)
-        }
+          estimatedCompletion: new Date(now + 15000),
+        },
       ];
       setActiveOperations(operations);
       setShowProgress(true);
@@ -134,7 +124,7 @@ export function GlobalSyncStatusBar({
 
   const getStatusText = () => {
     if (!isOnline) return 'Offline';
-    
+
     switch (syncStatus) {
       case 'synced':
         return 'Synced';
@@ -153,7 +143,7 @@ export function GlobalSyncStatusBar({
 
   const getStatusColor = () => {
     if (!isOnline) return 'text-gray-500';
-    
+
     switch (syncStatus) {
       case 'synced':
         return 'text-green-600';
@@ -172,17 +162,17 @@ export function GlobalSyncStatusBar({
 
   const formatLastSync = () => {
     if (!lastSyncTime) return 'Never';
-    
+
     const now = new Date();
     const diff = now.getTime() - lastSyncTime.getTime();
     const minutes = Math.floor(diff / 60000);
-    
+
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m ago`;
-    
+
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
-    
+
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
   };
@@ -206,7 +196,7 @@ export function GlobalSyncStatusBar({
         resumeAllSync();
         break;
       case 'settings':
-        navigate('/settings/sync');
+        navigate('/account');
         break;
       case 'details':
         navigate('/admin/sync');
@@ -221,7 +211,7 @@ export function GlobalSyncStatusBar({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className={cn("h-8 w-8 p-0", className)}>
+            <Button variant="ghost" size="sm" className={cn('h-8 w-8 p-0', className)}>
               {getStatusIcon()}
             </Button>
           </TooltipTrigger>
@@ -229,9 +219,7 @@ export function GlobalSyncStatusBar({
             <div className="text-sm">
               <div className="font-medium">{getStatusText()}</div>
               <div className="text-muted-foreground">Last sync: {formatLastSync()}</div>
-              {queueSize > 0 && (
-                <div className="text-muted-foreground">{queueSize} pending</div>
-              )}
+              {queueSize > 0 && <div className="text-muted-foreground">{queueSize} pending</div>}
             </div>
           </TooltipContent>
         </Tooltip>
@@ -240,24 +228,22 @@ export function GlobalSyncStatusBar({
   }
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn('flex items-center gap-2', className)}>
       {/* Status Indicator */}
       <div className="flex items-center gap-2">
         {getStatusIcon()}
-        
+
         {showDetails && (
           <div className="flex items-center gap-1">
-            <span className={cn("text-sm font-medium", getStatusColor())}>
-              {getStatusText()}
-            </span>
-            
+            <span className={cn('text-sm font-medium', getStatusColor())}>{getStatusText()}</span>
+
             {/* Queue Badge */}
             {queueSize > 0 && (
               <Badge variant="secondary" className="text-xs">
                 {queueSize}
               </Badge>
             )}
-            
+
             {/* Conflict Badge */}
             {conflictCount > 0 && (
               <Badge variant="destructive" className="text-xs">
@@ -271,13 +257,8 @@ export function GlobalSyncStatusBar({
       {/* Progress Indicator */}
       {showProgress && activeOperations.length > 0 && (
         <div className="flex items-center gap-2 min-w-24">
-          <Progress 
-            value={activeOperations[0].progress} 
-            className="w-16 h-2" 
-          />
-          <span className="text-xs text-muted-foreground">
-            {activeOperations[0].progress}%
-          </span>
+          <Progress value={activeOperations[0].progress} className="w-16 h-2" />
+          <span className="text-xs text-muted-foreground">{activeOperations[0].progress}%</span>
         </div>
       )}
 
@@ -317,35 +298,35 @@ export function GlobalSyncStatusBar({
               </>
             )}
           </DropdownMenuItem>
-          
-          <DropdownMenuItem 
+
+          <DropdownMenuItem
             onClick={() => handleSyncAction('retry')}
             disabled={failedOperations.length === 0}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
             Retry Failed ({failedOperations.length})
           </DropdownMenuItem>
-          
+
           <DropdownMenuSeparator />
-          
+
           {/* Navigation */}
           <DropdownMenuItem onClick={() => handleSyncAction('details')}>
             <Eye className="mr-2 h-4 w-4" />
             View Details
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem onClick={() => handleSyncAction('settings')}>
             <Settings className="mr-2 h-4 w-4" />
             Sync Settings
           </DropdownMenuItem>
-          
+
           <DropdownMenuSeparator />
-          
+
           {/* Status Info */}
           <div className="px-2 py-1.5 text-xs text-muted-foreground">
             Last sync: {formatLastSync()}
           </div>
-          
+
           <div className="px-2 py-1.5 text-xs text-muted-foreground">
             Network: {isOnline ? 'Connected' : 'Offline'}
           </div>

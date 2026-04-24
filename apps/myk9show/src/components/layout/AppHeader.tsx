@@ -14,7 +14,6 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  Palette,
   ShoppingCart,
   Info,
   MessageSquare,
@@ -297,9 +296,9 @@ const AppHeader: React.FC = () => {
 
                     {/* Common menu items */}
                     <DropdownMenuItem asChild>
-                      <Link to="/profile" className="w-full flex items-center gap-2">
+                      <Link to="/account" className="w-full flex items-center gap-2">
                         <UserIcon className="h-4 w-4" />
-                        My Profile
+                        Account
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -313,13 +312,6 @@ const AppHeader: React.FC = () => {
                         <Heart className="h-4 w-4" />
                         Pricing
                       </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => navigate('/preferences')}
-                      className="w-full flex items-center gap-2 cursor-pointer"
-                    >
-                      <Palette className="h-4 w-4" />
-                      Preferences
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={toggleAskQ}

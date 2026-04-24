@@ -1,19 +1,6 @@
-import React, { useRef, useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  User,
-  Bell,
-  CreditCard,
-  Dog,
-  Download,
-  Trash2,
-  Mail,
-  Phone,
-  MapPin,
-  Camera,
-  Loader2,
-  ChevronRight,
-} from 'lucide-react';
+import { Camera, Dog, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,41 +12,26 @@ import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import type { Dog as DogType } from '@/types/dog-types';
 
-type Section = 'profile' | 'notifications' | 'payment' | 'dogs' | 'exports' | 'delete';
-
-const NAV_ITEMS: { key: Section; label: string; icon: React.FC<{ className?: string }> }[] = [
-  { key: 'profile', label: 'Profile', icon: User },
-  { key: 'notifications', label: 'Notifications', icon: Bell },
-  { key: 'payment', label: 'Payment methods', icon: CreditCard },
-  { key: 'dogs', label: 'Linked dogs', icon: Dog },
-  { key: 'exports', label: 'API & exports', icon: Download },
-  { key: 'delete', label: 'Delete account', icon: Trash2 },
-];
-
-// ── Profile section ─────────────────────────────────────────────────────────
-
-function ProfileSection() {
+export function ProfileSection() {
   const form = useProfileForm();
   const updatePerson = useUpdatePerson();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { upload, uploading } = useAvatarUpload({
-    userId: form.personId || '',
-    onSuccess: publicUrl => {
-      if (form.person) {
-        updatePerson.mutate({ ...form.person, profileImage: publicUrl });
-      }
+  const onSuccess = useCallback(
+    (url: string) => {
+      if (form.person) updatePerson.mutate({ ...form.person, profileImage: url });
     },
-  });
+    [form.person, updatePerson]
+  );
 
-  const avatarUrl = form.person?.profileImage;
+  const { upload, uploading } = useAvatarUpload({ userId: form.personId || '', onSuccess });
   const fullName = `${form.person?.firstName || ''} ${form.person?.lastName || ''}`.trim();
 
   return (
     <div className="space-y-6">
-      {/* Avatar */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Profile photo</CardTitle>
@@ -67,7 +39,9 @@ function ProfileSection() {
         <CardContent>
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
-              {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName} />}
+              {form.person?.profileImage && (
+                <AvatarImage src={form.person.profileImage} alt={fullName} />
+              )}
               <AvatarFallback className="text-lg">{getInitials(fullName)}</AvatarFallback>
             </Avatar>
             <div>
@@ -95,8 +69,8 @@ function ProfileSection() {
                 accept="image/*"
                 className="hidden"
                 onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) upload(file);
+                  const f = e.target.files?.[0];
+                  if (f) upload(f);
                 }}
               />
               <p className="mt-1.5 text-xs text-muted-foreground">JPG, PNG, WebP · max 2 MB</p>
@@ -105,7 +79,6 @@ function ProfileSection() {
         </CardContent>
       </Card>
 
-      {/* Name & contact */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Personal information</CardTitle>
@@ -156,19 +129,16 @@ function ProfileSection() {
             <div className="grid grid-cols-3 gap-2">
               <Input
                 placeholder="City"
-                className="col-span-1"
                 value={form.values.city}
                 onChange={e => form.setValue('city', e.target.value)}
               />
               <Input
                 placeholder="State"
-                className="col-span-1"
                 value={form.values.state}
                 onChange={e => form.setValue('state', e.target.value)}
               />
               <Input
                 placeholder="ZIP"
-                className="col-span-1"
                 value={form.values.zipCode}
                 onChange={e => form.setValue('zipCode', e.target.value)}
               />
@@ -197,58 +167,11 @@ function ProfileSection() {
   );
 }
 
-// ── Notifications section ────────────────────────────────────────────────────
-
-function NotificationsSection() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Notifications</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Control which notifications you receive from myK9Show.
-        </p>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/preferences">
-            Notification preferences
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Link>
-        </Button>
-        <div className="pt-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/notifications">View notification history</Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Payment section ──────────────────────────────────────────────────────────
-
-function PaymentSection() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Payment methods</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground py-4 text-center">
-          No payment methods saved. Payment information is collected at checkout via Stripe.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Linked dogs section ──────────────────────────────────────────────────────
-
-function LinkedDogsSection() {
+export function DogsSection() {
   const { data: rawDogs, isLoading } = useDogsQuery();
-  const dogs = (rawDogs ?? []) as unknown as DogType[];
+  const dogs: DogType[] = mapDatabaseDogsArray((rawDogs ?? []) as Record<string, unknown>[]);
 
-  if (isLoading) {
+  if (isLoading)
     return (
       <Card>
         <CardContent className="py-8 flex justify-center">
@@ -256,7 +179,6 @@ function LinkedDogsSection() {
         </CardContent>
       </Card>
     );
-  }
 
   return (
     <Card>
@@ -304,32 +226,7 @@ function LinkedDogsSection() {
   );
 }
 
-// ── Exports section ──────────────────────────────────────────────────────────
-
-function ExportsSection() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">API & exports</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Export your entry history or access the myK9Show API.
-        </p>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/preferences">
-            Manage integrations
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Delete section ───────────────────────────────────────────────────────────
-
-function DeleteSection() {
+export function DeleteSection() {
   const { signOut } = useAuthContext();
   const [confirm, setConfirm] = useState(false);
 
@@ -352,13 +249,7 @@ function DeleteSection() {
               Are you sure? This cannot be undone.
             </p>
             <div className="flex gap-2">
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={async () => {
-                  await signOut();
-                }}
-              >
+              <Button variant="destructive" size="sm" onClick={() => signOut()}>
                 Yes, delete account
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setConfirm(false)}>
@@ -369,61 +260,5 @@ function DeleteSection() {
         )}
       </CardContent>
     </Card>
-  );
-}
-
-// ── Main page ────────────────────────────────────────────────────────────────
-
-export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<Section>('profile');
-
-  const renderSection = () => {
-    switch (activeSection) {
-      case 'profile':
-        return <ProfileSection />;
-      case 'notifications':
-        return <NotificationsSection />;
-      case 'payment':
-        return <PaymentSection />;
-      case 'dogs':
-        return <LinkedDogsSection />;
-      case 'exports':
-        return <ExportsSection />;
-      case 'delete':
-        return <DeleteSection />;
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-background pt-20">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-2xl font-bold mb-8">Settings</h1>
-        <div className="flex gap-8">
-          {/* Left rail nav */}
-          <nav className="w-52 shrink-0">
-            <ul className="space-y-0.5">
-              {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
-                <li key={key}>
-                  <button
-                    onClick={() => setActiveSection(key)}
-                    className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
-                      activeSection === key
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          {/* Content area */}
-          <div className="flex-1 min-w-0">{renderSection()}</div>
-        </div>
-      </div>
-    </div>
   );
 }

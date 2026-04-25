@@ -14,6 +14,7 @@ import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -29,8 +30,20 @@ import { EmptyState } from '@/components/common/EmptyState';
 const BrowseClubsPage: React.FC = () => {
   const navigate = useNavigate();
 
-  const { user } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
   const isAuthenticated = !!user;
+
+  // Mirror clubs_insert RLS (migration 160): only secretary, club_admin, and
+  // site_admin can create a club. Showing the button to other authenticated
+  // users would lead to a silent insert failure.
+  const canCreateClub = useMemo(() => {
+    const roles = userWithRoles?.roles ?? [];
+    return (
+      roles.includes(UserRole.SECRETARY) ||
+      roles.includes(UserRole.CLUB_ADMIN) ||
+      roles.includes(UserRole.SITE_ADMIN)
+    );
+  }, [userWithRoles]);
 
   const [viewMode, setViewMode] = useViewPreference('clubs', 'cards');
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
@@ -127,13 +140,13 @@ const BrowseClubsPage: React.FC = () => {
 
   const actionButton = useMemo(
     () =>
-      isAuthenticated ? (
+      canCreateClub ? (
         <Button onClick={() => setShowCreateClubPanel(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Club
         </Button>
       ) : null,
-    [isAuthenticated]
+    [canCreateClub]
   );
 
   const renderContent = () => {
@@ -143,12 +156,14 @@ const BrowseClubsPage: React.FC = () => {
           icon={Building2}
           title="No clubs yet"
           description={
-            isAuthenticated
+            canCreateClub
               ? 'Get started by creating your first club to manage organizations and events.'
-              : 'No clubs are listed yet. Sign in to add one.'
+              : isAuthenticated
+                ? 'No clubs are listed yet.'
+                : 'No clubs are listed yet. Sign in to add one.'
           }
           action={
-            isAuthenticated
+            canCreateClub
               ? { label: 'Add Club', onClick: () => setShowCreateClubPanel(true), icon: Plus }
               : undefined
           }

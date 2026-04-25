@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import { config as loadEnv } from 'dotenv';
+
+// Load .env.local first (gitignored, takes precedence), then fall back to .env.
+loadEnv({ path: '.env.local', override: false });
+loadEnv({ path: '.env', override: false });
 
 export default defineConfig({
   testDir: './src/test/e2e',
@@ -6,10 +11,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1, // Add retry for flaky tests
   workers: process.env.CI ? 1 : 4, // Limit workers to prevent resource contention
-  reporter: [
-    ['list'],
-    ['html', { open: 'never' }],
-  ],
+  reporter: [['list'], ['html', { open: 'never' }]],
   // Output directory for test artifacts
   outputDir: 'test-results',
   // Snapshot settings for visual regression testing
@@ -19,11 +21,14 @@ export default defineConfig({
     // Visual comparison settings
     toHaveScreenshot: {
       maxDiffPixels: 100, // Allow small differences
-      threshold: 0.2,     // 20% pixel difference threshold
+      threshold: 0.2, // 20% pixel difference threshold
     },
   },
   use: {
-    baseURL: 'http://localhost:5173',
+    // Use 127.0.0.1 explicitly so we don't accidentally hit a different
+    // worktree's vite that's bound to IPv6 ::1:5173 (macOS resolves
+    // "localhost" to IPv6 first).
+    baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     // Video recording for debugging failed tests

@@ -34,6 +34,7 @@ Thumbs.db
 coverage/
 playwright-report/
 playwright-report-visual/
+.playwright-cli/
 test-results/
 *-snapshots/
 # Exception: visual regression baselines are intentionally committed

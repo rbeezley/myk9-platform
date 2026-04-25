@@ -33,6 +33,7 @@ interface ClubHeaderProps {
   onCoverRemove?: () => void;
   isUploadingCover?: boolean;
   canEditBranding?: boolean;
+  canDeleteClub?: boolean;
 }
 
 export const ClubHeader: React.FC<ClubHeaderProps> = ({
@@ -44,6 +45,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   onCoverRemove,
   isUploadingCover = false,
   canEditBranding = false,
+  canDeleteClub = false,
 }) => {
   const palette = useMemo(
     () => (club.accentColor ? generatePalette(club.accentColor) : null),
@@ -116,11 +118,15 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                 Visit Website
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDeleteClub} className="text-red-600">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Club
-            </DropdownMenuItem>
+            {canDeleteClub && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onDeleteClub} className="text-red-600">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Club
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

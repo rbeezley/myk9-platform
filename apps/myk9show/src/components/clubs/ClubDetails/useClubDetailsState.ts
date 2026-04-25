@@ -66,10 +66,10 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // Auth context for RBAC
   const { userWithRoles, hasPermission } = useAuthContext();
 
-  // RBAC permission checks — derive both from a single isClubAdmin call
-  const { canManageMembers, canEditBranding } = useMemo(() => {
+  // RBAC permission checks — derive from a single isClubAdmin call
+  const { canManageMembers, canEditBranding, canDeleteClub } = useMemo(() => {
     if (!userWithRoles || !selectedClub || !userWithRoles.databaseUserId) {
-      return { canManageMembers: false, canEditBranding: false };
+      return { canManageMembers: false, canEditBranding: false, canDeleteClub: false };
     }
     const isAdmin = ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id);
     const isPlatformAdmin = userWithRoles.roles?.includes(UserRole.SITE_ADMIN) ?? false;
@@ -78,6 +78,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
         isAdmin ||
         hasPermission('club:manage_members', { type: ScopeType.CLUB, id: selectedClub.id }),
       canEditBranding: isPlatformAdmin || isAdmin,
+      // Mirror the clubs_delete RLS policy: only platform_admin can delete clubs.
+      canDeleteClub: isPlatformAdmin,
     };
   }, [userWithRoles, selectedClub, hasPermission]);
 
@@ -401,6 +403,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // Permissions
     canManageMembers,
     canEditBranding,
+    canDeleteClub,
     // Edit panel
     showEditPanel,
     setShowEditPanel,

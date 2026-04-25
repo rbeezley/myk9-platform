@@ -80,6 +80,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         onCoverRemove={state.handleCoverRemove}
         isUploadingCover={state.isUploadingCover}
         canEditBranding={state.canEditBranding}
+        canDeleteClub={state.canDeleteClub}
       />
 
       {/* Statistics Cards */}

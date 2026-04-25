@@ -59,7 +59,7 @@ Optionally save storage state so you can resume mid-recording without re-typing 
 playwright-cli state-save .playwright-cli/<role>-state.json
 ```
 
-**Note:** the saved state contains a Supabase JWT that typically expires in 1 hour. Long recording sessions will start hitting 401s — re-sign-in if that happens. The committed spec re-signs-in fresh per `test.beforeAll`, so the storage-state file is recording-only convenience, never a CI artifact.
+**Note:** the saved state contains a Supabase JWT that typically expires in 1 hour. Long recording sessions will start hitting 401s — re-sign-in if that happens. The committed spec re-signs-in fresh per `test.beforeEach`, so the storage-state file is recording-only convenience, never a CI artifact.
 
 ### Step 2 — Record the walk
 

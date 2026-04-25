@@ -49,7 +49,7 @@ const BrowsePeoplePage: React.FC = () => {
     availableRoles,
   } = useBrowsePeopleData();
 
-  const canManageUsers = !rbacLoading && hasPermission('user:manage');
+  const canManageUsers = !rbacLoading && hasPermission('people:create');
 
   // Update URL when view mode changes
   const handleViewModeChange = useCallback(

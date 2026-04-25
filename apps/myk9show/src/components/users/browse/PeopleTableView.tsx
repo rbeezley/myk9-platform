@@ -86,7 +86,7 @@ export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people }) => {
       tableId="peopleBrowse"
       columns={columns}
       data={people}
-      onRowClick={person => navigate(`/people/${person.id}`)}
+      onRowClick={person => navigate(`/users/${person.id}`)}
       getRowId={person => person.id}
     />
   );

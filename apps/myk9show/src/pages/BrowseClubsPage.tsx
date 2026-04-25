@@ -108,14 +108,11 @@ const BrowseClubsPage: React.FC = () => {
           pastShows: [],
         };
 
-        await addClub(newClub);
+        const createdId = await addClub(newClub);
 
-        // Find the created club by name since ID was assigned by replication layer
-        const currentClubs = useClubStore.getState().clubs;
-        const created = currentClubs.find(c => c.name === newClub.name);
-        if (created) {
-          selectClub(created.id);
-          navigate(`/clubs/${created.id}`);
+        if (createdId) {
+          selectClub(createdId);
+          navigate(`/clubs/${createdId}`);
         }
 
         setShowCreateClubPanel(false);

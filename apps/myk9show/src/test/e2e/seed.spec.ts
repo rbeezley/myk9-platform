@@ -1,5 +1,7 @@
 import { test } from '@playwright/test';
 
-test('seed', async ({ page }) => {
-  // generate code here.
+test.describe('Test group', () => {
+  test('seed', async () => {
+    // generate code here.
+  });
 });

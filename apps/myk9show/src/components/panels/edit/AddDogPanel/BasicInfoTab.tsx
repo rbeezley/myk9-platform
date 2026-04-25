@@ -222,7 +222,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   <SelectValue placeholder="Choose dog owner">{selectedOwnerDisplay}</SelectValue>
                 )}
               </SelectTrigger>
-              <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60">
+              <SelectContent position="popper" className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60">
                 {people.map(person => (
                   <SelectItem
                     key={person.id}

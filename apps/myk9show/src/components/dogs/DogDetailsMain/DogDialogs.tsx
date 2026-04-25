@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { DogEditPanelSkeleton, DeleteDialogSkeleton, PhotoDialogSkeleton } from './Skeletons';
@@ -6,8 +6,12 @@ import { convertDogToDogInput, CELEBRATION_DURATION_MS, CELEBRATION_FADE_DELAY_M
 import type { DogDialogsProps } from './types';
 
 // Lazy load heavy components
-const DogEditPanel = lazy(() => import('@/components/panels/edit/DogEditPanel').then(m => ({ default: m.DogEditPanel })));
-const DeleteDogDialog = lazy(() => import('@/components/dogs/common/DeleteDogDialog').then(m => ({ default: m.DeleteDogDialog })));
+const DogEditPanel = lazy(() =>
+  import('@/components/panels/edit/DogEditPanel').then(m => ({ default: m.DogEditPanel }))
+);
+const DeleteDogDialog = lazy(() =>
+  import('@/components/dogs/common/DeleteDogDialog').then(m => ({ default: m.DeleteDogDialog }))
+);
 const PhotoDialog = lazy(() => import('@/components/common/PhotoDialog'));
 
 const DogDialogs: React.FC<DogDialogsProps> = ({
@@ -20,6 +24,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   showCelebration: _showCelebration,
   userRole,
   people,
+  isDeleting,
   onEditPanelClose,
   onDeleteDialogClose,
   onDelete,
@@ -35,6 +40,27 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   onSetRecentUpdate,
   onSetIsEditPanelOpen,
 }) => {
+  const celebrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(celebrationTimeoutRef.current);
+      clearTimeout(fadeTimeoutRef.current);
+    };
+  }, []);
+
+  const startCelebration = (message: string) => {
+    clearTimeout(celebrationTimeoutRef.current);
+    clearTimeout(fadeTimeoutRef.current);
+    onSetShowCelebration(true);
+    onSetRecentUpdate(message);
+    celebrationTimeoutRef.current = setTimeout(() => {
+      onSetShowCelebration(false);
+      fadeTimeoutRef.current = setTimeout(() => onSetRecentUpdate(null), CELEBRATION_FADE_DELAY_MS);
+    }, CELEBRATION_DURATION_MS);
+  };
+
   return (
     <>
       {/* Edit Panel */}
@@ -47,7 +73,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           initialDogData={dog}
           userRole={userRole}
           people={people}
-          onSave={async (updatedDogData) => {
+          onSave={async updatedDogData => {
             // Store previous state for rollback on error
             const previousDog = { ...dog };
 
@@ -64,7 +90,10 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
                   registrations: updatedDogData.registrations,
                 });
                 const dogInputData = convertDogToDogInput(updatedDogData, dog);
-                logger.debug('Saving dog data to database', 'dogs', { dogId: dog.id, dogInputData });
+                logger.debug('Saving dog data to database', 'dogs', {
+                  dogId: dog.id,
+                  dogInputData,
+                });
                 const savedDog = await onUpdate(dog.id, dogInputData);
 
                 if (savedDog) {
@@ -73,12 +102,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
                   logger.debug('Dog data saved successfully', 'dogs', { dogId: savedDog.id });
 
                   // Show success celebration
-                  onSetShowCelebration(true);
-                  onSetRecentUpdate(`${dog.callName} updated!`);
-                  setTimeout(() => {
-                    onSetShowCelebration(false);
-                    setTimeout(() => onSetRecentUpdate(null), CELEBRATION_FADE_DELAY_MS);
-                  }, CELEBRATION_DURATION_MS);
+                  startCelebration(`${dog.callName} updated!`);
 
                   toast.success('Changes saved successfully');
                   onSetIsEditPanelOpen(false);
@@ -107,12 +131,12 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           <DeleteDogDialog
             open={isDeleteDialogOpen}
             onClose={onDeleteDialogClose}
-            onDelete={() => {
+            onDelete={async () => {
+              await onDelete?.();
               onDeleteDialogClose();
-              // Call the onDelete callback to handle database deletion and navigation
-              onDelete?.();
             }}
             dog={dog}
+            isSubmitting={isDeleting ?? false}
           />
         </Suspense>
       )}
@@ -130,7 +154,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           onDragLeave={onPhotoDragLeave}
           onFileInput={onPhotoFileInput}
           onCancel={() => onPhotoDialogOpen(false)}
-          onSave={(preview) => {
+          onSave={preview => {
             if (!preview) {
               toast.error('No photo selected');
               return;
@@ -139,12 +163,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
               onPhotoSave(preview);
               toast.success('Photo updated successfully');
               // Show celebration for photo update
-              onSetShowCelebration(true);
-              onSetRecentUpdate(`Photo updated for ${dog.callName}`);
-              setTimeout(() => {
-                onSetShowCelebration(false);
-                setTimeout(() => onSetRecentUpdate(null), CELEBRATION_FADE_DELAY_MS);
-              }, CELEBRATION_DURATION_MS);
+              startCelebration(`Photo updated for ${dog.callName}`);
             } catch (error) {
               toast.error('Failed to update photo');
               logger.error('Photo save failed', 'dogs', { dogId: dog.id }, error as Error);

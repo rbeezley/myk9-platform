@@ -3,6 +3,7 @@
 
 import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { notifications } from '@/lib/notifications';
 import type { Dog } from '@/types/dog-types';
 import type { DogInput } from '@/store/dogStore';
 import {
@@ -149,6 +150,9 @@ export const useDogStoreCompat = () => {
         }
       } catch (err) {
         logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, err as Error);
+        notifications.warning(
+          'Dog details saved, but registration changes could not be synced. Please try editing registrations again.'
+        );
       }
     }
 
@@ -159,6 +163,16 @@ export const useDogStoreCompat = () => {
     await runDogMutation(() =>
       deleteMutation.mutateAsync({ id, ...(deletedBy !== undefined && { deletedBy }) })
     );
+    // Soft-delete removes the row from RLS visibility, so replication polling never
+    // sees the change. Remove locally so the dog doesn't reappear after reload.
+    await replicatedDogsTable.delete(id).catch(err => {
+      logger.warn(
+        'Failed to remove soft-deleted dog from IndexedDB',
+        'dogs',
+        { dogId: id },
+        err as Error
+      );
+    });
   };
 
   const getDogById = (id: string): Dog | null => {

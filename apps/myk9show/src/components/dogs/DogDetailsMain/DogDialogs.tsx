@@ -6,8 +6,12 @@ import { convertDogToDogInput, CELEBRATION_DURATION_MS, CELEBRATION_FADE_DELAY_M
 import type { DogDialogsProps } from './types';
 
 // Lazy load heavy components
-const DogEditPanel = lazy(() => import('@/components/panels/edit/DogEditPanel').then(m => ({ default: m.DogEditPanel })));
-const DeleteDogDialog = lazy(() => import('@/components/dogs/common/DeleteDogDialog').then(m => ({ default: m.DeleteDogDialog })));
+const DogEditPanel = lazy(() =>
+  import('@/components/panels/edit/DogEditPanel').then(m => ({ default: m.DogEditPanel }))
+);
+const DeleteDogDialog = lazy(() =>
+  import('@/components/dogs/common/DeleteDogDialog').then(m => ({ default: m.DeleteDogDialog }))
+);
 const PhotoDialog = lazy(() => import('@/components/common/PhotoDialog'));
 
 const DogDialogs: React.FC<DogDialogsProps> = ({
@@ -69,7 +73,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           initialDogData={dog}
           userRole={userRole}
           people={people}
-          onSave={async (updatedDogData) => {
+          onSave={async updatedDogData => {
             // Store previous state for rollback on error
             const previousDog = { ...dog };
 
@@ -86,7 +90,10 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
                   registrations: updatedDogData.registrations,
                 });
                 const dogInputData = convertDogToDogInput(updatedDogData, dog);
-                logger.debug('Saving dog data to database', 'dogs', { dogId: dog.id, dogInputData });
+                logger.debug('Saving dog data to database', 'dogs', {
+                  dogId: dog.id,
+                  dogInputData,
+                });
                 const savedDog = await onUpdate(dog.id, dogInputData);
 
                 if (savedDog) {
@@ -129,7 +136,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
               onDeleteDialogClose();
             }}
             dog={dog}
-            isSubmitting={isDeleting}
+            isSubmitting={isDeleting ?? false}
           />
         </Suspense>
       )}
@@ -147,7 +154,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           onDragLeave={onPhotoDragLeave}
           onFileInput={onPhotoFileInput}
           onCancel={() => onPhotoDialogOpen(false)}
-          onSave={(preview) => {
+          onSave={preview => {
             if (!preview) {
               toast.error('No photo selected');
               return;

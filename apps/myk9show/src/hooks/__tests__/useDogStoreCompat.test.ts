@@ -11,11 +11,13 @@ const {
   mockDeleteReplicatedDog,
   mockGetAllReplicatedDogs,
   mockCreateMutateAsync,
+  mockDeleteMutateAsync,
 } = vi.hoisted(() => ({
   mockSetReplicatedDog: vi.fn(),
   mockDeleteReplicatedDog: vi.fn(),
   mockGetAllReplicatedDogs: vi.fn(),
   mockCreateMutateAsync: vi.fn(),
+  mockDeleteMutateAsync: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -43,7 +45,11 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
     error: null,
   }),
   useUpdateDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
-  useDeleteDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useDeleteDogMutation: () => ({
+    mutateAsync: mockDeleteMutateAsync,
+    isPending: false,
+    error: null,
+  }),
   useDogStatisticsQuery: () => ({ data: undefined, isLoading: false }),
   useDogQuery: () => ({ data: null, isLoading: false, error: null }),
   useDogsByOwnerQuery: () => ({ data: [], isLoading: false, error: null }),
@@ -255,5 +261,48 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     });
 
     expect(mockDeleteReplicatedDog).toHaveBeenCalled();
+  });
+});
+
+describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDeleteMutateAsync.mockResolvedValue(undefined);
+    mockDeleteReplicatedDog.mockResolvedValue(undefined);
+  });
+
+  it('calls replicatedDogsTable.delete after a successful DB mutation', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.deleteDog('dog-123');
+    });
+
+    expect(mockDeleteMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ id: 'dog-123' }));
+    expect(mockDeleteReplicatedDog).toHaveBeenCalledWith('dog-123');
+  });
+
+  it('does not throw when replicatedDogsTable.delete rejects (warn-only contract)', async () => {
+    mockDeleteReplicatedDog.mockRejectedValue(new Error('IndexedDB unavailable'));
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await expect(result.current.deleteDog('dog-123')).resolves.toBeUndefined();
+    });
+
+    expect(mockDeleteReplicatedDog).toHaveBeenCalledWith('dog-123');
+  });
+
+  it('propagates the error and skips IndexedDB cleanup when DB mutation fails', async () => {
+    mockDeleteMutateAsync.mockRejectedValue(new Error('DB delete failed'));
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await expect(result.current.deleteDog('dog-123')).rejects.toThrow('DB delete failed');
+    });
+
+    expect(mockDeleteReplicatedDog).not.toHaveBeenCalled();
   });
 });

@@ -1,3 +1,8 @@
+---
+name: qa-feature
+description: Use when the user wants a real-browser audit of an existing feature — "QA the clubs section", "walk the secretary journey", "audit dogs CRUD", `/qa-feature <area>`. Drives the live app with playwright-cli, fixes bugs at the root cause mid-walk, and leaves behind a committed Playwright spec plus unit tests for any pure logic extracted.
+---
+
 # QA Feature
 
 Use when the user wants a real-browser audit of an existing feature — "QA the clubs section", "walk the secretary journey", "audit dogs CRUD", `/qa-feature <area>`. This skill drives the live app with `playwright-cli`, finds bugs from real interaction, fixes them at the root cause, and leaves behind a committed Playwright spec plus unit tests for any pure logic extracted along the way.
@@ -38,7 +43,7 @@ Confirm the linked Supabase project matches the dev DB. Real-bug fixes that touc
 
 ### Step 1 — Sign in
 
-Use `playwright-cli` for the recording session. Sign in with the credentials from `apps/myk9show/src/test/e2e/helpers/testUsers.ts` for the chosen role:
+Use `playwright-cli` for the recording session. Pull the credentials for the chosen role from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`:
 
 ```bash
 playwright-cli open http://localhost:5173/sign-in
@@ -48,11 +53,13 @@ playwright-cli click <submit-ref>
 playwright-cli snapshot
 ```
 
-Save storage state so the spec file can re-use it:
+Optionally save storage state so you can resume mid-recording without re-typing credentials:
 
 ```bash
 playwright-cli state-save .playwright-cli/<role>-state.json
 ```
+
+**Note:** the saved state contains a Supabase JWT that typically expires in 1 hour. Long recording sessions will start hitting 401s — re-sign-in if that happens. The committed spec re-signs-in fresh per `test.beforeAll`, so the storage-state file is recording-only convenience, never a CI artifact.
 
 ### Step 2 — Record the walk
 
@@ -96,9 +103,10 @@ For permission logic that lives in a hook: extract a pure helper (e.g. `computeX
 
 ### Step 5 — Write the spec
 
-Target file: `apps/myk9show/src/test/e2e/entities/<area>UI.spec.ts`. Conventions:
+Target file: `apps/myk9show/src/test/e2e/entities/<area>UI.spec.ts`. Conventions (match the pattern from `clubsUI.spec.ts` shipped in PR #88):
 
-- One `test.beforeAll` that signs in via `TestSetup.signIn(role)` — never per-test
+- Define local `signIn(page, email, password)` plus thin `signInAs<Role>(page)` wrappers near the top of the spec, importing credentials (`SECRETARY_EMAIL`, `ADMIN_EMAIL`, etc.) from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`. Do **not** invent a `TestSetup.signIn(role)` — no such helper exists today.
+- Sign in inside each `test()` (or in a `test.beforeEach`), not `test.beforeAll`. Playwright's parallel workers each get a fresh page; `beforeAll` doesn't share auth across them. The clubs spec sign-ins per test for this reason.
 - One `describe` per UI surface (Browse, Create, Detail, Edit, Delete)
 - Timestamped entity names: `` `E2E <Area> A ${Date.now()}` ``
 - **No `waitForTimeout`.** Always `waitForResponse` against the relevant `/rest/v1/<table>` POST/PATCH/DELETE, or `waitForURL` for navigation

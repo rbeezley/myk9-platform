@@ -10,6 +10,7 @@ import type { FilterDefinition, FilterBarState } from '@/components/common/Filte
 import { ErrorState } from '@/components/common/ErrorState';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { useRBAC } from '@/hooks/useRBAC';
+import { PERMISSIONS } from '@/services/auth/rbacService';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
 import '@/styles/myk9-show-details.css';
 import { PeopleGridView, PeopleTableView } from '@/components/users/browse';
@@ -49,7 +50,7 @@ const BrowsePeoplePage: React.FC = () => {
     availableRoles,
   } = useBrowsePeopleData();
 
-  const canManageUsers = !rbacLoading && hasPermission('user:manage');
+  const canCreatePeople = !rbacLoading && hasPermission(PERMISSIONS.PEOPLE_CREATE);
 
   // Update URL when view mode changes
   const handleViewModeChange = useCallback(
@@ -138,7 +139,7 @@ const BrowsePeoplePage: React.FC = () => {
               Get started by adding people to your directory to manage contacts, judges, and
               exhibitors.
             </p>
-            {canManageUsers && (
+            {canCreatePeople && (
               <Button onClick={() => setShowCreatePersonDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 New Person
@@ -196,7 +197,7 @@ const BrowsePeoplePage: React.FC = () => {
                   className="text-sm text-muted-foreground"
                 />
 
-                {canManageUsers && (
+                {canCreatePeople && (
                   <Button onClick={() => setShowCreatePersonDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     New Person

@@ -85,7 +85,7 @@ export interface ClubStoreState {
   loadClubs: () => Promise<void>;
   syncClubs: () => Promise<void>;
   selectClub: (id: string) => void;
-  addClub: (club: Club) => Promise<void>;
+  addClub: (club: Club) => Promise<string | undefined>;
   updateClub: (club: Club) => Promise<void>;
   removeClub: (clubId: string) => Promise<void>;
 
@@ -163,17 +163,19 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
   /**
    * Add a new club (saves to local cache, queued for sync)
    */
-  addClub: async (club: Club) => {
+  addClub: async (club: Club): Promise<string | undefined> => {
     try {
       const replicated = clubToReplicated(club);
-      await replicatedClubsTable.createClub(replicated);
+      const created = await replicatedClubsTable.createClub(replicated);
 
       // Reload from cache
       await get().loadClubs();
+      return created.id;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to add club';
       logger.error('Failed to add club', 'clubs', {}, error as Error);
       set({ error: errorMessage });
+      return undefined;
     }
   },
 

@@ -42,8 +42,8 @@ WHERE p.id = ur.user_id
 CREATE INDEX IF NOT EXISTS user_roles_auth_user_id_idx
   ON public.user_roles(auth_user_id);
 
--- Step 4: trigger to keep auth_user_id in sync on INSERT
--- (UPDATE on user_roles.user_id would be unusual — trigger handles INSERT only)
+-- Step 4: trigger to keep auth_user_id in sync on INSERT, and on the rare
+-- UPDATE that changes user_id (covered defensively by `UPDATE OF user_id`).
 CREATE OR REPLACE FUNCTION public.sync_user_roles_auth_user_id()
 RETURNS TRIGGER
 LANGUAGE plpgsql

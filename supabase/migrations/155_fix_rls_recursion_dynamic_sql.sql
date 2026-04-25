@@ -1,5 +1,8 @@
 -- Migration 155: Fix infinite recursion in people RLS policies (take 2)
 --
+-- SUPERSEDED by migration 156. The dynamic-SQL approach below also didn't
+-- work — kept in history for parity with staging where it was already applied.
+--
 -- Migration 154's PL/pgSQL approach with SET LOCAL row_security = off didn't
 -- work because PostgreSQL detects RLS policy recursion at PLAN TIME, before the
 -- function body executes. Even with SECURITY DEFINER + superuser ownership,

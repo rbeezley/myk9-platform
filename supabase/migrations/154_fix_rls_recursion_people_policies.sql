@@ -1,5 +1,9 @@
 -- Migration 154: Fix infinite recursion in people RLS policies
 --
+-- SUPERSEDED by migration 156. The SET LOCAL row_security = off approach
+-- below didn't work — kept in history for parity with staging where it was
+-- already applied.
+--
 -- Root cause: FORCE ROW LEVEL SECURITY on public.people causes PostgreSQL to
 -- evaluate RLS policies even inside SECURITY DEFINER functions owned by postgres.
 -- Policies people_select and people_update_privileged call is_trial_secretary()

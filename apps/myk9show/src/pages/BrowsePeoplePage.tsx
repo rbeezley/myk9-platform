@@ -10,6 +10,7 @@ import type { FilterDefinition, FilterBarState } from '@/components/common/Filte
 import { ErrorState } from '@/components/common/ErrorState';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { useRBAC } from '@/hooks/useRBAC';
+import { PERMISSIONS } from '@/services/auth/rbacService';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
 import '@/styles/myk9-show-details.css';
 import { PeopleGridView, PeopleTableView } from '@/components/users/browse';
@@ -49,7 +50,7 @@ const BrowsePeoplePage: React.FC = () => {
     availableRoles,
   } = useBrowsePeopleData();
 
-  const canManageUsers = !rbacLoading && hasPermission('people:create');
+  const canManageUsers = !rbacLoading && hasPermission(PERMISSIONS.PEOPLE_CREATE);
 
   // Update URL when view mode changes
   const handleViewModeChange = useCallback(

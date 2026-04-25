@@ -33,7 +33,9 @@ export class RBACService {
     scopeType?: string,
     scopeId?: string
   ): Promise<boolean> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return false;
 
     // Note: RPC function will be created in future migration
@@ -41,11 +43,16 @@ export class RBACService {
       user_id: user.id,
       permission_name: permission,
       scope_type: scopeType,
-      scope_id: scopeId
+      scope_id: scopeId,
     });
 
     if (error) {
-      logger.error('Error checking permission', 'rbac', { permission, scopeType, scopeId }, error as Error);
+      logger.error(
+        'Error checking permission',
+        'rbac',
+        { permission, scopeType, scopeId },
+        error as Error
+      );
       return false;
     }
 
@@ -55,18 +62,17 @@ export class RBACService {
   /**
    * Get all permissions for current user
    */
-  static async getUserPermissions(
-    scopeType?: string,
-    scopeId?: string
-  ): Promise<UserPermission[]> {
-    const { data: { user } } = await supabase.auth.getUser();
+  static async getUserPermissions(scopeType?: string, scopeId?: string): Promise<UserPermission[]> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return [];
 
     // Note: RPC function will be created in future migration
     const { data, error } = await (supabase.rpc as CallableFunction)('get_user_permissions', {
       user_id: user.id,
       filter_scope_type: scopeType,
-      filter_scope_id: scopeId
+      filter_scope_id: scopeId,
     });
 
     if (error) {
@@ -81,12 +87,14 @@ export class RBACService {
    * Get all roles for current user
    */
   static async getUserRoles(): Promise<UserRole[]> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return [];
 
     // Note: RPC function will be created in future migration
     const { data, error } = await (supabase.rpc as CallableFunction)('get_user_roles', {
-      user_id: user.id
+      user_id: user.id,
     });
 
     if (error) {
@@ -101,12 +109,14 @@ export class RBACService {
    * Check if current user is site admin
    */
   static async isSiteAdmin(): Promise<boolean> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return false;
 
     // Note: RPC function will be created in future migration
     const { data, error } = await (supabase.rpc as CallableFunction)('is_site_admin', {
-      user_id: user.id
+      user_id: user.id,
     });
 
     if (error) {
@@ -120,22 +130,26 @@ export class RBACService {
   /**
    * Get effective permissions (with inheritance)
    */
-  static async getEffectivePermissions(
-    scopeType?: string,
-    scopeId?: string
-  ): Promise<string[]> {
-    const { data: { user } } = await supabase.auth.getUser();
+  static async getEffectivePermissions(scopeType?: string, scopeId?: string): Promise<string[]> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return [];
 
     // Note: RPC function will be created in future migration
     const { data, error } = await (supabase.rpc as CallableFunction)('get_effective_permissions', {
       user_id: user.id,
       filter_scope_type: scopeType,
-      filter_scope_id: scopeId
+      filter_scope_id: scopeId,
     });
 
     if (error) {
-      logger.error('Error fetching effective permissions', 'rbac', { scopeType, scopeId }, error as Error);
+      logger.error(
+        'Error fetching effective permissions',
+        'rbac',
+        { scopeType, scopeId },
+        error as Error
+      );
       return [];
     }
 
@@ -152,7 +166,9 @@ export class RBACService {
     scopeId?: string,
     expiresAt?: string
   ): Promise<string | null> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return null;
 
     // Note: RPC function will be created in future migration
@@ -162,11 +178,16 @@ export class RBACService {
       scope_type: scopeType,
       scope_id: scopeId,
       expires_at: expiresAt,
-      assigned_by_user_id: user.id
+      assigned_by_user_id: user.id,
     });
 
     if (error) {
-      logger.error('Error assigning role', 'rbac', { targetUserId, roleName, scopeType, scopeId }, error as Error);
+      logger.error(
+        'Error assigning role',
+        'rbac',
+        { targetUserId, roleName, scopeType, scopeId },
+        error as Error
+      );
       return null;
     }
 
@@ -182,7 +203,9 @@ export class RBACService {
     scopeType?: string,
     scopeId?: string
   ): Promise<boolean> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return false;
 
     // Note: RPC function will be created in future migration
@@ -191,11 +214,16 @@ export class RBACService {
       role_name: roleName,
       scope_type: scopeType,
       scope_id: scopeId,
-      revoked_by_user_id: user.id
+      revoked_by_user_id: user.id,
     });
 
     if (error) {
-      logger.error('Error revoking role', 'rbac', { targetUserId, roleName, scopeType, scopeId }, error as Error);
+      logger.error(
+        'Error revoking role',
+        'rbac',
+        { targetUserId, roleName, scopeType, scopeId },
+        error as Error
+      );
       return false;
     }
 
@@ -208,34 +236,40 @@ export const PERMISSIONS = {
   // Admin
   ADMIN_MANAGE: 'admin:manage',
   ADMIN_VIEW: 'admin:view',
-  
+
   // User management
   USER_CREATE: 'user:create',
   USER_READ: 'user:read',
   USER_UPDATE: 'user:update',
   USER_DELETE: 'user:delete',
   USER_MANAGE: 'user:manage',
-  
+
   // Show management
   SHOW_CREATE: 'show:create',
   SHOW_READ: 'show:read',
   SHOW_UPDATE: 'show:update',
   SHOW_DELETE: 'show:delete',
   SHOW_MANAGE: 'show:manage',
-  
+
   // Entry management
   ENTRY_CREATE: 'entry:create',
   ENTRY_READ: 'entry:read',
   ENTRY_UPDATE: 'entry:update',
   ENTRY_DELETE: 'entry:delete',
   ENTRY_MANAGE: 'entry:manage',
-  
+
   // Dog management
   DOG_CREATE: 'dog:create',
   DOG_READ: 'dog:read',
   DOG_UPDATE: 'dog:update',
   DOG_DELETE: 'dog:delete',
   DOG_MANAGE: 'dog:manage',
+
+  // People management
+  PEOPLE_CREATE: 'people:create',
+  PEOPLE_READ: 'people:read',
+  PEOPLE_UPDATE: 'people:update',
+  PEOPLE_DELETE: 'people:delete',
 } as const;
 
 // Role constants

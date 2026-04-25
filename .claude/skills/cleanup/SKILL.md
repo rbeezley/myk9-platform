@@ -33,8 +33,8 @@ git worktree list
     && git -C "$MAIN" worktree remove --force "/absolute/path/to/stale-worktree"
   ```
   Claude Code will automatically recover the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
-- **Auto-fix** (safe when the branch is merged or upstream is gone): remove the worktree and delete the orphan branch. If the branch has unpushed work or isn't merged, ask first.
-- Report how many were cleaned.
+- **Always ask before removing any worktree** — another agent may be actively using it even if the branch looks merged or clean. List all stale candidates and ask the user to confirm which (if any) to remove. Never auto-remove.
+- Report how many were found; only remove after explicit user confirmation.
 
 ### 2. Uncommitted Changes
 
@@ -89,7 +89,7 @@ git branch --merged main | grep -v '^\*\|main' | head -10
 ```
 
 - Report branches already merged into main that can be deleted
-- **Auto-fix with confirmation:** `git branch -d <branch>`
+- Ask user before deleting: `git branch -d <branch>`
 
 ### 7. Edge Function Deploys
 
@@ -129,7 +129,7 @@ Action needed:
 ## Rules
 
 - Run all checks even if early ones find issues
-- Auto-fix only safe operations (stale worktrees, merged branches)
+- NEVER auto-remove worktrees — always ask first (another agent may be using it)
 - Always ask before: committing, pushing, deploying, deleting unmerged branches
 - **Worktree removal goes last** — if the current session CWD is a stale worktree, defer its removal to the final Bash call after all other checks are done
 - Be concise -- one line per check in the report unless action is needed

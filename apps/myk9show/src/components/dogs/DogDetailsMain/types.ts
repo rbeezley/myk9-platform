@@ -5,8 +5,9 @@ import type { UserRole } from '@/types/auth-types';
 export interface DogDetailsMainProps {
   dog: Dog;
   fromPerson?: User | undefined;
-  onDelete?: () => void;
+  onDelete?: () => Promise<void>;
   onUpdate?: (id: string, updates: Partial<DogInput>) => Promise<Dog | null>;
+  isDeleting?: boolean;
 }
 
 export interface EditableValueProps {
@@ -58,9 +59,10 @@ export interface DogDialogsProps {
   showCelebration: boolean;
   userRole: UserRole;
   people: User[];
+  isDeleting?: boolean;
   onEditPanelClose: () => void;
   onDeleteDialogClose: () => void;
-  onDelete?: (() => void) | undefined;
+  onDelete?: (() => Promise<void>) | undefined;
   onUpdate?: ((id: string, updates: Partial<DogInput>) => Promise<Dog | null>) | undefined;
   onPhotoDialogOpen: (open: boolean) => void;
   onPhotoDrop: (e: React.DragEvent) => void;

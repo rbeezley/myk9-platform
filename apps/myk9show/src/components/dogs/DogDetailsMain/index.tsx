@@ -25,7 +25,7 @@ import DogStatusDialog from '@/components/dogs/DogStatusDialog';
 import { validateImageFile, formatDisplayDate } from './utils';
 import type { DogDetailsMainProps } from './types';
 
-const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDelete, onUpdate }) => {
+const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDelete, onUpdate, isDeleting }) => {
   const [searchParams] = useSearchParams();
   const people = useUserStore(state => state.people);
   const { getUserRoles } = useAuthContext();
@@ -407,6 +407,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         onDeleteDialogClose={() => setIsDeleteDialogOpen(false)}
         onDelete={onDelete}
         onUpdate={onUpdate}
+        isDeleting={isDeleting}
         onPhotoDialogOpen={handlePhotoDialogOpen}
         onPhotoDrop={handlePhotoDrop}
         onPhotoDragOver={handlePhotoDragOver}

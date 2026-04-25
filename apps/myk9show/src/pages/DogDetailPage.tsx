@@ -4,6 +4,8 @@ import { useUserStore } from '@/store/userStore';
 import { useRoleBasedDogs, useCanAccessDog } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { notifications } from '@/lib/notifications';
+import { logger } from '@/services/LoggingService';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
 
 /**
@@ -16,7 +18,7 @@ const DogDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   const dogs = useRoleBasedDogs();
-  const { isLoading, deleteDog, updateDog } = useDogStoreCompat();
+  const { isLoading, deleteDog, updateDog, isDeleting } = useDogStoreCompat();
   const canAccessDog = useCanAccessDog(id || '');
   const { userWithRoles } = useAuthContext();
   const people = useUserStore(state => state.people);
@@ -41,8 +43,13 @@ const DogDetailPage: React.FC = () => {
 
   async function handleDeleteDog() {
     if (!dog) return;
-    await deleteDog(dog.id, userWithRoles?.id);
-    navigate('/dogs', { replace: true });
+    try {
+      await deleteDog(dog.id, userWithRoles?.id);
+      navigate('/dogs', { replace: true });
+    } catch (err) {
+      logger.error('Failed to delete dog', 'dogs', { dogId: dog.id }, err instanceof Error ? err : new Error(String(err)));
+      notifications.error('Failed to delete dog. Please try again.');
+    }
   }
 
   if (isLoading || (dogs.length === 0 && !dog)) {
@@ -75,6 +82,7 @@ const DogDetailPage: React.FC = () => {
       fromPerson={fromPerson}
       onDelete={handleDeleteDog}
       onUpdate={updateDog}
+      isDeleting={isDeleting}
     />
   );
 };

@@ -149,16 +149,16 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
               <p className="text-lg text-foreground font-medium tracking-wide">
                 {(() => {
                   if (!dog.registrations || dog.registrations.length === 0) {
-                    return 'No breed registered';
+                    return dog.breed || 'No kennel registration';
                   }
 
-                  // Get unique breeds from all registrations
+                  // Get unique registered breeds from kennel registrations
                   const breeds = Array.from(
                     new Set(dog.registrations.map(reg => reg.breed).filter(Boolean))
                   );
 
                   if (breeds.length === 0) {
-                    return 'Breed not specified';
+                    return dog.breed || 'Breed not specified';
                   }
 
                   return breeds.join(', ');

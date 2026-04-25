@@ -14,7 +14,7 @@ import { test, expect, Page } from '@playwright/test';
  *     to provide ongoing test data.
  *
  * Auth: secretary@myk9t.com / testpass123
- * RLS: relies on migration 155_clubs_insert_allow_secretary_and_club_admin.
+ * RLS: relies on migration 160_clubs_insert_allow_secretary_and_club_admin.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -117,35 +117,24 @@ async function fillCreateClubForm(page: Page, data: ClubFormData) {
 }
 
 async function submitCreateClub(page: Page, expectedName: string) {
-  // Capture every supabase REST request so we can confirm the insert actually
-  // hits the network (replication is offline-first: the form submit completes
-  // after a local IndexedDB write, the actual DB insert happens later via the
-  // mutation queue's 100ms debounce).
-  const restRequests: Array<{ url: string; method: string; status: number }> = [];
-  const captureResponse = async (resp: import('@playwright/test').Response) => {
-    if (resp.url().includes('/rest/v1/clubs')) {
-      restRequests.push({
-        url: resp.url(),
-        method: resp.request().method(),
-        status: resp.status(),
-      });
-    }
-  };
-  page.on('response', captureResponse);
+  // Replication is offline-first: form submit completes after a local IndexedDB
+  // write, then the mutation queue (100ms debounce) flushes a POST to Supabase.
+  // Wait for the actual network roundtrip — no fixed sleep.
+  const insertResponsePromise = page.waitForResponse(
+    resp =>
+      resp.url().includes('/rest/v1/clubs') &&
+      resp.request().method() === 'POST' &&
+      resp.status() < 400,
+    { timeout: 15000 }
+  );
 
   await page.getByRole('button', { name: 'Create Club', exact: true }).click();
   await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/, { timeout: 15000 });
 
-  // Wait long enough for the mutation queue debounce + roundtrip to flush.
-  await page.waitForTimeout(3000);
-
-  page.off('response', captureResponse);
-
-  const insertHits = restRequests.filter(r => r.method === 'POST' && r.status < 400);
-  if (insertHits.length === 0) {
+  const insertResponse = await insertResponsePromise.catch(() => null);
+  if (!insertResponse) {
     throw new Error(
-      `Expected at least one successful POST /rest/v1/clubs after creating "${expectedName}". ` +
-        `Captured requests: ${JSON.stringify(restRequests)}`
+      `Expected a successful POST /rest/v1/clubs after creating "${expectedName}", but none was observed within 15s.`
     );
   }
 }

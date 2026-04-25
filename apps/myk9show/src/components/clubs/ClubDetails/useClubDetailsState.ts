@@ -36,6 +36,31 @@ function processPhotoFile(file: File, onResult: (dataUrl: string) => void): void
 
 const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as const;
 
+export interface ClubPermissions {
+  canManageMembers: boolean;
+  canEditBranding: boolean;
+  /** Mirrors the clubs_delete RLS policy — only site_admin can delete clubs. */
+  canDeleteClub: boolean;
+}
+
+/**
+ * Pure permission helper — extracted so it can be unit-tested without mocking
+ * the auth context, club store, etc. Mirrors the RLS policies in
+ * supabase/migrations/016_fix_permissive_rls_policies.sql.
+ */
+export function computeClubPermissions(args: {
+  isClubAdmin: boolean;
+  isSiteAdmin: boolean;
+  hasManageMembersPermission: boolean;
+}): ClubPermissions {
+  const { isClubAdmin, isSiteAdmin, hasManageMembersPermission } = args;
+  return {
+    canManageMembers: isClubAdmin || hasManageMembersPermission,
+    canEditBranding: isSiteAdmin || isClubAdmin,
+    canDeleteClub: isSiteAdmin,
+  };
+}
+
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
   const { updateClub, removeClub } = useClubStore();
@@ -66,21 +91,19 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // Auth context for RBAC
   const { userWithRoles, hasPermission } = useAuthContext();
 
-  // RBAC permission checks — derive from a single isClubAdmin call
+  // RBAC permission checks — see computeClubPermissions for the rules.
   const { canManageMembers, canEditBranding, canDeleteClub } = useMemo(() => {
     if (!userWithRoles || !selectedClub || !userWithRoles.databaseUserId) {
       return { canManageMembers: false, canEditBranding: false, canDeleteClub: false };
     }
-    const isAdmin = ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id);
-    const isPlatformAdmin = userWithRoles.roles?.includes(UserRole.SITE_ADMIN) ?? false;
-    return {
-      canManageMembers:
-        isAdmin ||
-        hasPermission('club:manage_members', { type: ScopeType.CLUB, id: selectedClub.id }),
-      canEditBranding: isPlatformAdmin || isAdmin,
-      // Mirror the clubs_delete RLS policy: only platform_admin can delete clubs.
-      canDeleteClub: isPlatformAdmin,
-    };
+    return computeClubPermissions({
+      isClubAdmin: ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id),
+      isSiteAdmin: userWithRoles.roles?.includes(UserRole.SITE_ADMIN) ?? false,
+      hasManageMembersPermission: hasPermission('club:manage_members', {
+        type: ScopeType.CLUB,
+        id: selectedClub.id,
+      }),
+    });
   }, [userWithRoles, selectedClub, hasPermission]);
 
   // Get shows for this club from the show store (club store doesn't populate shows)

@@ -37,6 +37,12 @@ async function signInAsSecretary(page: Page) {
   await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
 }
 
+// The page has multiple comboboxes (show picker, report type, trial, class,
+// sort). The report-type one sits below a "Report" label.
+function getReportPicker(page: Page) {
+  return page.locator('label:has-text("Report")').locator('..').getByRole('combobox');
+}
+
 test.describe('Reports UI — secretary', () => {
   test.beforeEach(async ({ page }) => {
     await signInAsSecretary(page);
@@ -44,15 +50,7 @@ test.describe('Reports UI — secretary', () => {
 
   test('report-type dropdown renders all four category groups', async ({ page }) => {
     await page.goto('/secretary/reports');
-    // Default report is "check-in-sheet" — the controls bar mounts immediately.
-    // The first combobox in the controls bar is the report-type picker.
-    // The page has multiple comboboxes: show picker, report type, trial,
-    // class, sort. The report-type one sits below a "Report" label.
-    const reportPicker = page
-      .locator('label:has-text("Report")')
-      .locator('..')
-      .getByRole('combobox');
-    await reportPicker.click();
+    await getReportPicker(page).click();
 
     // INTENT (regression guard): all four group labels must be present in the
     // listbox. Previously only Operational + Organization rendered, hiding
@@ -77,17 +75,12 @@ test.describe('Reports UI — secretary', () => {
     page,
   }) => {
     await page.goto('/secretary/reports');
-    // The page has multiple comboboxes: show picker, report type, trial,
-    // class, sort. The report-type one sits below a "Report" label.
-    const reportPicker = page
-      .locator('label:has-text("Report")')
-      .locator('..')
-      .getByRole('combobox');
-    await reportPicker.click();
+    const picker = getReportPicker(page);
+    await picker.click();
     await page.getByRole('option', { name: 'Financial Report' }).click();
 
     // The report-type picker reflects the financial-report selection.
-    await expect(reportPicker).toContainText(/financial-report|Financial Report/);
+    await expect(picker).toContainText(/financial-report|Financial Report/);
 
     // The page lands on one of three reachable end-states:
     //   1. Grand Total row (seed has accepted fee-bearing entries)

@@ -17,6 +17,8 @@ import { PeopleGridView, PeopleTableView } from '@/components/users/browse';
 import { BrowsePeopleSkeleton } from '@/components/common/SkeletonLoaders';
 import { UserEditPanel } from '@/components/panels/edit';
 import { useUserStore, PersonInput } from '@/store/userStore';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
 import type { User } from '@/types/user-types';
 
 type ViewMode = 'grid' | 'table';
@@ -37,6 +39,7 @@ const BrowsePeoplePage: React.FC = () => {
 
   const { hasPermission, isLoading: rbacLoading } = useRBAC();
   const { addUser } = useUserStore();
+  const queryClient = useQueryClient();
 
   const {
     people,
@@ -71,6 +74,24 @@ const BrowsePeoplePage: React.FC = () => {
 
   const breadcrumbItems = useMemo(() => [{ label: 'People' }], []);
 
+  // Stable reference avoids re-firing the dialog's form-reset effect on each render.
+  const newPersonInitialData = useMemo(
+    () => ({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      profileImage: '',
+      judgeQualifications: [],
+      roles: [],
+    }),
+    []
+  );
+
   // Handle user creation
   const handleCreateUser = useCallback(
     async (userData: Partial<User>) => {
@@ -91,9 +112,18 @@ const BrowsePeoplePage: React.FC = () => {
 
       const newUser = await addUser(newPersonInput);
       setShowCreatePersonDialog(false);
+      // Seed the cache synchronously so PersonDetailPage finds the new user
+      // immediately. Without this, navigation races the cache refresh and
+      // PersonDetailPage's not-found guard ping-pongs back to /people.
+      queryClient.setQueryData(queryKeys.users.all, (old: User[] | undefined) =>
+        old ? [...old, newUser] : [newUser]
+      );
+      queryClient.setQueryData(queryKeys.users.detail(newUser.id), newUser);
+      // Background revalidation — fire-and-forget.
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       navigate(`/users/${newUser.id}`, { replace: true });
     },
-    [addUser, navigate]
+    [addUser, navigate, queryClient]
   );
 
   // FilterBar definitions
@@ -257,19 +287,7 @@ const BrowsePeoplePage: React.FC = () => {
         onClose={() => setShowCreatePersonDialog(false)}
         userId=""
         userName="New User"
-        initialUserData={{
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          streetAddress: '',
-          city: '',
-          state: '',
-          zipCode: '',
-          profileImage: '',
-          judgeQualifications: [],
-          roles: [],
-        }}
+        initialUserData={newPersonInitialData}
         onSave={handleCreateUser}
         enableAutoSave={false}
         showAdvancedFields={true}

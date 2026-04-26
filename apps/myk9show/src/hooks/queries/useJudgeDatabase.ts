@@ -5,6 +5,7 @@
  * and cache management.
  */
 
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { judgeQualificationQueries } from '../../services/database/queries/judgeQueries';
 import {
@@ -27,9 +28,16 @@ export const judgeQueryKeys = {
     [...judgeQueryKeys.qualifications(), 'summary', judgeId] as const,
 };
 
-// Judge Qualification Hooks
+// Judge Qualification Hooks.
+//
+// Returns `data` as a stable array — never `undefined` — so consumers can
+// destructure with `const { data } = useJudgeQualifications(id)` without
+// allocating a fresh `[]` per render. That fresh-array-per-render pattern
+// previously cascaded into `useMemo`/`useEffect` deps and tripped a
+// "Maximum update depth exceeded" loop in panels that mount before the id
+// resolves (e.g. the create-user dialog).
 export const useJudgeQualifications = (judgeId: string, filters?: JudgeQualificationFilters) => {
-  return useQuery({
+  const query = useQuery({
     queryKey: judgeQueryKeys.qualificationsByJudge(judgeId, filters),
     queryFn: () => judgeQualificationQueries.getByJudgeId(judgeId, filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -39,6 +47,8 @@ export const useJudgeQualifications = (judgeId: string, filters?: JudgeQualifica
       errorMessage: 'Failed to fetch judge qualifications',
     },
   });
+  const data = useMemo(() => query.data ?? [], [query.data]);
+  return { ...query, data };
 };
 
 export const useJudgeQualification = (id: string) => {

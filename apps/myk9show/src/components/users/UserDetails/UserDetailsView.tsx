@@ -295,6 +295,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           name: formData.name,
           photo: formData.photo,
         }}
+        ownedDogCount={dogCount}
         isEditModalOpen={isEditModalOpen}
         setIsEditModalOpen={setIsEditModalOpen}
         isPhotoModalOpen={isPhotoModalOpen}

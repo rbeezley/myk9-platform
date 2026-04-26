@@ -10,6 +10,8 @@ interface UserDetailsDialogsProps {
     name: string;
     photo: string;
   };
+  /** Number of dogs this person owns. When > 0, delete is blocked. */
+  ownedDogCount: number;
   isEditModalOpen: boolean;
   setIsEditModalOpen: (open: boolean) => void;
   isPhotoModalOpen: boolean;
@@ -34,6 +36,7 @@ interface UserDetailsDialogsProps {
 const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   person,
   formData,
+  ownedDogCount,
   isEditModalOpen,
   setIsEditModalOpen,
   isPhotoModalOpen,
@@ -54,6 +57,7 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   onPhotoSave,
   onFileInput,
 }) => {
+  const blockedByDogs = ownedDogCount > 0;
   return (
     <>
       {/* Edit Person Panel */}
@@ -88,16 +92,38 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
         open={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
         onSave={onDeleteUser}
-        title="Delete Person"
         titleIcon={<Trash2 className="w-5 h-5" />}
-        description="Are you sure you want to delete this person? This action cannot be undone."
         saveLabel="Delete"
-        cancelLabel="Cancel"
-        saveButtonProps={{ variant: 'destructive' }}
+        saveButtonProps={{
+          variant: 'destructive',
+          ...(blockedByDogs && { disabled: true }),
+        }}
+        {...(blockedByDogs
+          ? {
+              title: 'Cannot delete person',
+              description: `${formData.name} owns ${ownedDogCount} dog${ownedDogCount === 1 ? '' : 's'}. Reassign or delete the dogs before deleting this person.`,
+              cancelLabel: 'Close',
+            }
+          : {
+              title: 'Delete Person',
+              description:
+                'Are you sure you want to delete this person? This action cannot be undone.',
+              cancelLabel: 'Cancel',
+            })}
       >
-        <p className="text-muted-foreground">
-          This will permanently remove {formData.name} from your account.
-        </p>
+        {blockedByDogs ? (
+          <p className="text-muted-foreground">
+            Visit the{' '}
+            <a href="/dogs" className="text-primary hover:underline">
+              Dogs
+            </a>{' '}
+            page to change ownership or remove these dogs first.
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            This will permanently remove {formData.name} from your account.
+          </p>
+        )}
       </StandardDialog>
 
       {/* Judge Qualifications Panel */}

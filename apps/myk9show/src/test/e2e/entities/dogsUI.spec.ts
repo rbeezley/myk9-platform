@@ -153,7 +153,7 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await expect(page.getByRole('heading', { name: DOG_A_NAME })).toBeVisible();
   });
 
-  test('Create Dog B — second dog appears in browse list', async ({ page }) => {
+  test('Create Dog B — panel submits and lands on detail page', async ({ page }) => {
     await gotoDogsBrowse(page);
     await page.getByRole('button', { name: 'New Dog' }).click();
     await expect(page.getByRole('heading', { name: 'Add New Dog' })).toBeVisible();

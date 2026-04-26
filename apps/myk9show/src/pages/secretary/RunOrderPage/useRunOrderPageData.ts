@@ -1,20 +1,60 @@
-import { useState, useEffect } from 'react';
-import { useClassCreationStore } from '@/store/classCreationStore';
+import { useState, useEffect, useMemo } from 'react';
+import { useTrialClassesWithQuery } from '@/hooks/useClassStoreCompat';
 import { CreatedClass } from '@/types/template.types';
 import { ScheduleConfig, TimeCalculationEngine } from '@/lib/timeCalculation';
 import { logger } from '@/services/LoggingService';
-import type { Personnel, PersonnelAssignment } from '@/components/templates/secretary/PersonnelManager';
+import type {
+  Personnel,
+  PersonnelAssignment,
+} from '@/components/templates/secretary/PersonnelManager';
 import { MOCK_PERSONNEL } from './mockPersonnel';
+import { mapClassesToCreatedClasses } from './mapClassToCreatedClass';
 
-const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
-  trialStartTime: new Date(),
-  defaultBreakDuration: 15,
-  lunchBreak: {
-    startTime: '12:00',
-    duration: 60
-  },
-  judgeBreakRequirement: 10
-};
+type StewardRole = 'gate' | 'table' | 'timer' | 'ring';
+
+function nineAmToday(): Date {
+  const t = new Date();
+  t.setHours(9, 0, 0, 0);
+  return t;
+}
+
+function defaultScheduleConfig(): ScheduleConfig {
+  return {
+    trialStartTime: nineAmToday(),
+    defaultBreakDuration: 15,
+    lunchBreak: { startTime: '12:00', duration: 60 },
+    judgeBreakRequirement: 10,
+  };
+}
+
+function classWindow(cls: CreatedClass): { startTime: Date; endTime: Date } {
+  const start = cls.plannedStartTime ?? new Date();
+  const minutes = Number(cls.fieldValues.estimatedJudgingTime || 30);
+  return {
+    startTime: start,
+    endTime: new Date(start.getTime() + minutes * 60000),
+  };
+}
+
+type Stewards = CreatedClass['personnel']['stewards'];
+
+function applyStewardChange(
+  stewards: Stewards,
+  role: StewardRole,
+  personnelId: string | null
+): Stewards {
+  const next: Stewards = { ...stewards };
+  if (personnelId === null) {
+    delete next[role];
+    return next;
+  }
+  if (role === 'ring') {
+    next.ring = [personnelId];
+  } else {
+    next[role] = personnelId;
+  }
+  return next;
+}
 
 export interface UseRunOrderPageDataReturn {
   // State
@@ -29,6 +69,7 @@ export interface UseRunOrderPageDataReturn {
   schedule: ReturnType<TimeCalculationEngine['calculateSchedule']>;
   stats: ReturnType<TimeCalculationEngine['getScheduleStats']>;
   availableJudges: Personnel[];
+  isLoading: boolean;
 
   // Handlers
   handleReorder: (reorderedClasses: CreatedClass[]) => void;
@@ -43,71 +84,51 @@ export interface UseRunOrderPageDataReturn {
 }
 
 export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPageDataReturn {
-  const {
-    getClassesByTrial,
-    updateClassRunOrder,
-    updateClassJudge
-  } = useClassCreationStore();
+  const trialClassesQuery = useTrialClassesWithQuery(trialId ?? '', !!trialId);
 
   const [activeTab, setActiveTab] = useState('runorder');
   const [classes, setClasses] = useState<CreatedClass[]>([]);
-  const [personnel, setPersonnel] = useState<Personnel[]>([]);
+  const [personnel, setPersonnel] = useState<Personnel[]>(() => MOCK_PERSONNEL);
   const [assignments, setAssignments] = useState<PersonnelAssignment[]>([]);
-  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>(DEFAULT_SCHEDULE_CONFIG);
+  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>(defaultScheduleConfig);
 
-  // Load classes for this trial
+  // Hydrate local class list from Supabase whenever the trial changes or the
+  // query resolves. Local state still backs drag-to-reorder and judge picks
+  // (those are session-scoped until we persist them — see follow-up todo).
+  // queueMicrotask defers the setState past the current render — required
+  // by the project's react-hooks/set-state-in-effect lint guard.
   useEffect(() => {
-    if (trialId) {
-      queueMicrotask(() => {
-        const trialClasses = getClassesByTrial(trialId);
-        setClasses(trialClasses);
+    const mapped = mapClassesToCreatedClasses(trialClassesQuery.classes);
+    queueMicrotask(() => setClasses(mapped));
+  }, [trialClassesQuery.classes]);
 
-        // Set trial start time to 9 AM today
-        const startTime = new Date();
-        startTime.setHours(9, 0, 0, 0);
-        setScheduleConfig(prev => ({ ...prev, trialStartTime: startTime }));
-      });
-    }
-  }, [trialId, getClassesByTrial]);
-
-  // Load mock personnel data
-  useEffect(() => {
-    queueMicrotask(() => {
-      setPersonnel(MOCK_PERSONNEL);
-    });
-  }, []);
-
-  // Generate initial assignments based on current class data
   useEffect(() => {
     queueMicrotask(() => {
       const initialAssignments: PersonnelAssignment[] = [];
 
       classes.forEach(cls => {
+        const window = classWindow(cls);
         if (cls.personnel.judgeId) {
           initialAssignments.push({
             classId: cls.id,
             className: cls.className,
             role: 'judgeId',
             personnelId: cls.personnel.judgeId,
-            startTime: cls.plannedStartTime || new Date(),
-            endTime: new Date((cls.plannedStartTime || new Date()).getTime() + (Number(cls.fieldValues.estimatedJudgingTime || 30) * 60000)),
-            conflicts: []
+            ...window,
+            conflicts: [],
           });
         }
 
-        // Add steward assignments if they exist
         Object.entries(cls.personnel.stewards).forEach(([role, stewId]) => {
-          if (stewId) {
-            initialAssignments.push({
-              classId: cls.id,
-              className: cls.className,
-              role,
-              personnelId: Array.isArray(stewId) ? stewId[0] : stewId,
-              startTime: cls.plannedStartTime || new Date(),
-              endTime: new Date((cls.plannedStartTime || new Date()).getTime() + (Number(cls.fieldValues.estimatedJudgingTime || 30) * 60000)),
-              conflicts: []
-            });
-          }
+          if (!stewId) return;
+          initialAssignments.push({
+            classId: cls.id,
+            className: cls.className,
+            role,
+            personnelId: Array.isArray(stewId) ? stewId[0] : stewId,
+            ...window,
+            conflicts: [],
+          });
         });
       });
 
@@ -115,33 +136,32 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
     });
   }, [classes]);
 
-  // Calculate schedule statistics
-  const timeEngine = new TimeCalculationEngine(scheduleConfig);
-  const schedule = timeEngine.calculateSchedule(classes);
-  const stats = timeEngine.getScheduleStats(schedule);
+  const timeEngine = useMemo(() => new TimeCalculationEngine(scheduleConfig), [scheduleConfig]);
+  const schedule = useMemo(() => timeEngine.calculateSchedule(classes), [timeEngine, classes]);
+  const stats = useMemo(() => timeEngine.getScheduleStats(schedule), [timeEngine, schedule]);
 
-  // Computed values
-  const availableJudges = personnel.filter(p => p.roles.some(r => r.type === 'judge'));
+  const availableJudges = useMemo(
+    () => personnel.filter(p => p.roles.some(r => r.type === 'judge')),
+    [personnel]
+  );
 
-  // Handlers
   const handleReorder = (reorderedClasses: CreatedClass[]) => {
+    // INTENT: drag-to-reorder updates session state only. The DB has no
+    // class.run_order column today (ordering is encoded in start_time);
+    // persisting drag would need a schedule re-compute that this page
+    // doesn't yet drive. Keep session-local for now.
     setClasses(reorderedClasses);
-    reorderedClasses.forEach(cls => {
-      updateClassRunOrder(cls.id, cls.runOrder);
-    });
   };
 
   const handleJudgeAssign = (classId: string, judgeId: string) => {
-    updateClassJudge(classId, judgeId);
-    setClasses(prev => prev.map(cls =>
-      cls.id === classId
-        ? { ...cls, judgeId }
-        : cls
-    ));
+    setClasses(prev =>
+      prev.map(cls =>
+        cls.id === classId ? { ...cls, personnel: { ...cls.personnel, judgeId } } : cls
+      )
+    );
   };
 
   const handleAssignmentChange = (classId: string, role: string, personnelId: string | null) => {
-    // Update assignments
     setAssignments(prev => {
       const filtered = prev.filter(a => !(a.classId === classId && a.role === role));
 
@@ -153,9 +173,8 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
             className: cls.className,
             role,
             personnelId,
-            startTime: cls.plannedStartTime || new Date(),
-            endTime: new Date((cls.plannedStartTime || new Date()).getTime() + (Number(cls.fieldValues.estimatedJudgingTime || 30) * 60000)),
-            conflicts: []
+            ...classWindow(cls),
+            conflicts: [],
           });
         }
       }
@@ -163,28 +182,28 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
       return filtered;
     });
 
-    // Update class data for judges and stewards
     if (role === 'judgeId') {
       handleJudgeAssign(classId, personnelId || '');
-    } else {
-      // Update steward assignments in class data
-      setClasses(prev => prev.map(cls => {
-        if (cls.id === classId) {
-          const updatedStewards = { ...cls.personnel.stewards };
-          if (personnelId) {
-            if (role === 'ring') {
-              updatedStewards[role] = [personnelId];
-            } else {
-              (updatedStewards as Record<string, string>)[role] = personnelId;
-            }
-          } else {
-            delete updatedStewards[role as keyof typeof updatedStewards];
-          }
-          return { ...cls, personnel: { ...cls.personnel, stewards: updatedStewards } };
-        }
-        return cls;
-      }));
+      return;
     }
+
+    setClasses(prev =>
+      prev.map(cls =>
+        cls.id === classId
+          ? {
+              ...cls,
+              personnel: {
+                ...cls.personnel,
+                stewards: applyStewardChange(
+                  cls.personnel.stewards,
+                  role as StewardRole,
+                  personnelId
+                ),
+              },
+            }
+          : cls
+      )
+    );
   };
 
   const handlePersonnelAdd = (person: Personnel) => {
@@ -192,7 +211,7 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
   };
 
   const handlePersonnelUpdate = (id: string, updates: Partial<Personnel>) => {
-    setPersonnel(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    setPersonnel(prev => prev.map(p => (p.id === id ? { ...p, ...updates } : p)));
   };
 
   const handlePersonnelDelete = (id: string) => {
@@ -206,7 +225,6 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
 
   const handleExport = (format: 'pdf' | 'csv' | 'json') => {
     logger.debug(`Exporting schedule in ${format} format`, 'pages', {});
-    // Implementation would depend on export requirements
   };
 
   const handleOptimize = () => {
@@ -215,7 +233,6 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
   };
 
   return {
-    // State
     activeTab,
     setActiveTab,
     classes,
@@ -223,12 +240,11 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
     assignments,
     scheduleConfig,
 
-    // Computed
     schedule,
     stats,
     availableJudges,
+    isLoading: trialClassesQuery.isLoading,
 
-    // Handlers
     handleReorder,
     handleJudgeAssign,
     handleAssignmentChange,

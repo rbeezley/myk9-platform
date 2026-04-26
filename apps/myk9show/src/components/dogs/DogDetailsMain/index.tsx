@@ -15,6 +15,7 @@ import type { PropertySectionConfig, AssociationConfig } from '@/components/layo
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
 import { usePerformanceStatistics } from '@/hooks/usePerformanceStatistics';
 import { useTitleProgress } from '@/hooks/useTitleProgress';
+import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
 import { supabase } from '@/services/database/supabaseClient';
 import '@/styles/myk9-show-details.css';
 
@@ -185,20 +186,24 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
     () => allEntries.filter(entry => entry.dogId === updatedDog.id),
     [allEntries, updatedDog.id]
   );
+  // Live registrations query — `dog.registrations` from useDogsQuery is empty
+  // when the dog comes from the offline-first replication path (registrations
+  // are not in the replication store). Always read from PostgREST for the count.
+  const { data: dbRegistrations } = useRegistrationsByDogQuery(updatedDog.id);
+  const liveRegistrationsCount = dbRegistrations?.length ?? updatedDog.registrations?.length ?? 0;
   const dogStats: RecordStat[] = useMemo(() => {
     const totalEntries = dogEntries.length;
-    const registrations = updatedDog.registrations?.length ?? 0;
     const statusLabel =
       (updatedDog.status || 'Active').charAt(0).toUpperCase() +
       (updatedDog.status || 'active').slice(1);
 
     return [
       { title: 'Entries', value: totalEntries, icon: Calendar, subtitle: 'Total show entries' },
-      { title: 'Registrations', value: registrations, icon: Award, subtitle: 'Active' },
+      { title: 'Registrations', value: liveRegistrationsCount, icon: Award, subtitle: 'Active' },
       { title: 'Breed', value: updatedDog.breed || 'Unknown', icon: Trophy },
       { title: 'Status', value: statusLabel, icon: Star },
     ];
-  }, [dogEntries.length, updatedDog.registrations, updatedDog.status, updatedDog.breed]);
+  }, [dogEntries.length, liveRegistrationsCount, updatedDog.status, updatedDog.breed]);
 
   // Inline-save helper: persists a single field via onUpdate, optimistically updates local state.
   const saveField = useCallback(

@@ -4,7 +4,8 @@ import { test, expect, Page } from '@playwright/test';
  * UI-driven e2e tests for the Dogs section — secretary role.
  *
  * Covers: browse (search, filter, view toggle), create, detail page (tabs,
- * actions menu), edit panel (cancel/discard + save), and delete.
+ * actions menu), edit panel (cancel/discard + save), delete, registrations
+ * (add AKC/UKC, edit), and owner change.
  *
  * Strategy:
  *   - Create Dog A and Dog B with timestamped names so runs never collide.
@@ -14,12 +15,18 @@ import { test, expect, Page } from '@playwright/test';
  * Auth: secretary@myk9t.com / testpass123 (matches clubsUI.spec.ts pattern)
  *
  * RLS assumptions:
- *   - migration 161 — secretary dog:create and dog:delete permissions.
+ *   - migration 160 — secretary dog:create permission.
+ *   - migration 161 — secretary can UPDATE any dog (incl. owner_id).
  *   - Soft-delete: deleted dogs disappear from the secretary's list view.
  *
  * EditPanelWrapper unsaved-changes warning:
  *   - Replaced window.confirm() with AlertDialog (our fix in this PR).
  *   - "Keep editing" = AlertDialogCancel; "Discard changes" = AlertDialogAction.
+ *
+ * DogDetailsMain stats bar:
+ *   - The dogs query reads from offline-first replication, which omits the
+ *     dog_registrations join. Stats now use useRegistrationsByDogQuery so the
+ *     Registrations count reflects live PostgREST data.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -34,6 +41,8 @@ const SECRETARY_PASSWORD = 'testpass123';
 // Test Secretary's person ID in the DB — used to select owner in the Create form.
 // This is the person linked to secretary@myk9t.com.
 const TEST_SECRETARY_PERSON_NAME = 'Test Secretary';
+// Alice Martin (exhibitor1@myk9t.com) — used as a non-self owner.
+const ALICE_MARTIN_NAME = 'Alice Martin';
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });
@@ -61,6 +70,20 @@ async function gotoDogsBrowse(page: Page) {
 async function selectByPlaceholder(page: Page, placeholder: string, optionText: RegExp | string) {
   await page.getByRole('combobox').filter({ hasText: placeholder }).click();
   await page.getByRole('option', { name: optionText }).click();
+}
+
+/**
+ * Select a BASE-UI Select option by its trigger element id (e.g. "#organization").
+ * The Registration form's combobox triggers all share generic placeholders
+ * ("Select organization first", etc.), so id-based targeting is more reliable.
+ */
+async function selectById(page: Page, triggerId: string, optionText: RegExp | string) {
+  await page.locator(`[role="combobox"]#${triggerId}`).click();
+  // Wait for the listbox to be visible — options exist in the DOM before
+  // the popover finishes its enter animation, leading to flaky clicks.
+  const option = page.getByRole('option', { name: optionText });
+  await option.waitFor({ state: 'visible' });
+  await option.click();
 }
 
 // ---------------------------------------------------------------------------
@@ -358,5 +381,190 @@ test.describe('Dogs UI — Delete (secretary)', () => {
       await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_B_NAME);
       await expect(page.getByRole('link', { name: new RegExp(DOG_B_NAME) })).toHaveCount(0);
     }).toPass({ timeout: 15000 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Registrations — add AKC + UKC, edit one
+// ---------------------------------------------------------------------------
+
+test.describe('Dogs UI — Registrations (secretary)', () => {
+  test.beforeEach(async ({ page }) => {
+    await signInAsSecretary(page);
+  });
+
+  async function navigateToDogA(page: Page) {
+    await page.goto('/dogs', { waitUntil: 'networkidle' });
+    await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_A_NAME);
+    const link = page.getByRole('link', { name: new RegExp(DOG_A_NAME) }).first();
+    await link.waitFor({ state: 'visible', timeout: 15000 });
+    await link.click();
+    await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/);
+  }
+
+  test('Add AKC registration via detail page Add New Registration', async ({ page }) => {
+    await navigateToDogA(page);
+
+    await page.getByRole('button', { name: 'Add New Registration' }).click();
+    await expect(page.getByRole('heading', { name: 'Add Registration' })).toBeVisible();
+
+    await selectById(page, 'organization', 'AKC (American Kennel Club)');
+    await page.locator('input#registeredName').fill('CH E2E Dog A Test Champion');
+    await selectById(page, 'breed', 'Golden Retriever');
+    await page.locator('input#registrationNumber').fill('SR12345678');
+
+    const responsePromise = page.waitForResponse(
+      r => r.url().includes('/rest/v1/dog_registrations') && r.request().method() === 'POST',
+      { timeout: 15000 }
+    );
+    await page.getByRole('button', { name: 'Add Registration', exact: true }).click();
+    await responsePromise;
+
+    // Stats bar should now show 1 registration (live registrations query fix)
+    await expect(async () => {
+      await expect(page.getByText('1', { exact: true })).toBeVisible();
+    }).toPass({ timeout: 5000 });
+    await expect(page.getByText('SR12345678')).toBeVisible();
+  });
+
+  test('Add UKC registration to same dog (live count goes to 2)', async ({ page }) => {
+    await navigateToDogA(page);
+
+    await page.getByRole('button', { name: 'Add New Registration' }).click();
+    await expect(page.getByRole('heading', { name: 'Add Registration' })).toBeVisible();
+
+    await selectById(page, 'organization', 'UKC (United Kennel Club)');
+    await page.locator('input#registeredName').fill('E2E Dog A UKC');
+    await selectById(page, 'breed', 'Akita');
+    await page.locator('input#registrationNumber').fill('UKC-987654');
+
+    const responsePromise = page.waitForResponse(
+      r => r.url().includes('/rest/v1/dog_registrations') && r.request().method() === 'POST',
+      { timeout: 15000 }
+    );
+    await page.getByRole('button', { name: 'Add Registration', exact: true }).click();
+    await responsePromise;
+
+    await expect(page.getByText('UKC-987654')).toBeVisible();
+    await expect(page.getByText('SR12345678')).toBeVisible();
+  });
+
+  test('Edit a registration changes the registration number', async ({ page }) => {
+    await navigateToDogA(page);
+
+    // Open the AKC card's ⋮ menu — the AKC card contains "SR12345678"
+    const akcCard = page.locator('div.bg-card-secondary').filter({ hasText: 'SR12345678' });
+    await akcCard.getByRole('button').first().click();
+    await page.getByRole('menuitem', { name: /Edit/i }).click();
+    await expect(page.getByRole('heading', { name: 'Edit Registration' })).toBeVisible();
+
+    await page.locator('input#registrationNumber').fill('SR99999999');
+
+    const responsePromise = page.waitForResponse(
+      r => r.url().includes('/rest/v1/dog_registrations') && r.request().method() === 'PATCH',
+      { timeout: 15000 }
+    );
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await responsePromise;
+
+    await expect(page.getByText('SR99999999')).toBeVisible();
+    await expect(page.getByText('SR12345678')).not.toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Owner — change a dog's owner via Edit panel
+// ---------------------------------------------------------------------------
+
+test.describe('Dogs UI — Owner change (secretary)', () => {
+  test.beforeEach(async ({ page }) => {
+    await signInAsSecretary(page);
+  });
+
+  async function navigateToDogA(page: Page) {
+    await page.goto('/dogs', { waitUntil: 'networkidle' });
+    await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_A_NAME);
+    const link = page.getByRole('link', { name: new RegExp(DOG_A_NAME) }).first();
+    await link.waitFor({ state: 'visible', timeout: 15000 });
+    await link.click();
+    await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/);
+  }
+
+  test('Owner select shows in Edit Dog and lists multiple people', async ({ page }) => {
+    await navigateToDogA(page);
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
+
+    // OwnerSelectionField waits for the people query — let the select attach
+    // before scrolling. The panel renders Basic Info fields immediately but
+    // the Owner block is below the fold and depends on usePeopleQuery.
+    // Wait for the enabled (post-load) select — OwnerSelectionField renders
+    // a disabled <select id="ownerId"> while usePeopleQuery loads, then
+    // re-mounts as the enabled element. Targeting :not([disabled]) avoids
+    // a "Element is not attached" race during the swap.
+    const ownerSelect = page.locator('select#ownerId:not([disabled])');
+    await ownerSelect.waitFor({ state: 'attached', timeout: 10000 });
+    await ownerSelect.scrollIntoViewIfNeeded();
+    await expect(ownerSelect).toBeVisible();
+
+    // Should have at least our two known test people as options
+    await expect(ownerSelect.locator('option', { hasText: TEST_SECRETARY_PERSON_NAME })).toHaveCount(
+      1
+    );
+    await expect(ownerSelect.locator('option', { hasText: ALICE_MARTIN_NAME })).toHaveCount(1);
+
+    // Close without saving
+    await page.getByRole('button', { name: 'Cancel' }).click();
+  });
+
+  test('Change owner from Test Secretary to Alice Martin and back', async ({ page }) => {
+    await navigateToDogA(page);
+
+    // First change: → Alice Martin
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
+    // Wait for the enabled (post-load) select — OwnerSelectionField renders
+    // a disabled <select id="ownerId"> while usePeopleQuery loads, then
+    // re-mounts as the enabled element. Targeting :not([disabled]) avoids
+    // a "Element is not attached" race during the swap.
+    const ownerSelect = page.locator('select#ownerId:not([disabled])');
+    await ownerSelect.waitFor({ state: 'attached', timeout: 10000 });
+    await ownerSelect.scrollIntoViewIfNeeded();
+
+    // Find Alice's option value (id) and select by value
+    const aliceOption = ownerSelect.locator('option', { hasText: ALICE_MARTIN_NAME });
+    const aliceValue = await aliceOption.getAttribute('value');
+    expect(aliceValue).toBeTruthy();
+    await ownerSelect.selectOption(aliceValue!);
+
+    const patchResponsePromise = page.waitForResponse(
+      r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'PATCH',
+      { timeout: 15000 }
+    );
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await patchResponsePromise;
+    await expect(page.getByText('Changes saved successfully')).toBeVisible();
+
+    // Confirm via reload — owner should now be Alice (RLS migration 161 fix)
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.getByText(ALICE_MARTIN_NAME).first()).toBeVisible();
+
+    // Restore: change back to Test Secretary so other test runs aren't affected
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
+    const ownerSelect2 = page.locator('select#ownerId:not([disabled])');
+    await ownerSelect2.waitFor({ state: 'attached', timeout: 10000 });
+    await ownerSelect2.scrollIntoViewIfNeeded();
+    const secretaryOption = ownerSelect2.locator('option', { hasText: TEST_SECRETARY_PERSON_NAME });
+    const secretaryValue = await secretaryOption.getAttribute('value');
+    expect(secretaryValue).toBeTruthy();
+    await ownerSelect2.selectOption(secretaryValue!);
+
+    const patch2Promise = page.waitForResponse(
+      r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'PATCH',
+      { timeout: 15000 }
+    );
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await patch2Promise;
   });
 });

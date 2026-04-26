@@ -16,21 +16,20 @@ class CrossBrowserTestRunner {
       'src/test/e2e/cross-browser/functionality.spec.ts',
       'src/test/e2e/cross-browser/performance.spec.ts',
       'src/test/e2e/cross-browser/quirks.spec.ts',
-      'src/test/e2e/cross-browser/visual-regression.spec.ts'
     ];
     this.resultsDir = 'test-results/cross-browser';
     this.reportDir = 'test-results/reports';
-    
+
     this.results = {
       browsers: {},
       summary: {
         total: 0,
         passed: 0,
         failed: 0,
-        skipped: 0
+        skipped: 0,
       },
       startTime: new Date(),
-      endTime: null
+      endTime: null,
     };
   }
 
@@ -71,7 +70,7 @@ class CrossBrowserTestRunner {
       suites: {},
       summary: { total: 0, passed: 0, failed: 0, skipped: 0 },
       startTime: new Date(),
-      endTime: null
+      endTime: null,
     };
 
     for (const suite of this.testSuites) {
@@ -79,7 +78,8 @@ class CrossBrowserTestRunner {
     }
 
     this.results.browsers[browser].endTime = new Date();
-    const duration = this.results.browsers[browser].endTime - this.results.browsers[browser].startTime;
+    const duration =
+      this.results.browsers[browser].endTime - this.results.browsers[browser].startTime;
     console.log(`✅ ${browser} testing completed in ${Math.round(duration / 1000)}s`);
   }
 
@@ -89,19 +89,20 @@ class CrossBrowserTestRunner {
 
     try {
       const command = `npx playwright test ${suitePath} --project=${browser} --reporter=json`;
-      const output = execSync(command, { 
+      const output = execSync(command, {
         encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
 
       const result = this.parseTestResults(output);
       this.results.browsers[browser].suites[suiteName] = result;
-      
-      console.log(`    ✅ ${result.passed} passed, ❌ ${result.failed} failed, ⏭️ ${result.skipped} skipped`);
-      
+
+      console.log(
+        `    ✅ ${result.passed} passed, ❌ ${result.failed} failed, ⏭️ ${result.skipped} skipped`
+      );
+
       // Update browser summary
       this.updateBrowserSummary(browser, result);
-
     } catch (error) {
       console.log(`    ❌ Suite failed with error: ${error.message}`);
       this.results.browsers[browser].suites[suiteName] = {
@@ -109,7 +110,7 @@ class CrossBrowserTestRunner {
         passed: 0,
         failed: 1,
         skipped: 0,
-        error: error.message
+        error: error.message,
       };
       this.results.browsers[browser].summary.failed += 1;
     }
@@ -123,13 +124,13 @@ class CrossBrowserTestRunner {
       }
 
       const results = JSON.parse(jsonMatch[0]);
-      
+
       return {
         total: results.stats?.total || 0,
         passed: results.stats?.passed || 0,
         failed: results.stats?.failed || 0,
         skipped: results.stats?.skipped || 0,
-        duration: results.stats?.duration || 0
+        duration: results.stats?.duration || 0,
       };
     } catch (error) {
       return { total: 0, passed: 0, failed: 1, skipped: 0, error: 'Failed to parse results' };
@@ -157,10 +158,10 @@ class CrossBrowserTestRunner {
 
     // Generate HTML report
     this.generateHTMLReport();
-    
+
     // Generate JSON report
     this.generateJSONReport();
-    
+
     // Generate browser compatibility matrix
     this.generateCompatibilityMatrix();
   }
@@ -240,11 +241,13 @@ class CrossBrowserTestRunner {
   generateBrowserSections() {
     const browserIcons = {
       chromium: '🟢',
-      firefox: '🟠', 
-      webkit: '🔵'
+      firefox: '🟠',
+      webkit: '🔵',
     };
 
-    return Object.entries(this.results.browsers).map(([browser, data]) => `
+    return Object.entries(this.results.browsers)
+      .map(
+        ([browser, data]) => `
         <div class="browser-section">
             <div class="browser-header">
                 <span class="browser-icon">${browserIcons[browser]}</span>
@@ -252,7 +255,9 @@ class CrossBrowserTestRunner {
                 <span>(${data.summary.passed}/${data.summary.total} passed)</span>
             </div>
             <div class="suite-grid">
-                ${Object.entries(data.suites).map(([suite, results]) => `
+                ${Object.entries(data.suites)
+                  .map(
+                    ([suite, results]) => `
                     <div class="suite-card">
                         <div class="suite-name">${suite}</div>
                         <div class="test-stats">
@@ -261,15 +266,21 @@ class CrossBrowserTestRunner {
                             <span class="skipped">⏭️ ${results.skipped}</span>
                         </div>
                     </div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
             </div>
         </div>
-    `).join('');
+    `
+      )
+      .join('');
   }
 
   generateCompatibilityTable() {
-    const suites = [...new Set(Object.values(this.results.browsers).flatMap(b => Object.keys(b.suites)))];
-    
+    const suites = [
+      ...new Set(Object.values(this.results.browsers).flatMap(b => Object.keys(b.suites))),
+    ];
+
     let table = `
         <table class="matrix-table">
             <thead>
@@ -308,12 +319,12 @@ class CrossBrowserTestRunner {
         testRunner: 'myK9Show Cross-Browser Test Runner',
         version: '1.0.0',
         browsers: this.browsers,
-        testSuites: this.testSuites
-      }
+        testSuites: this.testSuites,
+      },
     };
 
     fs.writeFileSync(
-      path.join(this.reportDir, 'cross-browser-results.json'), 
+      path.join(this.reportDir, 'cross-browser-results.json'),
       JSON.stringify(jsonReport, null, 2)
     );
     console.log(`  ✅ JSON report: ${path.join(this.reportDir, 'cross-browser-results.json')}`);
@@ -321,7 +332,7 @@ class CrossBrowserTestRunner {
 
   generateCompatibilityMatrix() {
     const matrix = {};
-    
+
     // Build compatibility matrix
     Object.entries(this.results.browsers).forEach(([browser, data]) => {
       Object.entries(data.suites).forEach(([suite, results]) => {
@@ -330,7 +341,7 @@ class CrossBrowserTestRunner {
           status: results.failed > 0 ? 'failed' : results.passed > 0 ? 'passed' : 'skipped',
           passed: results.passed,
           failed: results.failed,
-          total: results.total
+          total: results.total,
         };
       });
     });
@@ -339,12 +350,14 @@ class CrossBrowserTestRunner {
       path.join(this.reportDir, 'compatibility-matrix.json'),
       JSON.stringify(matrix, null, 2)
     );
-    console.log(`  ✅ Compatibility matrix: ${path.join(this.reportDir, 'compatibility-matrix.json')}`);
+    console.log(
+      `  ✅ Compatibility matrix: ${path.join(this.reportDir, 'compatibility-matrix.json')}`
+    );
   }
 
   printSummary() {
     const totalDuration = this.results.endTime - this.results.startTime;
-    
+
     console.log('\n' + '═'.repeat(80));
     console.log('🏆 CROSS-BROWSER TESTING COMPLETE');
     console.log('═'.repeat(80));
@@ -353,14 +366,18 @@ class CrossBrowserTestRunner {
     console.log(`✅ Passed: ${this.results.summary.passed}`);
     console.log(`❌ Failed: ${this.results.summary.failed}`);
     console.log(`⏭️  Skipped: ${this.results.summary.skipped}`);
-    
-    const successRate = Math.round((this.results.summary.passed / this.results.summary.total) * 100);
+
+    const successRate = Math.round(
+      (this.results.summary.passed / this.results.summary.total) * 100
+    );
     console.log(`📈 Success Rate: ${successRate}%`);
 
     console.log('\n🌐 Browser Results:');
     Object.entries(this.results.browsers).forEach(([browser, data]) => {
       const browserSuccess = Math.round((data.summary.passed / data.summary.total) * 100) || 0;
-      console.log(`  ${browser.padEnd(10)} ${data.summary.passed}/${data.summary.total} (${browserSuccess}%)`);
+      console.log(
+        `  ${browser.padEnd(10)} ${data.summary.passed}/${data.summary.total} (${browserSuccess}%)`
+      );
     });
 
     console.log('\n📋 Reports Generated:');

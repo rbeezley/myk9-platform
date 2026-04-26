@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { reportRegistry, getReportById } from '@/lib/reports/reportRegistry';
+import type { ReportCategory, ReportDefinition } from '@/lib/reports/types';
 
 interface ReportControlsBarProps {
   reportType: string;
@@ -38,8 +39,23 @@ interface ReportControlsBarProps {
   onPrint: () => void;
 }
 
-const operationalReports = reportRegistry.filter(r => r.category === 'operational');
-const organizationReports = reportRegistry.filter(r => r.category === 'organization');
+// Order chosen so the most-used categories stay at the top of the dropdown.
+// Adding a category to the `ReportCategory` union without extending this map
+// fails TypeScript here, which prevents the kind of silent omission that
+// hid Financial + Statistics for several weeks (fixed 2026-04-26).
+const REPORT_GROUP_ORDER: ReadonlyArray<{ category: ReportCategory; label: string }> = [
+  { category: 'operational', label: 'Operational' },
+  { category: 'organization', label: 'Organization' },
+  { category: 'financial', label: 'Financial' },
+  { category: 'statistics', label: 'Statistics' },
+];
+
+const reportsByCategory: Record<ReportCategory, ReportDefinition[]> = {
+  operational: reportRegistry.filter(r => r.category === 'operational'),
+  organization: reportRegistry.filter(r => r.category === 'organization'),
+  financial: reportRegistry.filter(r => r.category === 'financial'),
+  statistics: reportRegistry.filter(r => r.category === 'statistics'),
+};
 
 export function ReportControlsBar({
   reportType,
@@ -76,24 +92,17 @@ export function ReportControlsBar({
             <SelectValue placeholder="Select report" />
           </SelectTrigger>
           <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Operational</SelectLabel>
-              {operationalReports.map(report => (
-                <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
-                  {report.name}
-                  {!report.enabled ? ' (Coming Soon)' : ''}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-            <SelectGroup>
-              <SelectLabel>Organization</SelectLabel>
-              {organizationReports.map(report => (
-                <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
-                  {report.name}
-                  {!report.enabled ? ' (Coming Soon)' : ''}
-                </SelectItem>
-              ))}
-            </SelectGroup>
+            {REPORT_GROUP_ORDER.map(({ category, label }) => (
+              <SelectGroup key={category}>
+                <SelectLabel>{label}</SelectLabel>
+                {reportsByCategory[category].map(report => (
+                  <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
+                    {report.name}
+                    {!report.enabled ? ' (Coming Soon)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
           </SelectContent>
         </Select>
       </div>

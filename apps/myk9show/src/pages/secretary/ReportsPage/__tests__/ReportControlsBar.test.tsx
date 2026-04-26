@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { ReportControlsBar } from '../ReportControlsBar';
+import { reportRegistry } from '@/lib/reports/reportRegistry';
 
 const mockTrials = [
   { id: 'trial-1', trial_number: 1, date: '2026-04-12' },
@@ -72,5 +73,44 @@ describe('ReportControlsBar', () => {
     // triggers: [Report, Trial, Class, Sort]
     const classTrigger = triggers[2];
     expect(classTrigger).toBeDisabled();
+  });
+
+  describe('Registry coverage — every enabled report is reachable from the dropdown', () => {
+    // Regression guard: the dropdown previously rendered only Operational and
+    // Organization groups, silently hiding the Financial Report and the four
+    // entry-counts statistics reports even though they were enabled in the
+    // registry. (Found during /qa-feature shows-as-secretary walk 2026-04-26.)
+    // Pure-logic check: the e2e in reportsUI.spec.ts covers actual DOM rendering;
+    // here we just guard the registry → dropdown-grouping invariant so a future
+    // category gets a CI failure before it ships silently hidden again.
+    const RENDERED_CATEGORIES = ['operational', 'organization', 'financial', 'statistics'];
+
+    it('every enabled report has a category that the dropdown renders', () => {
+      const enabled = reportRegistry.filter(r => r.enabled);
+      const orphans = enabled.filter(r => !RENDERED_CATEGORIES.includes(r.category));
+      expect(orphans).toEqual([]);
+    });
+
+    it('Financial Report is registered, enabled, and in the financial group', () => {
+      const fin = reportRegistry.find(r => r.id === 'financial-report');
+      expect(fin).toBeDefined();
+      expect(fin?.enabled).toBe(true);
+      expect(fin?.category).toBe('financial');
+    });
+
+    it('all four entry-counts reports are registered, enabled, and statistics', () => {
+      const ids = [
+        'show-entry-counts',
+        'trial-entry-counts',
+        'breed-entry-counts',
+        'judge-entry-counts',
+      ];
+      for (const id of ids) {
+        const r = reportRegistry.find(x => x.id === id);
+        expect(r, `report ${id}`).toBeDefined();
+        expect(r?.enabled, `report ${id} enabled`).toBe(true);
+        expect(r?.category, `report ${id} category`).toBe('statistics');
+      }
+    });
   });
 });

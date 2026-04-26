@@ -47,6 +47,10 @@ import {
   WORKFLOW_CONFIGS,
   ALL_STEP_DEFINITIONS,
 } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.constants';
+import {
+  selectedDogsOwner,
+  type SelectedDogsOwnerResult,
+} from './RegistrationWizardPage/selectedDogsOwner';
 
 function RegistrationWizardContent() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
@@ -126,6 +130,17 @@ function RegistrationWizardContent() {
     paymentMethod: undefined,
     specialRequests: undefined,
   });
+
+  // Resolve the exhibitor that this submission is filed under. For exhibitor
+  // self-service this equals the caller's own people.id (since they only see
+  // dogs they own). For mail-in (advancedSearch=true) the secretary may have
+  // selected dogs from a different exhibitor — that exhibitor's people.id
+  // becomes the enrollment handler.
+  const ownerResolution: SelectedDogsOwnerResult = useMemo(
+    () => selectedDogsOwner(dogs, registrationData.selectedDogs),
+    [dogs, registrationData.selectedDogs]
+  );
+
   const [classSelections, setClassSelections] = useState<ClassSelectionData[]>([]);
   const [handlerAssignments, setHandlerAssignments] = useState<Record<string, HandlerInfo>>({});
   const [registrationId, setRegistrationId] = useState<string | undefined>();
@@ -293,7 +308,7 @@ function RegistrationWizardContent() {
   const canProceed = () => {
     switch (currentStepId) {
       case 'dog-selection':
-        return registrationData.selectedDogs.length > 0;
+        return registrationData.selectedDogs.length > 0 && ownerResolution.ok;
       case 'class-selection': {
         const hasClasses =
           classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0);
@@ -370,12 +385,22 @@ function RegistrationWizardContent() {
           );
           dbRegistrationId = result.dbRegistrationId;
         } else {
-          // Non-credit-card: create DB enrollment with full payment details
+          // Non-credit-card: create DB enrollment with full payment details.
+          // canProceed() blocks Next on multi-owner / orphan carts; reaching
+          // this branch with !ownerResolution.ok means a state inconsistency.
+          // Fail loudly rather than silently fall back to userId — that would
+          // re-introduce the wrong-attribution bug this PR fixes.
+          if (!ownerResolution.ok) {
+            throw new Error(
+              'Internal: payment submit reached with unresolved enrollment owner. ' +
+                'Selected dogs span multiple owners or have no owner set.'
+            );
+          }
           const { createShowRegistration } =
             await import('@/services/database/queries/showRegistrationQueries');
           const result = await createShowRegistration(
             showId,
-            userId,
+            ownerResolution.ownerId,
             paymentDetails?.paymentReference,
             paymentDetails
           );
@@ -489,12 +514,34 @@ function RegistrationWizardContent() {
   const handleDogSelectionChange = async (selectedDogs: string[]) => {
     setRegistrationData(prev => ({ ...prev, selectedDogs }));
 
-    if (selectedDogs.length > 0 && !registrationId && !isCreatingRegistration) {
-      setIsCreatingRegistration(true);
-      const reg = createRegistration(showId || '', userId);
-      setRegistrationId(reg.id);
-      setIsCreatingRegistration(false);
+    if (selectedDogs.length === 0 || isCreatingRegistration) {
+      return;
     }
+
+    // Defer registration creation until we have a single, resolvable owner.
+    // selectedDogsOwner handles the empty case; here we additionally bail
+    // when the cart spans multiple owners (canProceed will surface the error).
+    const owner = selectedDogsOwner(dogs, selectedDogs);
+    if (!owner.ok) return;
+
+    // Owner-change guard: if the user replaces their selection with a
+    // different exhibitor's dog(s), the existing registration's handlerId is
+    // now stale. Reset it so a fresh registration is created under the new
+    // owner. Without this, submission would file the entry under the PREVIOUS
+    // exhibitor — silently re-introducing the wrong-attribution bug.
+    if (registrationId) {
+      const existing = useShowRegistrationStore.getState().getRegistration(registrationId);
+      if (existing && existing.handlerId !== owner.ownerId) {
+        setRegistrationId(undefined);
+      } else {
+        return;
+      }
+    }
+
+    setIsCreatingRegistration(true);
+    const reg = createRegistration(showId || '', userId, owner.ownerId);
+    setRegistrationId(reg.id);
+    setIsCreatingRegistration(false);
   };
 
   // Class selection handler
@@ -537,9 +584,13 @@ function RegistrationWizardContent() {
     });
 
     if (!registrationId && (draft.data.selectedDogs?.length ?? 0) > 0) {
-      // createRegistration is synchronous — returns the new local registration directly
-      const reg = createRegistration(showId, userId);
-      setRegistrationId(reg.id);
+      // createRegistration is synchronous — returns the new local registration directly.
+      // Resolve the loaded selection's owner the same way handleDogSelectionChange does.
+      const owner = selectedDogsOwner(dogs, draft.data.selectedDogs ?? []);
+      if (owner.ok) {
+        const reg = createRegistration(showId, userId, owner.ownerId);
+        setRegistrationId(reg.id);
+      }
     }
 
     notifications.success('Draft loaded successfully');
@@ -637,6 +688,20 @@ function RegistrationWizardContent() {
                   </div>
 
                   <div className="border-t border-border mb-6" />
+
+                  {/* Multi-owner / orphan-owner cart guard */}
+                  {currentStepId === 'dog-selection' &&
+                    registrationData.selectedDogs.length > 0 &&
+                    !ownerResolution.ok && (
+                      <div
+                        role="alert"
+                        className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                      >
+                        {ownerResolution.owners.length >= 2
+                          ? "This wizard processes one exhibitor's entries at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
+                          : 'One or more selected dogs has no owner on file. An enrollment must be filed under an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
+                      </div>
+                    )}
 
                   {/* Step content */}
                   <WorkflowStepContent

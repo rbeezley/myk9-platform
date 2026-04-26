@@ -34,6 +34,7 @@ interface ShowRegistrationStore {
   createRegistration: (
     showId: string,
     userId: string,
+    handlerId: string,
     createdByUserId?: string
   ) => ShowRegistration;
   updateRegistration: (id: string, updates: Partial<ShowRegistration>) => void;
@@ -122,11 +123,12 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
       draftData: {},
       registrationContext: null,
 
-      createRegistration: (showId, userId, createdByUserId) => {
+      createRegistration: (showId, userId, handlerId, createdByUserId) => {
         const registration: ShowRegistration = {
           id: `reg-${Date.now()}`,
           showId,
           userId,
+          handlerId,
           status: 'draft',
           entryStatus: EntryStatus.PENDING,
           totalFees: 0,
@@ -389,12 +391,17 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         const reg = get().registrations.find(r => r.id === registrationId);
         if (!reg) return { confirmationNumber: undefined, dbRegistrationId: undefined };
 
+        // Files the enrollment under the dog's owner (set at createRegistration
+        // time from the wizard's selectedDogsOwner resolution). Falls back to
+        // userId for any draft persisted before the handlerId field existed.
+        const handlerId = reg.handlerId ?? reg.userId;
+
         // Create or find DB registration to get real confirmation number + ID
         let confirmationNumber: string | undefined;
         let dbRegistrationId: string | undefined;
         try {
           // Check for existing registration first (add-on scenario)
-          const existing = await getRegistrationByShowAndHandler(reg.showId, reg.userId);
+          const existing = await getRegistrationByShowAndHandler(reg.showId, handlerId);
           if (existing.data) {
             confirmationNumber = existing.data.confirmationNumber;
             dbRegistrationId = existing.data.id;
@@ -402,7 +409,7 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
             // Create new DB registration — trigger generates MK9-XXXXXX number
             const result = await createShowRegistration(
               reg.showId,
-              reg.userId,
+              handlerId,
               paymentReference,
               paymentDetails
             );

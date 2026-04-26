@@ -77,6 +77,10 @@ vi.mock('@/services/LoggingService', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
+  useRegistrationsByDogQuery: () => ({ data: [], isLoading: false }),
+}));
+
 // ---------------------------------------------------------------------------
 // Child component mocks (render-heavy; we only care about property sections)
 // ---------------------------------------------------------------------------

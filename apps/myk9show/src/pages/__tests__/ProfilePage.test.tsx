@@ -64,7 +64,7 @@ function renderPage() {
   return render(
     <MemoryRouter>
       <ProfilePage />
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -109,11 +109,11 @@ describe('ProfilePage', () => {
     expect(emailInput).toHaveValue('jane@example.com');
   });
 
-  it('"Need to change your password?" link points to /preferences', () => {
+  it('"Need to change your password?" link points to /account', () => {
     renderPage();
 
     const link = screen.getByText('Need to change your password?');
-    expect(link.closest('a')).toHaveAttribute('href', '/preferences');
+    expect(link.closest('a')).toHaveAttribute('href', '/account');
   });
 
   it('save button is disabled when form is not dirty', () => {

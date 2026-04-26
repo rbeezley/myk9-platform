@@ -8,7 +8,8 @@ import { SortPill } from './SortPill';
 import { isFilterActive } from './types';
 import type { FilterBarProps, FilterDefinition, FilterValue } from './types';
 
-/** Get default value for a new filter */
+/** Get default value for a new filter. Select/multi-select start empty so the
+ *  user picks before the filter applies — see `pendingDef` below. */
 function defaultValue(def: FilterDefinition): FilterValue {
   switch (def.type) {
     case 'multi-select':
@@ -18,7 +19,7 @@ function defaultValue(def: FilterDefinition): FilterValue {
     case 'text':
       return '';
     case 'select':
-      return def.options?.[0]?.value || '';
+      return '';
   }
 }
 
@@ -30,13 +31,19 @@ export function FilterBar({
   className,
 }: FilterBarProps) {
   const [addFilterOpen, setAddFilterOpen] = useState(false);
+  // Pill that the user just added but hasn't picked a value for yet. Tracked
+  // locally (not in onStateChange filters) so the consumer's filter logic
+  // doesn't see a half-built filter.
+  const [pendingDef, setPendingDef] = useState<FilterDefinition | null>(null);
 
   const activeFilterKeys = new Set(
     Object.keys(state.filters).filter(k => isFilterActive(state.filters[k]))
   );
 
-  // Filters available to add (not yet active)
-  const availableToAdd = filterDefs.filter(d => !activeFilterKeys.has(d.key));
+  // Filters available to add (not yet active and not currently pending)
+  const availableToAdd = filterDefs.filter(
+    d => !activeFilterKeys.has(d.key) && d.key !== pendingDef?.key
+  );
 
   const handleFilterChange = (key: string, value: FilterValue) => {
     onStateChange({
@@ -52,12 +59,31 @@ export function FilterBar({
   };
 
   const handleAddFilter = (def: FilterDefinition) => {
+    setAddFilterOpen(false);
+    // For select/multi-select, don't apply a value yet — show a pending pill
+    // and auto-open it so the user picks. For boolean/text, the natural
+    // default ("Yes" / empty) applies immediately.
+    if (def.type === 'select' || def.type === 'multi-select') {
+      setPendingDef(def);
+      return;
+    }
     onStateChange({
       ...state,
       filters: { ...state.filters, [def.key]: defaultValue(def) },
     });
-    setAddFilterOpen(false);
   };
+
+  const handlePendingChange = (value: FilterValue) => {
+    if (!pendingDef) return;
+    setPendingDef(null);
+    if (!isFilterActive(value)) return;
+    onStateChange({
+      ...state,
+      filters: { ...state.filters, [pendingDef.key]: value },
+    });
+  };
+
+  const handlePendingRemove = () => setPendingDef(null);
 
   const handleClearAll = () => {
     onStateChange({ ...state, filters: {} });
@@ -79,6 +105,19 @@ export function FilterBar({
             onRemove={() => handleRemoveFilter(def.key)}
           />
         ))}
+
+      {/* Pending pill (just added, awaiting first value) */}
+      {pendingDef && (
+        <FilterPill
+          key={`pending-${pendingDef.key}`}
+          definition={pendingDef}
+          value={defaultValue(pendingDef)}
+          onChange={handlePendingChange}
+          onRemove={handlePendingRemove}
+          onPopoverClose={handlePendingRemove}
+          defaultOpen
+        />
+      )}
 
       {/* Sort pill */}
       {sortDefs && sortDefs.length > 0 && (

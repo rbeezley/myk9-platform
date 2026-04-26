@@ -277,24 +277,27 @@ describe('FilterBar', () => {
       expect(call.filters.filter0).toBe('');
     });
 
-    it('should set correct default for select type', async () => {
+    it('should NOT auto-apply a value for select type (pending pill awaits user pick)', async () => {
       const user = userEvent.setup();
       const { onStateChange } = renderFilterBar({ filterDefs: [selectDef] });
 
       await user.click(screen.getByText('Status'));
 
-      const call = onStateChange.mock.calls[0][0] as FilterBarState;
-      expect(call.filters.status).toBe('active'); // first option
+      // Adding a select filter should NOT call onStateChange — the pill is
+      // pending until the user picks an option. This guards against the
+      // regression where clicking "Role" in the People filter list silently
+      // applied the alphabetically-first option.
+      expect(onStateChange).not.toHaveBeenCalled();
     });
 
-    it('should set correct default for multi-select type', async () => {
+    it('should NOT auto-apply a value for multi-select type', async () => {
       const user = userEvent.setup();
       const { onStateChange } = renderFilterBar({ filterDefs: [multiSelectDef] });
 
       await user.click(screen.getByText('Tags'));
 
-      const call = onStateChange.mock.calls[0][0] as FilterBarState;
-      expect(call.filters.tags).toEqual([]);
+      // Same pending-pill behavior as select.
+      expect(onStateChange).not.toHaveBeenCalled();
     });
 
     it('should set correct default for boolean type', async () => {

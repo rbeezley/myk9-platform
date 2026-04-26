@@ -11,19 +11,22 @@ import { toYYYYMMDD } from '@/utils/dateFormat';
  * Extract roles from DB data. Supports two shapes:
  * 1. Supabase join: user_roles(role:roles(name)) → [{ role: { name: "judge" } }, ...]
  * 2. RPC flat array: roles → ["judge", "exhibitor", ...]
+ *
+ * Deduped because the user_roles table can legitimately hold multiple rows for
+ * the same (user, role) pair (different assignments, different granted_by) and
+ * we don't want the UI to render duplicate role badges with the same React key.
  */
 export const extractRoles = (dbUser: Record<string, unknown>): UserRole[] => {
   // Shape 1: joined user_roles data
   const userRoles = dbUser.user_roles as Array<{ role: { name: string } | null }> | undefined;
   if (Array.isArray(userRoles) && userRoles.length > 0) {
-    return userRoles
-      .map(ur => ur.role?.name)
-      .filter((name): name is string => !!name) as UserRole[];
+    const names = userRoles.map(ur => ur.role?.name).filter((name): name is string => !!name);
+    return Array.from(new Set(names)) as UserRole[];
   }
   // Shape 2: flat roles array from RPC (e.g. get_admin_user_list)
   const roles = dbUser.roles;
   if (Array.isArray(roles)) {
-    return roles as UserRole[];
+    return Array.from(new Set(roles as string[])) as UserRole[];
   }
   return [];
 };

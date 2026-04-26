@@ -32,13 +32,17 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
 }) => {
   const { addDog, isLoading: isSaving, error: saveError } = useDogStoreCompat();
 
-  // Stable initial data — recalculated when userRole or currentUserPersonId changes
+  // Stable initial data — recalculated when currentUserPersonId changes.
+  // INTENT: when the panel opens with a contextual person (e.g. secretary
+  // clicking "Add New Dog" from a Person profile), pre-fill the owner so they
+  // don't have to scroll a global picker. Was previously gated to EXHIBITOR
+  // only; that misses the more common secretary-on-behalf-of flow.
   const initialFormData = useMemo<DogFormData>(
     () => ({
       ...createInitialFormData(),
-      ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
+      ownerId: currentUserPersonId || '',
     }),
-    [userRole, currentUserPersonId]
+    [currentUserPersonId]
   );
 
   // Handle save: map DogFormData -> DogInput and persist
@@ -156,10 +160,10 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   const ownerIdValue = form?.data.ownerId;
   const setFormValue = form?.setValue;
   useEffect(() => {
-    if (currentUserPersonId && userRole === UserRole.EXHIBITOR && setFormValue && !ownerIdValue) {
+    if (currentUserPersonId && setFormValue && !ownerIdValue) {
       setFormValue('ownerId', currentUserPersonId);
     }
-  }, [currentUserPersonId, userRole, setFormValue, ownerIdValue]);
+  }, [currentUserPersonId, setFormValue, ownerIdValue]);
 
   // Reset form when panel re-opens
   const [prevOpen, setPrevOpen] = React.useState(open);
@@ -168,7 +172,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
     if (open && form) {
       form.reset({
         ...createInitialFormData(),
-        ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
+        ownerId: currentUserPersonId || '',
       });
     }
   }

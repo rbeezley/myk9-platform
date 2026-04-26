@@ -151,10 +151,11 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
 
-  // Fetch qualifications from DB using shared hook
-  const { data: dbQualifications = [] } = useJudgeQualifications(userId);
+  // Fetch qualifications from DB using shared hook (returns a stable [] when
+  // the query is idle so the useMemo dep stays stable).
+  const { data: dbQualifications } = useJudgeQualifications(userId);
 
-  // Map DB-shaped data to UI-shaped data for form editing
+  // Map DB-shaped data to UI-shaped data for form editing.
   const fetchedQualifications = useMemo(
     () => dbQualifications.map(mapDbToUiQualification),
     [dbQualifications]

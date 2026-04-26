@@ -16,7 +16,7 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
   canEditQualifications,
   onManageQualifications,
 }) => {
-  const { data: qualifications = [] } = useJudgeQualifications(personId, { is_active: true });
+  const { data: qualifications } = useJudgeQualifications(personId, { is_active: true });
 
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,9 +13,15 @@ import { supabase } from '@/services/database/supabaseClient';
 import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
 
-/** Fetch role names for a person (people.id) from user_roles table */
+/**
+ * Fetch role names for a person (people.id) from user_roles table.
+ *
+ * Returns a stable empty array when the query is idle/loading so consumers
+ * can use it directly in `useEffect` deps without tripping a render loop on
+ * every re-render.
+ */
 function usePersonRoleNames(personId?: string) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['personRoles', personId],
     queryFn: async () => {
       if (!personId) return [];
@@ -32,6 +38,8 @@ function usePersonRoleNames(personId?: string) {
     enabled: !!personId,
     staleTime: 30_000,
   });
+  const data = useMemo(() => query.data ?? [], [query.data]);
+  return { ...query, data };
 }
 
 interface BasicInfoTabProps {
@@ -48,12 +56,15 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   onOpenPhotoModal,
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
-  const { data: dbRoles = [] } = usePersonRoleNames(personId);
+  const { data: dbRoles } = usePersonRoleNames(personId);
 
   // Seed form roles from DB on initial load
   useEffect(() => {
     if (dbRoles.length > 0 && data.roles.length === 0) {
-      form?.setValue('roles', dbRoles.map(r => (r === 'site_admin' ? 'admin' : r)));
+      form?.setValue(
+        'roles',
+        dbRoles.map(r => (r === 'site_admin' ? 'admin' : r))
+      );
     }
   }, [dbRoles]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -94,12 +105,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
       {/* Name Fields */}
       <div className="grid grid-cols-2 gap-4">
-        <FormField
-          label="First Name"
-          fieldId="firstName"
-          required
-          error={firstNameError}
-        >
+        <FormField label="First Name" fieldId="firstName" required error={firstNameError}>
           <Input
             id="firstName"
             value={data.firstName}
@@ -110,12 +116,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             {...form?.getFieldProps('firstName')}
           />
         </FormField>
-        <FormField
-          label="Last Name"
-          fieldId="lastName"
-          required
-          error={lastNameError}
-        >
+        <FormField label="Last Name" fieldId="lastName" required error={lastNameError}>
           <Input
             id="lastName"
             value={data.lastName}
@@ -129,12 +130,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
       </div>
 
       {/* Email */}
-      <FormField
-        label="Email Address"
-        fieldId="email"
-        required
-        error={emailError}
-      >
+      <FormField label="Email Address" fieldId="email" required error={emailError}>
         <Input
           id="email"
           type="email"

@@ -40,6 +40,8 @@ interface ReportControlsBarProps {
 
 const operationalReports = reportRegistry.filter(r => r.category === 'operational');
 const organizationReports = reportRegistry.filter(r => r.category === 'organization');
+const financialReports = reportRegistry.filter(r => r.category === 'financial');
+const statisticsReports = reportRegistry.filter(r => r.category === 'statistics');
 
 export function ReportControlsBar({
   reportType,
@@ -88,6 +90,24 @@ export function ReportControlsBar({
             <SelectGroup>
               <SelectLabel>Organization</SelectLabel>
               {organizationReports.map(report => (
+                <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
+                  {report.name}
+                  {!report.enabled ? ' (Coming Soon)' : ''}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            <SelectGroup>
+              <SelectLabel>Financial</SelectLabel>
+              {financialReports.map(report => (
+                <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
+                  {report.name}
+                  {!report.enabled ? ' (Coming Soon)' : ''}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            <SelectGroup>
+              <SelectLabel>Statistics</SelectLabel>
+              {statisticsReports.map(report => (
                 <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
                   {report.name}
                   {!report.enabled ? ' (Coming Soon)' : ''}

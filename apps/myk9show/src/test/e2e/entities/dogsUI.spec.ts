@@ -420,10 +420,13 @@ test.describe('Dogs UI — Registrations (secretary)', () => {
     await page.getByRole('button', { name: 'Add Registration', exact: true }).click();
     await responsePromise;
 
-    // Stats bar should now show 1 registration (live registrations query fix)
-    await expect(async () => {
-      await expect(page.getByText('1', { exact: true })).toBeVisible();
-    }).toPass({ timeout: 5000 });
+    // Stats bar should now show 1 registration (live registrations query fix).
+    // Scope to the StatCard whose title span is "Registrations" so we don't
+    // match other "1"s on the page (DOB digits, etc).
+    const registrationsCard = page
+      .getByText('Registrations', { exact: true })
+      .locator('xpath=ancestor::*[contains(@class, "stat") or contains(@class, "card")][1]');
+    await expect(registrationsCard).toContainText('1', { timeout: 10000 });
     await expect(page.getByText('SR12345678')).toBeVisible();
   });
 
@@ -545,16 +548,19 @@ test.describe('Dogs UI — Owner change (secretary)', () => {
     await patchResponsePromise;
     await expect(page.getByText('Changes saved successfully')).toBeVisible();
 
-    // Confirm via reload — owner should now be Alice (RLS migration 161 fix)
+    // Confirm via reload + reopen edit — the select#ownerId value is the
+    // authoritative owner state (PATCH might have appeared to succeed
+    // pre-migration-161 but RLS silently affected 0 rows; checking the select
+    // value detects that regression).
     await page.reload({ waitUntil: 'networkidle' });
-    await expect(page.getByText(ALICE_MARTIN_NAME).first()).toBeVisible();
-
-    // Restore: change back to Test Secretary so other test runs aren't affected
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
     const ownerSelect2 = page.locator('select#ownerId:not([disabled])');
     await ownerSelect2.waitFor({ state: 'attached', timeout: 10000 });
     await ownerSelect2.scrollIntoViewIfNeeded();
+    await expect(ownerSelect2).toHaveValue(aliceValue!);
+
+    // Restore: change back to Test Secretary so other test runs aren't affected
     const secretaryOption = ownerSelect2.locator('option', { hasText: TEST_SECRETARY_PERSON_NAME });
     const secretaryValue = await secretaryOption.getAttribute('value');
     expect(secretaryValue).toBeTruthy();

@@ -75,7 +75,14 @@ function RegistrationWizardContent() {
     }
   }, [triggerSync]);
 
+  // INTENT: Re-set mountedRef to true on each mount so React StrictMode's
+  // double-invocation of effects in dev (mount → cleanup → mount) doesn't
+  // leave the ref permanently false. Without the explicit `= true`, the
+  // first cleanup runs and any later async await chain bails out via the
+  // `if (!mountedRef.current) return;` guards even though the component
+  // is still mounted.
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
@@ -396,8 +403,9 @@ function RegistrationWizardContent() {
                 'Selected dogs span multiple owners or have no owner set.'
             );
           }
-          const { createShowRegistration } =
-            await import('@/services/database/queries/showRegistrationQueries');
+          const { createShowRegistration } = await import(
+            '@/services/database/queries/showRegistrationQueries'
+          );
           const result = await createShowRegistration(
             showId,
             ownerResolution.ownerId,

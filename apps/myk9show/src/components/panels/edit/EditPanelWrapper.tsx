@@ -10,6 +10,16 @@ import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export type EditPanelVariant = 'panel' | 'dialog';
 
@@ -52,6 +62,38 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   onValidationChange?: (isValid: boolean, errors: string[]) => void;
   onAutoSave?: (data: T) => Promise<void> | void;
   onValidationFail?: (firstErrorField: string) => void;
+}
+
+function UnsavedChangesDialog({
+  open,
+  onOpenChange,
+  onDiscard,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You have unsaved changes. They will be lost if you close without saving.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep editing</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={onDiscard}
+          >
+            Discard changes
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 // Dummy schema used when no schema is provided (satisfies rules of hooks).
@@ -286,12 +328,25 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     onValidationFail,
   ]);
 
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  // Set to true when the user explicitly confirmed the close via AlertDialog,
+  // so SlideOverPanel's own onClose callback doesn't re-trigger the dialog.
+  const confirmedCloseRef = useRef(false);
+
+  // Reset flags when the panel reopens.
+  useEffect(() => {
+    if (open) {
+      confirmedCloseRef.current = false;
+    } else {
+      setShowUnsavedDialog(false);
+    }
+  }, [open]);
+
   const handleClose = useCallback(() => {
+    if (confirmedCloseRef.current) return;
     if ((hasChanges || forceHasChanges) && showUnsavedWarning) {
-      const shouldClose = window.confirm(
-        'You have unsaved changes. Are you sure you want to close?'
-      );
-      if (!shouldClose) return;
+      setShowUnsavedDialog(true);
+      return;
     }
     onClose();
   }, [hasChanges, forceHasChanges, showUnsavedWarning, onClose]);
@@ -378,6 +433,16 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             <div className="border-t px-6 py-4 shrink-0">{footer}</div>
           </DialogContent>
         </Dialog>
+
+        <UnsavedChangesDialog
+          open={showUnsavedDialog}
+          onOpenChange={setShowUnsavedDialog}
+          onDiscard={() => {
+            confirmedCloseRef.current = true;
+            setShowUnsavedDialog(false);
+            onClose();
+          }}
+        />
       </EditPanelContext.Provider>
     );
   }
@@ -424,6 +489,16 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           </div>
         </div>
       </SlideOverPanel>
+
+      <UnsavedChangesDialog
+        open={showUnsavedDialog}
+        onOpenChange={setShowUnsavedDialog}
+        onDiscard={() => {
+          confirmedCloseRef.current = true;
+          setShowUnsavedDialog(false);
+          onClose();
+        }}
+      />
     </EditPanelContext.Provider>
   );
 }

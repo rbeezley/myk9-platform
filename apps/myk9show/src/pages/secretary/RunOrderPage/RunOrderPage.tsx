@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -21,9 +21,16 @@ import { RunOrderHeader } from './RunOrderHeader';
 import { RunOrderQuickStats } from './RunOrderQuickStats';
 import { RunOrderSettingsTab } from './RunOrderSettingsTab';
 import { RunOrderConflictsWarning } from './RunOrderConflictsWarning';
+import { RunOrderTrialPicker } from './RunOrderTrialPicker';
 
 export const RunOrderPage: React.FC = () => {
-  const { trialId } = useParams<{ trialId: string }>();
+  // Trial id may come from a path param (`/secretary/run-order/:trialId`,
+  // a future route) or, more commonly today, the query string set by the
+  // in-page picker (`/secretary/run-order?trialId=…`). Path param wins so a
+  // future deep-link route doesn't fight the query string.
+  const params = useParams<{ trialId?: string }>();
+  const [searchParams] = useSearchParams();
+  const trialId = params.trialId ?? searchParams.get('trialId') ?? undefined;
 
   const {
     activeTab,
@@ -34,6 +41,7 @@ export const RunOrderPage: React.FC = () => {
     scheduleConfig,
     stats,
     availableJudges,
+    isLoading,
     handleReorder,
     handleJudgeAssign,
     handleAssignmentChange,
@@ -44,6 +52,14 @@ export const RunOrderPage: React.FC = () => {
     handleExport,
     handleOptimize,
   } = useRunOrderPageData(trialId);
+
+  if (!trialId) {
+    return (
+      <div className="container mx-auto p-6 max-w-7xl">
+        <RunOrderTrialPicker />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -56,23 +72,23 @@ export const RunOrderPage: React.FC = () => {
         onExport={handleExport}
       />
 
-      <RunOrderQuickStats
-        classCount={classes.length}
-        stats={stats}
-      />
+      <RunOrderQuickStats classCount={classes.length} stats={stats} />
 
       <Card>
         <CardContent className="pt-6">
           <PrimaryTabs tabs={RUN_ORDER_TABS} value={activeTab} onValueChange={setActiveTab}>
-
             <TabsContent value="runorder" className="mt-6">
-              <RunOrderBoard
-                classes={classes}
-                onReorder={handleReorder}
-                onJudgeAssign={handleJudgeAssign}
-                availableJudges={availableJudges}
-                trialStartTime={scheduleConfig.trialStartTime}
-              />
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading classes…</p>
+              ) : (
+                <RunOrderBoard
+                  classes={classes}
+                  onReorder={handleReorder}
+                  onJudgeAssign={handleJudgeAssign}
+                  availableJudges={availableJudges}
+                  trialStartTime={scheduleConfig.trialStartTime}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="schedule" className="mt-6">

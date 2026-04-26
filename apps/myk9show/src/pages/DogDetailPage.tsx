@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useUserStore } from '@/store/userStore';
 import { useRoleBasedDogs, useCanAccessDog } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -7,6 +7,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
+import type { Dog } from '@/types/dog-types';
 
 /**
  * DogDetailPage is a thin wrapper around DogDetailsMain for the /dogs/:id route.
@@ -16,9 +17,18 @@ const DogDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  // Dog passed from the create flow so the page renders immediately while
+  // the query cache refetches in the background. Lazy-initialized once on
+  // mount so it survives tab navigation (useUrlTab calls navigate, clearing
+  // location.state on subsequent renders).
+  const [createdDog] = useState<Dog | null>(
+    () => (location.state as { createdDog?: Dog } | null)?.createdDog ?? null
+  );
 
   const dogs = useRoleBasedDogs();
-  const { isLoading, deleteDog, updateDog, isDeleting } = useDogStoreCompat();
+  const { isLoading, isFetching, deleteDog, updateDog, isDeleting } = useDogStoreCompat();
   const canAccessDog = useCanAccessDog(id || '');
   const { userWithRoles } = useAuthContext();
   const people = useUserStore(state => state.people);
@@ -29,17 +39,20 @@ const DogDetailPage: React.FC = () => {
 
   const dog = useMemo(() => {
     if (!id) return null;
-    return dogs.find(d => d.id === id) || null;
-  }, [dogs, id]);
+    return dogs.find(d => d.id === id) || createdDog || null;
+  }, [dogs, id, createdDog]);
 
-  // Redirect to /dogs if dog not found or no access after loading
+  // Redirect to /dogs if dog not found or no access after loading.
+  // Skip while isFetching — post-create refetch may not have resolved yet.
+  // Skip while createdDog is available — it was just created and is valid.
   useEffect(() => {
-    if (!isLoading && dogs.length > 0 && id) {
+    if (createdDog || isLoading || isFetching) return;
+    if (dogs.length > 0 && id) {
       if (!canAccessDog || !dogs.find(d => d.id === id)) {
         navigate('/dogs', { replace: true, state: { accessDenied: true } });
       }
     }
-  }, [isLoading, dogs, id, canAccessDog, navigate]);
+  }, [createdDog, isLoading, isFetching, dogs, id, canAccessDog, navigate]);
 
   async function handleDeleteDog() {
     if (!dog) return;
@@ -47,12 +60,17 @@ const DogDetailPage: React.FC = () => {
       await deleteDog(dog.id, userWithRoles?.id);
       navigate('/dogs', { replace: true });
     } catch (err) {
-      logger.error('Failed to delete dog', 'dogs', { dogId: dog.id }, err instanceof Error ? err : new Error(String(err)));
+      logger.error(
+        'Failed to delete dog',
+        'dogs',
+        { dogId: dog.id },
+        err instanceof Error ? err : new Error(String(err))
+      );
       notifications.error('Failed to delete dog. Please try again.');
     }
   }
 
-  if (isLoading || (dogs.length === 0 && !dog)) {
+  if (isLoading || (!dog && dogs.length === 0 && !createdDog)) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />

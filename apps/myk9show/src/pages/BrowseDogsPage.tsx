@@ -94,7 +94,9 @@ const BrowseDogsPage: React.FC = () => {
   const handleDogCreated = useCallback(
     (newDog: DogType) => {
       setShowCreateDogPanel(false);
-      navigate(`/dogs/${newDog.id}`, { replace: true });
+      // Pass the new dog in location state so DogDetailPage can render it
+      // immediately while the dogs query cache refetches in the background.
+      navigate(`/dogs/${newDog.id}`, { replace: true, state: { createdDog: newDog } });
     },
     [navigate]
   );

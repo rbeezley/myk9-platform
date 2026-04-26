@@ -53,6 +53,16 @@ export interface ShowRegistration {
   id: string;
   showId: string;
   userId: string;
+  /**
+   * The exhibitor's people.id that the enrollment is filed under. For
+   * exhibitor self-service this equals the dog owner's people.id (= the
+   * caller's databaseUserId). For mail-in this is the dog owner's
+   * people.id, which differs from the wizard caller (the secretary's
+   * auth.user.id stays in `userId` for draft scoping and telemetry).
+   * Optional for backward compat with persisted local-storage drafts that
+   * predate this field — store actions fall back to `userId` when null.
+   */
+  handlerId?: string | undefined;
   registrationNumber?: string | undefined;
   status: 'draft' | 'submitted' | 'confirmed' | 'cancelled';
   entryStatus?: EntryStatus | undefined; // New field for entry acceptance status

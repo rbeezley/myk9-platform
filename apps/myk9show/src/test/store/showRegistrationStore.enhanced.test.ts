@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useShowRegistrationStore } from '../../store/showRegistrationStore';
-import { 
-  EntryStatus, 
-  PaymentStatus, 
+import {
+  EntryStatus,
+  PaymentStatus,
   Handler,
-  ArmbandAssignment 
+  ArmbandAssignment,
 } from '../../types/show-registration-types';
 import { needsMigration, migrateRegistration } from '../../lib/registrationMigration';
 
@@ -15,25 +15,25 @@ describe('Enhanced ShowRegistrationStore', () => {
       registrations: [],
       currentRegistration: null,
       draftData: {},
-      registrationContext: null
+      registrationContext: null,
     });
   });
 
   describe('Registration Context', () => {
     it('should set and clear registration context', () => {
       const store = useShowRegistrationStore.getState();
-      
+
       const context = {
         mode: 'secretary_existing' as const,
         permissions: ['registration:view_all_dogs', 'registration:register_any'],
         scopedClubs: ['club-1', 'club-2'],
         showId: 'show-123',
-        userId: 'user-456'
+        userId: 'user-456',
       };
-      
+
       store.setRegistrationContext(context);
       expect(useShowRegistrationStore.getState().registrationContext).toEqual(context);
-      
+
       store.clearRegistrationContext();
       expect(useShowRegistrationStore.getState().registrationContext).toBeNull();
     });
@@ -42,9 +42,14 @@ describe('Enhanced ShowRegistrationStore', () => {
   describe('Enhanced Registration Creation', () => {
     it('should create registration with new fields', () => {
       const store = useShowRegistrationStore.getState();
-      
-      const registration = store.createRegistration('show-123', 'user-456', 'secretary-789');
-      
+
+      const registration = store.createRegistration(
+        'show-123',
+        'user-456',
+        'user-456',
+        'secretary-789'
+      );
+
       expect(registration.entryStatus).toBe(EntryStatus.PENDING);
       expect(registration.paymentStatus).toBe(PaymentStatus.PENDING);
       expect(registration.statusHistory).toEqual([]);
@@ -56,17 +61,17 @@ describe('Enhanced ShowRegistrationStore', () => {
   describe('Handler Management', () => {
     it('should update entry handler with validation', () => {
       const store = useShowRegistrationStore.getState();
-      
-      const registration = store.createRegistration('show-123', 'user-456');
+
+      const registration = store.createRegistration('show-123', 'user-456', 'user-456');
       store.addEntry(registration.id, {
         dogId: 'dog-123',
         dogName: 'Max',
         trialId: 'trial-123',
         trialName: 'Morning Trial',
         classes: [],
-        handlerName: 'John Doe'
+        handlerName: 'John Doe',
       });
-      
+
       // Get the updated registration after adding entry
       const regWithEntry = store.getRegistration(registration.id)!;
       const entry = regWithEntry.entries[0];
@@ -75,14 +80,14 @@ describe('Enhanced ShowRegistrationStore', () => {
         name: 'Jane Smith',
         email: 'jane@example.com',
         isOwner: false,
-        validatedAt: new Date()
+        validatedAt: new Date(),
       };
-      
+
       store.updateEntryHandler(registration.id, entry.id, handler, 'Owner unavailable');
-      
+
       const updatedReg = store.getRegistration(registration.id);
       const updatedEntry = updatedReg?.entries[0];
-      
+
       expect(updatedEntry?.handler).toEqual(handler);
       expect(updatedEntry?.handlerName).toBe('Jane Smith');
       expect(updatedEntry?.isHandlerValidated).toBe(true);
@@ -93,17 +98,17 @@ describe('Enhanced ShowRegistrationStore', () => {
   describe('Armband Management', () => {
     it('should assign armbands and check conflicts', () => {
       const store = useShowRegistrationStore.getState();
-      
-      const registration = store.createRegistration('show-123', 'user-456');
+
+      const registration = store.createRegistration('show-123', 'user-456', 'user-456');
       store.addEntry(registration.id, {
         dogId: 'dog-123',
         dogName: 'Max',
         trialId: 'trial-123',
         trialName: 'Morning Trial',
         classes: [],
-        handlerName: 'John Doe'
+        handlerName: 'John Doe',
       });
-      
+
       // Get the updated registration after adding entry
       const regWithEntry = store.getRegistration(registration.id)!;
       const entry = regWithEntry.entries[0];
@@ -113,16 +118,16 @@ describe('Enhanced ShowRegistrationStore', () => {
         trialId: 'trial-123',
         prefix: 'A',
         rangeStart: 100,
-        rangeEnd: 199
+        rangeEnd: 199,
       };
-      
+
       store.assignArmband(registration.id, entry.id, armband);
-      
+
       // Check assignment
       const armbands = store.getArmbandsByShow('show-123');
       expect(armbands).toHaveLength(1);
       expect(armbands[0].armband).toEqual(armband);
-      
+
       // Check conflicts
       expect(store.checkArmbandConflicts('show-123', 'A-101')).toBe(true);
       expect(store.checkArmbandConflicts('show-123', 'A-102')).toBe(false);
@@ -133,19 +138,19 @@ describe('Enhanced ShowRegistrationStore', () => {
   describe('Status Management', () => {
     it('should track entry status changes', () => {
       const store = useShowRegistrationStore.getState();
-      
-      const registration = store.createRegistration('show-123', 'user-456');
-      
+
+      const registration = store.createRegistration('show-123', 'user-456', 'user-456');
+
       store.updateEntryStatus(
-        registration.id, 
-        EntryStatus.ACCEPTED, 
+        registration.id,
+        EntryStatus.ACCEPTED,
         'All requirements met',
         'secretary-789'
       );
-      
+
       const updated = store.getRegistration(registration.id);
       expect(updated?.entryStatus).toBe(EntryStatus.ACCEPTED);
-      
+
       const history = store.getStatusHistory(registration.id);
       expect(history).toHaveLength(1);
       expect(history[0].changeType).toBe('entry_status');
@@ -157,20 +162,20 @@ describe('Enhanced ShowRegistrationStore', () => {
 
     it('should track payment status changes', () => {
       const store = useShowRegistrationStore.getState();
-      
-      const registration = store.createRegistration('show-123', 'user-456');
-      
+
+      const registration = store.createRegistration('show-123', 'user-456', 'user-456');
+
       store.updatePaymentStatus(
         registration.id,
         PaymentStatus.PAID_BY_CHECK,
         'CHK-12345',
         'secretary-789'
       );
-      
+
       const updated = store.getRegistration(registration.id);
       expect(updated?.paymentStatus).toBe(PaymentStatus.PAID_BY_CHECK);
       expect(updated?.paymentReference).toBe('CHK-12345');
-      
+
       const history = store.getStatusHistory(registration.id);
       expect(history).toHaveLength(1);
       expect(history[0].changeType).toBe('payment_status');
@@ -186,9 +191,9 @@ describe('Enhanced ShowRegistrationStore', () => {
         userId: 'user-456',
         status: 'draft',
         paymentStatus: 'paid', // Legacy status
-        entries: []
+        entries: [],
       };
-      
+
       expect(needsMigration(oldRegistration)).toBe(true);
     });
 
@@ -199,15 +204,17 @@ describe('Enhanced ShowRegistrationStore', () => {
         userId: 'user-456',
         status: 'confirmed',
         paymentStatus: 'paid',
-        entries: [{
-          id: 'entry-1',
-          dogId: 'dog-123',
-          handlerName: 'John Doe'
-        }]
+        entries: [
+          {
+            id: 'entry-1',
+            dogId: 'dog-123',
+            handlerName: 'John Doe',
+          },
+        ],
       };
-      
+
       const migrated = migrateRegistration(oldRegistration);
-      
+
       expect(migrated.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
       expect(migrated.entryStatus).toBe(EntryStatus.PENDING);
       expect(migrated.statusHistory).toEqual([]);

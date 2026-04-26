@@ -162,6 +162,46 @@ CREATE POLICY enrollments_select_show_official ON public.enrollments
 NOTIFY pgrst, 'reload schema';
 
 -- ============================================================================
+-- POST-DEPLOY VERIFICATION (run as the seeded secretary user)
+-- ============================================================================
+-- Spec requires the manual RLS verification block to live IN the migration
+-- body so it stays alongside the SQL it's verifying. Run these curls after
+-- `supabase db push` lands. Replace SUPABASE_URL / ANON if reusing in another
+-- environment.
+--
+-- 1. is_show_secretary should now return true for a club-scoped secretary
+--    on a show belonging to their club:
+--
+--      SUPABASE_URL="https://sojmvhhwsjxmfistvzbe.supabase.co"
+--      ANON="<anon-key-from-apps/myk9show/.env>"
+--      TOKEN=$(curl -s "$SUPABASE_URL/auth/v1/token?grant_type=password" \
+--        -H "apikey: $ANON" -H "Content-Type: application/json" \
+--        -d '{"email":"secretary@myk9t.com","password":"testpass123"}' \
+--        | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+--      curl -s "$SUPABASE_URL/rest/v1/rpc/is_show_secretary" \
+--        -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" \
+--        -H "Content-Type: application/json" \
+--        -d '{"check_show_id":"4584f257-19b5-4016-aae6-5e7827b769cb"}'
+--      Expected: true   (was: false before this migration)
+--
+-- 2. enrollments INSERT under handler_id of someone other than the secretary
+--    themselves should now succeed (mail-in path):
+--
+--      curl -s -X POST "$SUPABASE_URL/rest/v1/enrollments" \
+--        -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" \
+--        -H "Content-Type: application/json" \
+--        -H "Prefer: return=representation" \
+--        -d '{"show_id":"4584f257-19b5-4016-aae6-5e7827b769cb",
+--             "handler_id":"<some-other-people-id>"}'
+--      Expected: 201 with the new row     (was: 42501 RLS denial)
+--      Cleanup the test row afterwards via DELETE.
+--
+-- 3. Negative test — sign in as a regular exhibitor and attempt the same
+--    INSERT for someone else's handler_id. Expected: still 42501 (the
+--    self-service _own policy doesn't satisfy the WITH CHECK, and the
+--    new _show_official policy fails is_show_official() for a non-official).
+
+-- ============================================================================
 -- ROLLBACK (commented; safe — DROPs have no FKs / cascades)
 -- ============================================================================
 -- DROP POLICY IF EXISTS enrollments_insert_show_official ON public.enrollments;
@@ -559,13 +599,18 @@ Run: `cd apps/myk9show && npx vitest run src/store/__tests__/showRegistrationSto
 
 If a test fails because it constructs a `ShowRegistration` literal without `handlerId`, that's expected — `handlerId` is optional on the type. If a test calls `createRegistration(showId, userId)` without the new third arg, update the test call to pass a sensible handlerId (e.g., reuse `userId`).
 
-- [ ] **Step 6: Commit (with `RegistrationWizardPage` typecheck error still present — Task 4 closes it)**
+- [ ] **Step 6: DEFER commit until Task 4 Step 1 is also done** [EXPANDED — fixes GAP-F]
 
-Use `--no-verify` is NOT permitted (per CLAUDE.md). Instead, commit the store + types changes WITH the wizard signature already updated to match. To make this committable in one shot, do Task 4 Step 1 (the wizard call-site update) BEFORE this commit. Adjust order:
+`createRegistration`'s third arg becomes required between Step 2 and Step 3, which causes a transient typecheck error in `RegistrationWizardPage.tsx` (the wizard's call sites pass only 2 args). CLAUDE.md forbids `--no-verify`, so we cannot commit broken code.
 
-> **Re-order:** do Task 4 Step 1 first, then return here for Task 3 Step 6.
+**Required execution order:**
 
-Once both store and wizard call sites compile:
+1. Apply Task 3 Steps 1–5 (do NOT commit).
+2. Jump to Task 4 Step 1 and apply ALL five sub-changes (do NOT commit).
+3. Run `pnpm typecheck` from the worktree root — must be green.
+4. Return here and run the bundled commit below.
+
+Subagent-driven executors: treat Task 3 + Task 4 Step 1 as a single atomic unit and dispatch them together.
 
 ```bash
 git add apps/myk9show/src/types/show-registration-types.ts \
@@ -579,9 +624,146 @@ createRegistration action requires. confirmRegistration now uses
 reg.handlerId (falling back to reg.userId for legacy drafts) for the
 existing getRegistrationByShowAndHandler lookup and the
 createShowRegistration fall-through write — so the enrollment is filed
-under the dog's owner instead of the wizard user.
+under the dog's owner instead of the wizard user. The wizard now
+computes the enrollment owner from the selected dogs, gates Next on a
+single-owner cart, and resets the local registrationId when the
+resolved owner changes mid-cart so a stale handlerId can't ship.
 
-Wizard wiring + multi-owner gating arrives in the next commit.
+Multi-owner banner arrives in the next commit (Task 4 Step 3).
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+EOF
+)"
+```
+
+Then continue with Task 4 Step 2 (canProceed update) and Step 3 (banner) as their own subsequent commit.
+
+---
+
+### Task 3.5 [ADDED]: Unit-test the legacy-draft `handlerId ?? userId` fallback
+
+**Files:**
+
+- Create: `apps/myk9show/src/store/__tests__/showRegistrationStore.handlerIdFallback.test.ts`
+
+This guards the backward-compat path in `confirmRegistration`. Without a test, a future refactor that drops `?? reg.userId` would silently regress any persisted localStorage draft created before this change.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `apps/myk9show/src/store/__tests__/showRegistrationStore.handlerIdFallback.test.ts`:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act } from '@testing-library/react';
+import { useShowRegistrationStore } from '@/store/showRegistrationStore';
+import * as queries from '@/services/database/queries/showRegistrationQueries';
+import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
+
+vi.mock('@/services/database/queries/showRegistrationQueries', () => ({
+  getRegistrationByShowAndHandler: vi.fn(),
+  createShowRegistration: vi.fn(),
+}));
+
+describe('confirmRegistration — handlerId fallback', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset persisted Zustand state between tests
+    useShowRegistrationStore.setState({ registrations: [], currentRegistration: null });
+  });
+
+  it('uses reg.handlerId when present', async () => {
+    (queries.getRegistrationByShowAndHandler as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    (queries.createShowRegistration as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { id: 'db-1', confirmationNumber: 'MK9-000001' },
+      error: null,
+    });
+
+    const reg = useShowRegistrationStore
+      .getState()
+      .createRegistration('show-1', 'auth-uid-secretary', 'people-id-exhibitor');
+    await act(async () => {
+      await useShowRegistrationStore.getState().confirmRegistration(reg.id, 'PAY-REF');
+    });
+
+    // The DB lookup + insert must be keyed by the dog owner's people.id, not
+    // the wizard user's auth.user.id.
+    expect(queries.getRegistrationByShowAndHandler).toHaveBeenCalledWith(
+      'show-1',
+      'people-id-exhibitor'
+    );
+    expect(queries.createShowRegistration).toHaveBeenCalledWith(
+      'show-1',
+      'people-id-exhibitor',
+      'PAY-REF',
+      undefined
+    );
+  });
+
+  it('falls back to reg.userId when handlerId is undefined (legacy persisted draft)', async () => {
+    (queries.getRegistrationByShowAndHandler as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    (queries.createShowRegistration as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { id: 'db-2', confirmationNumber: 'MK9-000002' },
+      error: null,
+    });
+
+    // Inject a registration as if it was rehydrated from localStorage WITHOUT
+    // the new handlerId field. The store action must not crash, and must use
+    // userId for the DB write.
+    useShowRegistrationStore.setState({
+      registrations: [
+        {
+          id: 'legacy-reg',
+          showId: 'show-1',
+          userId: 'legacy-people-id',
+          status: 'draft',
+          entryStatus: EntryStatus.PENDING,
+          totalFees: 0,
+          paymentStatus: PaymentStatus.PENDING,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          entries: [],
+          statusHistory: [],
+        },
+      ],
+      currentRegistration: null,
+    });
+
+    await act(async () => {
+      await useShowRegistrationStore.getState().confirmRegistration('legacy-reg', 'PAY-REF');
+    });
+
+    expect(queries.getRegistrationByShowAndHandler).toHaveBeenCalledWith(
+      'show-1',
+      'legacy-people-id'
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests — confirm they fail (helper test would have already failed without the Task 3 changes)**
+
+Run: `cd apps/myk9show && npx vitest run src/store/__tests__/showRegistrationStore.handlerIdFallback.test.ts`
+
+Expected after Task 3 commit: both tests pass. If running before Task 3 lands, the first test fails because `createRegistration` doesn't accept `handlerId` yet.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/myk9show/src/store/__tests__/showRegistrationStore.handlerIdFallback.test.ts
+git commit -m "$(cat <<'EOF'
+test(registration): cover handlerId path + legacy-draft fallback
+
+Guards the two confirmRegistration paths added in the previous commit:
+the new handlerId-keyed enrollment write, and the userId fallback for
+persisted localStorage drafts created before the handlerId field
+existed. Without these tests, a future refactor dropping the ?? clause
+would silently re-introduce the wrong-attribution bug.
 
 Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
 EOF
@@ -625,13 +807,13 @@ In `apps/myk9show/src/pages/RegistrationWizardPage.tsx`, locate:
    );
    ```
 
-3. In `handleDogSelectionChange` (~line 489) replace the `createRegistration(showId || '', userId)` call with:
+3. In `handleDogSelectionChange` (~line 489) replace the `createRegistration(showId || '', userId)` call with the owner-resolved variant **plus an owner-change guard** [EXPANDED — fixes GAP-B]:
 
    ```typescript
    const handleDogSelectionChange = async (selectedDogs: string[]) => {
      setRegistrationData(prev => ({ ...prev, selectedDogs }));
 
-     if (selectedDogs.length === 0 || registrationId || isCreatingRegistration) {
+     if (selectedDogs.length === 0 || isCreatingRegistration) {
        return;
      }
 
@@ -640,6 +822,21 @@ In `apps/myk9show/src/pages/RegistrationWizardPage.tsx`, locate:
      // when the cart spans multiple owners (canProceed will surface the error).
      const owner = selectedDogsOwner(dogs, selectedDogs);
      if (!owner.ok) return;
+
+     // Owner-change guard: if the user replaces their selection with a
+     // different exhibitor's dog(s), the existing registration's handlerId
+     // is now stale. Reset it so a fresh registration is created under the
+     // new owner. Without this, submission would file the entry under the
+     // PREVIOUS exhibitor — silently re-introducing the wrong-attribution
+     // bug we are fixing.
+     if (registrationId) {
+       const existing = useShowRegistrationStore.getState().getRegistration(registrationId);
+       if (existing && existing.handlerId !== owner.ownerId) {
+         setRegistrationId(undefined);
+       } else {
+         return;
+       }
+     }
 
      setIsCreatingRegistration(true);
      const reg = createRegistration(showId || '', userId, owner.ownerId);
@@ -660,19 +857,28 @@ In `apps/myk9show/src/pages/RegistrationWizardPage.tsx`, locate:
    }
    ```
 
-5. In the `handleNext` payment branch, the non-credit-card path calls `createShowRegistration(showId, userId, ...)` (~line 376). Replace with:
+5. In the `handleNext` payment branch, the non-credit-card path calls `createShowRegistration(showId, userId, ...)` (~line 376). Replace with [EXPANDED — fixes GAP-C: hard-fail instead of silent fallback]:
 
    ```typescript
-   const handlerId = ownerResolution.ok ? ownerResolution.ownerId : userId;
+   if (!ownerResolution.ok) {
+     // canProceed() blocks Next on multi-owner carts; we should never
+     // reach this submit branch with an unresolved owner. If we do, fail
+     // loudly rather than fall back to userId — that would silently
+     // re-introduce the wrong-attribution bug this PR fixes.
+     throw new Error(
+       'Internal: payment submit reached with unresolved enrollment owner. ' +
+         'Selected dogs span multiple owners or have no owner set.'
+     );
+   }
    const result = await createShowRegistration(
      showId,
-     handlerId,
+     ownerResolution.ownerId,
      paymentDetails?.paymentReference,
      paymentDetails
    );
    ```
 
-   The `userId` fallback is unreachable in practice (canProceed below blocks Next when `!ownerResolution.ok`) but keeps the call statically typed.
+   The throw is caught by `handleNext`'s existing `try/catch` (~line 457), which surfaces the message via `notifications.error(getErrorMessage(error))` and rolls back local state. The user sees a clear error instead of a silent wrong-attribution.
 
 - [ ] **Step 2: Add multi-owner validation to `canProceed`**
 
@@ -683,7 +889,7 @@ case 'dog-selection':
   return registrationData.selectedDogs.length > 0 && ownerResolution.ok;
 ```
 
-- [ ] **Step 3: Render the multi-owner error inside the dog-selection step**
+- [ ] **Step 3: Render the multi-owner / orphan-owner error inside the dog-selection step** [EXPANDED — fixes GAP-A: distinct copy for orphan vs multi-owner]
 
 In `WorkflowStepContent`'s render in `RegistrationWizardPage.tsx` (around line 642), surface the error above the step content. Add this block immediately before `<WorkflowStepContent ...>`:
 
@@ -696,12 +902,15 @@ In `WorkflowStepContent`'s render in `RegistrationWizardPage.tsx` (around line 6
         role="alert"
         className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
       >
-        This wizard processes one exhibitor&apos;s entries at a time. The selected dogs belong to
-        multiple owners. Please remove all but one owner&apos;s dogs before continuing.
+        {ownerResolution.owners.length >= 2
+          ? "This wizard processes one exhibitor's entries at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
+          : 'One or more selected dogs has no owner on file. An enrollment must be filed under an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
       </div>
     );
 }
 ```
+
+`ownerResolution.owners` is the resolved unique-owners array from the helper. `length >= 2` = multi-owner. `length < 2` (= 0 or 1, paired with `ok: false`) = at least one selected dog has `ownerId == null`. The two cases get distinct, accurate copy.
 
 - [ ] **Step 4: Run typecheck (now expected to be clean)**
 
@@ -810,17 +1019,30 @@ test.describe('Registration Wizard — Multi-owner cart guard', () => {
 });
 ```
 
-- [ ] **Step 3: Run the e2e suite**
+- [ ] **Step 3a: Ensure the dev server is running** [ADDED — fixes GAP-E]
 
-Run from the worktree root:
+The Playwright spec hits `http://localhost:5173`. From the worktree root:
+
+```bash
+curl -sf http://localhost:5173 >/dev/null && echo RUNNING || echo NOT_RUNNING
+```
+
+If `NOT_RUNNING`, start it in the background and wait for ready:
+
+```bash
+pnpm dev:show > /tmp/devshow.log 2>&1 &
+until curl -sf http://localhost:5173 >/dev/null; do sleep 1; done && echo READY
+```
+
+Expected: `READY` (within ~10s on a warm pnpm cache).
+
+- [ ] **Step 3b: Run the e2e suite**
 
 ```bash
 cd apps/myk9show && pnpm test:e2e src/test/e2e/entities/registrationUI.spec.ts --project=chromium --reporter=list
 ```
 
 Expected: All tests pass. The previously-fixme'd tests should now exercise the secretary_paid flow end-to-end against the staging Supabase project (post-migration).
-
-If the dev server isn't running on `localhost:5173`, start it first: `pnpm dev:show &` and wait for ready.
 
 If a previously-fixme'd test fails:
 

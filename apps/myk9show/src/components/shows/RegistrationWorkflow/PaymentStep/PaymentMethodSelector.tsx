@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
+import { UserRole } from '@/types/auth-types';
 import { cn } from '@/lib/utils';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { PAYMENT_MESSAGES } from './types';
@@ -222,7 +223,10 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}>
+            <PermissionGuard
+              permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
+              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
+            >
               <PaymentOptionCard
                 value="secretary_paid"
                 selected={paymentMethod === 'secretary_paid'}
@@ -274,7 +278,10 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}>
+            <PermissionGuard
+              permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
+              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
+            >
               <PaymentOptionCard
                 value="group_payment"
                 selected={paymentMethod === 'group_payment'}

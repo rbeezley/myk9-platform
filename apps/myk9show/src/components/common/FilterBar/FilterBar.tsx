@@ -114,6 +114,7 @@ export function FilterBar({
           value={defaultValue(pendingDef)}
           onChange={handlePendingChange}
           onRemove={handlePendingRemove}
+          onPopoverClose={handlePendingRemove}
           defaultOpen
         />
       )}

@@ -173,19 +173,25 @@ test.describe('People UI — Create (secretary)', () => {
     await page.waitForURL(/\/users\/[^/]+/);
   });
 
-  test('Create rejects empty required fields', async ({ page }) => {
+  test('Create rejects submission when required fields are empty', async ({ page }) => {
     await gotoPeopleBrowse(page);
     await page.getByRole('button', { name: 'New Person' }).click();
     await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
-    // Save Changes is disabled when there are no changes; touch a field then
-    // clear it so the form has changes but is invalid.
-    const firstName = page.getByRole('textbox', { name: /First Name/ });
-    await firstName.fill('x');
-    await firstName.clear();
-    // The Save Changes button stays disabled or fails validation — we just
-    // assert we're still on the dialog (no navigation).
+    // Fill ONLY last name (no first name, no email). That gives the form
+    // hasChanges=true so Save is enabled, but it remains schema-invalid
+    // because firstName + email are still required-empty. Clearing a
+    // touched field doesn't work as a setup — hasChanges flips back to
+    // false because the value matches the (empty) initial value.
+    await page.getByRole('textbox', { name: /Last Name/ }).fill('OnlyLast');
+    // Clicking Save must surface the schema's first-name validation error
+    // and keep the dialog open. Use getByRole('alert') — the same text
+    // appears inline-under-the-field AND in the footer error summary, so
+    // getByText would hit a strict-mode collision.
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Please enter a first name' })
+    ).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
-    await expect(page).toHaveURL(/\/people$/);
   });
 });
 

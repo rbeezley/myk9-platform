@@ -13,6 +13,8 @@ interface FilterPillProps {
   onRemove: () => void;
   /** Open the popover on first render. Used when the pill was just added. */
   defaultOpen?: boolean;
+  /** Called when the popover closes (escape, outside-click, blur). */
+  onPopoverClose?: () => void;
 }
 
 function displayValue(def: FilterDefinition, value: FilterValue): string {
@@ -46,10 +48,16 @@ export function FilterPill({
   onChange,
   onRemove,
   defaultOpen = false,
+  onPopoverClose,
 }: FilterPillProps) {
   const [popoverOpen, setPopoverOpen] = useState(defaultOpen);
   const Icon = definition.icon;
   const display = displayValue(definition, value);
+
+  const handleOpenChange = (next: boolean) => {
+    setPopoverOpen(next);
+    if (!next) onPopoverClose?.();
+  };
 
   // INTENT: split the pill into a separate trigger button and remove button so
   // Base UI's Popover gets a real <button> as its trigger child (asChild). A
@@ -66,7 +74,7 @@ export function FilterPill({
         'pl-0 pr-1 py-0 inline-flex items-center gap-0 text-sm font-normal'
       )}
     >
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <Popover open={popoverOpen} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <button
             type="button"

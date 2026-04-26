@@ -115,9 +115,11 @@ const BrowsePeoplePage: React.FC = () => {
       // Seed the cache synchronously so PersonDetailPage finds the new user
       // immediately. Without this, navigation races the cache refresh and
       // PersonDetailPage's not-found guard ping-pongs back to /people.
-      queryClient.setQueryData(queryKeys.users.all, (old: User[] | undefined) =>
-        old ? [...old, newUser] : [newUser]
-      );
+      queryClient.setQueryData(queryKeys.users.all, (old: User[] | undefined) => {
+        if (!old) return [newUser];
+        if (old.some(u => u.id === newUser.id)) return old;
+        return [...old, newUser];
+      });
       queryClient.setQueryData(queryKeys.users.detail(newUser.id), newUser);
       // Background revalidation — fire-and-forget.
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });

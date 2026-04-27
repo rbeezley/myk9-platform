@@ -458,7 +458,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
 
 interface FeeFieldProps {
   /** id on the CurrencyInput so the sibling Label htmlFor connects for a11y. */
-  id?: string;
+  id?: string | undefined;
   label: string;
   tooltip: string;
   value: number | undefined;

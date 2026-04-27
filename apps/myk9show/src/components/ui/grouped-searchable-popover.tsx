@@ -22,7 +22,7 @@ export interface GroupedSearchablePopoverProps<T extends { id: string }> {
   onSelect: (item: T, groupKey: string) => void;
   footer?: React.ReactNode;
   /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
-  id?: string;
+  id?: string | undefined;
 }
 
 function GroupedSearchablePopover<T extends { id: string }>({

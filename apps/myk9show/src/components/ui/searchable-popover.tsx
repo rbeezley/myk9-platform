@@ -15,7 +15,7 @@ interface SearchablePopoverProps<T> {
   renderItem: (item: T) => React.ReactNode;
   emptyMessage: string;
   /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
-  id?: string;
+  id?: string | undefined;
 }
 
 function SearchablePopover<T extends { id: string }>({

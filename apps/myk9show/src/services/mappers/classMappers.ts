@@ -465,9 +465,21 @@ export const mapReplicatedClassToDbRow = (
     row.entries = options.entries;
   }
 
-  // Attach judge_assignments when provided
+  // Attach judge_assignments. Caller-supplied wins (PostgREST round-trip case
+  // where the joined data is already in hand). Otherwise synthesize from the
+  // denormalized judgeId + judgeName fields the replication layer stores —
+  // without this, downstream readers (`mapDatabaseToClass`) see no judge
+  // even though the replicated row knows the answer.
   if (options?.judgeAssignments) {
     row.judge_assignments = options.judgeAssignments;
+  } else if (cls.judgeId && cls.judgeName) {
+    const [first, ...rest] = cls.judgeName.trim().split(' ');
+    row.judge_assignments = [
+      {
+        person_id: cls.judgeId,
+        people: { first_name: first ?? '', last_name: rest.join(' ') },
+      },
+    ];
   }
 
   return row;
@@ -481,16 +493,13 @@ export const mapReplicatedEntryToDetailRow = (
   entry: ReplicatedEntry,
   dog?: ReplicatedDog | null
 ): Record<string, unknown> => {
-  const entryRow: Record<string, unknown> = mapFields(
-    entry as unknown as Record<string, unknown>,
-    {
-      id: 'id',
-      entry_status: 'entryStatus',
-      points_earned: 'totalPoints',
-      search_time_seconds: 'searchTimeSeconds',
-      final_placement: 'finalPlacement',
-    }
-  );
+  const entryRow: Record<string, unknown> = mapFields(entry as unknown as Record<string, unknown>, {
+    id: 'id',
+    entry_status: 'entryStatus',
+    points_earned: 'totalPoints',
+    search_time_seconds: 'searchTimeSeconds',
+    final_placement: 'finalPlacement',
+  });
 
   if (dog) {
     entryRow.dog = {

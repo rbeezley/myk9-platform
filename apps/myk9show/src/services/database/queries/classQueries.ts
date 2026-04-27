@@ -177,6 +177,13 @@ async function postgrestGetClassesByTrialId(trialId: string) {
       *,
       entries (
         id
+      ),
+      judge_assignments!judge_assignments_class_id_fkey (
+        person_id,
+        people!inner (
+          first_name,
+          last_name
+        )
       )
     `
     )

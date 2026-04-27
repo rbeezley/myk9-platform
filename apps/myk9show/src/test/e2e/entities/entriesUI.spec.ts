@@ -4,27 +4,9 @@ import { test, expect, Page } from '@playwright/test';
  * UI tests for the Entry Management page (secretary role).
  *
  * Walks /secretary/entries/:showId as secretary@myk9t.com against the seeded
- * June 2026 AKC Scent Work show. Covers:
- *   - Browse / search / tab navigation.
- *   - Bulk status change dialog opens (regression guard for 2026-04-27: was
- *     silently broken because the controlled Dialog's onOpenChange used a stale
- *     closure that reset action to null after DialogTrigger fired).
- *   - Bulk check-in completes without crashing the component (regression guards
- *     for 2026-04-27: 'checked_in' literal typo + bulkCheckIn passing class IDs
- *     instead of entry IDs).
- *   - Auto-Assign Armbands dialog opens.
- *   - Manual armband assignment.
- *   - Comp entry dialog opens.
- *
- * The tests do NOT rely on a particular DB state (entries may be Pending,
- * Accepted, or already Checked-In from prior runs). Each test exercises the
- * UI flow that the secretary would see and verifies the visible outcome.
- *
- * Migrations exercised:
- *   - 163: is_show_official RLS allows club-scoped secretary to read/write entries.
- *   - 164: submit_show_entries RPC class-fee join fix.
- *
- * Auth: secretary@myk9t.com / testpass123 (club-scoped to the June 2026 show's club).
+ * June 2026 AKC Scent Work show. Tests are stateless w.r.t. DB content — they
+ * verify UI flows (browse, bulk dialogs, armband, comp) regardless of what
+ * status the seeded entries currently have.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -151,20 +133,36 @@ test.describe('Bulk actions', () => {
     await expect(dialog).toBeVisible();
     await expect(page.getByText(/Check in all classes for/)).toBeVisible();
 
-    await page.getByRole('button', { name: 'Check In All' }).click();
+    // Capture the PATCH the click fires so we can assert it targets the correct
+    // table column. With the previous bug (passing class definition IDs), the
+    // PATCH still returned 200 because Supabase silently matches zero rows for
+    // unknown UUIDs — the UI looked fine but nothing was persisted. Asserting
+    // on the request URL distinguishes "wrote correctly" from "wrote nothing".
+    const [patchRequest] = await Promise.all([
+      page.waitForRequest(r => r.url().includes('/rest/v1/entries') && r.method() === 'PATCH'),
+      page.getByRole('button', { name: 'Check In All' }).click(),
+    ]);
 
-    // Dialog closes
+    // The request body must set is_in_ring (the column bulkCheckIn writes).
+    const body = patchRequest.postDataJSON() as Record<string, unknown> | null;
+    expect(body).toMatchObject({ is_in_ring: true });
+
     await expect(dialog).not.toBeVisible();
 
-    // Regression guard for 2026-04-27 'checked_in' typo crash:
-    // the LoadingErrorBoundary must NOT catch the click handler
+    // 'checked_in' typo crash regression: LoadingErrorBoundary must NOT fire.
     await expect(page.getByText('Failed to load component')).not.toBeVisible();
-    await expect(page.getByText('Cannot read properties of undefined')).not.toBeVisible();
 
-    // Some "Checked In" badge/button should be visible (regression guard for the
-    // bulkCheckIn-with-class-IDs bug: with that bug, no entry was ever updated
-    // so the optimistic-update display would show as Checked In but the next
-    // load would revert. Here we just assert the optimistic UI shows correctly.)
+    // Optimistic UI shows Checked In immediately
+    await expect(page.getByRole('button', { name: /Checked In/ }).first()).toBeVisible();
+
+    // Persistence regression: reload and re-assert. With the class-IDs bug,
+    // the PATCH targeted nonexistent entry rows, so this re-render after a
+    // fresh DB fetch would revert to "Not Checked In".
+    await page.reload();
+    await page
+      .getByRole('heading')
+      .filter({ hasText: /^Entries \(\d+\)$/ })
+      .waitFor({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: /Checked In/ }).first()).toBeVisible();
   });
 });

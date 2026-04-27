@@ -28,7 +28,7 @@ export default defineConfig({
     // Use 127.0.0.1 explicitly so we don't accidentally hit a different
     // worktree's vite that's bound to IPv6 ::1:5173 (macOS resolves
     // "localhost" to IPv6 first).
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     // Video recording for debugging failed tests

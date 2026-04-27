@@ -82,6 +82,17 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
 
   const canSave = firstName.trim() !== '' && lastName.trim() !== '' && email.trim() !== '';
 
+  // Slug derived from `label` so two OfficialPickers on the same page (e.g.
+  // "Show Chairman" + "Show Secretary") don't collide on element ids.
+  const idSlug = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  const triggerId = `official-${idSlug}-trigger`;
+  const firstNameId = `official-${idSlug}-first-name`;
+  const lastNameId = `official-${idSlug}-last-name`;
+  const emailId = `official-${idSlug}-email`;
+
   const renderPersonRow = (person: User) => (
     <div className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0">
       <div className="flex items-center gap-2">
@@ -95,12 +106,13 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
 
   return (
     <div className="space-y-2">
-      <Label>
+      <Label htmlFor={triggerId}>
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
 
       {!showCreateForm && (
         <GroupedSearchablePopover<User>
+          id={triggerId}
           open={open}
           onOpenChange={setOpen}
           triggerLabel={selectedName ?? `Select ${label}`}
@@ -142,8 +154,11 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
           <p className="text-sm font-semibold">New {label}</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">First name *</Label>
+              <Label htmlFor={firstNameId} className="text-xs">
+                First name *
+              </Label>
               <Input
+                id={firstNameId}
                 placeholder="First name"
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
@@ -151,8 +166,11 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Last name *</Label>
+              <Label htmlFor={lastNameId} className="text-xs">
+                Last name *
+              </Label>
               <Input
+                id={lastNameId}
                 placeholder="Last name"
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
@@ -161,8 +179,11 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
             </div>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Email *</Label>
+            <Label htmlFor={emailId} className="text-xs">
+              Email *
+            </Label>
             <Input
+              id={emailId}
               placeholder="email@example.com"
               type="email"
               value={email}

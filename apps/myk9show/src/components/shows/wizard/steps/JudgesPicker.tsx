@@ -181,7 +181,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
 
   return (
     <div className="space-y-3">
-      <Label className="flex items-center gap-1.5">
+      <Label htmlFor="judges-picker-trigger" className="flex items-center gap-1.5">
         <GraduationCap className="h-4 w-4" />
         Show Judges
       </Label>
@@ -215,6 +215,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
       {/* Search popover */}
       {formState.type === 'none' && (
         <GroupedSearchablePopover<User>
+          id="judges-picker-trigger"
           open={open}
           onOpenChange={setOpen}
           triggerLabel={
@@ -264,14 +265,18 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             </p>
           </div>
           <OrgAndJudgeNumberFields
+            idPrefix="judge-cred"
             org={org}
             setOrg={setOrg}
             judgeNumber={judgeNumber}
             setJudgeNumber={setJudgeNumber}
           />
           <div className="space-y-1">
-            <Label className="text-xs">Email *</Label>
+            <Label htmlFor="judge-cred-email" className="text-xs">
+              Email *
+            </Label>
             <Input
+              id="judge-cred-email"
               placeholder="email@example.com"
               type="email"
               value={email}
@@ -305,8 +310,11 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">First name *</Label>
+              <Label htmlFor="judge-new-first-name" className="text-xs">
+                First name *
+              </Label>
               <Input
+                id="judge-new-first-name"
                 placeholder="First name"
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
@@ -314,8 +322,11 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Last name *</Label>
+              <Label htmlFor="judge-new-last-name" className="text-xs">
+                Last name *
+              </Label>
               <Input
+                id="judge-new-last-name"
                 placeholder="Last name"
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
@@ -324,14 +335,18 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             </div>
           </div>
           <OrgAndJudgeNumberFields
+            idPrefix="judge-new"
             org={org}
             setOrg={setOrg}
             judgeNumber={judgeNumber}
             setJudgeNumber={setJudgeNumber}
           />
           <div className="space-y-1">
-            <Label className="text-xs">Email *</Label>
+            <Label htmlFor="judge-new-email" className="text-xs">
+              Email *
+            </Label>
             <Input
+              id="judge-new-email"
               placeholder="email@example.com"
               type="email"
               value={email}
@@ -364,6 +379,8 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
 /* ------------------------------------------------------------------ */
 
 interface OrgAndJudgeNumberFieldsProps {
+  /** id prefix for the controls so the same form can render twice (credentials + new judge) without colliding ids. */
+  idPrefix: string;
   org: string;
   setOrg: (v: string) => void;
   judgeNumber: string;
@@ -371,35 +388,45 @@ interface OrgAndJudgeNumberFieldsProps {
 }
 
 const OrgAndJudgeNumberFields: React.FC<OrgAndJudgeNumberFieldsProps> = ({
+  idPrefix,
   org,
   setOrg,
   judgeNumber,
   setJudgeNumber,
-}) => (
-  <div className="grid grid-cols-2 gap-3">
-    <div className="space-y-1">
-      <Label className="text-xs">Organization *</Label>
-      <Select value={org} onValueChange={setOrg}>
-        <SelectTrigger className="h-8 text-sm !bg-background">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {ORGS.map(o => (
-            <SelectItem key={o} value={o}>
-              {o}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+}) => {
+  const orgId = `${idPrefix}-organization`;
+  const judgeNumberId = `${idPrefix}-judge-number`;
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-1">
+        <Label htmlFor={orgId} className="text-xs">
+          Organization *
+        </Label>
+        <Select value={org} onValueChange={setOrg}>
+          <SelectTrigger id={orgId} className="h-8 text-sm !bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ORGS.map(o => (
+              <SelectItem key={o} value={o}>
+                {o}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor={judgeNumberId} className="text-xs">
+          Judge Number *
+        </Label>
+        <Input
+          id={judgeNumberId}
+          placeholder="e.g. 98234"
+          value={judgeNumber}
+          onChange={e => setJudgeNumber(e.target.value)}
+          className="h-8 text-sm"
+        />
+      </div>
     </div>
-    <div className="space-y-1">
-      <Label className="text-xs">Judge Number *</Label>
-      <Input
-        placeholder="e.g. 98234"
-        value={judgeNumber}
-        onChange={e => setJudgeNumber(e.target.value)}
-        className="h-8 text-sm"
-      />
-    </div>
-  </div>
-);
+  );
+};

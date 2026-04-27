@@ -421,59 +421,34 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
 /**
  * Soft delete a class and cascade-soft-delete all of its entries.
  *
- * Mirrors the cascade behavior of `soft_delete_show` (migration 037). The
- * proper fix is a SECURITY DEFINER `soft_delete_class` RPC that's atomic
- * across the two RLS-gated tables; until that lands, this app-layer cascade:
+ * Delegates to the `soft_delete_class` SECURITY DEFINER RPC (migration 165),
+ * which mirrors `soft_delete_show` (migration 037): the class and its entries
+ * go in a single transaction, gated by `can_manage_trial(trial_id)` to match
+ * the `classes_delete` RLS policy.
  *
- *   1. Updates the class FIRST. If RLS blocks the caller (or the row is
- *      already gone), the function short-circuits before touching entries —
- *      no half-state where entries are wiped against a surviving class.
- *   2. Updates entries SECOND. The `.select()` returns the affected rows so
- *      we can detect a silent RLS no-op (caller has class permission but not
- *      entries permission, e.g. a club_admin without secretary role) and
- *      surface it in logs rather than reporting a clean success.
+ * The `deletedBy` parameter is preserved for API compatibility but ignored —
+ * the RPC reads `auth.uid()` server-side, so callers can no longer attribute
+ * the delete to a different user than the authenticated session (which the
+ * old app-layer path technically allowed via direct UPDATE).
  */
-export const deleteClass = async (id: string, deletedBy?: string) => {
+export const deleteClass = async (id: string, _deletedBy?: string) => {
   try {
-    log('deleteClass', 'Soft deleting class', { id });
+    log('deleteClass', 'Soft deleting class via RPC', { id });
 
-    const now = new Date().toISOString();
-    const softDeleteUpdate: Record<string, unknown> = {
-      deleted_at: now,
-      updated_at: now,
-      ...(deletedBy ? { deleted_by: deletedBy } : {}),
-    };
-
-    const { data, error } = await supabase
-      .from('classes')
-      .update(softDeleteUpdate)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .select('id, name')
-      .single();
+    // Cast: generated supabase types don't yet include this RPC; matches the
+    // pattern used for `soft_delete_dog` in dogQueries.ts.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.rpc as any)('soft_delete_class', {
+      p_class_id: id,
+    });
 
     if (error) {
-      log('deleteClass', 'Error soft deleting class', { id, error });
+      log('deleteClass', 'Error from soft_delete_class RPC', { id, error });
       return { data: null, error: createDatabaseError(error) };
     }
 
-    const { data: deletedEntries, error: entriesError } = await supabase
-      .from('entries')
-      .update(softDeleteUpdate)
-      .eq('class_id', id)
-      .is('deleted_at', null)
-      .select('id');
-
-    if (entriesError) {
-      log('deleteClass', 'Error soft deleting entries for class', { id, entriesError });
-      return { data: null, error: createDatabaseError(entriesError) };
-    }
-
-    log('deleteClass', 'Successfully soft deleted class and its entries', {
-      id,
-      entriesDeleted: deletedEntries?.length ?? 0,
-    });
-    return { data, error: null };
+    log('deleteClass', 'Successfully soft deleted class and its entries', { id });
+    return { data: { id, name: null }, error: null };
   } catch (error) {
     log('deleteClass', 'Unexpected error', { id, error });
     return { data: null, error: createDatabaseError(error) };

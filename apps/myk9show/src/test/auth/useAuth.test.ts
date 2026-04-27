@@ -130,23 +130,12 @@ describe('useAuth', () => {
       }).rejects.toThrow('Network error');
     });
 
-    it('should include agreed_to_tos_at in people insert payload', async () => {
-      const insertChain = {
-        insert: vi.fn().mockReturnValue({
-          select: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: { id: 'new-person-id' }, error: null }),
-          }),
-        }),
-      };
-      const profileInsertChain = {
-        insert: vi.fn().mockResolvedValue({ data: {}, error: null }),
-      };
-
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'people') return insertChain;
-        if (table === 'exhibitor_profiles') return profileInsertChain;
-        return createChainableQuery();
-      });
+    it('does not insert into people — the on_auth_user_created DB trigger handles that', async () => {
+      // The client-side people INSERT was removed (migration 165). The trigger
+      // runs server-side with SECURITY DEFINER, so no Supabase client call
+      // should touch the people or exhibitor_profiles tables during signUp.
+      const fromSpy = vi.fn().mockReturnValue(createChainableQuery());
+      mockSupabase.from = fromSpy;
 
       const { result } = renderHook(() => useAuth());
 
@@ -157,15 +146,9 @@ describe('useAuth', () => {
         });
       });
 
-      expect(insertChain.insert).toHaveBeenCalledWith([
-        expect.objectContaining({
-          first_name: 'Test',
-          last_name: 'User',
-          email: 'test@example.com',
-          auth_user_id: 'test-user-id',
-          agreed_to_tos_at: expect.any(String),
-        }),
-      ]);
+      const calledTables = fromSpy.mock.calls.map((c: [string]) => c[0]);
+      expect(calledTables).not.toContain('people');
+      expect(calledTables).not.toContain('exhibitor_profiles');
     });
   });
 

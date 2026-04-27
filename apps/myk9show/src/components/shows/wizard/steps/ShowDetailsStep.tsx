@@ -199,10 +199,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>
+                <Label htmlFor="show-name">
                   Show Name <span className="text-destructive">*</span>
                 </Label>
                 <Input
+                  id="show-name"
                   value={show.name || ''}
                   onChange={e => updateShowData({ name: e.target.value })}
                   placeholder="Enter show name"
@@ -211,7 +212,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2">
-                <Label>
+                <Label htmlFor="show-organization">
                   Organization <span className="text-destructive">*</span>
                 </Label>
                 <Select
@@ -220,7 +221,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     updateShowData({ organization: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })
                   }
                 >
-                  <SelectTrigger className="!bg-secondary h-10">
+                  <SelectTrigger id="show-organization" className="!bg-secondary h-10">
                     <SelectValue placeholder="Select organization">
                       {show.organization
                         ? ORGANIZATIONS.find(t => t.value === show.organization)?.label
@@ -238,10 +239,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2 col-span-2">
-                <Label>
+                <Label htmlFor="show-dates">
                   Show Dates <span className="text-destructive">*</span>
                 </Label>
                 <DateRangePicker
+                  id="show-dates"
                   startDate={show.startDate ? new Date(show.startDate) : undefined}
                   endDate={show.endDate ? new Date(show.endDate) : undefined}
                   onStartDateChange={date =>
@@ -260,10 +262,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2 col-span-2">
-                <Label>
+                <Label htmlFor="show-entry-period">
                   Entry Period <span className="text-destructive">*</span>
                 </Label>
                 <DateRangePicker
+                  id="show-entry-period"
                   startDate={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}
                   endDate={show.entryCloseDate ? new Date(show.entryCloseDate) : undefined}
                   onStartDateChange={date =>
@@ -286,6 +289,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <FeeField
+                id="show-pre-entry-fee"
                 label="Pre-Entry Fee"
                 tooltip="Entry fee for registrations submitted before the entry close date. Usually lower than day-of-show fee."
                 value={show.preEntryFee}
@@ -295,6 +299,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               />
 
               <FeeField
+                id="show-day-of-show-fee"
                 label="Day-of-Show Fee"
                 tooltip="Entry fee for on-site registrations on the day of the show. Usually higher than pre-entry fee."
                 value={show.dayOfShowFee}
@@ -304,7 +309,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               />
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
+                <Label htmlFor="show-starting-armband" className="flex items-center gap-1.5">
                   Starting Armband Number
                   <TooltipProvider>
                     <Tooltip>
@@ -321,6 +326,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   </TooltipProvider>
                 </Label>
                 <Input
+                  id="show-starting-armband"
                   type="number"
                   min={1}
                   value={show.startingArmbandNumber ?? 100}
@@ -334,10 +340,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2 col-span-2">
-                <Label>
+                <Label htmlFor="show-location">
                   Location <span className="text-destructive">*</span>
                 </Label>
                 <Textarea
+                  id="show-location"
                   value={show.location || ''}
                   onChange={e => updateShowData({ location: e.target.value })}
                   placeholder="Enter venue name and address"
@@ -450,15 +457,17 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
 /* ------------------------------------------------------------------ */
 
 interface FeeFieldProps {
+  /** id on the CurrencyInput so the sibling Label htmlFor connects for a11y. */
+  id?: string;
   label: string;
   tooltip: string;
   value: number | undefined;
   onChange: (value: number | undefined) => void;
 }
 
-const FeeField: React.FC<FeeFieldProps> = ({ label, tooltip, value, onChange }) => (
+const FeeField: React.FC<FeeFieldProps> = ({ id, label, tooltip, value, onChange }) => (
   <div className="space-y-2">
-    <Label className="flex items-center gap-1.5">
+    <Label {...(id !== undefined && { htmlFor: id })} className="flex items-center gap-1.5">
       {label}
       <TooltipProvider>
         <Tooltip>
@@ -472,6 +481,7 @@ const FeeField: React.FC<FeeFieldProps> = ({ label, tooltip, value, onChange }) 
       </TooltipProvider>
     </Label>
     <CurrencyInput
+      {...(id !== undefined && { id })}
       value={value}
       onChange={onChange}
       placeholder="0.00"

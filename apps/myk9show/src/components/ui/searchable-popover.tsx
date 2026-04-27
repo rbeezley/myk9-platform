@@ -14,6 +14,8 @@ interface SearchablePopoverProps<T> {
   items: T[];
   renderItem: (item: T) => React.ReactNode;
   emptyMessage: string;
+  /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
+  id?: string;
 }
 
 function SearchablePopover<T extends { id: string }>({
@@ -26,11 +28,16 @@ function SearchablePopover<T extends { id: string }>({
   items,
   renderItem,
   emptyMessage,
+  id,
 }: SearchablePopoverProps<T>) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-start">
+        <Button
+          {...(id !== undefined && { id })}
+          variant="outline"
+          className="w-full justify-start"
+        >
           {triggerLabel}
           <Search className="ml-auto h-4 w-4" />
         </Button>

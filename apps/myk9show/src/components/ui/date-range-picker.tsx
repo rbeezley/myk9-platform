@@ -22,6 +22,8 @@ interface DateRangePickerProps {
   startDefaultTime?: string | undefined;
   endDefaultTime?: string | undefined;
   minDate?: Date | undefined;
+  /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
+  id?: string | undefined;
 }
 
 function parseTime(timeStr: string): { hours: number; minutes: number } | null {
@@ -61,7 +63,10 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   startDefaultTime = '8:00 AM',
   endDefaultTime = '5:00 PM',
   minDate,
+  id,
 }) => {
+  const startTimeId = id ? `${id}-start-time` : undefined;
+  const endTimeId = id ? `${id}-end-time` : undefined;
   const [open, setOpen] = useState(false);
   const [startTime, setStartTime] = useState(
     startDate ? format(startDate, 'h:mm a') : startDefaultTime
@@ -137,6 +142,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   return (
     <>
       <Button
+        {...(id !== undefined && { id })}
         variant="outline"
         className={cn(
           'w-full justify-start text-left font-normal',
@@ -184,10 +190,16 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             {showTime && (
               <div className="border-t mt-3 pt-3 grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">{startLabel} time</Label>
+                  <Label
+                    {...(startTimeId !== undefined && { htmlFor: startTimeId })}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {startLabel} time
+                  </Label>
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <Input
+                      {...(startTimeId !== undefined && { id: startTimeId })}
                       type="text"
                       value={startTime}
                       onChange={handleStartTimeChange}
@@ -197,10 +209,16 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">{endLabel} time</Label>
+                  <Label
+                    {...(endTimeId !== undefined && { htmlFor: endTimeId })}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {endLabel} time
+                  </Label>
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <Input
+                      {...(endTimeId !== undefined && { id: endTimeId })}
                       type="text"
                       value={endTime}
                       onChange={handleEndTimeChange}

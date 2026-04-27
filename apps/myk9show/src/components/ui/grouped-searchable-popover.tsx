@@ -21,6 +21,8 @@ export interface GroupedSearchablePopoverProps<T extends { id: string }> {
   renderItem: (item: T, groupKey: string) => React.ReactNode;
   onSelect: (item: T, groupKey: string) => void;
   footer?: React.ReactNode;
+  /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
+  id?: string;
 }
 
 function GroupedSearchablePopover<T extends { id: string }>({
@@ -34,6 +36,7 @@ function GroupedSearchablePopover<T extends { id: string }>({
   renderItem,
   onSelect,
   footer,
+  id,
 }: GroupedSearchablePopoverProps<T>) {
   const visibleGroups = groups.filter(g => g.items.length > 0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -42,16 +45,20 @@ function GroupedSearchablePopover<T extends { id: string }>({
   useEffect(() => {
     if (!open) return;
     // rAF ensures the popover is fully rendered before we attempt focus.
-    const id = requestAnimationFrame(() => {
+    const animId = requestAnimationFrame(() => {
       searchRef.current?.focus({ preventScroll: true });
     });
-    return () => cancelAnimationFrame(id);
+    return () => cancelAnimationFrame(animId);
   }, [open]);
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-start">
+        <Button
+          {...(id !== undefined && { id })}
+          variant="outline"
+          className="w-full justify-start"
+        >
           {triggerLabel}
           <Search className="ml-auto h-4 w-4" />
         </Button>

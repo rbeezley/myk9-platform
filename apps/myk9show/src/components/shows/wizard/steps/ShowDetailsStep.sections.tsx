@@ -87,13 +87,14 @@ export const ClubSection: React.FC<ClubSectionProps> = ({
         <h3 className={HEADING_CLASS}>Club Information</h3>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2 col-span-2">
-            <Label>
+            <Label htmlFor="show-host-club">
               Host Club <span className="text-destructive">*</span>
             </Label>
             <div className="space-y-3">
               {!showCreateForm && (
                 <>
                   <SearchablePopover
+                    id="show-host-club"
                     open={showSearch}
                     onOpenChange={setShowSearch}
                     triggerLabel={
@@ -138,8 +139,11 @@ export const ClubSection: React.FC<ClubSectionProps> = ({
                 <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
                   <p className="text-sm font-semibold">New Club</p>
                   <div className="space-y-1">
-                    <Label className="text-xs">Club name *</Label>
+                    <Label htmlFor="new-club-name" className="text-xs">
+                      Club name *
+                    </Label>
                     <Input
+                      id="new-club-name"
                       placeholder="Club name"
                       value={clubName}
                       onChange={e => setClubName(e.target.value)}
@@ -147,8 +151,11 @@ export const ClubSection: React.FC<ClubSectionProps> = ({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Email *</Label>
+                    <Label htmlFor="new-club-email" className="text-xs">
+                      Email *
+                    </Label>
                     <Input
+                      id="new-club-email"
                       placeholder="club@example.com"
                       type="email"
                       value={clubEmail}

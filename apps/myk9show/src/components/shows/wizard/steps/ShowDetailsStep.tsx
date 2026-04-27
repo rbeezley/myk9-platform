@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { CloneFromShowCombobox } from './CloneFromShowCombobox';
 import { Input } from '@/components/ui/input';
-import { CurrencyInput } from '@/components/ui/currency-input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -31,6 +30,7 @@ import {
   isValidEntryDates,
 } from './ShowDetailsStep.helpers';
 import { ClubSection } from './ShowDetailsStep.sections';
+import { FeeField } from './ShowDetailsStep.FeeField';
 import { OfficialPicker } from './OfficialPicker';
 import { JudgesPicker } from './JudgesPicker';
 import { createUser, updateUser } from '@/services/database/queries/userQueries';
@@ -451,43 +451,5 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     </div>
   );
 };
-
-/* ------------------------------------------------------------------ */
-/*  FeeField — small local helper (not worth a separate file)          */
-/* ------------------------------------------------------------------ */
-
-interface FeeFieldProps {
-  /** id on the CurrencyInput so the sibling Label htmlFor connects for a11y. */
-  id?: string | undefined;
-  label: string;
-  tooltip: string;
-  value: number | undefined;
-  onChange: (value: number | undefined) => void;
-}
-
-const FeeField: React.FC<FeeFieldProps> = ({ id, label, tooltip, value, onChange }) => (
-  <div className="space-y-2">
-    <Label {...(id !== undefined && { htmlFor: id })} className="flex items-center gap-1.5">
-      {label}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs">
-            <p>{tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </Label>
-    <CurrencyInput
-      {...(id !== undefined && { id })}
-      value={value}
-      onChange={onChange}
-      placeholder="0.00"
-      className="border border-border bg-secondary rounded-md"
-    />
-  </div>
-);
 
 export default ShowDetailsStep;

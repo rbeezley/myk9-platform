@@ -169,29 +169,29 @@ describe('getJudgeNameById', () => {
     expect(getJudgeNameById(judges, 'p-2')).toBe('John Doe');
   });
 
-  it("returns the default 'TBD' fallback when id doesn't match", () => {
-    expect(getJudgeNameById(judges, 'p-99')).toBe('TBD');
+  it("returns undefined when id doesn't match the roster", () => {
+    expect(getJudgeNameById(judges, 'p-99')).toBeUndefined();
   });
 
-  it('returns the default fallback when id is undefined', () => {
-    expect(getJudgeNameById(judges, undefined)).toBe('TBD');
+  it('returns undefined when id is undefined or empty', () => {
+    expect(getJudgeNameById(judges, undefined)).toBeUndefined();
+    expect(getJudgeNameById(judges, '')).toBeUndefined();
   });
 
-  it('returns the default fallback when id is empty string', () => {
-    expect(getJudgeNameById(judges, '')).toBe('TBD');
-  });
-
-  it('honors a custom fallback', () => {
-    expect(getJudgeNameById(judges, 'p-99', 'Unknown Judge')).toBe('Unknown Judge');
-    expect(getJudgeNameById(judges, undefined, '')).toBe('');
-  });
-
-  it('handles an empty judges array', () => {
-    expect(getJudgeNameById([], 'p-1')).toBe('TBD');
+  it('returns undefined for an empty judges array', () => {
+    expect(getJudgeNameById([], 'p-1')).toBeUndefined();
   });
 
   it('works with extended judge shapes (e.g. ShowJudgeAssignment with extra fields)', () => {
     const extended = [{ judgeId: 'p-1', judgeName: 'Jane Smith', assignedClasses: ['cls-1'] }];
     expect(getJudgeNameById(extended, 'p-1')).toBe('Jane Smith');
+  });
+
+  it('lets callers attach their own fallback via ?? or ||', () => {
+    // Form-state writes use 'TBD'; SelectValue children pass through undefined
+    // so Radix can render the placeholder.
+    expect(getJudgeNameById(judges, 'p-99') ?? 'TBD').toBe('TBD');
+    expect(getJudgeNameById(judges, undefined) ?? 'TBD').toBe('TBD');
+    expect(getJudgeNameById(judges, 'p-1') ?? 'TBD').toBe('Jane Smith');
   });
 });

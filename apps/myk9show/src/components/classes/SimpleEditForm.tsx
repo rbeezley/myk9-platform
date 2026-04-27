@@ -79,7 +79,7 @@ const SimpleEditForm: React.FC<SimpleEditFormProps> = ({
                 value={trialClassData.judgeId}
                 onValueChange={value => {
                   onFieldChange('judgeId', value);
-                  onFieldChange('judgeName', getJudgeNameById(assignedJudges, value));
+                  onFieldChange('judgeName', getJudgeNameById(assignedJudges, value) ?? 'TBD');
                 }}
               >
                 <SelectTrigger className="form-input h-10">

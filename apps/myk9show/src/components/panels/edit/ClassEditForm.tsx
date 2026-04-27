@@ -287,7 +287,10 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     onValueChange={value => {
                       const finalValue = value === 'none' ? '' : value;
                       form?.setValue('judgeId', finalValue);
-                      form?.setValue('judge', getJudgeNameById(assignedJudges, finalValue));
+                      form?.setValue(
+                        'judge',
+                        getJudgeNameById(assignedJudges, finalValue) ?? 'TBD'
+                      );
                       form?.touchField('judgeId');
                     }}
                   >
@@ -295,7 +298,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                       <SelectValue placeholder="Select a judge">
                         {!data.judgeId || data.judgeId === 'TBD'
                           ? undefined
-                          : data.judge || getJudgeNameById(assignedJudges, data.judgeId, '')}
+                          : data.judge || getJudgeNameById(assignedJudges, data.judgeId)}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

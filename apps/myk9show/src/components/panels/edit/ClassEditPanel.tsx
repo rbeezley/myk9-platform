@@ -38,14 +38,14 @@ import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 const classFullSchema = classSchemas.full as unknown as z.ZodSchema<ClassEditFormData>;
 const classSimpleSchema = classSchemas.simple as unknown as z.ZodSchema<TrialClassEditFormData>;
 
-function resolveJudgeDisplay(
+export function resolveJudgeDisplay(
   judgeId: string | undefined,
   judgeName: string | undefined,
   assignedJudges: ReadonlyArray<{ judgeId: string; judgeName: string }>
 ): string | undefined {
   if (judgeId === 'TBD') return 'TBD';
   if (!judgeId) return undefined;
-  return getJudgeNameById(assignedJudges, judgeId, judgeName ?? '');
+  return getJudgeNameById(assignedJudges, judgeId) ?? judgeName;
 }
 
 // Simple mode form for TrialClass
@@ -79,7 +79,7 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
       form?.setValue(field, value);
       form?.touchField(field);
       if (field === 'judgeId') {
-        form?.setValue('judgeName', getJudgeNameById(assignedJudges, value));
+        form?.setValue('judgeName', getJudgeNameById(assignedJudges, value) ?? 'TBD');
       }
     },
     [form, assignedJudges]

@@ -3,7 +3,12 @@ import { test, expect, Page } from '@playwright/test';
 /**
  * UI tests for the Trials feature (secretary role).
  *
- * Walks the secretary's trial-management flows on the Trial Details page:
+ * Walks the secretary's trial-management flows:
+ *   - Add Trial via the show-creation wizard at `?mode=add-trials`
+ *       * Drives the wizard end-to-end: trial config → class selection
+ *         → review → "Create Show (Unpublished)".
+ *       * Verifies the new trial row lands in `trials` with the event
+ *         number we entered.
  *   - Edit trial via the TrialEditPanel
  *   - Delete trial via the StandardDialog confirmation
  *       * Verifies the warning text explicitly mentions classes & entries
@@ -13,17 +18,14 @@ import { test, expect, Page } from '@playwright/test';
  *         from the DB after confirming.
  *
  * Strategy:
- *   - Each test seeds its own show + trial (+ classes + entries for delete) via
- *     direct DB queries through page.evaluate(), then drives the UI from the
- *     trial details page. Cleanup runs in afterEach to leave the DB tidy even
- *     if the UI flow aborts mid-test.
+ *   - Edit/Delete tests seed their own trial directly via Supabase inserts —
+ *     fast and decoupled from the wizard's UX, which is exercised by the
+ *     Add Trial test instead.
+ *   - Add Trial test drives the wizard UI and asserts the resulting DB row.
+ *   - All cleanup runs in afterEach so the parent show stays tidy even if a
+ *     UI flow aborts mid-test.
  *
  * Auth: secretary@myk9t.com / testpass123 (matches clubsUI / dogsUI / peopleUI).
- *
- * The Add Trial flow goes through the existing show-creation wizard at
- * `?mode=add-trials`, which is covered by `showWizardUI.spec.ts`. That test
- * verifies the wizard lands on the right step with the show preloaded; we
- * don't duplicate it here.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -318,5 +320,113 @@ test.describe('Trial Details — Delete', () => {
       expect(counts.classes).toBe(0);
       expect(counts.entries).toBe(0);
     }).toPass({ timeout: 10000 });
+  });
+});
+
+// ─── Add Trial via wizard ─────────────────────────────────────────────────────
+
+test.describe('Trial Wizard — Add Trial to existing show', () => {
+  // Track event_number of the trial we create so afterEach can clean up by it,
+  // even if the test fails before we capture the trial UUID.
+  let createdEventNumber: string | null = null;
+
+  test.beforeEach(async ({ page }) => {
+    await signInAsSecretary(page);
+    // The wizard persists state across navigations via Zustand `persist`.
+    // Clear it so we land on a fresh wizard and don't inherit stale trials
+    // from a previous test run (or another spec).
+    await page.evaluate(async () => {
+      const { useWizardStore } = await import('/src/store/wizardStore.ts');
+      useWizardStore.getState().resetWizard();
+    });
+    createdEventNumber = null;
+  });
+
+  test.afterEach(async ({ page }) => {
+    if (!createdEventNumber) return;
+    await page.evaluate(async ev => {
+      try {
+        const { supabase } = await import('/src/lib/supabase.ts');
+        await supabase.from('trials').delete().eq('event_number', ev);
+      } catch {
+        // best-effort
+      }
+    }, createdEventNumber);
+  });
+
+  test('walks the wizard, creates the trial, and persists it to the DB', async ({ page }) => {
+    const eventNumber = `E2E-WIZ-${RUN_ID}`;
+    createdEventNumber = eventNumber;
+
+    // ─ Step 2 — Trial Configuration ─────────────────────────────────────────
+    await page.goto(`/secretary/create-show/wizard?showId=${SEEDED_SHOW_ID}&mode=add-trials`);
+    await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible();
+
+    // The empty state shows "Add First Trial"; once one trial exists the
+    // header swaps to "Add Trial". Either way, click whichever is visible.
+    const addFirst = page.getByRole('button', { name: 'Add First Trial' });
+    const addMore = page.getByRole('button', { name: /^Add Trial$/ });
+    if (await addFirst.isVisible().catch(() => false)) {
+      await addFirst.click();
+    } else {
+      await addMore.first().click();
+    }
+
+    // Trial Type — required, but the wizardStore's `addTrial` defaults it to
+    // "Scent Work" for AKC orgs (`DEFAULT_TRIAL_TYPE` in `wizardStore.ts`),
+    // so the freshly-added trial already has a valid value. The combobox has
+    // no accessible name (label is sibling text), so a `getByRole` lookup
+    // would fail anyway — skip and trust the default.
+
+    // Event Number — required for AKC (drives the XML results submission).
+    // The textbox has no accessible name; placeholder is the stable handle.
+    await page.getByPlaceholder('e.g. 2026123456').fill(eventNumber);
+
+    // Advance to Step 3 (Classes).
+    await page.getByRole('button', { name: /^Next$/ }).click();
+    await expect(
+      page.getByRole('heading', { name: /Class.*Selection|Select Classes/i }).first()
+    ).toBeVisible({ timeout: 10000 });
+
+    // ─ Step 3 — Class Selection ─────────────────────────────────────────────
+    // The wizard requires "at least one class must be selected across all
+    // trials" before allowing Next. Bulk-select via the SimpleClassSelector's
+    // "Select All" affordance — that's the smallest-touch path through this
+    // step, since template auto-resolves when only one is active for the org.
+    const selectAll = page.getByRole('button', { name: 'Select All', exact: true });
+    await selectAll.waitFor({ state: 'visible', timeout: 10000 });
+    await selectAll.click();
+
+    await page.getByRole('button', { name: /^Next$/ }).click();
+
+    // ─ Step 4 — Review & Submit ─────────────────────────────────────────────
+    const createBtn = page.getByRole('button', { name: 'Create Show (Unpublished)' });
+    await createBtn.waitFor({ state: 'visible', timeout: 10000 });
+
+    const trialInsertPromise = page.waitForResponse(
+      resp =>
+        resp.url().includes('/rest/v1/trials') &&
+        resp.request().method() === 'POST' &&
+        resp.status() < 400,
+      { timeout: 30000 }
+    );
+
+    await createBtn.click();
+    await trialInsertPromise;
+
+    // ─ Verify the trial landed in the DB ────────────────────────────────────
+    const persisted = await page.evaluate(async ev => {
+      const { supabase } = await import('/src/lib/supabase.ts');
+      const { data } = await supabase
+        .from('trials')
+        .select('id, name, event_number, show_id, trial_type')
+        .eq('event_number', ev)
+        .maybeSingle();
+      return data;
+    }, eventNumber);
+
+    expect(persisted).not.toBeNull();
+    expect(persisted!.event_number).toBe(eventNumber);
+    expect(persisted!.show_id).toBe(SEEDED_SHOW_ID);
   });
 });

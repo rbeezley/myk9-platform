@@ -145,51 +145,9 @@ export function useAuth() {
       if (error) {
         throw error;
       }
-
-      // If user is created successfully, create corresponding public.user record
-      if (data.user) {
-        try {
-          const { data: newPerson, error: insertError } = await supabase
-            .from('people')
-            .insert([
-              {
-                first_name: metadata?.firstName || 'First',
-                last_name: metadata?.lastName || 'Name',
-                email: email,
-                auth_user_id: data.user.id,
-                agreed_to_tos_at: new Date().toISOString(),
-              },
-            ])
-            .select('id')
-            .single();
-
-          if (insertError) {
-            console.error(
-              'People record creation failed during signup (non-blocking):',
-              insertError
-            );
-          } else if (newPerson) {
-            // Assign default exhibitor role via RBAC service (handles dedup + reactivation)
-            try {
-              await rbacService.ensureUserHasRole(newPerson.id, 'exhibitor');
-            } catch (err) {
-              console.error('Failed to assign exhibitor role during signup (non-blocking):', err);
-            }
-
-            // Create exhibitor profile
-            const { error: profileError } = await supabase.from('exhibitor_profiles').insert({
-              person_id: newPerson.id,
-              auth_user_id: data.user.id,
-            });
-
-            if (profileError) {
-              console.error('Failed to create exhibitor profile during signup:', profileError);
-            }
-          }
-        } catch {
-          // Profile creation failed - auth user is created, profile creation can be retried
-        }
-      }
+      // people record, exhibitor_profiles, and exhibitor role are created by the
+      // on_auth_user_created DB trigger (handle_new_user, migration 165), which
+      // runs with SECURITY DEFINER before any client session exists.
     },
     []
   );

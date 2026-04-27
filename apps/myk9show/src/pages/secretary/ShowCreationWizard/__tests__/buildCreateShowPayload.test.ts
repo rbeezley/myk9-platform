@@ -1,13 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { buildCreateShowPayload } from '../buildCreateShowPayload';
-import type {
-  WizardShowData,
-  WizardTrial,
-} from '../showCreationWizardTransformers';
+import type { WizardShowData, WizardTrial } from '../showCreationWizardTransformers';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const baseShow: WizardShowData = {
   name: 'Spring Scent Work',
@@ -203,6 +199,57 @@ describe('buildCreateShowPayload', () => {
     const { rpcInput } = buildCreateShowPayload(baseShow, [], {}, new Map(), 'unpublished');
     expect(rpcInput.p_trials).toHaveLength(0);
     expect(rpcInput.p_classes).toHaveLength(0);
+  });
+
+  describe('date handling', () => {
+    it('sends local-date strings (YYYY-MM-DD) for the show date columns', () => {
+      // Late-evening local time whose UTC date is the next day — would land
+      // as May 15 if cast in UTC.
+      const lateNight = new Date(2026, 4, 14, 23, 59, 0).toISOString();
+      const morning = new Date(2026, 4, 22, 8, 0, 0).toISOString();
+
+      const { rpcInput } = buildCreateShowPayload(
+        {
+          ...baseShow,
+          startDate: morning,
+          endDate: morning,
+          entryOpenDate: morning,
+          entryCloseDate: lateNight,
+        },
+        [],
+        {},
+        new Map(),
+        'unpublished'
+      );
+      expect(rpcInput.p_show.start_date).toBe('2026-05-22');
+      expect(rpcInput.p_show.end_date).toBe('2026-05-22');
+      expect(rpcInput.p_show.entry_open_date).toBe('2026-05-22');
+      expect(rpcInput.p_show.entry_close_date).toBe('2026-05-14');
+    });
+
+    it('sends local-date strings for trial date', () => {
+      const lateNight = new Date(2026, 4, 14, 23, 59, 0).toISOString();
+      const { rpcInput } = buildCreateShowPayload(
+        baseShow,
+        [{ ...baseTrial, dateTime: lateNight }],
+        {},
+        new Map(),
+        'unpublished'
+      );
+      expect(rpcInput.p_trials[0]!.date).toBe('2026-05-14');
+    });
+
+    it('passes through date-only inputs without modification', () => {
+      const { rpcInput } = buildCreateShowPayload(
+        { ...baseShow, startDate: '2026-06-01', endDate: '2026-06-02' },
+        [],
+        {},
+        new Map(),
+        'unpublished'
+      );
+      expect(rpcInput.p_show.start_date).toBe('2026-06-01');
+      expect(rpcInput.p_show.end_date).toBe('2026-06-02');
+    });
   });
 
   it('localEntities.classes have _syncStatus synced', () => {

@@ -1,10 +1,11 @@
 import type { Show } from '@/types/show-types';
 import { Badge } from '@/components/ui/badge';
 import { formatFee } from '@/utils/format';
+import { toLocalDate } from '@/utils/date-format';
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+  const d = toLocalDate(dateStr);
   return isNaN(d.getTime()) ? null : d;
 }
 

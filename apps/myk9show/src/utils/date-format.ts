@@ -5,6 +5,24 @@ export function toLocalDate(isoStr: string): Date {
 }
 
 /**
+ * Extract a YYYY-MM-DD string in the user's local timezone from an ISO datetime.
+ *
+ * Use this for `DATE`-typed columns (start_date, end_date, entry_open_date,
+ * entry_close_date) so a picker emitting "May 14 11:59 PM CDT"
+ * (= "2026-05-15T04:59Z") doesn't get cast to May 15 by Postgres `::date`.
+ */
+export function toLocalDateOnly(isoStr: string): string {
+  if (!isoStr) return isoStr;
+  if (!isoStr.includes('T')) return isoStr;
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return isoStr;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
  * Formats a date range for display. Used by SPA components.
  * Note: API functions (api/og-show.ts, api/og-show-image.tsx) duplicate this function
  * because Vercel serverless functions cannot import from src/.

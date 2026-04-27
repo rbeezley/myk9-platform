@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { STATUS_STYLES, type ShowCardStatus } from '@/utils/showCardUtils';
+import { toLocalDate } from '@/utils/date-format';
 
 interface DateCircleProps {
   startDate: string;
@@ -10,33 +11,28 @@ interface DateCircleProps {
 }
 
 function computeDays(startDate: string, endDate?: string): number | null {
-  if (!endDate || endDate === startDate) return null;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  if (!endDate) return null;
+  const startOnly = startDate.split('T')[0];
+  const endOnly = endDate.split('T')[0];
+  if (startOnly === endOnly) return null;
+  const start = toLocalDate(startDate);
+  const end = toLocalDate(endDate);
   const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   return diff > 1 ? diff : null;
 }
 
-/** Parse date string, handling both ISO datetime and date-only formats */
-function parseDate(dateStr: string): Date {
-  // If it already contains 'T' (ISO datetime), parse directly
-  if (dateStr.includes('T')) return new Date(dateStr);
-  // Date-only: append T00:00:00 to avoid UTC offset issues
-  return new Date(dateStr + 'T00:00:00');
-}
-
 function formatMonth(dateStr: string): string {
-  const date = parseDate(dateStr);
+  const date = toLocalDate(dateStr);
   return date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
 }
 
 function formatDay(dateStr: string): string {
-  const date = parseDate(dateStr);
+  const date = toLocalDate(dateStr);
   return String(date.getDate());
 }
 
 function formatMonthLong(dateStr: string): string {
-  const date = parseDate(dateStr);
+  const date = toLocalDate(dateStr);
   return date.toLocaleDateString('en-US', { month: 'long' });
 }
 

@@ -3,6 +3,7 @@
  */
 
 import type { Show } from '@/types/show-types';
+import { toLocalDate } from './date-format';
 
 export type EntryStatus =
   | 'not_yet_open' // Before entry open date
@@ -25,12 +26,18 @@ export interface EntryStatusInfo {
  */
 export function getEntryStatus(show: Show, userHasEntries: boolean = false): EntryStatusInfo {
   const now = new Date();
-  const openDate = new Date(show.entryOpenDate);
-  const closeDate = new Date(show.entryCloseDate);
+  const openDate = toLocalDate(show.entryOpenDate);
+  const closeDate = toLocalDate(show.entryCloseDate);
+  // Inclusive: "Closes Today!" stays on the banner the whole closing day.
+  const closeEndOfDay = new Date(closeDate);
+  closeEndOfDay.setHours(23, 59, 59, 999);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayDiff = (target: Date): number =>
+    Math.round((target.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24));
 
   // Before entry open date
   if (now < openDate) {
-    const daysUntilOpen = Math.ceil((openDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const daysUntilOpen = dayDiff(openDate);
     return {
       status: 'not_yet_open',
       label: `Opens ${openDate.toLocaleDateString()}`,
@@ -41,7 +48,7 @@ export function getEntryStatus(show: Show, userHasEntries: boolean = false): Ent
   }
 
   // After entry close date
-  if (now > closeDate) {
+  if (now > closeEndOfDay) {
     return {
       status: 'closed',
       label: 'Entries Closed',
@@ -61,7 +68,7 @@ export function getEntryStatus(show: Show, userHasEntries: boolean = false): Ent
   }
 
   // Currently accepting entries
-  const daysUntilClose = Math.ceil((closeDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const daysUntilClose = dayDiff(closeDate);
 
   // Closing soon (within 7 days)
   if (daysUntilClose <= 7) {

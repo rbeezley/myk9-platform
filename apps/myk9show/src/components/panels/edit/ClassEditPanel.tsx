@@ -37,6 +37,16 @@ import { ClassEditForm } from './ClassEditForm';
 const classFullSchema = classSchemas.full as unknown as z.ZodSchema<ClassEditFormData>;
 const classSimpleSchema = classSchemas.simple as unknown as z.ZodSchema<TrialClassEditFormData>;
 
+function resolveJudgeDisplay(
+  judgeId: string | undefined,
+  judgeName: string | undefined,
+  assignedJudges: ReadonlyArray<{ judgeId: string; judgeName: string }>
+): string | undefined {
+  if (judgeId === 'TBD') return 'TBD';
+  if (!judgeId) return undefined;
+  return assignedJudges.find(j => j.judgeId === judgeId)?.judgeName ?? judgeName;
+}
+
 // Simple mode form for TrialClass
 const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
   const { data, form } = useEditPanel<TrialClassEditFormData>();
@@ -125,7 +135,13 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   aria-invalid={!!judgeError}
                   aria-describedby={judgeError ? 'judgeId-error' : undefined}
                 >
-                  <SelectValue placeholder="Select a judge" />
+                  <SelectValue placeholder="Select a judge">
+                    {/* Resolve UUID → name explicitly: Radix doesn't re-resolve
+                        the SelectItem display when assignedJudges loads after
+                        the form mounts, so the trigger would otherwise show the
+                        raw judgeId. */}
+                    {resolveJudgeDisplay(data.judgeId, data.judgeName, assignedJudges)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {assignedJudges.length > 0 ? (

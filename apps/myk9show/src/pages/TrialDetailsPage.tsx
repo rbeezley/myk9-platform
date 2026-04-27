@@ -70,7 +70,7 @@ const TrialDetailsPage: React.FC = () => {
     deleteTrial: deleteTrialAsync,
   } = useTrialStore();
   const { user, isSecretary, isAdmin } = useAuthContext();
-  const { templates } = useTemplateStore();
+  const { templates, initializeDefaultTemplates } = useTemplateStore();
   const { shows } = useShowStore();
 
   // Tab state — URL-synced
@@ -94,6 +94,12 @@ const TrialDetailsPage: React.FC = () => {
   useEffect(() => {
     if (trialId) selectTrial(trialId);
   }, [trialId, selectTrial]);
+
+  // Templates power the "Add Classes" panel; load them once on mount so the
+  // panel never opens to an empty list. Initializer is idempotent.
+  useEffect(() => {
+    initializeDefaultTemplates();
+  }, [initializeDefaultTemplates]);
 
   // Get current trial
   const currentTrial = trials.find(trial => trial.id === selectedTrialId) as
@@ -436,8 +442,8 @@ const TrialDetailsPage: React.FC = () => {
       >
         <div className="py-2 text-foreground space-y-3">
           <p>
-            Are you sure you want to delete{' '}
-            <b>{currentTrial?.type || currentTrial?.trialNumber}</b>?
+            Are you sure you want to delete <b>{currentTrial?.type || currentTrial?.trialNumber}</b>
+            ?
           </p>
           <p className="text-muted-foreground text-sm">
             This will permanently delete the trial along with all of its classes and entries.
@@ -497,6 +503,18 @@ const TrialDetailsPage: React.FC = () => {
                   {selectedClassForDelete.section}
                 </span>
               )}
+              {(() => {
+                const entryCount = selectedClassForDelete
+                  ? (entryCountByClass.get(selectedClassForDelete.id) ?? 0)
+                  : 0;
+                if (entryCount === 0) return null;
+                return (
+                  <span className="block mt-2 text-destructive">
+                    This will also delete {entryCount} {entryCount === 1 ? 'entry' : 'entries'} for
+                    this class.
+                  </span>
+                );
+              })()}
               <span className="block mt-2 text-destructive">This action cannot be undone.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>

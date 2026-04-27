@@ -68,26 +68,18 @@ export const AddClassesToTrialPanel: React.FC<AddClassesToTrialPanelProps> = ({
     [availableTemplates, selectedTemplateId]
   );
 
-  // Filter templates to active ones matching show type
+  // Filter templates to active ones for the trial's organization (e.g. AKC/UKC/ASCA).
   const activeTemplates = useMemo(
     () =>
       availableTemplates.filter(template => {
         if (!template.isActive) return false;
 
         if (trialOrganization) {
-          const templateShowType =
-            typeof template.trialType === 'object'
-              ? String(Object.values(template.trialType)[0] || '')
-              : String(template.trialType || '');
-
-          const normalizedTrialType = (trialOrganization || '').toLowerCase().trim();
-          const normalizedTemplateType = templateShowType.toLowerCase().trim();
-
-          return (
-            normalizedTrialType === normalizedTemplateType ||
-            normalizedTrialType.includes(normalizedTemplateType) ||
-            normalizedTemplateType.includes(normalizedTrialType)
-          );
+          const templateOrg = String(template.organization || '')
+            .toLowerCase()
+            .trim();
+          const trialOrg = trialOrganization.toLowerCase().trim();
+          return templateOrg === trialOrg;
         }
 
         return true;

@@ -2,7 +2,7 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
 
-import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replicationUtils';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -412,24 +412,34 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
 };
 
 /**
- * Soft delete a class
+ * Soft delete a class and cascade-soft-delete all of its entries.
+ *
+ * Mirrors the cascade behavior of `soft_delete_show` (migration 037). The
+ * proper fix is a SECURITY DEFINER `soft_delete_class` RPC that's atomic
+ * across the two RLS-gated tables; until that lands, this app-layer cascade:
+ *
+ *   1. Updates the class FIRST. If RLS blocks the caller (or the row is
+ *      already gone), the function short-circuits before touching entries —
+ *      no half-state where entries are wiped against a surviving class.
+ *   2. Updates entries SECOND. The `.select()` returns the affected rows so
+ *      we can detect a silent RLS no-op (caller has class permission but not
+ *      entries permission, e.g. a club_admin without secretary role) and
+ *      surface it in logs rather than reporting a clean success.
  */
 export const deleteClass = async (id: string, deletedBy?: string) => {
   try {
     log('deleteClass', 'Soft deleting class', { id });
 
-    const updateData: Record<string, unknown> = {
-      deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    const now = new Date().toISOString();
+    const softDeleteUpdate: Record<string, unknown> = {
+      deleted_at: now,
+      updated_at: now,
+      ...(deletedBy ? { deleted_by: deletedBy } : {}),
     };
-
-    if (deletedBy) {
-      updateData.deleted_by = deletedBy;
-    }
 
     const { data, error } = await supabase
       .from('classes')
-      .update(updateData)
+      .update(softDeleteUpdate)
       .eq('id', id)
       .is('deleted_at', null)
       .select('id, name')
@@ -440,7 +450,22 @@ export const deleteClass = async (id: string, deletedBy?: string) => {
       return { data: null, error: createDatabaseError(error) };
     }
 
-    log('deleteClass', 'Successfully soft deleted class', { id });
+    const { data: deletedEntries, error: entriesError } = await supabase
+      .from('entries')
+      .update(softDeleteUpdate)
+      .eq('class_id', id)
+      .is('deleted_at', null)
+      .select('id');
+
+    if (entriesError) {
+      log('deleteClass', 'Error soft deleting entries for class', { id, entriesError });
+      return { data: null, error: createDatabaseError(entriesError) };
+    }
+
+    log('deleteClass', 'Successfully soft deleted class and its entries', {
+      id,
+      entriesDeleted: deletedEntries?.length ?? 0,
+    });
     return { data, error: null };
   } catch (error) {
     log('deleteClass', 'Unexpected error', { id, error });

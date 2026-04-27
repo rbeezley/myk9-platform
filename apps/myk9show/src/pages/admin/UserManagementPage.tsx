@@ -271,6 +271,7 @@ const UserManagementPage: React.FC = () => {
               onManageRoles={handleManageRoles}
               currentPage={clampedPage}
               totalPages={totalPages}
+              totalFilteredUsers={filteredUsers.length}
               onPageChange={setCurrentPage}
               pageSize={pageSize}
               onPageSizeChange={size => {

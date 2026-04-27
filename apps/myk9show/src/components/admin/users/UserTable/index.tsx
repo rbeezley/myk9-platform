@@ -361,6 +361,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   onManageRoles,
   currentPage,
   totalPages,
+  totalFilteredUsers,
   onPageChange,
   pageSize,
   onPageSizeChange,
@@ -458,7 +459,7 @@ export const UserTable: React.FC<UserTableProps> = ({
         currentPage={currentPage}
         totalPages={totalPages}
         pageSize={pageSize}
-        totalUsers={users.length}
+        totalUsers={totalFilteredUsers}
         searchTerm={searchTerm}
         onPageChange={onPageChange}
         {...(onPageSizeChange ? { onPageSizeChange } : {})}

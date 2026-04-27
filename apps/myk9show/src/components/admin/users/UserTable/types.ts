@@ -25,6 +25,7 @@ export interface UserTableProps {
   onManageRoles?: (user: import('@/types/user-types').User) => void;
   currentPage: number;
   totalPages: number;
+  totalFilteredUsers: number;
   onPageChange: (page: number) => void;
   pageSize: number;
   onPageSizeChange?: (size: number) => void;

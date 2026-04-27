@@ -10,15 +10,14 @@ import { test, expect, Page } from '@playwright/test';
  *     field).
  *   - Editing a class to assign a judge from the show's judge pool.
  *   - The delete-class confirmation dialog (entry-cascade copy + cancellation).
- *   - The cascade itself (deleting a class with entries soft-deletes its
- *     entries) is exercised by the unit test in
- *     `classQueries.deleteCascade.test.ts` since that's a DB-layer assertion.
+ *   - The delete-class cascade: confirming the dialog soft-deletes the class
+ *     AND its entries through the `soft_delete_class` RPC (migration 165).
  *
  * Test data:
- *   Reuses the persistent "Test Golden Path Show" → "Saturday Trial 1" fixture.
- *   This trial ships with five Container classes; we mutate the Container
- *   Master row (judge assignment, then revert) to keep the fixture stable for
- *   other suites.
+ *   The non-destructive tests reuse the persistent "Test Golden Path Show" →
+ *   "Saturday Trial 1" fixture. The destructive cascade test seeds its own
+ *   trial under the "June 2026 AKC Scent Work" show (same pattern as
+ *   trialsUI.spec.ts) so it never mutates the shared fixture.
  *
  * Auth: secretary@myk9t.com / testpass123 (matches clubsUI.spec.ts).
  */
@@ -150,5 +149,208 @@ test.describe('Classes UI — Delete class confirmation', () => {
     // Class still exists in the table.
     await expect(page.getByRole('button', { name: /Container Master /i }).first()).toBeVisible();
     expect(deleteFired).toBe(false);
+  });
+});
+
+// ─── Delete class cascade ─────────────────────────────────────────────────────
+
+/** Parent show used to seed a fresh trial+class+entries triple per test run. */
+const SEEDED_SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb'; // June 2026 AKC Scent Work
+
+interface SeededClass {
+  showId: string;
+  trialId: string;
+  classId: string;
+  className: string;
+  entryIds: string[];
+}
+
+/**
+ * Seed a trial under the existing AKC seed show, with one class and two
+ * entries. Mirrors the pattern in trialsUI.spec.ts so the destructive test
+ * never mutates the persistent "Test Golden Path Show" fixture.
+ */
+async function seedClassWithEntries(page: Page, suffix: string): Promise<SeededClass> {
+  await page.goto('/shows', { waitUntil: 'networkidle' });
+
+  return await page.evaluate(
+    async ({ showId, suffix }) => {
+      const { supabase } = await import('/src/lib/supabase.ts');
+
+      const trialDate = new Date();
+      trialDate.setDate(trialDate.getDate() + 30);
+
+      const { data: trial, error: trialError } = await supabase
+        .from('trials')
+        .insert({
+          show_id: showId,
+          name: `E2E Class-Delete Trial ${suffix}`,
+          date: trialDate.toISOString().split('T')[0]!,
+          trial_number: '9',
+          event_number: `E2E-CLS-${suffix}`,
+          planned_start_time: '9:00 AM',
+          status: 'upcoming',
+        })
+        .select('id')
+        .single();
+      if (trialError || !trial) throw new Error(`insert trial failed: ${trialError?.message}`);
+
+      const className = `E2E Container Novice A ${suffix}`;
+      const { data: cls, error: classError } = await supabase
+        .from('classes')
+        .insert({
+          trial_id: trial.id,
+          name: className,
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+        })
+        .select('id')
+        .single();
+      if (classError || !cls) throw new Error(`insert class failed: ${classError?.message}`);
+
+      const { data: entryRows, error: entryError } = await supabase
+        .from('entries')
+        .insert([
+          {
+            show_id: showId,
+            trial_id: trial.id,
+            class_id: cls.id,
+            armband: '7001',
+            entry_status: 'submitted',
+          },
+          {
+            show_id: showId,
+            trial_id: trial.id,
+            class_id: cls.id,
+            armband: '7002',
+            entry_status: 'submitted',
+          },
+        ])
+        .select('id');
+      if (entryError || !entryRows) {
+        throw new Error(`insert entries failed: ${entryError?.message}`);
+      }
+
+      return {
+        showId,
+        trialId: trial.id,
+        classId: cls.id,
+        className,
+        entryIds: entryRows.map((r: { id: string }) => r.id),
+      };
+    },
+    { showId: SEEDED_SHOW_ID, suffix }
+  );
+}
+
+/**
+ * Hard-delete the seeded trial as cleanup. The DB-level ON DELETE CASCADE on
+ * trials sweeps the class and entries (whether or not they were soft-deleted).
+ * Best-effort — never fails the test.
+ */
+async function cleanupSeededClass(page: Page, seed: SeededClass) {
+  await page.evaluate(async ({ trialId }) => {
+    try {
+      const { supabase } = await import('/src/lib/supabase.ts');
+      await supabase.from('trials').delete().eq('id', trialId);
+    } catch {
+      // best-effort
+    }
+  }, seed);
+}
+
+/**
+ * Read soft-delete state for a class and a set of entries in one round trip.
+ * Uses the maybeSingle / select-by-id pattern so we see the row even after
+ * `deleted_at` is set (RLS on `classes`/`entries` does not filter soft-deleted
+ * rows for an authenticated secretary).
+ */
+async function fetchSoftDeleteState(
+  page: Page,
+  classId: string,
+  entryIds: string[]
+): Promise<{ classDeletedAt: string | null; entryDeletedAts: Array<string | null> }> {
+  return await page.evaluate(
+    async ({ classId, entryIds }) => {
+      const { supabase } = await import('/src/lib/supabase.ts');
+      const [classRes, entryRes] = await Promise.all([
+        supabase.from('classes').select('deleted_at').eq('id', classId).maybeSingle(),
+        supabase.from('entries').select('id, deleted_at').in('id', entryIds),
+      ]);
+      const map = new Map<string, string | null>();
+      for (const row of (entryRes.data ?? []) as Array<{ id: string; deleted_at: string | null }>) {
+        map.set(row.id, row.deleted_at);
+      }
+      return {
+        classDeletedAt: classRes.data?.deleted_at ?? null,
+        entryDeletedAts: entryIds.map(id => map.get(id) ?? null),
+      };
+    },
+    { classId, entryIds }
+  );
+}
+
+test.describe('Classes UI — Delete class cascade', () => {
+  let seed: SeededClass;
+
+  test.beforeEach(async ({ page }) => {
+    await signInAsSecretary(page);
+    seed = await seedClassWithEntries(page, `${Date.now()}`);
+  });
+
+  test.afterEach(async ({ page }) => {
+    if (seed) await cleanupSeededClass(page, seed);
+  });
+
+  test('confirming the delete soft-deletes the class and its entries', async ({ page }) => {
+    // Sanity: pre-delete, neither the class nor its entries are soft-deleted.
+    const before = await fetchSoftDeleteState(page, seed.classId, seed.entryIds);
+    expect(before.classDeletedAt).toBeNull();
+    expect(before.entryDeletedAts.every(d => d === null)).toBe(true);
+
+    // Drive the UI: open the trial, find the seeded class row, kebab → Delete.
+    await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`, { waitUntil: 'networkidle' });
+    const classRow = page.getByRole('button', { name: new RegExp(seed.className, 'i') }).first();
+    await expect(classRow).toBeVisible({ timeout: 15000 });
+    await classRow.locator('..').getByRole('button').last().click();
+    await page.getByRole('menuitem', { name: /Delete Class/i }).click();
+
+    const alert = page.getByRole('alertdialog', { name: 'Delete Class' });
+    await expect(alert).toBeVisible();
+
+    // The user-observable contract is the cascade outcome, not the wire
+    // protocol. Wait for either path to fire so the test passes whether the
+    // app is on the soft_delete_class RPC (migration 165 / PR #107) or the
+    // legacy two-step PATCH cascade. The DB-state assertions below are the
+    // real checks.
+    const writePromise = page.waitForResponse(
+      resp => {
+        const url = resp.url();
+        const method = resp.request().method();
+        if (resp.status() >= 400) return false;
+        if (url.includes('/rest/v1/rpc/soft_delete_class') && method === 'POST') return true;
+        if (url.includes('/rest/v1/classes') && method === 'PATCH') return true;
+        return false;
+      },
+      { timeout: 15000 }
+    );
+
+    await alert.getByRole('button', { name: /^Delete$/ }).click();
+    await writePromise;
+
+    // The cascade should leave both the class and every seeded entry with a
+    // `deleted_at` timestamp set in the same transaction.
+    await expect(async () => {
+      const after = await fetchSoftDeleteState(page, seed.classId, seed.entryIds);
+      expect(after.classDeletedAt).not.toBeNull();
+      expect(after.entryDeletedAts.length).toBe(seed.entryIds.length);
+      expect(after.entryDeletedAts.every(d => d !== null)).toBe(true);
+    }).toPass({ timeout: 10000 });
+
+    // The deleted class no longer appears in the trial's class table.
+    await expect(page.getByRole('button', { name: new RegExp(seed.className, 'i') })).toHaveCount(
+      0
+    );
   });
 });

@@ -429,17 +429,20 @@ const TrialDetailsPage: React.FC = () => {
         onSave={handleConfirmDeleteTrial}
         title="Delete Trial"
         description={null}
-        saveLabel="Delete"
+        saveLabel="Delete Trial"
         cancelLabel="Cancel"
         saveButtonProps={{ variant: 'destructive' }}
         hideSave={false}
       >
-        <div className="py-2 text-foreground">
+        <div className="py-2 text-foreground space-y-3">
           <p>
-            Are you sure you want to delete <b>{currentTrial?.type || currentTrial?.trialNumber}</b>
-            ?
+            Are you sure you want to delete{' '}
+            <b>{currentTrial?.type || currentTrial?.trialNumber}</b>?
           </p>
-          <p className="mt-2 text-destructive">This action cannot be undone.</p>
+          <p className="text-muted-foreground text-sm">
+            This will permanently delete the trial along with all of its classes and entries.
+          </p>
+          <p className="text-destructive text-sm font-medium">This action cannot be undone.</p>
         </div>
       </StandardDialog>
 

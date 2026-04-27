@@ -21,6 +21,8 @@ interface DateTimePickerProps {
   defaultTime?: string | undefined;
   /** Month the calendar opens to when no value is selected. */
   defaultMonth?: Date | undefined;
+  /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
+  id?: string | undefined;
 }
 
 export const DateTimePicker: React.FC<DateTimePickerProps> = ({
@@ -35,6 +37,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   timeFormat = '12h',
   defaultTime = '8:00 AM',
   defaultMonth,
+  id,
 }) => {
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(value);
@@ -126,6 +129,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          {...(id !== undefined && { id })}
           variant="outline"
           className={cn(
             'w-full justify-start text-left font-normal',

@@ -372,15 +372,21 @@ test.describe('Trial Wizard — Add Trial to existing show', () => {
       await addMore.first().click();
     }
 
-    // Trial Type — required, but the wizardStore's `addTrial` defaults it to
+    // Trial Type — required. The wizardStore's `addTrial` defaults it to
     // "Scent Work" for AKC orgs (`DEFAULT_TRIAL_TYPE` in `wizardStore.ts`),
-    // so the freshly-added trial already has a valid value. The combobox has
-    // no accessible name (label is sibling text), so a `getByRole` lookup
-    // would fail anyway — skip and trust the default.
+    // so the freshly-added trial already has a valid value. We re-pick
+    // anyway to exercise the combobox's accessible-name binding.
+    await page
+      .getByLabel(/^Trial Type/)
+      .first()
+      .click();
+    await page.getByRole('option', { name: 'Scent Work' }).click();
 
     // Event Number — required for AKC (drives the XML results submission).
-    // The textbox has no accessible name; placeholder is the stable handle.
-    await page.getByPlaceholder('e.g. 2026123456').fill(eventNumber);
+    await page
+      .getByLabel(/^Event Number/)
+      .first()
+      .fill(eventNumber);
 
     // Advance to Step 3 (Classes).
     await page.getByRole('button', { name: /^Next$/ }).click();

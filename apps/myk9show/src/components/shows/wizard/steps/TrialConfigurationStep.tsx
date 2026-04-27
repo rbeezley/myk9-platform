@@ -227,10 +227,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>
+                      <Label htmlFor={`trial-${trial.id}-name`}>
                         Trial Name <span className="text-destructive">*</span>
                       </Label>
                       <Input
+                        id={`trial-${trial.id}-name`}
                         value={trial.name}
                         onChange={e => updateTrial(trial.id, { name: e.target.value })}
                         placeholder="e.g., Trial 1, Novice Trial"
@@ -242,14 +243,14 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>
+                      <Label htmlFor={`trial-${trial.id}-type`}>
                         Trial Type <span className="text-destructive">*</span>
                       </Label>
                       <Select
                         value={trial.trialType ?? ''}
                         onValueChange={value => updateTrial(trial.id, { trialType: value })}
                       >
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger id={`trial-${trial.id}-type`} className="h-10">
                           <SelectValue placeholder="Select discipline" />
                         </SelectTrigger>
                         <SelectContent>
@@ -268,7 +269,10 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="flex items-center gap-1.5">
+                      <Label
+                        htmlFor={`trial-${trial.id}-eventNumber`}
+                        className="flex items-center gap-1.5"
+                      >
                         Event Number
                         {show.organization === 'AKC' && <span className="text-destructive">*</span>}
                         <TooltipProvider>
@@ -287,6 +291,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                         </TooltipProvider>
                       </Label>
                       <Input
+                        id={`trial-${trial.id}-eventNumber`}
                         value={trial.eventNumber}
                         onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
                         placeholder={show.organization === 'AKC' ? 'e.g. 2026123456' : 'Optional'}
@@ -301,10 +306,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    <Label>
+                    <Label htmlFor={`trial-${trial.id}-dateTime`}>
                       Trial Date & Time <span className="text-destructive">*</span>
                     </Label>
                     <DateTimePicker
+                      id={`trial-${trial.id}-dateTime`}
                       value={safeParseDateString(trial.dateTime)}
                       onChange={date => handleTrialDateTimeChange(trial.id, date)}
                       placeholder="Pick trial date and time"

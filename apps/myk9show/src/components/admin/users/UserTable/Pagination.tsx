@@ -55,7 +55,10 @@ export const Pagination: React.FC<PaginationProps> = ({
         )}
         <div className="text-sm text-muted-foreground font-[500]">
           Showing{' '}
-          <span className="font-[590] text-foreground">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+          <span className="font-[590] text-foreground">
+            {totalUsers === 0 ? 0 : Math.min((currentPage - 1) * pageSize + 1, totalUsers)}
+          </span>{' '}
+          to{' '}
           <span className="font-[590] text-foreground">
             {Math.min(currentPage * pageSize, totalUsers)}
           </span>{' '}

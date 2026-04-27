@@ -70,7 +70,10 @@ const UserManagementPage: React.FC = () => {
     [users, searchTerm, filters]
   );
   const totalPages = Math.ceil(filteredUsers.length / pageSize);
-  const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  // Clamp the active page so it never exceeds the available pages (e.g. after
+  // a search narrows results while the user is on a later page).
+  const clampedPage = Math.min(currentPage, Math.max(1, totalPages));
+  const paginatedUsers = filteredUsers.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
   const roleStats = useMemo(() => calculateRoleStats(users), [users]);
 
   const hasActiveFilters =
@@ -235,7 +238,7 @@ const UserManagementPage: React.FC = () => {
                 {hasActiveFilters && ' (filtered)'}
               </span>
               <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages || 1}
+                Page {clampedPage} of {totalPages || 1}
               </span>
             </div>
           </div>
@@ -266,7 +269,7 @@ const UserManagementPage: React.FC = () => {
               onSelectAll={handleSelectAll}
               onUserClick={handleUserClick}
               onManageRoles={handleManageRoles}
-              currentPage={currentPage}
+              currentPage={clampedPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
               pageSize={pageSize}

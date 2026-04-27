@@ -5,48 +5,59 @@
  * application-layer cascade that mirrors `soft_delete_show` (migration 037).
  * Without this, entries point at a "deleted" class and surface as orphans in
  * exhibitor-facing views.
+ *
+ * Cascade ordering matters: the class is updated first so a permission failure
+ * short-circuits before entries are touched (no half-state where entries are
+ * wiped against a surviving class).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const supabaseUpdates: Array<{ table: string; payload: Record<string, unknown> }> = [];
-const supabaseFilters: Array<{ table: string; column: string; value: unknown }> = [];
+interface RecordedUpdate {
+  table: string;
+  payload: Record<string, unknown>;
+  filters: Array<{ column: string; value: unknown }>;
+}
 
-const { mockSupabase } = vi.hoisted(() => {
-  const updates: Array<{ table: string; payload: Record<string, unknown> }> = [];
-  const filters: Array<{ table: string; column: string; value: unknown }> = [];
+const { mockSupabase, recorded } = vi.hoisted(() => {
+  const updates: RecordedUpdate[] = [];
+
+  type ResponseShape = { data: unknown; error: unknown };
+  const responseByTable: Record<string, ResponseShape> = {
+    classes: { data: { id: 'class-1', name: 'Test Class' }, error: null },
+    entries: { data: [{ id: 'entry-1' }, { id: 'entry-2' }], error: null },
+  };
+
+  function makeBuilder(table: string): Record<string, unknown> {
+    const current: RecordedUpdate = { table, payload: {}, filters: [] };
+    const builder: Record<string, unknown> = {};
+    const finalize = () => Promise.resolve(responseByTable[table]);
+
+    builder.update = (payload: Record<string, unknown>) => {
+      current.payload = payload;
+      updates.push(current);
+      return builder;
+    };
+    builder.eq = (column: string, value: unknown) => {
+      current.filters.push({ column, value });
+      return builder;
+    };
+    builder.is = () => builder;
+    builder.select = () => builder;
+    // .single() resolves the chain (used by the classes update)
+    builder.single = () => finalize();
+    // For chains that don't end in .single() (entries update), the builder
+    // itself must be awaitable.
+    (builder as unknown as { then: (...args: unknown[]) => unknown }).then = (
+      resolve: (v: ResponseShape) => unknown
+    ) => finalize().then(resolve);
+    return builder;
+  }
 
   return {
+    recorded: { updates, responseByTable },
     mockSupabase: {
-      _updates: updates,
-      _filters: filters,
-      from: vi.fn((table: string) => {
-        // Track what's being done so the test can assert call order.
-        const builder: Record<string, unknown> = {};
-        builder.update = vi.fn((payload: Record<string, unknown>) => {
-          updates.push({ table, payload });
-          return builder;
-        });
-        builder.eq = vi.fn((column: string, value: unknown) => {
-          filters.push({ table, column, value });
-          return builder;
-        });
-        builder.is = vi.fn(() => builder);
-        builder.select = vi.fn(() => builder);
-        // .single() resolves the chain into a Supabase-shaped response.
-        builder.single = vi.fn(async () => ({
-          data: { id: filters.find(f => f.table === table)?.value, name: 'Test Class' },
-          error: null,
-        }));
-        // For non-.single() chains (entries update), the chain itself awaits
-        // to a {data, error} shape — make `.is` return a thenable.
-        const thenable = {
-          then: (resolve: (v: { data: null; error: null }) => unknown) =>
-            resolve({ data: null, error: null }),
-        };
-        builder.is = vi.fn(() => thenable as unknown);
-        return builder;
-      }),
+      from: vi.fn((table: string) => makeBuilder(table)),
     },
   };
 });
@@ -58,10 +69,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
     err instanceof Error ? err : new Error(String(err))
   ),
   DatabaseError: class DatabaseError extends Error {},
-}));
-
-vi.mock('../../../../src/services/database/queries/replicationUtils', () => ({
-  withReplicationFallback: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
@@ -90,58 +97,66 @@ import { deleteClass } from '@/services/database/queries/classQueries';
 
 describe('deleteClass cascade behavior', () => {
   beforeEach(() => {
-    supabaseUpdates.length = 0;
-    supabaseFilters.length = 0;
-    mockSupabase._updates.length = 0;
-    mockSupabase._filters.length = 0;
+    recorded.updates.length = 0;
+    recorded.responseByTable.classes = { data: { id: 'class-1', name: 'Test Class' }, error: null };
+    recorded.responseByTable.entries = { data: [{ id: 'entry-1' }], error: null };
     vi.clearAllMocks();
   });
 
-  it('soft-deletes entries before the class', async () => {
-    const classId = 'class-1';
-    await deleteClass(classId, 'user-1');
+  it('returns success with the deleted class on the happy path', async () => {
+    const result = await deleteClass('class-1', 'user-1');
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual({ id: 'class-1', name: 'Test Class' });
+  });
 
-    const tablesUpdated = mockSupabase._updates.map(u => u.table);
-    expect(tablesUpdated).toEqual(['entries', 'classes']);
+  it('soft-deletes the class first, then its entries', async () => {
+    await deleteClass('class-1', 'user-1');
+    const tablesUpdated = recorded.updates.map(u => u.table);
+    expect(tablesUpdated).toEqual(['classes', 'entries']);
   });
 
   it('filters the entries update by class_id', async () => {
     const classId = 'class-with-entries';
     await deleteClass(classId);
-
-    const entryFilter = mockSupabase._filters.find(
-      f => f.table === 'entries' && f.column === 'class_id'
-    );
+    const entryFilter = recorded.updates
+      .find(u => u.table === 'entries')
+      ?.filters.find(f => f.column === 'class_id');
     expect(entryFilter?.value).toBe(classId);
   });
 
-  it('sets deleted_at on both the entries and the class row', async () => {
+  it('sets deleted_at on both the class and the entries', async () => {
     await deleteClass('class-1', 'user-1');
-
-    const entriesUpdate = mockSupabase._updates.find(u => u.table === 'entries');
-    const classUpdate = mockSupabase._updates.find(u => u.table === 'classes');
-
-    expect(entriesUpdate?.payload.deleted_at).toBeTypeOf('string');
+    const classUpdate = recorded.updates.find(u => u.table === 'classes');
+    const entriesUpdate = recorded.updates.find(u => u.table === 'entries');
     expect(classUpdate?.payload.deleted_at).toBeTypeOf('string');
+    expect(entriesUpdate?.payload.deleted_at).toBeTypeOf('string');
   });
 
   it('records the deleting user on both tables when provided', async () => {
     await deleteClass('class-1', 'user-7');
-
-    const entriesUpdate = mockSupabase._updates.find(u => u.table === 'entries');
-    const classUpdate = mockSupabase._updates.find(u => u.table === 'classes');
-
-    expect(entriesUpdate?.payload.deleted_by).toBe('user-7');
+    const classUpdate = recorded.updates.find(u => u.table === 'classes');
+    const entriesUpdate = recorded.updates.find(u => u.table === 'entries');
     expect(classUpdate?.payload.deleted_by).toBe('user-7');
+    expect(entriesUpdate?.payload.deleted_by).toBe('user-7');
   });
 
   it('omits deleted_by when the deleting user is not provided', async () => {
     await deleteClass('class-1');
-
-    const entriesUpdate = mockSupabase._updates.find(u => u.table === 'entries');
-    const classUpdate = mockSupabase._updates.find(u => u.table === 'classes');
-
-    expect('deleted_by' in (entriesUpdate?.payload ?? {})).toBe(false);
+    const classUpdate = recorded.updates.find(u => u.table === 'classes');
+    const entriesUpdate = recorded.updates.find(u => u.table === 'entries');
     expect('deleted_by' in (classUpdate?.payload ?? {})).toBe(false);
+    expect('deleted_by' in (entriesUpdate?.payload ?? {})).toBe(false);
+  });
+
+  it('short-circuits without touching entries when the class update fails', async () => {
+    recorded.responseByTable.classes = {
+      data: null,
+      error: { message: 'rls denied', code: '42501' },
+    };
+    const result = await deleteClass('class-1', 'user-1');
+    expect(result.data).toBeNull();
+    expect(result.error).toBeTruthy();
+    const tablesUpdated = recorded.updates.map(u => u.table);
+    expect(tablesUpdated).toEqual(['classes']);
   });
 });

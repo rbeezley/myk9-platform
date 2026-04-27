@@ -309,6 +309,25 @@ describe('classQueries (replication)', () => {
       expect((row2.entries as unknown[]).length).toBe(0);
     });
 
+    it('returns judge data on each class via the synthesized join', async () => {
+      // Regression: prior to this fix the replication path dropped judge data
+      // because mapReplicatedClassToDbRow only attached judge_assignments when
+      // explicitly passed in options (which getClassesByTrialId never did).
+      mockClassesTable.getClassesByTrial.mockResolvedValue([
+        makeClass({ id: 'c1', judgeId: 'judge-1', judgeName: 'Richard Beezley' }),
+      ]);
+      mockEntriesTable.getAll.mockResolvedValue([]);
+
+      const result = await getClassesByTrialId('trial-1');
+      const row = result.data[0] as Record<string, unknown>;
+      const ja = row.judge_assignments as Array<Record<string, unknown>>;
+
+      expect(ja).toHaveLength(1);
+      expect(ja[0].person_id).toBe('judge-1');
+      expect((ja[0].people as Record<string, unknown>).first_name).toBe('Richard');
+      expect((ja[0].people as Record<string, unknown>).last_name).toBe('Beezley');
+    });
+
     it('returns empty array when no classes for trial', async () => {
       mockClassesTable.getClassesByTrial.mockResolvedValue([]);
       mockEntriesTable.getAll.mockResolvedValue([]);

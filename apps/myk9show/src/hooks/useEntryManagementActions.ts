@@ -216,15 +216,7 @@ export function useEntryManagementActions({
 
     setIsProcessing(true);
     try {
-      const classEntryIds: string[] = [];
-      for (const entryId of selectedEntryIds) {
-        const entry = entries.find(e => e.id === entryId);
-        if (entry) {
-          entry.classes.forEach(c => classEntryIds.push(c.id));
-        }
-      }
-
-      const { error: dbError } = await bulkCheckIn(classEntryIds);
+      const { error: dbError } = await bulkCheckIn(selectedEntryIds);
 
       if (dbError) {
         setError('Failed to bulk check-in');
@@ -238,7 +230,7 @@ export function useEntryManagementActions({
               ...e,
               classes: e.classes.map(c => ({
                 ...c,
-                checkInStatus: 'checked_in' as CheckInStatus,
+                checkInStatus: 'checked-in',
                 checkInTime: new Date(),
               })),
             };
@@ -255,7 +247,7 @@ export function useEntryManagementActions({
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedEntries, entries, setEntries, setSelectedEntries, setError]);
+  }, [selectedEntries, setEntries, setSelectedEntries, setError]);
 
   // Handle check-in status update
   const handleCheckInStatusUpdate = useCallback(

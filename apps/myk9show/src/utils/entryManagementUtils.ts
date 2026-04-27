@@ -14,6 +14,7 @@ import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycl
 export const mapEntryStatus = (status?: string | null): EntryStatus => {
   switch (status) {
     case 'accepted':
+    case 'confirmed':
       return EntryStatus.ACCEPTED;
     case 'pending':
     case 'submitted':

@@ -15,7 +15,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { EntryStatus } from '@/types/show-registration-types';
 import { ArrowUpCircle, XCircle, CheckCircle2, List, Table2 } from 'lucide-react';
@@ -178,18 +177,16 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             <div className="flex justify-between items-center">
               <span className="font-medium">{selectedEntries.size} entries selected</span>
               <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setBulkActionDialog({ open: true, action: 'status_change' })}
+                >
+                  Change Status
+                </Button>
                 <Dialog
                   open={bulkActionDialog.open && bulkActionDialog.action === 'status_change'}
-                  onOpenChange={open => setBulkActionDialog({ ...bulkActionDialog, open })}
+                  onOpenChange={open => setBulkActionDialog({ action: 'status_change', open })}
                 >
-                  <DialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      onClick={() => setBulkActionDialog({ open: true, action: 'status_change' })}
-                    >
-                      Change Status
-                    </Button>
-                  </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Bulk Status Change</DialogTitle>

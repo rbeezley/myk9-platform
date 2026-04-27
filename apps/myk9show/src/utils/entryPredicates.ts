@@ -11,7 +11,7 @@ export function entryIsScored(e: SyncableShowEntry): boolean {
 }
 
 export function isPendingEntry(e: EntryWithStatus): boolean {
-  return e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING;
+  return e.entryStatus === EntryStatus.PENDING;
 }
 
 export function isAcceptedEntry(e: EntryWithStatus): boolean {

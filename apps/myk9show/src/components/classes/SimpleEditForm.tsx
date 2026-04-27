@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } 
 import { Button } from '@/components/ui/button';
 import { TrialClass } from '@/components/trials/types/trial.types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
+import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 
 interface SimpleEditFormProps {
   open: boolean;
@@ -77,9 +78,8 @@ const SimpleEditForm: React.FC<SimpleEditFormProps> = ({
               <Select
                 value={trialClassData.judgeId}
                 onValueChange={value => {
-                  const selectedJudge = assignedJudges.find(judge => judge.judgeId === value);
                   onFieldChange('judgeId', value);
-                  onFieldChange('judgeName', selectedJudge?.judgeName || 'TBD');
+                  onFieldChange('judgeName', getJudgeNameById(assignedJudges, value) ?? 'TBD');
                 }}
               >
                 <SelectTrigger className="form-input h-10">

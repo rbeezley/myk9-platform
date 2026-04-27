@@ -29,6 +29,7 @@ import {
   formDataToTrialClass,
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
+import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 
 // Cast schemas to match the pre-existing form data interfaces.
 // Needed because exactOptionalPropertyTypes causes structural mismatch
@@ -37,14 +38,14 @@ import { ClassEditForm } from './ClassEditForm';
 const classFullSchema = classSchemas.full as unknown as z.ZodSchema<ClassEditFormData>;
 const classSimpleSchema = classSchemas.simple as unknown as z.ZodSchema<TrialClassEditFormData>;
 
-function resolveJudgeDisplay(
+export function resolveJudgeDisplay(
   judgeId: string | undefined,
   judgeName: string | undefined,
   assignedJudges: ReadonlyArray<{ judgeId: string; judgeName: string }>
 ): string | undefined {
   if (judgeId === 'TBD') return 'TBD';
   if (!judgeId) return undefined;
-  return assignedJudges.find(j => j.judgeId === judgeId)?.judgeName ?? judgeName;
+  return getJudgeNameById(assignedJudges, judgeId) ?? judgeName;
 }
 
 // Simple mode form for TrialClass
@@ -78,8 +79,7 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
       form?.setValue(field, value);
       form?.touchField(field);
       if (field === 'judgeId') {
-        const selectedJudge = assignedJudges.find(judge => judge.judgeId === value);
-        form?.setValue('judgeName', selectedJudge?.judgeName || 'TBD');
+        form?.setValue('judgeName', getJudgeNameById(assignedJudges, value) ?? 'TBD');
       }
     },
     [form, assignedJudges]

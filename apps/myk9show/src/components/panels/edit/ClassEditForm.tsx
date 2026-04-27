@@ -20,6 +20,7 @@ import { useClassRequirements } from '@/hooks/useClassRequirements';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
+import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import type { ClassEditFormData } from './ClassEditPanel.types';
 
 /** A requirement field with optional auto-fill from rules */
@@ -286,21 +287,18 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     onValueChange={value => {
                       const finalValue = value === 'none' ? '' : value;
                       form?.setValue('judgeId', finalValue);
-                      const selectedJudge = assignedJudges.find(j => j.judgeId === finalValue);
-                      form?.setValue('judge', selectedJudge?.judgeName || 'TBD');
+                      form?.setValue(
+                        'judge',
+                        getJudgeNameById(assignedJudges, finalValue) ?? 'TBD'
+                      );
                       form?.touchField('judgeId');
                     }}
                   >
                     <SelectTrigger id="judgeId">
                       <SelectValue placeholder="Select a judge">
-                        {(() => {
-                          if (!data.judgeId || data.judgeId === 'TBD') return undefined;
-                          return (
-                            data.judge ||
-                            assignedJudges.find(j => j.judgeId === data.judgeId)?.judgeName ||
-                            undefined
-                          );
-                        })()}
+                        {!data.judgeId || data.judgeId === 'TBD'
+                          ? undefined
+                          : data.judge || getJudgeNameById(assignedJudges, data.judgeId)}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

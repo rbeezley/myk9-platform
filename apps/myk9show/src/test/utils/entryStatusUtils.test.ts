@@ -37,7 +37,7 @@ describe('entryStatusUtils', () => {
 
     describe('when user has submitted entries', () => {
       it('should return submitted status regardless of dates', () => {
-        const now = new Date('2024-01-15'); // During open period
+        const now = new Date(2024, 0, 15, 12); // During open period
         vi.setSystemTime(now);
 
         const show = createMockShow();
@@ -50,7 +50,7 @@ describe('entryStatusUtils', () => {
       });
 
       it('should return closed when entries are closed, even with user entries', () => {
-        const now = new Date('2024-03-01'); // After close date
+        const now = new Date(2024, 2, 1, 12); // After close date
         vi.setSystemTime(now);
 
         const show = createMockShow();
@@ -63,7 +63,7 @@ describe('entryStatusUtils', () => {
 
     describe('when entries are not yet open', () => {
       it('should return not_yet_open status', () => {
-        const now = new Date('2023-12-15'); // Before open date
+        const now = new Date(2023, 11, 15, 12); // Before open date
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -77,7 +77,7 @@ describe('entryStatusUtils', () => {
       });
 
       it('should calculate days until open correctly', () => {
-        const now = new Date('2023-12-25'); // 7 days before open
+        const now = new Date(2023, 11, 25, 12); // 7 days before open
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -90,7 +90,7 @@ describe('entryStatusUtils', () => {
       });
 
       it('should use singular "day" for 1 day until open', () => {
-        const now = new Date('2023-12-31'); // 1 day before open
+        const now = new Date(2023, 11, 31, 12); // 1 day before open
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -106,7 +106,7 @@ describe('entryStatusUtils', () => {
 
     describe('when entries are closed', () => {
       it('should return closed status after close date', () => {
-        const now = new Date('2024-02-15'); // After close date
+        const now = new Date(2024, 1, 15, 12); // After close date
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -122,7 +122,7 @@ describe('entryStatusUtils', () => {
 
     describe('when entries are closing soon (within 7 days)', () => {
       it('should return closing_soon when 7 days remain', () => {
-        const now = new Date('2024-01-25'); // 7 days before close
+        const now = new Date(2024, 0, 25, 12); // 7 days before close
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -137,7 +137,7 @@ describe('entryStatusUtils', () => {
       });
 
       it('should return closing_soon when 1 day remains', () => {
-        const now = new Date('2024-01-31'); // 1 day before close
+        const now = new Date(2024, 0, 31, 12); // 1 day before close
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -153,7 +153,7 @@ describe('entryStatusUtils', () => {
       });
 
       it('should show "Closes Today!" when closing today', () => {
-        const now = new Date('2024-02-01'); // Same day as close
+        const now = new Date(2024, 1, 1, 12); // Same day as close
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -168,7 +168,7 @@ describe('entryStatusUtils', () => {
       });
 
       it('should include "Hurry!" in description when closing soon', () => {
-        const now = new Date('2024-01-28'); // 4 days before close
+        const now = new Date(2024, 0, 28, 12); // 4 days before close
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -183,7 +183,7 @@ describe('entryStatusUtils', () => {
 
     describe('when actively accepting entries (more than 7 days)', () => {
       it('should return accepting status', () => {
-        const now = new Date('2024-01-10'); // 22 days before close
+        const now = new Date(2024, 0, 10, 12); // 22 days before close
         vi.setSystemTime(now);
 
         const show = createMockShow({
@@ -199,7 +199,7 @@ describe('entryStatusUtils', () => {
       });
 
       it('should return accepting when exactly 8 days remain', () => {
-        const now = new Date('2024-01-24'); // 8 days before close
+        const now = new Date(2024, 0, 24, 12); // 8 days before close
         vi.setSystemTime(now);
 
         const show = createMockShow({

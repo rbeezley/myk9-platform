@@ -18,6 +18,7 @@ import { Calendar } from 'lucide-react';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
+import { toLocalDate } from '@/utils/date-format';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 interface ShowEditBasicInfoTabProps {
@@ -209,7 +210,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField label="Start Date" fieldId="startDate" required error={startDateError}>
                 <DateTimePicker
-                  value={data.startDate ? new Date(data.startDate) : undefined}
+                  value={data.startDate ? toLocalDate(data.startDate) : undefined}
                   onChange={handleDateChange('startDate')}
                   placeholder="Select start date"
                   showTime={true}
@@ -219,7 +220,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
 
               <FormField label="End Date" fieldId="endDate" required error={endDateError}>
                 <DateTimePicker
-                  value={data.endDate ? new Date(data.endDate) : undefined}
+                  value={data.endDate ? toLocalDate(data.endDate) : undefined}
                   onChange={handleDateChange('endDate')}
                   placeholder="Select end date"
                   showTime={true}
@@ -229,7 +230,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
 
               <FormField label="Entry Open Date" fieldId="entryOpenDate" error={entryOpenError}>
                 <DateTimePicker
-                  value={data.entryOpenDate ? new Date(data.entryOpenDate) : undefined}
+                  value={data.entryOpenDate ? toLocalDate(data.entryOpenDate) : undefined}
                   onChange={handleDateChange('entryOpenDate')}
                   placeholder="Select entry open date"
                   showTime={true}
@@ -239,7 +240,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
 
               <FormField label="Entry Close Date" fieldId="entryCloseDate" error={entryCloseError}>
                 <DateTimePicker
-                  value={data.entryCloseDate ? new Date(data.entryCloseDate) : undefined}
+                  value={data.entryCloseDate ? toLocalDate(data.entryCloseDate) : undefined}
                   onChange={handleDateChange('entryCloseDate')}
                   placeholder="Select entry close date"
                   showTime={true}

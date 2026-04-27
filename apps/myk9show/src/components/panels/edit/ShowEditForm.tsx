@@ -16,6 +16,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
 import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
+import { toLocalDateOnly } from '@/utils/date-format';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
@@ -53,10 +54,11 @@ export const ShowEditForm: React.FC = () => {
     [form]
   );
 
-  // Handle date picker changes (DateTimePicker returns Date | undefined)
+  // Persist date pickers as local YYYY-MM-DD so the round-trip through the
+  // DATE-typed columns doesn't roll the day forward in west-of-UTC zones.
   const handleDateChange = useCallback(
     (field: keyof ShowEditFormData) => (date: Date | undefined) => {
-      form?.setValue(field, date ? date.toISOString() : '');
+      form?.setValue(field, date ? toLocalDateOnly(date.toISOString()) : '');
       form?.touchField(field);
     },
     [form]

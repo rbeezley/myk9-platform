@@ -3,6 +3,7 @@ import type { SportClassRuleRow } from '@/types/sport-template-types';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import { toLocalDateOnly } from '@/utils/date-format';
 import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
 import {
   createClassDataFromWizard,
@@ -107,8 +108,8 @@ export function buildCreateShowPayload(
       id: trialId,
       name: trialName,
       date: wizardTrial.dateTime
-        ? new Date(wizardTrial.dateTime).toISOString().split('T')[0]!
-        : new Date().toISOString().split('T')[0]!,
+        ? toLocalDateOnly(wizardTrial.dateTime)
+        : toLocalDateOnly(new Date().toISOString()),
       trial_number: trialName,
       status: 'upcoming',
       trial_type: wizardTrial.trialType || show.organization || null,
@@ -222,13 +223,13 @@ export function buildCreateShowPayload(
         id: showId,
         name: show.name,
         organization: show.organization,
-        start_date: show.startDate,
-        end_date: show.endDate,
+        start_date: toLocalDateOnly(show.startDate),
+        end_date: toLocalDateOnly(show.endDate),
         location: show.location || null,
         status: dbStatus,
         club_id: show.clubId,
-        entry_open_date: show.entryOpenDate || null,
-        entry_close_date: show.entryCloseDate || null,
+        entry_open_date: show.entryOpenDate ? toLocalDateOnly(show.entryOpenDate) : null,
+        entry_close_date: show.entryCloseDate ? toLocalDateOnly(show.entryCloseDate) : null,
         pre_entry_fee: show.preEntryFee ?? null,
         day_of_show_fee: show.dayOfShowFee ?? null,
         accept_check_payments: show.acceptCheckPayments,

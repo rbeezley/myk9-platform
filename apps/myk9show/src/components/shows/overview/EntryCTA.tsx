@@ -4,6 +4,7 @@ import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { differenceInDays, differenceInHours, isBefore, isAfter } from 'date-fns';
 import type { Show } from '@/types/show-types';
+import { toLocalDate } from '@/utils/date-format';
 
 interface RegistrationState {
   canRegister: boolean;
@@ -14,8 +15,11 @@ interface RegistrationState {
 
 function computeRegistrationState(show: Show): RegistrationState {
   const now = new Date();
-  const openDate = new Date(show.entryOpenDate);
-  const closeDate = new Date(show.entryCloseDate);
+  // entry_open_date / entry_close_date are DATE columns; parse as local
+  // midnight, and treat the close date as inclusive of its full calendar day.
+  const openDate = toLocalDate(show.entryOpenDate);
+  const closeDate = toLocalDate(show.entryCloseDate);
+  closeDate.setHours(23, 59, 59, 999);
   const entriesOpen = isAfter(now, openDate);
   const entriesNotClosed = isBefore(now, closeDate);
   const isAccepting =

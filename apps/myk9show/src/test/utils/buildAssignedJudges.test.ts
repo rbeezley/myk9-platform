@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
+import { buildAssignedJudges, getJudgeNameById } from '@/utils/buildAssignedJudges';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 
 const makePerson = (id: string, first: string, last: string) => ({
@@ -155,5 +155,43 @@ describe('buildAssignedJudges', () => {
 
     expect(result).toHaveLength(2);
     expect(result.map(r => r.judgeId).sort()).toEqual(['p-1', 'p-2']);
+  });
+});
+
+describe('getJudgeNameById', () => {
+  const judges = [
+    { judgeId: 'p-1', judgeName: 'Jane Smith' },
+    { judgeId: 'p-2', judgeName: 'John Doe' },
+  ];
+
+  it('returns the judge name when id matches', () => {
+    expect(getJudgeNameById(judges, 'p-1')).toBe('Jane Smith');
+    expect(getJudgeNameById(judges, 'p-2')).toBe('John Doe');
+  });
+
+  it("returns the default 'TBD' fallback when id doesn't match", () => {
+    expect(getJudgeNameById(judges, 'p-99')).toBe('TBD');
+  });
+
+  it('returns the default fallback when id is undefined', () => {
+    expect(getJudgeNameById(judges, undefined)).toBe('TBD');
+  });
+
+  it('returns the default fallback when id is empty string', () => {
+    expect(getJudgeNameById(judges, '')).toBe('TBD');
+  });
+
+  it('honors a custom fallback', () => {
+    expect(getJudgeNameById(judges, 'p-99', 'Unknown Judge')).toBe('Unknown Judge');
+    expect(getJudgeNameById(judges, undefined, '')).toBe('');
+  });
+
+  it('handles an empty judges array', () => {
+    expect(getJudgeNameById([], 'p-1')).toBe('TBD');
+  });
+
+  it('works with extended judge shapes (e.g. ShowJudgeAssignment with extra fields)', () => {
+    const extended = [{ judgeId: 'p-1', judgeName: 'Jane Smith', assignedClasses: ['cls-1'] }];
+    expect(getJudgeNameById(extended, 'p-1')).toBe('Jane Smith');
   });
 });

@@ -74,6 +74,7 @@ export interface ArmbandDialogState {
   open: boolean;
   entry: EntryManagementEntry | null;
   value: string;
+  error?: string | null;
 }
 
 export interface AutoArmbandDialogState {

@@ -186,11 +186,13 @@ const EntryManagementPage: React.FC = () => {
     entryId: string;
     entryNumber: string;
     dogName: string;
+    className: string;
   }>({
     open: false,
     entryId: '',
     entryNumber: '',
     dogName: '',
+    className: '',
   });
 
   useEffect(() => {
@@ -409,6 +411,7 @@ const EntryManagementPage: React.FC = () => {
                       entryId: entry.id,
                       entryNumber: entry.entryNumber,
                       dogName: entry.dogName,
+                      className: entry.classes[0]?.name ?? '',
                     })
                   }
                   onUncompEntry={handleUncompEntry}
@@ -465,13 +468,14 @@ const EntryManagementPage: React.FC = () => {
       <CompEntryDialog
         open={compDialog.open}
         onOpenChange={open => {
-          if (!open) setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '' });
+          if (!open) setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '', className: '' });
         }}
         entryNumber={compDialog.entryNumber}
         dogName={compDialog.dogName}
+        className={compDialog.className}
         onConfirm={reason => {
           handleCompEntry(compDialog.entryId, reason);
-          setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '' });
+          setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '', className: '' });
         }}
         isProcessing={isProcessing}
       />

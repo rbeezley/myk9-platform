@@ -17,6 +17,7 @@ interface CompEntryDialogProps {
   onOpenChange: (open: boolean) => void;
   entryNumber: string;
   dogName: string;
+  className?: string;
   onConfirm: (reason: string) => void;
   isProcessing?: boolean;
 }
@@ -27,8 +28,8 @@ interface CompEntryDialogProps {
 export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
   open,
   onOpenChange,
-  entryNumber,
   dogName,
+  className,
   onConfirm,
   isProcessing = false,
 }) => {
@@ -53,7 +54,7 @@ export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
             Comp Entry
           </DialogTitle>
           <DialogDescription>
-            Mark entry <strong>{entryNumber}</strong> ({dogName}) as comped.
+            Mark <strong>{dogName}</strong>{className ? <> — <strong>{className}</strong></> : null} as comped.
             This waives all fees.
           </DialogDescription>
         </DialogHeader>

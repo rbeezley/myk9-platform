@@ -47,10 +47,14 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
             <Input
               id="armband-number"
               value={dialogState.value}
-              onChange={(e) => setDialogState((prev) => ({ ...prev, value: e.target.value }))}
+              onChange={(e) => setDialogState((prev) => ({ ...prev, value: e.target.value, error: null }))}
               placeholder="Enter armband number"
+              className={dialogState.error ? 'border-destructive' : ''}
             />
           </FormField>
+          {dialogState.error && (
+            <p className="text-sm text-destructive">{dialogState.error}</p>
+          )}
         </div>
         <DialogFooter>
           <Button

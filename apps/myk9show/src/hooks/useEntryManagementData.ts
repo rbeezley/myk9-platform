@@ -109,7 +109,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       const transformedEntries: EntryManagementEntry[] = (data || []).map(
         (entry: SecretaryEntry) => ({
           id: entry.id,
-          registrationId: entry.id,
+          registrationId: entry.registration?.id ?? '',
           entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
           showId: entry.show_id || '',
           dogId: entry.dog_id || '',
@@ -142,6 +142,15 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           ...(entry.armband ? { armbandNumber: entry.armband } : {}),
           ...(entry.registration?.confirmation_number
             ? { confirmationNumber: entry.registration.confirmation_number }
+            : {}),
+          ...(entry.registration?.payment_status != null
+            ? { enrollmentPaymentStatus: entry.registration.payment_status }
+            : {}),
+          ...(entry.registration?.payment_reference != null
+            ? { enrollmentPaymentReference: entry.registration.payment_reference }
+            : {}),
+          ...(entry.registration?.total_amount != null
+            ? { enrollmentTotalAmount: entry.registration.total_amount }
             : {}),
         })
       );

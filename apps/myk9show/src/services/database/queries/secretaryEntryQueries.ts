@@ -34,6 +34,9 @@ export interface SecretaryEntry {
   registration: {
     id: string;
     confirmation_number: string;
+    payment_status: string | null;
+    payment_reference: string | null;
+    total_amount: number | null;
   } | null;
   dog: {
     id: string;
@@ -82,7 +85,10 @@ export const getEntriesForShow = async (showId: string) => {
         registration_id,
         registration:registration_id (
           id,
-          confirmation_number
+          confirmation_number,
+          payment_status,
+          payment_reference,
+          total_amount
         ),
         dog:dog_id (
           id,

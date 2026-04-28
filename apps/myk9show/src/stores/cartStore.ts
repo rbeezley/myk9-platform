@@ -57,6 +57,8 @@ export const useCartStore = create<CartState>()(
           set({ isLoading: true, error: null });
 
           try {
+            // Use order + limit(1) so duplicate active carts (e.g. from React
+            // StrictMode double-invoke) don't cause maybeSingle() to throw.
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
               .select(`*, show:shows(id, name, start_date, entry_close_date)`)
@@ -64,6 +66,8 @@ export const useCartStore = create<CartState>()(
               .eq('exhibitor_id', exhibitorId)
               .eq('status', 'active')
               .gt('expires_at', new Date().toISOString())
+              .order('created_at', { ascending: false })
+              .limit(1)
               .maybeSingle();
 
             if (cartError) {

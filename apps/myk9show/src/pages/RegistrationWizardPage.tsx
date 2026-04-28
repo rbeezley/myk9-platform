@@ -338,7 +338,11 @@ function RegistrationWizardContent() {
       }
       case 'payment': {
         const showNeedsAgreement = !!currentShow?.organization;
-        return !!registrationData.paymentMethod && (!showNeedsAgreement || agreedToEntryAgreement);
+        const isFree = (currentRegistration?.totalFees ?? 0) === 0;
+        return (
+          (isFree || !!registrationData.paymentMethod) &&
+          (!showNeedsAgreement || agreedToEntryAgreement)
+        );
       }
       case 'confirmation':
         return true;
@@ -403,9 +407,8 @@ function RegistrationWizardContent() {
                 'Selected dogs span multiple owners or have no owner set.'
             );
           }
-          const { createShowRegistration } = await import(
-            '@/services/database/queries/showRegistrationQueries'
-          );
+          const { createShowRegistration } =
+            await import('@/services/database/queries/showRegistrationQueries');
           const result = await createShowRegistration(
             showId,
             ownerResolution.ownerId,

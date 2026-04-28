@@ -130,7 +130,7 @@ export function useAuth() {
       password: string,
       metadata?: { firstName?: string; lastName?: string; roles?: string[] }
     ) => {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {

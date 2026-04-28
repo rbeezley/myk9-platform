@@ -17,7 +17,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
-import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import {
   Calendar,
   Users,
@@ -125,8 +124,6 @@ const EntryManagementPage: React.FC = () => {
 
   const {
     isProcessing,
-    checkInDialog,
-    setCheckInDialog,
     armbandDialog,
     setArmbandDialog,
     autoArmbandDialog,
@@ -136,7 +133,7 @@ const EntryManagementPage: React.FC = () => {
     handleAutoAssignArmbands,
     handleEnrollmentBulkStatusChange,
     handleEnrollmentBulkCheckIn,
-    handleCheckInStatusUpdate,
+    handleCheckInStatusChange,
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,
@@ -398,9 +395,7 @@ const EntryManagementPage: React.FC = () => {
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
                   onBulkCheckIn={handleEnrollmentBulkCheckIn}
                   onStatusChange={handleStatusChange}
-                  onOpenCheckInDialog={(entry, classEntry) =>
-                    setCheckInDialog({ open: true, entry, classEntry })
-                  }
+                  onCheckInStatusChange={handleCheckInStatusChange}
                   onOpenArmbandDialog={entry =>
                     setArmbandDialog({
                       open: true,
@@ -441,28 +436,6 @@ const EntryManagementPage: React.FC = () => {
                 />
               )}
 
-              {/* Check-In Status Dialog */}
-              {checkInDialog.entry && checkInDialog.classEntry && (
-                <CheckInStatusDialog
-                  open={checkInDialog.open}
-                  onOpenChange={open => {
-                    if (!open) {
-                      setCheckInDialog({ open: false, entry: null, classEntry: null });
-                    }
-                  }}
-                  currentStatus={checkInDialog.classEntry.checkInStatus || 'no-status'}
-                  entryInfo={{
-                    armband: checkInDialog.entry.armbandNumber || checkInDialog.entry.entryNumber,
-                    dogName: checkInDialog.entry.dogName,
-                    handlerName: checkInDialog.entry.handlerName,
-                    className: checkInDialog.classEntry.name,
-                    classNumber: checkInDialog.classEntry.number,
-                  }}
-                  onUpdateStatus={handleCheckInStatusUpdate}
-                  readOnly={false}
-                  userRole="secretary"
-                />
-              )}
             </div>
           )}
         </TabsContent>

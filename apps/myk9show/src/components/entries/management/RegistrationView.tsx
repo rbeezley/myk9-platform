@@ -21,6 +21,7 @@ import type {
   EntryStats,
   EntryClass,
 } from '@/types/entry-management-types';
+import type { CheckInStatus } from '@myk9/core';
 
 interface RegistrationViewProps {
   /** Entry stats for the stats cards */
@@ -56,8 +57,9 @@ interface RegistrationViewProps {
   onBulkCheckIn: (entryIds: string[]) => void;
   /** Status change handler */
   onStatusChange: (entryId: string, status: EntryStatus) => void;
+  /** Check-in inline handler */
+  onCheckInStatusChange: (entry: EntryManagementEntry, cls: EntryClass, status: CheckInStatus) => void;
   /** Dialog openers */
-  onOpenCheckInDialog: (entry: EntryManagementEntry, classEntry: EntryClass) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onOpenCompDialog: (entry: EntryManagementEntry) => void;
   onUncompEntry: (entryId: string) => void;
@@ -90,7 +92,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onBulkStatusChange,
   onBulkCheckIn,
   onStatusChange,
-  onOpenCheckInDialog,
+  onCheckInStatusChange,
   onOpenArmbandDialog,
   onOpenCompDialog,
   onUncompEntry,
@@ -201,7 +203,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                   key={group.enrollmentId ?? '__unregistered__'}
                   group={group}
                   onStatusChange={onStatusChange}
-                  onOpenCheckInDialog={onOpenCheckInDialog}
+                  onCheckInStatusChange={onCheckInStatusChange}
                   onOpenArmbandDialog={onOpenArmbandDialog}
                   onCompEntry={(entryId: string) => {
                     const entry = group.entries.find(e => e.id === entryId);

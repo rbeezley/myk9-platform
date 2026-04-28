@@ -8,6 +8,7 @@ import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EntryStatus } from '@/types/show-registration-types';
+import type { CheckInStatus } from '@myk9/core';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import {
   DropdownMenu,
@@ -20,7 +21,7 @@ import {
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
   onStatusChange: (entryId: string, status: EntryStatus) => void;
-  onOpenCheckInDialog: (entry: EntryManagementEntry, classEntry: EntryClass) => void;
+  onCheckInStatusChange: (entry: EntryManagementEntry, cls: EntryClass, status: CheckInStatus) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onCompEntry?: (entryId: string) => void;
   onUncompEntry?: (entryId: string) => void;
@@ -34,7 +35,7 @@ interface EnrollmentCardProps {
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
   onStatusChange,
-  onOpenCheckInDialog,
+  onCheckInStatusChange,
   onOpenArmbandDialog,
   onCompEntry,
   onUncompEntry,
@@ -143,7 +144,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
           <EntryListCard
             entries={group.entries}
             onStatusChange={onStatusChange}
-            onOpenCheckInDialog={onOpenCheckInDialog}
+            onCheckInStatusChange={onCheckInStatusChange}
             onOpenArmbandDialog={onOpenArmbandDialog}
             onCompEntry={onCompEntry}
             onUncompEntry={onUncompEntry}

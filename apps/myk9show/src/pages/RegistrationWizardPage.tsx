@@ -30,6 +30,7 @@ import { assignArmband } from '@/services/database/queries/armbandQueries';
 import { submitShowEntries } from '@/services/database/queries/entry-query-mutations';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { registrationToEntries } from '@/utils/registrationToEntries';
+import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
@@ -338,7 +339,26 @@ function RegistrationWizardContent() {
       }
       case 'payment': {
         const showNeedsAgreement = !!currentShow?.organization;
-        return !!registrationData.paymentMethod && (!showNeedsAgreement || agreedToEntryAgreement);
+        // Use the live fee calculation (same as PaymentStep renders) rather than
+        // currentRegistration.totalFees, which is never updated during the wizard.
+        const showFeeInfo = currentShow
+          ? {
+              preEntryFee: currentShow.preEntryFee || '0',
+              dayOfShowFee: currentShow.dayOfShowFee,
+              startDate: currentShow.startDate,
+            }
+          : undefined;
+        const { total } = calculateTotalFees(
+          registrationData.selectedDogs,
+          classSelections,
+          dogs,
+          classes,
+          showFeeInfo
+        );
+        return (
+          (total <= 0 || !!registrationData.paymentMethod) &&
+          (!showNeedsAgreement || agreedToEntryAgreement)
+        );
       }
       case 'confirmation':
         return true;
@@ -403,9 +423,8 @@ function RegistrationWizardContent() {
                 'Selected dogs span multiple owners or have no owner set.'
             );
           }
-          const { createShowRegistration } = await import(
-            '@/services/database/queries/showRegistrationQueries'
-          );
+          const { createShowRegistration } =
+            await import('@/services/database/queries/showRegistrationQueries');
           const result = await createShowRegistration(
             showId,
             ownerResolution.ownerId,

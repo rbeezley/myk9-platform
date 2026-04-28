@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EntryListCard } from './EntryListCard';
+import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
@@ -21,20 +21,6 @@ interface EnrollmentCardProps {
   onSelectAll: (checked: boolean) => void;
 }
 
-const PAYMENT_BADGE: Record<
-  string,
-  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
-> = {
-  paid: { label: 'Paid', variant: 'default' },
-  pending: { label: 'Payment Due', variant: 'destructive' },
-  refunded: { label: 'Refunded', variant: 'secondary' },
-  waived: { label: 'Waived', variant: 'outline' },
-  paid_online: { label: 'Paid', variant: 'default' },
-  paid_by_check: { label: 'Paid by Check', variant: 'default' },
-  paid_by_cash: { label: 'Paid by Cash', variant: 'default' },
-  partial_refund: { label: 'Partial Refund', variant: 'secondary' },
-};
-
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
   onStatusChange,
@@ -47,11 +33,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onSelectAll,
 }) => {
   const [expanded, setExpanded] = useState(true);
-
-  const paymentBadge = PAYMENT_BADGE[group.paymentStatus] ?? {
-    label: group.paymentStatus,
-    variant: 'outline' as const,
-  };
 
   const dollars = group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
   const displayTotal = `$${dollars.toFixed(2)}`;
@@ -77,7 +58,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={paymentBadge.variant}>{paymentBadge.label}</Badge>
+            {getPaymentStatusBadge(group.paymentStatus as PaymentStatus)}
             <span className="text-sm font-medium">{displayTotal}</span>
             <Button
               size="sm"

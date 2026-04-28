@@ -55,7 +55,7 @@ function makeGroup(overrides: Partial<EnrollmentGroup> = {}): EnrollmentGroup {
     enrollmentId: 'enroll-1',
     confirmationNumber: 'CONF-123',
     handlerName: 'Jane Smith',
-    paymentStatus: 'paid',
+    paymentStatus: PaymentStatus.PAID_ONLINE,
     totalAmount: 5000,
     totalAmountUnit: 'cents',
     paymentReference: null,
@@ -113,7 +113,12 @@ describe('EnrollmentCard', () => {
   });
 
   it('renders payment status badge', () => {
-    render(<EnrollmentCard {...defaultProps} group={makeGroup({ paymentStatus: 'paid' })} />);
+    render(
+      <EnrollmentCard
+        {...defaultProps}
+        group={makeGroup({ paymentStatus: PaymentStatus.PAID_ONLINE })}
+      />
+    );
     expect(screen.getByText('Paid')).toBeTruthy();
   });
 

@@ -39,7 +39,7 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
     group.entries.push(entry);
 
     if (group.totalAmountUnit === 'dollars') {
-      group.totalAmount = group.entries.reduce((sum, e) => sum + e.totalFee, 0);
+      group.totalAmount += entry.totalFee;
     }
   }
 

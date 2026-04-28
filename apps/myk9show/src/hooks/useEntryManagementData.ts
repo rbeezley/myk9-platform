@@ -140,11 +140,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           lastUpdated: new Date(entry.updated_at || Date.now()),
           ...(entry.special_requests ? { notes: entry.special_requests } : {}),
           ...(entry.armband ? { armbandNumber: entry.armband } : {}),
-          ...(entry.registration?.confirmation_number
+          ...(entry.registration?.confirmation_number != null
             ? { confirmationNumber: entry.registration.confirmation_number }
             : {}),
           ...(entry.registration?.payment_status != null
-            ? { enrollmentPaymentStatus: entry.registration.payment_status }
+            ? { enrollmentPaymentStatus: mapPaymentStatus(entry.registration.payment_status) }
             : {}),
           ...(entry.registration?.payment_reference != null
             ? { enrollmentPaymentReference: entry.registration.payment_reference }

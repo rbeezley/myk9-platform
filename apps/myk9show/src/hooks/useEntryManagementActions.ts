@@ -8,10 +8,12 @@ import {
   updateEntryStatus,
   updateCheckInStatus,
   bulkCheckIn,
-  assignArmband,
-  autoAssignArmbands,
   getEntriesForExport,
 } from '@/services/database/queries/secretaryEntryQueries';
+import {
+  assignArmband,
+  autoAssignArmbands,
+} from '@/services/database/queries/secretaryArmbandQueries';
 import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
@@ -159,14 +161,13 @@ export function useEntryManagementActions({
         return;
       }
 
+      const targetDogId = armbandDialog.entry.dogId;
+      const targetShowId = armbandDialog.entry.showId;
+      const armband = armbandDialog.value.trim();
       setEntries(prev =>
         prev.map(e =>
-          e.id === armbandDialog.entry?.id
-            ? {
-                ...e,
-                armbandNumber: armbandDialog.value.trim(),
-                entryNumber: armbandDialog.value.trim(),
-              }
+          e.dogId === targetDogId && e.showId === targetShowId
+            ? { ...e, armbandNumber: armband, entryNumber: armband }
             : e
         )
       );
@@ -197,8 +198,14 @@ export function useEntryManagementActions({
       await loadEntries(selectedShowId);
       setAutoArmbandDialog({ open: false, startNumber: '1' });
 
+      const skipped = data?.skipped ?? 0;
+      if (skipped > 0) {
+        setError(
+          `Assigned ${data?.assigned} armbands — ${skipped} dog(s) skipped due to conflicts`
+        );
+      }
       logger.info(
-        `Auto-assigned ${data?.assigned} armbands starting at ${data?.startedAt}`,
+        `Auto-assigned ${data?.assigned} armbands starting at ${data?.startedAt}; skipped ${skipped}`,
         'secretary'
       );
     } catch (err) {

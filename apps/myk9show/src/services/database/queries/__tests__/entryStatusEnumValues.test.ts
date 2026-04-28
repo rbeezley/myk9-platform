@@ -18,7 +18,8 @@ import {
   approveScratchRequest,
   denyScratchRequest,
 } from '../scratchQueries';
-import { autoAssignArmbands, getEntryCountsByStatus } from '../secretaryEntryQueries';
+import { getEntryCountsByStatus } from '../secretaryEntryQueries';
+import { autoAssignArmbands } from '../secretaryArmbandQueries';
 
 const mockFrom = vi.fn();
 
@@ -161,16 +162,17 @@ describe('entry_status enum values used by query layer', () => {
   });
 
   describe('secretaryEntryQueries', () => {
-    it('autoAssignArmbands selects entries with entry_status = "confirmed"', async () => {
+    it('autoAssignArmbands selects entries with entry_status in ["accepted", "confirmed"]', async () => {
       const chain = chainMock({
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        is: vi.fn().mockResolvedValue({ data: [], error: null }),
       });
       mockFrom.mockReturnValue(chain);
 
       await autoAssignArmbands('show-1');
 
-      expect(chain.eq).toHaveBeenCalledWith('entry_status', 'confirmed');
-      // Regression guard
+      expect(chain.in).toHaveBeenCalledWith('entry_status', ['accepted', 'confirmed']);
+      // Regression guard: never filter to only one status
+      expect(chain.eq).not.toHaveBeenCalledWith('entry_status', 'confirmed');
       expect(chain.eq).not.toHaveBeenCalledWith('entry_status', 'accepted');
     });
 

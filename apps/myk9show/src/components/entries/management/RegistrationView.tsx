@@ -26,8 +26,9 @@ import { supabase } from '@/lib/supabase';
 
 import { EntryStatsCards } from './EntryStatsCards';
 import { EntryFiltersCard } from './EntryFiltersCard';
-import { EntryListCard } from './EntryListCard';
+import { EnrollmentCard } from './EnrollmentCard';
 import { EntriesTableView } from './EntriesTableView';
+import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 
 import type {
   EntryManagementEntry,
@@ -87,6 +88,8 @@ interface RegistrationViewProps {
   showId: string;
   /** Reload entries callback */
   onRefresh: () => void;
+  /** Entries grouped by enrollment/order for the list view */
+  enrollmentGroups: EnrollmentGroup[];
 }
 
 /**
@@ -120,6 +123,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onUncompEntry,
   showId,
   onRefresh,
+  enrollmentGroups,
 }) => {
   const [entryViewMode, setEntryViewMode] = useState<'list' | 'table'>('list');
 
@@ -276,25 +280,28 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
               isResendDisabled={isResendDisabled}
             />
           ) : (
-            <EntryListCard
-              entries={filteredEntries}
-              selectedEntries={selectedEntries}
-              onSelectEntry={onSelectEntry}
-              onSelectAll={onSelectAll}
-              onStatusChange={onStatusChange}
-              onOpenCheckInDialog={onOpenCheckInDialog}
-              onOpenArmbandDialog={onOpenArmbandDialog}
-              onCompEntry={entryId => {
-                const entry = entries.find(e => e.id === entryId);
-                if (entry) {
-                  onOpenCompDialog(entry);
-                }
-              }}
-              onUncompEntry={onUncompEntry}
-              emailStatusMap={emailStatusMap}
-              onResendEmail={handleResendEmail}
-              isResendDisabled={isResendDisabled}
-            />
+            <div className="space-y-3">
+              {enrollmentGroups.map(group => (
+                <EnrollmentCard
+                  key={group.enrollmentId ?? '__unregistered__'}
+                  group={group}
+                  onStatusChange={onStatusChange}
+                  onOpenCheckInDialog={onOpenCheckInDialog}
+                  onOpenArmbandDialog={onOpenArmbandDialog}
+                  onCompEntry={(entryId: string) => {
+                    const entry = group.entries.find(e => e.id === entryId);
+                    if (entry) onOpenCompDialog(entry);
+                  }}
+                  onUncompEntry={onUncompEntry}
+                  selectedEntries={selectedEntries}
+                  onSelectEntry={onSelectEntry}
+                  onSelectAll={onSelectAll}
+                  emailStatusMap={emailStatusMap}
+                  onResendEmail={handleResendEmail}
+                  isResendDisabled={isResendDisabled}
+                />
+              ))}
+            </div>
           )}
         </TabsContent>
 

@@ -47,6 +47,7 @@ import {
   RegistrationView,
 } from '@/components/entries/management';
 import { formatDate } from '@/utils/entryManagementUtils';
+import { groupEntriesByEnrollment, type EnrollmentGroup } from '@/utils/enrollmentGrouping';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'entries', label: 'Entries' },
@@ -121,6 +122,11 @@ const EntryManagementPage: React.FC = () => {
     filteredEntries,
     clearFilters,
   } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
+
+  const enrollmentGroups: EnrollmentGroup[] = useMemo(
+    () => groupEntriesByEnrollment(filteredEntries),
+    [filteredEntries]
+  );
 
   const {
     isProcessing,
@@ -323,12 +329,7 @@ const EntryManagementPage: React.FC = () => {
       </Card>
 
       {/* Page-level tabs: Entries | Waitlist */}
-      <PrimaryTabs
-        tabs={PAGE_TABS}
-        value={activePageTab}
-        onValueChange={handlePageTabChange}
-      >
-
+      <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
         <TabsContent value="entries">
           {/* No Show Selected */}
           {!selectedShowId && !isLoadingShows && (
@@ -431,6 +432,7 @@ const EntryManagementPage: React.FC = () => {
                   onUncompEntry={handleUncompEntry}
                   showId={selectedShowId}
                   onRefresh={() => loadEntries(selectedShowId)}
+                  enrollmentGroups={enrollmentGroups}
                 />
               )}
 

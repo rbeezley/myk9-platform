@@ -109,9 +109,10 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       const transformedEntries: EntryManagementEntry[] = (data || []).map(
         (entry: SecretaryEntry) => ({
           id: entry.id,
-          registrationId: entry.id,
+          registrationId: entry.registration?.id ?? '',
           entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
           showId: entry.show_id || '',
+          dogId: entry.dog_id || '',
           dogName: entry.dog?.name || 'Unknown Dog',
           ownerName: entry.handler || 'Unknown',
           ownerEmail: '',
@@ -139,8 +140,17 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           lastUpdated: new Date(entry.updated_at || Date.now()),
           ...(entry.special_requests ? { notes: entry.special_requests } : {}),
           ...(entry.armband ? { armbandNumber: entry.armband } : {}),
-          ...(entry.registration?.confirmation_number
+          ...(entry.registration?.confirmation_number != null
             ? { confirmationNumber: entry.registration.confirmation_number }
+            : {}),
+          ...(entry.registration?.payment_status != null
+            ? { enrollmentPaymentStatus: mapPaymentStatus(entry.registration.payment_status) }
+            : {}),
+          ...(entry.registration?.payment_reference != null
+            ? { enrollmentPaymentReference: entry.registration.payment_reference }
+            : {}),
+          ...(entry.registration?.total_amount != null
+            ? { enrollmentTotalAmount: entry.registration.total_amount }
             : {}),
         })
       );

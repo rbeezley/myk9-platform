@@ -22,6 +22,7 @@ export interface EntryManagementEntry {
   registrationId: string;
   entryNumber: string;
   showId: string;
+  dogId: string;
   dogName: string;
   ownerName: string;
   ownerEmail: string;
@@ -38,6 +39,9 @@ export interface EntryManagementEntry {
   confirmationNumber?: string;
   comped?: boolean;
   compedReason?: string;
+  enrollmentPaymentStatus?: PaymentStatus | null;
+  enrollmentPaymentReference?: string | null;
+  enrollmentTotalAmount?: number | null;
 }
 
 export interface EntryManagementShow {

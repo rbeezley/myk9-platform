@@ -33,6 +33,9 @@ export interface SecretaryEntry {
   registration: {
     id: string;
     confirmation_number: string;
+    payment_status: string | null;
+    payment_reference: string | null;
+    total_amount: number | null;
   } | null;
   dog: {
     id: string;
@@ -81,7 +84,10 @@ export const getEntriesForShow = async (showId: string) => {
         registration_id,
         registration:registration_id (
           id,
-          confirmation_number
+          confirmation_number,
+          payment_status,
+          payment_reference,
+          total_amount
         ),
         dog:dog_id (
           id,
@@ -299,111 +305,6 @@ export const bulkCheckIn = async (entryIds: string[]) => {
     const dbError = createDatabaseError(error, 'entries', 'bulk_check_in');
     logQuery('entries', 'bulk_check_in', duration, dbError.message);
     return { data: [], error: dbError };
-  }
-};
-
-/**
- * Assign armband number to an entry
- */
-export const assignArmband = async (entryId: string, armband: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        armband: armband,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select()
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'assign_armband', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'assign_armband');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'assign_armband');
-    logQuery('entries', 'assign_armband', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Auto-assign sequential armbands to all accepted entries without armbands
- */
-export const autoAssignArmbands = async (showId: string, startNumber: number = 1) => {
-  const startTime = Date.now();
-
-  try {
-    // Get entries without armbands, ordered by created_at
-    const { data: entries, error: fetchError } = await supabase
-      .from('entries')
-      .select('id, armband')
-      .eq('show_id', showId)
-      .eq('entry_status', 'confirmed')
-      .is('deleted_at', null)
-      .is('armband', null)
-      .order('created_at', { ascending: true });
-
-    if (fetchError) {
-      throw createDatabaseError(fetchError, 'entries', 'auto_assign_armbands_fetch');
-    }
-
-    if (!entries || entries.length === 0) {
-      return { data: { assigned: 0 }, error: null };
-    }
-
-    // Get the highest existing armband number
-    const { data: maxArmband } = await supabase
-      .from('entries')
-      .select('armband')
-      .eq('show_id', showId)
-      .is('deleted_at', null)
-      .not('armband', 'is', null)
-      .order('armband', { ascending: false })
-      .limit(1)
-      .single();
-
-    let nextNumber = startNumber;
-    if (maxArmband?.armband) {
-      const parsed = parseInt(maxArmband.armband, 10);
-      if (!isNaN(parsed)) {
-        nextNumber = Math.max(nextNumber, parsed + 1);
-      }
-    }
-
-    // Assign armbands
-    let assignedCount = 0;
-    for (let i = 0; i < entries.length; i++) {
-      const { error: updateError } = await supabase
-        .from('entries')
-        .update({
-          armband: String(nextNumber + i),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', entries[i].id);
-
-      if (!updateError) {
-        assignedCount++;
-      }
-    }
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'auto_assign_armbands', duration);
-
-    return { data: { assigned: assignedCount, startedAt: nextNumber }, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'auto_assign_armbands');
-    logQuery('entries', 'auto_assign_armbands', duration, dbError.message);
-    return { data: null, error: dbError };
   }
 };
 

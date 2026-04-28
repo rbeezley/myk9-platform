@@ -130,6 +130,14 @@ export function useEntryManagementActions({
             entryNumber: entry.entryNumber,
           },
         });
+
+        // Reload to pick up trigger-assigned armband when entry is accepted
+        if (
+          (newStatus === EntryStatus.ACCEPTED) &&
+          selectedShowId
+        ) {
+          await loadEntries(selectedShowId);
+        }
       } catch (error) {
         logger.error('Failed to update entry status:', 'pages', {}, error as Error);
         // Revert optimistic update
@@ -138,7 +146,7 @@ export function useEntryManagementActions({
         );
       }
     },
-    [entries, setEntries, user]
+    [entries, setEntries, user, selectedShowId, loadEntries]
   );
 
   // Handle armband assignment
@@ -238,6 +246,14 @@ export function useEntryManagementActions({
             entryIds.includes(e.id) ? { ...e, entryStatus: status, lastUpdated: new Date() } : e
           )
         );
+
+        // Reload to pick up trigger-assigned armbands when entries are accepted
+        if (
+          (status === EntryStatus.ACCEPTED) &&
+          selectedShowId
+        ) {
+          await loadEntries(selectedShowId);
+        }
       } catch (err) {
         setError('Failed to update entry statuses');
         logger.error('Error bulk updating statuses:', 'secretary', {}, err as Error);
@@ -245,7 +261,7 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [setEntries, setError]
+    [setEntries, setError, selectedShowId, loadEntries]
   );
 
   // Handle enrollment-level bulk check-in

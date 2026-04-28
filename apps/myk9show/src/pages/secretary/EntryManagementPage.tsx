@@ -22,7 +22,6 @@ import {
   Users,
   AlertCircle,
   Download,
-  Hash,
   Loader2,
   Plus,
 } from 'lucide-react';
@@ -35,7 +34,6 @@ import { useClassesByTrialQuery } from '@/hooks/queries/useClassesDatabase';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import {
   ArmbandDialog,
-  AutoArmbandDialog,
   CompEntryDialog,
   FilterBreadcrumb,
   TrialClassFilters,
@@ -125,12 +123,9 @@ const EntryManagementPage: React.FC = () => {
     isProcessing,
     armbandDialog,
     setArmbandDialog,
-    autoArmbandDialog,
-    setAutoArmbandDialog,
     handleStatusChange,
     handleAssignArmband,
     handleNextArmband,
-    handleAutoAssignArmbands,
     handleEnrollmentBulkStatusChange,
     handleEnrollmentBulkCheckIn,
     handleEnrollmentPaymentChange,
@@ -245,14 +240,6 @@ const EntryManagementPage: React.FC = () => {
           >
             <Plus className="h-4 w-4 mr-2" />
             New Entry
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setAutoArmbandDialog({ open: true, startNumber: '1' })}
-            disabled={!selectedShowId}
-          >
-            <Hash className="h-4 w-4 mr-2" />
-            Auto-Assign Armbands
           </Button>
           <Button
             variant="outline"
@@ -451,13 +438,6 @@ const EntryManagementPage: React.FC = () => {
         isProcessing={isProcessing}
       />
 
-      {/* Auto-Assign Armbands Dialog */}
-      <AutoArmbandDialog
-        dialogState={autoArmbandDialog}
-        setDialogState={setAutoArmbandDialog}
-        onAutoAssign={handleAutoAssignArmbands}
-        isProcessing={isProcessing}
-      />
 
       {/* Comp Entry Dialog */}
       <CompEntryDialog

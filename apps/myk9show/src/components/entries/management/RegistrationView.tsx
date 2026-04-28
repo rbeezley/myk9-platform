@@ -74,9 +74,9 @@ interface RegistrationViewProps {
   filteredEntries: EntryManagementEntry[];
   /** All entries (for looking up entry by id in comp handler) */
   entries: EntryManagementEntry[];
-  /** Selection handlers */
-  onSelectEntry: (entryId: string, checked: boolean) => void;
-  onSelectAll: (checked: boolean) => void;
+  /** Bulk enrollment-level action handlers */
+  onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
+  onBulkCheckIn: (entryIds: string[]) => void;
   /** Status change handler */
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   /** Dialog openers */
@@ -114,8 +114,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   tabCounts,
   filteredEntries,
   entries,
-  onSelectEntry,
-  onSelectAll,
+  onBulkStatusChange,
+  onBulkCheckIn,
   onStatusChange,
   onOpenCheckInDialog,
   onOpenArmbandDialog,
@@ -293,9 +293,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                     if (entry) onOpenCompDialog(entry);
                   }}
                   onUncompEntry={onUncompEntry}
-                  selectedEntries={selectedEntries}
-                  onSelectEntry={onSelectEntry}
-                  onSelectAll={onSelectAll}
+                  onBulkStatusChange={onBulkStatusChange}
+                  onBulkCheckIn={onBulkCheckIn}
                   emailStatusMap={emailStatusMap}
                   onResendEmail={handleResendEmail}
                   isResendDisabled={isResendDisabled}

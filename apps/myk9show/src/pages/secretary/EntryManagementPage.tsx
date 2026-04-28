@@ -117,8 +117,6 @@ const EntryManagementPage: React.FC = () => {
     setClassFilter,
     selectedEntries,
     setSelectedEntries,
-    handleSelectEntry,
-    handleSelectAll,
     filteredEntries,
     clearFilters,
   } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
@@ -142,6 +140,8 @@ const EntryManagementPage: React.FC = () => {
     handleAssignArmband,
     handleAutoAssignArmbands,
     handleBulkCheckIn,
+    handleEnrollmentBulkStatusChange,
+    handleEnrollmentBulkCheckIn,
     handleCheckInStatusUpdate,
     handleBulkAction,
     handleExportCSV,
@@ -408,8 +408,8 @@ const EntryManagementPage: React.FC = () => {
                   tabCounts={tabCounts}
                   filteredEntries={filteredEntries}
                   entries={entries}
-                  onSelectEntry={handleSelectEntry}
-                  onSelectAll={handleSelectAll}
+                  onBulkStatusChange={handleEnrollmentBulkStatusChange}
+                  onBulkCheckIn={handleEnrollmentBulkCheckIn}
                   onStatusChange={handleStatusChange}
                   onOpenCheckInDialog={(entry, classEntry) =>
                     setCheckInDialog({ open: true, entry, classEntry })

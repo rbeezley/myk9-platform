@@ -8,10 +8,12 @@ import {
   updateEntryStatus,
   updateCheckInStatus,
   bulkCheckIn,
-  assignArmband,
-  autoAssignArmbands,
   getEntriesForExport,
 } from '@/services/database/queries/secretaryEntryQueries';
+import {
+  assignArmband,
+  autoAssignArmbands,
+} from '@/services/database/queries/secretaryArmbandQueries';
 import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';

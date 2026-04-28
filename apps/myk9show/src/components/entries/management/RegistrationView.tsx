@@ -296,6 +296,9 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                   selectedEntries={selectedEntries}
                   onSelectEntry={onSelectEntry}
                   onSelectAll={onSelectAll}
+                  emailStatusMap={emailStatusMap}
+                  onResendEmail={handleResendEmail}
+                  isResendDisabled={isResendDisabled}
                 />
               ))}
             </div>

@@ -8,6 +8,7 @@ import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EntryStatus } from '@/types/show-registration-types';
+import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
@@ -19,6 +20,9 @@ interface EnrollmentCardProps {
   selectedEntries: Set<string>;
   onSelectEntry: (entryId: string, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
+  emailStatusMap?: Record<string, EmailLogEntry> | undefined;
+  onResendEmail?: ((registrationId: string) => void) | undefined;
+  isResendDisabled?: ((registrationId: string) => boolean) | undefined;
 }
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
@@ -31,6 +35,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   selectedEntries,
   onSelectEntry,
   onSelectAll,
+  emailStatusMap,
+  onResendEmail,
+  isResendDisabled,
 }) => {
   const [expanded, setExpanded] = useState(true);
 
@@ -85,6 +92,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             onCompEntry={onCompEntry}
             onUncompEntry={onUncompEntry}
             hidePaymentBadge={true}
+            emailStatusMap={emailStatusMap}
+            onResendEmail={onResendEmail}
+            isResendDisabled={isResendDisabled}
           />
         </CardContent>
       )}

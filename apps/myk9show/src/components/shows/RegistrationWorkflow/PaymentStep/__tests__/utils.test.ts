@@ -8,7 +8,8 @@
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getShowEntryFee, type ShowFeeInfo } from '../utils';
+import { getShowEntryFee, calculateTotalFees, type ShowFeeInfo } from '../utils';
+import type { ClassSelectionData } from '@/types/show-registration-types';
 
 describe('getShowEntryFee — zero-fee handling', () => {
   it('returns 0 (not $25) when classEntryFee is explicitly 0 and no show info', () => {
@@ -72,5 +73,35 @@ describe('getShowEntryFee — timezone-safe date comparison', () => {
     };
 
     expect(getShowEntryFee(show)).toBe(40);
+  });
+});
+
+// Fixtures shared by calculateTotalFees tests
+const DOG_ID = 'dog-1';
+const CLASS_ID = 'class-1';
+const dog = { id: DOG_ID, name: 'Ace' };
+const classObj = { id: CLASS_ID, entryFee: 25 };
+const selection: ClassSelectionData = {
+  dogId: DOG_ID,
+  trialId: 'trial-1',
+  selectedClasses: [{ classId: CLASS_ID }],
+};
+
+describe('calculateTotalFees — isFree gate (total <= 0 → payment method optional)', () => {
+  it('returns total 0 when show pre-entry fee is $0', () => {
+    const freeShow: ShowFeeInfo = { preEntryFee: '$0', startDate: '2099-01-01' };
+    const result = calculateTotalFees([DOG_ID], [selection], [dog], [classObj], freeShow);
+    expect(result.total).toBe(0);
+  });
+
+  it('returns total > 0 when show pre-entry fee is $25', () => {
+    const paidShow: ShowFeeInfo = { preEntryFee: '$25', startDate: '2099-01-01' };
+    const result = calculateTotalFees([DOG_ID], [selection], [dog], [classObj], paidShow);
+    expect(result.total).toBeGreaterThan(0);
+  });
+
+  it('returns total 0 when no dogs selected', () => {
+    const result = calculateTotalFees([], [], [], []);
+    expect(result.total).toBe(0);
   });
 });

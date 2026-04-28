@@ -356,7 +356,7 @@ function RegistrationWizardContent() {
           showFeeInfo
         );
         return (
-          (total === 0 || !!registrationData.paymentMethod) &&
+          (total <= 0 || !!registrationData.paymentMethod) &&
           (!showNeedsAgreement || agreedToEntryAgreement)
         );
       }

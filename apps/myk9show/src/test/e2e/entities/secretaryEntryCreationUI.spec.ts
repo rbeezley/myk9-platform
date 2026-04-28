@@ -136,15 +136,15 @@ test.describe('Secretary Entry Creation', () => {
     // ── Step 4: Payment + AKC agreement ──────────────────────────────────
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
-    // Scroll down to reach the agreement section
+    // Scroll down to reveal the entry agreement section then wait for its label
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(400);
+    await expect(page.locator('label[for="entry-agreement"]')).toBeVisible({ timeout: 5000 });
 
     // Check the AKC entry agreement
     await page.locator('label[for="entry-agreement"]').click();
-    await page.waitForTimeout(300);
 
-    // For $0 entries, payment method is no longer required (fixed canProceed)
+    // For $0 entries, payment method is no longer required (fixed canProceed).
+    // Expect enabled immediately after the agreement toggles — no sleep needed.
     await expect(page.getByRole('button', { name: /next/i })).toBeEnabled();
 
     // Intercept the submit-entries RPC

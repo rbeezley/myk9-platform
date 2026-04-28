@@ -55,7 +55,7 @@ interface RegistrationViewProps {
   /** Bulk enrollment-level action handlers */
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onBulkCheckIn: (entryIds: string[]) => void;
-  onPaymentStatusChange: (enrollmentId: string, status: PaymentStatus, reference?: string | null) => void;
+  onPaymentStatusChange: (enrollmentId: string, status: PaymentStatus, reference?: string | null, paidAmount?: number | null) => void;
   /** Status change handler */
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   /** Check-in inline handler */

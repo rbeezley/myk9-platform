@@ -12,6 +12,8 @@ export interface EnrollmentGroup {
    * but entries.entry_fee (summed as fallback) is in dollars.
    */
   totalAmountUnit: 'cents' | 'dollars';
+  /** Amount already recorded as paid, in dollars. */
+  paidAmount: number;
   paymentReference: string | null;
   entries: EntryManagementEntry[];
 }
@@ -31,6 +33,7 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
         paymentStatus: entry.enrollmentPaymentStatus ?? entry.paymentStatus,
         totalAmount: hasEnrollmentTotal ? entry.enrollmentTotalAmount! : 0,
         totalAmountUnit: hasEnrollmentTotal ? 'cents' : 'dollars',
+        paidAmount: entry.enrollmentPaidAmount ?? 0,
         paymentReference: entry.enrollmentPaymentReference ?? null,
         entries: [],
       });

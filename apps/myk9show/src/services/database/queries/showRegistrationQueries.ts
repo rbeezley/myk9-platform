@@ -290,7 +290,8 @@ export const getConfirmationNumbersForEntries = async (
 export const updateEnrollmentPaymentStatus = async (
   enrollmentId: string,
   paymentStatus: string,
-  paymentReference?: string | null
+  paymentReference?: string | null,
+  paidAmount?: number | null
 ) => {
   const startTime = Date.now();
   try {
@@ -301,12 +302,15 @@ export const updateEnrollmentPaymentStatus = async (
     if (paymentReference !== undefined) {
       updateData.payment_reference = paymentReference;
     }
+    if (paidAmount != null) {
+      updateData.paid_amount = paidAmount;
+    }
 
     const { data, error } = await supabase
       .from('enrollments')
       .update(updateData)
       .eq('id', enrollmentId)
-      .select('id, payment_status, payment_reference')
+      .select('id, payment_status, payment_reference, paid_amount')
       .single();
 
     const duration = Date.now() - startTime;

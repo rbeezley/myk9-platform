@@ -61,7 +61,8 @@ interface UseEntryManagementActionsReturn {
   handleEnrollmentPaymentChange: (
     enrollmentId: string,
     status: PaymentStatus,
-    reference?: string | null
+    reference?: string | null,
+    paidAmount?: number | null
   ) => Promise<void>;
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
@@ -278,18 +279,18 @@ export function useEntryManagementActions({
   );
 
   const handleEnrollmentPaymentChange = useCallback(
-    async (enrollmentId: string, status: PaymentStatus, reference?: string | null) => {
+    async (enrollmentId: string, status: PaymentStatus, reference?: string | null, paidAmount?: number | null) => {
       try {
         const { error: dbError } = await updateEnrollmentPaymentStatus(
           enrollmentId,
           status,
-          reference
+          reference,
+          paidAmount
         );
         if (dbError) {
           setError('Failed to update payment status');
           return;
         }
-        // Update local state: set enrollmentPaymentStatus on all entries for this enrollment
         setEntries(prev =>
           prev.map(e =>
             e.registrationId === enrollmentId
@@ -297,6 +298,7 @@ export function useEntryManagementActions({
                   ...e,
                   enrollmentPaymentStatus: status,
                   ...(reference != null ? { enrollmentPaymentReference: reference } : {}),
+                  ...(paidAmount != null ? { enrollmentPaidAmount: paidAmount } : {}),
                 }
               : e
           )

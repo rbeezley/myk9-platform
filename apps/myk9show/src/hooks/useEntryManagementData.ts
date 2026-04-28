@@ -106,8 +106,8 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
       // Transform database entries to UI format
       // SecretaryEntry is a flat row (one per class entry), not a grouped structure
-      const transformedEntries: EntryManagementEntry[] = (data || []).map(
-        (entry: SecretaryEntry) => ({
+      const transformedEntries: EntryManagementEntry[] = ((data || []) as SecretaryEntry[]).map(
+        (entry): EntryManagementEntry => ({
           id: entry.id,
           registrationId: entry.registration?.id ?? '',
           entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
@@ -149,9 +149,8 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           ...(entry.registration?.payment_reference != null
             ? { enrollmentPaymentReference: entry.registration.payment_reference }
             : {}),
-          ...(entry.registration?.total_amount != null
-            ? { enrollmentTotalAmount: entry.registration.total_amount }
-            : {}),
+          enrollmentTotalAmount: entry.registration?.total_amount ?? null,
+          enrollmentPaidAmount: entry.registration?.paid_amount ?? null,
         })
       );
 

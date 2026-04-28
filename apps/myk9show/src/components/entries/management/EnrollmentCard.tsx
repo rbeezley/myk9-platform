@@ -35,11 +35,24 @@ interface EnrollmentCardProps {
   onUncompEntry?: (entryId: string) => void;
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onBulkCheckIn: (entryIds: string[]) => void;
-  onPaymentStatusChange: (enrollmentId: string, status: PaymentStatus, reference?: string | null) => void;
+  onPaymentStatusChange: (
+    enrollmentId: string,
+    status: PaymentStatus,
+    reference?: string | null,
+    paidAmount?: number | null
+  ) => void;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
 }
+
+type CheckDialog = { open: boolean; checkNumber: string };
+type PartialDialog = {
+  open: boolean;
+  amountPaid: string;
+  method: 'cash' | 'check';
+  checkNumber: string;
+};
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
@@ -56,17 +69,46 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   isResendDisabled,
 }) => {
   const [expanded, setExpanded] = useState(true);
-  const [checkDialog, setCheckDialog] = useState<{ open: boolean; checkNumber: string }>({
+  const [checkDialog, setCheckDialog] = useState<CheckDialog>({ open: false, checkNumber: '' });
+  const [partialDialog, setPartialDialog] = useState<PartialDialog>({
     open: false,
+    amountPaid: '',
+    method: 'cash',
     checkNumber: '',
   });
 
-  const dollars = group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
-  const displayTotal = `$${dollars.toFixed(2)}`;
   const enrollmentId = group.enrollmentId ?? '';
 
-  const handlePayment = (status: PaymentStatus, reference?: string | null) => {
-    if (enrollmentId) onPaymentStatusChange(enrollmentId, status, reference);
+  // Compute totals in dollars
+  const totalDollars =
+    group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
+  const paidDollars = group.paidAmount;
+  const remainingDollars = totalDollars - paidDollars;
+  const isPartiallyPaid =
+    paidDollars > 0 &&
+    paidDollars < totalDollars &&
+    group.paymentStatus !== PaymentStatus.PAID_BY_CASH &&
+    group.paymentStatus !== PaymentStatus.PAID_BY_CHECK &&
+    group.paymentStatus !== PaymentStatus.PAID_ONLINE;
+
+  const handlePayment = (status: PaymentStatus, reference?: string | null, paid?: number | null) => {
+    if (enrollmentId) onPaymentStatusChange(enrollmentId, status, reference, paid);
+  };
+
+  const confirmPartialPayment = () => {
+    const amount = parseFloat(partialDialog.amountPaid);
+    if (isNaN(amount) || amount <= 0) return;
+
+    const isFullPayment = amount >= totalDollars;
+    const status = isFullPayment
+      ? partialDialog.method === 'check'
+        ? PaymentStatus.PAID_BY_CHECK
+        : PaymentStatus.PAID_BY_CASH
+      : PaymentStatus.PENDING; // stays pending until fully paid
+
+    const reference = partialDialog.method === 'check' ? partialDialog.checkNumber || null : null;
+    handlePayment(status, reference, amount);
+    setPartialDialog({ open: false, amountPaid: '', method: 'cash', checkNumber: '' });
   };
 
   return (
@@ -89,36 +131,55 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Clickable payment status badge */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
-                  {getPaymentStatusBadge(group.paymentStatus)}
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_BY_CASH)}>
-                  Paid — Cash
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCheckDialog({ open: true, checkNumber: '' })}>
-                  Paid — Check…
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
-                  Paid — Online
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.REFUNDED)}>
-                  Refunded
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PENDING)}>
-                  Pending
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
 
-            <span className="text-sm font-medium">{displayTotal}</span>
+          <div className="flex items-center gap-2">
+            {/* Payment status + amount display */}
+            <div className="flex items-center gap-1.5">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+                    {getPaymentStatusBadge(group.paymentStatus)}
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)}>
+                    Paid in Full — Cash
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCheckDialog({ open: true, checkNumber: '' })}>
+                    Paid in Full — Check…
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
+                    Paid in Full — Online
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setPartialDialog({ open: true, amountPaid: '', method: 'cash', checkNumber: '' })}>
+                    Partial Payment…
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.REFUNDED)}>
+                    Refunded
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PENDING, null, 0)}>
+                    Pending
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <span className="text-sm font-medium">${totalDollars.toFixed(2)}</span>
+
+              {/* Partial payment balance */}
+              {isPartiallyPaid && (
+                <span className="text-xs text-muted-foreground">
+                  (${paidDollars.toFixed(2)} paid · ${remainingDollars.toFixed(2)} due)
+                </span>
+              )}
+              {paidDollars > 0 && !isPartiallyPaid && group.paymentStatus === PaymentStatus.PENDING && (
+                <span className="text-xs text-amber-600 font-medium">
+                  ${paidDollars.toFixed(2)} on account
+                </span>
+              )}
+            </div>
 
             {/* Enrollment-level bulk actions */}
             <DropdownMenu>
@@ -179,7 +240,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         </CardContent>
       )}
 
-      {/* Check number dialog — local to this card */}
+      {/* Full-payment check number dialog */}
       <Dialog open={checkDialog.open} onOpenChange={open => !open && setCheckDialog({ open: false, checkNumber: '' })}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -199,11 +260,90 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </Button>
             <Button
               onClick={() => {
-                handlePayment(PaymentStatus.PAID_BY_CHECK, checkDialog.checkNumber || null);
+                handlePayment(PaymentStatus.PAID_BY_CHECK, checkDialog.checkNumber || null, totalDollars);
                 setCheckDialog({ open: false, checkNumber: '' });
               }}
             >
               Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Partial payment dialog */}
+      <Dialog
+        open={partialDialog.open}
+        onOpenChange={open => !open && setPartialDialog({ open: false, amountPaid: '', method: 'cash', checkNumber: '' })}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Record Partial Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="text-sm text-muted-foreground">
+              Total due: <span className="font-medium text-foreground">${totalDollars.toFixed(2)}</span>
+              {paidDollars > 0 && (
+                <> · Previously paid: <span className="font-medium text-foreground">${paidDollars.toFixed(2)}</span></>
+              )}
+            </div>
+
+            <Input
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="Amount paid ($)"
+              value={partialDialog.amountPaid}
+              onChange={e => setPartialDialog(prev => ({ ...prev, amountPaid: e.target.value }))}
+              autoFocus
+            />
+
+            <div className="flex gap-2">
+              <Button
+                variant={partialDialog.method === 'cash' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setPartialDialog(prev => ({ ...prev, method: 'cash' }))}
+              >
+                Cash
+              </Button>
+              <Button
+                variant={partialDialog.method === 'check' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setPartialDialog(prev => ({ ...prev, method: 'check' }))}
+              >
+                Check
+              </Button>
+            </div>
+
+            {partialDialog.method === 'check' && (
+              <Input
+                placeholder="Check number (optional)"
+                value={partialDialog.checkNumber}
+                onChange={e => setPartialDialog(prev => ({ ...prev, checkNumber: e.target.value }))}
+              />
+            )}
+
+            {partialDialog.amountPaid && !isNaN(parseFloat(partialDialog.amountPaid)) && (
+              <p className="text-xs text-muted-foreground">
+                {parseFloat(partialDialog.amountPaid) >= totalDollars
+                  ? '✓ Covers full balance — will mark as paid'
+                  : `Remaining after payment: $${Math.max(0, totalDollars - parseFloat(partialDialog.amountPaid)).toFixed(2)}`}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPartialDialog({ open: false, amountPaid: '', method: 'cash', checkNumber: '' })}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmPartialPayment}
+              disabled={!partialDialog.amountPaid || isNaN(parseFloat(partialDialog.amountPaid)) || parseFloat(partialDialog.amountPaid) <= 0}
+            >
+              Record Payment
             </Button>
           </DialogFooter>
         </DialogContent>

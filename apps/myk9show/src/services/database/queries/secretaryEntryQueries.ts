@@ -36,6 +36,7 @@ export interface SecretaryEntry {
     payment_status: string | null;
     payment_reference: string | null;
     total_amount: number | null;
+    paid_amount: number | null;
   } | null;
   dog: {
     id: string;
@@ -87,7 +88,8 @@ export const getEntriesForShow = async (showId: string) => {
           confirmation_number,
           payment_status,
           payment_reference,
-          total_amount
+          total_amount,
+          paid_amount
         ),
         dog:dog_id (
           id,

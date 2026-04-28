@@ -42,6 +42,7 @@ export interface EntryManagementEntry {
   enrollmentPaymentStatus?: PaymentStatus | null;
   enrollmentPaymentReference?: string | null;
   enrollmentTotalAmount?: number | null;
+  enrollmentPaidAmount?: number | null;
 }
 
 export interface EntryManagementShow {

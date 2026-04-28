@@ -53,8 +53,16 @@ DELETE FROM armbands WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
 -- 3) Add unique constraint: one armband per dog per show
 -- ---------------------------------------------------------------------------
 
-ALTER TABLE armbands
-  ADD CONSTRAINT armbands_show_dog_unique UNIQUE (show_id, dog_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_name = 'armbands'
+      AND constraint_name = 'armbands_show_dog_unique'
+  ) THEN
+    ALTER TABLE armbands ADD CONSTRAINT armbands_show_dog_unique UNIQUE (show_id, dog_id);
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- 4) RLS: trial secretaries can manage armbands for their shows

@@ -345,7 +345,7 @@ export const assignArmband = async (entryId: string, armband: string) => {
     if (armbandError) {
       const isConflict =
         (armbandError as { code?: string }).code === '23505' ||
-        armbandError.message?.includes('armbands_show_armband_number') ||
+        armbandError.message?.includes('armbands_show_id_armband_number_key') ||
         armbandError.message?.includes('duplicate key');
       if (isConflict) {
         return {
@@ -422,7 +422,7 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
 
     let assignedCount = 0;
     for (const { dogId, armband } of assignments) {
-      await supabase.from('armbands').upsert(
+      const { error: upsertError } = await supabase.from('armbands').upsert(
         {
           show_id: showId,
           dog_id: dogId,
@@ -432,6 +432,8 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
         },
         { onConflict: 'show_id,dog_id' }
       );
+
+      if (upsertError) continue;
 
       const { error: updateError } = await supabase
         .from('entries')

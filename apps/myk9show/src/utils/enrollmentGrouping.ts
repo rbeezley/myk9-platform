@@ -1,10 +1,11 @@
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 export interface EnrollmentGroup {
   enrollmentId: string | null;
   confirmationNumber: string | null;
   handlerName: string;
-  paymentStatus: string;
+  paymentStatus: PaymentStatus;
   totalAmount: number;
   /**
    * Unit of totalAmount. Stripe amounts are in cents on enrollments.total_amount,

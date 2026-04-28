@@ -7,7 +7,7 @@ import { EntryListCard } from './EntryListCard';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { EntryStatus } from '@/types/show-registration-types';
 
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
@@ -58,7 +58,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {getPaymentStatusBadge(group.paymentStatus as PaymentStatus)}
+            {getPaymentStatusBadge(group.paymentStatus)}
             <span className="text-sm font-medium">{displayTotal}</span>
             <Button
               size="sm"

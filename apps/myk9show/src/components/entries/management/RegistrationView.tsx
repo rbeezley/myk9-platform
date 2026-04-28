@@ -172,7 +172,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
 
       {/* Bulk Actions */}
       {selectedEntries.size > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-border bg-muted">
           <CardContent className="p-4">
             <div className="flex justify-between items-center">
               <span className="font-medium">{selectedEntries.size} entries selected</span>

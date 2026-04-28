@@ -51,17 +51,41 @@ async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>>
   return map;
 }
 
+// Registrations are not replicated to IndexedDB, so batch-load them from
+// PostgREST whenever we build the dog list from the replication store.
+async function loadRegistrationsMap(
+  dogIds: string[]
+): Promise<Map<string, Record<string, unknown>[]>> {
+  if (dogIds.length === 0) return new Map();
+  const { data } = await supabase.from('dog_registrations').select('*').in('dog_id', dogIds);
+  const map = new Map<string, Record<string, unknown>[]>();
+  if (data) {
+    for (const row of data) {
+      const dogId = row.dog_id as string;
+      const existing = map.get(dogId) ?? [];
+      existing.push(row as Record<string, unknown>);
+      map.set(dogId, existing);
+    }
+  }
+  return map;
+}
+
 /**
  * Map an array of ReplicatedDog to DB-row-shaped objects, attaching owner
- * sub-objects from a pre-loaded owners Map.
+ * and registration sub-objects from pre-loaded maps.
  */
 function mapDogsWithOwners(
   dogs: ReplicatedDog[],
-  ownersMap: Map<string, OwnerRow>
+  ownersMap: Map<string, OwnerRow>,
+  registrationsMap: Map<string, Record<string, unknown>[]>
 ): Record<string, unknown>[] {
   return dogs.map(dog => {
     const owner = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
-    return mapReplicatedDogToDbRow(dog, { owner: owner as Record<string, unknown> | null });
+    const registrations = registrationsMap.get(dog.id) ?? [];
+    return mapReplicatedDogToDbRow(dog, {
+      owner: owner as Record<string, unknown> | null,
+      registrations,
+    });
   });
 }
 
@@ -209,10 +233,14 @@ export const getAllDogs = async (personId: string, showAll = false) => {
         const filtered = showAll ? allDogs : filterByOwnership(allDogs, personId);
         // Sort by name ascending (matching original PostgREST behavior)
         filtered.sort((a, b) => a.name.localeCompare(b.name));
-        // Batch-load owner data from PostgREST (people is not replicated)
+        // Batch-load owner and registration data from PostgREST (not replicated)
+        const dogIds = filtered.map(d => d.id);
         const ownerIds = filtered.map(d => d.ownerId).filter((id): id is string => !!id);
-        const ownersMap = await loadOwnersMap(ownerIds);
-        const data = mapDogsWithOwners(filtered, ownersMap);
+        const [ownersMap, registrationsMap] = await Promise.all([
+          loadOwnersMap(ownerIds),
+          loadRegistrationsMap(dogIds),
+        ]);
+        const data = mapDogsWithOwners(filtered, ownersMap, registrationsMap);
         return { data, error: null };
       },
       () => postgrestGetAllDogs(personId, showAll),

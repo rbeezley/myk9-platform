@@ -77,7 +77,7 @@ export const dogSchemas = {
     registeredName: commonValidations.name,
     breed: commonValidations.required,
     variety: commonValidations.optionalString,
-    registrationNumber: commonValidations.optionalString,
+    registrationNumber: commonValidations.required,
     applicationNumber: commonValidations.optionalString,
     submissionDate: commonValidations.date.optional(),
     registrationDate: commonValidations.date.optional(),

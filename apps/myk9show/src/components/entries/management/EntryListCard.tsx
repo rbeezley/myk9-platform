@@ -11,16 +11,19 @@ import {
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Users, Hash, MessageSquare, Gift } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
 import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
+import type { CheckInStatus } from '@myk9/core';
+import { CHECKIN_STATUS } from '@myk9/core';
 
 interface EntryListCardProps {
   entries: EntryManagementEntry[];
   onStatusChange: (entryId: string, status: EntryStatus) => void;
-  onOpenCheckInDialog: (entry: EntryManagementEntry, classEntry: EntryClass) => void;
+  onCheckInStatusChange: (entry: EntryManagementEntry, cls: EntryClass, status: CheckInStatus) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onCompEntry?: ((entryId: string) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;
@@ -35,7 +38,7 @@ interface EntryListCardProps {
 export const EntryListCard: React.FC<EntryListCardProps> = ({
   entries,
   onStatusChange,
-  onOpenCheckInDialog,
+  onCheckInStatusChange,
   onOpenArmbandDialog,
   onCompEntry,
   onUncompEntry,
@@ -54,6 +57,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
         >
           <div className="flex items-start justify-between">
             <div className="flex-1">
+              {/* Dog name + armband */}
               <div className="flex items-center gap-2 mb-1">
                 <h4 className="font-semibold">{entry.entryNumber}</h4>
                 <span className="text-muted-foreground">•</span>
@@ -66,36 +70,11 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-muted-foreground mb-2">
+              {/* Metadata row: owner / handler / fee + payment badge + email + comped + notes */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-2">
                 <span>Owner: {entry.ownerName}</span>
                 <span>Handler: {entry.handlerName}</span>
-                <span>Classes: {entry.classes.length}</span>
                 <span>Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Clickable status badge — opens status picker */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="cursor-pointer hover:opacity-80 transition-opacity">
-                      {getEntryStatusBadge(entry.entryStatus)}
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.ACCEPTED)}>
-                      Accept
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.WAITLIST)}>
-                      Waitlist
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}>
-                      Reject
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.MISSING_INFO)}>
-                      Missing Info
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
 
                 {!hidePaymentBadge && getPaymentStatusBadge(entry.paymentStatus)}
 
@@ -109,6 +88,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     resendDisabled={isResendDisabled?.(entry.registrationId)}
                   />
                 )}
+
                 {entry.comped && (
                   <Tooltip>
                     <TooltipTrigger>
@@ -122,6 +102,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     </TooltipContent>
                   </Tooltip>
                 )}
+
                 {entry.notes && (
                   <Badge variant="outline" className="text-blue-600">
                     <MessageSquare className="h-3 w-3 mr-1" />
@@ -130,22 +111,52 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 )}
               </div>
 
-              {/* Class Check-In Status */}
+              {/* Class rows — each shows class name + entry status + check-in status */}
               <div className="mt-2 space-y-1">
                 {entry.classes.map(cls => (
-                  <div key={cls.id} className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">{cls.name}:</span>
-                    <button
-                      onClick={() => onOpenCheckInDialog(entry, cls)}
-                      className="cursor-pointer border border-border/40 rounded px-1 hover:border-border hover:scale-105 transition-transform"
-                    >
-                      <CheckInStatusIndicator
-                        status={cls.checkInStatus || 'no-status'}
-                        size="sm"
-                        showLabel={true}
-                        showTooltip={true}
-                      />
-                    </button>
+                  <div key={cls.id} className="flex items-center gap-2 text-sm flex-wrap">
+                    <span className="text-muted-foreground font-medium min-w-[120px]">{cls.name}:</span>
+
+                    {/* Entry status — clickable dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+                          {getEntryStatusBadge(entry.entryStatus)}
+                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.ACCEPTED)}>Accept</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.WAITLIST)}>Waitlist</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}>Reject</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.MISSING_INFO)}>Missing Info</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Check-in status — clickable dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="inline-flex items-center gap-1 cursor-pointer border border-border/40 rounded px-1.5 py-0.5 hover:border-border transition-colors">
+                          <CheckInStatusIndicator
+                            status={cls.checkInStatus || 'no-status'}
+                            size="sm"
+                            showLabel={true}
+                            showTooltip={false}
+                          />
+                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {Object.values(CHECKIN_STATUS).map(s => (
+                          <DropdownMenuItem
+                            key={s.value}
+                            onClick={() => onCheckInStatusChange(entry, cls, s.value)}
+                          >
+                            {s.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 ))}
               </div>

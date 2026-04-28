@@ -16,6 +16,7 @@ import {
   assignArmband,
   autoAssignArmbands,
   getNextArmbandForShow,
+  getEntryArmbandById,
 } from '@/services/database/queries/secretaryArmbandQueries';
 import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
 import { updateEnrollmentPaymentStatus } from '@/services/database/queries/showRegistrationQueries';
@@ -95,7 +96,24 @@ export function useEntryManagementActions({
     startNumber: '1',
   });
 
-  // Handle status change
+  // After a single entry is accepted, fetch only the trigger-assigned armband
+  // and patch local state — avoids a full reload of all show entries.
+  const applyTriggerArmband = useCallback(
+    async (acceptedEntryId: string) => {
+      const result = await getEntryArmbandById(acceptedEntryId);
+      if (!result?.armband || !result.dogId || !result.showId) return;
+      const { armband, dogId, showId } = result;
+      setEntries(prev =>
+        prev.map(e =>
+          e.dogId === dogId && e.showId === showId
+            ? { ...e, armbandNumber: armband, entryNumber: armband }
+            : e
+        )
+      );
+    },
+    [setEntries]
+  );
+
   const handleStatusChange = useCallback(
     async (entryId: string, newStatus: EntryStatus) => {
       const entry = entries.find(e => e.id === entryId);
@@ -103,7 +121,6 @@ export function useEntryManagementActions({
 
       const oldStatus = entry.entryStatus;
 
-      // Optimistic update
       setEntries(prev =>
         prev.map(e =>
           e.id === entryId ? { ...e, entryStatus: newStatus, lastUpdated: new Date() } : e
@@ -112,41 +129,27 @@ export function useEntryManagementActions({
 
       try {
         const { error: dbError } = await updateEntryStatus(entryId, mapStatusToDb(newStatus));
-
-        if (dbError) {
-          throw dbError;
-        }
+        if (dbError) throw dbError;
 
         await auditService.log({
           action: AuditAction.UPDATE,
           entityType: 'entry',
           entityId: entryId,
-          changes: {
-            entryStatus: { from: oldStatus, to: newStatus },
-          },
-          metadata: {
-            action: 'status_change',
-            secretaryId: user?.id,
-            entryNumber: entry.entryNumber,
-          },
+          changes: { entryStatus: { from: oldStatus, to: newStatus } },
+          metadata: { action: 'status_change', secretaryId: user?.id, entryNumber: entry.entryNumber },
         });
 
-        // Reload to pick up trigger-assigned armband when entry is accepted
-        if (
-          (newStatus === EntryStatus.ACCEPTED) &&
-          selectedShowId
-        ) {
-          await loadEntries(selectedShowId);
+        if (newStatus === EntryStatus.ACCEPTED) {
+          await applyTriggerArmband(entryId);
         }
       } catch (error) {
         logger.error('Failed to update entry status:', 'pages', {}, error as Error);
-        // Revert optimistic update
         setEntries(prev =>
           prev.map(e => (e.id === entryId ? { ...e, entryStatus: oldStatus } : e))
         );
       }
     },
-    [entries, setEntries, user, selectedShowId, loadEntries]
+    [entries, setEntries, user, applyTriggerArmband]
   );
 
   // Handle armband assignment
@@ -247,11 +250,8 @@ export function useEntryManagementActions({
           )
         );
 
-        // Reload to pick up trigger-assigned armbands when entries are accepted
-        if (
-          (status === EntryStatus.ACCEPTED) &&
-          selectedShowId
-        ) {
+        // Full reload picks up trigger-assigned armbands for all dogs in the group
+        if (status === EntryStatus.ACCEPTED && selectedShowId) {
           await loadEntries(selectedShowId);
         }
       } catch (err) {
@@ -297,13 +297,10 @@ export function useEntryManagementActions({
 
   const handleEnrollmentPaymentChange = useCallback(
     async (enrollmentId: string, status: PaymentStatus, reference?: string | null, paidAmount?: number | null) => {
-      // Capture previous state for rollback
-      let prevEntries: typeof entries | null = null;
+      const snapshot = entries;
 
-      // Optimistic update — badge reflects change immediately
-      setEntries(prev => {
-        prevEntries = prev;
-        return prev.map(e =>
+      setEntries(prev =>
+        prev.map(e =>
           e.registrationId === enrollmentId
             ? {
                 ...e,
@@ -312,8 +309,8 @@ export function useEntryManagementActions({
                 ...(paidAmount != null ? { enrollmentPaidAmount: paidAmount } : {}),
               }
             : e
-        );
-      });
+        )
+      );
 
       try {
         const { error: dbError } = await updateEnrollmentPaymentStatus(
@@ -323,12 +320,12 @@ export function useEntryManagementActions({
           paidAmount
         );
         if (dbError) {
-          if (prevEntries) setEntries(prevEntries);
+          setEntries(snapshot);
           toast.error(dbError.message || 'Failed to update payment status');
           logger.error('DB error updating enrollment payment:', 'secretary', {}, new Error(dbError.message));
         }
       } catch (err) {
-        if (prevEntries) setEntries(prevEntries);
+        setEntries(snapshot);
         toast.error('Failed to update payment status');
         logger.error('Error updating enrollment payment:', 'secretary', {}, err as Error);
       }

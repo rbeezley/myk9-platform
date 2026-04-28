@@ -2,9 +2,26 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { computeArmbandAssignments, resolveStartNumber } from '@/utils/armbandUtils';
 
 /**
- * Assign armband number to an entry (per-dog-per-show: upserts into armbands table
- * and propagates the armband value to ALL class entries for that dog in that show).
+ * Returns the string representation of the highest assigned armband for a show,
+ * sorted numerically. Queries the armbands table (source of truth), not entries.
+ * Text ordering is broken for multi-digit numbers, so we fetch all and sort in JS.
  */
+async function fetchMaxArmbandForShow(showId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('armbands')
+    .select('armband_number')
+    .eq('show_id', showId)
+    .not('armband_number', 'is', null);
+
+  if (!data || data.length === 0) return null;
+
+  const nums = data
+    .map(r => parseInt(r.armband_number, 10))
+    .filter(n => !isNaN(n));
+
+  return nums.length === 0 ? null : String(Math.max(...nums));
+}
+
 export const assignArmband = async (entryId: string, armband: string) => {
   const startTime = Date.now();
 
@@ -71,11 +88,6 @@ export const assignArmband = async (entryId: string, armband: string) => {
   }
 };
 
-/**
- * Auto-assign sequential armbands to all unassigned accepted/confirmed dogs in a show.
- * Deduplicates by dog: each dog gets one armband number regardless of how many classes
- * they are entered in, and the number is propagated to all their class entries.
- */
 export const autoAssignArmbands = async (showId: string, startNumber: number = 1) => {
   const startTime = Date.now();
 
@@ -96,17 +108,8 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
       return { data: { assigned: 0, startedAt: startNumber }, error: null };
     }
 
-    const { data: maxRow } = await supabase
-      .from('entries')
-      .select('armband')
-      .eq('show_id', showId)
-      .is('deleted_at', null)
-      .not('armband', 'is', null)
-      .order('armband', { ascending: false })
-      .limit(1)
-      .single();
-
-    const nextNumber = resolveStartNumber(maxRow?.armband ?? null, startNumber);
+    const maxArmband = await fetchMaxArmbandForShow(showId);
+    const nextNumber = resolveStartNumber(maxArmband, startNumber);
     const assignments = computeArmbandAssignments(dogIds, nextNumber);
 
     let assignedCount = 0;
@@ -125,12 +128,7 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
 
       if (upsertError) {
         skippedCount++;
-        logQuery(
-          'armbands',
-          'auto_assign_upsert_skip',
-          Date.now() - startTime,
-          upsertError.message
-        );
+        logQuery('armbands', 'auto_assign_upsert_skip', Date.now() - startTime, upsertError.message);
         continue;
       }
 
@@ -158,19 +156,24 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
   }
 };
 
-/**
- * Returns the next available armband number for a show (max existing + 1, or 1 if none).
- */
+/** Returns the next available armband number for a show (numeric max + 1, or 1). */
 export const getNextArmbandForShow = async (showId: string): Promise<number> => {
-  const { data: maxRow } = await supabase
+  const maxArmband = await fetchMaxArmbandForShow(showId);
+  return resolveStartNumber(maxArmband, 1);
+};
+
+/**
+ * Fetches the armband assigned to a single entry (after trigger execution).
+ * Used to update local state after accepting an entry without a full reload.
+ */
+export const getEntryArmbandById = async (
+  entryId: string
+): Promise<{ armband: string | null; dogId: string | null; showId: string | null } | null> => {
+  const { data } = await supabase
     .from('entries')
-    .select('armband')
-    .eq('show_id', showId)
-    .is('deleted_at', null)
-    .not('armband', 'is', null)
-    .order('armband', { ascending: false })
-    .limit(1)
+    .select('armband, dog_id, show_id')
+    .eq('id', entryId)
     .single();
 
-  return resolveStartNumber(maxRow?.armband ?? null, 1);
+  return data ? { armband: data.armband, dogId: data.dog_id, showId: data.show_id } : null;
 };

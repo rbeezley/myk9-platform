@@ -54,11 +54,9 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
           key={entry.id}
           className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
         >
-          {/* Title row: dog name + clickable armband badge */}
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold">{entry.dogName}</span>
 
-            {/* Armband — clickable badge if assigned, subtle assign button if not */}
             {entry.armbandNumber ? (
               <button
                 className="inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity"
@@ -81,13 +79,11 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             )}
           </div>
 
-          {/* Metadata row */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-2">
             <span>Owner: {entry.ownerName}</span>
             <span>Handler: {entry.handlerName}</span>
             <span>Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})</span>
 
-            {/* Comp — next to fee since it's an entry-level attribute */}
             {entry.comped ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -147,7 +143,6 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             )}
           </div>
 
-          {/* Class rows — class name + entry status + check-in status + comp */}
           <div className="space-y-1">
             {entry.classes.map(cls => (
               <div key={cls.id} className="flex items-center gap-2 text-sm flex-wrap">

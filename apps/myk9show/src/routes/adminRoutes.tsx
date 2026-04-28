@@ -147,6 +147,9 @@ const adminGuard = (element: React.ReactNode) => (
 /** All admin routes — rendered inside UnifiedAppLayout */
 export const AdminRoutes = () => (
   <>
+    {/* Redirect bare /admin to the dashboard */}
+    <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+
     {/* Admin Dashboard */}
     <Route
       path="/admin/dashboard"

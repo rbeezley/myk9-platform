@@ -38,6 +38,7 @@ import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 const classFullSchema = classSchemas.full as unknown as z.ZodSchema<ClassEditFormData>;
 const classSimpleSchema = classSchemas.simple as unknown as z.ZodSchema<TrialClassEditFormData>;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function resolveJudgeDisplay(
   judgeId: string | undefined,
   judgeName: string | undefined,

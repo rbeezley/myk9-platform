@@ -283,7 +283,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             <div className="space-y-3">
               {enrollmentGroups.map(group => (
                 <EnrollmentCard
-                  key={group.enrollmentId ?? `__unregistered__:${group.handlerName}`}
+                  key={group.enrollmentId ?? '__unregistered__'}
                   group={group}
                   onStatusChange={onStatusChange}
                   onOpenCheckInDialog={onOpenCheckInDialog}

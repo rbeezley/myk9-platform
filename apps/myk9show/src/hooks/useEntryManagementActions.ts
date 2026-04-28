@@ -198,8 +198,14 @@ export function useEntryManagementActions({
       await loadEntries(selectedShowId);
       setAutoArmbandDialog({ open: false, startNumber: '1' });
 
+      const skipped = data?.skipped ?? 0;
+      if (skipped > 0) {
+        setError(
+          `Assigned ${data?.assigned} armbands — ${skipped} dog(s) skipped due to conflicts`
+        );
+      }
       logger.info(
-        `Auto-assigned ${data?.assigned} armbands starting at ${data?.startedAt}`,
+        `Auto-assigned ${data?.assigned} armbands starting at ${data?.startedAt}; skipped ${skipped}`,
         'secretary'
       );
     } catch (err) {

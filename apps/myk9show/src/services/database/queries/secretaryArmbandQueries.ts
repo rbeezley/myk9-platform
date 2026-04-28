@@ -35,10 +35,7 @@ export const assignArmband = async (entryId: string, armband: string) => {
     );
 
     if (armbandError) {
-      const isConflict =
-        (armbandError as { code?: string }).code === '23505' ||
-        armbandError.message?.includes('armbands_show_id_armband_number_key') ||
-        armbandError.message?.includes('duplicate key');
+      const isConflict = (armbandError as { code?: string }).code === '23505';
       if (isConflict) {
         return {
           data: null,
@@ -113,6 +110,7 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
     const assignments = computeArmbandAssignments(dogIds, nextNumber);
 
     let assignedCount = 0;
+    let skippedCount = 0;
     for (const { dogId, armband } of assignments) {
       const { error: upsertError } = await supabase.from('armbands').upsert(
         {
@@ -125,7 +123,16 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
         { onConflict: 'show_id,dog_id' }
       );
 
-      if (upsertError) continue;
+      if (upsertError) {
+        skippedCount++;
+        logQuery(
+          'armbands',
+          'auto_assign_upsert_skip',
+          Date.now() - startTime,
+          upsertError.message
+        );
+        continue;
+      }
 
       const { error: updateError } = await supabase
         .from('entries')
@@ -139,7 +146,10 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'auto_assign_armbands', duration);
-    return { data: { assigned: assignedCount, startedAt: nextNumber }, error: null };
+    return {
+      data: { assigned: assignedCount, skipped: skippedCount, startedAt: nextNumber },
+      error: null,
+    };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'auto_assign_armbands');

@@ -38,7 +38,6 @@ import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import {
   ArmbandDialog,
   AutoArmbandDialog,
-  BulkCheckInDialog,
   CompEntryDialog,
   FilterBreadcrumb,
   TrialClassFilters,
@@ -115,8 +114,6 @@ const EntryManagementPage: React.FC = () => {
     viewMode,
     setTrialFilter,
     setClassFilter,
-    selectedEntries,
-    setSelectedEntries,
     filteredEntries,
     clearFilters,
   } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
@@ -134,16 +131,12 @@ const EntryManagementPage: React.FC = () => {
     setArmbandDialog,
     autoArmbandDialog,
     setAutoArmbandDialog,
-    bulkActionDialog,
-    setBulkActionDialog,
     handleStatusChange,
     handleAssignArmband,
     handleAutoAssignArmbands,
-    handleBulkCheckIn,
     handleEnrollmentBulkStatusChange,
     handleEnrollmentBulkCheckIn,
     handleCheckInStatusUpdate,
-    handleBulkAction,
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,
@@ -153,8 +146,6 @@ const EntryManagementPage: React.FC = () => {
     selectedShowId,
     loadEntries,
     setError,
-    selectedEntries,
-    setSelectedEntries,
     user,
   });
 
@@ -399,10 +390,6 @@ const EntryManagementPage: React.FC = () => {
                   paymentFilter={paymentFilter}
                   setPaymentFilter={setPaymentFilter}
                   onClearFilters={clearFilters}
-                  selectedEntries={selectedEntries}
-                  bulkActionDialog={bulkActionDialog}
-                  setBulkActionDialog={setBulkActionDialog}
-                  onBulkAction={handleBulkAction}
                   selectedTab={selectedTab}
                   setSelectedTab={setSelectedTab}
                   tabCounts={tabCounts}
@@ -498,15 +485,6 @@ const EntryManagementPage: React.FC = () => {
         dialogState={autoArmbandDialog}
         setDialogState={setAutoArmbandDialog}
         onAutoAssign={handleAutoAssignArmbands}
-        isProcessing={isProcessing}
-      />
-
-      {/* Bulk Check-In Dialog */}
-      <BulkCheckInDialog
-        dialogState={bulkActionDialog}
-        setDialogState={setBulkActionDialog}
-        selectedCount={selectedEntries.size}
-        onBulkCheckIn={handleBulkCheckIn}
         isProcessing={isProcessing}
       />
 

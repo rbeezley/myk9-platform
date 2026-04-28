@@ -385,11 +385,11 @@ export function useEntryManagementActions({
       const { data, error: dbError } = await getEntriesForExport(selectedShowId);
 
       if (dbError) {
-        setError('Failed to export entries');
+        setError(dbError.message || 'Failed to export entries');
         return;
       }
 
-      if (data.length === 0) {
+      if (!data || data.length === 0) {
         setError('No entries found for this show');
         return;
       }

@@ -25,7 +25,6 @@ import {
   Hash,
   Loader2,
   Plus,
-  RefreshCw,
 } from 'lucide-react';
 
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
@@ -246,14 +245,6 @@ const EntryManagementPage: React.FC = () => {
           >
             <Plus className="h-4 w-4 mr-2" />
             New Entry
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => selectedShowId && loadEntries(selectedShowId)}
-            disabled={!selectedShowId || isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
           </Button>
           <Button
             variant="outline"

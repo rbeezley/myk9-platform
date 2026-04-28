@@ -8,6 +8,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { CheckInStatus } from '@myk9/core';
+import { computeArmbandAssignments, resolveStartNumber } from '@/utils/armbandUtils';
 
 export interface SecretaryEntry {
   id: string;
@@ -303,30 +304,70 @@ export const bulkCheckIn = async (entryIds: string[]) => {
 };
 
 /**
- * Assign armband number to an entry
+ * Assign armband number to an entry (per-dog-per-show: upserts into armbands table
+ * and propagates the armband value to ALL class entries for that dog in that show).
  */
 export const assignArmband = async (entryId: string, armband: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
+    const { data: entry, error: lookupError } = await supabase
       .from('entries')
-      .update({
-        armband: armband,
-        updated_at: new Date().toISOString(),
-      })
+      .select('dog_id, show_id')
       .eq('id', entryId)
-      .select()
       .single();
 
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'assign_armband', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'assign_armband');
+    if (lookupError || !entry || !entry.dog_id || !entry.show_id) {
+      throw createDatabaseError(
+        lookupError ?? new Error('Entry not found'),
+        'entries',
+        'assign_armband'
+      );
     }
 
-    return { data, error: null };
+    const { error: armbandError } = await supabase.from('armbands').upsert(
+      {
+        show_id: entry.show_id,
+        dog_id: entry.dog_id,
+        armband_number: armband,
+        assigned_at: new Date().toISOString(),
+        is_available: false,
+      },
+      { onConflict: 'show_id,dog_id' }
+    );
+
+    if (armbandError) {
+      const isConflict =
+        (armbandError as { code?: string }).code === '23505' ||
+        armbandError.message?.includes('armbands_show_armband_number') ||
+        armbandError.message?.includes('duplicate key');
+      if (isConflict) {
+        return {
+          data: null,
+          error: createDatabaseError(
+            new Error(`Armband ${armband} is already assigned to another dog in this show.`),
+            'armbands',
+            'assign_armband'
+          ),
+        };
+      }
+      throw createDatabaseError(armbandError, 'armbands', 'assign_armband');
+    }
+
+    const { data, error: updateError } = await supabase
+      .from('entries')
+      .update({ armband, updated_at: new Date().toISOString() })
+      .eq('dog_id', entry.dog_id)
+      .eq('show_id', entry.show_id)
+      .is('deleted_at', null)
+      .select('id');
+
+    const duration = Date.now() - startTime;
+    logQuery('entries', 'assign_armband', duration, updateError?.message);
+
+    if (updateError) throw createDatabaseError(updateError, 'entries', 'assign_armband');
+
+    return { data: { updated: data?.length ?? 0, armband }, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'assign_armband');
@@ -336,32 +377,31 @@ export const assignArmband = async (entryId: string, armband: string) => {
 };
 
 /**
- * Auto-assign sequential armbands to all accepted entries without armbands
+ * Auto-assign sequential armbands to all unassigned accepted/confirmed dogs in a show.
+ * Deduplicates by dog: each dog gets one armband number regardless of how many classes
+ * they are entered in, and the number is propagated to all their class entries.
  */
 export const autoAssignArmbands = async (showId: string, startNumber: number = 1) => {
   const startTime = Date.now();
 
   try {
-    // Get entries without armbands, ordered by created_at
-    const { data: entries, error: fetchError } = await supabase
+    const { data: unassigned, error: fetchError } = await supabase
       .from('entries')
-      .select('id, armband')
+      .select('dog_id')
       .eq('show_id', showId)
-      .eq('entry_status', 'confirmed')
+      .in('entry_status', ['accepted', 'confirmed'])
       .is('deleted_at', null)
-      .is('armband', null)
-      .order('created_at', { ascending: true });
+      .is('armband', null);
 
-    if (fetchError) {
-      throw createDatabaseError(fetchError, 'entries', 'auto_assign_armbands_fetch');
+    if (fetchError) throw createDatabaseError(fetchError, 'entries', 'auto_assign_armbands_fetch');
+
+    const dogIds = [...new Set((unassigned ?? []).map(e => e.dog_id).filter(Boolean) as string[])];
+
+    if (dogIds.length === 0) {
+      return { data: { assigned: 0, startedAt: startNumber }, error: null };
     }
 
-    if (!entries || entries.length === 0) {
-      return { data: { assigned: 0 }, error: null };
-    }
-
-    // Get the highest existing armband number
-    const { data: maxArmband } = await supabase
+    const { data: maxRow } = await supabase
       .from('entries')
       .select('armband')
       .eq('show_id', showId)
@@ -371,33 +411,34 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
       .limit(1)
       .single();
 
-    let nextNumber = startNumber;
-    if (maxArmband?.armband) {
-      const parsed = parseInt(maxArmband.armband, 10);
-      if (!isNaN(parsed)) {
-        nextNumber = Math.max(nextNumber, parsed + 1);
-      }
-    }
+    const nextNumber = resolveStartNumber(maxRow?.armband ?? null, startNumber);
+    const assignments = computeArmbandAssignments(dogIds, nextNumber);
 
-    // Assign armbands
     let assignedCount = 0;
-    for (let i = 0; i < entries.length; i++) {
+    for (const { dogId, armband } of assignments) {
+      await supabase.from('armbands').upsert(
+        {
+          show_id: showId,
+          dog_id: dogId,
+          armband_number: armband,
+          assigned_at: new Date().toISOString(),
+          is_available: false,
+        },
+        { onConflict: 'show_id,dog_id' }
+      );
+
       const { error: updateError } = await supabase
         .from('entries')
-        .update({
-          armband: String(nextNumber + i),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', entries[i].id);
+        .update({ armband, updated_at: new Date().toISOString() })
+        .eq('dog_id', dogId)
+        .eq('show_id', showId)
+        .is('deleted_at', null);
 
-      if (!updateError) {
-        assignedCount++;
-      }
+      if (!updateError) assignedCount++;
     }
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'auto_assign_armbands', duration);
-
     return { data: { assigned: assignedCount, startedAt: nextNumber }, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;

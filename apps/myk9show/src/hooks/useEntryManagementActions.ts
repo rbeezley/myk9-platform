@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
@@ -280,6 +281,24 @@ export function useEntryManagementActions({
 
   const handleEnrollmentPaymentChange = useCallback(
     async (enrollmentId: string, status: PaymentStatus, reference?: string | null, paidAmount?: number | null) => {
+      // Capture previous state for rollback
+      let prevEntries: typeof entries | null = null;
+
+      // Optimistic update — badge reflects change immediately
+      setEntries(prev => {
+        prevEntries = prev;
+        return prev.map(e =>
+          e.registrationId === enrollmentId
+            ? {
+                ...e,
+                enrollmentPaymentStatus: status,
+                ...(reference != null ? { enrollmentPaymentReference: reference } : {}),
+                ...(paidAmount != null ? { enrollmentPaidAmount: paidAmount } : {}),
+              }
+            : e
+        );
+      });
+
       try {
         const { error: dbError } = await updateEnrollmentPaymentStatus(
           enrollmentId,
@@ -288,27 +307,17 @@ export function useEntryManagementActions({
           paidAmount
         );
         if (dbError) {
-          setError('Failed to update payment status');
-          return;
+          if (prevEntries) setEntries(prevEntries);
+          toast.error(dbError.message || 'Failed to update payment status');
+          logger.error('DB error updating enrollment payment:', 'secretary', {}, new Error(dbError.message));
         }
-        setEntries(prev =>
-          prev.map(e =>
-            e.registrationId === enrollmentId
-              ? {
-                  ...e,
-                  enrollmentPaymentStatus: status,
-                  ...(reference != null ? { enrollmentPaymentReference: reference } : {}),
-                  ...(paidAmount != null ? { enrollmentPaidAmount: paidAmount } : {}),
-                }
-              : e
-          )
-        );
       } catch (err) {
-        setError('Failed to update payment status');
+        if (prevEntries) setEntries(prevEntries);
+        toast.error('Failed to update payment status');
         logger.error('Error updating enrollment payment:', 'secretary', {}, err as Error);
       }
     },
-    [setEntries, setError]
+    [entries, setEntries]
   );
 
   // Handle check-in status change (inline, no dialog)

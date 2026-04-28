@@ -161,7 +161,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                     Refunded
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PENDING, null, 0)}>
-                    Pending
+                    Payment Due
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

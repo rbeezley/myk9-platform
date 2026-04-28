@@ -125,7 +125,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
                   fee: entry.entry_fee || 0,
                   ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
                   status: mapClassEntryStatus(entry.entry_status),
-                  checkInStatus: (entry.is_in_ring ? 'checked-in' : 'no-status') as CheckInStatus,
+                  checkInStatus: (entry.check_in_status as CheckInStatus) ?? 'no-status',
                 },
               ]
             : [],

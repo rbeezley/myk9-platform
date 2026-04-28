@@ -257,7 +257,7 @@ export function useEntryManagementActions({
       const { entry, classEntry } = checkInDialog;
 
       try {
-        const { error: dbError } = await updateCheckInStatus(classEntry.id, status, notes);
+        const { error: dbError } = await updateCheckInStatus(entry.id, status, notes);
 
         if (dbError) {
           throw dbError;

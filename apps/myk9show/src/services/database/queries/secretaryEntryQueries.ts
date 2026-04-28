@@ -28,6 +28,7 @@ export interface SecretaryEntry {
   jump_height: string | null;
   run_order: number | null;
   is_in_ring: boolean | null;
+  check_in_status: string | null;
   registration_id: string | null;
   registration: {
     id: string;
@@ -76,6 +77,7 @@ export const getEntriesForShow = async (showId: string) => {
         jump_height,
         run_order,
         is_in_ring,
+        check_in_status,
         registration_id,
         registration:registration_id (
           id,
@@ -231,6 +233,7 @@ export const updateCheckInStatus = async (
   try {
     const isInRing = status === 'checked-in' || status === 'at-gate';
     const updateData: Record<string, unknown> = {
+      check_in_status: status,
       is_in_ring: isInRing,
       updated_at: new Date().toISOString(),
     };

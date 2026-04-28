@@ -20,7 +20,7 @@ import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
 import type {
   EntryManagementEntry,
-  CheckInDialogState,
+  EntryClass,
   ArmbandDialogState,
   AutoArmbandDialogState,
 } from '@/types/entry-management-types';
@@ -39,8 +39,6 @@ interface UseEntryManagementActionsReturn {
   isProcessing: boolean;
 
   // Dialog states
-  checkInDialog: CheckInDialogState;
-  setCheckInDialog: React.Dispatch<React.SetStateAction<CheckInDialogState>>;
   armbandDialog: ArmbandDialogState;
   setArmbandDialog: React.Dispatch<React.SetStateAction<ArmbandDialogState>>;
   autoArmbandDialog: AutoArmbandDialogState;
@@ -50,7 +48,11 @@ interface UseEntryManagementActionsReturn {
   handleStatusChange: (entryId: string, newStatus: EntryStatus) => Promise<void>;
   handleAssignArmband: () => Promise<void>;
   handleAutoAssignArmbands: () => Promise<void>;
-  handleCheckInStatusUpdate: (status: CheckInStatus, notes?: string) => Promise<void>;
+  handleCheckInStatusChange: (
+    entry: EntryManagementEntry,
+    cls: EntryClass,
+    status: CheckInStatus
+  ) => Promise<void>;
   handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<void>;
   handleEnrollmentBulkCheckIn: (entryIds: string[]) => Promise<void>;
   handleExportCSV: () => Promise<void>;
@@ -73,11 +75,6 @@ export function useEntryManagementActions({
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Dialog states
-  const [checkInDialog, setCheckInDialog] = useState<CheckInDialogState>({
-    open: false,
-    entry: null,
-    classEntry: null,
-  });
   const [armbandDialog, setArmbandDialog] = useState<ArmbandDialogState>({
     open: false,
     entry: null,
@@ -262,83 +259,60 @@ export function useEntryManagementActions({
     [setEntries, setError]
   );
 
-  // Handle check-in status update
-  const handleCheckInStatusUpdate = useCallback(
-    async (status: CheckInStatus, notes?: string) => {
-      if (!checkInDialog.entry || !checkInDialog.classEntry) return;
+  // Handle check-in status change (inline, no dialog)
+  const handleCheckInStatusChange = useCallback(
+    async (entry: EntryManagementEntry, cls: EntryClass, status: CheckInStatus) => {
+      const prevStatus = cls.checkInStatus || 'no-status';
 
-      const { entry, classEntry } = checkInDialog;
-
-      try {
-        const { error: dbError } = await updateCheckInStatus(entry.id, status, notes);
-
-        if (dbError) {
-          throw dbError;
-        }
-
-        setEntries(prev =>
-          prev.map(e => {
-            if (e.id === entry.id) {
-              return {
+      // Optimistic update
+      setEntries(prev =>
+        prev.map(e =>
+          e.id === entry.id
+            ? {
                 ...e,
                 classes: e.classes.map(c =>
-                  c.id === classEntry.id
-                    ? { ...c, checkInStatus: status, checkInTime: new Date() }
-                    : c
+                  c.id === cls.id ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
                 ),
-              };
-            }
-            return e;
-          })
-        );
+              }
+            : e
+        )
+      );
+
+      try {
+        const { error: dbError } = await updateCheckInStatus(entry.id, status);
+        if (dbError) throw dbError;
 
         await auditService.log({
           action: AuditAction.UPDATE,
           entityType: 'class_entry',
-          entityId: classEntry.id,
-          changes: {
-            checkInStatus: { from: classEntry.checkInStatus || 'no-status', to: status },
-          },
+          entityId: cls.id,
+          changes: { checkInStatus: { from: prevStatus, to: status } },
           metadata: {
             action: 'check_in_status_change',
             secretaryId: user?.id,
             entryNumber: entry.entryNumber,
             dogName: entry.dogName,
-            className: classEntry.name,
-            notes,
+            className: cls.name,
           },
         });
-
-        setCheckInDialog({ open: false, entry: null, classEntry: null });
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
-        // Revert optimistic update
+        // Revert
         setEntries(prev =>
-          prev.map(e => {
-            if (e.id === entry.id) {
-              return {
-                ...e,
-                classes: e.classes.map(c =>
-                  c.id === classEntry.id
-                    ? {
-                        ...c,
-                        ...(classEntry.checkInStatus != null
-                          ? { checkInStatus: classEntry.checkInStatus }
-                          : {}),
-                        ...(classEntry.checkInTime != null
-                          ? { checkInTime: classEntry.checkInTime }
-                          : {}),
-                      }
-                    : c
-                ),
-              };
-            }
-            return e;
-          })
+          prev.map(e =>
+            e.id === entry.id
+              ? {
+                  ...e,
+                  classes: e.classes.map(c =>
+                    c.id === cls.id ? { ...c, checkInStatus: prevStatus } : c
+                  ),
+                }
+              : e
+          )
         );
       }
     },
-    [checkInDialog, setEntries, user]
+    [setEntries, user]
   );
 
   // Handle CSV export
@@ -503,8 +477,6 @@ export function useEntryManagementActions({
 
   return {
     isProcessing,
-    checkInDialog,
-    setCheckInDialog,
     armbandDialog,
     setArmbandDialog,
     autoArmbandDialog,
@@ -512,7 +484,7 @@ export function useEntryManagementActions({
     handleStatusChange,
     handleAssignArmband,
     handleAutoAssignArmbands,
-    handleCheckInStatusUpdate,
+    handleCheckInStatusChange,
     handleEnrollmentBulkStatusChange,
     handleEnrollmentBulkCheckIn,
     handleExportCSV,

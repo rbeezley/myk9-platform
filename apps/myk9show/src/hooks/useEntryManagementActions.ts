@@ -159,14 +159,13 @@ export function useEntryManagementActions({
         return;
       }
 
+      const targetDogId = armbandDialog.entry.dogId;
+      const targetShowId = armbandDialog.entry.showId;
+      const armband = armbandDialog.value.trim();
       setEntries(prev =>
         prev.map(e =>
-          e.id === armbandDialog.entry?.id
-            ? {
-                ...e,
-                armbandNumber: armbandDialog.value.trim(),
-                entryNumber: armbandDialog.value.trim(),
-              }
+          e.dogId === targetDogId && e.showId === targetShowId
+            ? { ...e, armbandNumber: armband, entryNumber: armband }
             : e
         )
       );

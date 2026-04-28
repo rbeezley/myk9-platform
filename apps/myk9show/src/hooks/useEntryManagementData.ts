@@ -112,6 +112,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           registrationId: entry.id,
           entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
           showId: entry.show_id || '',
+          dogId: entry.dog_id || '',
           dogName: entry.dog?.name || 'Unknown Dog',
           ownerName: entry.handler || 'Unknown',
           ownerEmail: '',

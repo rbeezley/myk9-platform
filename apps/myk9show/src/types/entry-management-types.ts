@@ -22,6 +22,7 @@ export interface EntryManagementEntry {
   registrationId: string;
   entryNumber: string;
   showId: string;
+  dogId: string;
   dogName: string;
   ownerName: string;
   ownerEmail: string;

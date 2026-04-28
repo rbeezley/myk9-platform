@@ -130,6 +130,7 @@ const EntryManagementPage: React.FC = () => {
     setAutoArmbandDialog,
     handleStatusChange,
     handleAssignArmband,
+    handleNextArmband,
     handleAutoAssignArmbands,
     handleEnrollmentBulkStatusChange,
     handleEnrollmentBulkCheckIn,
@@ -453,6 +454,7 @@ const EntryManagementPage: React.FC = () => {
         dialogState={armbandDialog}
         setDialogState={setArmbandDialog}
         onAssign={handleAssignArmband}
+        onNextArmband={handleNextArmband}
         isProcessing={isProcessing}
       />
 

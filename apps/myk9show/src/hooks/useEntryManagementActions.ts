@@ -14,6 +14,7 @@ import {
 import {
   assignArmband,
   autoAssignArmbands,
+  getNextArmbandForShow,
 } from '@/services/database/queries/secretaryArmbandQueries';
 import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
@@ -47,6 +48,7 @@ interface UseEntryManagementActionsReturn {
   // Actions
   handleStatusChange: (entryId: string, newStatus: EntryStatus) => Promise<void>;
   handleAssignArmband: () => Promise<void>;
+  handleNextArmband: () => Promise<void>;
   handleAutoAssignArmbands: () => Promise<void>;
   handleCheckInStatusChange: (
     entry: EntryManagementEntry,
@@ -166,6 +168,16 @@ export function useEntryManagementActions({
       setIsProcessing(false);
     }
   }, [armbandDialog, setEntries, setError]);
+
+  const handleNextArmband = useCallback(async () => {
+    if (!armbandDialog.entry) return;
+    try {
+      const next = await getNextArmbandForShow(armbandDialog.entry.showId);
+      setArmbandDialog(prev => ({ ...prev, value: String(next), error: null }));
+    } catch (err) {
+      logger.error('Error fetching next armband:', 'secretary', {}, err as Error);
+    }
+  }, [armbandDialog.entry]);
 
   // Handle auto-assign armbands
   const handleAutoAssignArmbands = useCallback(async () => {
@@ -483,6 +495,7 @@ export function useEntryManagementActions({
     setAutoArmbandDialog,
     handleStatusChange,
     handleAssignArmband,
+    handleNextArmband,
     handleAutoAssignArmbands,
     handleCheckInStatusChange,
     handleEnrollmentBulkStatusChange,

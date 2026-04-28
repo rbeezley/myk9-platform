@@ -157,3 +157,20 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
     return { data: null, error: dbError };
   }
 };
+
+/**
+ * Returns the next available armband number for a show (max existing + 1, or 1 if none).
+ */
+export const getNextArmbandForShow = async (showId: string): Promise<number> => {
+  const { data: maxRow } = await supabase
+    .from('entries')
+    .select('armband')
+    .eq('show_id', showId)
+    .is('deleted_at', null)
+    .not('armband', 'is', null)
+    .order('armband', { ascending: false })
+    .limit(1)
+    .single();
+
+  return resolveStartNumber(maxRow?.armband ?? null, 1);
+};

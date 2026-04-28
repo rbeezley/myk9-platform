@@ -17,6 +17,7 @@ interface ArmbandDialogProps {
   dialogState: ArmbandDialogState;
   setDialogState: React.Dispatch<React.SetStateAction<ArmbandDialogState>>;
   onAssign: () => Promise<void>;
+  onNextArmband: () => Promise<void>;
   isProcessing: boolean;
 }
 
@@ -28,6 +29,7 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
   dialogState,
   setDialogState,
   onAssign,
+  onNextArmband,
   isProcessing,
 }) => {
   return (
@@ -44,13 +46,24 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
         </DialogHeader>
         <div className="space-y-4 py-4">
           <FormField label="Armband Number" fieldId="armband-number">
-            <Input
-              id="armband-number"
-              value={dialogState.value}
-              onChange={(e) => setDialogState((prev) => ({ ...prev, value: e.target.value, error: null }))}
-              placeholder="Enter armband number"
-              className={dialogState.error ? 'border-destructive' : ''}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="armband-number"
+                value={dialogState.value}
+                onChange={(e) => setDialogState((prev) => ({ ...prev, value: e.target.value, error: null }))}
+                placeholder="Enter armband number"
+                className={dialogState.error ? 'border-destructive' : ''}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onNextArmband}
+                disabled={isProcessing}
+                title="Fill with next available number"
+              >
+                Next
+              </Button>
+            </div>
           </FormField>
           {dialogState.error && (
             <p className="text-sm text-destructive">{dialogState.error}</p>

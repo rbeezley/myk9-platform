@@ -44,8 +44,7 @@ export function usePaymentProcessing() {
     showId: string,
     className: string,
     memberDiscount: boolean = false,
-    multipleEntryCount: number = 1,
-    entryDate: Date = new Date()
+    multipleEntryCount: number = 1
   ): Promise<FeeCalculation | null> => {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
@@ -53,7 +52,6 @@ export function usePaymentProcessing() {
       const calculation = await paymentService.calculateEntryFee(
         showId,
         className,
-        entryDate,
         memberDiscount,
         multipleEntryCount
       );

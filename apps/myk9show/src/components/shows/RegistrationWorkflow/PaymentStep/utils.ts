@@ -91,8 +91,6 @@ const MULTI_DOG_THRESHOLD = 3;
 /** Multi-dog discount rate. */
 const MULTI_DOG_DISCOUNT_RATE = 0.1;
 
-/** Early bird discount rate. */
-const EARLY_BIRD_DISCOUNT_RATE = 0.05;
 
 /**
  * Calculate the total fees, discounts, and per-dog breakdown for a registration.
@@ -144,14 +142,6 @@ export function calculateTotalFees(
       description: '10% multi-dog discount (3+ dogs)',
     });
   }
-
-  // Early bird discount (mock)
-  const earlyBirdDiscount = subtotal * EARLY_BIRD_DISCOUNT_RATE;
-  discounts.push({
-    type: 'early-bird',
-    amount: earlyBirdDiscount,
-    description: '5% early bird discount',
-  });
 
   const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
   const total = subtotal - discountTotal;

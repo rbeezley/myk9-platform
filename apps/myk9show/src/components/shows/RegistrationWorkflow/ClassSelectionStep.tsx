@@ -56,8 +56,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const { isSecretary, isAdmin } = useAuthContext();
   const { profile: exhibitorProfile } = useExhibitorProfile();
   const { status: syncStatus } = useReplicationSync();
+  // 'idle' means sync hasn't started yet (status initialises to idle before
+  // the first triggerSync() fires). Treat idle + syncing as loading so we
+  // don't flash "no trials" before the first download completes.
   const isTrialsSyncing =
-    syncStatus.isSyncing || syncStatus.tablesStatus.trials === 'syncing';
+    syncStatus.isSyncing ||
+    syncStatus.tablesStatus.trials === 'syncing' ||
+    syncStatus.tablesStatus.trials === 'idle';
 
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
   const [, setIsAddingToCart] = useState<string | null>(null);

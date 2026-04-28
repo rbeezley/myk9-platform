@@ -76,7 +76,6 @@ export class PaymentService {
   async calculateEntryFee(
     showId: string,
     className: string,
-    entryDate: Date = new Date(),
     memberDiscount: boolean = false,
     multipleEntryCount: number = 1
   ): Promise<{ baseFee: number; adjustments: Array<{ type: string; amount: number; description: string }>; totalFee: number }> {
@@ -86,18 +85,6 @@ export class PaymentService {
       const baseFee = 35.00;
       const adjustments: Array<{ type: string; amount: number; description: string }> = [];
       let totalFee = baseFee;
-
-      // Early bird discount
-      const earlyBirdDiscount = 10.00;
-      const earlyBirdDeadline = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
-      if (entryDate <= earlyBirdDeadline) {
-        adjustments.push({
-          type: 'discount',
-          amount: -earlyBirdDiscount,
-          description: 'Early Bird Discount'
-        });
-        totalFee -= earlyBirdDiscount;
-      }
 
       // Member discount
       if (memberDiscount) {

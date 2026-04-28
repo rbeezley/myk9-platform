@@ -38,6 +38,10 @@ async function signInAsSecretary(page: import('@playwright/test').Page) {
 }
 
 test.describe('Secretary Entry Creation', () => {
+  // Serial mode: the full-flow test writes a DB entry; parallel execution causes
+  // race conditions between tests sharing the same staging DB and auth session.
+  test.describe.configure({ mode: 'serial' });
+
   test('entry management page loads with New Entry button', async ({ page }) => {
     await signInAsSecretary(page);
     await page.goto(`/secretary/entries/${TEST_SHOW_ID}`);
@@ -69,7 +73,8 @@ test.describe('Secretary Entry Creation', () => {
       .first();
     await searchInput.fill('Ace');
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(800);
+    // Wait for the virtual list to render the result row
+    await expect(page.getByText(/1 dog/i)).toBeVisible({ timeout: 5000 });
 
     // 2 checkboxes: header + 1 dog row
     await expect(page.locator('[role="checkbox"]')).toHaveCount(2);
@@ -93,11 +98,11 @@ test.describe('Secretary Entry Creation', () => {
       .first();
     await searchInput.fill('Ace');
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(800);
+    // Wait for the virtual list to render the result row before interacting
+    await expect(page.getByText(/1 dog/i)).toBeVisible({ timeout: 5000 });
 
-    // nth(0) = header "select all", nth(1) = dog row
+    // nth(0) = header "select all", nth(1) = dog row (Ace)
     await page.locator('[role="checkbox"]').nth(1).click();
-    await page.waitForTimeout(300);
     await expect(page.locator('[role="checkbox"]').nth(1)).toHaveAttribute('aria-checked', 'true');
 
     // Step 1 → 2
@@ -110,9 +115,12 @@ test.describe('Secretary Entry Creation', () => {
     const classCheckboxes = page.locator('[role="checkbox"]');
     await expect(classCheckboxes.first()).toBeVisible();
 
-    // Click the second class (nth(1)) — Container Novice B — to avoid reusing Novice A
-    await classCheckboxes.nth(1).click();
-    await page.waitForTimeout(300);
+    // Click the second class checkbox (nth(1), after the select-all header at nth(0)).
+    // Container Novice B is the second option in Saturday Trial 1 — avoids
+    // duplicate-entry conflicts with Container Novice A which has a seeded entry.
+    const secondClass = classCheckboxes.nth(1);
+    await secondClass.click();
+    await expect(secondClass).toHaveAttribute('aria-checked', 'true');
 
     await expect(page.getByRole('button', { name: /next/i })).toBeEnabled();
     await page.getByRole('button', { name: /next/i }).click();

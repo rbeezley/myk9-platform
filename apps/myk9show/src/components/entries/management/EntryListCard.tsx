@@ -27,12 +27,12 @@ interface EntryListCardProps {
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   onOpenCheckInDialog: (entry: EntryManagementEntry, classEntry: EntryClass) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
-  onCompEntry?: (entryId: string) => void;
-  onUncompEntry?: (entryId: string) => void;
+  onCompEntry?: ((entryId: string) => void) | undefined;
+  onUncompEntry?: ((entryId: string) => void) | undefined;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
-  hidePaymentBadge?: boolean;
+  hidePaymentBadge?: boolean | undefined;
 }
 
 /**

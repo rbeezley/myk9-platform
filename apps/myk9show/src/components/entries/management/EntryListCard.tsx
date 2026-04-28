@@ -21,9 +21,9 @@ import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 
 interface EntryListCardProps {
   entries: EntryManagementEntry[];
-  selectedEntries: Set<string>;
-  onSelectEntry: (entryId: string, checked: boolean) => void;
-  onSelectAll: (checked: boolean) => void;
+  selectedEntries?: Set<string> | undefined;
+  onSelectEntry?: ((entryId: string, checked: boolean) => void) | undefined;
+  onSelectAll?: ((checked: boolean) => void) | undefined;
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   onOpenCheckInDialog: (entry: EntryManagementEntry, classEntry: EntryClass) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
@@ -33,6 +33,7 @@ interface EntryListCardProps {
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
   hidePaymentBadge?: boolean | undefined;
+  hideHeader?: boolean | undefined;
 }
 
 /**
@@ -53,22 +54,27 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   onResendEmail,
   isResendDisabled,
   hidePaymentBadge,
+  hideHeader,
 }) => {
   return (
     <TooltipProvider>
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Entries ({entries.length})</CardTitle>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={selectedEntries.size === entries.length && entries.length > 0}
-                onCheckedChange={onSelectAll}
-              />
-              <span className="text-sm text-muted-foreground">Select All</span>
+        {!hideHeader && (
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>Entries ({entries.length})</CardTitle>
+              {selectedEntries !== undefined && onSelectAll && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedEntries.size === entries.length && entries.length > 0}
+                    onCheckedChange={onSelectAll}
+                  />
+                  <span className="text-sm text-muted-foreground">Select All</span>
+                </div>
+              )}
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
+        )}
         <CardContent>
           <div className="space-y-4">
             {entries.map(entry => (
@@ -78,10 +84,12 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <Checkbox
-                      checked={selectedEntries.has(entry.id)}
-                      onCheckedChange={checked => onSelectEntry(entry.id, checked as boolean)}
-                    />
+                    {selectedEntries !== undefined && onSelectEntry && (
+                      <Checkbox
+                        checked={selectedEntries.has(entry.id)}
+                        onCheckedChange={checked => onSelectEntry(entry.id, checked as boolean)}
+                      />
+                    )}
 
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">

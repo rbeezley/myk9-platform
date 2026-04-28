@@ -1,23 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { EntryStatus } from '@/types/show-registration-types';
-import { ArrowUpCircle, XCircle, CheckCircle2, List, Table2 } from 'lucide-react';
+import { ArrowUpCircle, XCircle, List, Table2 } from 'lucide-react';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
 import { toast } from 'sonner';
@@ -34,8 +20,6 @@ import type {
   EntryManagementEntry,
   EntryStats,
   EntryClass,
-  BulkAction,
-  BulkActionDialogState,
 } from '@/types/entry-management-types';
 
 interface RegistrationViewProps {
@@ -52,13 +36,6 @@ interface RegistrationViewProps {
   setPaymentFilter: (v: string) => void;
   /** Clear all filters */
   onClearFilters: () => void;
-  /** Currently selected entries (for bulk actions) */
-  selectedEntries: Set<string>;
-  /** Bulk action dialog state */
-  bulkActionDialog: BulkActionDialogState;
-  setBulkActionDialog: (state: BulkActionDialogState) => void;
-  /** Bulk action handler */
-  onBulkAction: (action: BulkAction) => void;
   /** Tab state */
   selectedTab: string;
   setSelectedTab: (tab: string) => void;
@@ -74,9 +51,9 @@ interface RegistrationViewProps {
   filteredEntries: EntryManagementEntry[];
   /** All entries (for looking up entry by id in comp handler) */
   entries: EntryManagementEntry[];
-  /** Selection handlers */
-  onSelectEntry: (entryId: string, checked: boolean) => void;
-  onSelectAll: (checked: boolean) => void;
+  /** Bulk enrollment-level action handlers */
+  onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
+  onBulkCheckIn: (entryIds: string[]) => void;
   /** Status change handler */
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   /** Dialog openers */
@@ -105,17 +82,13 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   paymentFilter,
   setPaymentFilter,
   onClearFilters,
-  selectedEntries,
-  bulkActionDialog,
-  setBulkActionDialog,
-  onBulkAction,
   selectedTab,
   setSelectedTab,
   tabCounts,
   filteredEntries,
   entries,
-  onSelectEntry,
-  onSelectAll,
+  onBulkStatusChange,
+  onBulkCheckIn,
   onStatusChange,
   onOpenCheckInDialog,
   onOpenArmbandDialog,
@@ -173,64 +146,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         setPaymentFilter={setPaymentFilter}
         onClearFilters={onClearFilters}
       />
-
-      {/* Bulk Actions */}
-      {selectedEntries.size > 0 && (
-        <Card className="border-border bg-muted">
-          <CardContent className="p-4">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">{selectedEntries.size} entries selected</span>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => setBulkActionDialog({ open: true, action: 'status_change' })}
-                >
-                  Change Status
-                </Button>
-                <Dialog
-                  open={bulkActionDialog.open && bulkActionDialog.action === 'status_change'}
-                  onOpenChange={open => setBulkActionDialog({ action: 'status_change', open })}
-                >
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Bulk Status Change</DialogTitle>
-                      <DialogDescription>
-                        Change status for {selectedEntries.size} selected entries
-                      </DialogDescription>
-                    </DialogHeader>
-                    <Select
-                      onValueChange={value =>
-                        onBulkAction({
-                          type: 'status_change',
-                          data: { status: value },
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select new status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={EntryStatus.ACCEPTED}>Accept</SelectItem>
-                        <SelectItem value={EntryStatus.WAITLIST}>Move to Waitlist</SelectItem>
-                        <SelectItem value={EntryStatus.REJECTED}>Reject</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </DialogContent>
-                </Dialog>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setBulkActionDialog({ open: true, action: 'check_in' })}
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Bulk Check-In
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Entries Tabs */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
@@ -293,9 +208,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                     if (entry) onOpenCompDialog(entry);
                   }}
                   onUncompEntry={onUncompEntry}
-                  selectedEntries={selectedEntries}
-                  onSelectEntry={onSelectEntry}
-                  onSelectAll={onSelectAll}
+                  onBulkStatusChange={onBulkStatusChange}
+                  onBulkCheckIn={onBulkCheckIn}
                   emailStatusMap={emailStatusMap}
                   onResendEmail={handleResendEmail}
                   isResendDisabled={isResendDisabled}

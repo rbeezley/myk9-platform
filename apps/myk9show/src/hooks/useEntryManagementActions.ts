@@ -8,6 +8,7 @@ import {
   updateEntryStatus,
   updateCheckInStatus,
   bulkCheckIn,
+  bulkUpdateEntryStatus,
   getEntriesForExport,
 } from '@/services/database/queries/secretaryEntryQueries';
 import {
@@ -19,11 +20,9 @@ import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
 import type {
   EntryManagementEntry,
-  BulkAction,
   CheckInDialogState,
   ArmbandDialogState,
   AutoArmbandDialogState,
-  BulkActionDialogState,
 } from '@/types/entry-management-types';
 
 interface UseEntryManagementActionsProps {
@@ -32,8 +31,6 @@ interface UseEntryManagementActionsProps {
   selectedShowId: string;
   loadEntries: (showId: string) => Promise<void>;
   setError: (error: string | null) => void;
-  selectedEntries: Set<string>;
-  setSelectedEntries: React.Dispatch<React.SetStateAction<Set<string>>>;
   user: { id?: string; email?: string } | null;
 }
 
@@ -48,16 +45,14 @@ interface UseEntryManagementActionsReturn {
   setArmbandDialog: React.Dispatch<React.SetStateAction<ArmbandDialogState>>;
   autoArmbandDialog: AutoArmbandDialogState;
   setAutoArmbandDialog: React.Dispatch<React.SetStateAction<AutoArmbandDialogState>>;
-  bulkActionDialog: BulkActionDialogState;
-  setBulkActionDialog: React.Dispatch<React.SetStateAction<BulkActionDialogState>>;
 
   // Actions
   handleStatusChange: (entryId: string, newStatus: EntryStatus) => Promise<void>;
   handleAssignArmband: () => Promise<void>;
   handleAutoAssignArmbands: () => Promise<void>;
-  handleBulkCheckIn: () => Promise<void>;
   handleCheckInStatusUpdate: (status: CheckInStatus, notes?: string) => Promise<void>;
-  handleBulkAction: (action: BulkAction) => Promise<void>;
+  handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<void>;
+  handleEnrollmentBulkCheckIn: (entryIds: string[]) => Promise<void>;
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
@@ -73,8 +68,6 @@ export function useEntryManagementActions({
   selectedShowId,
   loadEntries,
   setError,
-  selectedEntries,
-  setSelectedEntries,
   user,
 }: UseEntryManagementActionsProps): UseEntryManagementActionsReturn {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -93,10 +86,6 @@ export function useEntryManagementActions({
   const [autoArmbandDialog, setAutoArmbandDialog] = useState<AutoArmbandDialogState>({
     open: false,
     startNumber: '1',
-  });
-  const [bulkActionDialog, setBulkActionDialog] = useState<BulkActionDialogState>({
-    open: false,
-    action: null,
   });
 
   // Handle status change
@@ -216,45 +205,62 @@ export function useEntryManagementActions({
     }
   }, [selectedShowId, autoArmbandDialog, loadEntries, setError]);
 
-  // Handle bulk check-in
-  const handleBulkCheckIn = useCallback(async () => {
-    const selectedEntryIds = Array.from(selectedEntries);
-    if (selectedEntryIds.length === 0) return;
-
-    setIsProcessing(true);
-    try {
-      const { error: dbError } = await bulkCheckIn(selectedEntryIds);
-
-      if (dbError) {
-        setError('Failed to bulk check-in');
-        return;
+  // Handle enrollment-level bulk status change
+  const handleEnrollmentBulkStatusChange = useCallback(
+    async (entryIds: string[], status: EntryStatus) => {
+      if (entryIds.length === 0) return;
+      setIsProcessing(true);
+      try {
+        const { error: dbError } = await bulkUpdateEntryStatus(entryIds, mapStatusToDb(status));
+        if (dbError) {
+          setError('Failed to update entry statuses');
+          return;
+        }
+        setEntries(prev =>
+          prev.map(e =>
+            entryIds.includes(e.id) ? { ...e, entryStatus: status, lastUpdated: new Date() } : e
+          )
+        );
+      } catch (err) {
+        setError('Failed to update entry statuses');
+        logger.error('Error bulk updating statuses:', 'secretary', {}, err as Error);
+      } finally {
+        setIsProcessing(false);
       }
+    },
+    [setEntries, setError]
+  );
 
-      setEntries(prev =>
-        prev.map(e => {
-          if (selectedEntryIds.includes(e.id)) {
-            return {
-              ...e,
-              classes: e.classes.map(c => ({
-                ...c,
-                checkInStatus: 'checked-in',
-                checkInTime: new Date(),
-              })),
-            };
-          }
-          return e;
-        })
-      );
-
-      setSelectedEntries(new Set());
-      setBulkActionDialog({ open: false, action: null });
-    } catch (err) {
-      setError('Failed to bulk check-in');
-      logger.error('Error bulk check-in:', 'secretary', {}, err as Error);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [selectedEntries, setEntries, setSelectedEntries, setError]);
+  // Handle enrollment-level bulk check-in
+  const handleEnrollmentBulkCheckIn = useCallback(
+    async (entryIds: string[]) => {
+      if (entryIds.length === 0) return;
+      setIsProcessing(true);
+      try {
+        const { error: dbError } = await bulkCheckIn(entryIds);
+        if (dbError) {
+          setError('Failed to check in entries');
+          return;
+        }
+        setEntries(prev =>
+          prev.map(e =>
+            entryIds.includes(e.id)
+              ? {
+                  ...e,
+                  classes: e.classes.map(cls => ({ ...cls, checkInStatus: 'checked-in' as const })),
+                }
+              : e
+          )
+        );
+      } catch (err) {
+        setError('Failed to check in entries');
+        logger.error('Error bulk checking in entries:', 'secretary', {}, err as Error);
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [setEntries, setError]
+  );
 
   // Handle check-in status update
   const handleCheckInStatusUpdate = useCallback(
@@ -333,57 +339,6 @@ export function useEntryManagementActions({
       }
     },
     [checkInDialog, setEntries, user]
-  );
-
-  // Handle bulk action
-  const handleBulkAction = useCallback(
-    async (action: BulkAction) => {
-      const selectedEntryIds = Array.from(selectedEntries);
-
-      try {
-        switch (action.type) {
-          case 'status_change':
-            for (const entryId of selectedEntryIds) {
-              await handleStatusChange(entryId, action.data.status as EntryStatus);
-            }
-            break;
-
-          case 'send_notification':
-            await auditService.log({
-              action: AuditAction.SYSTEM_ACTION,
-              entityType: 'bulk_notification',
-              entityId: 'bulk_' + Date.now(),
-              metadata: {
-                action: 'send_notification',
-                entryCount: selectedEntryIds.length,
-                message: action.data.message,
-                secretaryId: user?.id,
-              },
-            });
-            break;
-
-          case 'export':
-            await auditService.log({
-              action: AuditAction.EXPORT,
-              entityType: 'entries_export',
-              entityId: 'export_' + Date.now(),
-              metadata: {
-                action: 'export_entries',
-                entryCount: selectedEntryIds.length,
-                format: action.data.format,
-                secretaryId: user?.id,
-              },
-            });
-            break;
-        }
-
-        setSelectedEntries(new Set());
-        setBulkActionDialog({ open: false, action: null });
-      } catch (error) {
-        logger.error('Failed to execute bulk action:', 'pages', {}, error as Error);
-      }
-    },
-    [selectedEntries, handleStatusChange, setSelectedEntries, user]
   );
 
   // Handle CSV export
@@ -554,14 +509,12 @@ export function useEntryManagementActions({
     setArmbandDialog,
     autoArmbandDialog,
     setAutoArmbandDialog,
-    bulkActionDialog,
-    setBulkActionDialog,
     handleStatusChange,
     handleAssignArmband,
     handleAutoAssignArmbands,
-    handleBulkCheckIn,
     handleCheckInStatusUpdate,
-    handleBulkAction,
+    handleEnrollmentBulkStatusChange,
+    handleEnrollmentBulkCheckIn,
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,

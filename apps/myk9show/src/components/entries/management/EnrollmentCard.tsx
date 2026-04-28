@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ChevronDown, ChevronUp, Receipt, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EntryListCard } from './EntryListCard';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@myk9/core';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import {
@@ -27,6 +35,7 @@ interface EnrollmentCardProps {
   onUncompEntry?: (entryId: string) => void;
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onBulkCheckIn: (entryIds: string[]) => void;
+  onPaymentStatusChange: (enrollmentId: string, status: PaymentStatus, reference?: string | null) => void;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
@@ -41,14 +50,24 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onUncompEntry,
   onBulkStatusChange,
   onBulkCheckIn,
+  onPaymentStatusChange,
   emailStatusMap,
   onResendEmail,
   isResendDisabled,
 }) => {
   const [expanded, setExpanded] = useState(true);
+  const [checkDialog, setCheckDialog] = useState<{ open: boolean; checkNumber: string }>({
+    open: false,
+    checkNumber: '',
+  });
 
   const dollars = group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
   const displayTotal = `$${dollars.toFixed(2)}`;
+  const enrollmentId = group.enrollmentId ?? '';
+
+  const handlePayment = (status: PaymentStatus, reference?: string | null) => {
+    if (enrollmentId) onPaymentStatusChange(enrollmentId, status, reference);
+  };
 
   return (
     <Card className="border border-border/60">
@@ -71,8 +90,37 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {getPaymentStatusBadge(group.paymentStatus)}
+            {/* Clickable payment status badge */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+                  {getPaymentStatusBadge(group.paymentStatus)}
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_BY_CASH)}>
+                  Paid — Cash
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCheckDialog({ open: true, checkNumber: '' })}>
+                  Paid — Check…
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_ONLINE)}>
+                  Paid — Online
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.REFUNDED)}>
+                  Refunded
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PENDING)}>
+                  Pending
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <span className="text-sm font-medium">{displayTotal}</span>
+
+            {/* Enrollment-level bulk actions */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="outline" className="h-7 gap-1 text-xs px-2">
@@ -81,44 +129,16 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() =>
-                    onBulkStatusChange(
-                      group.entries.map(e => e.id),
-                      EntryStatus.ACCEPTED
-                    )
-                  }
-                >
+                <DropdownMenuItem onClick={() => onBulkStatusChange(group.entries.map(e => e.id), EntryStatus.ACCEPTED)}>
                   Accept All
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    onBulkStatusChange(
-                      group.entries.map(e => e.id),
-                      EntryStatus.WAITLIST
-                    )
-                  }
-                >
+                <DropdownMenuItem onClick={() => onBulkStatusChange(group.entries.map(e => e.id), EntryStatus.WAITLIST)}>
                   Waitlist All
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    onBulkStatusChange(
-                      group.entries.map(e => e.id),
-                      EntryStatus.REJECTED
-                    )
-                  }
-                >
+                <DropdownMenuItem onClick={() => onBulkStatusChange(group.entries.map(e => e.id), EntryStatus.REJECTED)}>
                   Reject All
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    onBulkStatusChange(
-                      group.entries.map(e => e.id),
-                      EntryStatus.MISSING_INFO
-                    )
-                  }
-                >
+                <DropdownMenuItem onClick={() => onBulkStatusChange(group.entries.map(e => e.id), EntryStatus.MISSING_INFO)}>
                   Missing Info
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -127,6 +147,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
             <Button
               size="sm"
               variant="ghost"
@@ -139,6 +160,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
           </div>
         </div>
       </CardHeader>
+
       {expanded && (
         <CardContent className={cn('pt-0 px-0 pb-2')}>
           <EntryListCard
@@ -156,6 +178,36 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
           />
         </CardContent>
       )}
+
+      {/* Check number dialog — local to this card */}
+      <Dialog open={checkDialog.open} onOpenChange={open => !open && setCheckDialog({ open: false, checkNumber: '' })}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Record Check Payment</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="Check number (optional)"
+              value={checkDialog.checkNumber}
+              onChange={e => setCheckDialog(prev => ({ ...prev, checkNumber: e.target.value }))}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCheckDialog({ open: false, checkNumber: '' })}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                handlePayment(PaymentStatus.PAID_BY_CHECK, checkDialog.checkNumber || null);
+                setCheckDialog({ open: false, checkNumber: '' });
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

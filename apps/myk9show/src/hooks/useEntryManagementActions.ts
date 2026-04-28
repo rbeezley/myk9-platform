@@ -17,6 +17,7 @@ import {
   getNextArmbandForShow,
 } from '@/services/database/queries/secretaryArmbandQueries';
 import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
+import { updateEnrollmentPaymentStatus } from '@/services/database/queries/showRegistrationQueries';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
 import type {
@@ -57,6 +58,11 @@ interface UseEntryManagementActionsReturn {
   ) => Promise<void>;
   handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<void>;
   handleEnrollmentBulkCheckIn: (entryIds: string[]) => Promise<void>;
+  handleEnrollmentPaymentChange: (
+    enrollmentId: string,
+    status: PaymentStatus,
+    reference?: string | null
+  ) => Promise<void>;
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
@@ -266,6 +272,38 @@ export function useEntryManagementActions({
         logger.error('Error bulk checking in entries:', 'secretary', {}, err as Error);
       } finally {
         setIsProcessing(false);
+      }
+    },
+    [setEntries, setError]
+  );
+
+  const handleEnrollmentPaymentChange = useCallback(
+    async (enrollmentId: string, status: PaymentStatus, reference?: string | null) => {
+      try {
+        const { error: dbError } = await updateEnrollmentPaymentStatus(
+          enrollmentId,
+          status,
+          reference
+        );
+        if (dbError) {
+          setError('Failed to update payment status');
+          return;
+        }
+        // Update local state: set enrollmentPaymentStatus on all entries for this enrollment
+        setEntries(prev =>
+          prev.map(e =>
+            e.registrationId === enrollmentId
+              ? {
+                  ...e,
+                  enrollmentPaymentStatus: status,
+                  ...(reference != null ? { enrollmentPaymentReference: reference } : {}),
+                }
+              : e
+          )
+        );
+      } catch (err) {
+        setError('Failed to update payment status');
+        logger.error('Error updating enrollment payment:', 'secretary', {}, err as Error);
       }
     },
     [setEntries, setError]
@@ -500,6 +538,7 @@ export function useEntryManagementActions({
     handleCheckInStatusChange,
     handleEnrollmentBulkStatusChange,
     handleEnrollmentBulkCheckIn,
+    handleEnrollmentPaymentChange,
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,

@@ -134,6 +134,7 @@ const EntryManagementPage: React.FC = () => {
     handleAutoAssignArmbands,
     handleEnrollmentBulkStatusChange,
     handleEnrollmentBulkCheckIn,
+    handleEnrollmentPaymentChange,
     handleCheckInStatusChange,
     handleExportCSV,
     handleCompEntry,
@@ -397,6 +398,7 @@ const EntryManagementPage: React.FC = () => {
                   entries={entries}
                   onBulkStatusChange={handleEnrollmentBulkStatusChange}
                   onBulkCheckIn={handleEnrollmentBulkCheckIn}
+                  onPaymentStatusChange={handleEnrollmentPaymentChange}
                   onStatusChange={handleStatusChange}
                   onCheckInStatusChange={handleCheckInStatusChange}
                   onOpenArmbandDialog={entry =>

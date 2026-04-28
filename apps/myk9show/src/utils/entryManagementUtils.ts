@@ -37,11 +37,19 @@ export const mapEntryStatus = (status?: string | null): EntryStatus => {
 export const mapPaymentStatus = (status?: string | null): PaymentStatus => {
   switch (status) {
     case 'paid':
+    case PaymentStatus.PAID_ONLINE:
       return PaymentStatus.PAID_ONLINE;
-    case 'pending':
-      return PaymentStatus.PENDING;
+    case PaymentStatus.PAID_BY_CHECK:
+      return PaymentStatus.PAID_BY_CHECK;
+    case PaymentStatus.PAID_BY_CASH:
+      return PaymentStatus.PAID_BY_CASH;
     case 'refunded':
+    case PaymentStatus.REFUNDED:
       return PaymentStatus.REFUNDED;
+    case PaymentStatus.PARTIAL_REFUND:
+      return PaymentStatus.PARTIAL_REFUND;
+    case 'pending':
+    case PaymentStatus.PENDING:
     default:
       return PaymentStatus.PENDING;
   }

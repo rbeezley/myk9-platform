@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { ArrowUpCircle, XCircle, List, Table2 } from 'lucide-react';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
@@ -55,6 +55,7 @@ interface RegistrationViewProps {
   /** Bulk enrollment-level action handlers */
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onBulkCheckIn: (entryIds: string[]) => void;
+  onPaymentStatusChange: (enrollmentId: string, status: PaymentStatus, reference?: string | null) => void;
   /** Status change handler */
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   /** Check-in inline handler */
@@ -91,6 +92,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   entries,
   onBulkStatusChange,
   onBulkCheckIn,
+  onPaymentStatusChange,
   onStatusChange,
   onCheckInStatusChange,
   onOpenArmbandDialog,
@@ -212,6 +214,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                   onUncompEntry={onUncompEntry}
                   onBulkStatusChange={onBulkStatusChange}
                   onBulkCheckIn={onBulkCheckIn}
+                  onPaymentStatusChange={onPaymentStatusChange}
                   emailStatusMap={emailStatusMap}
                   onResendEmail={handleResendEmail}
                   isResendDisabled={isResendDisabled}

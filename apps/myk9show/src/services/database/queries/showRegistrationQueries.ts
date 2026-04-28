@@ -282,3 +282,42 @@ export const getConfirmationNumbersForEntries = async (
     return { data: new Map(), error: dbError };
   }
 };
+
+/**
+ * Update the payment status (and optionally payment_reference) for an enrollment.
+ * Used by secretaries to record cash/check payments received on show day.
+ */
+export const updateEnrollmentPaymentStatus = async (
+  enrollmentId: string,
+  paymentStatus: string,
+  paymentReference?: string | null
+) => {
+  const startTime = Date.now();
+  try {
+    const updateData: Record<string, unknown> = {
+      payment_status: paymentStatus,
+      updated_at: new Date().toISOString(),
+    };
+    if (paymentReference !== undefined) {
+      updateData.payment_reference = paymentReference;
+    }
+
+    const { data, error } = await supabase
+      .from('enrollments')
+      .update(updateData)
+      .eq('id', enrollmentId)
+      .select('id, payment_status, payment_reference')
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('enrollments', 'update_payment_status', duration, error?.message);
+
+    if (error) throw createDatabaseError(error, 'enrollments', 'update_payment_status');
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'enrollments', 'update_payment_status');
+    logQuery('enrollments', 'update_payment_status', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};

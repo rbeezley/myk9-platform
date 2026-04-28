@@ -32,6 +32,7 @@ interface EntryListCardProps {
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
+  hidePaymentBadge?: boolean;
 }
 
 /**
@@ -51,6 +52,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   emailStatusMap,
   onResendEmail,
   isResendDisabled,
+  hidePaymentBadge,
 }) => {
   return (
     <TooltipProvider>
@@ -105,7 +107,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
 
                       <div className="flex items-center gap-2">
                         {getEntryStatusBadge(entry.entryStatus)}
-                        {getPaymentStatusBadge(entry.paymentStatus)}
+                        {!hidePaymentBadge && getPaymentStatusBadge(entry.paymentStatus)}
                         {emailStatusMap && (
                           <EmailStatusIcon
                             status={emailStatusMap[entry.registrationId]?.status}

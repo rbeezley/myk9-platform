@@ -12,6 +12,7 @@ import { useCartStore, useCartItems } from '@/stores/cartStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { toast } from 'sonner';
 import { InlineHandlerSection } from './InlineHandlerSection';
 import type { ClassSelectionStepProps, ElementGroup } from './ClassSelectionStep.types';
@@ -54,6 +55,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const trialClasses = useTrialStore(s => s.trialClasses);
   const { isSecretary, isAdmin } = useAuthContext();
   const { profile: exhibitorProfile } = useExhibitorProfile();
+  const { status: syncStatus } = useReplicationSync();
+  const isTrialsSyncing =
+    syncStatus.isSyncing || syncStatus.tablesStatus.trials === 'syncing';
 
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
   const [, setIsAddingToCart] = useState<string | null>(null);
@@ -287,8 +291,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
             <TabsContent key={dogId} value={dogId}>
               <Card>
                 <CardContent className="pt-4">
-                  {showTrials.length === 0 ? (
-                    <NoTrialsAlert />
+                  {showTrials.length === 0 && isTrialsSyncing ? (
+                    <div className="text-sm text-muted-foreground py-4 text-center">
+                      Loading trials…
+                    </div>
+                  ) : showTrials.length === 0 ? (
+                    <NoTrialsAlert isOrganizer={isSecretary || isAdmin} />
                   ) : classesByTrialElement.size === 0 ? (
                     <NoClassesAlert trialCount={showTrials.length} />
                   ) : (

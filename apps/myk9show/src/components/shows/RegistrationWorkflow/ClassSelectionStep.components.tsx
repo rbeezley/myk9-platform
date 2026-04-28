@@ -262,11 +262,17 @@ const LevelChip: React.FC<LevelChipProps> = ({
 
 // ─── Empty States ──────────────────────────────────────────────────────────────
 
-export const NoTrialsAlert: React.FC = () => (
+interface NoTrialsAlertProps {
+  isOrganizer?: boolean;
+}
+
+export const NoTrialsAlert: React.FC<NoTrialsAlertProps> = ({ isOrganizer }) => (
   <Alert>
     <Info className="h-4 w-4" />
     <AlertDescription>
-      No trials found for this show. Please contact the show organizer.
+      {isOrganizer
+        ? 'This show has no trials yet. Add trials in the show management page before registering entries.'
+        : 'No trials found for this show. Please contact the show organizer.'}
     </AlertDescription>
   </Alert>
 );

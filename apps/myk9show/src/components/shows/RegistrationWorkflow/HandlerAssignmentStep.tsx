@@ -8,6 +8,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { ClassSelectionData, HandlerInfo, makeHandlerKey } from '@/types/show-registration-types';
 import { getDogDisplayName } from '@/types/dog-types';
+import { compareLevels } from '@/utils/schedule-summary';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
 
 type EditingTarget =
@@ -51,11 +52,20 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
               key,
               classId: cls.classId,
               className: classData?.className || classData?.element || 'Unknown Class',
+              element: classData?.element ?? '',
+              level: classData?.level ?? '',
+              section: classData?.section ?? '',
               handler,
               hasHandler: !!handler?.handlerName,
             };
           })
-        );
+        ).sort((a, b) => {
+          const elemCmp = a.element.localeCompare(b.element);
+          if (elemCmp !== 0) return elemCmp;
+          const levelCmp = compareLevels(a.level, b.level);
+          if (levelCmp !== 0) return levelCmp;
+          return a.section.localeCompare(b.section);
+        });
 
         return { dog, entries };
       })

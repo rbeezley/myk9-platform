@@ -86,7 +86,18 @@ interface WaitlistOfferData {
   expiresAt: string;
 }
 
-type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData | WaitlistOfferData;
+interface EntryDecisionData {
+  type: 'entry_decision';
+  to: string;
+  exhibitorName: string;
+  showName: string;
+  showDate: string;
+  /** One or more entries decided. All share the same decision status. */
+  entries: Array<{ dogName: string; className: string; armbandNumber?: string }>;
+  decision: 'accepted' | 'rejected' | 'waitlisted';
+}
+
+type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData | WaitlistOfferData | EntryDecisionData;
 
 Deno.serve(async req => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -159,6 +170,13 @@ Deno.serve(async req => {
         subject = `Spot Available! ${data.className} - ${data.showName}`;
         html = generateWaitlistOfferEmail(data);
         break;
+
+      case 'entry_decision': {
+        const decisionLabel = data.decision === 'accepted' ? 'Accepted' : data.decision === 'rejected' ? 'Rejected' : 'Waitlisted';
+        subject = `Entry ${decisionLabel} - ${data.dogName} in ${data.className} at ${data.showName}`;
+        html = generateEntryDecisionEmail(data);
+        break;
+      }
 
       default:
         return jsonResponse({ error: `Unknown email type: ${(data as EmailData).type}` }, 400);
@@ -554,6 +572,62 @@ function generateWaitlistOfferEmail(data: WaitlistOfferData): string {
           This email was sent by myK9Show<br>
           &copy; ${new Date().getFullYear()} myK9Show. All rights reserved.
         </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+function generateEntryDecisionEmail(data: EntryDecisionData): string {
+  const colors = {
+    accepted: { bg: '#d1fae5', border: '#10b981', text: '#065f46', label: 'Accepted' },
+    rejected: { bg: '#fee2e2', border: '#ef4444', text: '#7f1d1d', label: 'Rejected' },
+    waitlisted: { bg: '#fef3c7', border: '#f59e0b', text: '#78350f', label: 'Waitlisted' },
+  };
+  const c = colors[data.decision];
+  const entriesHtml = data.entries.map(e => `
+    <tr>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">${escapeHtml(e.dogName)}</td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280;">${escapeHtml(e.className)}</td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280; text-align: right;">${e.armbandNumber ? `#${escapeHtml(e.armbandNumber)}` : ''}</td>
+    </tr>`).join('');
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; margin: 0; padding: 0; background-color: #f3f4f6;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 24px 16px;">
+    <div style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <div style="background-color: #1f2937; padding: 24px; text-align: center;">
+        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">myK9Show</h1>
+      </div>
+      <div style="padding: 32px;">
+        <p style="margin: 0 0 16px;">Hi ${escapeHtml(data.exhibitorName)},</p>
+        <div style="background-color: ${c.bg}; border-left: 4px solid ${c.border}; border-radius: 4px; padding: 16px; margin-bottom: 24px;">
+          <p style="margin: 0; font-weight: 700; color: ${c.text}; font-size: 16px;">${data.entries.length === 1 ? 'Entry' : `${data.entries.length} Entries`} ${c.label}</p>
+          <p style="margin: 4px 0 0; color: ${c.text}; font-size: 14px;">${escapeHtml(data.showName)} · ${escapeHtml(data.showDate)}</p>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 8px 0; border-bottom: 2px solid #e5e7eb; font-size: 13px; color: #6b7280; font-weight: 600;">Dog</th>
+              <th style="text-align: left; padding: 8px 0; border-bottom: 2px solid #e5e7eb; font-size: 13px; color: #6b7280; font-weight: 600;">Class</th>
+              <th style="text-align: right; padding: 8px 0; border-bottom: 2px solid #e5e7eb; font-size: 13px; color: #6b7280; font-weight: 600;">Armband</th>
+            </tr>
+          </thead>
+          <tbody>${entriesHtml}</tbody>
+        </table>
+        ${data.decision === 'waitlisted' ? `<p style="color: #6b7280; font-size: 14px;">You're on the waitlist. We'll notify you if a spot opens up.</p>` : ''}
+        ${data.decision === 'rejected' ? `<p style="color: #6b7280; font-size: 14px;">If you have questions, please contact the show secretary.</p>` : ''}
+      </div>
+      <div style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
+        <p style="margin: 0; color: #9ca3af; font-size: 12px;">This email was sent by myK9Show<br>&copy; ${new Date().getFullYear()} myK9Show. All rights reserved.</p>
       </div>
     </div>
   </div>

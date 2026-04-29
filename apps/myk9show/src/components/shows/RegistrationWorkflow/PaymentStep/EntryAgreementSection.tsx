@@ -11,6 +11,7 @@ export const EntryAgreementSection = ({
   organization,
   agreed,
   onAgree,
+  isOnBehalf = false,
 }: EntryAgreementSectionProps) => {
   const { data, isLoading, isError, refetch } = useOrganizationAgreement(organization);
 
@@ -53,7 +54,9 @@ export const EntryAgreementSection = ({
           className="mt-1"
         />
         <Label htmlFor="entry-agreement" className="text-sm text-muted-foreground cursor-pointer">
-          I have read and agree to the {organization} entry agreement above.
+          {isOnBehalf
+            ? `The exhibitor has read and agrees to the ${organization} entry agreement above (confirmed via entry form).`
+            : `I have read and agree to the ${organization} entry agreement above.`}
         </Label>
       </div>
     </div>

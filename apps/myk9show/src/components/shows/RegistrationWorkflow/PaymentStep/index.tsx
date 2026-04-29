@@ -36,7 +36,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const { dogs } = useDogStoreCompat();
   const { classes = [] } = useClassStoreCompat();
   const { shows = [] } = useShowStore();
-  useRegistrationPermissions();
+  const { isSecretary, isClubAdmin, isSiteAdmin } = useRegistrationPermissions();
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
 
@@ -103,6 +103,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           organization={show.organization}
           agreed={agreed}
           onAgree={handleAgree}
+          isOnBehalf={isSecretary || isClubAdmin || isSiteAdmin}
         />
       )}
 

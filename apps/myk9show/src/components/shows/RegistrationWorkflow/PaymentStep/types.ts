@@ -107,4 +107,6 @@ export interface EntryAgreementSectionProps {
   organization: string;
   agreed: boolean;
   onAgree: (agreed: boolean) => void;
+  /** True when a secretary/admin is entering on behalf of an exhibitor. */
+  isOnBehalf?: boolean;
 }

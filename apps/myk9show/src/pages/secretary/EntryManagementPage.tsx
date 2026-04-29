@@ -137,6 +137,7 @@ const EntryManagementPage: React.FC = () => {
     entries,
     setEntries,
     selectedShowId,
+    selectedShow: shows.find(s => s.id === selectedShowId) ?? null,
     loadEntries,
     setError,
     user,

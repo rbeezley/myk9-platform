@@ -19,6 +19,7 @@ import {
   getEntryArmbandById,
 } from '@/services/database/queries/secretaryArmbandQueries';
 import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
+import { supabase } from '@/services/database/supabaseClient';
 import { updateEnrollmentPaymentStatus } from '@/services/database/queries/showRegistrationQueries';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
@@ -33,6 +34,7 @@ interface UseEntryManagementActionsProps {
   entries: EntryManagementEntry[];
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
   selectedShowId: string;
+  selectedShow: { name?: string | null; start_date?: string | null } | null;
   loadEntries: (showId: string) => Promise<void>;
   setError: (error: string | null) => void;
   user: { id?: string; email?: string } | null;
@@ -79,6 +81,7 @@ export function useEntryManagementActions({
   entries,
   setEntries,
   selectedShowId,
+  selectedShow,
   loadEntries,
   setError,
   user,
@@ -142,6 +145,35 @@ export function useEntryManagementActions({
         if (newStatus === EntryStatus.ACCEPTED) {
           await applyTriggerArmband(entryId);
         }
+
+        // Fire-and-forget decision email for accepted/rejected/waitlisted
+        if (
+          entry.ownerEmail &&
+          (newStatus === EntryStatus.ACCEPTED ||
+            newStatus === EntryStatus.REJECTED ||
+            newStatus === EntryStatus.WAITLIST)
+        ) {
+          const decisionMap: Record<string, 'accepted' | 'rejected' | 'waitlisted'> = {
+            [EntryStatus.ACCEPTED]: 'accepted',
+            [EntryStatus.REJECTED]: 'rejected',
+            [EntryStatus.WAITLIST]: 'waitlisted',
+          };
+          supabase.functions
+            .invoke('send-email', {
+              body: {
+                type: 'entry_decision',
+                to: entry.ownerEmail,
+                exhibitorName: entry.ownerName,
+                showName: selectedShow?.name ?? 'the show',
+                showDate: selectedShow?.start_date ?? '',
+                entries: [{ dogName: entry.dogName, className: entry.classes?.[0]?.name ?? 'Unknown Class', armbandNumber: entry.armbandNumber }],
+                decision: decisionMap[newStatus],
+              },
+            })
+            .catch(err => {
+              logger.warn('Failed to send entry decision email', 'pages', {}, err as Error);
+            });
+        }
       } catch (error) {
         logger.error('Failed to update entry status:', 'pages', {}, error as Error);
         setEntries(prev =>
@@ -149,7 +181,7 @@ export function useEntryManagementActions({
         );
       }
     },
-    [entries, setEntries, user, applyTriggerArmband]
+    [entries, setEntries, user, applyTriggerArmband, selectedShow]
   );
 
   // Handle armband assignment
@@ -238,6 +270,8 @@ export function useEntryManagementActions({
     async (entryIds: string[], status: EntryStatus) => {
       if (entryIds.length === 0) return;
       setIsProcessing(true);
+      // Capture entry data before the DB update for email sending
+      const affectedEntries = entries.filter(e => entryIds.includes(e.id));
       try {
         const { error: dbError } = await bulkUpdateEntryStatus(entryIds, mapStatusToDb(status));
         if (dbError) {
@@ -254,6 +288,49 @@ export function useEntryManagementActions({
         if (status === EntryStatus.ACCEPTED && selectedShowId) {
           await loadEntries(selectedShowId);
         }
+
+        // Send one consolidated email per unique exhibitor for all decided entries
+        if (
+          status === EntryStatus.ACCEPTED ||
+          status === EntryStatus.REJECTED ||
+          status === EntryStatus.WAITLIST
+        ) {
+          const decisionMap: Record<string, 'accepted' | 'rejected' | 'waitlisted'> = {
+            [EntryStatus.ACCEPTED]: 'accepted',
+            [EntryStatus.REJECTED]: 'rejected',
+            [EntryStatus.WAITLIST]: 'waitlisted',
+          };
+          const decision = decisionMap[status];
+          // Group affected entries by ownerEmail so each exhibitor gets one email
+          const byEmail = new Map<string, typeof affectedEntries>();
+          for (const e of affectedEntries) {
+            if (!e.ownerEmail) continue;
+            const group = byEmail.get(e.ownerEmail) ?? [];
+            group.push(e);
+            byEmail.set(e.ownerEmail, group);
+          }
+          for (const [email, group] of byEmail) {
+            supabase.functions
+              .invoke('send-email', {
+                body: {
+                  type: 'entry_decision',
+                  to: email,
+                  exhibitorName: group[0].ownerName,
+                  showName: selectedShow?.name ?? 'the show',
+                  showDate: selectedShow?.start_date ?? '',
+                  entries: group.map(e => ({
+                    dogName: e.dogName,
+                    className: e.classes?.[0]?.name ?? 'Unknown Class',
+                    armbandNumber: e.armbandNumber,
+                  })),
+                  decision,
+                },
+              })
+              .catch(err => {
+                logger.warn('Failed to send bulk decision email', 'pages', {}, err as Error);
+              });
+          }
+        }
       } catch (err) {
         setError('Failed to update entry statuses');
         logger.error('Error bulk updating statuses:', 'secretary', {}, err as Error);
@@ -261,7 +338,7 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [setEntries, setError, selectedShowId, loadEntries]
+    [entries, setEntries, setError, selectedShowId, selectedShow, loadEntries]
   );
 
   // Handle enrollment-level bulk check-in

@@ -404,8 +404,8 @@ const EntryManagementPage: React.FC = () => {
                   onRefresh={() => loadEntries(selectedShowId)}
                   enrollmentGroups={enrollmentGroups}
                   lastEmailedMap={lastEmailedMap}
-                  onSendDecisionEmail={async (registrationId) => {
-                    await handleSendDecisionEmail(registrationId);
+                  onSendDecisionEmail={async (registrationId, message) => {
+                    await handleSendDecisionEmail(registrationId, message);
                     const regIds = [...new Set(entries.map(e => e.registrationId).filter(Boolean))];
                     refreshEmailLog(regIds);
                   }}

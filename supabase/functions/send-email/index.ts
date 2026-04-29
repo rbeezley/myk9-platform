@@ -93,6 +93,7 @@ interface EntryDecisionData {
   showName: string;
   showDate: string;
   registrationId?: string;
+  message?: string;
   entries: Array<{
     dogName: string;
     className: string;
@@ -632,8 +633,13 @@ function generateEntryDecisionEmail(data: EntryDecisionData): string {
           </thead>
           <tbody>${entriesHtml}</tbody>
         </table>
-        ${hasWaitlisted ? `<p style="color: #6b7280; font-size: 14px;">Waitlisted entries: you'll be notified if a spot opens up.</p>` : ''}
-        ${hasRejected ? `<p style="color: #6b7280; font-size: 14px;">If you have questions about a rejected entry, please contact the show secretary.</p>` : ''}
+        ${data.message ? `
+        <div style="background-color: #eff6ff; border-radius: 6px; padding: 16px; margin-top: 16px; border-left: 4px solid #3b82f6;">
+          <p style="margin: 0 0 4px; font-weight: 600; font-size: 14px; color: #1e40af;">From the show secretary</p>
+          <p style="margin: 0; color: #1e3a5f; font-size: 14px; line-height: 22px; white-space: pre-line;">${escapeHtml(data.message)}</p>
+        </div>` : ''}
+        ${hasWaitlisted ? `<p style="color: #6b7280; font-size: 14px; margin-top: 16px;">Waitlisted entries: you'll be notified if a spot opens up.</p>` : ''}
+        ${hasRejected ? `<p style="color: #6b7280; font-size: 14px; margin-top: 8px;">If you have questions about a rejected entry, please contact the show secretary.</p>` : ''}
       </div>
       <div style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
         <p style="margin: 0; color: #9ca3af; font-size: 12px;">This email was sent by myK9Show<br>&copy; ${new Date().getFullYear()} myK9Show. All rights reserved.</p>

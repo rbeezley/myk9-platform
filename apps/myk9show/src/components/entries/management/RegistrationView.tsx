@@ -70,7 +70,7 @@ interface RegistrationViewProps {
   onRefresh: () => void;
   /** Entries grouped by enrollment/order for the list view */
   enrollmentGroups: EnrollmentGroup[];
-  onSendDecisionEmail: (registrationId: string) => Promise<void>;
+  onSendDecisionEmail: (registrationId: string, message?: string) => Promise<void>;
   lastEmailedMap?: Record<string, string>;
 }
 

@@ -71,7 +71,7 @@ interface UseEntryManagementActionsReturn {
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
-  handleSendDecisionEmail: (registrationId: string) => Promise<void>;
+  handleSendDecisionEmail: (registrationId: string, message?: string) => Promise<void>;
 }
 
 /**
@@ -561,7 +561,7 @@ export function useEntryManagementActions({
   };
 
   const handleSendDecisionEmail = useCallback(
-    async (registrationId: string) => {
+    async (registrationId: string, message?: string) => {
       const registrationEntries = entries.filter(e => e.registrationId === registrationId);
       if (registrationEntries.length === 0) return;
 
@@ -580,6 +580,7 @@ export function useEntryManagementActions({
             showName: selectedShow?.name ?? 'the show',
             showDate: selectedShow?.start_date ?? '',
             registrationId,
+            ...(message ? { message } : {}),
             entries: registrationEntries.map(e => ({
               dogName: e.dogName,
               className: e.classes?.[0]?.name ?? 'Unknown Class',

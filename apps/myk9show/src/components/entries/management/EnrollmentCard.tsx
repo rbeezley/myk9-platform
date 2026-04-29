@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -56,7 +58,7 @@ interface EnrollmentCardProps {
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
-  onSendDecisionEmail?: ((registrationId: string) => Promise<void>) | undefined;
+  onSendDecisionEmail?: ((registrationId: string, message?: string) => Promise<void>) | undefined;
   lastDecisionEmailedAt?: string | undefined;
 }
 
@@ -88,6 +90,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const [checkDialog, setCheckDialog] = useState<CheckDialog>(EMPTY_CHECK_DIALOG);
   const [partialDialog, setPartialDialog] = useState<PartialDialog>(EMPTY_PARTIAL_DIALOG);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailMessage, setEmailMessage] = useState('');
 
   const enrollmentId = group.enrollmentId ?? '';
   const totalDollars = group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
@@ -221,18 +225,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   size="sm"
                   variant="outline"
                   className="h-7 gap-1 text-xs px-2"
-                  disabled={isSendingEmail}
-                  onClick={async () => {
-                    setIsSendingEmail(true);
-                    await onSendDecisionEmail(enrollmentId);
-                    setIsSendingEmail(false);
-                  }}
+                  onClick={() => { setEmailMessage(''); setEmailDialogOpen(true); }}
                   title="Send decision email to exhibitor"
                 >
-                  {isSendingEmail
-                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                    : <Mail className="h-3 w-3" />}
-                  {isSendingEmail ? 'Sending…' : 'Email Exhibitor'}
+                  <Mail className="h-3 w-3" />
+                  Email Exhibitor
                 </Button>
               </div>
             )}
@@ -374,6 +371,47 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               disabled={!partialDialog.amountPaid || !(parseFloat(partialDialog.amountPaid) > 0)}
             >
               Record Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Exhibitor dialog */}
+      <Dialog open={emailDialogOpen} onOpenChange={open => { if (!isSendingEmail) setEmailDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Email Exhibitor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Sending entry decisions to <strong>{group.entries[0]?.ownerName ?? 'exhibitor'}</strong>.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="email-message">Message to exhibitor <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Textarea
+                id="email-message"
+                value={emailMessage}
+                onChange={e => setEmailMessage(e.target.value)}
+                placeholder="Add any notes, parking info, payment instructions…"
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)} disabled={isSendingEmail}>
+              Cancel
+            </Button>
+            <Button
+              disabled={isSendingEmail}
+              onClick={async () => {
+                if (!onSendDecisionEmail || !enrollmentId) return;
+                setIsSendingEmail(true);
+                await onSendDecisionEmail(enrollmentId, emailMessage.trim() || undefined);
+                setIsSendingEmail(false);
+                setEmailDialogOpen(false);
+              }}
+            >
+              {isSendingEmail ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Sending…</> : 'Send Email'}
             </Button>
           </DialogFooter>
         </DialogContent>

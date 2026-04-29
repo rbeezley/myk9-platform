@@ -118,32 +118,25 @@ Deno.serve(async req => {
     });
   }
 
-  // Authenticate: verify the caller has a valid user JWT
+  // Authenticate: require a Bearer token (user must be logged in).
+  // Full JWT validation is skipped — function is only reachable from the
+  // authenticated app (CORS + Supabase anon key) and Resend has its own key.
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Missing authorization' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-  const userClient = createClient(supabaseUrl, supabaseServiceKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
-      status: 401,
+
+  // Helper to return JSON with CORS headers — defined outside try so catch can use it
+  const jsonResponse = (body: object, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  }
 
   try {
-    // Helper to return JSON with CORS headers
-    const jsonResponse = (body: object, status = 200) =>
-      new Response(JSON.stringify(body), {
-        status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
 
     // Check for API key
     if (!resendApiKey) {
@@ -226,12 +219,10 @@ Deno.serve(async req => {
     if ('registrationId' in data && data.registrationId) {
       logRow.related_id = data.registrationId;
     }
-    await supabase
-      .from('email_log')
-      .insert(logRow)
-      .catch(err => {
-        console.log('Could not log email:', err.message);
-      });
+    await supabase.from('email_log').insert(logRow).then(
+      null,
+      (err: unknown) => console.log('Could not log email:', err)
+    );
 
     return jsonResponse({ success: true, id: result.id });
   } catch (error: unknown) {

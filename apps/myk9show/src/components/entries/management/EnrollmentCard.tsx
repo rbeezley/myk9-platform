@@ -232,7 +232,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   {isSendingEmail
                     ? <Loader2 className="h-3 w-3 animate-spin" />
                     : <Mail className="h-3 w-3" />}
-                  {isSendingEmail ? 'Sending…' : 'Email Decision'}
+                  {isSendingEmail ? 'Sending…' : 'Email Exhibitor'}
                 </Button>
               </div>
             )}

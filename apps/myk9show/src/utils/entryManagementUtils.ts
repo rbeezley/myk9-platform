@@ -100,7 +100,7 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
     case EntryStatus.WAITLIST:
       return 'submitted';
     case EntryStatus.REJECTED:
-      return 'withdrawn';
+      return 'rejected';
     case EntryStatus.CANCELLED:
       return 'withdrawn';
     case EntryStatus.PENDING:

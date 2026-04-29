@@ -556,6 +556,7 @@ export function useEntryManagementActions({
   const statusToDecision = (s: EntryStatus): 'accepted' | 'rejected' | 'waitlisted' | 'pending' => {
     if (s === EntryStatus.ACCEPTED) return 'accepted';
     if (s === EntryStatus.REJECTED) return 'rejected';
+    if (s === EntryStatus.CANCELLED) return 'rejected';
     if (s === EntryStatus.WAITLIST) return 'waitlisted';
     return 'pending';
   };

@@ -55,7 +55,13 @@ secretary dropdown.
 - `apps/myk9show/src/components/entries/management/EntryListCard.tsx` — add
   `<DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.SCRATCHED)}>Scratched</DropdownMenuItem>`
 - `apps/myk9show/src/types/show-registration-types.ts` — add `SCRATCHED = 'scratched'` to enum
-- `apps/myk9show/src/utils/entryManagementUtils.ts` — add mapper cases and badge (grey "Scratched")
+- `apps/myk9show/src/utils/entryManagementUtils.ts` — add mapper cases and badge (grey "Scratched"):
+  - `mapEntryStatus('scratched')` → `EntryStatus.SCRATCHED`
+  - `mapStatusToDb(EntryStatus.SCRATCHED)` → `'scratched'` [ADDED]
+  - `getEntryStatusBadge(EntryStatus.SCRATCHED)` → grey "Scratched" badge
+- `apps/myk9show/src/hooks/useEntryManagementActions.ts` — add `SCRATCHED` and `WITHDRAWN` to
+  `statusToDecision` so email sends correct badge: SCRATCHED → `'scratched'`,
+  CANCELLED(Withdrawn) → `'withdrawn'` [ADDED]
 
 **No refund implied.** If club wants to give a discretionary refund for a scratch, that is
 handled separately via the refund UI (Phase 4).
@@ -67,9 +73,11 @@ handled separately via the refund UI (Phase 4).
 **Problem:** Withdrawn has two distinct AKC reasons that affect recordkeeping. Currently
 no reason is recorded.
 
-**Migration needed:** Add `withdrawal_reason` column to `entries` table:
+**Migration needed:** `175_withdrawal_reason.sql` — Add `withdrawal_reason` column to `entries` table: [ADDED migration number]
 ```sql
 ALTER TABLE entries ADD COLUMN IF NOT EXISTS withdrawal_reason TEXT;
+-- No new RLS policy needed: existing entries RLS already governs this column.
+-- Secretaries can update entries they have access to via the existing secretary policy.
 ```
 
 **UI:** When secretary selects "Withdrawn" from the dropdown, intercept the click and show
@@ -94,9 +102,11 @@ signature), then write `withdrawal_reason` to the DB alongside `entry_status = '
 - `apps/myk9show/src/components/entries/management/EntryListCard.tsx` — intercept Withdrawn
   click to open dialog instead of immediate status change
 - `apps/myk9show/src/hooks/useEntryManagementActions.ts` — extend `handleStatusChange` to
-  accept optional `withdrawalReason` param; write to DB
-- `apps/myk9show/src/services/database/queries/secretaryEntryQueries.ts` — include
-  `withdrawal_reason` in the `SELECT` so it appears in entry data
+  accept optional `withdrawalReason` param; pass it to the DB write
+- `apps/myk9show/src/services/database/queries/secretaryEntryQueries.ts`:
+  - `updateEntryStatus(entryId, status, withdrawalReason?)` — extend signature to accept and
+    write `withdrawal_reason` column in the same UPDATE [ADDED]
+  - Include `withdrawal_reason` in the `SELECT` in `getEntriesForShow`
 - `apps/myk9show/src/types/entry-management-types.ts` — add `withdrawalReason?: string` to
   `EntryManagementEntry`
 
@@ -109,12 +119,13 @@ signature), then write `withdrawal_reason` to the DB alongside `entry_status = '
 
 **Problem:** No way to record that a refund was issued, how much, or by what method.
 
-**Migration needed:** Add refund fields to `registrations` table:
+**Migration needed:** `176_refund_fields.sql` — Add refund fields to `registrations` table: [ADDED migration number]
 ```sql
 ALTER TABLE registrations
   ADD COLUMN IF NOT EXISTS refund_amount NUMERIC(10,2),
   ADD COLUMN IF NOT EXISTS refund_notes TEXT,
   ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
+-- Existing RLS on registrations covers these columns; no new policies needed.
 ```
 
 **UI:** On the `EnrollmentCard`, when payment status is changed to **Refunded** or
@@ -151,6 +162,9 @@ in the Stripe dashboard and records it here as confirmation.
   `updateEnrollmentPaymentStatus` to write refund columns
 - `apps/myk9show/src/types/entry-management-types.ts` — add `refundAmount?`, `refundNotes?`,
   `refundedAt?` to `EntryManagementEntry`
+- `apps/myk9show/src/utils/enrollmentGrouping.ts` — add `refundAmount?`, `refundNotes?`,
+  `refundedAt?` to `EnrollmentGroup` type and populate from entry data in
+  `groupEntriesByEnrollment` so `EnrollmentCard` can read and display refund state [ADDED]
 - `apps/myk9show/src/hooks/useEntryManagementData.ts` — include refund fields in the
   `getEntriesForShow` select
 
@@ -177,5 +191,7 @@ tied to the withdrawal/refund workflow.
 - [ ] Refund section appears when payment status set to Refunded or Partial Refund
 - [ ] Refund amount pre-fills from paid amount; editable for partial
 - [ ] Refund data saved to DB and visible on reload
-- [ ] Decision email: Scratched and Withdrawn entries show correct badges
+- [ ] Decision email: Scratched shows "Scratched" badge, Withdrawn shows "Withdrawn" badge (statusToDecision covers both)
+- [ ] mapStatusToDb(SCRATCHED) writes 'scratched' to DB
+- [ ] mapStatusToDb(MOVED) not needed — Moved is read-only, set by move-up query directly
 - [ ] Existing entries unaffected (no data regression)

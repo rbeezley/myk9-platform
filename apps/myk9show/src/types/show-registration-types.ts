@@ -4,9 +4,9 @@ import type { CheckInStatus } from './check-in-types';
 export enum EntryStatus {
   PENDING = 'pending',
   ACCEPTED = 'accepted',
-  REJECTED = 'rejected',
+  REJECTED = 'not_accepted',
   WAITLIST = 'waitlist',
-  CANCELLED = 'cancelled',
+  CANCELLED = 'withdrawn',
   MISSING_INFO = 'missing_info',
 }
 

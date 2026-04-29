@@ -21,10 +21,11 @@ export const mapEntryStatus = (status?: string | null): EntryStatus => {
       return EntryStatus.PENDING;
     case 'waitlisted':
       return EntryStatus.WAITLIST;
-    case 'rejected':
+    case 'not_accepted':
+    case 'rejected': // legacy value from migration 173
       return EntryStatus.REJECTED;
-    case 'cancelled':
     case 'withdrawn':
+    case 'cancelled': // legacy UI value
       return EntryStatus.CANCELLED;
     default:
       return EntryStatus.PENDING;
@@ -100,7 +101,7 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
     case EntryStatus.WAITLIST:
       return 'submitted';
     case EntryStatus.REJECTED:
-      return 'rejected';
+      return 'not_accepted';
     case EntryStatus.CANCELLED:
       return 'withdrawn';
     case EntryStatus.PENDING:
@@ -122,9 +123,9 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
     case EntryStatus.WAITLIST:
       return React.createElement(Badge, { className: 'bg-amber-100 text-amber-800' }, 'Waitlist');
     case EntryStatus.REJECTED:
-      return React.createElement(Badge, { variant: 'destructive' }, 'Rejected');
+      return React.createElement(Badge, { variant: 'destructive' }, 'Not Accepted');
     case EntryStatus.CANCELLED:
-      return React.createElement(Badge, { variant: 'outline' }, 'Cancelled');
+      return React.createElement(Badge, { variant: 'outline' }, 'Withdrawn');
     case EntryStatus.MISSING_INFO:
       return React.createElement(
         Badge,

@@ -161,16 +161,19 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                       Pending
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.ACCEPTED)}>
-                      Accept
+                      Accepted
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.WAITLIST)}>
-                      Waitlist
+                      Waitlisted
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}>
-                      Reject
+                      Not Accepted
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.MISSING_INFO)}>
                       Missing Info
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.CANCELLED)}>
+                      Withdrawn
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

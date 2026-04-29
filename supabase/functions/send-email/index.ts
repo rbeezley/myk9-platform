@@ -94,10 +94,11 @@ interface EntryDecisionData {
   showDate: string;
   registrationId?: string;
   message?: string;
+  amountDue?: number;
   entries: Array<{
     dogName: string;
     className: string;
-    status: 'accepted' | 'rejected' | 'waitlisted' | 'pending';
+    status: 'accepted' | 'not_accepted' | 'waitlisted' | 'withdrawn' | 'missing_info' | 'pending';
     armbandNumber?: string;
   }>;
 }
@@ -585,10 +586,12 @@ function generateWaitlistOfferEmail(data: WaitlistOfferData): string {
 
 function generateEntryDecisionEmail(data: EntryDecisionData): string {
   const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
-    accepted:  { bg: '#d1fae5', color: '#065f46', label: 'Accepted' },
-    rejected:  { bg: '#fee2e2', color: '#7f1d1d', label: 'Rejected' },
-    waitlisted: { bg: '#fef3c7', color: '#78350f', label: 'Waitlisted' },
-    pending:   { bg: '#f3f4f6', color: '#374151', label: 'Pending' },
+    accepted:      { bg: '#d1fae5', color: '#065f46', label: 'Accepted' },
+    not_accepted:  { bg: '#fee2e2', color: '#7f1d1d', label: 'Not Accepted' },
+    waitlisted:    { bg: '#fef3c7', color: '#78350f', label: 'Waitlisted' },
+    withdrawn:     { bg: '#f3f4f6', color: '#374151', label: 'Withdrawn' },
+    missing_info:  { bg: '#fef3c7', color: '#78350f', label: 'Missing Info' },
+    pending:       { bg: '#f3f4f6', color: '#374151', label: 'Pending' },
   };
 
   const entriesHtml = data.entries.map(e => {
@@ -604,7 +607,8 @@ function generateEntryDecisionEmail(data: EntryDecisionData): string {
   }).join('');
 
   const hasWaitlisted = data.entries.some(e => e.status === 'waitlisted');
-  const hasRejected = data.entries.some(e => e.status === 'rejected');
+  const hasNotAccepted = data.entries.some(e => e.status === 'not_accepted');
+  const hasMissingInfo = data.entries.some(e => e.status === 'missing_info');
 
   return `
 <!DOCTYPE html>
@@ -633,13 +637,19 @@ function generateEntryDecisionEmail(data: EntryDecisionData): string {
           </thead>
           <tbody>${entriesHtml}</tbody>
         </table>
+        ${data.amountDue !== undefined ? `
+        <div style="background-color: #f9fafb; border-radius: 6px; padding: 16px; margin-top: 20px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 600; font-size: 15px; color: #1f2937;">Amount Due</span>
+          <span style="font-weight: 700; font-size: 18px; color: #1f2937;">$${data.amountDue.toFixed(2)}</span>
+        </div>` : ''}
         ${data.message ? `
         <div style="background-color: #eff6ff; border-radius: 6px; padding: 16px; margin-top: 16px; border-left: 4px solid #3b82f6;">
           <p style="margin: 0 0 4px; font-weight: 600; font-size: 14px; color: #1e40af;">From the show secretary</p>
           <p style="margin: 0; color: #1e3a5f; font-size: 14px; line-height: 22px; white-space: pre-line;">${escapeHtml(data.message)}</p>
         </div>` : ''}
         ${hasWaitlisted ? `<p style="color: #6b7280; font-size: 14px; margin-top: 16px;">Waitlisted entries: you'll be notified if a spot opens up.</p>` : ''}
-        ${hasRejected ? `<p style="color: #6b7280; font-size: 14px; margin-top: 8px;">If you have questions about a rejected entry, please contact the show secretary.</p>` : ''}
+        ${hasNotAccepted ? `<p style="color: #6b7280; font-size: 14px; margin-top: 8px;">If you have questions about an entry that was not accepted, please contact the show secretary.</p>` : ''}
+        ${hasMissingInfo ? `<p style="color: #78350f; font-size: 14px; margin-top: 8px;">One or more entries require additional information — please see the secretary's message above.</p>` : ''}
       </div>
       <div style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
         <p style="margin: 0; color: #9ca3af; font-size: 12px;">This email was sent by myK9Show<br>&copy; ${new Date().getFullYear()} myK9Show. All rights reserved.</p>

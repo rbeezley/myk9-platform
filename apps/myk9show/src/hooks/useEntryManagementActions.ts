@@ -71,7 +71,7 @@ interface UseEntryManagementActionsReturn {
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
-  handleSendDecisionEmail: (registrationId: string, message?: string) => Promise<void>;
+  handleSendDecisionEmail: (registrationId: string, message?: string, amountDue?: number) => Promise<void>;
 }
 
 /**
@@ -265,7 +265,7 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [entries, setEntries, setError, selectedShowId, loadEntries]
+    [setEntries, setError, selectedShowId, loadEntries]
   );
 
   // Handle enrollment-level bulk check-in
@@ -553,16 +553,17 @@ export function useEntryManagementActions({
     [setEntries, setError, user]
   );
 
-  const statusToDecision = (s: EntryStatus): 'accepted' | 'rejected' | 'waitlisted' | 'pending' => {
+  const statusToDecision = (s: EntryStatus): 'accepted' | 'not_accepted' | 'waitlisted' | 'withdrawn' | 'missing_info' | 'pending' => {
     if (s === EntryStatus.ACCEPTED) return 'accepted';
-    if (s === EntryStatus.REJECTED) return 'rejected';
-    if (s === EntryStatus.CANCELLED) return 'rejected';
+    if (s === EntryStatus.REJECTED) return 'not_accepted';
+    if (s === EntryStatus.CANCELLED) return 'withdrawn';
     if (s === EntryStatus.WAITLIST) return 'waitlisted';
+    if (s === EntryStatus.MISSING_INFO) return 'missing_info';
     return 'pending';
   };
 
   const handleSendDecisionEmail = useCallback(
-    async (registrationId: string, message?: string) => {
+    async (registrationId: string, message?: string, amountDue?: number) => {
       const registrationEntries = entries.filter(e => e.registrationId === registrationId);
       if (registrationEntries.length === 0) return;
 
@@ -582,6 +583,7 @@ export function useEntryManagementActions({
             showDate: selectedShow?.start_date ?? '',
             registrationId,
             ...(message ? { message } : {}),
+            ...(amountDue !== undefined ? { amountDue } : {}),
             entries: registrationEntries.map(e => ({
               dogName: e.dogName,
               className: e.classes?.[0]?.name ?? 'Unknown Class',

@@ -16,8 +16,8 @@ export type EntryStatus =
   | 'competing' // In-ring / actively competing
   | 'completed' // Results recorded
   // Terminal / removal states
-  | 'withdrawn' // Exhibitor-cancelled before show day
-  | 'rejected' // Secretary-rejected
+  | 'withdrawn' // Exhibitor or secretary withdrew the entry
+  | 'not_accepted' // Secretary declined the entry
   | 'scratched' // Scratched day of show
   | 'absent' // Dog did not appear
   | 'moved' // Entry moved to a different class (source record)

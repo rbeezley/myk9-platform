@@ -58,7 +58,7 @@ interface EnrollmentCardProps {
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
-  onSendDecisionEmail?: ((registrationId: string, message?: string) => Promise<void>) | undefined;
+  onSendDecisionEmail?: ((registrationId: string, message?: string, amountDue?: number) => Promise<void>) | undefined;
   lastDecisionEmailedAt?: string | undefined;
 }
 
@@ -406,7 +406,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               onClick={async () => {
                 if (!onSendDecisionEmail || !enrollmentId) return;
                 setIsSendingEmail(true);
-                await onSendDecisionEmail(enrollmentId, emailMessage.trim() || undefined);
+                const totalDollars = group.totalAmountUnit === 'cents'
+                  ? group.totalAmount / 100
+                  : group.totalAmount;
+                const amountDue = Math.max(0, totalDollars - group.paidAmount);
+                await onSendDecisionEmail(enrollmentId, emailMessage.trim() || undefined, amountDue > 0 ? amountDue : undefined);
                 setIsSendingEmail(false);
                 setEmailDialogOpen(false);
               }}

@@ -118,12 +118,20 @@ Deno.serve(async req => {
     });
   }
 
-  // Authenticate: only internal services with service role key can send emails
+  // Authenticate: verify the caller has a valid user JWT
   const authHeader = req.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '');
-  if (token !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
-    console.error('send-email: Unauthorized request');
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  const userClient = createClient(supabaseUrl, supabaseServiceKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: authError } = await userClient.auth.getUser();
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

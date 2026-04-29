@@ -70,6 +70,7 @@ interface RegistrationViewProps {
   onRefresh: () => void;
   /** Entries grouped by enrollment/order for the list view */
   enrollmentGroups: EnrollmentGroup[];
+  onSendDecisionEmail: (registrationId: string) => void;
 }
 
 /**
@@ -101,6 +102,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   showId,
   onRefresh,
   enrollmentGroups,
+  onSendDecisionEmail,
 }) => {
   const [entryViewMode, setEntryViewMode] = useState<'list' | 'table'>('list');
 
@@ -218,6 +220,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                   emailStatusMap={emailStatusMap}
                   onResendEmail={handleResendEmail}
                   isResendDisabled={isResendDisabled}
+                  onSendDecisionEmail={onSendDecisionEmail}
                 />
               ))}
             </div>

@@ -92,9 +92,12 @@ interface EntryDecisionData {
   exhibitorName: string;
   showName: string;
   showDate: string;
-  /** One or more entries decided. All share the same decision status. */
-  entries: Array<{ dogName: string; className: string; armbandNumber?: string }>;
-  decision: 'accepted' | 'rejected' | 'waitlisted';
+  entries: Array<{
+    dogName: string;
+    className: string;
+    status: 'accepted' | 'rejected' | 'waitlisted' | 'pending';
+    armbandNumber?: string;
+  }>;
 }
 
 type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData | WaitlistOfferData | EntryDecisionData;
@@ -171,12 +174,10 @@ Deno.serve(async req => {
         html = generateWaitlistOfferEmail(data);
         break;
 
-      case 'entry_decision': {
-        const decisionLabel = data.decision === 'accepted' ? 'Accepted' : data.decision === 'rejected' ? 'Rejected' : 'Waitlisted';
-        subject = `Entry ${decisionLabel} - ${data.dogName} in ${data.className} at ${data.showName}`;
+      case 'entry_decision':
+        subject = `Entry Decisions - ${data.showName}`;
         html = generateEntryDecisionEmail(data);
         break;
-      }
 
       default:
         return jsonResponse({ error: `Unknown email type: ${(data as EmailData).type}` }, 400);
@@ -581,18 +582,27 @@ function generateWaitlistOfferEmail(data: WaitlistOfferData): string {
 }
 
 function generateEntryDecisionEmail(data: EntryDecisionData): string {
-  const colors = {
-    accepted: { bg: '#d1fae5', border: '#10b981', text: '#065f46', label: 'Accepted' },
-    rejected: { bg: '#fee2e2', border: '#ef4444', text: '#7f1d1d', label: 'Rejected' },
-    waitlisted: { bg: '#fef3c7', border: '#f59e0b', text: '#78350f', label: 'Waitlisted' },
+  const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
+    accepted:  { bg: '#d1fae5', color: '#065f46', label: 'Accepted' },
+    rejected:  { bg: '#fee2e2', color: '#7f1d1d', label: 'Rejected' },
+    waitlisted: { bg: '#fef3c7', color: '#78350f', label: 'Waitlisted' },
+    pending:   { bg: '#f3f4f6', color: '#374151', label: 'Pending' },
   };
-  const c = colors[data.decision];
-  const entriesHtml = data.entries.map(e => `
-    <tr>
-      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">${escapeHtml(e.dogName)}</td>
-      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280;">${escapeHtml(e.className)}</td>
-      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280; text-align: right;">${e.armbandNumber ? `#${escapeHtml(e.armbandNumber)}` : ''}</td>
-    </tr>`).join('');
+
+  const entriesHtml = data.entries.map(e => {
+    const s = statusStyles[e.status] ?? statusStyles.pending;
+    return `<tr>
+      <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-weight: 500;">${escapeHtml(e.dogName)}</td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280;">${escapeHtml(e.className)}</td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; text-align: center;">
+        <span style="background-color: ${s.bg}; color: ${s.color}; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600;">${s.label}</span>
+      </td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; text-align: right; color: #6b7280; font-size: 14px;">${e.armbandNumber ? `#${escapeHtml(e.armbandNumber)}` : ''}</td>
+    </tr>`;
+  }).join('');
+
+  const hasWaitlisted = data.entries.some(e => e.status === 'waitlisted');
+  const hasRejected = data.entries.some(e => e.status === 'rejected');
 
   return `
 <!DOCTYPE html>
@@ -608,23 +618,21 @@ function generateEntryDecisionEmail(data: EntryDecisionData): string {
         <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">myK9Show</h1>
       </div>
       <div style="padding: 32px;">
-        <p style="margin: 0 0 16px;">Hi ${escapeHtml(data.exhibitorName)},</p>
-        <div style="background-color: ${c.bg}; border-left: 4px solid ${c.border}; border-radius: 4px; padding: 16px; margin-bottom: 24px;">
-          <p style="margin: 0; font-weight: 700; color: ${c.text}; font-size: 16px;">${data.entries.length === 1 ? 'Entry' : `${data.entries.length} Entries`} ${c.label}</p>
-          <p style="margin: 4px 0 0; color: ${c.text}; font-size: 14px;">${escapeHtml(data.showName)} · ${escapeHtml(data.showDate)}</p>
-        </div>
+        <p style="margin: 0 0 8px;">Hi ${escapeHtml(data.exhibitorName)},</p>
+        <p style="margin: 0 0 24px; color: #6b7280;">Here is the decision for your entries at <strong>${escapeHtml(data.showName)}</strong>${data.showDate ? ` on ${escapeHtml(data.showDate)}` : ''}.</p>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
           <thead>
             <tr>
               <th style="text-align: left; padding: 8px 0; border-bottom: 2px solid #e5e7eb; font-size: 13px; color: #6b7280; font-weight: 600;">Dog</th>
               <th style="text-align: left; padding: 8px 0; border-bottom: 2px solid #e5e7eb; font-size: 13px; color: #6b7280; font-weight: 600;">Class</th>
+              <th style="text-align: center; padding: 8px 0; border-bottom: 2px solid #e5e7eb; font-size: 13px; color: #6b7280; font-weight: 600;">Status</th>
               <th style="text-align: right; padding: 8px 0; border-bottom: 2px solid #e5e7eb; font-size: 13px; color: #6b7280; font-weight: 600;">Armband</th>
             </tr>
           </thead>
           <tbody>${entriesHtml}</tbody>
         </table>
-        ${data.decision === 'waitlisted' ? `<p style="color: #6b7280; font-size: 14px;">You're on the waitlist. We'll notify you if a spot opens up.</p>` : ''}
-        ${data.decision === 'rejected' ? `<p style="color: #6b7280; font-size: 14px;">If you have questions, please contact the show secretary.</p>` : ''}
+        ${hasWaitlisted ? `<p style="color: #6b7280; font-size: 14px;">Waitlisted entries: you'll be notified if a spot opens up.</p>` : ''}
+        ${hasRejected ? `<p style="color: #6b7280; font-size: 14px;">If you have questions about a rejected entry, please contact the show secretary.</p>` : ''}
       </div>
       <div style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
         <p style="margin: 0; color: #9ca3af; font-size: 12px;">This email was sent by myK9Show<br>&copy; ${new Date().getFullYear()} myK9Show. All rights reserved.</p>

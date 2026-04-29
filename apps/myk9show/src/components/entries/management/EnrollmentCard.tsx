@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronDown, ChevronUp, Receipt, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EntryListCard } from './EntryListCard';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
@@ -44,6 +44,7 @@ interface EnrollmentCardProps {
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
+  onSendDecisionEmail?: ((registrationId: string) => void) | undefined;
 }
 
 type CheckDialog = { open: boolean; checkNumber: string };
@@ -67,6 +68,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   emailStatusMap,
   onResendEmail,
   isResendDisabled,
+  onSendDecisionEmail,
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [checkDialog, setCheckDialog] = useState<CheckDialog>(EMPTY_CHECK_DIALOG);
@@ -192,6 +194,19 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {onSendDecisionEmail && enrollmentId && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 text-xs px-2"
+                onClick={() => onSendDecisionEmail(enrollmentId)}
+                title="Send decision email to exhibitor"
+              >
+                <Mail className="h-3 w-3" />
+                Email Decision
+              </Button>
+            )}
 
             <Button
               size="sm"

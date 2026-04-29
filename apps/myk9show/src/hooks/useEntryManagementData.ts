@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 import { getSecretaryShows } from '@/services/database/queries/showQueries';
@@ -53,6 +54,10 @@ interface UseEntryManagementDataReturn {
     waitlist: number;
     issues: number;
   };
+
+  // Email log
+  lastEmailedMap: Record<string, string>;
+  refreshEmailLog: (regIds: string[]) => Promise<void>;
 }
 
 const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
@@ -115,7 +120,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           dogId: entry.dog_id || '',
           dogName: entry.dog?.name || 'Unknown Dog',
           ownerName: entry.handler || 'Unknown',
-          ownerEmail: '',
+          ownerEmail: entry.dog?.owner?.email ?? '',
           handlerName: entry.handler || 'Not specified',
           classes: entry.class
             ? [
@@ -223,6 +228,36 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     };
   }, [entries]);
 
+  // Email log: map of registrationId → most recent decision email sent_at
+  const [lastEmailedMap, setLastEmailedMap] = useState<Record<string, string>>({});
+  const lastEmailedFetchedFor = useRef<string | null>(null);
+
+  const refreshEmailLog = useCallback(async (regIds: string[]) => {
+    if (regIds.length === 0) return;
+    const { data } = await supabase
+      .from('email_log')
+      .select('related_id, created_at')
+      .in('related_id', regIds)
+      .eq('email_type', 'entry_decision')
+      .order('created_at', { ascending: false });
+    if (!data) return;
+    const map: Record<string, string> = {};
+    for (const row of data) {
+      if (row.related_id && !map[row.related_id]) {
+        map[row.related_id] = row.created_at;
+      }
+    }
+    setLastEmailedMap(map);
+  }, []);
+
+  useEffect(() => {
+    const regIds = [...new Set(entries.map(e => e.registrationId).filter(Boolean))];
+    const key = regIds.sort().join(',');
+    if (key === lastEmailedFetchedFor.current) return;
+    lastEmailedFetchedFor.current = key;
+    refreshEmailLog(regIds);
+  }, [entries, refreshEmailLog]);
+
   return {
     user,
     hasRole,
@@ -239,5 +274,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     loadEntries,
     stats,
     tabCounts,
+    lastEmailedMap,
+    refreshEmailLog,
   };
 }

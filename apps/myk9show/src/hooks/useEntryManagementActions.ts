@@ -579,6 +579,7 @@ export function useEntryManagementActions({
             exhibitorName: first.ownerName,
             showName: selectedShow?.name ?? 'the show',
             showDate: selectedShow?.start_date ?? '',
+            registrationId,
             entries: registrationEntries.map(e => ({
               dogName: e.dogName,
               className: e.classes?.[0]?.name ?? 'Unknown Class',

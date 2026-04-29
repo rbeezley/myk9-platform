@@ -92,6 +92,7 @@ interface EntryDecisionData {
   exhibitorName: string;
   showName: string;
   showDate: string;
+  registrationId?: string;
   entries: Array<{
     dogName: string;
     className: string;
@@ -208,19 +209,20 @@ Deno.serve(async req => {
     console.log(`Email sent successfully: ${result.id} to ${data.to}`);
 
     // Log the email in the database for tracking
+    const logRow: Record<string, unknown> = {
+      recipient_email: data.to,
+      email_type: data.type,
+      resend_message_id: result.id,
+      status: 'sent',
+    };
+    if ('registrationId' in data && data.registrationId) {
+      logRow.related_id = data.registrationId;
+    }
     await supabase
-      .from('email_logs')
-      .insert({
-        to_email: data.to,
-        email_type: data.type,
-        subject,
-        resend_id: result.id,
-        status: 'sent',
-        metadata: { type: data.type },
-      })
+      .from('email_log')
+      .insert(logRow)
       .catch(err => {
-        // Non-critical - just log if email_logs table doesn't exist
-        console.log('Could not log email (table may not exist):', err.message);
+        console.log('Could not log email:', err.message);
       });
 
     return jsonResponse({ success: true, id: result.id });

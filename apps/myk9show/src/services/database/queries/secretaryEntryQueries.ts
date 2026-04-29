@@ -43,6 +43,7 @@ export interface SecretaryEntry {
     name: string;
     call_name: string | null;
     breed: string | null;
+    owner: { id: string; email: string | null } | null;
   } | null;
   class: {
     id: string;
@@ -95,7 +96,11 @@ export const getEntriesForShow = async (showId: string) => {
           id,
           name,
           call_name,
-          breed
+          breed,
+          owner:owner_id (
+            id,
+            email
+          )
         ),
         class:class_id (
           id,

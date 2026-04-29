@@ -11,6 +11,18 @@ import {
 } from '@/components/ui/dialog';
 import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+function formatRelativeTime(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(isoString).toLocaleDateString();
+}
 import { EntryListCard } from './EntryListCard';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
@@ -45,6 +57,7 @@ interface EnrollmentCardProps {
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
   onSendDecisionEmail?: ((registrationId: string) => Promise<void>) | undefined;
+  lastDecisionEmailedAt?: string | undefined;
 }
 
 type CheckDialog = { open: boolean; checkNumber: string };
@@ -69,6 +82,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onResendEmail,
   isResendDisabled,
   onSendDecisionEmail,
+  lastDecisionEmailedAt,
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [checkDialog, setCheckDialog] = useState<CheckDialog>(EMPTY_CHECK_DIALOG);
@@ -197,23 +211,30 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </DropdownMenu>
 
             {onSendDecisionEmail && enrollmentId && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 gap-1 text-xs px-2"
-                disabled={isSendingEmail}
-                onClick={async () => {
-                  setIsSendingEmail(true);
-                  await onSendDecisionEmail(enrollmentId);
-                  setIsSendingEmail(false);
-                }}
-                title="Send decision email to exhibitor"
-              >
-                {isSendingEmail
-                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                  : <Mail className="h-3 w-3" />}
-                {isSendingEmail ? 'Sending…' : 'Email Decision'}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                {lastDecisionEmailedAt && (
+                  <span className="text-xs text-muted-foreground" title={new Date(lastDecisionEmailedAt).toLocaleString()}>
+                    Emailed {formatRelativeTime(lastDecisionEmailedAt)}
+                  </span>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 gap-1 text-xs px-2"
+                  disabled={isSendingEmail}
+                  onClick={async () => {
+                    setIsSendingEmail(true);
+                    await onSendDecisionEmail(enrollmentId);
+                    setIsSendingEmail(false);
+                  }}
+                  title="Send decision email to exhibitor"
+                >
+                  {isSendingEmail
+                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : <Mail className="h-3 w-3" />}
+                  {isSendingEmail ? 'Sending…' : 'Email Decision'}
+                </Button>
+              </div>
             )}
 
             <Button

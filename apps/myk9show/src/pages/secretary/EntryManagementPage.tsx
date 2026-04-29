@@ -94,6 +94,8 @@ const EntryManagementPage: React.FC = () => {
     loadEntries,
     stats,
     tabCounts,
+    lastEmailedMap,
+    refreshEmailLog,
   } = useEntryManagementData(urlShowId);
 
   const {
@@ -401,7 +403,12 @@ const EntryManagementPage: React.FC = () => {
                   showId={selectedShowId}
                   onRefresh={() => loadEntries(selectedShowId)}
                   enrollmentGroups={enrollmentGroups}
-                  onSendDecisionEmail={handleSendDecisionEmail}
+                  lastEmailedMap={lastEmailedMap}
+                  onSendDecisionEmail={async (registrationId) => {
+                    await handleSendDecisionEmail(registrationId);
+                    const regIds = [...new Set(entries.map(e => e.registrationId).filter(Boolean))];
+                    refreshEmailLog(regIds);
+                  }}
                 />
               )}
 

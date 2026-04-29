@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail } from 'lucide-react';
+import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EntryListCard } from './EntryListCard';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
@@ -44,7 +44,7 @@ interface EnrollmentCardProps {
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
-  onSendDecisionEmail?: ((registrationId: string) => void) | undefined;
+  onSendDecisionEmail?: ((registrationId: string) => Promise<void>) | undefined;
 }
 
 type CheckDialog = { open: boolean; checkNumber: string };
@@ -73,6 +73,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const [expanded, setExpanded] = useState(true);
   const [checkDialog, setCheckDialog] = useState<CheckDialog>(EMPTY_CHECK_DIALOG);
   const [partialDialog, setPartialDialog] = useState<PartialDialog>(EMPTY_PARTIAL_DIALOG);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const enrollmentId = group.enrollmentId ?? '';
   const totalDollars = group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
@@ -200,11 +201,18 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs px-2"
-                onClick={() => onSendDecisionEmail(enrollmentId)}
+                disabled={isSendingEmail}
+                onClick={async () => {
+                  setIsSendingEmail(true);
+                  await onSendDecisionEmail(enrollmentId);
+                  setIsSendingEmail(false);
+                }}
                 title="Send decision email to exhibitor"
               >
-                <Mail className="h-3 w-3" />
-                Email Decision
+                {isSendingEmail
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <Mail className="h-3 w-3" />}
+                {isSendingEmail ? 'Sending…' : 'Email Decision'}
               </Button>
             )}
 

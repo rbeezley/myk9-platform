@@ -567,12 +567,12 @@ export function useEntryManagementActions({
 
       const first = registrationEntries[0];
       if (!first.ownerEmail) {
-        logger.warn('No owner email for registration', 'pages', { registrationId });
+        toast.error('No email address on file for this exhibitor.');
         return;
       }
 
-      await supabase.functions
-        .invoke('send-email', {
+      try {
+        const { error } = await supabase.functions.invoke('send-email', {
           body: {
             type: 'entry_decision',
             to: first.ownerEmail,
@@ -586,10 +586,13 @@ export function useEntryManagementActions({
               armbandNumber: e.armbandNumber,
             })),
           },
-        })
-        .catch(err => {
-          logger.warn('Failed to send decision email', 'pages', {}, err as Error);
         });
+        if (error) throw error;
+        toast.success(`Decision email sent to ${first.ownerEmail}`);
+      } catch (err) {
+        logger.warn('Failed to send decision email', 'pages', {}, err as Error);
+        toast.error('Failed to send decision email. Please try again.');
+      }
     },
     [entries, selectedShow]
   );

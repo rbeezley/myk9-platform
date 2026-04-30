@@ -34,8 +34,8 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
       <p className="font-semibold text-sm text-foreground truncate">{dogName}</p>
       {breed.length > 0 && (
         <div className="mb-2">
-          {breed.map((b, i) => (
-            <p key={i} className="text-xs text-muted-foreground truncate">
+          {breed.map(b => (
+            <p key={b} className="text-xs text-muted-foreground truncate">
               {b}
             </p>
           ))}

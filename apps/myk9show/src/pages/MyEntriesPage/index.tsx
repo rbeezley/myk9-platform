@@ -84,7 +84,6 @@ const MyEntriesPage: React.FC = () => {
     () => ({
       activeEntries: entries.filter((e: MyEntry) => e.entryStatus === EntryStatus.ACCEPTED).length,
       upcomingShows: entries.filter((e: MyEntry) => e.showDate && e.showDate > new Date()).length,
-      pastShows: entries.filter((e: MyEntry) => e.showDate && e.showDate <= new Date()).length,
       totalDogs: dogs.length,
     }),
     [entries, dogs]
@@ -226,7 +225,7 @@ const MyEntriesPage: React.FC = () => {
           <CompactStatsRow
             activeEntries={statistics.activeEntries}
             upcomingShows={statistics.upcomingShows}
-            pastShows={statistics.pastShows}
+            pastShows={entryStats.pastShows}
             totalDogs={statistics.totalDogs}
             onNavigate={navigate}
           />

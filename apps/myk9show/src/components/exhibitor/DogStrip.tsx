@@ -45,6 +45,25 @@ export const DogStrip: React.FC<DogStripProps> = ({ dogs, onAddDog }) => {
     return counts;
   }, [rawEntries]);
 
+  const breedsByDogId = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const dog of dogs) {
+      const seen = new Set<string>();
+      const parts: string[] = [];
+      for (const r of dog.registrations ?? []) {
+        if (!r.breed) continue;
+        const orgAbbr = r.organization?.split(' ')[0] ?? '';
+        const label = orgAbbr ? `${r.breed} (${orgAbbr})` : r.breed;
+        if (!seen.has(label)) {
+          seen.add(label);
+          parts.push(label);
+        }
+      }
+      map.set(dog.id, parts);
+    }
+    return map;
+  }, [dogs]);
+
   if (dogs.length === 0) return null;
 
   return (
@@ -58,21 +77,7 @@ export const DogStrip: React.FC<DogStripProps> = ({ dogs, onAddDog }) => {
             key={dog.id}
             dogId={dog.id}
             dogName={dog.call_name ?? dog.name ?? 'Unknown'}
-            breed={(() => {
-              const regs = dog.registrations ?? [];
-              const seen = new Set<string>();
-              const parts: string[] = [];
-              for (const r of regs) {
-                if (!r.breed) continue;
-                const orgAbbr = r.organization?.split(' ')[0] ?? '';
-                const label = orgAbbr ? `${r.breed} (${orgAbbr})` : r.breed;
-                if (!seen.has(label)) {
-                  seen.add(label);
-                  parts.push(label);
-                }
-              }
-              return parts;
-            })()}
+            breed={breedsByDogId.get(dog.id) ?? []}
             upcomingCount={upcomingCountByDog[dog.id] ?? 0}
           />
         ))}

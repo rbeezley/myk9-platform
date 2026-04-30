@@ -255,6 +255,24 @@ function RegistrationWizardContent() {
 
   // Auto-assign dog owners as handlers for each entry (dog+class) when class selections change.
   // Derived key tracks the set of entries; useEffect fires only when entries change.
+  const liveTotalFees = useMemo(
+    () =>
+      calculateTotalFees(
+        registrationData.selectedDogs,
+        classSelections,
+        dogs,
+        classes,
+        currentShow
+          ? {
+              preEntryFee: currentShow.preEntryFee || '0',
+              dayOfShowFee: currentShow.dayOfShowFee,
+              startDate: currentShow.startDate,
+            }
+          : undefined
+      ).total,
+    [registrationData.selectedDogs, classSelections, dogs, classes, currentShow]
+  );
+
   const classSelectionsKey = useMemo(
     () =>
       classSelections
@@ -339,24 +357,8 @@ function RegistrationWizardContent() {
       }
       case 'payment': {
         const showNeedsAgreement = !!currentShow?.organization;
-        // Use the live fee calculation (same as PaymentStep renders) rather than
-        // currentRegistration.totalFees, which is never updated during the wizard.
-        const showFeeInfo = currentShow
-          ? {
-              preEntryFee: currentShow.preEntryFee || '0',
-              dayOfShowFee: currentShow.dayOfShowFee,
-              startDate: currentShow.startDate,
-            }
-          : undefined;
-        const { total } = calculateTotalFees(
-          registrationData.selectedDogs,
-          classSelections,
-          dogs,
-          classes,
-          showFeeInfo
-        );
         return (
-          (total <= 0 || !!registrationData.paymentMethod) &&
+          (liveTotalFees <= 0 || !!registrationData.paymentMethod) &&
           (!showNeedsAgreement || agreedToEntryAgreement)
         );
       }
@@ -739,21 +741,7 @@ function RegistrationWizardContent() {
                     showId={showId}
                     registrationId={registrationId}
                     registrationNumber={registrationNumber}
-                    currentRegistrationTotalFees={
-                      calculateTotalFees(
-                        registrationData.selectedDogs,
-                        classSelections,
-                        dogs,
-                        classes,
-                        currentShow
-                          ? {
-                              preEntryFee: currentShow.preEntryFee || '0',
-                              dayOfShowFee: currentShow.dayOfShowFee,
-                              startDate: currentShow.startDate,
-                            }
-                          : undefined
-                      ).total
-                    }
+                    currentRegistrationTotalFees={liveTotalFees}
                     armbandAssignments={armbandAssignments}
                     onDogSelectionChange={handleDogSelectionChange}
                     onClassSelectionChange={handleClassSelectionChange}

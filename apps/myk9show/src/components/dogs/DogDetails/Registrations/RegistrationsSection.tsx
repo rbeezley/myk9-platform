@@ -215,7 +215,7 @@ export default function RegistrationsSection({
           onCreateClick={() => setIsAddRegistrationDialogOpen(true)}
         />
       ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1">
           {(registrations as RegistrationRecord[]).map((reg: RegistrationRecord, idx: number) => (
             <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
               <div className="absolute top-4 right-4 z-10">

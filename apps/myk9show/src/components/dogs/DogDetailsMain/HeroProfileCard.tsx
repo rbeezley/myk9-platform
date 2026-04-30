@@ -22,17 +22,6 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   // Registered name: use the first registration's registeredName if available
   const registeredName = dog.registrations?.find(r => r.registeredName)?.registeredName ?? null;
 
-  // Age computed from DOB
-  const age = dog.dateOfBirth
-    ? (() => {
-        const diff = Date.now() - new Date(dog.dateOfBirth).getTime();
-        const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
-        return years === 1 ? '1 yr old' : `${years} yrs old`;
-      })()
-    : null;
-
-  const gender = dog.gender ? dog.gender.charAt(0).toUpperCase() + dog.gender.slice(1) : null;
-
   return (
     <Card className="p-6 shadow-sm">
       <div className="flex items-center gap-6 flex-wrap">
@@ -61,32 +50,22 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
           </div>
         </button>
 
-        {/* Name + chips */}
+        {/* Name + status */}
         <div className="flex-1 min-w-0">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">{dog.callName}</h1>
           {registeredName && (
             <p className="text-sm italic text-muted-foreground mt-0.5">{registeredName}</p>
           )}
-          <div className="flex flex-wrap gap-2 mt-3">
-            {gender && (
-              <Badge variant="secondary" className="text-xs font-medium">
-                {gender}
-              </Badge>
-            )}
-            {age && (
-              <Badge variant="secondary" className="text-xs font-medium">
-                {age}
-              </Badge>
-            )}
-            {dog.status && dog.status !== 'active' && (
+          {dog.status && dog.status !== 'active' && (
+            <div className="mt-2">
               <Badge variant="outline" className="text-xs font-medium capitalize">
                 {dog.status}
                 {dog.status === 'deceased' && dog.deceasedDate
                   ? ` — ${formatDisplayDate(dog.deceasedDate)}`
                   : ''}
               </Badge>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

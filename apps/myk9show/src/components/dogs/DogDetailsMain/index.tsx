@@ -185,16 +185,18 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   // Right sidebar — role-aware order
   const sidebar = isSecretary ? (
     <>
+      <AboutCard dog={updatedDog} />
+      <OwnerContactCard owner={owner} prominent />
       <RegistrationsCard
         dog={updatedDog}
         registrationsCount={liveRegistrationsCount}
         onAddRegistration={() => setAutoOpenAddRegistration(true)}
       />
-      <OwnerContactCard owner={owner} prominent />
-      <AboutCard dog={updatedDog} />
     </>
   ) : (
     <>
+      <AboutCard dog={updatedDog} />
+      <OwnerContactCard owner={owner} />
       {isPremium ? (
         <TitleProgressCard dogId={updatedDog.id} />
       ) : (
@@ -205,8 +207,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         registrationsCount={liveRegistrationsCount}
         onAddRegistration={() => setAutoOpenAddRegistration(true)}
       />
-      <AboutCard dog={updatedDog} />
-      <OwnerContactCard owner={owner} />
     </>
   );
 

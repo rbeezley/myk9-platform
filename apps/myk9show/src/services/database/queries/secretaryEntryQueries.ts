@@ -29,6 +29,7 @@ export interface SecretaryEntry {
   run_order: number | null;
   is_in_ring: boolean | null;
   check_in_status: string | null;
+  withdrawal_reason: string | null;
   registration_id: string | null;
   registration: {
     id: string;
@@ -37,6 +38,9 @@ export interface SecretaryEntry {
     payment_reference: string | null;
     total_amount: number | null;
     paid_amount: number | null;
+    refund_amount: number | null;
+    refund_notes: string | null;
+    refunded_at: string | null;
   } | null;
   dog: {
     id: string;
@@ -83,6 +87,7 @@ export const getEntriesForShow = async (showId: string) => {
         run_order,
         is_in_ring,
         check_in_status,
+        withdrawal_reason,
         registration_id,
         registration:registration_id (
           id,
@@ -90,7 +95,10 @@ export const getEntriesForShow = async (showId: string) => {
           payment_status,
           payment_reference,
           total_amount,
-          paid_amount
+          paid_amount,
+          refund_amount,
+          refund_notes,
+          refunded_at
         ),
         dog:dog_id (
           id,
@@ -169,18 +177,27 @@ export const getEntryCountsByStatus = async (showId: string) => {
 };
 
 /**
- * Update entry status (accept, reject, waitlist)
+ * Update entry status (accept, reject, waitlist, withdraw, scratch)
  */
-export const updateEntryStatus = async (entryId: string, status: EntryStatus) => {
+export const updateEntryStatus = async (
+  entryId: string,
+  status: EntryStatus,
+  withdrawalReason?: string
+) => {
   const startTime = Date.now();
 
   try {
+    const updateData: Record<string, unknown> = {
+      entry_status: status,
+      updated_at: new Date().toISOString(),
+    };
+    if (withdrawalReason !== undefined) {
+      updateData.withdrawal_reason = withdrawalReason;
+    }
+
     const { data, error } = await supabase
       .from('entries')
-      .update({
-        entry_status: status,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', entryId)
       .select()
       .single();

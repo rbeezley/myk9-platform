@@ -24,8 +24,8 @@ describe('mapStatusToDb', () => {
     expect(mapStatusToDb(EntryStatus.WAITLIST)).toBe('submitted');
   });
 
-  it('maps REJECTED → withdrawn (lossy: no rejected value in DB constraint)', () => {
-    expect(mapStatusToDb(EntryStatus.REJECTED)).toBe('withdrawn');
+  it('maps REJECTED → not_accepted (migration 173 added this constraint value)', () => {
+    expect(mapStatusToDb(EntryStatus.REJECTED)).toBe('not_accepted');
   });
 
   it('maps CANCELLED → withdrawn', () => {
@@ -34,5 +34,13 @@ describe('mapStatusToDb', () => {
 
   it('maps MISSING_INFO → submitted', () => {
     expect(mapStatusToDb(EntryStatus.MISSING_INFO)).toBe('submitted');
+  });
+
+  it('maps SCRATCHED → scratched', () => {
+    expect(mapStatusToDb(EntryStatus.SCRATCHED)).toBe('scratched');
+  });
+
+  it('maps MOVED → moved', () => {
+    expect(mapStatusToDb(EntryStatus.MOVED)).toBe('moved');
   });
 });

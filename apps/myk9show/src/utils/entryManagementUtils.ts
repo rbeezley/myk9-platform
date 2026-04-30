@@ -27,6 +27,10 @@ export const mapEntryStatus = (status?: string | null): EntryStatus => {
     case 'withdrawn':
     case 'cancelled': // legacy UI value
       return EntryStatus.CANCELLED;
+    case 'scratched':
+      return EntryStatus.SCRATCHED;
+    case 'moved':
+      return EntryStatus.MOVED;
     default:
       return EntryStatus.PENDING;
   }
@@ -104,6 +108,10 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
       return 'not_accepted';
     case EntryStatus.CANCELLED:
       return 'withdrawn';
+    case EntryStatus.SCRATCHED:
+      return 'scratched';
+    case EntryStatus.MOVED:
+      return 'moved';
     case EntryStatus.PENDING:
     case EntryStatus.MISSING_INFO:
     default:
@@ -132,6 +140,10 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
         { className: 'bg-amber-100 text-amber-800' },
         'Missing Info'
       );
+    case EntryStatus.SCRATCHED:
+      return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Scratched');
+    case EntryStatus.MOVED:
+      return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Moved');
     default:
       return React.createElement(Badge, { variant: 'outline' }, 'Unknown');
   }
@@ -153,6 +165,12 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
         Badge,
         { variant: 'outline', className: 'text-blue-600' },
         'Refunded'
+      );
+    case PaymentStatus.PARTIAL_REFUND:
+      return React.createElement(
+        Badge,
+        { variant: 'outline', className: 'text-blue-600' },
+        'Partial Refund'
       );
     default:
       return React.createElement(Badge, { variant: 'outline' }, 'Unknown');

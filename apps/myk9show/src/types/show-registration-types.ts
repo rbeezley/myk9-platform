@@ -8,6 +8,8 @@ export enum EntryStatus {
   WAITLIST = 'waitlist',
   CANCELLED = 'withdrawn',
   MISSING_INFO = 'missing_info',
+  SCRATCHED = 'scratched',
+  MOVED = 'moved',
 }
 
 // Enhanced Payment Status with refund support

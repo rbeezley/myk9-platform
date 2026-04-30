@@ -51,7 +51,11 @@ interface UseEntryManagementActionsReturn {
   setAutoArmbandDialog: React.Dispatch<React.SetStateAction<AutoArmbandDialogState>>;
 
   // Actions
-  handleStatusChange: (entryId: string, newStatus: EntryStatus) => Promise<void>;
+  handleStatusChange: (
+    entryId: string,
+    newStatus: EntryStatus,
+    withdrawalReason?: string
+  ) => Promise<void>;
   handleAssignArmband: () => Promise<void>;
   handleNextArmband: () => Promise<void>;
   handleAutoAssignArmbands: () => Promise<void>;
@@ -66,12 +70,18 @@ interface UseEntryManagementActionsReturn {
     enrollmentId: string,
     status: PaymentStatus,
     reference?: string | null,
-    paidAmount?: number | null
+    paidAmount?: number | null,
+    refundAmount?: number | null,
+    refundNotes?: string | null
   ) => Promise<void>;
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
-  handleSendDecisionEmail: (registrationId: string, message?: string, amountDue?: number) => Promise<void>;
+  handleSendDecisionEmail: (
+    registrationId: string,
+    message?: string,
+    amountDue?: number
+  ) => Promise<void>;
 }
 
 /**
@@ -119,20 +129,32 @@ export function useEntryManagementActions({
   );
 
   const handleStatusChange = useCallback(
-    async (entryId: string, newStatus: EntryStatus) => {
+    async (entryId: string, newStatus: EntryStatus, withdrawalReason?: string) => {
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return;
 
       const oldStatus = entry.entryStatus;
+      const oldWithdrawalReason = entry.withdrawalReason;
 
       setEntries(prev =>
         prev.map(e =>
-          e.id === entryId ? { ...e, entryStatus: newStatus, lastUpdated: new Date() } : e
+          e.id === entryId
+            ? {
+                ...e,
+                entryStatus: newStatus,
+                lastUpdated: new Date(),
+                ...(withdrawalReason !== undefined ? { withdrawalReason } : {}),
+              }
+            : e
         )
       );
 
       try {
-        const { error: dbError } = await updateEntryStatus(entryId, mapStatusToDb(newStatus));
+        const { error: dbError } = await updateEntryStatus(
+          entryId,
+          mapStatusToDb(newStatus),
+          withdrawalReason
+        );
         if (dbError) throw dbError;
 
         await auditService.log({
@@ -140,7 +162,12 @@ export function useEntryManagementActions({
           entityType: 'entry',
           entityId: entryId,
           changes: { entryStatus: { from: oldStatus, to: newStatus } },
-          metadata: { action: 'status_change', secretaryId: user?.id, entryNumber: entry.entryNumber },
+          metadata: {
+            action: 'status_change',
+            secretaryId: user?.id,
+            entryNumber: entry.entryNumber,
+            ...(withdrawalReason ? { withdrawalReason } : {}),
+          },
         });
 
         if (newStatus === EntryStatus.ACCEPTED) {
@@ -149,7 +176,17 @@ export function useEntryManagementActions({
       } catch (error) {
         logger.error('Failed to update entry status:', 'pages', {}, error as Error);
         setEntries(prev =>
-          prev.map(e => (e.id === entryId ? { ...e, entryStatus: oldStatus } : e))
+          prev.map(e =>
+            e.id === entryId
+              ? {
+                  ...e,
+                  entryStatus: oldStatus,
+                  ...(oldWithdrawalReason !== undefined
+                    ? { withdrawalReason: oldWithdrawalReason }
+                    : {}),
+                }
+              : e
+          )
         );
       }
     },
@@ -168,7 +205,10 @@ export function useEntryManagementActions({
       );
 
       if (dbError) {
-        setArmbandDialog(prev => ({ ...prev, error: dbError.message || 'Failed to assign armband' }));
+        setArmbandDialog(prev => ({
+          ...prev,
+          error: dbError.message || 'Failed to assign armband',
+        }));
         return;
       }
 
@@ -300,7 +340,14 @@ export function useEntryManagementActions({
   );
 
   const handleEnrollmentPaymentChange = useCallback(
-    async (enrollmentId: string, status: PaymentStatus, reference?: string | null, paidAmount?: number | null) => {
+    async (
+      enrollmentId: string,
+      status: PaymentStatus,
+      reference?: string | null,
+      paidAmount?: number | null,
+      refundAmount?: number | null,
+      refundNotes?: string | null
+    ) => {
       const snapshot = entries;
 
       setEntries(prev =>
@@ -311,6 +358,9 @@ export function useEntryManagementActions({
                 enrollmentPaymentStatus: status,
                 ...(reference != null ? { enrollmentPaymentReference: reference } : {}),
                 ...(paidAmount != null ? { enrollmentPaidAmount: paidAmount } : {}),
+                ...(refundAmount != null ? { enrollmentRefundAmount: refundAmount } : {}),
+                ...(refundNotes != null ? { enrollmentRefundNotes: refundNotes } : {}),
+                ...(refundAmount != null ? { enrollmentRefundedAt: new Date().toISOString() } : {}),
               }
             : e
         )
@@ -321,12 +371,19 @@ export function useEntryManagementActions({
           enrollmentId,
           status,
           reference,
-          paidAmount
+          paidAmount,
+          refundAmount,
+          refundNotes
         );
         if (dbError) {
           setEntries(snapshot);
           toast.error(dbError.message || 'Failed to update payment status');
-          logger.error('DB error updating enrollment payment:', 'secretary', {}, new Error(dbError.message));
+          logger.error(
+            'DB error updating enrollment payment:',
+            'secretary',
+            {},
+            new Error(dbError.message)
+          );
         }
       } catch (err) {
         setEntries(snapshot);
@@ -553,10 +610,20 @@ export function useEntryManagementActions({
     [setEntries, setError, user]
   );
 
-  const statusToDecision = (s: EntryStatus): 'accepted' | 'not_accepted' | 'waitlisted' | 'withdrawn' | 'missing_info' | 'pending' => {
+  const statusToDecision = (
+    s: EntryStatus
+  ):
+    | 'accepted'
+    | 'not_accepted'
+    | 'waitlisted'
+    | 'withdrawn'
+    | 'scratched'
+    | 'missing_info'
+    | 'pending' => {
     if (s === EntryStatus.ACCEPTED) return 'accepted';
     if (s === EntryStatus.REJECTED) return 'not_accepted';
     if (s === EntryStatus.CANCELLED) return 'withdrawn';
+    if (s === EntryStatus.SCRATCHED) return 'scratched';
     if (s === EntryStatus.WAITLIST) return 'waitlisted';
     if (s === EntryStatus.MISSING_INFO) return 'missing_info';
     return 'pending';

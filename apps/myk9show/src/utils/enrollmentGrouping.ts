@@ -15,6 +15,10 @@ export interface EnrollmentGroup {
   /** Amount already recorded as paid, in dollars. */
   paidAmount: number;
   paymentReference: string | null;
+  /** Refund amount in dollars (null until a refund is recorded). */
+  refundAmount: number | null;
+  refundNotes: string | null;
+  refundedAt: string | null;
   entries: EntryManagementEntry[];
 }
 
@@ -35,6 +39,9 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
         totalAmountUnit: hasEnrollmentTotal ? 'cents' : 'dollars',
         paidAmount: entry.enrollmentPaidAmount ?? 0,
         paymentReference: entry.enrollmentPaymentReference ?? null,
+        refundAmount: entry.enrollmentRefundAmount ?? null,
+        refundNotes: entry.enrollmentRefundNotes ?? null,
+        refundedAt: entry.enrollmentRefundedAt ?? null,
         entries: [],
       });
     }

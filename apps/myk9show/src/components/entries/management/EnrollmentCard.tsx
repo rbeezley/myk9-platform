@@ -13,18 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-function formatRelativeTime(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(isoString).toLocaleDateString();
-}
+import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
@@ -39,11 +28,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
-  onStatusChange: (entryId: string, status: EntryStatus) => void;
-  onCheckInStatusChange: (entry: EntryManagementEntry, cls: EntryClass, status: CheckInStatus) => void;
+  onStatusChange: (entryId: string, status: EntryStatus, withdrawalReason?: string) => void;
+  onCheckInStatusChange: (
+    entry: EntryManagementEntry,
+    cls: EntryClass,
+    status: CheckInStatus
+  ) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onCompEntry?: (entryId: string) => void;
   onUncompEntry?: (entryId: string) => void;
@@ -53,22 +53,61 @@ interface EnrollmentCardProps {
     enrollmentId: string,
     status: PaymentStatus,
     reference?: string | null,
-    paidAmount?: number | null
+    paidAmount?: number | null,
+    refundAmount?: number | null,
+    refundNotes?: string | null
   ) => void;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
-  onSendDecisionEmail?: ((registrationId: string, message?: string, amountDue?: number) => Promise<void>) | undefined;
+  onSendDecisionEmail?:
+    | ((registrationId: string, message?: string, amountDue?: number) => Promise<void>)
+    | undefined;
   lastDecisionEmailedAt?: string | undefined;
 }
 
 type CheckDialog = { open: boolean; checkNumber: string };
-type PartialDialog = { open: boolean; amountPaid: string; method: 'cash' | 'check'; checkNumber: string };
+type PartialDialog = {
+  open: boolean;
+  amountPaid: string;
+  method: 'cash' | 'check';
+  checkNumber: string;
+};
+type RefundDialog = {
+  open: boolean;
+  amount: string;
+  method: 'check_mailed' | 'cash_returned' | 'stripe' | 'other';
+  notes: string;
+  isPartial: boolean;
+};
 
 const EMPTY_CHECK_DIALOG: CheckDialog = { open: false, checkNumber: '' };
-const EMPTY_PARTIAL_DIALOG: PartialDialog = { open: false, amountPaid: '', method: 'cash', checkNumber: '' };
+const EMPTY_PARTIAL_DIALOG: PartialDialog = {
+  open: false,
+  amountPaid: '',
+  method: 'cash',
+  checkNumber: '',
+};
+const EMPTY_REFUND_DIALOG: RefundDialog = {
+  open: false,
+  amount: '',
+  method: 'check_mailed',
+  notes: '',
+  isPartial: false,
+};
 
-const PAID_STATUSES = new Set([PaymentStatus.PAID_BY_CASH, PaymentStatus.PAID_BY_CHECK, PaymentStatus.PAID_ONLINE]);
+const REFUND_METHODS: { value: RefundDialog['method']; label: string }[] = [
+  { value: 'check_mailed', label: 'Check Mailed' },
+  { value: 'cash_returned', label: 'Cash Returned' },
+  { value: 'stripe', label: 'Stripe (manual)' },
+  { value: 'other', label: 'Other' },
+];
+
+const PAID_STATUSES = new Set([
+  PaymentStatus.PAID_BY_CASH,
+  PaymentStatus.PAID_BY_CHECK,
+  PaymentStatus.PAID_ONLINE,
+]);
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
@@ -89,18 +128,28 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const [expanded, setExpanded] = useState(true);
   const [checkDialog, setCheckDialog] = useState<CheckDialog>(EMPTY_CHECK_DIALOG);
   const [partialDialog, setPartialDialog] = useState<PartialDialog>(EMPTY_PARTIAL_DIALOG);
+  const [refundDialog, setRefundDialog] = useState<RefundDialog>(EMPTY_REFUND_DIALOG);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailMessage, setEmailMessage] = useState('');
 
   const enrollmentId = group.enrollmentId ?? '';
-  const totalDollars = group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
+  const totalDollars =
+    group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
   const paidDollars = group.paidAmount;
   const remainingDollars = totalDollars - paidDollars;
-  const isPartiallyPaid = paidDollars > 0 && paidDollars < totalDollars && !PAID_STATUSES.has(group.paymentStatus);
+  const isPartiallyPaid =
+    paidDollars > 0 && paidDollars < totalDollars && !PAID_STATUSES.has(group.paymentStatus);
 
-  const handlePayment = (status: PaymentStatus, reference?: string | null, paid?: number | null) => {
-    if (enrollmentId) onPaymentStatusChange(enrollmentId, status, reference, paid);
+  const handlePayment = (
+    status: PaymentStatus,
+    reference?: string | null,
+    paid?: number | null,
+    refundAmt?: number | null,
+    refundNotes?: string | null
+  ) => {
+    if (enrollmentId)
+      onPaymentStatusChange(enrollmentId, status, reference, paid, refundAmt, refundNotes);
   };
 
   const confirmPartialPayment = () => {
@@ -109,7 +158,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 
     let status: PaymentStatus;
     if (amount >= totalDollars) {
-      status = partialDialog.method === 'check' ? PaymentStatus.PAID_BY_CHECK : PaymentStatus.PAID_BY_CASH;
+      status =
+        partialDialog.method === 'check' ? PaymentStatus.PAID_BY_CHECK : PaymentStatus.PAID_BY_CASH;
     } else {
       status = PaymentStatus.PENDING;
     }
@@ -117,6 +167,29 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     const reference = partialDialog.method === 'check' ? partialDialog.checkNumber || null : null;
     handlePayment(status, reference, amount);
     setPartialDialog(EMPTY_PARTIAL_DIALOG);
+  };
+
+  const openRefundDialog = (isPartial: boolean) => {
+    setRefundDialog({
+      ...EMPTY_REFUND_DIALOG,
+      open: true,
+      amount: isPartial ? '' : paidDollars.toFixed(2),
+      isPartial,
+    });
+  };
+
+  const confirmRefund = () => {
+    const amount = parseFloat(refundDialog.amount);
+    if (isNaN(amount) || amount <= 0) return;
+    const status =
+      !refundDialog.isPartial || amount >= paidDollars
+        ? PaymentStatus.REFUNDED
+        : PaymentStatus.PARTIAL_REFUND;
+    const methodLabel =
+      REFUND_METHODS.find(m => m.value === refundDialog.method)?.label ?? refundDialog.method;
+    const notes = [methodLabel, refundDialog.notes.trim()].filter(Boolean).join(': ');
+    handlePayment(status, null, null, amount, notes || null);
+    setRefundDialog(EMPTY_REFUND_DIALOG);
   };
 
   return (
@@ -150,7 +223,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)}>
+                  <DropdownMenuItem
+                    onClick={() => handlePayment(PaymentStatus.PAID_BY_CASH, null, totalDollars)}
+                  >
                     Paid in Full — Cash
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setCheckDialog({ open: true, checkNumber: '' })}>
@@ -160,13 +235,26 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                     Paid in Full — Online
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setPartialDialog({ open: true, amountPaid: '', method: 'cash', checkNumber: '' })}>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      setPartialDialog({
+                        open: true,
+                        amountPaid: '',
+                        method: 'cash',
+                        checkNumber: '',
+                      })
+                    }
+                  >
                     Partial Payment…
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.REFUNDED)}>
-                    Refunded
+                  <DropdownMenuItem onClick={() => openRefundDialog(false)}>
+                    Refunded…
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openRefundDialog(true)}>
+                    Partial Refund…
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => handlePayment(PaymentStatus.PENDING, null, 0)}>
                     Payment Due
                   </DropdownMenuItem>
@@ -180,9 +268,22 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   (${paidDollars.toFixed(2)} paid · ${remainingDollars.toFixed(2)} due)
                 </span>
               )}
-              {paidDollars > 0 && !isPartiallyPaid && group.paymentStatus === PaymentStatus.PENDING && (
-                <span className="text-xs text-amber-600 font-medium">
-                  ${paidDollars.toFixed(2)} on account
+              {paidDollars > 0 &&
+                !isPartiallyPaid &&
+                group.paymentStatus === PaymentStatus.PENDING && (
+                  <span className="text-xs text-amber-600 font-medium">
+                    ${paidDollars.toFixed(2)} on account
+                  </span>
+                )}
+
+              {group.refundAmount != null && (
+                <span className="text-xs text-blue-600 font-medium">
+                  ${group.refundAmount.toFixed(2)} refunded
+                  {group.refundedAt && (
+                    <span className="text-muted-foreground font-normal ml-1">
+                      ({formatRelativeTime(new Date(group.refundedAt))})
+                    </span>
+                  )}
                 </span>
               )}
             </div>
@@ -195,16 +296,44 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onBulkStatusChange(group.entries.map(e => e.id), EntryStatus.ACCEPTED)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    onBulkStatusChange(
+                      group.entries.map(e => e.id),
+                      EntryStatus.ACCEPTED
+                    )
+                  }
+                >
                   Accept All
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onBulkStatusChange(group.entries.map(e => e.id), EntryStatus.WAITLIST)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    onBulkStatusChange(
+                      group.entries.map(e => e.id),
+                      EntryStatus.WAITLIST
+                    )
+                  }
+                >
                   Waitlist All
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onBulkStatusChange(group.entries.map(e => e.id), EntryStatus.REJECTED)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    onBulkStatusChange(
+                      group.entries.map(e => e.id),
+                      EntryStatus.REJECTED
+                    )
+                  }
+                >
                   Reject All
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onBulkStatusChange(group.entries.map(e => e.id), EntryStatus.MISSING_INFO)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    onBulkStatusChange(
+                      group.entries.map(e => e.id),
+                      EntryStatus.MISSING_INFO
+                    )
+                  }
+                >
                   Missing Info
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -217,15 +346,21 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             {onSendDecisionEmail && enrollmentId && (
               <div className="flex items-center gap-1.5">
                 {lastDecisionEmailedAt && (
-                  <span className="text-xs text-muted-foreground" title={new Date(lastDecisionEmailedAt).toLocaleString()}>
-                    Emailed {formatRelativeTime(lastDecisionEmailedAt)}
+                  <span
+                    className="text-xs text-muted-foreground"
+                    title={new Date(lastDecisionEmailedAt).toLocaleString()}
+                  >
+                    Emailed {formatRelativeTime(new Date(lastDecisionEmailedAt))}
                   </span>
                 )}
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-7 gap-1 text-xs px-2"
-                  onClick={() => { setEmailMessage(''); setEmailDialogOpen(true); }}
+                  onClick={() => {
+                    setEmailMessage('');
+                    setEmailDialogOpen(true);
+                  }}
                   title="Send decision email to exhibitor"
                 >
                   <Mail className="h-3 w-3" />
@@ -265,7 +400,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         </CardContent>
       )}
 
-      <Dialog open={checkDialog.open} onOpenChange={open => !open && setCheckDialog(EMPTY_CHECK_DIALOG)}>
+      {/* Check payment dialog */}
+      <Dialog
+        open={checkDialog.open}
+        onOpenChange={open => !open && setCheckDialog(EMPTY_CHECK_DIALOG)}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Record Check Payment</DialogTitle>
@@ -284,7 +423,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </Button>
             <Button
               onClick={() => {
-                handlePayment(PaymentStatus.PAID_BY_CHECK, checkDialog.checkNumber || null, totalDollars);
+                handlePayment(
+                  PaymentStatus.PAID_BY_CHECK,
+                  checkDialog.checkNumber || null,
+                  totalDollars
+                );
                 setCheckDialog(EMPTY_CHECK_DIALOG);
               }}
             >
@@ -294,6 +437,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         </DialogContent>
       </Dialog>
 
+      {/* Partial payment dialog */}
       <Dialog
         open={partialDialog.open}
         onOpenChange={open => !open && setPartialDialog(EMPTY_PARTIAL_DIALOG)}
@@ -304,9 +448,14 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="text-sm text-muted-foreground">
-              Total due: <span className="font-medium text-foreground">${totalDollars.toFixed(2)}</span>
+              Total due:{' '}
+              <span className="font-medium text-foreground">${totalDollars.toFixed(2)}</span>
               {paidDollars > 0 && (
-                <> · Previously paid: <span className="font-medium text-foreground">${paidDollars.toFixed(2)}</span></>
+                <>
+                  {' '}
+                  · Previously paid:{' '}
+                  <span className="font-medium text-foreground">${paidDollars.toFixed(2)}</span>
+                </>
               )}
             </div>
 
@@ -360,10 +509,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             })()}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setPartialDialog(EMPTY_PARTIAL_DIALOG)}
-            >
+            <Button variant="outline" onClick={() => setPartialDialog(EMPTY_PARTIAL_DIALOG)}>
               Cancel
             </Button>
             <Button
@@ -376,18 +522,112 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         </DialogContent>
       </Dialog>
 
+      {/* Refund dialog */}
+      <Dialog
+        open={refundDialog.open}
+        onOpenChange={open => !open && setRefundDialog(EMPTY_REFUND_DIALOG)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {refundDialog.isPartial ? 'Record Partial Refund' : 'Record Refund'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {paidDollars > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Amount paid:{' '}
+                <span className="font-medium text-foreground">${paidDollars.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="refund-amount">
+                Refund Amount{' '}
+                {!refundDialog.isPartial && (
+                  <span className="text-muted-foreground font-normal">(pre-filled from paid)</span>
+                )}
+              </Label>
+              <Input
+                id="refund-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Amount ($)"
+                value={refundDialog.amount}
+                onChange={e => setRefundDialog(prev => ({ ...prev, amount: e.target.value }))}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="refund-method">Refund Method</Label>
+              <Select
+                value={refundDialog.method}
+                onValueChange={v =>
+                  setRefundDialog(prev => ({ ...prev, method: v as RefundDialog['method'] }))
+                }
+              >
+                <SelectTrigger id="refund-method">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REFUND_METHODS.map(m => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="refund-notes">
+                Notes <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                id="refund-notes"
+                placeholder="e.g. check mailed 5/1/2026"
+                value={refundDialog.notes}
+                onChange={e => setRefundDialog(prev => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundDialog(EMPTY_REFUND_DIALOG)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmRefund}
+              disabled={!refundDialog.amount || !(parseFloat(refundDialog.amount) > 0)}
+            >
+              Record Refund
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Email Exhibitor dialog */}
-      <Dialog open={emailDialogOpen} onOpenChange={open => { if (!isSendingEmail) setEmailDialogOpen(open); }}>
+      <Dialog
+        open={emailDialogOpen}
+        onOpenChange={open => {
+          if (!isSendingEmail) setEmailDialogOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Email Exhibitor</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Sending entry decisions to <strong>{group.entries[0]?.ownerName ?? 'exhibitor'}</strong>.
+              Sending entry decisions to{' '}
+              <strong>{group.entries[0]?.ownerName ?? 'exhibitor'}</strong>.
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="email-message">Message to exhibitor <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label htmlFor="email-message">
+                Message to exhibitor{' '}
+                <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
               <Textarea
                 id="email-message"
                 value={emailMessage}
@@ -398,7 +638,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEmailDialogOpen(false)} disabled={isSendingEmail}>
+            <Button
+              variant="outline"
+              onClick={() => setEmailDialogOpen(false)}
+              disabled={isSendingEmail}
+            >
               Cancel
             </Button>
             <Button
@@ -406,16 +650,26 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               onClick={async () => {
                 if (!onSendDecisionEmail || !enrollmentId) return;
                 setIsSendingEmail(true);
-                const totalDollars = group.totalAmountUnit === 'cents'
-                  ? group.totalAmount / 100
-                  : group.totalAmount;
+                const totalDollars =
+                  group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
                 const amountDue = Math.max(0, totalDollars - group.paidAmount);
-                await onSendDecisionEmail(enrollmentId, emailMessage.trim() || undefined, amountDue > 0 ? amountDue : undefined);
+                await onSendDecisionEmail(
+                  enrollmentId,
+                  emailMessage.trim() || undefined,
+                  amountDue > 0 ? amountDue : undefined
+                );
                 setIsSendingEmail(false);
                 setEmailDialogOpen(false);
               }}
             >
-              {isSendingEmail ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Sending…</> : 'Send Email'}
+              {isSendingEmail ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                  Sending…
+                </>
+              ) : (
+                'Send Email'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

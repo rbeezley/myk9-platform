@@ -291,7 +291,9 @@ export const updateEnrollmentPaymentStatus = async (
   enrollmentId: string,
   paymentStatus: string,
   paymentReference?: string | null,
-  paidAmount?: number | null
+  paidAmount?: number | null,
+  refundAmount?: number | null,
+  refundNotes?: string | null
 ) => {
   const startTime = Date.now();
   try {
@@ -304,6 +306,13 @@ export const updateEnrollmentPaymentStatus = async (
     }
     if (paidAmount != null) {
       updateData.paid_amount = paidAmount;
+    }
+    if (refundAmount != null) {
+      updateData.refund_amount = refundAmount;
+      updateData.refunded_at = new Date().toISOString();
+    }
+    if (refundNotes != null) {
+      updateData.refund_notes = refundNotes;
     }
 
     const { data, error } = await supabase

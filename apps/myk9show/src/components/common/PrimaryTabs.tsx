@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Lock } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,8 @@ export interface PrimaryTabDef {
   count?: number;
   /** Alert-style numeric badge (amber circle) — for unread/attention counts. */
   badge?: number;
+  /** Shows a small lock icon after the label — for premium-gated tabs. */
+  locked?: boolean;
 }
 
 interface PrimaryTabsProps {
@@ -66,6 +69,9 @@ export function PrimaryTabs({
             >
               {Icon && <Icon className="h-4 w-4" />}
               {tab.label}
+              {tab.locked && (
+                <Lock className="ml-0.5 h-3 w-3 opacity-40" aria-label="Premium feature" />
+              )}
               {tab.count !== undefined && (
                 <Badge
                   variant="secondary"

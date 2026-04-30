@@ -74,6 +74,12 @@ export function buildUnifiedSidebarConfig(
           description: 'Your entries, dogs, and upcoming shows',
         },
         {
+          title: 'My Dogs',
+          href: '/dogs',
+          icon: Heart,
+          description: 'Manage your dogs and registrations',
+        },
+        {
           title: 'Show Day',
           href: '/exhibitor/show-day',
           icon: Activity,

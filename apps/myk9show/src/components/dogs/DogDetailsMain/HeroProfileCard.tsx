@@ -1,15 +1,5 @@
 import React from 'react';
-import {
-  Camera,
-  Activity,
-  Clock,
-  Award,
-  Heart,
-  Sparkles,
-  Star,
-  Smile,
-  PawPrint,
-} from 'lucide-react';
+import { Camera, Plus, CheckCheck, Pencil } from 'lucide-react';
 import ThreeDotMenu from '@/components/common/ThreeDotMenu';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -21,232 +11,111 @@ import type { HeroProfileCardProps } from './types';
 
 const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   dog,
-  showCelebration,
-  recentUpdate,
-  isPhotoHovered,
-  earnedTitleAbbreviations,
+  role,
   onEditPanelOpen,
   onPhotoDialogOpen,
   onDeleteDialogOpen,
   onStatusDialogOpen,
 }) => {
+  const isSecretary = role === 'secretary';
+
+  // Registered name: use the first registration's registeredName if available
+  const registeredName = dog.registrations?.find(r => r.registeredName)?.registeredName ?? null;
+
+  // Age computed from DOB
+  const age = dog.dateOfBirth
+    ? (() => {
+        const diff = Date.now() - new Date(dog.dateOfBirth).getTime();
+        const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+        return years === 1 ? '1 yr old' : `${years} yrs old`;
+      })()
+    : null;
+
+  const gender = dog.gender ? dog.gender.charAt(0).toUpperCase() + dog.gender.slice(1) : null;
+
   return (
-    <Card
-      className="relative overflow-hidden bg-gradient-to-br from-card/95 to-card/80
-                   myk9-subtle-card-border rounded-2xl p-8 shadow-lg backdrop-blur-xl
-                   transition-all duration-500 hover:shadow-2xl hover:-translate-y-1
-                   hover:border-primary/20"
-    >
-      {/* Background glass effect */}
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent
-                      opacity-0 hover:opacity-100 transition-opacity duration-700"
-      />
-
-      {/* Actions */}
-      <div className="absolute top-6 right-6 z-10 flex items-center gap-1">
-        <Button variant="outline" size="sm" onClick={onEditPanelOpen}>
-          Edit
-        </Button>
-        <ThreeDotMenu
-          onEdit={onEditPanelOpen}
-          onEditPhoto={onPhotoDialogOpen}
-          onChangeStatus={onStatusDialogOpen}
-          onDelete={onDeleteDialogOpen}
-          editLabel="Edit Dog"
-          hideEdit
-        />
-      </div>
-
-      {/* Hero content */}
-      <div className="relative">
-        <div className="flex items-start gap-8">
-          {/* Enhanced Profile Photo */}
-          <div className="flex-shrink-0">
-            <button
-              type="button"
-              onClick={onPhotoDialogOpen}
-              className="relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2"
-              aria-label="Edit dog photo"
-            >
-              {/* Glow effect */}
-              <div
-                className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-600/20
-                             rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500
-                             blur-sm"
+    <Card className="p-6 shadow-sm">
+      <div className="flex items-center gap-6 flex-wrap">
+        {/* Photo */}
+        <button
+          type="button"
+          onClick={onPhotoDialogOpen}
+          className="relative group flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 rounded-full"
+          aria-label="Edit dog photo"
+        >
+          <Avatar className="w-20 h-20 border border-border">
+            {dog.imageUrl ? (
+              <AvatarImage
+                src={dog.imageUrl}
+                alt={`${dog.callName}'s photo`}
+                className="object-cover"
               />
-
-              <Avatar
-                className="relative w-28 h-28 border-2 border-white/20 shadow-2xl
-                               group-hover:scale-105 transition-all duration-300"
-              >
-                {dog.imageUrl ? (
-                  <AvatarImage
-                    src={dog.imageUrl}
-                    alt={`${dog.callName}'s photo`}
-                    className="object-cover"
-                  />
-                ) : (
-                  <AvatarFallback
-                    className="bg-gradient-to-br from-primary/10 to-primary/5
-                                           text-2xl font-semibold text-primary backdrop-blur-sm"
-                  >
-                    {getInitials(dog.callName)}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-
-              {/* Playful paw prints on hover */}
-              {isPhotoHovered && (
-                <div className="absolute -top-2 -right-2 animate-bounce">
-                  <PawPrint className="w-4 h-4 text-primary/60" />
-                </div>
-              )}
-
-              {/* Camera overlay with heart */}
-              <div
-                className="absolute inset-0 flex items-center justify-center bg-black/0
-                             group-hover:bg-black/40 transition-all duration-300 rounded-full"
-              >
-                <div
-                  className="p-3 bg-card/90 rounded-full opacity-0 group-hover:opacity-100
-                               transform scale-75 group-hover:scale-100 transition-all duration-300"
-                >
-                  <div className="relative">
-                    <Camera className="w-5 h-5 text-gray-800" />
-                    <Heart className="w-2 h-2 text-pink-500 absolute -top-1 -right-1 fill-current" />
-                  </div>
-                </div>
-              </div>
-            </button>
+            ) : (
+              <AvatarFallback className="bg-muted text-xl font-semibold text-muted-foreground">
+                {getInitials(dog.callName)}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors rounded-full">
+            <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
+        </button>
 
-          {/* Enhanced Dog Info */}
-          <div className="flex-1 space-y-4">
-            <div className="relative">
-              <div className="flex items-center gap-2">
-                <h1 className="text-4xl font-bold text-foreground mb-2 tracking-tight">
-                  {dog.callName}
-                </h1>
-                {/* Celebration sparkles */}
-                {showCelebration && (
-                  <div className="flex gap-1 animate-bounce">
-                    <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
-                    <Star className="w-5 h-5 text-yellow-400 animate-spin" />
-                  </div>
-                )}
-              </div>
-              {/* Recent update celebration */}
-              {recentUpdate && (
-                <div
-                  className="absolute -top-2 left-0 bg-gradient-to-r from-emerald-400 to-emerald-500
-                               text-white px-3 py-1 rounded-full text-xs font-medium animate-pulse"
-                >
-                  <Smile className="w-3 h-3 inline mr-1" />
-                  {recentUpdate}
-                </div>
-              )}
-              <p className="text-lg text-foreground font-medium tracking-wide">
-                {(() => {
-                  if (!dog.registrations || dog.registrations.length === 0) {
-                    return dog.breed || 'No kennel registration';
-                  }
-
-                  // Get unique registered breeds from kennel registrations
-                  const breeds = Array.from(
-                    new Set(dog.registrations.map(reg => reg.breed).filter(Boolean))
-                  );
-
-                  if (breeds.length === 0) {
-                    return dog.breed || 'Breed not specified';
-                  }
-
-                  return breeds.join(', ');
-                })()}
-              </p>
-
-              {/* Earned title abbreviations — compact, free-tier visible */}
-              {earnedTitleAbbreviations && earnedTitleAbbreviations.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
-                  <Award className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                  <span>{earnedTitleAbbreviations.join(' · ')}</span>
-                </p>
-              )}
-            </div>
-
-            {/* Status badges with glass effect */}
-            <div className="flex flex-wrap gap-3">
-              {(!dog.status || dog.status === 'active') && (
-                <Badge
-                  className="px-4 py-2 text-sm font-medium
-                               bg-gradient-to-r from-emerald-500/10 to-emerald-500/5
-                               text-emerald-600 dark:text-emerald-400 border border-emerald-500/20
-                               backdrop-blur-sm"
-                >
-                  <Activity className="w-3 h-3 mr-2" />
-                  Active
-                </Badge>
-              )}
-              {dog.status === 'retired' && (
-                <Badge
-                  className="px-4 py-2 text-sm font-medium
-                               bg-gradient-to-r from-amber-500/10 to-amber-500/5
-                               text-amber-600 dark:text-amber-400 border border-amber-500/20
-                               backdrop-blur-sm"
-                >
-                  <Clock className="w-3 h-3 mr-2" />
-                  Retired
-                </Badge>
-              )}
-              {dog.status === 'deceased' && (
-                <Badge
-                  className="px-4 py-2 text-sm font-medium
-                               bg-gradient-to-r from-gray-500/10 to-gray-500/5
-                               text-gray-500 dark:text-gray-400 border border-gray-500/20
-                               backdrop-blur-sm"
-                >
-                  <Heart className="w-3 h-3 mr-2" />
-                  Deceased{dog.deceasedDate ? ` \u2014 ${formatDisplayDate(dog.deceasedDate)}` : ''}
-                </Badge>
-              )}
-              {dog.gender && (
-                <Badge
-                  className="px-4 py-2 text-sm font-medium
-                               bg-gradient-to-r from-primary/10 to-primary/5
-                               text-primary border border-primary/20
-                               backdrop-blur-sm hover:scale-105
-                               transition-all duration-200"
-                >
-                  <Activity className="w-3 h-3 mr-2" />
-                  {dog.gender.charAt(0).toUpperCase() + dog.gender.slice(1)}
-                </Badge>
-              )}
-              {dog.dateOfBirth && (
-                <Badge
-                  className="px-4 py-2 text-sm font-medium
-                               bg-gradient-to-r from-emerald-500/10 to-emerald-500/5
-                               text-emerald-600 dark:text-emerald-400 border border-emerald-500/20
-                               backdrop-blur-sm hover:scale-105
-                               transition-all duration-200"
-                >
-                  <Clock className="w-3 h-3 mr-2" />
-                  Born {formatDisplayDate(dog.dateOfBirth)}
-                </Badge>
-              )}
-              {dog.registrations && dog.registrations.length > 0 && (
-                <Badge
-                  className="px-4 py-2 text-sm font-medium
-                               bg-gradient-to-r from-purple-500/10 to-purple-500/5
-                               text-purple-600 dark:text-purple-400 border border-purple-500/20
-                               backdrop-blur-sm hover:scale-105
-                               transition-all duration-200"
-                >
-                  <Award className="w-3 h-3 mr-2" />
-                  {dog.registrations.length} Registration{dog.registrations.length > 1 ? 's' : ''}
-                </Badge>
-              )}
-            </div>
+        {/* Name + chips */}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">{dog.callName}</h1>
+          {registeredName && (
+            <p className="text-sm italic text-muted-foreground mt-0.5">{registeredName}</p>
+          )}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {gender && (
+              <Badge variant="secondary" className="text-xs font-medium">
+                {gender}
+              </Badge>
+            )}
+            {age && (
+              <Badge variant="secondary" className="text-xs font-medium">
+                {age}
+              </Badge>
+            )}
+            {dog.status && dog.status !== 'active' && (
+              <Badge variant="outline" className="text-xs font-medium capitalize">
+                {dog.status}
+                {dog.status === 'deceased' && dog.deceasedDate
+                  ? ` — ${formatDisplayDate(dog.deceasedDate)}`
+                  : ''}
+              </Badge>
+            )}
           </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isSecretary ? (
+            <Button size="sm" variant="default" className="gap-1.5">
+              <CheckCheck className="h-4 w-4" />
+              Verify for entry
+            </Button>
+          ) : (
+            <Button size="sm" variant="default" className="gap-1.5" asChild>
+              <a href="/shows">
+                <Plus className="h-4 w-4" />
+                Sign up for a show
+              </a>
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onEditPanelOpen} className="gap-1.5">
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </Button>
+          <ThreeDotMenu
+            onEdit={onEditPanelOpen}
+            onEditPhoto={onPhotoDialogOpen}
+            onChangeStatus={onStatusDialogOpen}
+            onDelete={onDeleteDialogOpen}
+            editLabel="Edit Dog"
+            hideEdit
+          />
         </div>
       </div>
     </Card>

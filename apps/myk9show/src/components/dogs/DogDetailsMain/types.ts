@@ -19,11 +19,7 @@ export interface EditableValueProps {
 
 export interface HeroProfileCardProps {
   dog: Dog;
-  showCelebration: boolean;
-  recentUpdate: string | null;
-  isPhotoHovered: boolean;
-  /** Compact earned title abbreviations to display in the hero (e.g. ["OA", "OAJ", "NF"]) */
-  earnedTitleAbbreviations?: string[];
+  role?: 'exhibitor' | 'secretary';
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;
   onDeleteDialogOpen: () => void;
@@ -47,6 +43,7 @@ export interface DogSummaryCardProps {
 export interface DogDetailsTabsProps {
   dog: Dog;
   autoOpenAddRegistration: boolean;
+  role?: 'exhibitor' | 'secretary';
 }
 
 export interface DogDialogsProps {

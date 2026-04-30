@@ -332,7 +332,7 @@ Initial audit flagged ~17 missing sidebar links across roles. **On review these 
 
 - **Create `club@myk9t.com` auth user** — **Problem:** Email is referenced in audit-pages skill credentials block but does not exist in `auth.users` (only 5 users present, no `club@` row). Could not audit `/club-admin/members`. **Files:** `.claude/skills/audit-pages/SKILL.md` (credential list), Supabase Auth dashboard. **Solution:** create auth user with CLUB_ADMIN role assigned in `user_roles`, set password to match doc.
 - **✅ Resolved 2026-04-18 21:50 — JUDGE role assigned via `/admin/users` row-actions → Manage Roles dialog. Re-audit clean: all 4 judge routes render.** (Login still redirects to `/exhibitor/entries` instead of `/judge/dashboard` — covered by separate known TODO "Login Redirects to Highest-Role Dashboard".)
-- **Create dedicated exhibitor test account** — **Problem:** No `exhibitor@myk9t.com` and no documented exhibitor credentials. Audit fell back to site admin, which masks role-gating bugs that only an exhibitor would hit. **Solution:** create `exhibitor@myk9t.com` with EXHIBITOR-only role; add to skill credentials block.
+- **✅ Resolved 2026-04-30 — `exhibitor1@myk9t.com` confirmed as the test exhibitor account. Credentials added to `audit-pages` skill.**
 
 ### Routing & 404s
 
@@ -424,9 +424,9 @@ Full suite: 485 files / 5466 tests pass.
 
 ---
 
-## Delete Person Infinite RLS Recursion - 2026-04-23 15:08
+## ✅ Delete Person Infinite RLS Recursion - 2026-04-23 15:08
 
-- **Fix infinite recursion in people DELETE RLS policy** — Deleting a person from the UI fails with "infinite recursion detected in policy for relation 'people'". **Problem:** `people_delete` policy calls `is_platform_admin()` ([`047_fix_platform_admin_role_name.sql:4-19`](supabase/migrations/047_fix_platform_admin_role_name.sql)), which JOINs `public.people` to resolve `auth_user_id → role`. That join triggers `people_select` RLS, which again calls `is_platform_admin()` → infinite loop. The function is `SECURITY DEFINER` but lacks `SET row_security = off`, so RLS still fires when it queries `people`. Same recursion risk applies to `is_trial_secretary()` if it queries `people`. **Files:** `supabase/migrations/047_fix_platform_admin_role_name.sql:4-19` (is_platform_admin — add `SET row_security = off`), `supabase/migrations/119_restrict_people_select_rls.sql:30-42` (people_select policy — references is_platform_admin), `supabase/migrations/016_fix_permissive_rls_policies.sql:151-153` (people_delete policy). **Solution:** New migration: `ALTER FUNCTION public.is_platform_admin() SET row_security = off;` (and same for `is_trial_secretary()` and any other SECURITY DEFINER helper that queries RLS-protected tables). This is safe — these functions only check role membership and don't expose arbitrary row data.
+**Resolved 2026-04-30 — no code change needed.** `is_platform_admin()` was already made a deprecated wrapper around `is_site_admin()` in migration 124, and migration 156 fixed `is_site_admin()` to query `user_roles.auth_user_id` directly (no `people` JOIN). The delegation chain `people_delete → is_platform_admin() → is_site_admin()` no longer touches `public.people`, so no recursion. Confirmed working in the browser.
 
 ---
 

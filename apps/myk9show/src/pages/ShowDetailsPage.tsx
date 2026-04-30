@@ -36,6 +36,7 @@ import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
+import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
@@ -74,6 +75,7 @@ const ShowDetailsPage: React.FC = () => {
   const { user, isSecretary, isAdmin } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
+  const { data: showEntries = [] } = useEntriesByShowQuery(id || '', !!id);
 
   // Use fast show details loading with cache optimization
   const {
@@ -170,7 +172,8 @@ const ShowDetailsPage: React.FC = () => {
         time: cls.startTime || '',
         ring: 0,
         status: cls.status || CLASS_STATUS.SCHEDULED,
-        entryCount: cls.entries || 0,
+        entryCount: showEntries.filter((e: Record<string, unknown>) => e.class_id === cls.id)
+          .length,
         scoredCount: cls.completedEntries ?? 0,
         userHasEntry: userEntryClassIds.has(cls.id),
         trialDate: trial.trialDate || '',
@@ -178,7 +181,7 @@ const ShowDetailsPage: React.FC = () => {
         trialName: trial.name || '',
       }));
     });
-  }, [associatedTrials, trialClasses, userEntries]);
+  }, [associatedTrials, trialClasses, userEntries, showEntries]);
 
   // Derive unique judges from class-level assignments as fallback when
   // the judge_assignments table has no rows for this show
@@ -209,14 +212,18 @@ const ShowDetailsPage: React.FC = () => {
     const stats: Record<string, TrialStats> = {};
     for (const trial of associatedTrials) {
       const classes = trialClasses[trial.id] || [];
+      const classIdSet = new Set(classes.map(c => c.id));
+      const trialEntryCount = showEntries.filter((e: Record<string, unknown>) =>
+        classIdSet.has(e.class_id as string)
+      ).length;
       stats[trial.id] = {
         classCount: classes.length,
-        entryCount: classes.reduce((sum, cls) => sum + (cls.entries ?? 0), 0),
+        entryCount: trialEntryCount,
         completedClasses: classes.filter(cls => cls.status === CLASS_STATUS.COMPLETED).length,
       };
     }
     return stats;
-  }, [associatedTrials, trialClasses]);
+  }, [associatedTrials, trialClasses, showEntries]);
 
   // Redirect if no show ID
   useEffect(() => {

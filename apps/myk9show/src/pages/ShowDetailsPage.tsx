@@ -53,6 +53,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { formatDateRange } from '@/utils/date-format';
+import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 
 const ENTRY_STATUS_HERO_VARIANT: Record<
   EntryStatus,
@@ -324,23 +325,35 @@ const ShowDetailsPage: React.FC = () => {
             ...(actualCurrentShow.organization
               ? [{ label: actualCurrentShow.organization, variant: 'default' as const }]
               : []),
-            { label: entryStatus.label, variant: ENTRY_STATUS_HERO_VARIANT[entryStatus.status] },
+            ...(!canManageShow
+              ? [
+                  {
+                    label: entryStatus.label,
+                    variant: ENTRY_STATUS_HERO_VARIANT[entryStatus.status],
+                  },
+                ]
+              : []),
           ]}
           metadata={[]}
-          closedMessage={!entryStatus.canEnter ? entryStatus.description : undefined}
-          {...(entryStatus.canEnter
-            ? {
-                primaryAction: {
-                  label: hasUserEntries ? 'Manage Entry' : 'Register',
-                  onClick: handleRegisterForShow,
-                },
-              }
-            : hasUserEntries
-              ? { primaryAction: { label: 'View Entry', onClick: handleRegisterForShow } }
-              : {})}
+          closedMessage={
+            !canManageShow && !entryStatus.canEnter ? entryStatus.description : undefined
+          }
+          {...(!canManageShow
+            ? entryStatus.canEnter
+              ? {
+                  primaryAction: {
+                    label: hasUserEntries ? 'Manage Entry' : 'Register',
+                    onClick: handleRegisterForShow,
+                  },
+                }
+              : hasUserEntries
+                ? { primaryAction: { label: 'View Entry', onClick: handleRegisterForShow } }
+                : {}
+            : {})}
           secondaryActions={
             canManageShow && (
               <div className="flex items-center gap-1">
+                <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 <Button variant="outline" size="sm" onClick={() => setShowEditPanel(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit

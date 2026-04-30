@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
@@ -39,6 +40,7 @@ interface UseMyEntriesDataReturn {
  */
 export function useMyEntriesData(): UseMyEntriesDataReturn {
   const { user } = useAuthContext();
+  const personId = useCurrentUserPersonId();
   const [entries, setEntries] = useState<MyEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
@@ -122,13 +124,13 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
    * Loads user entries from the database
    */
   const loadMyEntries = useCallback(async () => {
-    if (!user?.id) {
+    if (!user?.id || !personId) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const { data, error } = await getUserEntries(user.id);
+      const { data, error } = await getUserEntries(personId);
 
       if (error) {
         logger.error('Failed to load entries:', 'pages', {}, error as Error);
@@ -147,7 +149,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, transformEntry]);
+  }, [user?.id, personId, transformEntry]);
 
   // Initial load
   useEffect(() => {

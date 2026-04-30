@@ -19,9 +19,7 @@ import { AddDogPanel } from '@/components/panels/edit';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
-import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
-import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import {
@@ -86,6 +84,7 @@ const MyEntriesPage: React.FC = () => {
     () => ({
       activeEntries: entries.filter((e: MyEntry) => e.entryStatus === EntryStatus.ACCEPTED).length,
       upcomingShows: entries.filter((e: MyEntry) => e.showDate && e.showDate > new Date()).length,
+      pastShows: entries.filter((e: MyEntry) => e.showDate && e.showDate <= new Date()).length,
       totalDogs: dogs.length,
     }),
     [entries, dogs]
@@ -118,9 +117,6 @@ const MyEntriesPage: React.FC = () => {
     isLoading: waitlistLoading,
     withdraw,
   } = useMyWaitlistEntries(exhibitorProfile?.id);
-
-  // Breadcrumb
-  const breadcrumbItems = useBreadcrumb({ currentPage: 'my-entries' });
 
   // Handlers
   const handleCheckInClick = (entry: MyEntry, classEntry: EntryClass) => {
@@ -230,6 +226,7 @@ const MyEntriesPage: React.FC = () => {
           <CompactStatsRow
             activeEntries={statistics.activeEntries}
             upcomingShows={statistics.upcomingShows}
+            pastShows={statistics.pastShows}
             totalDogs={statistics.totalDogs}
             onNavigate={navigate}
           />
@@ -246,11 +243,9 @@ const MyEntriesPage: React.FC = () => {
             onAddDog={() => setAddDogOpen(true)}
           />
 
-          <Breadcrumb
-            items={breadcrumbItems}
-            showHomeIcon={true}
-            className="text-sm text-muted-foreground"
-          />
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            My Entries
+          </p>
 
           {/* Summary Stats */}
           <MyEntriesStatsCards stats={entryStats} />

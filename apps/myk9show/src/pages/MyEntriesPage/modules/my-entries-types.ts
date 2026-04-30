@@ -66,6 +66,7 @@ export interface MyEntryStats {
   accepted: number;
   pending: number;
   upcoming: number;
+  pastShows: number;
   acceptedPaid: number;
   acceptedUnpaid: number;
   needsAction: number;

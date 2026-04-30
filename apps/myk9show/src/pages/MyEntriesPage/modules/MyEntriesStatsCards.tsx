@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { StatCard, StatsGrid } from '@myk9/ui';
-import { Users, CheckCircle2, AlertCircle, DollarSign } from 'lucide-react';
+import { Users, CheckCircle2, AlertCircle, DollarSign, History } from 'lucide-react';
 import type { MyEntryStats } from './my-entries-types';
 
 interface MyEntriesStatsCardsProps {
@@ -18,7 +18,7 @@ interface MyEntriesStatsCardsProps {
  */
 export const MyEntriesStatsCards: React.FC<MyEntriesStatsCardsProps> = ({ stats }) => {
   return (
-    <StatsGrid columns={4}>
+    <StatsGrid columns={5}>
       <StatCard
         icon={Users}
         title="Total Entries"
@@ -42,6 +42,13 @@ export const MyEntriesStatsCards: React.FC<MyEntriesStatsCardsProps> = ({ stats 
         color="red"
         subtitle={`${stats.pending} awaiting review · ${stats.acceptedUnpaid} payment due`}
         progress={stats.needsActionPercent}
+      />
+      <StatCard
+        icon={History}
+        title="Past Shows"
+        value={stats.pastShows}
+        color="primary"
+        subtitle="Shows completed"
       />
       <StatCard
         icon={DollarSign}

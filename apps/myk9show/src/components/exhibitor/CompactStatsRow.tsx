@@ -6,7 +6,7 @@
  */
 
 import { cn } from '@/lib/utils';
-import { FileText, Calendar, Heart } from 'lucide-react';
+import { FileText, Calendar, Heart, History } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 interface StatItem {
@@ -21,6 +21,7 @@ interface StatItem {
 interface CompactStatsRowProps {
   activeEntries: number;
   upcomingShows: number;
+  pastShows: number;
   totalDogs: number;
   onNavigate: (path: string) => void;
   className?: string | undefined;
@@ -29,6 +30,7 @@ interface CompactStatsRowProps {
 export function CompactStatsRow({
   activeEntries,
   upcomingShows,
+  pastShows,
   totalDogs,
   onNavigate,
   className,
@@ -51,6 +53,14 @@ export function CompactStatsRow({
       iconColor: 'text-blue-500',
     },
     {
+      icon: <History className="h-5 w-5" />,
+      label: pastShows === 1 ? 'Past Show' : 'Past Shows',
+      value: pastShows,
+      href: '/exhibitor/entries?tab=completed',
+      tint: 'bg-purple-500/8 dark:bg-purple-500/12 border-purple-500/15',
+      iconColor: 'text-purple-400',
+    },
+    {
       icon: <Heart className="h-5 w-5" />,
       label: totalDogs === 1 ? 'Dog Registered' : 'Dogs Registered',
       value: totalDogs,
@@ -61,7 +71,7 @@ export function CompactStatsRow({
   ];
 
   return (
-    <div className={cn('grid grid-cols-3 gap-3', className)}>
+    <div className={cn('grid grid-cols-4 gap-3', className)}>
       {stats.map(stat => (
         <button
           key={stat.href}

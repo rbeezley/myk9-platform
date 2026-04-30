@@ -167,7 +167,7 @@ async function postgrestGetDogById(id: string) {
 async function postgrestGetDogsByOwner(ownerId: string) {
   const { data, error } = await supabase
     .from('dogs')
-    .select('*')
+    .select('*, registrations:dog_registrations(id,breed,organization,status)')
     .eq('owner_id', ownerId)
     .is('deleted_at', null)
     .order('name', { ascending: true });
@@ -345,10 +345,11 @@ export const getDogsByOwner = async (ownerId: string) => {
     return await withReplicationFallback(
       async () => {
         const dogs = await replicatedDogsTable.getDogsByOwner(ownerId);
-        // Sort by name ascending (matching original PostgREST behavior)
         dogs.sort((a, b) => a.name.localeCompare(b.name));
-        // No joins needed — minimal query matching original select('*')
-        const data = dogs.map(dog => mapReplicatedDogToDbRow(dog));
+        const registrationsMap = await loadRegistrationsMap(dogs.map(d => d.id));
+        const data = dogs.map(dog =>
+          mapReplicatedDogToDbRow(dog, { registrations: registrationsMap.get(dog.id) ?? [] })
+        );
         return { data, error: null };
       },
       () => postgrestGetDogsByOwner(ownerId),

@@ -15,6 +15,8 @@ import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip } from '@/components/exhibitor/DogStrip';
+import { AddDogPanel } from '@/components/panels/edit';
+import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
@@ -25,7 +27,6 @@ import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import {
   Calendar,
   RefreshCw,
-  Plus,
   List,
   Clock,
   CheckCircle,
@@ -106,6 +107,9 @@ const MyEntriesPage: React.FC = () => {
     open: false,
     entry: null,
   });
+
+  const [addDogOpen, setAddDogOpen] = useState(false);
+  const currentUserPersonId = useCurrentUserPersonId();
 
   // Waitlist
   const { profile: exhibitorProfile } = useExhibitorProfile();
@@ -232,37 +236,21 @@ const MyEntriesPage: React.FC = () => {
 
           <DogStrip
             dogs={
-              (dogs ?? []) as { id: string; call_name?: string; name?: string; breed?: string }[]
+              (dogs ?? []) as {
+                id: string;
+                call_name?: string;
+                name?: string;
+                registrations?: { breed?: string; organization?: string; status?: string }[];
+              }[]
             }
+            onAddDog={() => setAddDogOpen(true)}
           />
 
-          <div className="flex items-center justify-between">
-            <Breadcrumb
-              items={breadcrumbItems}
-              showHomeIcon={true}
-              className="text-sm text-muted-foreground"
-            />
-            <div className="flex gap-2 flex-shrink-0">
-              <Button
-                asChild
-                className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-              >
-                <Link to="/shows">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Enter a Show
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={refreshEntries}
-                disabled={refreshing}
-                className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
-          </div>
+          <Breadcrumb
+            items={breadcrumbItems}
+            showHomeIcon={true}
+            className="text-sm text-muted-foreground"
+          />
 
           {/* Summary Stats */}
           <MyEntriesStatsCards stats={entryStats} />
@@ -274,7 +262,6 @@ const MyEntriesPage: React.FC = () => {
             onValueChange={value => setSelectedTab(value as EntryTabFilter)}
             className="space-y-6"
           >
-
             <TabsContent value={selectedTab} className="space-y-4">
               {filteredEntries.length === 0 ? (
                 <EmptyState selectedTab={selectedTab} />
@@ -325,6 +312,13 @@ const MyEntriesPage: React.FC = () => {
         dialog={receiptDialog}
         user={user}
         onClose={() => setReceiptDialog({ open: false, entry: null })}
+      />
+
+      <AddDogPanel
+        open={addDogOpen}
+        onClose={() => setAddDogOpen(false)}
+        onDogCreated={() => setAddDogOpen(false)}
+        currentUserPersonId={currentUserPersonId ?? undefined}
       />
     </div>
   );

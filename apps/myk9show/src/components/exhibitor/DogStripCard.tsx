@@ -12,7 +12,7 @@ import { useTitleProgress } from '@/hooks/useTitleProgress';
 interface DogStripCardProps {
   dogId: string;
   dogName: string;
-  breed: string;
+  breed: string[];
   upcomingCount: number;
 }
 
@@ -29,10 +29,18 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
     <button
       type="button"
       onClick={() => navigate(`/dogs/${dogId}`)}
-      className="flex-shrink-0 w-40 rounded-xl border border-border bg-card p-3 text-left hover:bg-accent/50 hover:shadow-sm active:scale-[0.98] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="flex-shrink-0 w-52 rounded-xl border border-border bg-card p-3 text-left hover:bg-accent/50 hover:shadow-sm active:scale-[0.98] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       <p className="font-semibold text-sm text-foreground truncate">{dogName}</p>
-      <p className="text-xs text-muted-foreground truncate mb-2">{breed}</p>
+      {breed.length > 0 && (
+        <div className="mb-2">
+          {breed.map((b, i) => (
+            <p key={i} className="text-xs text-muted-foreground truncate">
+              {b}
+            </p>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap gap-1">
         {upcomingCount > 0 ? (
           <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">

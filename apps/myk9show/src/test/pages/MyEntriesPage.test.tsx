@@ -52,6 +52,12 @@ vi.mock('@/components/exhibitor/CompactStatsRow', () => ({
 vi.mock('@/components/exhibitor/DogStrip', () => ({
   DogStrip: () => null,
 }));
+vi.mock('@/hooks/useRoleBasedData', () => ({
+  useCurrentUserPersonId: () => null,
+}));
+vi.mock('@/components/panels/edit', () => ({
+  AddDogPanel: () => null,
+}));
 
 // Mock entry data
 const mockEntries = [
@@ -157,17 +163,8 @@ describe('MyEntriesPage UI Improvements', () => {
 
       await screen.findByRole('tablist');
 
-      const enterShowButton = screen.getByRole('link', { name: /enter a show/i });
+      const enterShowButton = screen.getByRole('button', { name: /enter a show/i });
       expect(enterShowButton).toBeInTheDocument();
-      expect(enterShowButton).toHaveAttribute('href', '/shows');
-    });
-
-    it('should display Refresh button alongside Enter a Show', async () => {
-      renderWithProviders(<MyEntriesPage />);
-
-      await screen.findByRole('tablist');
-
-      expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
     });
   });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { formatDisplayDate } from '../utils';
 import type { Dog } from '@/types/dog-types';
@@ -28,6 +28,7 @@ function Row({
 }
 
 const AboutCard: React.FC<AboutCardProps> = ({ dog }) => {
+  const [now] = useState(() => Date.now());
   const breeds =
     Array.from(
       new Set(
@@ -39,14 +40,13 @@ const AboutCard: React.FC<AboutCardProps> = ({ dog }) => {
 
   const sex = dog.gender ? dog.gender.charAt(0).toUpperCase() + dog.gender.slice(1) : null;
 
-  const age = dog.dateOfBirth
-    ? (() => {
-        const years = Math.floor(
-          (Date.now() - new Date(dog.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-        );
-        return years === 1 ? '1 yr old' : `${years} yrs old`;
-      })()
-    : null;
+  const age = useMemo(() => {
+    if (!dog.dateOfBirth) return null;
+    const years = Math.floor(
+      (now - new Date(dog.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+    );
+    return years === 1 ? '1 yr old' : `${years} yrs old`;
+  }, [dog.dateOfBirth, now]);
 
   return (
     <Card>

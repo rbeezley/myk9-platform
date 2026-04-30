@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,11 +18,16 @@ import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import type { CheckInStatus } from '@myk9/core';
 import { CHECKIN_STATUS } from '@myk9/core';
+import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
 
 interface EntryListCardProps {
   entries: EntryManagementEntry[];
-  onStatusChange: (entryId: string, status: EntryStatus) => void;
-  onCheckInStatusChange: (entry: EntryManagementEntry, cls: EntryClass, status: CheckInStatus) => void;
+  onStatusChange: (entryId: string, status: EntryStatus, withdrawalReason?: string) => void;
+  onCheckInStatusChange: (
+    entry: EntryManagementEntry,
+    cls: EntryClass,
+    status: CheckInStatus
+  ) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onCompEntry?: ((entryId: string) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;
@@ -47,13 +52,26 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   hidePaymentBadge,
   hideHeader,
 }) => {
+  const [withdrawalDialog, setWithdrawalDialog] = useState<{
+    open: boolean;
+    entryId: string | null;
+  }>({ open: false, entryId: null });
+
+  const openWithdrawalDialog = (entryId: string) => {
+    setWithdrawalDialog({ open: true, entryId });
+  };
+
+  const confirmWithdrawal = (reason: string) => {
+    if (withdrawalDialog.entryId) {
+      onStatusChange(withdrawalDialog.entryId, EntryStatus.CANCELLED, reason);
+    }
+    setWithdrawalDialog({ open: false, entryId: null });
+  };
+
   const entryList = (
     <div className="space-y-2">
       {entries.map(entry => (
-        <div
-          key={entry.id}
-          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-        >
+        <div key={entry.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold">{entry.dogName}</span>
 
@@ -82,7 +100,9 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-2">
             <span>Owner: {entry.ownerName}</span>
             <span>Handler: {entry.handlerName}</span>
-            <span>Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})</span>
+            <span>
+              Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})
+            </span>
 
             {entry.comped ? (
               <Tooltip>
@@ -128,9 +148,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               <EmailStatusIcon
                 status={emailStatusMap[entry.registrationId]?.status}
                 errorMessage={emailStatusMap[entry.registrationId]?.error_message}
-                onResend={
-                  onResendEmail ? () => onResendEmail(entry.registrationId) : undefined
-                }
+                onResend={onResendEmail ? () => onResendEmail(entry.registrationId) : undefined}
                 resendDisabled={isResendDisabled?.(entry.registrationId)}
               />
             )}
@@ -148,35 +166,66 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               <div key={cls.id} className="flex items-center gap-2 text-sm flex-wrap">
                 <span className="text-muted-foreground font-medium min-w-[120px]">{cls.name}:</span>
 
-                {/* Entry status — clickable dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
-                      {getEntryStatusBadge(entry.entryStatus)}
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.PENDING)}>
-                      Pending
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.ACCEPTED)}>
-                      Accepted
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.WAITLIST)}>
-                      Waitlisted
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}>
-                      Not Accepted
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.MISSING_INFO)}>
-                      Missing Info
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(entry.id, EntryStatus.CANCELLED)}>
-                      Withdrawn
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {/* Entry status — read-only for Moved; dropdown for all others */}
+                {entry.entryStatus === EntryStatus.MOVED ? (
+                  <div className="flex items-center gap-1.5">
+                    {getEntryStatusBadge(entry.entryStatus)}
+                    {entry.notes && (
+                      <span className="text-xs text-muted-foreground">{entry.notes}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-0.5">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+                          {getEntryStatusBadge(entry.entryStatus)}
+                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          onClick={() => onStatusChange(entry.id, EntryStatus.PENDING)}
+                        >
+                          Pending
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onStatusChange(entry.id, EntryStatus.ACCEPTED)}
+                        >
+                          Accepted
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onStatusChange(entry.id, EntryStatus.WAITLIST)}
+                        >
+                          Waitlisted
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onStatusChange(entry.id, EntryStatus.REJECTED)}
+                        >
+                          Not Accepted
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onStatusChange(entry.id, EntryStatus.MISSING_INFO)}
+                        >
+                          Missing Info
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openWithdrawalDialog(entry.id)}>
+                          Withdrawn
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onStatusChange(entry.id, EntryStatus.SCRATCHED)}
+                        >
+                          Scratched
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {entry.entryStatus === EntryStatus.CANCELLED && entry.withdrawalReason && (
+                      <span className="text-xs text-muted-foreground pl-0.5">
+                        {entry.withdrawalReason}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Check-in status — clickable dropdown */}
                 <DropdownMenu>
@@ -202,7 +251,6 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-
               </div>
             ))}
           </div>
@@ -218,18 +266,25 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
     </div>
   );
 
-  if (hideHeader) {
-    return <TooltipProvider><div className="px-4 py-2">{entryList}</div></TooltipProvider>;
-  }
-
   return (
     <TooltipProvider>
-      <Card>
-        <CardHeader>
-          <CardTitle>Entries ({entries.length})</CardTitle>
-        </CardHeader>
-        <CardContent>{entryList}</CardContent>
-      </Card>
+      {hideHeader ? (
+        <div className="px-4 py-2">{entryList}</div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Entries ({entries.length})</CardTitle>
+          </CardHeader>
+          <CardContent>{entryList}</CardContent>
+        </Card>
+      )}
+      <WithdrawalReasonDialog
+        open={withdrawalDialog.open}
+        onOpenChange={open =>
+          setWithdrawalDialog(open ? prev => prev : { open: false, entryId: null })
+        }
+        onConfirm={confirmWithdrawal}
+      />
     </TooltipProvider>
   );
 };

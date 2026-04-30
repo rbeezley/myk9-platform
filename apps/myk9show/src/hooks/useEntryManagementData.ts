@@ -156,6 +156,17 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
             : {}),
           enrollmentTotalAmount: entry.registration?.total_amount ?? null,
           enrollmentPaidAmount: entry.registration?.paid_amount ?? null,
+          // withdrawal_reason and refund fields populated after migration 175/176 pushed
+          ...(entry.withdrawal_reason ? { withdrawalReason: entry.withdrawal_reason } : {}),
+          ...(entry.registration?.refund_amount != null
+            ? { enrollmentRefundAmount: entry.registration.refund_amount }
+            : {}),
+          ...(entry.registration?.refund_notes != null
+            ? { enrollmentRefundNotes: entry.registration.refund_notes }
+            : {}),
+          ...(entry.registration?.refunded_at != null
+            ? { enrollmentRefundedAt: entry.registration.refunded_at }
+            : {}),
         })
       );
 

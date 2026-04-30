@@ -39,10 +39,14 @@ export interface EntryManagementEntry {
   confirmationNumber?: string;
   comped?: boolean;
   compedReason?: string;
+  withdrawalReason?: string;
   enrollmentPaymentStatus?: PaymentStatus | null;
   enrollmentPaymentReference?: string | null;
   enrollmentTotalAmount?: number | null;
   enrollmentPaidAmount?: number | null;
+  enrollmentRefundAmount?: number | null;
+  enrollmentRefundNotes?: string | null;
+  enrollmentRefundedAt?: string | null;
 }
 
 export interface EntryManagementShow {

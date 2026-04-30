@@ -24,8 +24,8 @@ describe('mapStatusToDb', () => {
     expect(mapStatusToDb(EntryStatus.WAITLIST)).toBe('submitted');
   });
 
-  it('maps REJECTED → withdrawn (lossy: no rejected value in DB constraint)', () => {
-    expect(mapStatusToDb(EntryStatus.REJECTED)).toBe('withdrawn');
+  it('maps REJECTED → not_accepted (migration 173 added this constraint value)', () => {
+    expect(mapStatusToDb(EntryStatus.REJECTED)).toBe('not_accepted');
   });
 
   it('maps CANCELLED → withdrawn', () => {

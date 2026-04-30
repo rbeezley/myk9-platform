@@ -33,6 +33,14 @@ describe('mapEntryStatus', () => {
     expect(mapEntryStatus('withdrawn')).toBe(EntryStatus.CANCELLED);
   });
 
+  it("maps 'scratched' to SCRATCHED", () => {
+    expect(mapEntryStatus('scratched')).toBe(EntryStatus.SCRATCHED);
+  });
+
+  it("maps 'moved' to MOVED", () => {
+    expect(mapEntryStatus('moved')).toBe(EntryStatus.MOVED);
+  });
+
   it('maps unknown strings to PENDING (safe default)', () => {
     expect(mapEntryStatus('unknown_value')).toBe(EntryStatus.PENDING);
     expect(mapEntryStatus(null)).toBe(EntryStatus.PENDING);
@@ -44,8 +52,25 @@ describe('mapStatusToDb round-trip', () => {
   it("ACCEPTED round-trips through 'confirmed'", () => {
     const dbValue = mapStatusToDb(EntryStatus.ACCEPTED);
     expect(dbValue).toBe('confirmed');
-    // Critical: the reverse mapping must exist
     expect(mapEntryStatus(dbValue)).toBe(EntryStatus.ACCEPTED);
+  });
+
+  it("SCRATCHED writes 'scratched' to DB and round-trips", () => {
+    const dbValue = mapStatusToDb(EntryStatus.SCRATCHED);
+    expect(dbValue).toBe('scratched');
+    expect(mapEntryStatus(dbValue)).toBe(EntryStatus.SCRATCHED);
+  });
+
+  it("MOVED writes 'moved' to DB and round-trips", () => {
+    const dbValue = mapStatusToDb(EntryStatus.MOVED);
+    expect(dbValue).toBe('moved');
+    expect(mapEntryStatus(dbValue)).toBe(EntryStatus.MOVED);
+  });
+
+  it("CANCELLED (Withdrawn) writes 'withdrawn' to DB and round-trips", () => {
+    const dbValue = mapStatusToDb(EntryStatus.CANCELLED);
+    expect(dbValue).toBe('withdrawn');
+    expect(mapEntryStatus(dbValue)).toBe(EntryStatus.CANCELLED);
   });
 });
 

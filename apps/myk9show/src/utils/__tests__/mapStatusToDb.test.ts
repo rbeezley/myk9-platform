@@ -35,4 +35,12 @@ describe('mapStatusToDb', () => {
   it('maps MISSING_INFO → submitted', () => {
     expect(mapStatusToDb(EntryStatus.MISSING_INFO)).toBe('submitted');
   });
+
+  it('maps SCRATCHED → scratched', () => {
+    expect(mapStatusToDb(EntryStatus.SCRATCHED)).toBe('scratched');
+  });
+
+  it('maps MOVED → moved', () => {
+    expect(mapStatusToDb(EntryStatus.MOVED)).toBe('moved');
+  });
 });

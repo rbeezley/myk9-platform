@@ -166,6 +166,12 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
         { variant: 'outline', className: 'text-blue-600' },
         'Refunded'
       );
+    case PaymentStatus.PARTIAL_REFUND:
+      return React.createElement(
+        Badge,
+        { variant: 'outline', className: 'text-blue-600' },
+        'Partial Refund'
+      );
     default:
       return React.createElement(Badge, { variant: 'outline' }, 'Unknown');
   }

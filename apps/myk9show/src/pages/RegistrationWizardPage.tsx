@@ -739,7 +739,21 @@ function RegistrationWizardContent() {
                     showId={showId}
                     registrationId={registrationId}
                     registrationNumber={registrationNumber}
-                    currentRegistrationTotalFees={currentRegistration?.totalFees || 0}
+                    currentRegistrationTotalFees={
+                      calculateTotalFees(
+                        registrationData.selectedDogs,
+                        classSelections,
+                        dogs,
+                        classes,
+                        currentShow
+                          ? {
+                              preEntryFee: currentShow.preEntryFee || '0',
+                              dayOfShowFee: currentShow.dayOfShowFee,
+                              startDate: currentShow.startDate,
+                            }
+                          : undefined
+                      ).total
+                    }
                     armbandAssignments={armbandAssignments}
                     onDogSelectionChange={handleDogSelectionChange}
                     onClassSelectionChange={handleClassSelectionChange}

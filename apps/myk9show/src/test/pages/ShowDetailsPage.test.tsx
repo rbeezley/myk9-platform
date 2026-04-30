@@ -212,11 +212,11 @@ describe('ShowDetailsPage', () => {
     expect(container.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
   });
 
-  it('shows "Register" button when user has no entries and entries are open', () => {
+  it('shows "Enter This Show" button when user has no entries and entries are open', () => {
     mockUserEntries = [];
     renderPage();
     const btn = screen.getByTestId('hero-action');
-    expect(btn).toHaveTextContent('Register');
+    expect(btn).toHaveTextContent('Enter This Show');
   });
 
   it('shows "Manage Entry" button when user has entries and entries are open', () => {

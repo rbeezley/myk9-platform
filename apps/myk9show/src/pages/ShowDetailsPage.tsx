@@ -342,7 +342,7 @@ const ShowDetailsPage: React.FC = () => {
             ? entryStatus.canEnter
               ? {
                   primaryAction: {
-                    label: hasUserEntries ? 'Manage Entry' : 'Register',
+                    label: hasUserEntries ? 'Manage Entry' : 'Enter This Show',
                     onClick: handleRegisterForShow,
                   },
                 }

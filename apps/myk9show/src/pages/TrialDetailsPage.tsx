@@ -185,15 +185,17 @@ const TrialDetailsPage: React.FC = () => {
   // Tab definitions with icons and counts
   const classCount = trialWithClasses?.classes?.length ?? 0;
   const entryCount = trialStatistics.entries.total;
-  const tabDefs: PrimaryTabDef[] = useMemo(
-    () => [
+  const tabDefs: PrimaryTabDef[] = useMemo(() => {
+    const tabs: PrimaryTabDef[] = [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'entries', label: 'Entries', icon: ClipboardList, count: entryCount },
-      { id: 'promo-codes', label: 'Promo Codes', icon: Tag },
-      { id: 'financials', label: 'Financials', icon: DollarSign },
-    ],
-    [entryCount]
-  );
+    ];
+    if (isSecretary || isAdmin) {
+      tabs.push({ id: 'promo-codes', label: 'Promo Codes', icon: Tag });
+      tabs.push({ id: 'financials', label: 'Financials', icon: DollarSign });
+    }
+    return tabs;
+  }, [entryCount, isSecretary, isAdmin]);
 
   // Breadcrumbs
   const breadcrumbs = useMemo(() => {

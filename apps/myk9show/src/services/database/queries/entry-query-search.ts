@@ -4,7 +4,7 @@
  * Read-only operations for statistics aggregation, searching, and eligibility checks.
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  */
-import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replicationUtils';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -256,13 +256,34 @@ export const getUserEntries = async (userId: string) => {
         const classesMap = buildMapFromArray(classes, c => c.id);
         const showsMap = buildMapFromArray(shows, s => s.id);
         const filtered = allEntries.filter(e => e.handlerId === userId);
-        const data = filtered.map(entry =>
-          mapReplicatedEntryToDbRow(entry, {
+
+        // Load enrollment confirmation numbers (not in the replication store)
+        const enrollmentIds = [...new Set(filtered.map(e => e.registrationId).filter(Boolean))];
+        const enrollmentsMap = new Map<string, { id: string; confirmation_number: string }>();
+        if (enrollmentIds.length > 0) {
+          const { data: enrollments } = await supabase
+            .from('enrollments')
+            .select('id, confirmation_number')
+            .in('id', enrollmentIds as string[]);
+          if (enrollments) {
+            for (const e of enrollments) {
+              enrollmentsMap.set(e.id, e);
+            }
+          }
+        }
+
+        const data = filtered.map(entry => {
+          const row = mapReplicatedEntryToDbRow(entry, {
             dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
             cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
             show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
-          })
-        );
+          });
+          const enrollment = entry.registrationId ? enrollmentsMap.get(entry.registrationId) : null;
+          if (enrollment) {
+            row.registration = enrollment;
+          }
+          return row;
+        });
         return { data, error: null };
       },
       () => postgrestGetUserEntries(userId),

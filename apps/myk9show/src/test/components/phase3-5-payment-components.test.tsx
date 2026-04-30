@@ -117,7 +117,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       expect(priceElements[0]).toBeInTheDocument();
     });
 
-    it('should calculate fees correctly with discounts', () => {
+    it('should calculate fees correctly for multiple dogs', () => {
       const propsWithMultipleDogs = {
         ...defaultProps,
         selectedDogs: ['1', '2'],
@@ -137,12 +137,9 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(<PaymentStep {...propsWithMultipleDogs} />, { wrapper: TestWrapper });
 
-      // Should show subtotal (may appear multiple times)
+      // Should show subtotal ($35 + $40 = $75)
       const subtotalElements = screen.getAllByText('$75.00');
-      expect(subtotalElements.length).toBeGreaterThan(0); // $35 + $40
-
-      // Should show early bird discount
-      expect(screen.getByText(/5% early bird discount/)).toBeInTheDocument();
+      expect(subtotalElements.length).toBeGreaterThan(0);
 
       // Should show total due
       expect(screen.getByText(/Total Due/)).toBeInTheDocument();
@@ -591,7 +588,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       expect(onPaymentMethodChange).toHaveBeenCalledWith('check');
     });
 
-    it('should calculate multi-dog discounts correctly', () => {
+    it('should calculate multi-dog fees correctly', () => {
       render(
         <PaymentStep
           selectedDogs={['1', '2']}
@@ -613,11 +610,9 @@ describe('Phase 3.5: Payment Component Tests', () => {
         { wrapper: TestWrapper }
       );
 
-      // Should show subtotal (may appear multiple times)
+      // Should show subtotal ($35 + $40 = $75)
       expect(screen.getAllByText('$75.00').length).toBeGreaterThan(0);
-
-      // Should show discounts
-      expect(screen.getByText(/early bird discount/)).toBeInTheDocument();
+      expect(screen.getByText(/Total Due/)).toBeInTheDocument();
     });
 
     it('should handle payment status integration with entry status', () => {

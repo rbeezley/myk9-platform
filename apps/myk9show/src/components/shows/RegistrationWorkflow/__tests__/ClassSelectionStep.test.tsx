@@ -167,6 +167,11 @@ vi.mock('@/services/LoggingService', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), debug: vi.fn(), info: vi.fn() },
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('@/hooks/useReplicationSync', () => ({
+  useReplicationSync: () => ({
+    status: { isSyncing: false, tablesStatus: { trials: 'success' } },
+  }),
+}));
 
 import { ClassSelectionStep } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep';
 

@@ -7,7 +7,7 @@ export type ShowPhase = 'today' | 'upcoming' | 'draft' | 'past';
 
 export interface AttentionItem {
   showId: string;
-  showName: string;
+  showName?: string;
   kind: 'urgent' | 'info';
   text: string;
   /** Route to navigate to when clicked */

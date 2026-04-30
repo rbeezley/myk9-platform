@@ -35,7 +35,9 @@ export function AttentionNeededStrip({ items }: AttentionNeededStripProps) {
               >
                 {item.text}
               </p>
-              <p className="text-xs text-muted-foreground truncate">{item.showName}</p>
+              {item.showName && (
+                <p className="text-xs text-muted-foreground truncate">{item.showName}</p>
+              )}
             </div>
           </Link>
         ))}

@@ -16,9 +16,8 @@ import { AttentionNeededStrip } from './AttentionNeededStrip';
 import { MyShowsSection } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
 import { MessagesTab } from './MessagesTab';
-import { EntriesTab } from './EntriesTab';
 
-type Tab = 'tasks' | 'messages' | 'entries';
+type Tab = 'tasks' | 'messages';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -56,7 +55,7 @@ export function SecretaryDashboardPage() {
     });
   }, [rawShows, isAdmin, clubScopeKey]);
 
-  const { today, upcoming, draft, past, attentionNeeded } = useMyShows(shows);
+  const { today, upcoming, draft, past, attentionNeeded: showAttentionItems } = useMyShows(shows);
 
   const { data: allTasks = [] } = useSecretaryTasks();
   const openTaskCount = allTasks.filter((t: SecretaryTask) => t.status === 'todo').length;
@@ -64,7 +63,30 @@ export function SecretaryDashboardPage() {
   const unreadMessageCount = useMessageStore(s => s.unreadCount);
 
   const { data: pendingEntries = [] } = usePendingEntries();
-  const pendingEntryCount = pendingEntries.length;
+
+  const pendingByShow = useMemo(() => {
+    const map = new Map<string, { showName: string; count: number }>();
+    for (const entry of pendingEntries) {
+      const existing = map.get(entry.showId);
+      if (existing) {
+        existing.count++;
+      } else {
+        map.set(entry.showId, { showName: entry.showName, count: 1 });
+      }
+    }
+    return map;
+  }, [pendingEntries]);
+
+  const attentionNeeded = [
+    ...[...pendingByShow.entries()].map(([showId, { showName, count }]) => ({
+      showId,
+      showName,
+      kind: 'info' as const,
+      text: `${count} ${count === 1 ? 'entry' : 'entries'} pending review`,
+      href: `/secretary/entries/${showId}`,
+    })),
+    ...showAttentionItems,
+  ];
 
   const { classesByStage } = useMissionControlData();
   const liveClassCount = classesByStage.get('in-progress')?.length ?? 0;
@@ -79,7 +101,6 @@ export function SecretaryDashboardPage() {
   const tabs: Array<{ key: Tab; label: string; badge: number }> = [
     { key: 'tasks', label: 'Tasks', badge: openTaskCount },
     { key: 'messages', label: 'Messages', badge: unreadMessageCount },
-    { key: 'entries', label: 'Entries', badge: pendingEntryCount },
   ];
 
   return (
@@ -131,19 +152,16 @@ export function SecretaryDashboardPage() {
           title="Upcoming"
           subtitle="Shows that haven't started yet."
           shows={upcoming}
+          defaultCollapsed
         />
         <MyShowsSection
           phase="draft"
           title="Draft — not yet published"
           subtitle="Complete setup before exhibitors can enter."
           shows={draft}
-        />
-        <MyShowsSection
-          phase="past"
-          title="Past shows"
-          shows={past}
           defaultCollapsed
         />
+        <MyShowsSection phase="past" title="Past shows" shows={past} defaultCollapsed />
       </div>
 
       {/* Tab Bar */}
@@ -172,7 +190,6 @@ export function SecretaryDashboardPage() {
       <div className="flex-1 px-5 py-4">
         {activeTab === 'tasks' && <TasksTab shows={tabShows} clubId={clubId} />}
         {activeTab === 'messages' && <MessagesTab shows={tabShows} />}
-        {activeTab === 'entries' && <EntriesTab shows={tabShows} />}
       </div>
     </div>
   );

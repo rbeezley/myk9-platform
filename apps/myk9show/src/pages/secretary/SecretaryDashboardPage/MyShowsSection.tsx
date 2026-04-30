@@ -42,7 +42,7 @@ export function MyShowsSection({
   const pulse = phase === 'today';
 
   return (
-    <section className="mb-6">
+    <section className="mb-6 border-b border-border pb-4">
       <button
         onClick={() => setOpen(v => !v)}
         className="flex w-full items-center gap-2.5 mb-3 text-left group"

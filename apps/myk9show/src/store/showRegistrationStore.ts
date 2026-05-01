@@ -23,12 +23,19 @@ import {
 } from '../services/database/queries/showRegistrationQueries';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@myk9/core';
+import { buildRegistrationIndexes, emptyRegistrationIndexes } from './buildRegistrationIndexes';
 
 interface ShowRegistrationStore {
   registrations: ShowRegistration[];
   currentRegistration: ShowRegistration | null;
   draftData: Partial<RegistrationFormData>;
   registrationContext: RegistrationContext | null;
+  // Derived byId indexes — never persisted, rebuilt on every mutation and on rehydrate.
+  // Read via showRegistrationSelectors; will become primary state in a follow-up.
+  registrationsById: Record<string, ShowRegistration>;
+  entriesById: Record<string, ShowEntry>;
+  classesById: Record<string, ClassEntry>;
+  currentRegistrationId: string | null;
 
   // Registration actions
   createRegistration: (
@@ -63,7 +70,6 @@ interface ShowRegistrationStore {
     handler: Handler,
     overrideReason?: string
   ) => void;
-  validateHandler: (registrationId: string, entryId: string, handlerId: string) => Promise<boolean>;
 
   // Armband management
   assignArmband: (registrationId: string, entryId: string, assignment: ArmbandAssignment) => void;
@@ -122,6 +128,8 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
       currentRegistration: null,
       draftData: {},
       registrationContext: null,
+      ...emptyRegistrationIndexes(),
+      currentRegistrationId: null,
 
       createRegistration: (showId, userId, handlerId, createdByUserId) => {
         const registration: ShowRegistration = {
@@ -495,29 +503,6 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         }));
       },
 
-      validateHandler: async (registrationId, entryId, handlerId) => {
-        // In real implementation, this would check against backend
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // For now, always return true (valid)
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.map(entry =>
-                    entry.id === entryId && entry.handlerId === handlerId
-                      ? { ...entry, isHandlerValidated: true }
-                      : entry
-                  ),
-                }
-              : reg
-          ),
-        }));
-
-        return true;
-      },
-
       // Armband management
       assignArmband: (registrationId, entryId, assignment) => {
         set(state => ({
@@ -686,6 +671,40 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         }
         return persistedState;
       },
+      onRehydrateStorage: () => state => {
+        if (!state) return;
+        const indexes = buildRegistrationIndexes(state.registrations);
+        state.registrationsById = indexes.registrationsById;
+        state.entriesById = indexes.entriesById;
+        state.classesById = indexes.classesById;
+        state.currentRegistrationId = state.currentRegistration?.id ?? null;
+      },
     }
   )
 );
+
+// Keep derived byId indexes in sync with the canonical registrations[] array.
+// This is transitional — a follow-up commit will make byId the primary state
+// and remove this subscription. See showRegistrationSelectors.ts for the read
+// API that callers should adopt now.
+useShowRegistrationStore.subscribe((state, prev) => {
+  const registrationsChanged = state.registrations !== prev.registrations;
+  const currentChanged = state.currentRegistration !== prev.currentRegistration;
+  if (!registrationsChanged && !currentChanged) return;
+
+  const update: Partial<{
+    registrationsById: ShowRegistrationStore['registrationsById'];
+    entriesById: ShowRegistrationStore['entriesById'];
+    classesById: ShowRegistrationStore['classesById'];
+    currentRegistrationId: ShowRegistrationStore['currentRegistrationId'];
+  }> = {};
+
+  if (registrationsChanged) {
+    Object.assign(update, buildRegistrationIndexes(state.registrations));
+  }
+  if (currentChanged) {
+    update.currentRegistrationId = state.currentRegistration?.id ?? null;
+  }
+
+  useShowRegistrationStore.setState(update);
+});

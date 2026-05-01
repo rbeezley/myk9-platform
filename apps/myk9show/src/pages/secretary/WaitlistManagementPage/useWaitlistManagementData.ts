@@ -12,7 +12,7 @@ import {
   offerWaitlistSpot,
   removeFromWaitlist,
 } from '@/services/database/queries/waitlistQueries';
-import { getSecretaryShows } from '@/services/database/queries/showQueries';
+import { getSecretaryShows } from '@/services/database/shows';
 import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
 
 export function useWaitlistManagementData(showId?: string) {

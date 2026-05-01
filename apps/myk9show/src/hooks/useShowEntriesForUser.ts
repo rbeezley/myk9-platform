@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useEntryStore } from '@/store/entryStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -20,10 +21,10 @@ export interface EnrichedShowEntry {
   level: string;
   section: string;
   classTitle: string;
-  trialDate: string;  // "YYYY-MM-DD"
-  dayLabel: string;   // "Saturday, May 10"
-  trialName: string;  // "Trial 1", "Trial 2 PM"
-  startTime: string;  // "9:00 AM" or ""
+  trialDate: string; // "YYYY-MM-DD"
+  dayLabel: string; // "Saturday, May 10"
+  trialName: string; // "Trial 1", "Trial 2 PM"
+  startTime: string; // "9:00 AM" or ""
   judgeName: string;
   dogsAhead: number;
   hasResult: boolean;
@@ -63,11 +64,13 @@ function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
 
 export function useShowEntriesForUser(showId: string | undefined): UseShowEntriesForUserResult {
   const { userWithRoles } = useAuthContext();
-  const { entries: storeEntries, isLoading, error } = useEntryStore(s => ({
-    entries: s.entries,
-    isLoading: s.isLoading,
-    error: s.error,
-  }));
+  const {
+    entries: storeEntries,
+    isLoading,
+    error,
+  } = useEntryStore(
+    useShallow(s => ({ entries: s.entries, isLoading: s.isLoading, error: s.error }))
+  );
   const { classes } = useClassStoreCompat();
   const { dogs } = useDogStoreCompat();
 

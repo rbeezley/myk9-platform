@@ -4,9 +4,6 @@
 //
 // Implementations live in classQueries.ts during migration and will
 // move into reads.ts / writes.ts in follow-up PRs.
-//
-// Entry functions that classQueries.ts re-exports are NOT included here —
-// use @/services/database/entries for Entry data access.
 
 export {
   getAllClasses,

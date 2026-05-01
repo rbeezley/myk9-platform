@@ -24,7 +24,7 @@ import {
   hardDeleteEntry,
   restoreEntry,
   getDeletedEntries,
-} from '@/services/database/entries';
+} from '@/services/database/queries/classQueries';
 import type { DbClassInsert, DbClassUpdate, DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 
 // ===== QUERY KEYS =====

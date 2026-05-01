@@ -1,5 +1,7 @@
 // Class Queries - Entry Operations
 // Extracted from classQueries.ts to keep files under 500 lines
+// TODO: delete this file once classQueries.ts no longer re-exports from it.
+// hardDeleteEntry / restoreEntry / getDeletedEntries should move to entries/admin.ts.
 
 import { supabase, createDatabaseError } from '../supabaseClient';
 import type { DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';

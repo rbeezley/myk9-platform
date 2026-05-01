@@ -6,8 +6,7 @@
 // move into reads.ts / writes.ts / search.ts in follow-up PRs.
 
 export * from '../queries/entry-query-lookups';
-// updateEntryStatus is exported from secretaryEntryQueries (secretary signature);
-// the mutations version uses a different params shape and has no production callers.
+// updateEntryStatus excluded — conflicts with the secretary-signature version in secretaryEntryQueries.
 export {
   applyPromoCodeToEntry,
   compEntry,
@@ -23,6 +22,4 @@ export {
 } from '../queries/entry-query-mutations';
 export * from '../queries/entry-query-search';
 export * from '../queries/secretaryEntryQueries';
-// hardDeleteEntry / restoreEntry / getDeletedEntries originate here for now;
-// classQueries.entries.ts will be deleted once classQueries.ts is cleaned up.
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from '../queries/classQueries.entries';

@@ -39,7 +39,7 @@ export async function prefetchCriticalData(queryClient: QueryClient): Promise<vo
     await queryClient.prefetchQuery({
       queryKey: showQueryKeys.lists(),
       queryFn: async () => {
-        const { getAllShows } = await import('@/services/database/queries/showQueries');
+        const { getAllShows } = await import('@/services/database/shows');
         const { mapDatabaseShowsArray } = await import('@/services/mappers/showMappers');
         const { data, error } = await getAllShows();
         if (error) throw error;

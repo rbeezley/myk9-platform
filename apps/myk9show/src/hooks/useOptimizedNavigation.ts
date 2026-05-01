@@ -9,7 +9,7 @@ import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { getShowById } from '@/services/database/queries/showQueries';
+import { getShowById } from '@/services/database/shows';
 import { mapDatabaseToShow } from '@/services/mappers/showMappers';
 import type { Show } from '@/types/show-types';
 

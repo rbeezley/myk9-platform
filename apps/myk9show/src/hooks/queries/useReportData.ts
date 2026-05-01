@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getTrialsByShow } from '@/services/database/queries/trialQueries';
+import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesByClass, getEntriesByShow } from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';

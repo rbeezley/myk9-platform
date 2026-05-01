@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
-import type { ClassWithCapacity } from '@/services/database/queries/dayOfOperationsQueries';
+import type { ClassWithCapacity } from '@/services/database/day-of-operations';
 
 interface ClassAvailabilityTableProps {
   classes: ClassWithCapacity[];

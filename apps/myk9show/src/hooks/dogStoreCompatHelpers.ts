@@ -1,6 +1,6 @@
 // Pure helper functions for useDogStoreCompat
 
-import { updateRegistration, getRegistrationsByDog, createRegistration } from '@/services/database/queries/registrationQueries';
+import { updateRegistration, getRegistrationsByDog, createRegistration } from '@/services/database/registrations';
 import { logger } from '@/services/LoggingService';
 import type { DbDogRegistration } from '@/types/database-mappings';
 

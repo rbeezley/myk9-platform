@@ -4,7 +4,7 @@ import { cacheStrategies } from '@/lib/queryClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, ClipboardList, Loader2 } from 'lucide-react';
-import { getEntriesByShow } from '@/services/database/queries/entryQueries';
+import { getEntriesByShow } from '@/services/database/entries';
 import { getEntryStatusClasses, formatDate } from '@/utils/entryManagementUtils';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 

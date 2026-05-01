@@ -8,7 +8,7 @@ import {
   achieveMilestone,
   dismissMilestoneTip,
 } from '@/services/database/queries/milestoneQueries';
-import type { UserMilestone } from '@/services/database/queries/milestoneQueries';
+import type { UserMilestone } from '@/services/database/milestones';
 import { cacheStrategies } from '@/lib/queryClient';
 
 export const milestoneQueryKeys = {

@@ -98,10 +98,6 @@ export const queryKeys = {
   dog: (id: string) => ['dogs', id] as const,
   dogRegistrations: (dogId: string) => ['dogs', dogId, 'registrations'] as const,
   dogHealthRecords: (dogId: string) => ['dogs', dogId, 'health'] as const,
-  dogCompetitions: (dogId: string) => ['dogs', dogId, 'competitions'] as const,
-  dogAchievements: (dogId: string) => ['dogs', dogId, 'achievements'] as const,
-  dogTitles: (dogId: string) => ['dogs', dogId, 'titles'] as const,
-  dogTraining: (dogId: string) => ['dogs', dogId, 'training'] as const,
   dogPedigree: (dogId: string) => ['dogs', dogId, 'pedigree'] as const,
 
   // Users
@@ -118,11 +114,12 @@ export const queryKeys = {
     dogs: (userId: string) => ['users', userId, 'dogs'] as const,
   },
 
-  // Legacy aliases for backward compatibility (to be removed after migration)
+  // Legacy aliases — still in use by useUsersDatabase / useDogsDatabase.
+  // Migration to queryKeys.users.* is incomplete; do not remove without
+  // updating callers first.
   people: ['users'] as const,
   person: (id: string) => ['users', 'detail', id] as const,
   personDogs: (userId: string) => ['users', userId, 'dogs'] as const,
-  peopleByRole: (role: string) => ['users', 'role', role] as const,
   peopleSearch: (searchTerm: string) => ['users', 'search', searchTerm] as const,
 
   // Shows
@@ -133,12 +130,7 @@ export const queryKeys = {
   showEntries: (showId: string) => ['shows', showId, 'entries'] as const,
   showPromoCodes: (showId: string) => ['shows', showId, 'promo-codes'] as const,
   showFinancialSummary: (showId: string) => ['shows', showId, 'financial-summary'] as const,
-  showsByDateRange: (startDate: string, endDate: string) =>
-    ['shows', 'dateRange', startDate, endDate] as const,
-  showsByClub: (clubId: string) => ['shows', 'club', clubId] as const,
-  showsByStatus: (status: string) => ['shows', 'status', status] as const,
   upcomingShows: ['shows', 'upcoming'] as const,
-  showsWithFilters: (filters: Record<string, unknown>) => ['shows', 'filters', filters] as const,
 
   // Class Requirements
   classRequirements: (org: string, element: string, level: string) =>
@@ -149,33 +141,16 @@ export const queryKeys = {
   club: (id: string) => ['clubs', id] as const,
   clubShows: (clubId: string) => ['clubs', clubId, 'shows'] as const,
 
-  // Health Records
-  allergies: (dogId: string) => ['health', dogId, 'allergies'] as const,
-  medications: (dogId: string) => ['health', dogId, 'medications'] as const,
-  vaccinations: (dogId: string) => ['health', dogId, 'vaccinations'] as const,
-  vetVisits: (dogId: string) => ['health', dogId, 'vet-visits'] as const,
-
   // Registrations
   registrations: ['registrations'] as const,
   registration: (id: string) => ['registrations', id] as const,
-  registrationsByShow: (showId: string) => ['registrations', 'show', showId] as const,
   registrationsByDog: (dogId: string) => ['registrations', 'dog', dogId] as const,
   registrationsByOwner: (ownerId: string) => ['registrations', 'owner', ownerId] as const,
-  registrationsByStatus: (status: string) => ['registrations', 'status', status] as const,
-  registrationStats: (showId?: string) => ['registrations', 'stats', showId] as const,
-
-  // Competitions/Results
-  competitions: ['competitions'] as const,
-  competition: (id: string) => ['competitions', id] as const,
-  pastResults: (dogId: string) => ['results', dogId] as const,
 
   // Trials
-  trials: ['trials'] as const,
   trial: (id: string) => ['trials', id] as const,
-  trialClasses: (trialId: string) => ['trials', trialId, 'classes'] as const,
   trialPromoCodes: (trialId: string) => ['trials', trialId, 'promo-codes'] as const,
   trialEntries: (trialId: string) => ['trials', trialId, 'entries'] as const,
-  trialFinancialSummary: (trialId: string) => ['trials', trialId, 'financial-summary'] as const,
 
   // Pipeline
   trialChecklist: (trialId: string) => ['trials', trialId, 'checklist'] as const,
@@ -187,28 +162,11 @@ export const queryKeys = {
   sportTemplateRules: (templateId: string) => ['sport-templates', templateId, 'rules'] as const,
   sportTemplateTitles: (templateId: string) => ['sport-templates', templateId, 'titles'] as const,
 
-  // Templates
-  classTemplates: ['templates', 'class'] as const,
-  classTemplate: (id: string) => ['templates', 'class', id] as const,
-  classTemplatesByOrganization: (org: string) =>
-    ['templates', 'class', 'organization', org] as const,
-  showTemplates: ['templates', 'show'] as const,
-  showTemplate: (id: string) => ['templates', 'show', id] as const,
-  showTemplatesByOrganization: (org: string) => ['templates', 'show', 'organization', org] as const,
-  templateFields: (templateId: string) => ['templates', 'fields', templateId] as const,
-  templateStatistics: ['templates', 'statistics'] as const,
-  mostUsedTemplates: ['templates', 'most-used'] as const,
-  templateSearch: (searchTerm: string) => ['templates', 'search', searchTerm] as const,
-
   // Entries
   entries: ['entries'] as const,
   entry: (id: string) => ['entries', id] as const,
-  entriesByShow: (showId: string) => ['entries', 'show', showId] as const,
-  entriesByClass: (classId: string) => ['entries', 'class', classId] as const,
-  entriesByDog: (dogId: string) => ['entries', 'dog', dogId] as const,
   entriesByStatus: (status: string) => ['entries', 'status', status] as const,
   entriesSearch: (searchTerm: string) => ['entries', 'search', searchTerm] as const,
-  entryStatistics: (showId?: string) => ['entries', 'statistics', showId] as const,
 
   // Judges
   judges: {
@@ -257,7 +215,6 @@ export const queryKeys = {
   showStatistics: (showId: string) => ['shows', showId, 'statistics'] as const,
 
   // TV Display
-  tvShow: (showId: string) => ['tv', 'show', showId] as const,
   tvClasses: (showId: string) => ['tv', 'classes', showId] as const,
   tvResults: (showId: string) => ['tv', 'results', showId] as const,
 
@@ -295,4 +252,3 @@ export const cacheStrategies = {
     gcTime: 60 * 1000,
   },
 } as const;
-

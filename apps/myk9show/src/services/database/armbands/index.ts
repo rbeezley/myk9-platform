@@ -10,3 +10,10 @@ export {
   assignArmband,
   lookupDogByArmband,
 } from '../queries/armbandQueries';
+// assignArmband excluded from secretaryArmbandQueries — conflicts with the
+// armbandQueries version already exported above (same signature, different impl).
+export {
+  autoAssignArmbands,
+  getNextArmbandForShow,
+  getEntryArmbandById,
+} from '../queries/secretaryArmbandQueries';

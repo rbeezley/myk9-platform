@@ -19,7 +19,7 @@ import {
   autoAssignArmbands,
   getNextArmbandForShow,
   getEntryArmbandById,
-} from '@/services/database/queries/secretaryArmbandQueries';
+} from '@/services/database/armbands';
 
 import { supabase } from '@/services/database/supabaseClient';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';

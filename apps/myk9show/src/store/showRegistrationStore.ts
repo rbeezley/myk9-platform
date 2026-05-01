@@ -70,7 +70,6 @@ interface ShowRegistrationStore {
     handler: Handler,
     overrideReason?: string
   ) => void;
-  validateHandler: (registrationId: string, entryId: string, handlerId: string) => Promise<boolean>;
 
   // Armband management
   assignArmband: (registrationId: string, entryId: string, assignment: ArmbandAssignment) => void;
@@ -502,29 +501,6 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
               : reg
           ),
         }));
-      },
-
-      validateHandler: async (registrationId, entryId, handlerId) => {
-        // In real implementation, this would check against backend
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // For now, always return true (valid)
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.map(entry =>
-                    entry.id === entryId && entry.handlerId === handlerId
-                      ? { ...entry, isHandlerValidated: true }
-                      : entry
-                  ),
-                }
-              : reg
-          ),
-        }));
-
-        return true;
       },
 
       // Armband management

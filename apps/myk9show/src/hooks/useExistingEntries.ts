@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
+import { selectRegistrationsByShow } from '@/store/showRegistrationSelectors';
 
 interface ExistingEntry {
   dogId: string;
@@ -10,17 +11,23 @@ interface ExistingEntry {
 }
 
 export function useExistingEntries(showId: string) {
-  const { getRegistrationsByShow } = useShowRegistrationStore();
-  
+  const allRegistrations = useShowRegistrationStore(state => state.registrations);
+
   const existingEntries = useMemo(() => {
-    const registrations = getRegistrationsByShow(showId);
+    const registrations = selectRegistrationsByShow(
+      {
+        registrations: allRegistrations,
+        currentRegistration: null,
+        draftData: {},
+        registrationContext: null,
+      },
+      showId
+    );
     const entries: ExistingEntry[] = [];
-    
-    // Collect all existing entries for this show
+
     registrations.forEach(registration => {
-      // Skip cancelled registrations
       if (registration.status === 'cancelled') return;
-      
+
       registration.entries?.forEach(entry => {
         entry.classes?.forEach(classEntry => {
           entries.push({
@@ -28,35 +35,33 @@ export function useExistingEntries(showId: string) {
             classId: classEntry.classId,
             registrationId: registration.id,
             status: registration.status,
-            ...(registration.entryStatus !== undefined && { entryStatus: registration.entryStatus })
+            ...(registration.entryStatus !== undefined && {
+              entryStatus: registration.entryStatus,
+            }),
           });
         });
       });
     });
-    
+
     return entries;
-  }, [showId, getRegistrationsByShow]);
-  
+  }, [showId, allRegistrations]);
+
   const checkIfDogEnteredInClass = (dogId: string, classId: string): boolean => {
-    return existingEntries.some(
-      entry => entry.dogId === dogId && entry.classId === classId
-    );
+    return existingEntries.some(entry => entry.dogId === dogId && entry.classId === classId);
   };
-  
+
   const getExistingEntry = (dogId: string, classId: string): ExistingEntry | undefined => {
-    return existingEntries.find(
-      entry => entry.dogId === dogId && entry.classId === classId
-    );
+    return existingEntries.find(entry => entry.dogId === dogId && entry.classId === classId);
   };
-  
+
   const getEntriesForDog = (dogId: string): ExistingEntry[] => {
     return existingEntries.filter(entry => entry.dogId === dogId);
   };
-  
+
   return {
     existingEntries,
     checkIfDogEnteredInClass,
     getExistingEntry,
-    getEntriesForDog
+    getEntriesForDog,
   };
 }

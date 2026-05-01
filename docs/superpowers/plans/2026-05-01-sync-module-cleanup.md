@@ -220,6 +220,9 @@ describe('STRATEGY_TO_REPLICATION', () => {
     expect(STRATEGY_TO_REPLICATION['merge_manual']).toBe('field-level-merge'));
   it('newest_wins → last-write-wins', () =>
     expect(STRATEGY_TO_REPLICATION['newest_wins']).toBe('last-write-wins'));
+  // [ADDED] unknown key returns undefined (caller's ?? fallback kicks in)
+  it('unknown key → undefined (caller provides fallback)', () =>
+    expect(STRATEGY_TO_REPLICATION['unknown_key']).toBeUndefined());
 });
 
 describe('mapConflict', () => {
@@ -321,14 +324,14 @@ describe('filterByEntityType', () => {
 cd apps/myk9show && npx vitest run src/hooks/__tests__/conflictResolutionUtils.test.ts
 ```
 
-Expected: all 21 tests pass.
+Expected: all 22 tests pass.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add apps/myk9show/src/hooks/conflictResolutionUtils.ts \
         apps/myk9show/src/hooks/__tests__/conflictResolutionUtils.test.ts
-git commit -m "feat(sync): extract conflictResolutionUtils with 21 unit tests"
+git commit -m "feat(sync): extract conflictResolutionUtils with 22 unit tests"
 ```
 
 ---
@@ -406,7 +409,17 @@ with:
 const sharedStrategy = STRATEGY_TO_REPLICATION[strategy] ?? 'last-write-wins';
 ```
 
-- [ ] **Step 3: Typecheck**
+- [ ] **Step 3: Confirm live callers still reference valid exports** [ADDED]
+
+```bash
+grep -n "useConflictResolution\|ConflictNotification" \
+  apps/myk9show/src/components/conflict/ConflictNotifications.tsx \
+  apps/myk9show/src/hooks/useRegistrationConflicts.ts
+```
+
+Expected: both files show import lines; no "not found" errors. The hook's exported names (`useConflictResolution`, `ConflictNotification`, etc.) are unchanged so these callers need no edits.
+
+- [ ] **Step 4: Typecheck**
 
 ```bash
 cd apps/myk9show && npx tsc --noEmit 2>&1 | grep "error TS"
@@ -414,7 +427,7 @@ cd apps/myk9show && npx tsc --noEmit 2>&1 | grep "error TS"
 
 Expected: no new errors.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add apps/myk9show/src/hooks/useConflictResolution.ts
@@ -503,6 +516,7 @@ describe('useConflictResolution', () => {
 
   it('adds a notification when conflict_detected fires with enableNotifications: true', () => {
     const { result } = renderHook(() => useConflictResolution({ enableNotifications: true }));
+    const callsBefore = mockManager.getPendingConflicts.mock.calls.length;
 
     act(() => {
       registeredHandlers.get('conflict_detected')?.({
@@ -515,6 +529,25 @@ describe('useConflictResolution', () => {
     expect(result.current.notifications).toHaveLength(1);
     expect(result.current.notifications[0].id).toBe('notification-c1');
     expect(result.current.notifications[0].type).toBe('warning');
+    // [ADDED] confirm refreshConflicts ran (getPendingConflicts called again)
+    expect(mockManager.getPendingConflicts.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  // [ADDED] manual_resolution_required → error notification
+  it('adds an error notification when manual_resolution_required fires', () => {
+    const { result } = renderHook(() => useConflictResolution({ enableNotifications: true }));
+
+    act(() => {
+      registeredHandlers.get('manual_resolution_required')?.({
+        conflictId: 'c3',
+        entityType: 'dog',
+        entityId: 'e3',
+      });
+    });
+
+    expect(result.current.notifications).toHaveLength(1);
+    expect(result.current.notifications[0].id).toBe('notification-c3');
+    expect(result.current.notifications[0].type).toBe('error');
   });
 
   it('does not add a notification when enableNotifications is false', () => {
@@ -621,7 +654,7 @@ describe('useConflictResolution', () => {
 cd apps/myk9show && npx vitest run src/hooks/__tests__/useConflictResolution.test.ts
 ```
 
-Expected: all 10 tests pass.
+Expected: all 12 tests pass.
 
 - [ ] **Step 3: Run full test suite to confirm no regressions**
 
@@ -643,5 +676,5 @@ Expected: no new errors.
 
 ```bash
 git add apps/myk9show/src/hooks/__tests__/useConflictResolution.test.ts
-git commit -m "test(sync): add 10 hook tests for useConflictResolution"
+git commit -m "test(sync): add 12 hook tests for useConflictResolution"
 ```

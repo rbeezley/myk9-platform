@@ -2,6 +2,8 @@
 // Provides type-safe, cached database operations for classes and entries
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+// TODO: migrate to @/services/database/entries once getEntriesByClassId and
+// 2-arg mutation signatures are reconciled with the canonical entry functions.
 import {
   getAllClasses,
   getClassById,
@@ -14,6 +16,10 @@ import {
   getDeletedClasses,
   searchClasses,
   getClassStatistics,
+} from '@/services/database/classes';
+// TODO: migrate to @/services/database/entries once getEntriesByClassId and
+// 2-arg mutation signatures are reconciled with the canonical entry functions.
+import {
   getAllEntries,
   getEntriesByClassId,
   createEntry,

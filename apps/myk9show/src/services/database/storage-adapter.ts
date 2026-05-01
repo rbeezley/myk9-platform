@@ -16,7 +16,7 @@ export function createIndexedDBStorage(): StateStorage {
         return null;
       }
     },
-    
+
     setItem: async (name: string, value: string): Promise<void> => {
       try {
         // Ensure database is opened
@@ -24,14 +24,14 @@ export function createIndexedDBStorage(): StateStorage {
         await db.instance._zustand_state.put({
           id: name,
           state: value,
-          lastModified: new Date()
+          lastModified: new Date(),
         });
       } catch (error) {
         logger.error('IndexedDB setItem error', 'storage', { name }, error as Error);
         throw error;
       }
     },
-    
+
     removeItem: async (name: string): Promise<void> => {
       try {
         // Ensure database is opened
@@ -41,64 +41,15 @@ export function createIndexedDBStorage(): StateStorage {
         logger.error('IndexedDB removeItem error', 'storage', { name }, error as Error);
         throw error;
       }
-    }
-  };
-}
-
-// Import optimized storage
-import { createOptimizedIndexedDBStorage } from './storage-adapter-optimized';
-
-// Hybrid storage that falls back to localStorage if IndexedDB fails
-export function createHybridStorage(_storeName: string): StateStorage {
-  const indexedDBStorage = createOptimizedIndexedDBStorage();
-  
-  return {
-    getItem: async (name: string): Promise<string | null> => {
-      try {
-        // Try IndexedDB first
-        return await indexedDBStorage.getItem(name);
-      } catch (error) {
-        logger.warn('IndexedDB failed, falling back to localStorage', 'storage', { name }, error as Error);
-        // Fall back to localStorage
-        return localStorage.getItem(name);
-      }
     },
-    
-    setItem: async (name: string, value: string): Promise<void> => {
-      try {
-        // Try IndexedDB first
-        await indexedDBStorage.setItem(name, value);
-        // Also save to localStorage as backup during migration period
-        localStorage.setItem(name, value);
-      } catch (error) {
-        logger.warn('IndexedDB failed, using localStorage', 'storage', { name }, error as Error);
-        // Fall back to localStorage
-        localStorage.setItem(name, value);
-      }
-    },
-    
-    removeItem: async (name: string): Promise<void> => {
-      try {
-        await indexedDBStorage.removeItem(name);
-        localStorage.removeItem(name);
-      } catch (error) {
-        logger.warn('IndexedDB removeItem failed, using localStorage', 'storage', { name }, error as Error);
-        localStorage.removeItem(name);
-      }
-    }
   };
 }
 
 // Feature detection for IndexedDB support
 export function isIndexedDBAvailable(): boolean {
   if (typeof window === 'undefined') return false;
-  
-  return !!(
-    window.indexedDB &&
-    window.IDBKeyRange &&
-    window.IDBCursor &&
-    window.IDBTransaction
-  );
+
+  return !!(window.indexedDB && window.IDBKeyRange && window.IDBCursor && window.IDBTransaction);
 }
 
 // Storage adapter that implements both StateStorage and Storage interfaces
@@ -150,20 +101,6 @@ export function getOptimalStorage(storeName: string): StateStorage {
     return new StorageAdapter(localStorage);
   }
 
-  // Production: Use pure IndexedDB (no hybrid fallback)
   logger.debug('Using pure IndexedDB storage', 'storage', { storeName });
   return createIndexedDBStorage();
-  
-  // Phase 2: Uncomment for hybrid storage with cloud sync
-  /*
-  // Check feature flag
-  const useIndexedDB = import.meta.env.VITE_ENABLE_INDEXEDDB === 'true';
-  
-  if (useIndexedDB) {
-    return createHybridStorage(storeName);
-  }
-  
-  // Default to localStorage
-  return new StorageAdapter(localStorage);
-  */
 }

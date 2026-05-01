@@ -19,7 +19,9 @@ const OwnerContactCard: React.FC<OwnerContactCardProps> = ({ owner, prominent = 
       </span>
     </CardHeader>
     <CardContent className="px-4 pb-4 space-y-2">
-      {owner.id !== 'unknown' ? (
+      {owner.id === 'loading' ? (
+        <span className="text-sm font-semibold text-muted-foreground">{owner.name}</span>
+      ) : owner.id !== 'unknown' ? (
         <Link
           to={`/people/${owner.id}`}
           className="text-sm font-semibold hover:text-primary transition-colors"

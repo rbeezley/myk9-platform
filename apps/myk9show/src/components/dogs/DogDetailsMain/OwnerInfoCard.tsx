@@ -33,7 +33,9 @@ const OwnerInfoCard: React.FC<OwnerInfoCardProps> = ({ dog, owner }) => {
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
               Owner Name
             </span>
-            {owner.id !== 'unknown' ? (
+            {owner.id === 'loading' ? (
+              <span className="text-sm font-medium text-muted-foreground">{owner.name}</span>
+            ) : owner.id !== 'unknown' ? (
               <span
                 className="text-sm font-medium text-primary hover:text-primary/80
                            transition-colors duration-200 hover:underline cursor-pointer"

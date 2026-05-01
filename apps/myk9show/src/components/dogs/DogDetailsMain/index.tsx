@@ -66,7 +66,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
       : null;
   }, [people, dog.ownerId]);
 
-  const { data: fetchedOwner } = useQuery({
+  const ownerQueryEnabled = !!dog.ownerId && storeOwner === null;
+  const { data: fetchedOwner, isError: ownerFetchErrored } = useQuery({
     queryKey: ['person', dog.ownerId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -77,7 +78,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
       if (error) throw error;
       return data;
     },
-    enabled: !!dog.ownerId && storeOwner === null,
+    enabled: ownerQueryEnabled,
   });
 
   const owner: Owner = React.useMemo(() => {
@@ -90,8 +91,14 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         phone: fetchedOwner.phone ?? undefined,
       };
     }
+    // Distinguish in-flight fetch from genuine no-owner. Without this the
+    // card flashes "Unknown Owner" while the people-table query is pending,
+    // which misleads users into thinking the dog has no owner on file.
+    if (ownerQueryEnabled && !ownerFetchErrored) {
+      return { id: 'loading', name: 'Loading…', email: '', phone: '' };
+    }
     return { id: 'unknown', name: 'Unknown Owner', email: 'N/A', phone: 'N/A' };
-  }, [storeOwner, fetchedOwner]);
+  }, [storeOwner, fetchedOwner, ownerQueryEnabled, ownerFetchErrored]);
 
   // Dialog state
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);

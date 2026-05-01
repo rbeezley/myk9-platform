@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getEntriesByClass } from '@/services/database/queries/entry-query-lookups';
+import { getEntriesByClass } from '@/services/database/entries';
 import { cacheStrategies } from '@/lib/queryClient';
 
 /** Raw DB entry row with all columns intact (no mapper that drops scoring fields). */

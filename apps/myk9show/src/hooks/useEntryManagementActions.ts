@@ -11,14 +11,16 @@ import {
   bulkCheckIn,
   bulkUpdateEntryStatus,
   getEntriesForExport,
-} from '@/services/database/queries/secretaryEntryQueries';
+  compEntry,
+  uncompEntry,
+} from '@/services/database/entries';
 import {
   assignArmband,
   autoAssignArmbands,
   getNextArmbandForShow,
   getEntryArmbandById,
 } from '@/services/database/queries/secretaryArmbandQueries';
-import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
+
 import { supabase } from '@/services/database/supabaseClient';
 import { updateEnrollmentPaymentStatus } from '@/services/database/queries/showRegistrationQueries';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';

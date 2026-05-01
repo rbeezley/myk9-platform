@@ -27,7 +27,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { assignArmband } from '@/services/database/queries/armbandQueries';
-import { submitShowEntries } from '@/services/database/queries/entry-query-mutations';
+import { submitShowEntries } from '@/services/database/entries';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { registrationToEntries } from '@/utils/registrationToEntries';
 import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';

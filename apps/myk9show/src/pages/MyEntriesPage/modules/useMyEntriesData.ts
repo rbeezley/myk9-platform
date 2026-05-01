@@ -12,7 +12,7 @@ import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { logger } from '@/services/LoggingService';
 import { getUserEntries } from '@/services/database/queries/entryQueries';
-import { updateCheckInStatus } from '@/services/database/queries/secretaryEntryQueries';
+import { updateCheckInStatus } from '@/services/database/entries';
 import {
   mapEntryStatus,
   mapPaymentStatus,

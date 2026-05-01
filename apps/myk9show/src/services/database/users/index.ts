@@ -15,7 +15,6 @@ export {
   permanentDeleteUser,
   restoreUser,
   getDeletedUsers,
-  legacyDeleteUser,
   searchUsers,
   getUsersByRole,
   getJudgesWithQualifications,

@@ -217,16 +217,18 @@ describe('MutationManager: large-queue stress', () => {
   // We assert: every id appears exactly once in the final observed set (no
   // duplicates from the first 499 that succeeded, no drops from the failed one).
   //
-  // FLAKE NOTE: this test is rarely flaky (~30% under coverage instrumentation
-  // — see https://github.com/rbeezley/myk9-platform/pull/118 investigation).
-  // The race appears specific to how the v8 coverage transform interleaves
-  // 500 sequential awaits with the mock's promise micro-tasks; the retry
-  // closure occasionally observes hasThrown out of order. Production code is
-  // unaffected. Retried twice to absorb the rare miss.
+  // ISOLATION NOTE: between the two flushes we call manager.destroy() to clear
+  // the scheduleBackoffRetry timer that flush 1 installs. Without that, the
+  // timer can fire async between the test's manual `nextRetryAt = 0` write and
+  // the second flush, racing the IDB record and producing a missed retry. This
+  // showed up as ~30% flake under v8 coverage instrumentation
+  // (https://github.com/rbeezley/myk9-platform/pull/118 investigation).
+  // destroy() only clears timers — the manager remains usable for subsequent
+  // uploadPendingMutations calls.
   // -------------------------------------------------------------------------
   it(
     'survives a mid-flush failure at mutation 250 — retries on next flush without duplicating the first 249',
-    { retry: 2, timeout: 30_000 },
+    { timeout: 30_000 },
     async () => {
       const TOTAL = 500;
       const observedIds: string[] = [];
@@ -291,6 +293,11 @@ describe('MutationManager: large-queue stress', () => {
       expect(stillPending).toHaveLength(1);
       expect(stillPending[0]?.id).toBe(FAIL_ID);
       expect(stillPending[0]?.retries).toBe(1);
+
+      // Cancel the scheduleBackoffRetry timer flush 1 installed before we
+      // mutate the IDB record below — otherwise the timer races with our
+      // manual nextRetryAt write under coverage instrumentation.
+      manager.destroy();
 
       // Clear nextRetryAt so flush 2 doesn't skip it due to backoff
       const failedRecord = stillPending[0]!;

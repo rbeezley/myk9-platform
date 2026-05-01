@@ -63,7 +63,7 @@ vi.mock('@/services/mappers/dogMappers', () => ({
   mapDatabaseDogsArray: vi.fn(dbDogs => dbDogs || []),
 }));
 
-// Mock the replicated dogs table (local-first path in addDog)
+// Mock the replicated dogs table (local-first path in addDog/updateDog)
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: {
     set: vi.fn().mockResolvedValue(undefined),
@@ -71,6 +71,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     get: vi.fn().mockResolvedValue(null),
     getAll: vi.fn().mockResolvedValue([]),
     getAllDogs: vi.fn().mockResolvedValue([]),
+    getDogById: vi.fn().mockResolvedValue(null),
   },
 }));
 

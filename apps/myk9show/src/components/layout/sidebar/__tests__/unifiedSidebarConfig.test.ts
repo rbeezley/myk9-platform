@@ -107,10 +107,10 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Exhibitor-only ───────────────────────────────────────────────────────
-  it('exhibitor-only sidebar has exactly My Shows, Show Day, Find Shows', () => {
+  it('exhibitor-only sidebar has exactly My Shows, My Dogs, Show Day, Find Shows', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toEqual(['My Shows', 'Show Day', 'Find Shows']);
+    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'Show Day', 'Find Shows']);
   });
 
   it('exhibitor-only My Shows href is /exhibitor/entries', () => {
@@ -119,10 +119,16 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(item?.href).toBe('/exhibitor/entries');
   });
 
-  it('exhibitor-only sidebar omits Profile, Settings, My Dogs, My Entries, Home', () => {
+  it('exhibitor-only My Dogs href is /dogs', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'My Dogs');
+    expect(item?.href).toBe('/dogs');
+  });
+
+  it('exhibitor-only sidebar omits Profile, Settings, My Entries, Home', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    for (const absent of ['Profile', 'Settings', 'My Dogs', 'My Entries', 'Home']) {
+    for (const absent of ['Profile', 'Settings', 'My Entries', 'Home']) {
       expect(allTitles, `"${absent}" should be absent`).not.toContain(absent);
     }
   });

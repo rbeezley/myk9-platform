@@ -3,7 +3,7 @@ import { StateStorage } from 'zustand/middleware';
 import { db } from './connection';
 import { logger } from '@/services/LoggingService';
 
-export function createIndexedDBStorage(): StateStorage {
+function createIndexedDBStorage(): StateStorage {
   return {
     getItem: async (name: string): Promise<string | null> => {
       try {
@@ -46,7 +46,7 @@ export function createIndexedDBStorage(): StateStorage {
 }
 
 // Feature detection for IndexedDB support
-export function isIndexedDBAvailable(): boolean {
+function isIndexedDBAvailable(): boolean {
   if (typeof window === 'undefined') return false;
 
   return !!(window.indexedDB && window.IDBKeyRange && window.IDBCursor && window.IDBTransaction);
@@ -60,7 +60,6 @@ class StorageAdapter implements StateStorage {
     this.baseStorage = baseStorage;
   }
 
-  // StateStorage interface methods
   async getItem(name: string): Promise<string | null> {
     return this.baseStorage.getItem(name);
   }
@@ -71,19 +70,6 @@ class StorageAdapter implements StateStorage {
 
   async removeItem(name: string): Promise<void> {
     this.baseStorage.removeItem(name);
-  }
-
-  // Storage interface methods for compatibility
-  get length(): number {
-    return this.baseStorage.length;
-  }
-
-  clear(): void {
-    this.baseStorage.clear();
-  }
-
-  key(index: number): string | null {
-    return this.baseStorage.key(index);
   }
 }
 

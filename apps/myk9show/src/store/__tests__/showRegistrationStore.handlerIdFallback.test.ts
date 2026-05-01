@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
+import { buildRegistrationIndexes } from '@/store/buildRegistrationIndexes';
 import * as queries from '@/services/database/queries/showRegistrationQueries';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 
@@ -8,7 +9,7 @@ vi.mock('@/services/database/queries/showRegistrationQueries', () => ({
   createShowRegistration: vi.fn(),
 }));
 
-vi.mock('@/services/supabase', () => ({
+vi.mock('@/lib/supabase', () => ({
   supabase: {
     functions: {
       invoke: vi.fn().mockResolvedValue({ data: null, error: null }),
@@ -65,23 +66,25 @@ describe('confirmRegistration — handlerId path + legacy fallback', () => {
     // Inject a registration as if it was rehydrated from localStorage WITHOUT
     // the handlerId field. The store action must not crash, and must use
     // userId for the DB write.
+    const legacyRegs = [
+      {
+        id: 'legacy-reg',
+        showId: 'show-1',
+        userId: 'legacy-people-id',
+        status: 'draft' as const,
+        entryStatus: EntryStatus.PENDING,
+        totalFees: 0,
+        paymentStatus: PaymentStatus.PENDING,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        entries: [],
+        statusHistory: [],
+      },
+    ];
     useShowRegistrationStore.setState({
-      registrations: [
-        {
-          id: 'legacy-reg',
-          showId: 'show-1',
-          userId: 'legacy-people-id',
-          status: 'draft',
-          entryStatus: EntryStatus.PENDING,
-          totalFees: 0,
-          paymentStatus: PaymentStatus.PENDING,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          entries: [],
-          statusHistory: [],
-        },
-      ],
+      registrations: legacyRegs,
       currentRegistration: null,
+      ...buildRegistrationIndexes(legacyRegs),
     });
 
     await useShowRegistrationStore.getState().confirmRegistration('legacy-reg', 'PAY-REF');

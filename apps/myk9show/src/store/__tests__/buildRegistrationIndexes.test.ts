@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildRegistrationIndexes,
   emptyRegistrationIndexes,
+  type StoredShowRegistration,
+  type StoredShowEntry,
 } from '@/store/buildRegistrationIndexes';
 import {
   EntryStatus,
@@ -46,6 +48,10 @@ const reg = (id: string, entries: ShowEntry[] = []): ShowRegistration => ({
   statusHistory: [],
 });
 
+// Helpers to strip nested arrays, matching what buildRegistrationIndexes stores.
+const toStored = ({ entries: _e, ...rest }: ShowRegistration): StoredShowRegistration => rest;
+const toStoredEntry = ({ classes: _c, ...rest }: ShowEntry): StoredShowEntry => rest;
+
 describe('emptyRegistrationIndexes', () => {
   it('returns three empty objects', () => {
     expect(emptyRegistrationIndexes()).toEqual({
@@ -58,7 +64,7 @@ describe('emptyRegistrationIndexes', () => {
   it('returns fresh objects each call (no shared mutation)', () => {
     const a = emptyRegistrationIndexes();
     const b = emptyRegistrationIndexes();
-    a.registrationsById['x'] = reg('x');
+    a.registrationsById['x'] = toStored(reg('x'));
     expect(b.registrationsById).toEqual({});
   });
 });
@@ -76,15 +82,15 @@ describe('buildRegistrationIndexes', () => {
     expect(buildRegistrationIndexes([])).toEqual(emptyRegistrationIndexes());
   });
 
-  it('indexes a single registration with no entries', () => {
+  it('indexes a single registration with no entries (strips entries field)', () => {
     const r = reg('r1');
     const result = buildRegistrationIndexes([r]);
-    expect(result.registrationsById).toEqual({ r1: r });
+    expect(result.registrationsById).toEqual({ r1: toStored(r) });
     expect(result.entriesById).toEqual({});
     expect(result.classesById).toEqual({});
   });
 
-  it('indexes registrations, entries, and classes by id', () => {
+  it('indexes registrations, entries, and classes by id (strips nested arrays)', () => {
     const c1 = cls('c1', 'e1');
     const c2 = cls('c2', 'e1');
     const c3 = cls('c3', 'e2');
@@ -95,8 +101,8 @@ describe('buildRegistrationIndexes', () => {
 
     const result = buildRegistrationIndexes([r1, r2]);
 
-    expect(result.registrationsById).toEqual({ r1, r2 });
-    expect(result.entriesById).toEqual({ e1, e2 });
+    expect(result.registrationsById).toEqual({ r1: toStored(r1), r2: toStored(r2) });
+    expect(result.entriesById).toEqual({ e1: toStoredEntry(e1), e2: toStoredEntry(e2) });
     expect(result.classesById).toEqual({ c1, c2, c3 });
   });
 
@@ -104,7 +110,7 @@ describe('buildRegistrationIndexes', () => {
     const malformed = { ...reg('r1'), entries: undefined as unknown as ShowEntry[] };
     expect(() => buildRegistrationIndexes([malformed])).not.toThrow();
     const result = buildRegistrationIndexes([malformed]);
-    expect(result.registrationsById['r1']).toBe(malformed);
+    expect(result.registrationsById['r1']).toEqual(toStored(reg('r1')));
     expect(result.entriesById).toEqual({});
   });
 
@@ -113,7 +119,7 @@ describe('buildRegistrationIndexes', () => {
     const r = reg('r1', [malformed]);
     expect(() => buildRegistrationIndexes([r])).not.toThrow();
     const result = buildRegistrationIndexes([r]);
-    expect(result.entriesById['e1']).toBe(malformed);
+    expect(result.entriesById['e1']).toEqual(toStoredEntry(entry('e1', 'r1')));
     expect(result.classesById).toEqual({});
   });
 
@@ -121,6 +127,6 @@ describe('buildRegistrationIndexes', () => {
     const a = reg('dup');
     const b = { ...reg('dup'), userId: 'different' };
     const result = buildRegistrationIndexes([a, b]);
-    expect(result.registrationsById['dup']).toBe(b);
+    expect(result.registrationsById['dup']).toEqual(toStored(b));
   });
 });

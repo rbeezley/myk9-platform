@@ -7,28 +7,46 @@ import type {
   RegistrationFormData,
   RegistrationContext,
 } from '../types/show-registration-types';
+import {
+  reassembleRegistration,
+  type StoredShowRegistration,
+  type StoredShowEntry,
+} from './buildRegistrationIndexes';
 
 export interface ShowRegistrationState {
   registrations: ShowRegistration[];
   currentRegistration: ShowRegistration | null;
   draftData: Partial<RegistrationFormData>;
   registrationContext: RegistrationContext | null;
+  registrationsById: Record<string, StoredShowRegistration>;
+  entriesById: Record<string, StoredShowEntry>;
+  classesById: Record<string, ClassEntry>;
 }
 
 export const selectRegistration = (
   state: ShowRegistrationState,
   registrationId: string
-): ShowRegistration | undefined => state.registrations.find(reg => reg.id === registrationId);
+): ShowRegistration | undefined => {
+  const stored = state.registrationsById[registrationId];
+  if (!stored) return undefined;
+  return reassembleRegistration(stored, state.entriesById, state.classesById);
+};
 
 export const selectRegistrationsByShow = (
   state: ShowRegistrationState,
   showId: string
-): ShowRegistration[] => state.registrations.filter(reg => reg.showId === showId);
+): ShowRegistration[] =>
+  Object.values(state.registrationsById)
+    .filter(r => r.showId === showId)
+    .map(r => reassembleRegistration(r, state.entriesById, state.classesById));
 
 export const selectRegistrationsByUser = (
   state: ShowRegistrationState,
   userId: string
-): ShowRegistration[] => state.registrations.filter(reg => reg.userId === userId);
+): ShowRegistration[] =>
+  Object.values(state.registrationsById)
+    .filter(r => r.userId === userId)
+    .map(r => reassembleRegistration(r, state.entriesById, state.classesById));
 
 export const selectCurrentRegistration = (state: ShowRegistrationState): ShowRegistration | null =>
   state.currentRegistration;
@@ -38,17 +56,18 @@ export const selectEntry = (
   registrationId: string,
   entryId: string
 ): ShowEntry | undefined => {
-  const reg = selectRegistration(state, registrationId);
-  return reg?.entries.find(entry => entry.id === entryId);
+  const stored = state.entriesById[entryId];
+  if (!stored || stored.registrationId !== registrationId) return undefined;
+  return {
+    ...stored,
+    classes: Object.values(state.classesById).filter(c => c.entryId === entryId),
+  };
 };
 
 export const selectEntriesForRegistration = (
   state: ShowRegistrationState,
   registrationId: string
-): ShowEntry[] => {
-  const reg = selectRegistration(state, registrationId);
-  return reg?.entries ?? [];
-};
+): ShowEntry[] => selectRegistration(state, registrationId)?.entries ?? [];
 
 export const selectClass = (
   state: ShowRegistrationState,
@@ -56,8 +75,12 @@ export const selectClass = (
   entryId: string,
   classId: string
 ): ClassEntry | undefined => {
-  const entry = selectEntry(state, registrationId, entryId);
-  return entry?.classes.find(cls => cls.id === classId);
+  const cls = state.classesById[classId];
+  if (!cls || cls.entryId !== entryId) return undefined;
+  // Validate the entry belongs to the registration
+  const entry = state.entriesById[entryId];
+  if (!entry || entry.registrationId !== registrationId) return undefined;
+  return cls;
 };
 
 export const selectClassesForEntry = (
@@ -65,21 +88,24 @@ export const selectClassesForEntry = (
   registrationId: string,
   entryId: string
 ): ClassEntry[] => {
-  const entry = selectEntry(state, registrationId, entryId);
-  return entry?.classes ?? [];
+  const entry = state.entriesById[entryId];
+  if (!entry || entry.registrationId !== registrationId) return [];
+  return Object.values(state.classesById).filter(c => c.entryId === entryId);
 };
 
 export const selectArmbandsByShow = (
   state: ShowRegistrationState,
   showId: string
 ): { entryId: string; armband: ArmbandAssignment }[] => {
+  const showRegIds = new Set(
+    Object.values(state.registrationsById)
+      .filter(r => r.showId === showId)
+      .map(r => r.id)
+  );
   const armbands: { entryId: string; armband: ArmbandAssignment }[] = [];
-  for (const reg of state.registrations) {
-    if (reg.showId !== showId) continue;
-    for (const entry of reg.entries) {
-      if (entry.armbandAssignment) {
-        armbands.push({ entryId: entry.id, armband: entry.armbandAssignment });
-      }
+  for (const entry of Object.values(state.entriesById)) {
+    if (showRegIds.has(entry.registrationId) && entry.armbandAssignment) {
+      armbands.push({ entryId: entry.id, armband: entry.armbandAssignment });
     }
   }
   return armbands;
@@ -98,4 +124,4 @@ export const selectArmbandConflict = (
 export const selectStatusHistory = (
   state: ShowRegistrationState,
   registrationId: string
-): StatusChange[] => selectRegistration(state, registrationId)?.statusHistory ?? [];
+): StatusChange[] => state.registrationsById[registrationId]?.statusHistory ?? [];

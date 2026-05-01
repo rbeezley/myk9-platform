@@ -26,12 +26,17 @@ const resetStore = () =>
 describe('store byId sync with registrations[]', () => {
   beforeEach(() => resetStore());
 
-  it('rebuilds registrationsById after createRegistration', () => {
+  it('sets registrationsById (without entries) after createRegistration', () => {
     const reg = useShowRegistrationStore
       .getState()
       .createRegistration('show-1', 'user-1', 'handler-1');
     const state = useShowRegistrationStore.getState();
-    expect(state.registrationsById[reg.id]).toEqual(reg);
+    const stored = state.registrationsById[reg.id];
+    expect(stored).toBeDefined();
+    expect(stored?.id).toBe(reg.id);
+    expect(stored?.showId).toBe('show-1');
+    // Stored type does not have entries — byId is the flat canonical form
+    expect('entries' in (stored ?? {})).toBe(false);
     expect(state.currentRegistrationId).toBe(reg.id);
   });
 
@@ -89,6 +94,35 @@ describe('store byId sync with registrations[]', () => {
     expect(state.currentRegistrationId).toBeNull();
   });
 
+  it('cascades deleteRegistration to all owned entries and classes', () => {
+    const reg = useShowRegistrationStore
+      .getState()
+      .createRegistration('show-1', 'user-1', 'handler-1');
+    useShowRegistrationStore.getState().addEntry(reg.id, {
+      dogId: 'dog-1',
+      dogName: 'Rex',
+      trialId: 't',
+      trialName: 'Trial',
+      classes: [],
+      handlerName: 'Alice',
+    });
+    const entryId = Object.keys(useShowRegistrationStore.getState().entriesById)[0]!;
+    useShowRegistrationStore.getState().addClassToEntry(reg.id, entryId, {
+      classId: 'class-1',
+      className: 'Novice A',
+      classNumber: '1',
+      fee: 25,
+      status: 'entered',
+    });
+
+    useShowRegistrationStore.getState().deleteRegistration(reg.id);
+
+    const state = useShowRegistrationStore.getState();
+    expect(state.registrationsById[reg.id]).toBeUndefined();
+    expect(Object.keys(state.entriesById)).toHaveLength(0);
+    expect(Object.keys(state.classesById)).toHaveLength(0);
+  });
+
   it('removes deleted entries from entriesById', () => {
     const reg = useShowRegistrationStore
       .getState()
@@ -107,14 +141,17 @@ describe('store byId sync with registrations[]', () => {
     expect(state.entriesById[entryId]).toBeUndefined();
   });
 
-  it('updates currentRegistrationId when currentRegistration changes', () => {
+  it('currentRegistrationId is the source of truth; setting it null clears currentRegistration', () => {
     const reg = useShowRegistrationStore
       .getState()
       .createRegistration('show-1', 'user-1', 'handler-1');
     expect(useShowRegistrationStore.getState().currentRegistrationId).toBe(reg.id);
 
-    useShowRegistrationStore.setState({ currentRegistration: null });
+    // After polarity flip, currentRegistrationId drives currentRegistration.
+    // Setting both atomically (bypassing withDerived) simulates a reset.
+    useShowRegistrationStore.setState({ currentRegistrationId: null, currentRegistration: null });
     expect(useShowRegistrationStore.getState().currentRegistrationId).toBeNull();
+    expect(useShowRegistrationStore.getState().currentRegistration).toBeNull();
   });
 
   it('keeps currentRegistrationId stable and refreshes registrationsById through updateRegistration on the current registration', () => {

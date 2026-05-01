@@ -27,6 +27,7 @@ describe('STATUS_MAP', () => {
   it('maps pending → pending', () => expect(STATUS_MAP['pending']).toBe('pending'));
   it('maps resolved → resolved', () => expect(STATUS_MAP['resolved']).toBe('resolved'));
   it('maps ignored → dismissed', () => expect(STATUS_MAP['ignored']).toBe('dismissed'));
+  it('unknown key → undefined', () => expect(STATUS_MAP['unknown_key']).toBeUndefined());
 });
 
 describe('STRATEGY_FROM_REPLICATION', () => {
@@ -82,6 +83,17 @@ describe('mapConflict', () => {
     const result = mapConflict(makeConflict({ status: 'unknown_value' as never }));
     expect(result.status).toBe('pending');
   });
+
+  it('includes baseData when present on input', () => {
+    const baseData = { name: 'base' };
+    const result = mapConflict(makeConflict({ baseData }));
+    expect(result.baseData).toEqual(baseData);
+  });
+
+  it('omits baseData key entirely when absent on input', () => {
+    const result = mapConflict(makeConflict({ baseData: undefined }));
+    expect('baseData' in result).toBe(false);
+  });
 });
 
 describe('mapResolution', () => {
@@ -111,6 +123,7 @@ describe('mapResolution', () => {
     expect(result.resolvedBy).toBe('system');
     expect(result.resolvedEntity).toBeUndefined();
     expect(result.automatic).toBe(true);
+    expect(result.resolvedAt).toBeInstanceOf(Date);
   });
 
   it('marks automatic=false for field-level-merge', () => {

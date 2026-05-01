@@ -116,4 +116,21 @@ describe('store byId sync with registrations[]', () => {
     useShowRegistrationStore.setState({ currentRegistration: null });
     expect(useShowRegistrationStore.getState().currentRegistrationId).toBeNull();
   });
+
+  it('keeps currentRegistrationId stable and refreshes registrationsById through updateRegistration on the current registration', () => {
+    const reg = useShowRegistrationStore
+      .getState()
+      .createRegistration('show-1', 'user-1', 'handler-1');
+    expect(useShowRegistrationStore.getState().currentRegistrationId).toBe(reg.id);
+
+    useShowRegistrationStore.getState().updateRegistration(reg.id, { notes: 'updated note' });
+
+    const state = useShowRegistrationStore.getState();
+    // Same registration is still current; id didn't drift to null or to a stale value
+    expect(state.currentRegistrationId).toBe(reg.id);
+    // Registration in byId reflects the update
+    expect(state.registrationsById[reg.id]?.notes).toBe('updated note');
+    // currentRegistration object reference advanced (new updatedAt)
+    expect(state.currentRegistration?.notes).toBe('updated note');
+  });
 });

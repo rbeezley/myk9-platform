@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Download, DollarSign, Users, Tag, Gift, Loader2, Search, ChevronDown } from 'lucide-react';
-import { getEntriesByShowForFinancials } from '@/services/database/queries/entry-query-lookups';
+import { getEntriesByShowForFinancials } from '@/services/database/entries';
 import { paymentStatusColors } from '@/lib/financial-constants';
 
 interface ShowFinancialSummaryProps {

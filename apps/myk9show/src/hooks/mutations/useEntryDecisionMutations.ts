@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { updateEntryStatus } from '@/services/database/queries/secretaryEntryQueries';
+import { updateEntryStatus } from '@/services/database/entries';
 import type { PendingEntry } from '@/hooks/queries/usePendingEntries';
 import { PENDING_ENTRIES_KEY } from '@/hooks/queries/usePendingEntries';
 import type { EntryStatus } from '@/types/entry-lifecycle';

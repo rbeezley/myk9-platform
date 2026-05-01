@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { notifications } from '@/lib/notifications';
-import { getEntriesByClass } from '@/services/database/queries/entry-query-lookups';
+import { getEntriesByClass } from '@/services/database/entries';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { generateRunOrder, generateScoreSheet, generateResults } from './print-service';

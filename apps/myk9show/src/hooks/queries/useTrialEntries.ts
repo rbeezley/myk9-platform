@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { getEntriesByTrial } from '@/services/database/queries/entry-query-lookups';
+import { getEntriesByTrial } from '@/services/database/entries';
 
 /** Row shape returned by getEntriesByTrial (snake_case DB columns). */
 export interface TrialEntryRow {

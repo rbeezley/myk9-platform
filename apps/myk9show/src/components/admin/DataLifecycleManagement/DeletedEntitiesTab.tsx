@@ -48,10 +48,8 @@ import {
   getDeletedClasses,
   restoreClass,
   hardDeleteClass,
-  getDeletedEntries,
-  restoreEntry,
-  hardDeleteEntry,
 } from '@/services/database/queries/classQueries';
+import { getDeletedEntries, restoreEntry, hardDeleteEntry } from '@/services/database/entries';
 import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/queries/dogQueries';
 import {
   getDeletedClubs,

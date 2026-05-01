@@ -6,7 +6,7 @@ import { getSecretaryShows } from '@/services/database/queries/showQueries';
 import {
   getEntriesForShow,
   SecretaryEntry,
-} from '@/services/database/queries/secretaryEntryQueries';
+} from '@/services/database/entries';
 import type { CheckInStatus } from '@myk9/core';
 import type {
   EntryManagementEntry,

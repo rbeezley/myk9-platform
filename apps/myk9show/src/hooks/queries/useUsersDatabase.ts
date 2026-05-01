@@ -15,7 +15,7 @@ import {
   getUsersWithDogCounts,
   getUsersStatistics,
   checkEmailExists
-} from '@/services/database/queries/userQueries';
+} from '@/services/database/users';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
 import type { DbUserInsert, DbUserUpdate } from '@/types/database-mappings';

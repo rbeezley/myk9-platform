@@ -73,7 +73,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
     const loadAvailability = async () => {
       try {
         const { judgeAvailabilityQueries } =
-          await import('@/services/database/queries/judgeQueries');
+          await import('@/services/database/judges');
         const { mapDbAvailabilityToUI } = await import('@/services/mappers/userMappers');
         const dbData = await judgeAvailabilityQueries.getByPersonId(userId);
         if (!cancelled && dbData) {
@@ -101,7 +101,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
 
   const handleAvailabilitySave = useCallback(async () => {
     try {
-      const { judgeAvailabilityQueries } = await import('@/services/database/queries/judgeQueries');
+      const { judgeAvailabilityQueries } = await import('@/services/database/judges');
       const { mapUIAvailabilityToDb } = await import('@/services/mappers/userMappers');
 
       await judgeAvailabilityQueries.upsert(mapUIAvailabilityToDb(userId, availability));

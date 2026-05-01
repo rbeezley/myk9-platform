@@ -24,19 +24,19 @@ vi.mock('@/services/LoggingService', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('@/services/database/queries/showQueries', () => ({
+vi.mock('@/services/database/shows', () => ({
   getDeletedShows: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreShow: vi.fn().mockResolvedValue({ error: null }),
   hardDeleteShow: vi.fn().mockResolvedValue({ error: null }),
 }));
 
-vi.mock('@/services/database/queries/trialQueries', () => ({
+vi.mock('@/services/database/trials', () => ({
   getDeletedTrials: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreTrial: vi.fn().mockResolvedValue({ error: null }),
   hardDeleteTrial: vi.fn().mockResolvedValue({ error: null }),
 }));
 
-vi.mock('@/services/database/queries/classQueries', () => ({
+vi.mock('@/services/database/classes', () => ({
   getDeletedClasses: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreClass: vi.fn().mockResolvedValue({ error: null }),
   hardDeleteClass: vi.fn().mockResolvedValue({ error: null }),
@@ -45,19 +45,19 @@ vi.mock('@/services/database/queries/classQueries', () => ({
   hardDeleteEntry: vi.fn().mockResolvedValue({ error: null }),
 }));
 
-vi.mock('@/services/database/queries/dogQueries', () => ({
+vi.mock('@/services/database/dogs', () => ({
   getDeletedDogs: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreDog: vi.fn().mockResolvedValue({ error: null }),
   hardDeleteDog: vi.fn().mockResolvedValue({ error: null }),
 }));
 
-vi.mock('@/services/database/queries/clubQueries', () => ({
+vi.mock('@/services/database/clubs', () => ({
   getDeletedClubs: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreClub: vi.fn().mockResolvedValue({ error: null }),
   hardDeleteClub: vi.fn().mockResolvedValue({ error: null }),
 }));
 
-vi.mock('@/services/database/queries/userQueries', () => ({
+vi.mock('@/services/database/users', () => ({
   getDeletedUsers: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreUser: vi.fn().mockResolvedValue({ error: null }),
   hardDeleteUser: vi.fn().mockResolvedValue({ error: null }),

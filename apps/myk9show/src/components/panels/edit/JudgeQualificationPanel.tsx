@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage, toYYYYMMDD } from '@myk9/core';
-import { judgeQualificationQueries } from '@/services/database/queries/judgeQueries';
+import { judgeQualificationQueries } from '@/services/database/judges';
 import type { CreateJudgeQualificationData } from '@/types/judge-management';
 
 interface JudgeQualificationPanelProps {

@@ -33,8 +33,8 @@ import { ClubSection } from './ShowDetailsStep.sections';
 import { FeeField } from './ShowDetailsStep.FeeField';
 import { OfficialPicker } from './OfficialPicker';
 import { JudgesPicker } from './JudgesPicker';
-import { createUser, updateUser } from '@/services/database/queries/userQueries';
-import { judgeQualificationQueries } from '@/services/database/queries/judgeQueries';
+import { createUser, updateUser } from '@/services/database/users';
+import { judgeQualificationQueries } from '@/services/database/judges';
 import { createClub } from '@/services/database/queries/clubQueries';
 import type { CreateClubData } from './ShowDetailsStep.sections';
 

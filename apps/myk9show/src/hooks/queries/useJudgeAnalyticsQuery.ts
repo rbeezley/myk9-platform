@@ -4,7 +4,7 @@ import {
   judgeAnalyticsQueries,
   judgeQualificationQueries,
   type JudgeUtilizationFilters,
-} from '@/services/database/queries/judgeQueries';
+} from '@/services/database/judges';
 
 export function useJudgeRosterSummary() {
   return useQuery({

@@ -12,7 +12,7 @@ import {
   getUsersByRole,
   getUsersWithDogCounts,
   getUsersStatistics,
-} from '@/services/database/queries/userQueries';
+} from '@/services/database/users';
 import type { DbUser, DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';

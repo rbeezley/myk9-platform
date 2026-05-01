@@ -28,7 +28,7 @@ import {
   useUpdateShowMutation,
   showQueryKeys,
 } from '@/hooks/queries/useShowsDatabase';
-import { persistShowJudgeAssignments } from '@/services/database/queries/judgeQueries';
+import { persistShowJudgeAssignments } from '@/services/database/judges';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';

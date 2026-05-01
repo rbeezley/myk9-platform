@@ -712,7 +712,10 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         state.registrationsById = indexes.registrationsById;
         state.entriesById = indexes.entriesById;
         state.classesById = indexes.classesById;
-        state.currentRegistrationId = state.currentRegistration?.id ?? null;
+        // currentRegistration is not persisted (partialize only saves registrations[]),
+        // so currentRegistrationId is always null after reload — intentional, the wizard
+        // re-enters via URL / context rather than persisted selection.
+        state.currentRegistrationId = null;
       },
     }
   )

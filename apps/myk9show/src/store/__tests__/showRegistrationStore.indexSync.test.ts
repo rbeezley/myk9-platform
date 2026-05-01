@@ -94,6 +94,35 @@ describe('store byId sync with registrations[]', () => {
     expect(state.currentRegistrationId).toBeNull();
   });
 
+  it('cascades deleteRegistration to all owned entries and classes', () => {
+    const reg = useShowRegistrationStore
+      .getState()
+      .createRegistration('show-1', 'user-1', 'handler-1');
+    useShowRegistrationStore.getState().addEntry(reg.id, {
+      dogId: 'dog-1',
+      dogName: 'Rex',
+      trialId: 't',
+      trialName: 'Trial',
+      classes: [],
+      handlerName: 'Alice',
+    });
+    const entryId = Object.keys(useShowRegistrationStore.getState().entriesById)[0]!;
+    useShowRegistrationStore.getState().addClassToEntry(reg.id, entryId, {
+      classId: 'class-1',
+      className: 'Novice A',
+      classNumber: '1',
+      fee: 25,
+      status: 'entered',
+    });
+
+    useShowRegistrationStore.getState().deleteRegistration(reg.id);
+
+    const state = useShowRegistrationStore.getState();
+    expect(state.registrationsById[reg.id]).toBeUndefined();
+    expect(Object.keys(state.entriesById)).toHaveLength(0);
+    expect(Object.keys(state.classesById)).toHaveLength(0);
+  });
+
   it('removes deleted entries from entriesById', () => {
     const reg = useShowRegistrationStore
       .getState()

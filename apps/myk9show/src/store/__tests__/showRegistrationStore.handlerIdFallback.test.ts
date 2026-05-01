@@ -9,7 +9,7 @@ vi.mock('@/services/database/queries/showRegistrationQueries', () => ({
   createShowRegistration: vi.fn(),
 }));
 
-vi.mock('@/services/supabase', () => ({
+vi.mock('@/lib/supabase', () => ({
   supabase: {
     functions: {
       invoke: vi.fn().mockResolvedValue({ data: null, error: null }),

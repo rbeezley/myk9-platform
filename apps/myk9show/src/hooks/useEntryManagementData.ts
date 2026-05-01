@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
-import { getSecretaryShows } from '@/services/database/queries/showQueries';
+import { getSecretaryShows } from '@/services/database/shows';
 import {
   getEntriesForShow,
   SecretaryEntry,

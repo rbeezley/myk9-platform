@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getSecretaryShows } from '@/services/database/queries/showQueries';
+import { getSecretaryShows } from '@/services/database/shows';
 import {
   getClassesWithCapacity,
   getScratchableEntries,

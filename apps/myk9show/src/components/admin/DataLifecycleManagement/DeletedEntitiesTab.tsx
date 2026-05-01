@@ -38,12 +38,12 @@ import {
   getDeletedShows,
   restoreShow,
   hardDeleteShow,
-} from '@/services/database/queries/showQueries';
+} from '@/services/database/shows';
 import {
   getDeletedTrials,
   restoreTrial,
   hardDeleteTrial,
-} from '@/services/database/queries/trialQueries';
+} from '@/services/database/trials';
 import { getDeletedClasses, restoreClass, hardDeleteClass } from '@/services/database/classes';
 import { getDeletedEntries, restoreEntry, hardDeleteEntry } from '@/services/database/entries';
 import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/dogs';

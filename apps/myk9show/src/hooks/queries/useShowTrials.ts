@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getTrialsByShow } from '@/services/database/queries/trialQueries';
+import { getTrialsByShow } from '@/services/database/trials';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 
 /**

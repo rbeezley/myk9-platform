@@ -12,7 +12,7 @@ import {
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { useQuery } from '@tanstack/react-query';
-import { getSecretaryShows } from '@/services/database/queries/showQueries';
+import { getSecretaryShows } from '@/services/database/shows';
 
 export const RunOrderTrialPicker: React.FC = () => {
   const navigate = useNavigate();

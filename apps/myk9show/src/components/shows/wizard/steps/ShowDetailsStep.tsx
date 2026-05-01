@@ -35,7 +35,7 @@ import { OfficialPicker } from './OfficialPicker';
 import { JudgesPicker } from './JudgesPicker';
 import { createUser, updateUser } from '@/services/database/users';
 import { judgeQualificationQueries } from '@/services/database/judges';
-import { createClub } from '@/services/database/queries/clubQueries';
+import { createClub } from '@/services/database/clubs';
 import type { CreateClubData } from './ShowDetailsStep.sections';
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {

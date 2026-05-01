@@ -11,7 +11,7 @@ import {
   getWaitlistByClass,
   offerWaitlistSpot,
   removeFromWaitlist,
-} from '@/services/database/queries/waitlistQueries';
+} from '@/services/database/waitlists';
 import { getSecretaryShows } from '@/services/database/shows';
 import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
 

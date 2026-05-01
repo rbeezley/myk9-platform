@@ -3,11 +3,11 @@
  */
 
 import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { getActivityForRecord, logActivity } from '@/services/database/queries/activityLogQueries';
+import { getActivityForRecord, logActivity } from '@/services/database/activity-logs';
 import type {
   ActivityRecordType,
   ActivityLogInsert,
-} from '@/services/database/queries/activityLogQueries';
+} from '@/services/database/activity-logs';
 import { cacheStrategies } from '@/lib/queryClient';
 
 export const activityQueryKeys = {

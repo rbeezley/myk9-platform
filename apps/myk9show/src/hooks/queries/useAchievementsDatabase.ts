@@ -22,7 +22,7 @@ import {
   AchievementFilters,
   AchievementSummary,
 } from '../../types/achievement';
-import { achievementQueries } from '../../services/database/queries/achievementQueries';
+import { achievementQueries } from '@/services/database/achievements';
 import { achievementMappers } from '../../services/mappers/achievementMappers';
 
 // Query Keys

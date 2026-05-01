@@ -26,7 +26,7 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
-import { assignArmband } from '@/services/database/queries/armbandQueries';
+import { assignArmband } from '@/services/database/armbands';
 import { submitShowEntries } from '@/services/database/entries';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { registrationToEntries } from '@/utils/registrationToEntries';
@@ -426,7 +426,7 @@ function RegistrationWizardContent() {
             );
           }
           const { createShowRegistration } =
-            await import('@/services/database/queries/showRegistrationQueries');
+            await import('@/services/database/show-registrations');
           const result = await createShowRegistration(
             showId,
             ownerResolution.ownerId,

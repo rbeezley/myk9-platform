@@ -19,7 +19,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { AlertCircle } from 'lucide-react';
-import { scratchEntry } from '@/services/database/queries/dayOfOperationsQueries';
+import { scratchEntry } from '@/services/database/day-of-operations';
 import type { ScratchableEntry } from './types';
 
 interface ScratchDialogProps {

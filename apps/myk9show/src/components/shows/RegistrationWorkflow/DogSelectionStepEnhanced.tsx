@@ -29,7 +29,7 @@ import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDebounce } from '@myk9/scoring-ui';
-import { searchAllDogs, SEARCH_ALL_DOGS_LIMIT } from '@/services/database/queries/dogQueries';
+import { searchAllDogs, SEARCH_ALL_DOGS_LIMIT } from '@/services/database/dogs';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import { DogSearchInterface } from './DogSearchInterface';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';

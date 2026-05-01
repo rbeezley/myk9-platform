@@ -14,6 +14,7 @@ export {
   deleteDog,
   searchDogs,
   searchAllDogs,
+  SEARCH_ALL_DOGS_LIMIT,
   getDogsWithUpcomingShows,
   getDogStatistics,
   hardDeleteDog,

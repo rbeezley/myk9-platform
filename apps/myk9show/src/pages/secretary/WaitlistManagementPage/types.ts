@@ -2,7 +2,7 @@
  * Types for WaitlistManagementPage
  */
 
-import type { WaitlistEntry, ClassWithWaitlistCount } from '@/services/database/queries/waitlistQueries';
+import type { WaitlistEntry, ClassWithWaitlistCount } from '@/services/database/waitlists';
 
 export interface Show {
   id: string;

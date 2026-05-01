@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { EntriesTab } from '../EntriesTab';
 
-vi.mock('@/services/database/queries/entryQueries', () => ({
+vi.mock('@/services/database/entries', () => ({
   getEntriesByShow: vi.fn().mockResolvedValue({
     data: [
       {

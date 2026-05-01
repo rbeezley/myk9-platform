@@ -15,7 +15,7 @@ import {
   useAchieveMilestoneMutation,
   useDismissMilestoneMutation,
 } from '@/hooks/queries/useMilestonesDatabase';
-import type { UserMilestone } from '@/services/database/queries/milestoneQueries';
+import type { UserMilestone } from '@/services/database/milestones';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 export interface MilestoneTip {

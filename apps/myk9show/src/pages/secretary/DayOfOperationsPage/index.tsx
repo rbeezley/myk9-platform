@@ -41,7 +41,7 @@ import { ScratchEntriesTable } from './ScratchEntriesTable';
 import { DayOfEntryDialog } from './DayOfEntryDialog';
 import { ScratchDialog } from './ScratchDialog';
 import { MoveUpDialog } from './MoveUpDialog';
-import { scratchEntry } from '@/services/database/queries/dayOfOperationsQueries';
+import { scratchEntry } from '@/services/database/day-of-operations';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import type { ScratchableEntry } from './types';

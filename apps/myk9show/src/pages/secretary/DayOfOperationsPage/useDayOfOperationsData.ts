@@ -12,7 +12,7 @@ import {
   getScratchableEntries,
   getMoveUpEligibleEntries,
   ClassWithCapacity,
-} from '@/services/database/queries/dayOfOperationsQueries';
+} from '@/services/database/day-of-operations';
 import type { Show, ScratchableEntry } from './types';
 
 export interface UseDayOfOperationsDataReturn {

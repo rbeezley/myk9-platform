@@ -495,12 +495,12 @@ describe('ReplicatedTable', () => {
     });
 
     it('should use GET_ALL_TIMEOUT_MS constant', async () => {
-      // Verify the constant is imported and used (no hardcoded 20000)
-      // This is a compile-time check — if GET_ALL_TIMEOUT_MS is removed,
-      // the build will fail. The runtime behavior is tested by the
-      // circuit breaker tests in DatabaseManager.test.ts.
+      // Verify the constant is imported and used (no hardcoded 20000).
+      // Value raised 5s → 15s in a40154d7 to fix real IndexedDB timeouts;
+      // pin to whatever the production constant is so this test catches
+      // unintended drops back to a too-aggressive timeout.
       const { GET_ALL_TIMEOUT_MS } = await import('../constants');
-      expect(GET_ALL_TIMEOUT_MS).toBe(5000);
+      expect(GET_ALL_TIMEOUT_MS).toBe(15000);
     });
   });
 });

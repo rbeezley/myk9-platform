@@ -6,6 +6,19 @@ setupLocalStorageMock();
 setupMatchMediaMock();
 setupIndexedDBMock();
 
+// Polyfill globalThis.navigator for Node 20. Node 21+ exposes it natively;
+// CI runs on Node 20 (per .github/workflows/ci.yml), where any code that
+// reads `navigator.onLine` directly (without a typeof guard) throws
+// ReferenceError. Tests that stub navigator.onLine to simulate offline
+// behavior need this shim.
+if (typeof globalThis.navigator === 'undefined') {
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { onLine: true, userAgent: 'node-test' },
+    writable: true,
+    configurable: true,
+  });
+}
+
 // Mock window.addEventListener and window.dispatchEvent for Node.js environment
 if (typeof window === 'undefined') {
   const eventListeners: Record<string, Set<EventListener>> = {};

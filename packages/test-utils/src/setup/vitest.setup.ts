@@ -8,12 +8,24 @@ setupIndexedDBMock();
 
 // Polyfill globalThis.navigator for Node 20. Node 21+ exposes it natively;
 // CI runs on Node 20 (per .github/workflows/ci.yml), where any code that
-// reads `navigator.onLine` directly (without a typeof guard) throws
-// ReferenceError. Tests that stub navigator.onLine to simulate offline
-// behavior need this shim.
+// reads `navigator.*` directly (without a typeof guard) throws
+// ReferenceError. Tests that stub navigator fields need this shim.
+//
+// Shape covers the fields read by packages/core/deviceDetection (userAgent,
+// maxTouchPoints, hardwareConcurrency) and the offline-behavior tests in
+// packages/replication (onLine). Defaults are deliberately desktop-shaped
+// so deviceDetection's mobile/touch heuristics return false unless a test
+// overrides specific fields.
 if (typeof globalThis.navigator === 'undefined') {
   Object.defineProperty(globalThis, 'navigator', {
-    value: { onLine: true, userAgent: 'node-test' },
+    value: {
+      onLine: true,
+      userAgent: 'node-test',
+      maxTouchPoints: 0,
+      hardwareConcurrency: 4,
+      language: 'en-US',
+      platform: 'node',
+    },
     writable: true,
     configurable: true,
   });

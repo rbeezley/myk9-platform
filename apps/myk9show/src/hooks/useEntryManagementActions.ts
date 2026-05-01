@@ -209,7 +209,7 @@ export function useEntryManagementActions({
       if (dbError) {
         setArmbandDialog(prev => ({
           ...prev,
-          error: dbError.message || 'Failed to assign armband',
+          error: dbError instanceof Error ? dbError.message : 'Failed to assign armband',
         }));
         return;
       }

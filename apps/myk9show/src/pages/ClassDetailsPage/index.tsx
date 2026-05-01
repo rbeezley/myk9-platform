@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Pencil, MoreVertical, Trash2, ClipboardList, MessageSquare } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
-import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
+import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { replicatedClassesTable } from '@/services/replication';
 import { useTrialStore } from '@/store/trialStore';
 import { queryClient } from '@/lib/queryClient';

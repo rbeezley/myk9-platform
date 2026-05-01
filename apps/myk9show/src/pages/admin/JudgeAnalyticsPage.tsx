@@ -10,7 +10,7 @@ import {
   useJudgeAssignmentTrends,
 } from '@/hooks/queries/useJudgeAnalyticsQuery';
 import { exportToCSV } from '@/lib/export';
-import type { JudgeUtilizationRow } from '@/services/database/queries/judgeQueries';
+import type { JudgeUtilizationRow } from '@/services/database/judges';
 import type { JudgeQualification } from '@/types/judge-management';
 import {
   Scale,

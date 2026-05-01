@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { judgeQualificationQueries } from '../../services/database/queries/judgeQueries';
+import { judgeQualificationQueries } from '@/services/database/judges';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,

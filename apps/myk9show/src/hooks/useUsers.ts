@@ -7,7 +7,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
-} from '@/services/database/queries/userQueries';
+} from '@/services/database/users';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 import { savePersonRoles } from '@/components/panels/edit/personRolesService';
 

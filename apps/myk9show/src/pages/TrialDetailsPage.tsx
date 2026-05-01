@@ -9,7 +9,7 @@ import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
 import { AddClassesToTrialPanel } from '@/components/classes/AddClassesToTrialPanel';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
-import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
+import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { replicatedClassesTable } from '@/services/replication';
 import { queryClient } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';

@@ -24,7 +24,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { UserRole } from '@/types/auth-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { persistShowJudgeAssignments } from '@/services/database/queries/judgeQueries';
+import { persistShowJudgeAssignments } from '@/services/database/judges';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import type { ClassData } from '@/components/classes/types/classTypes';

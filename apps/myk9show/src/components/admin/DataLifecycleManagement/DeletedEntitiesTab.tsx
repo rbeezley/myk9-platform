@@ -51,12 +51,12 @@ import {
   getDeletedClubs,
   restoreClub,
   hardDeleteClub,
-} from '@/services/database/queries/clubQueries';
+} from '@/services/database/clubs';
 import {
   getDeletedUsers,
   restoreUser,
   hardDeleteUser,
-} from '@/services/database/queries/userQueries';
+} from '@/services/database/users';
 
 import { DeletedEntitySection } from './DeletedEntitySection';
 import type { DeletedEntity, EntityType, EntitySectionConfig, SelectedEntity } from './types';

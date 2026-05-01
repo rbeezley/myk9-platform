@@ -3,7 +3,7 @@ import { CalendarDays, MapPin, Briefcase, Clock } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { judgeAvailabilityQueries } from '@/services/database/queries/judgeQueries';
+import { judgeAvailabilityQueries } from '@/services/database/judges';
 import { mapDbAvailabilityToUI } from '@/services/mappers/userMappers';
 import type { JudgeInfo } from '@/types/user-types';
 

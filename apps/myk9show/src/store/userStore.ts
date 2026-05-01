@@ -127,7 +127,7 @@ export const useUserStore = create<UserStore>()(
           };
 
           // Save to database first
-          const { createUser } = await import('@/services/database/queries/userQueries');
+          const { createUser } = await import('@/services/database/users');
           const { mapDatabaseToUser } = await import('@/services/mappers/userMappers');
 
           const { data: dbUser, error: dbError } = await createUser(dbUserData);
@@ -160,7 +160,7 @@ export const useUserStore = create<UserStore>()(
                 judgeQualificationQueries,
                 judgeCertificationQueries,
                 judgeAvailabilityQueries,
-              } = await import('@/services/database/queries/judgeQueries');
+              } = await import('@/services/database/judges');
               const { mapUIAvailabilityToDb } = await import('@/services/mappers/userMappers');
 
               // Insert qualifications
@@ -264,7 +264,7 @@ export const useUserStore = create<UserStore>()(
 
           // Import database functions and mappers
           const { updateUser: updateUserInDb } =
-            await import('@/services/database/queries/userQueries');
+            await import('@/services/database/users');
           const { mapUserInputToUpdate, mapDatabaseToUser } =
             await import('@/services/mappers/userMappers');
 
@@ -320,7 +320,7 @@ export const useUserStore = create<UserStore>()(
 
           // Soft delete from database
           const { deleteUser: deleteUserFromDb } =
-            await import('@/services/database/queries/userQueries');
+            await import('@/services/database/users');
           const { error: dbError } = await deleteUserFromDb(id);
 
           if (dbError) {
@@ -353,7 +353,7 @@ export const useUserStore = create<UserStore>()(
           set({ isLoading: true, error: null });
 
           // Import here to avoid circular dependencies
-          const { getAllUsers } = await import('@/services/database/queries/userQueries');
+          const { getAllUsers } = await import('@/services/database/users');
           const { mapDatabaseToUser } = await import('@/services/mappers/userMappers');
 
           const { data, error } = await getAllUsers();

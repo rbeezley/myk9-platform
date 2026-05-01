@@ -63,3 +63,10 @@ Trial, Dog, Show, Armband.
 
 PostgREST-only entities (online reads): Club, Handler, Exhibitor, Volunteer,
 WaitList, Secretary tasks, Visibility settings.
+
+## Cross-entity notes
+
+`getJudgesWithQualifications` lives in `userQueries.ts` and is exported from
+`services/database/users/`. Judges are a role applied to Users; when the users
+module is split into reads.ts / writes.ts, this function should move to
+`services/database/judges/reads.ts` so judge-related reads are co-located.

@@ -135,15 +135,7 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  // TODO(ux-regression): the dog detail redesign (commit d2946326) collapsed the
-  // "Loading…" placeholder for an in-flight owner fetch into the same "Unknown
-  // Owner" text used for the genuine no-owner case. The redesigned owner useMemo
-  // in DogDetailsMain/index.tsx returns Unknown Owner immediately when storeOwner
-  // is null, before the React Query fetch resolves. Restoring the loading state
-  // (e.g., return { id: 'loading', name: 'Loading…' } while isFetching) is a
-  // small product fix but out of scope for the test-rot PR. Tracked here so a
-  // future PR can re-enable this test alongside the UX restore.
-  it.skip('shows Loading… then owner name when owner is not in the store but DB returns data', async () => {
+  it('shows Loading… then owner name when owner is not in the store but DB returns data', async () => {
     // Owner not in store
     mockPeople = [];
 

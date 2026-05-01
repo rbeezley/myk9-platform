@@ -21,6 +21,8 @@ import {
   mapDogInputToUpdate,
   mapDatabaseToDog,
   mapDatabaseDogsArray,
+  mapReplicatedDogToDbRow,
+  mapPartialDogInputToReplicated,
 } from '@/services/mappers/dogMappers';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
@@ -134,13 +136,31 @@ export const useDogStoreCompat = () => {
       dogId: id,
       hasRegistrations: !!updates.registrations,
       registrationsCount: updates.registrations?.length || 0,
-      registrations: updates.registrations,
     });
 
+    // Write to IndexedDB first so getAllDogs() reads fresh data on the next React Query refetch.
+    const current = await replicatedDogsTable.getDogById(id);
+    let localDog: Dog | null = null;
+    if (current) {
+      const updated = { ...current, ...mapPartialDogInputToReplicated(updates) };
+      await replicatedDogsTable.set(id, updated, false);
+      localDog = mapDatabaseToDog(mapReplicatedDogToDbRow(updated));
+    }
+
+    // Background Supabase sync — onSuccess invalidates the list query, which refetches from
+    // the now-fresh IndexedDB instead of returning stale data.
     const dbUpdates = mapDogInputToUpdate(updates);
-    const result = await runDogMutation(() =>
-      updateMutation.mutateAsync({ id, updates: dbUpdates })
-    );
+    runDogMutation(() => updateMutation.mutateAsync({ id, updates: dbUpdates })).catch(err => {
+      logger.error(
+        'Background Supabase sync failed for dog update',
+        'dogs',
+        { dogId: id },
+        err as Error
+      );
+      notifications.warning(
+        'Changes saved locally but could not sync. Please check your connection.'
+      );
+    });
 
     if (updates.registrations && updates.registrations.length > 0) {
       try {
@@ -156,7 +176,7 @@ export const useDogStoreCompat = () => {
       }
     }
 
-    return result ? mapDatabaseToDog(result) : null;
+    return localDog;
   };
 
   const deleteDog = async (id: string, deletedBy?: string): Promise<void> => {

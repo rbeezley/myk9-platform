@@ -272,6 +272,29 @@ export const mapDogInputToReplicated = (input: DogInput, id: string): Replicated
   };
 };
 
+/** Map Partial<DogInput> fields to Partial<ReplicatedDog> for IndexedDB merge updates. */
+export const mapPartialDogInputToReplicated = (
+  updates: Partial<DogInput>
+): Partial<ReplicatedDog> => {
+  const partial: Partial<ReplicatedDog> = {};
+  if (updates.name !== undefined) partial.name = updates.name;
+  if (updates.callName !== undefined) partial.callName = updates.callName || undefined;
+  if (updates.breed !== undefined) partial.breed = updates.breed;
+  if (updates.birthDate !== undefined) partial.dateOfBirth = updates.birthDate || undefined;
+  if (updates.sex !== undefined) partial.sex = updates.sex || undefined;
+  if (updates.color !== undefined) partial.color = updates.color || undefined;
+  if (updates.weight !== undefined)
+    partial.weight = updates.weight != null ? String(updates.weight) : undefined;
+  if (updates.height !== undefined)
+    partial.height = updates.height != null ? String(updates.height) : undefined;
+  if (updates.ownerId !== undefined) partial.ownerId = updates.ownerId || undefined;
+  if (updates.microchipNumber !== undefined)
+    partial.microchipNumber = updates.microchipNumber || undefined;
+  if (updates.imageUrl !== undefined) partial.imageUrl = updates.imageUrl || undefined;
+  if (updates.spayedNeutered !== undefined) partial.isSpayedNeutered = updates.spayedNeutered;
+  return partial;
+};
+
 /**
  * Utility to create a DogInput from a Dog (for editing)
  */

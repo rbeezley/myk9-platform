@@ -134,9 +134,17 @@ describe('StatCard', () => {
     );
 
     it('should default to primary when no color specified', () => {
-      const { container } = render(<StatCard icon={Users} title="Test" value={1} />);
-      const iconBg = container.querySelector('[data-slot="icon"]');
-      expect(iconBg?.className).toMatch(/indigo/);
+      // "Defaults to primary" means rendering with no color prop produces
+      // the same icon-slot className as rendering with color="primary".
+      // (Pre-9c3d0cbf this test asserted a literal /indigo/ match; primary
+      // is now a design-system token, not a hard-coded color.)
+      const { container: defaulted } = render(<StatCard icon={Users} title="A" value={1} />);
+      const { container: explicit } = render(
+        <StatCard icon={Users} title="B" value={1} color="primary" />
+      );
+      const defaultedIcon = defaulted.querySelector('[data-slot="icon"]');
+      const explicitIcon = explicit.querySelector('[data-slot="icon"]');
+      expect(defaultedIcon?.className).toBe(explicitIcon?.className);
     });
   });
 });

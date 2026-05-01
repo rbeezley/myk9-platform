@@ -14,6 +14,8 @@ import {
   getDeletedClasses,
   searchClasses,
   getClassStatistics,
+} from '@/services/database/classes';
+import {
   getAllEntries,
   getEntriesByClassId,
   createEntry,
@@ -22,7 +24,7 @@ import {
   hardDeleteEntry,
   restoreEntry,
   getDeletedEntries,
-} from '@/services/database/queries/classQueries';
+} from '@/services/database/entries';
 import type { DbClassInsert, DbClassUpdate, DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 
 // ===== QUERY KEYS =====

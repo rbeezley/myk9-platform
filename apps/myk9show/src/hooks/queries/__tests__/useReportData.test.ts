@@ -8,18 +8,18 @@ vi.mock('@/services/database/queries/trialQueries', () => ({
   getTrialsByShow: vi.fn(),
 }));
 
-vi.mock('@/services/database/queries/classQueries', () => ({
+vi.mock('@/services/database/classes', () => ({
   getClassesByTrialId: vi.fn(),
 }));
 
-vi.mock('@/services/database/queries/entryQueries', () => ({
+vi.mock('@/services/database/entries', () => ({
   getEntriesByClass: vi.fn(),
   getEntriesByShow: vi.fn(),
 }));
 
 import { getTrialsByShow } from '@/services/database/queries/trialQueries';
-import { getClassesByTrialId } from '@/services/database/queries/classQueries';
-import { getEntriesByClass, getEntriesByShow } from '@/services/database/queries/entryQueries';
+import { getClassesByTrialId } from '@/services/database/classes';
+import { getEntriesByClass, getEntriesByShow } from '@/services/database/entries';
 
 const mockGetTrialsByShow = vi.mocked(getTrialsByShow);
 const mockGetClassesByTrialId = vi.mocked(getClassesByTrialId);

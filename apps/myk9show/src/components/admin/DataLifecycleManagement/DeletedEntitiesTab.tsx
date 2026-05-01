@@ -44,11 +44,7 @@ import {
   restoreTrial,
   hardDeleteTrial,
 } from '@/services/database/queries/trialQueries';
-import {
-  getDeletedClasses,
-  restoreClass,
-  hardDeleteClass,
-} from '@/services/database/queries/classQueries';
+import { getDeletedClasses, restoreClass, hardDeleteClass } from '@/services/database/classes';
 import { getDeletedEntries, restoreEntry, hardDeleteEntry } from '@/services/database/entries';
 import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/queries/dogQueries';
 import {

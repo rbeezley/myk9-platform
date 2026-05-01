@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
-import { selectRegistrationsByShow } from '@/store/showRegistrationSelectors';
 
 interface ExistingEntry {
   dogId: string;
@@ -14,15 +13,7 @@ export function useExistingEntries(showId: string) {
   const allRegistrations = useShowRegistrationStore(state => state.registrations);
 
   const existingEntries = useMemo(() => {
-    const registrations = selectRegistrationsByShow(
-      {
-        registrations: allRegistrations,
-        currentRegistration: null,
-        draftData: {},
-        registrationContext: null,
-      },
-      showId
-    );
+    const registrations = allRegistrations.filter(r => r.showId === showId);
     const entries: ExistingEntry[] = [];
 
     registrations.forEach(registration => {

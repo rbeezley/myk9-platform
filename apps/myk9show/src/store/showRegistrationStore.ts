@@ -23,17 +23,24 @@ import {
 } from '../services/database/queries/showRegistrationQueries';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@myk9/core';
-import { buildRegistrationIndexes, emptyRegistrationIndexes } from './buildRegistrationIndexes';
+import {
+  buildRegistrationIndexes,
+  emptyRegistrationIndexes,
+  reassembleRegistration,
+  type StoredShowRegistration,
+  type StoredShowEntry,
+} from './buildRegistrationIndexes';
+import { selectArmbandsByShow, selectArmbandConflict } from './showRegistrationSelectors';
 
 interface ShowRegistrationStore {
   registrations: ShowRegistration[];
   currentRegistration: ShowRegistration | null;
   draftData: Partial<RegistrationFormData>;
   registrationContext: RegistrationContext | null;
-  // Derived byId indexes — never persisted, rebuilt on every mutation and on rehydrate.
-  // Read via showRegistrationSelectors; will become primary state in a follow-up.
-  registrationsById: Record<string, ShowRegistration>;
-  entriesById: Record<string, ShowEntry>;
+  // Canonical byId indexes — mutators write here first; registrations[] and
+  // currentRegistration are derived via withDerived after every mutation.
+  registrationsById: Record<string, StoredShowRegistration>;
+  entriesById: Record<string, StoredShowEntry>;
   classesById: Record<string, ClassEntry>;
   currentRegistrationId: string | null;
 
@@ -121,6 +128,42 @@ interface ShowRegistrationStore {
   migrateRegistrations: () => void;
 }
 
+// Derives registrations[] and currentRegistration from the byId canonical state.
+// Every mutator calls this so the backward-compat fields stay in sync atomically.
+const withDerived = (
+  partial: Partial<ShowRegistrationStore>,
+  state: ShowRegistrationStore
+): Partial<ShowRegistrationStore> => {
+  const merged = { ...state, ...partial };
+  const registrations = Object.values(merged.registrationsById).map(r =>
+    reassembleRegistration(r, merged.entriesById, merged.classesById)
+  );
+  return {
+    ...partial,
+    registrations,
+    currentRegistration:
+      merged.currentRegistrationId != null
+        ? (registrations.find(r => r.id === merged.currentRegistrationId) ?? null)
+        : null,
+  };
+};
+
+// Bumps updatedAt on a registration without touching entries/classes.
+// Returns an empty object (no-op) when the registration doesn't exist.
+const bumpReg = (
+  state: ShowRegistrationStore,
+  registrationId: string
+): Partial<ShowRegistrationStore> => {
+  const reg = state.registrationsById[registrationId];
+  if (!reg) return {};
+  return {
+    registrationsById: {
+      ...state.registrationsById,
+      [registrationId]: { ...reg, updatedAt: new Date() },
+    },
+  };
+};
+
 export const useShowRegistrationStore = create<ShowRegistrationStore>()(
   persist(
     (set, get) => ({
@@ -132,8 +175,9 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
       currentRegistrationId: null,
 
       createRegistration: (showId, userId, handlerId, createdByUserId) => {
-        const registration: ShowRegistration = {
-          id: `reg-${Date.now()}`,
+        const id = `reg-${Date.now()}`;
+        const stored: StoredShowRegistration = {
+          id,
           showId,
           userId,
           handlerId,
@@ -143,18 +187,22 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
           paymentStatus: PaymentStatus.PENDING,
           createdAt: new Date(),
           updatedAt: new Date(),
-          entries: [],
           statusHistory: [],
           createdByUserId: createdByUserId || userId,
           lastModifiedByUserId: createdByUserId || userId,
         };
 
-        set(state => ({
-          registrations: [...state.registrations, registration],
-          currentRegistration: registration,
-        }));
+        set(state =>
+          withDerived(
+            {
+              registrationsById: { ...state.registrationsById, [id]: stored },
+              currentRegistrationId: id,
+            },
+            state
+          )
+        );
 
-        return registration;
+        return { ...stored, entries: [] };
       },
 
       setRegistrationContext: context => {
@@ -166,27 +214,53 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
       },
 
       updateRegistration: (id, updates) => {
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === id ? { ...reg, ...updates, updatedAt: new Date() } : reg
-          ),
-          currentRegistration:
-            state.currentRegistration?.id === id
-              ? { ...state.currentRegistration, ...updates, updatedAt: new Date() }
-              : state.currentRegistration,
-        }));
+        set(state => {
+          const existing = state.registrationsById[id];
+          if (!existing) return state;
+          const { entries: _e, ...safeUpdates } = updates as Partial<ShowRegistration>;
+          return withDerived(
+            {
+              registrationsById: {
+                ...state.registrationsById,
+                [id]: { ...existing, ...safeUpdates, updatedAt: new Date() },
+              },
+            },
+            state
+          );
+        });
       },
 
       deleteRegistration: id => {
-        set(state => ({
-          registrations: state.registrations.filter(reg => reg.id !== id),
-          currentRegistration:
-            state.currentRegistration?.id === id ? null : state.currentRegistration,
-        }));
+        set(state => {
+          const entryIds = new Set(
+            Object.values(state.entriesById)
+              .filter(e => e.registrationId === id)
+              .map(e => e.id)
+          );
+          return withDerived(
+            {
+              registrationsById: Object.fromEntries(
+                Object.entries(state.registrationsById).filter(([k]) => k !== id)
+              ),
+              entriesById: Object.fromEntries(
+                Object.entries(state.entriesById).filter(([, e]) => e.registrationId !== id)
+              ),
+              classesById: Object.fromEntries(
+                Object.entries(state.classesById).filter(([, c]) => !entryIds.has(c.entryId))
+              ),
+              currentRegistrationId:
+                state.currentRegistrationId === id ? null : state.currentRegistrationId,
+            },
+            state
+          );
+        });
       },
 
       getRegistration: id => {
-        return get().registrations.find(reg => reg.id === id);
+        const state = get();
+        const stored = state.registrationsById[id];
+        if (!stored) return undefined;
+        return reassembleRegistration(stored, state.entriesById, state.classesById);
       },
 
       getRegistrationsByShow: showId => {
@@ -208,130 +282,105 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
       },
 
       addEntry: (registrationId, entry) => {
-        const newEntry: ShowEntry = {
-          ...entry,
-          id: `entry-${Date.now()}`,
-          registrationId,
-        };
+        const entryId = `entry-${Date.now()}`;
+        const { classes = [], ...restEntry } = entry;
+        const stored: StoredShowEntry = { ...restEntry, id: entryId, registrationId };
 
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: [...reg.entries, newEntry],
-                  updatedAt: new Date(),
-                }
-              : reg
-          ),
-          currentRegistration:
-            state.currentRegistration?.id === registrationId
-              ? {
-                  ...state.currentRegistration,
-                  entries: [...state.currentRegistration.entries, newEntry],
-                  updatedAt: new Date(),
-                }
-              : state.currentRegistration,
-        }));
+        const newClasses: Record<string, ClassEntry> = {};
+        for (const cls of classes) {
+          newClasses[cls.id] = { ...cls, entryId };
+        }
+
+        set(state =>
+          withDerived(
+            {
+              entriesById: { ...state.entriesById, [entryId]: stored },
+              classesById: { ...state.classesById, ...newClasses },
+              ...bumpReg(state, registrationId),
+            },
+            state
+          )
+        );
       },
 
       updateEntry: (registrationId, entryId, updates) => {
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.map(entry =>
-                    entry.id === entryId ? { ...entry, ...updates } : entry
-                  ),
-                  updatedAt: new Date(),
-                }
-              : reg
-          ),
-        }));
+        set(state => {
+          const existing = state.entriesById[entryId];
+          if (!existing) return state;
+          const { classes: _c, ...safeUpdates } = updates as Partial<ShowEntry>;
+          return withDerived(
+            {
+              entriesById: { ...state.entriesById, [entryId]: { ...existing, ...safeUpdates } },
+              ...bumpReg(state, registrationId),
+            },
+            state
+          );
+        });
       },
 
       removeEntry: (registrationId, entryId) => {
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.filter(entry => entry.id !== entryId),
-                  updatedAt: new Date(),
-                }
-              : reg
-          ),
-        }));
+        set(state =>
+          withDerived(
+            {
+              entriesById: Object.fromEntries(
+                Object.entries(state.entriesById).filter(([k]) => k !== entryId)
+              ),
+              classesById: Object.fromEntries(
+                Object.entries(state.classesById).filter(([, c]) => c.entryId !== entryId)
+              ),
+              ...bumpReg(state, registrationId),
+            },
+            state
+          )
+        );
       },
 
       addClassToEntry: (registrationId, entryId, classData) => {
+        const classId = `class-${Date.now()}`;
         const newClass: ClassEntry = {
           ...classData,
-          id: `class-${Date.now()}`,
+          id: classId,
           entryId,
           status: 'entered',
         };
 
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.map(entry =>
-                    entry.id === entryId
-                      ? { ...entry, classes: [...entry.classes, newClass] }
-                      : entry
-                  ),
-                  updatedAt: new Date(),
-                }
-              : reg
-          ),
-        }));
+        set(state =>
+          withDerived(
+            {
+              classesById: { ...state.classesById, [classId]: newClass },
+              ...bumpReg(state, registrationId),
+            },
+            state
+          )
+        );
       },
 
-      updateClassEntry: (registrationId, entryId, classId, updates) => {
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.map(entry =>
-                    entry.id === entryId
-                      ? {
-                          ...entry,
-                          classes: entry.classes.map(cls =>
-                            cls.id === classId ? { ...cls, ...updates } : cls
-                          ),
-                        }
-                      : entry
-                  ),
-                  updatedAt: new Date(),
-                }
-              : reg
-          ),
-        }));
+      updateClassEntry: (registrationId, _entryId, classId, updates) => {
+        set(state => {
+          const existing = state.classesById[classId];
+          if (!existing) return state;
+          return withDerived(
+            {
+              classesById: { ...state.classesById, [classId]: { ...existing, ...updates } },
+              ...bumpReg(state, registrationId),
+            },
+            state
+          );
+        });
       },
 
-      removeClassFromEntry: (registrationId, entryId, classId) => {
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.map(entry =>
-                    entry.id === entryId
-                      ? {
-                          ...entry,
-                          classes: entry.classes.filter(cls => cls.id !== classId),
-                        }
-                      : entry
-                  ),
-                  updatedAt: new Date(),
-                }
-              : reg
-          ),
-        }));
+      removeClassFromEntry: (registrationId, _entryId, classId) => {
+        set(state =>
+          withDerived(
+            {
+              classesById: Object.fromEntries(
+                Object.entries(state.classesById).filter(([k]) => k !== classId)
+              ),
+              ...bumpReg(state, registrationId),
+            },
+            state
+          )
+        );
       },
 
       calculateFees: registration => {
@@ -353,7 +402,6 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
 
         const subtotal = breakdown.reduce((sum, item) => sum + item.subtotal, 0);
 
-        // Calculate discounts (example: 10% off for 3+ dogs)
         const discounts = [];
         if (registration.entries.length >= 3) {
           discounts.push({
@@ -364,7 +412,7 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         }
 
         const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
-        const taxes = 0; // Add tax calculation if needed
+        const taxes = 0;
         const total = subtotal - discountTotal + taxes;
 
         return {
@@ -379,24 +427,30 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
       submitRegistration: async (registrationId, paymentDetails) => {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  status: 'submitted',
+        set(state => {
+          const existing = state.registrationsById[registrationId];
+          if (!existing) return state;
+          return withDerived(
+            {
+              registrationsById: {
+                ...state.registrationsById,
+                [registrationId]: {
+                  ...existing,
+                  status: 'submitted' as const,
                   submittedAt: new Date(),
                   updatedAt: new Date(),
                   // Store payment details locally for confirmation step display
                   ...(paymentDetails && { paymentDetails }),
-                }
-              : reg
-          ),
-        }));
+                },
+              },
+            },
+            state
+          );
+        });
       },
 
       confirmRegistration: async (registrationId, paymentReference, paymentDetails) => {
-        const reg = get().registrations.find(r => r.id === registrationId);
+        const reg = get().registrationsById[registrationId];
         if (!reg) return { confirmationNumber: undefined, dbRegistrationId: undefined };
 
         // Files the enrollment under the dog's owner (set at createRegistration
@@ -404,17 +458,14 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         // userId for any draft persisted before the handlerId field existed.
         const handlerId = reg.handlerId ?? reg.userId;
 
-        // Create or find DB registration to get real confirmation number + ID
         let confirmationNumber: string | undefined;
         let dbRegistrationId: string | undefined;
         try {
-          // Check for existing registration first (add-on scenario)
           const existing = await getRegistrationByShowAndHandler(reg.showId, handlerId);
           if (existing.data) {
             confirmationNumber = existing.data.confirmationNumber;
             dbRegistrationId = existing.data.id;
           } else {
-            // Create new DB registration — trigger generates MK9-XXXXXX number
             const result = await createShowRegistration(
               reg.showId,
               handlerId,
@@ -431,12 +482,15 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
           logger.error('[confirmRegistration] Error persisting registration:', err);
         }
 
-        // Update local state with real confirmation number (or fallback)
-        set(state => ({
-          registrations: state.registrations.map(r =>
-            r.id === registrationId
-              ? {
-                  ...r,
+        set(state => {
+          const existing = state.registrationsById[registrationId];
+          if (!existing) return state;
+          return withDerived(
+            {
+              registrationsById: {
+                ...state.registrationsById,
+                [registrationId]: {
+                  ...existing,
                   status: 'confirmed' as const,
                   paymentStatus: PaymentStatus.PAID_ONLINE,
                   paymentReference,
@@ -444,12 +498,13 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
                   registrationNumber:
                     confirmationNumber ?? `REG-${Date.now().toString().slice(-6)}`,
                   updatedAt: new Date(),
-                }
-              : r
-          ),
-        }));
+                },
+              },
+            },
+            state
+          );
+        });
 
-        // Fire-and-forget: send confirmation email
         if (dbRegistrationId) {
           supabase.functions
             .invoke('send-registration-email', {
@@ -464,171 +519,154 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
       },
 
       cancelRegistration: registrationId => {
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  status: 'cancelled',
+        set(state => {
+          const existing = state.registrationsById[registrationId];
+          if (!existing) return state;
+          return withDerived(
+            {
+              registrationsById: {
+                ...state.registrationsById,
+                [registrationId]: {
+                  ...existing,
+                  status: 'cancelled' as const,
                   updatedAt: new Date(),
-                }
-              : reg
-          ),
-        }));
-      },
-
-      // Handler management
-      updateEntryHandler: (registrationId, entryId, handler, overrideReason) => {
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.map(entry =>
-                    entry.id === entryId
-                      ? {
-                          ...entry,
-                          handler,
-                          handlerId: handler.id,
-                          handlerName: handler.name,
-                          isHandlerValidated: !!handler.validatedAt,
-                          handlerOverrideReason: overrideReason,
-                        }
-                      : entry
-                  ),
-                  updatedAt: new Date(),
-                }
-              : reg
-          ),
-        }));
-      },
-
-      // Armband management
-      assignArmband: (registrationId, entryId, assignment) => {
-        set(state => ({
-          registrations: state.registrations.map(reg =>
-            reg.id === registrationId
-              ? {
-                  ...reg,
-                  entries: reg.entries.map(entry =>
-                    entry.id === entryId
-                      ? {
-                          ...entry,
-                          armband: assignment.number,
-                          armbandAssignment: assignment,
-                        }
-                      : entry
-                  ),
-                  updatedAt: new Date(),
-                }
-              : reg
-          ),
-        }));
-      },
-
-      getArmbandsByShow: showId => {
-        const registrations = get().registrations.filter(reg => reg.showId === showId);
-        const armbands: { entryId: string; armband: ArmbandAssignment }[] = [];
-
-        registrations.forEach(reg => {
-          reg.entries.forEach(entry => {
-            if (entry.armbandAssignment) {
-              armbands.push({
-                entryId: entry.id,
-                armband: entry.armbandAssignment,
-              });
-            }
-          });
+                },
+              },
+            },
+            state
+          );
         });
-
-        return armbands;
       },
 
-      checkArmbandConflicts: (showId, armband, excludeEntryId) => {
-        const armbands = get().getArmbandsByShow(showId);
-        return armbands.some(
-          item => item.armband.number === armband && item.entryId !== excludeEntryId
-        );
+      updateEntryHandler: (registrationId, entryId, handler, overrideReason) => {
+        set(state => {
+          const existing = state.entriesById[entryId];
+          if (!existing) return state;
+          return withDerived(
+            {
+              entriesById: {
+                ...state.entriesById,
+                [entryId]: {
+                  ...existing,
+                  handler,
+                  handlerId: handler.id,
+                  handlerName: handler.name,
+                  isHandlerValidated: !!handler.validatedAt,
+                  handlerOverrideReason: overrideReason,
+                },
+              },
+              ...bumpReg(state, registrationId),
+            },
+            state
+          );
+        });
       },
 
-      // Entry status management
+      assignArmband: (registrationId, entryId, assignment) => {
+        set(state => {
+          const existing = state.entriesById[entryId];
+          if (!existing) return state;
+          return withDerived(
+            {
+              entriesById: {
+                ...state.entriesById,
+                [entryId]: {
+                  ...existing,
+                  armband: assignment.number,
+                  armbandAssignment: assignment,
+                },
+              },
+              ...bumpReg(state, registrationId),
+            },
+            state
+          );
+        });
+      },
+
+      getArmbandsByShow: showId => selectArmbandsByShow(get(), showId),
+
+      checkArmbandConflicts: (showId, armband, excludeEntryId) =>
+        selectArmbandConflict(get(), showId, armband, excludeEntryId),
+
       updateEntryStatus: (registrationId, status, reason, userId) => {
-        const reg = get().registrations.find(r => r.id === registrationId);
-        if (!reg) return;
-
-        const statusChange: StatusChange = {
-          id: `change-${Date.now()}`,
-          registrationId,
-          changeType: 'entry_status',
-          fromStatus: reg.entryStatus || EntryStatus.PENDING,
-          toStatus: status,
-          changedAt: new Date(),
-          changedByUserId: userId || reg.userId,
-          reason,
-        };
-
-        set(state => ({
-          registrations: state.registrations.map(r =>
-            r.id === registrationId
-              ? {
-                  ...r,
+        set(state => {
+          const existing = state.registrationsById[registrationId];
+          if (!existing) return state;
+          const statusChange: StatusChange = {
+            id: `change-${Date.now()}`,
+            registrationId,
+            changeType: 'entry_status',
+            fromStatus: existing.entryStatus || EntryStatus.PENDING,
+            toStatus: status,
+            changedAt: new Date(),
+            changedByUserId: userId || existing.userId,
+            reason,
+          };
+          return withDerived(
+            {
+              registrationsById: {
+                ...state.registrationsById,
+                [registrationId]: {
+                  ...existing,
                   entryStatus: status,
-                  statusHistory: [...(r.statusHistory || []), statusChange],
-                  lastModifiedByUserId: userId || reg.userId,
+                  statusHistory: [...(existing.statusHistory || []), statusChange],
+                  lastModifiedByUserId: userId || existing.userId,
                   updatedAt: new Date(),
-                }
-              : r
-          ),
-        }));
+                },
+              },
+            },
+            state
+          );
+        });
       },
 
       updatePaymentStatus: (registrationId, status, reference, userId) => {
-        const reg = get().registrations.find(r => r.id === registrationId);
-        if (!reg) return;
-
-        const statusChange: StatusChange = {
-          id: `change-${Date.now()}`,
-          registrationId,
-          changeType: 'payment_status',
-          fromStatus: String(reg.paymentStatus),
-          toStatus: status,
-          changedAt: new Date(),
-          changedByUserId: userId || reg.userId,
-          notes: reference ? `Reference: ${reference}` : undefined,
-        };
-
-        set(state => ({
-          registrations: state.registrations.map(r =>
-            r.id === registrationId
-              ? {
-                  ...r,
+        set(state => {
+          const existing = state.registrationsById[registrationId];
+          if (!existing) return state;
+          const statusChange: StatusChange = {
+            id: `change-${Date.now()}`,
+            registrationId,
+            changeType: 'payment_status',
+            fromStatus: String(existing.paymentStatus),
+            toStatus: status,
+            changedAt: new Date(),
+            changedByUserId: userId || existing.userId,
+            notes: reference ? `Reference: ${reference}` : undefined,
+          };
+          return withDerived(
+            {
+              registrationsById: {
+                ...state.registrationsById,
+                [registrationId]: {
+                  ...existing,
                   paymentStatus: status,
-                  paymentReference: reference || r.paymentReference,
-                  statusHistory: [...(r.statusHistory || []), statusChange],
-                  lastModifiedByUserId: userId || reg.userId,
+                  paymentReference: reference || existing.paymentReference,
+                  statusHistory: [...(existing.statusHistory || []), statusChange],
+                  lastModifiedByUserId: userId || existing.userId,
                   updatedAt: new Date(),
-                }
-              : r
-          ),
-        }));
+                },
+              },
+            },
+            state
+          );
+        });
       },
 
       getStatusHistory: registrationId => {
-        const reg = get().registrations.find(r => r.id === registrationId);
-        return reg?.statusHistory || [];
+        const reg = get().registrationsById[registrationId];
+        return reg?.statusHistory ?? [];
       },
 
-      // Migration utilities
       migrateRegistrations: () => {
-        set(state => ({
-          registrations: state.registrations.map(reg => {
-            // Migrate payment status if needed
+        set(state => {
+          const registrationsById: Record<string, StoredShowRegistration> = {};
+          for (const [id, reg] of Object.entries(state.registrationsById)) {
             const paymentStatus = isLegacyPaymentStatus(String(reg.paymentStatus))
               ? migratePaymentStatus(String(reg.paymentStatus))
               : (reg.paymentStatus as PaymentStatus);
 
-            // Add new fields if missing
-            return {
+            registrationsById[id] = {
               ...reg,
               paymentStatus,
               entryStatus: reg.entryStatus || EntryStatus.PENDING,
@@ -636,8 +674,9 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
               createdByUserId: reg.createdByUserId || reg.userId,
               lastModifiedByUserId: reg.lastModifiedByUserId || reg.userId,
             };
-          }),
-        }));
+          }
+          return withDerived({ registrationsById }, state);
+        });
       },
     }),
     {
@@ -648,18 +687,14 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
       }),
       version: 1,
       migrate: (persistedState: unknown, version: number) => {
-        // Handle version migrations for show registrations
         if (version === 0) {
-          // Convert from old format if necessary
           if (persistedState && typeof persistedState === 'object') {
             const state = persistedState as Record<string, unknown>;
             if (state.registrations && Array.isArray(state.registrations)) {
-              // Ensure all registrations have proper relationships and status fields
               state.registrations = state.registrations.map((registration: unknown) => {
                 const reg = registration as Record<string, unknown>;
                 return {
                   ...reg,
-                  // Add any data transformations needed for relationships
                   entryStatus: reg.entryStatus || 'pending',
                   statusHistory: reg.statusHistory || [],
                   createdByUserId: reg.createdByUserId || reg.userId,
@@ -682,29 +717,3 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
     }
   )
 );
-
-// Keep derived byId indexes in sync with the canonical registrations[] array.
-// This is transitional — a follow-up commit will make byId the primary state
-// and remove this subscription. See showRegistrationSelectors.ts for the read
-// API that callers should adopt now.
-useShowRegistrationStore.subscribe((state, prev) => {
-  const registrationsChanged = state.registrations !== prev.registrations;
-  const currentChanged = state.currentRegistration !== prev.currentRegistration;
-  if (!registrationsChanged && !currentChanged) return;
-
-  const update: Partial<{
-    registrationsById: ShowRegistrationStore['registrationsById'];
-    entriesById: ShowRegistrationStore['entriesById'];
-    classesById: ShowRegistrationStore['classesById'];
-    currentRegistrationId: ShowRegistrationStore['currentRegistrationId'];
-  }> = {};
-
-  if (registrationsChanged) {
-    Object.assign(update, buildRegistrationIndexes(state.registrations));
-  }
-  if (currentChanged) {
-    update.currentRegistrationId = state.currentRegistration?.id ?? null;
-  }
-
-  useShowRegistrationStore.setState(update);
-});

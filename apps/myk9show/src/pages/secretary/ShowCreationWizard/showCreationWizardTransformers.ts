@@ -2,6 +2,7 @@
  * Data transformation utilities for the Show Creation Wizard
  */
 
+import { format } from 'date-fns';
 import type { Show } from '@/types/show-types';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
@@ -139,7 +140,7 @@ export function createClassDataFromWizard(
           id: classId,
           trialId: trialId,
           trial: wizardTrial.name,
-          trialDate: wizardTrial.dateTime,
+          trialDate: format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd'),
           trialNumber: wizardTrial.eventNumber || wizardTrial.name,
           classOrder: String(index + 1),
           status: 'Scheduled' as const,

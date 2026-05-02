@@ -121,7 +121,9 @@ const ShowCreationWizardPage: React.FC = () => {
       if (e.key === 'Escape' && isDirty) {
         // Don't trigger if a popover, dropdown, or dialog overlay is open —
         // Escape should only close the innermost overlay (e.g., date picker)
-        const hasOpenOverlay = document.querySelector('[data-open], [data-state="open"]');
+        const hasOpenOverlay = document.querySelector(
+          '[data-open], [data-state="open"], [role="dialog"], [role="alertdialog"]'
+        );
         if (hasOpenOverlay) return;
 
         e.preventDefault();
@@ -398,6 +400,20 @@ const ShowCreationWizardPage: React.FC = () => {
             onCreateShow={handleCreateShow}
             onCreateAndPublish={handleCreateAndPublish}
             onBack={handleBack}
+            submitLabel={
+              editMode?.mode === 'add-trials'
+                ? 'Add Trials (Unpublished)'
+                : editMode?.mode === 'add-classes'
+                  ? 'Add Classes (Unpublished)'
+                  : 'Create Show (Unpublished)'
+            }
+            publishLabel={
+              editMode?.mode === 'add-trials'
+                ? 'Add & Publish Trials'
+                : editMode?.mode === 'add-classes'
+                  ? 'Add & Publish Classes'
+                  : 'Create & Publish Show'
+            }
           />
         );
       default:

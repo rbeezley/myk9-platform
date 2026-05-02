@@ -29,6 +29,10 @@ interface ReviewStepProps {
   onCreateShow?: () => void;
   onCreateAndPublish?: () => void;
   onBack?: () => void;
+  /** Override for the unpublished-save button label. Defaults to "Create Show (Unpublished)". */
+  submitLabel?: string;
+  /** Override for the publish button label. Defaults to "Create & Publish Show". */
+  publishLabel?: string;
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({
@@ -38,6 +42,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   onCreateShow,
   onCreateAndPublish,
   onBack,
+  submitLabel = 'Create Show (Unpublished)',
+  publishLabel = 'Create & Publish Show',
 }) => {
   const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
   const { clubs } = useClubStore();
@@ -475,7 +481,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   ) : (
                     <FileText className="h-4 w-4 mr-2" />
                   )}
-                  Create Show (Unpublished)
+                  {isLoading ? 'Saving...' : submitLabel}
                 </Button>
 
                 <Button onClick={onCreateAndPublish} disabled={isLoading} className="flex-1">
@@ -484,7 +490,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   ) : (
                     <Eye className="h-4 w-4 mr-2" />
                   )}
-                  {isLoading ? 'Creating...' : 'Create & Publish Show'}
+                  {isLoading ? 'Saving...' : publishLabel}
                 </Button>
               </div>
             </div>

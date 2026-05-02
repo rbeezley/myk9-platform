@@ -137,7 +137,9 @@ export function useShowCreationWizardActions({
           showId,
           showName,
           name: trialName,
-          trialDate: wizardTrial.dateTime,
+          trialDate: wizardTrial.dateTime
+            ? format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd')
+            : '',
           trialNumber: trialName,
           status: 'Upcoming',
           eventNumber: wizardTrial.eventNumber || '',

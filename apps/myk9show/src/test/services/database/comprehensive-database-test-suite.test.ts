@@ -46,7 +46,7 @@ import {
   deleteDog,
   searchDogs,
   getDogStatistics,
-} from '@/services/database/queries/dogQueries';
+} from '@/services/database/dogs';
 
 import {
   getAllUsers,

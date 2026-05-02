@@ -20,4 +20,4 @@ export {
   hardDeleteDog,
   restoreDog,
   getDeletedDogs,
-} from '../queries/dogQueries';
+} from './reads';

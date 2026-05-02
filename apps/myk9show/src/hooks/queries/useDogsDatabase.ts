@@ -11,7 +11,7 @@ import {
   deleteDog,
   searchDogs,
   getDogStatistics,
-} from '@/services/database/queries/dogQueries';
+} from '@/services/database/dogs';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
 import { mapDatabaseToDog, mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';

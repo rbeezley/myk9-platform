@@ -72,7 +72,7 @@ import {
   searchDogs,
   getDogsWithUpcomingShows,
   getDogStatistics,
-} from '@/services/database/queries/dogQueries';
+} from '@/services/database/dogs';
 
 // ---------------------------------------------------------------------------
 // Test fixtures

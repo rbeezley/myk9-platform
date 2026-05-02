@@ -9,7 +9,7 @@ import {
   searchDogs,
   getDogsWithUpcomingShows,
   getDogStatistics,
-} from '@/services/database/queries/dogQueries';
+} from '@/services/database/dogs';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 

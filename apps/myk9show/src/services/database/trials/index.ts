@@ -20,4 +20,4 @@ export {
   hardDeleteTrial,
   restoreTrial,
   getDeletedTrials,
-} from '../queries/trialQueries';
+} from './reads';

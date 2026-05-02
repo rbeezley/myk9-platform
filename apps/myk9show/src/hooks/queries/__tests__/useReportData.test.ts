@@ -17,7 +17,7 @@ vi.mock('@/services/database/entries', () => ({
   getEntriesByShow: vi.fn(),
 }));
 
-import { getTrialsByShow } from '@/services/database/queries/trialQueries';
+import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesByClass, getEntriesByShow } from '@/services/database/entries';
 

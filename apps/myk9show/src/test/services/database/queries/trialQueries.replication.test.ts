@@ -37,7 +37,7 @@ import {
   getUpcomingTrials,
   getTrialsByDateRange,
   getTrialStatistics,
-} from '@/services/database/queries/trialQueries';
+} from '@/services/database/trials';
 
 // ---------------------------------------------------------------------------
 // Test fixtures

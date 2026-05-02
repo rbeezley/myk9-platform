@@ -258,6 +258,14 @@ describe('buildMermaidGraph', () => {
     const pages = [entry('/a', ['/b']), entry('/b', ['/a'])];
     expect(() => buildMermaidGraph(pages)).not.toThrow();
   });
+
+  // [ADDED] Quote escaping
+  it('escapes double-quotes in page titles so labels do not break graph syntax', () => {
+    const pages = [{ ...entry('/a'), title: 'Say "hello"' }];
+    const graph = buildMermaidGraph(pages);
+    expect(graph).toContain('&quot;hello&quot;');
+    expect(graph).not.toContain('"hello"');
+  });
 });
 ```
 
@@ -283,6 +291,11 @@ export function sanitizePath(path: string): string {
   return result || 'root';
 }
 
+// [ADDED] Escape double-quotes in label text so they don't break Mermaid's "label" syntax
+function escapeLabel(text: string): string {
+  return text.replace(/"/g, '&quot;');
+}
+
 export function buildMermaidGraph(pages: PageEntry[]): string {
   if (pages.length === 0) return '';
 
@@ -292,7 +305,7 @@ export function buildMermaidGraph(pages: PageEntry[]): string {
   // Node definitions + click directives
   for (const page of pages) {
     const id = sanitizePath(page.path);
-    const label = `${page.title}<br/>${page.path}`;
+    const label = `${escapeLabel(page.title)}<br/>${escapeLabel(page.path)}`;
     lines.push(`  ${id}["${label}"]`);
     lines.push(`  click ${id} "${CALLBACK_NAME}"`);
   }
@@ -392,7 +405,36 @@ Add each destination path to `linksTo` for the source page. Only include paths t
 },
 ```
 
-**Follow the same pattern for all remaining entries** (Secretary, Club Admin, Judge, Exhibitor, Public). Read each component file to discover actual navigation calls — do not guess.
+**[ADDED] Worked example — Secretary section** (the pattern for the other roles):
+
+```typescript
+{
+  path: '/secretary/dashboard',
+  // ...
+  linksTo: ['/shows', '/secretary/run-order', '/secretary/check-in'],
+},
+{
+  path: '/shows',
+  // ...
+  linksTo: ['/shows/:showId'],
+},
+{
+  path: '/shows/:showId',
+  // ...
+  linksTo: [
+    '/shows/:showId/trials/:trialId',
+    '/secretary/entries',
+    '/secretary/run-order',
+  ],
+},
+{
+  path: '/secretary/run-order',
+  // ...
+  linksTo: ['/shows/:showId/trials/:trialId/classes/:classId'],
+},
+```
+
+**Follow the same pattern for Club Admin, Judge, Exhibitor, and Public entries.** Read each component file to discover actual navigation calls — do not guess.
 
 - [ ] **Step 1: Read the full pageDirectory.ts**
 
@@ -465,7 +507,8 @@ import type { PageEntry } from '../types';
 import { UserRole } from '@/types/auth-types';
 
 // Mock mermaid — it does DOM manipulation incompatible with jsdom.
-// Import mermaid above the mock so vi.mocked(mermaid) works in tests.
+// PageFlowDiagram uses dynamic import('mermaid'); vi.mock hoists this mock so
+// the dynamic import resolves to the mock object in all tests.
 vi.mock('mermaid', () => ({
   default: {
     initialize: vi.fn(),
@@ -529,6 +572,15 @@ describe('PageFlowDiagram', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('/admin/users');
   });
+
+  // [ADDED] Error state
+  it('shows error message when mermaid.render rejects', async () => {
+    vi.mocked(mermaid.render).mockRejectedValue(new Error('parse error'));
+    render(<PageFlowDiagram pages={[entry('/admin/users')]} />);
+    await waitFor(() => {
+      expect(screen.getByText(/failed to render/i)).toBeInTheDocument();
+    });
+  });
 });
 ```
 
@@ -548,18 +600,12 @@ Create `apps/myk9show/src/features/admin-help/components/PageFlowDiagram.tsx`:
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import mermaid from 'mermaid';
+// [ADDED] Lazy import — mermaid (~150KB) is loaded on first render, not at app startup.
+// This keeps it out of the main bundle since only site admins ever reach this page.
 import { buildMermaidGraph, sanitizePath } from '../utils/buildMermaidGraph';
 import type { PageEntry } from '../types';
 
 const CALLBACK_NAME = '__myk9FlowNav';
-
-// Initialize once at module load — sets global Mermaid config
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'dark',
-  flowchart: { curve: 'basis', useMaxWidth: true, htmlLabels: true },
-});
 
 interface PageFlowDiagramProps {
   pages: PageEntry[];
@@ -568,6 +614,7 @@ interface PageFlowDiagramProps {
 export function PageFlowDiagram({ pages }: PageFlowDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [rendering, setRendering] = useState(false);
+  const [renderError, setRenderError] = useState(false); // [ADDED]
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -576,6 +623,7 @@ export function PageFlowDiagram({ pages }: PageFlowDiagramProps) {
 
     let cancelled = false;
     setRendering(true);
+    setRenderError(false); // [ADDED] reset error on new render
 
     // Build path lookup map so the click callback can resolve node ID → path
     const pathMap: Record<string, string> = {};
@@ -589,14 +637,24 @@ export function PageFlowDiagram({ pages }: PageFlowDiagramProps) {
     };
 
     const id = `myk9-flow-${Date.now()}`;
-    mermaid
-      .render(id, graph)
+
+    // [ADDED] Lazy-load mermaid so it stays out of the main bundle
+    import('mermaid').then(({ default: mermaid }) => {
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        flowchart: { curve: 'basis', useMaxWidth: true, htmlLabels: true },
+      });
+      return mermaid.render(id, graph);
+    })
       .then(({ svg }) => {
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
         }
       })
-      .catch(console.error)
+      .catch(() => {
+        if (!cancelled) setRenderError(true); // [ADDED] surface error to user
+      })
       .finally(() => {
         if (!cancelled) setRendering(false);
       });
@@ -611,6 +669,15 @@ export function PageFlowDiagram({ pages }: PageFlowDiagramProps) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
         No pages match the current filters.
+      </p>
+    );
+  }
+
+  // [ADDED] Error state
+  if (renderError) {
+    return (
+      <p className="py-12 text-center text-sm text-destructive">
+        Failed to render diagram. Check the browser console for details.
       </p>
     );
   }

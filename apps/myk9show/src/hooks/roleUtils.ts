@@ -19,6 +19,8 @@ export const ROLE_DASHBOARD_ROUTES: Partial<Record<UserRole, string>> = {
   [UserRole.SITE_ADMIN]: '/admin/dashboard',
   [UserRole.CLUB_ADMIN]: '/secretary/dashboard',
   [UserRole.SECRETARY]: '/secretary/dashboard',
+  // INTENT: JUDGE routes to /judge/dashboard — a judge-specific landing page
+  // was added 2026-05-02 as part of Phase 2 golden-path work.
   [UserRole.JUDGE]: '/judge/dashboard',
   [UserRole.EXHIBITOR]: '/exhibitor/entries',
 };

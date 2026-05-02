@@ -121,7 +121,9 @@ const ShowCreationWizardPage: React.FC = () => {
       if (e.key === 'Escape' && isDirty) {
         // Don't trigger if a popover, dropdown, or dialog overlay is open —
         // Escape should only close the innermost overlay (e.g., date picker)
-        const hasOpenOverlay = document.querySelector('[data-open], [data-state="open"]');
+        const hasOpenOverlay = document.querySelector(
+          '[data-open], [data-state="open"], [role="dialog"], [role="alertdialog"]'
+        );
         if (hasOpenOverlay) return;
 
         e.preventDefault();

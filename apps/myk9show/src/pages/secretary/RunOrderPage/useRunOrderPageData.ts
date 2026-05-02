@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTrialClassesWithQuery } from '@/hooks/useClassStoreCompat';
 import { CreatedClass } from '@/types/template.types';
 import { ScheduleConfig, TimeCalculationEngine } from '@/lib/timeCalculation';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { queryKeys } from '@/lib/queryClient';
+import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
 import { getJudgesWithQualifications } from '@/services/database/queries/userQueries';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
@@ -91,6 +92,7 @@ export interface UseRunOrderPageDataReturn {
 }
 
 export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPageDataReturn {
+  const queryClient = useQueryClient();
   const trialClassesQuery = useTrialClassesWithQuery(trialId ?? '', !!trialId);
 
   // Fetch the trial row so we have showId for judge_assignments writes.
@@ -205,9 +207,16 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
       return;
     }
     if (judgeId) {
-      upsertClassJudgeAssignment(showId, classId, judgeId).catch(() => {
-        notifications.error('Failed to save judge assignment');
-      });
+      upsertClassJudgeAssignment(showId, classId, judgeId)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: classKeys.lists() });
+          if (trialId) {
+            queryClient.invalidateQueries({ queryKey: classKeys.byTrial(trialId) });
+          }
+        })
+        .catch(() => {
+          notifications.error('Failed to save judge assignment');
+        });
     }
   };
 

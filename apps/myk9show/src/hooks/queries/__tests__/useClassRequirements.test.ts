@@ -28,7 +28,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 // Import after mocks
-import { useClassRequirements } from '@/hooks/queries/useClassRequirements';
+import { useClassRequirements, normalizeOrganization } from '@/hooks/queries/useClassRequirements';
 import type { ClassRequirements } from '@/hooks/queries/useClassRequirements';
 import { cacheStrategies } from '@/lib/queryClient';
 
@@ -206,6 +206,65 @@ describe('useClassRequirements', () => {
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
       expect(mockFrom).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('organization normalization', () => {
+    it('normalizes "AKC Scent Work" to "AKC"', () => {
+      expect(normalizeOrganization('AKC Scent Work')).toBe('AKC');
+    });
+
+    it('normalizes "AKC" to "AKC"', () => {
+      expect(normalizeOrganization('AKC')).toBe('AKC');
+    });
+
+    it('normalizes "UKC Scent Work" to "UKC"', () => {
+      expect(normalizeOrganization('UKC Scent Work')).toBe('UKC');
+    });
+
+    it('normalizes "ASCA" to "ASCA"', () => {
+      expect(normalizeOrganization('ASCA')).toBe('ASCA');
+    });
+
+    it('returns null for unrecognized organization', () => {
+      expect(normalizeOrganization('Unknown Org')).toBeNull();
+    });
+
+    it('disables the query when organization normalizes to null (unrecognized org)', () => {
+      const { Wrapper } = makeWrapper();
+      const { result } = renderHook(
+        () =>
+          useClassRequirements({
+            organization: 'Unknown Org',
+            element: 'Interior',
+            level: 'Novice',
+          }),
+        { wrapper: Wrapper }
+      );
+
+      expect(result.current.requirements).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(mockFrom).not.toHaveBeenCalled();
+    });
+
+    it('fires query with normalized org when raw org is "AKC Scent Work"', async () => {
+      mockFrom.mockReturnValue(makeQueryChain({ data: [SAMPLE_RAW_ROW], error: null }));
+
+      const { Wrapper } = makeWrapper();
+      const { result } = renderHook(
+        () =>
+          useClassRequirements({
+            organization: 'AKC Scent Work',
+            element: 'Interior',
+            level: 'Novice A',
+          }),
+        { wrapper: Wrapper }
+      );
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.requirements).toEqual(SAMPLE_REQUIREMENTS);
+      expect(mockFrom).toHaveBeenCalled();
     });
   });
 

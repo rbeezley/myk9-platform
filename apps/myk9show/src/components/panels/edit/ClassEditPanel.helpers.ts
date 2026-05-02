@@ -64,6 +64,15 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.dayOfShowFee !== undefined && { dayOfShowFee: formData.dayOfShowFee }),
 });
 
+/**
+ * Section (A/B) only applies to AKC Scent Work Novice — Advanced, Excellent,
+ * and Master do not have sections. Detective has no sections regardless of level.
+ */
+export function isScentWorkNovice(level: string, element: string): boolean {
+  if (element === 'Detective') return false;
+  return level.startsWith('Novice');
+}
+
 // Convert TrialClass to form data
 export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClassEditFormData => {
   return {

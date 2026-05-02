@@ -53,8 +53,8 @@ describe('getDashboardRoute', () => {
     expect(getDashboardRoute([UserRole.SECRETARY])).toBe('/secretary/dashboard');
   });
 
-  it('routes JUDGE to /exhibitor/entries (intentional — no judge dashboard yet)', () => {
-    expect(getDashboardRoute([UserRole.JUDGE])).toBe('/exhibitor/entries');
+  it('routes JUDGE to /judge/dashboard', () => {
+    expect(getDashboardRoute([UserRole.JUDGE])).toBe('/judge/dashboard');
   });
 
   it('routes EXHIBITOR to /exhibitor/entries', () => {

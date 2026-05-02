@@ -5,10 +5,15 @@ import { renderHook, act } from '@testing-library/react';
 vi.mock('@/hooks/useClassStoreCompat', () => ({
   useTrialClassesWithQuery: vi.fn(),
 }));
+const mockInvalidateQueries = vi.fn();
 vi.mock('@tanstack/react-query', async () => {
   const actual =
     await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
-  return { ...actual, useQuery: vi.fn() };
+  return {
+    ...actual,
+    useQuery: vi.fn(),
+    useQueryClient: vi.fn(() => ({ invalidateQueries: mockInvalidateQueries })),
+  };
 });
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { updateClass: vi.fn().mockResolvedValue(undefined) },
@@ -30,6 +35,14 @@ vi.mock('@/lib/queryClient', () => ({
   queryKeys: {
     trial: (id: string) => ['trials', id] as const,
     judgesWithQualifications: ['judges', 'with-qualifications'] as const,
+  },
+}));
+
+vi.mock('@/hooks/queries/useClassesDatabase', () => ({
+  classKeys: {
+    all: ['classes'] as const,
+    lists: () => ['classes', 'list'] as const,
+    byTrial: (trialId: string) => ['classes', 'trial', trialId] as const,
   },
 }));
 vi.mock('@/features/pipeline/utils/pipelineReorder', () => ({
@@ -143,11 +156,11 @@ describe('useRunOrderPageData — handleReorder', () => {
 });
 
 describe('useRunOrderPageData — handleJudgeAssign', () => {
-  it('persists to judge_assignments when showId is available', () => {
+  it('persists to judge_assignments when showId is available', async () => {
     mockQueries('show-abc');
     const { result } = renderHook(() => useRunOrderPageData('trial-1'));
 
-    act(() => {
+    await act(async () => {
       result.current.handleJudgeAssign('class-1', 'judge-x');
     });
 
@@ -155,11 +168,49 @@ describe('useRunOrderPageData — handleJudgeAssign', () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
-  it('logs a warning and skips persist when showId is not yet loaded', () => {
+  it('invalidates classKeys.lists() after a successful judge assignment', async () => {
+    mockQueries('show-abc');
+    const { result } = renderHook(() => useRunOrderPageData('trial-1'));
+
+    await act(async () => {
+      result.current.handleJudgeAssign('class-1', 'judge-x');
+    });
+
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['classes', 'list'],
+    });
+  });
+
+  it('invalidates classKeys.byTrial(trialId) after a successful judge assignment', async () => {
+    mockQueries('show-abc');
+    const { result } = renderHook(() => useRunOrderPageData('trial-1'));
+
+    await act(async () => {
+      result.current.handleJudgeAssign('class-1', 'judge-x');
+    });
+
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['classes', 'trial', 'trial-1'],
+    });
+  });
+
+  it('does not invalidate cache when judgeId is empty', async () => {
+    mockQueries('show-abc');
+    const { result } = renderHook(() => useRunOrderPageData('trial-1'));
+
+    await act(async () => {
+      result.current.handleJudgeAssign('class-1', '');
+    });
+
+    expect(upsertClassJudgeAssignment).not.toHaveBeenCalled();
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it('logs a warning and skips persist when showId is not yet loaded', async () => {
     mockQueries(undefined);
     const { result } = renderHook(() => useRunOrderPageData('trial-1'));
 
-    act(() => {
+    await act(async () => {
       result.current.handleJudgeAssign('class-1', 'judge-x');
     });
 

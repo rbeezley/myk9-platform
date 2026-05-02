@@ -30,6 +30,7 @@ import {
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
+import { isScentWorkNovice } from './ClassEditPanel.helpers';
 
 // Cast schemas to match the pre-existing form data interfaces.
 // Needed because exactOptionalPropertyTypes causes structural mismatch
@@ -116,15 +117,20 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 readOnly
               />
             </FormField>
-            <FormField label="Section" fieldId="trialSection">
-              <Input
-                id="trialSection"
-                value={data.section}
-                className="bg-muted text-muted-foreground"
-                disabled
-                readOnly
-              />
-            </FormField>
+            {/* Section (A/B) only applies to AKC Scent Work Novice — Advanced and Excellent do not have sections */}
+            {isScentWorkNovice(data.level, data.element) ? (
+              <FormField label="Section" fieldId="trialSection">
+                <Input
+                  id="trialSection"
+                  value={data.section}
+                  className="bg-muted text-muted-foreground"
+                  disabled
+                  readOnly
+                />
+              </FormField>
+            ) : (
+              <div />
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-4">

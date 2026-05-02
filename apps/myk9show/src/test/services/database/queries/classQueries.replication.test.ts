@@ -51,7 +51,7 @@ import {
   getClassesByTrialId,
   searchClasses,
   getClassStatistics,
-} from '@/services/database/queries/classQueries';
+} from '@/services/database/classes';
 
 // ---------------------------------------------------------------------------
 // Test fixtures

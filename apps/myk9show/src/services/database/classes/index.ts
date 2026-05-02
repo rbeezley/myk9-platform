@@ -17,4 +17,4 @@ export {
   hardDeleteClass,
   restoreClass,
   getDeletedClasses,
-} from '../queries/classQueries';
+} from './reads';

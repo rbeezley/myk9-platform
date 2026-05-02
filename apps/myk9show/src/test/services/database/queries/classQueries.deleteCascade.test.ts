@@ -62,7 +62,7 @@ vi.mock('@/services/LoggingService', () => ({
   },
 }));
 
-import { deleteClass } from '@/services/database/queries/classQueries';
+import { deleteClass } from '@/services/database/classes';
 
 describe('deleteClass cascade behavior', () => {
   beforeEach(() => {

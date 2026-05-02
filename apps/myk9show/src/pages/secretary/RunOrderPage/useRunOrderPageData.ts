@@ -5,17 +5,17 @@ import { CreatedClass } from '@/types/template.types';
 import { ScheduleConfig, TimeCalculationEngine } from '@/lib/timeCalculation';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
+import { queryKeys } from '@/lib/queryClient';
 import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
 import { getJudgesWithQualifications } from '@/services/database/queries/userQueries';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
+import { DISPLAY_ORDER_STEP } from '@/features/pipeline/utils/pipelineReorder';
 import type {
   Personnel,
   PersonnelAssignment,
 } from '@/components/templates/secretary/PersonnelManager';
 import { MOCK_PERSONNEL } from './mockPersonnel';
 import { mapClassesToCreatedClasses } from './mapClassToCreatedClass';
-
-const DISPLAY_ORDER_STEP = 10;
 
 type StewardRole = 'gate' | 'table' | 'timer' | 'ring';
 
@@ -95,7 +95,7 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
 
   // Fetch the trial row so we have showId for judge_assignments writes.
   const trialQuery = useQuery({
-    queryKey: ['trial', trialId],
+    queryKey: queryKeys.trial(trialId!),
     queryFn: () => replicatedTrialsTable.getTrialById(trialId!),
     enabled: !!trialId,
     staleTime: 5 * 60 * 1000,
@@ -104,7 +104,7 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
 
   // Fetch real judges from DB — replaces the MOCK_PERSONNEL judge filter.
   const judgesQuery = useQuery({
-    queryKey: ['judges-with-qualifications'],
+    queryKey: queryKeys.judgesWithQualifications,
     queryFn: getJudgesWithQualifications,
     staleTime: 10 * 60 * 1000,
   });
@@ -174,9 +174,9 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
 
   const handleReorder = (reorderedClasses: CreatedClass[]) => {
     setClasses(reorderedClasses);
-    // Persist display_order for each class so the order survives a page reload.
-    // RunOrderBoard assigns runOrder = index+1 before calling here, so
-    // displayOrder = runOrder * DISPLAY_ORDER_STEP (gaps allow future inserts).
+    // Skip writes when nothing moved (user clicked Save without dragging).
+    const unchanged = reorderedClasses.every((cls, i) => cls.id === classes[i]?.id);
+    if (unchanged) return;
     const updates = reorderedClasses.map(cls =>
       replicatedClassesTable.updateClass(cls.id, {
         displayOrder: cls.runOrder * DISPLAY_ORDER_STEP,

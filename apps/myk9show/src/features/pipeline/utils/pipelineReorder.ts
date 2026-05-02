@@ -4,7 +4,7 @@ import { stageToDefaultStatus } from './classStageMapping';
 
 // Step between assigned display_order values — leaves room for future inserts
 // without renumbering adjacent cards.
-const DISPLAY_ORDER_STEP = 10;
+export const DISPLAY_ORDER_STEP = 10;
 
 export interface PipelineReorderUpdate {
   classId: string;

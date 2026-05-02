@@ -17,7 +17,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: ['/admin/permissions', '/admin/alerts', '/admin/help'],
+    linksTo: ['/admin/permissions', '/admin/alerts'],
   },
   {
     path: '/admin/help',
@@ -236,6 +236,16 @@ export const pageDirectory: readonly PageEntry[] = [
     status: 'working',
     linksTo: [],
   },
+  {
+    path: '/secretary/run-order',
+    title: 'Run Order',
+    description: 'Drag-and-drop run order for trial classes; assign judges per class.',
+    roles: [UserRole.SECRETARY],
+    classification: 'critical-path',
+    category: 'Trial Operations',
+    status: 'working',
+    linksTo: [],
+  },
 
   // =========================
   // EXHIBITOR / PUBLIC
@@ -258,7 +268,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
-    linksTo: ['/shows', '/shows/:showId/register', '/shows/:showId/trials/:trialId'],
+    linksTo: ['/shows', '/shows/:showId/register'],
   },
   {
     path: '/shows/:showId/trials/:trialId',
@@ -342,7 +352,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Entries',
     status: 'working',
-    linksTo: ['/shows', '/shows/:id'],
+    linksTo: ['/shows', '/shows/:id', '/exhibitor/show-day'],
   },
   {
     path: '/exhibitor/show-day',

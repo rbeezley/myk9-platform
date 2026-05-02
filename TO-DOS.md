@@ -61,6 +61,10 @@ Live triage log from walking the secretary golden path on `localhost:5173`. Item
 - **Wrong button labels in add-trials / add-classes mode** — ReviewStep had hardcoded "Create Show (Unpublished)" regardless of edit mode. Added `submitLabel`/`publishLabel` props with sensible defaults; wizard page passes "Add Trials (Unpublished)" / "Add & Publish Trials" when `editMode.mode === 'add-trials'`.
 - **Two regression guards added to `trialsUI.spec.ts`** — "Invalid Date" check and button label check in add-trials mode.
 
+### Open — Phase 2 Planned Work
+
+- **Secretary Task Timeline View** — Add a Timeline toggle to the Tasks tab on the secretary dashboard so secretaries can see task due dates on a date grid alongside the existing list view. Plan: [`docs/plans/2026-05-02-secretary-task-timeline-view-plan.md`](docs/plans/2026-05-02-secretary-task-timeline-view-plan.md). No migration required for v1 — derives everything from existing `due_date` column.
+
 ### Open — Found-but-deferred during this walk
 
 - ~~**Cannot test Accept / Waitlist / Bulk-email paths without an exhibitor account**~~ ✓ resolved 2026-05-01 — `exhibitor1@myk9t.com` / `TestPass1234!` confirmed working. 3 entries (all Pending) seeded in "QA Walk Show 1777260779" (ID `a0505c45-64d0-4b04-b2b3-cb213ed738a6`). Seed state documented in [`docs/testing/secretary-walk-seed.md`](docs/testing/secretary-walk-seed.md).

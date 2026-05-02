@@ -24,7 +24,8 @@ Systematically visit every route in myK9Show, capture errors, fix what's address
 - Secretary: `secretary@myk9t.com`
 - Site admin: any account with `SITE_ADMIN` role
 - Exhibitor: `exhibitor1@myk9t.com`
-- Judge / Club admin: accounts with those roles (check Supabase `user_roles` table if unsure)
+- Club admin: `club@myk9t.com` (password in `.env` or Supabase Auth dashboard)
+- Judge / other roles: accounts with those roles (check Supabase `user_roles` table if unsure)
 
 ## Known Noise (do not re-log)
 

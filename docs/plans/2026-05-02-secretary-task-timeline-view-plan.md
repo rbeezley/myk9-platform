@@ -1,7 +1,7 @@
 # Secretary Task Timeline View Plan
 
 **Date:** 2026-05-02
-**Status:** Draft
+**Status:** Draft — reviewed 2026-05-02, file paths verified, three implementation notes added (see below)
 
 ## Goal
 
@@ -23,8 +23,10 @@ Use the UI label **Timeline**, not **Gantt**. "Timeline" is more familiar, calme
   - no `start_date`
   - no dependency table
 - Shared view infrastructure already exists:
-  - `components/common/ViewToggle.tsx`
-  - `hooks/useViewPreference.ts`
+  - `components/common/ViewToggle.tsx` — already includes a `'calendar'` icon option
+  - `hooks/useViewPreference.ts` — currently hardcoded to `'cards' | 'table'` modes only
+
+All paths above verified against the working tree as of 2026-05-02.
 
 ## Product Decision
 
@@ -82,19 +84,18 @@ Do not expose scheduling jargon like "critical path", "dependency graph", or "ba
 
 ### Phase 1: Shared View Mode
 
-1. Extend `useViewPreference` to support a third mode or create a task-specific preference hook if the existing card/table hook should remain narrow.
-2. Add task view modes near `TasksTab.tsx`:
-   - `list`
-   - `timeline`
+1. **Create `useTaskViewPreference.ts`** as a sibling of `TasksTab.tsx` — keep `useViewPreference` narrow (it is designed for `'cards' | 'table'` and validating against a hardcoded set). The task hook exports `TaskViewMode = 'list' | 'timeline'` and its own modes config, using `localStorage` key `view-pref-secretary-tasks`. Do not modify `useViewPreference.ts`.
+2. Add task view modes config near `TasksTab.tsx`:
+   - `{ key: 'list', label: 'List', icon: 'list' }`
+   - `{ key: 'timeline', label: 'Timeline', icon: 'calendar' }` — the `'calendar'` icon already exists in `ViewToggle.tsx`
 3. Wire `ViewToggle` into the task toolbar.
-4. Persist the selected task view with a key such as `view-pref-secretary-tasks`.
+4. Persist the selected task view with key `view-pref-secretary-tasks`.
 
 ### Phase 2: Timeline Data Helpers
 
-Create sibling helpers for timeline transformation, for example:
+Create sibling helpers for timeline transformation:
 
-- `TasksTab.timeline.ts`
-- or `taskTimelineUtils.ts`
+- `taskTimelineUtils.ts` (preferred over `TasksTab.timeline.ts` — clearer at a glance what it contains)
 
 Helpers should cover:
 
@@ -111,10 +112,10 @@ Keep date handling local-date safe. Existing `due_date` is a date-only column, s
 
 Add focused components beside the existing task tab:
 
-- `TaskTimelineView.tsx`
-- `TaskTimelineRow.tsx`
-- `TaskTimelineHeader.tsx`
-- `TaskTimelineSummary.tsx`
+- `TaskTimelineView.tsx` — owns **both** the dated grid **and** the "No due date" section at the bottom. Do not create a separate component for undated tasks; keeping them in `TaskTimelineView` avoids an unnecessary abstraction boundary and keeps the two sections in sync on scroll/filter state.
+- `TaskTimelineRow.tsx` — single task row (name + status toggle on the left; pill marker at the due-date column on the right)
+- `TaskTimelineHeader.tsx` — date grid header row (day labels)
+- `TaskTimelineSummary.tsx` — compact count strip: overdue · due this week · unscheduled
 
 The timeline should reuse the same update/delete/toggle callbacks as `TaskRow` so both views operate on the same task data.
 

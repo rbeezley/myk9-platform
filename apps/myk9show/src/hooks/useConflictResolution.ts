@@ -129,7 +129,6 @@ export function useConflictResolution(
           : prev.notifications,
       }));
 
-      // Refresh conflicts list
       refreshConflicts();
     });
 
@@ -140,7 +139,6 @@ export function useConflictResolution(
         notifications: prev.notifications.filter(n => n.id !== `notification-${event.conflictId}`),
       }));
 
-      // Refresh conflicts and resolutions
       refreshConflicts();
     });
 
@@ -215,15 +213,6 @@ export function useConflictResolution(
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
       try {
-        const _resolutionContext = {
-          userId: user.id,
-          userRole: 'user',
-          userPermissions: [],
-          timestamp: new Date(),
-          deviceId: navigator.userAgent, // Simple device identification
-        };
-        void _resolutionContext; // Reserved for future use
-
         const sharedStrategy = STRATEGY_TO_REPLICATION[strategy] ?? 'last-write-wins';
 
         await conflictManager.resolveConflictManually(conflictId, {
@@ -232,7 +221,6 @@ export function useConflictResolution(
           userId: user.id,
         });
 
-        // Refresh to get updated state
         refreshConflicts();
 
         // Look up actual resolution in history if possible
@@ -346,11 +334,6 @@ export function useScoreConflictResolution() {
     enableNotifications: true,
   });
 }
-
-// Hook for conflict resolution in forms
-// Export types for external use
-// export type { Conflict as ConflictData } from '../services/conflict/ConflictResolver';
-// export type { ConflictResolution } from '../services/conflict/ConflictResolver';
 
 export function useFormConflictResolution<T extends { id: string } & SyncMetadata>(
   entityType: string,

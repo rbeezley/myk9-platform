@@ -1,4 +1,3 @@
-// apps/myk9show/src/hooks/conflictResolutionUtils.ts
 import type { Conflict, ConflictStrategy } from '@myk9/replication';
 import type {
   ConflictStatus,
@@ -44,7 +43,7 @@ export function mapConflict(c: Conflict): BaseConflict<Record<string, unknown>> 
     localData: c.localData as Record<string, unknown>,
     remoteData: c.remoteData as Record<string, unknown>,
     ...(c.baseData !== undefined && { baseData: c.baseData as Record<string, unknown> }),
-    conflictFields: [],
+    conflictFields: [], // populated by callers who compare local/remote fields; empty here by design
     lastModified: { local: c.detectedAt, remote: c.detectedAt },
     lastModifiedBy: { local: 'local', remote: 'remote' },
   };

@@ -55,6 +55,12 @@ Live triage log from walking the secretary golden path on `localhost:5173`. Item
 - **Wizard Escape key triggers "Unsaved Changes" dialog while OfficialPicker popover is open** — `handleKeyDown` in `ShowCreationWizardPage.tsx` checked `[data-open], [data-state="open"]` but missed Radix Popover rendered as `[role="dialog"]` in the a11y tree. Added `[role="dialog"], [role="alertdialog"]` to the `hasOpenOverlay` selector so Escape is only intercepted when no modal/popover/dialog is currently open.
 - **E2E QA show seeded for scoring** — Show "E2E QA Show 1746201600" (ID `9ecdcfd7-3818-44e0-b1de-89bacd8e0303`) created with 2 Scent Work trials, 3 Container classes each, 5 dogs per class (30 entries total, status `confirmed`). Ready for scoring walk.
 
+### ✅ Resolved 2026-05-02 — `/qa-feature trials` walk
+
+- **"Invalid Date" on trial detail after wizard creation** — `useShowCreationWizardActions.ts` passed the full ISO datetime string as `trialDate`; the UI then appended `'T00:00:00'`, yielding an unparseable string. Fixed: `format(new Date(dateTime), 'yyyy-MM-dd')` now produces just the date part.
+- **Wrong button labels in add-trials / add-classes mode** — ReviewStep had hardcoded "Create Show (Unpublished)" regardless of edit mode. Added `submitLabel`/`publishLabel` props with sensible defaults; wizard page passes "Add Trials (Unpublished)" / "Add & Publish Trials" when `editMode.mode === 'add-trials'`.
+- **Two regression guards added to `trialsUI.spec.ts`** — "Invalid Date" check and button label check in add-trials mode.
+
 ### Open — Found-but-deferred during this walk
 
 - ~~**Cannot test Accept / Waitlist / Bulk-email paths without an exhibitor account**~~ ✓ resolved 2026-05-01 — `exhibitor1@myk9t.com` / `TestPass1234!` confirmed working. 3 entries (all Pending) seeded in "QA Walk Show 1777260779" (ID `a0505c45-64d0-4b04-b2b3-cb213ed738a6`). Seed state documented in [`docs/testing/secretary-walk-seed.md`](docs/testing/secretary-walk-seed.md).

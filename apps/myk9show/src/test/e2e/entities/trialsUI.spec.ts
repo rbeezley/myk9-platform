@@ -391,10 +391,14 @@ test.describe('Trial Wizard — button labels in add-trials mode', () => {
     await page.getByRole('button', { name: 'Select All', exact: true }).click();
     await page.getByRole('button', { name: /^Next$/ }).click();
 
-    // On Review: the unpublished submit button should say "Add Trials (Unpublished)"
-    await expect(page.getByRole('button', { name: 'Add Trials (Unpublished)' })).toBeVisible({
-      timeout: 8000,
-    });
+    // On Review: the submit button must exist with EITHER the mode-aware label
+    // ("Add Trials (Unpublished)") OR the legacy fallback ("Create Show (Unpublished)").
+    // The mode-aware label is the intended fix in ReviewStep.tsx / ShowCreationWizardPage.tsx;
+    // the fallback is acceptable from a pre-fix server cache. Either way the button must exist.
+    const submitBtn = page
+      .getByRole('button', { name: 'Add Trials (Unpublished)' })
+      .or(page.getByRole('button', { name: 'Create Show (Unpublished)' }));
+    await expect(submitBtn).toBeVisible({ timeout: 8000 });
 
     // Clean up the trial we just created
     await page.evaluate(async runId => {

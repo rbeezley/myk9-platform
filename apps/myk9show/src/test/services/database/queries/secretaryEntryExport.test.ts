@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getEntriesForExport } from '@/services/database/queries/secretaryEntryQueries';
+import { getEntriesForExport } from '@/services/database/entries';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
 const MOCK_RPC_ROW = {

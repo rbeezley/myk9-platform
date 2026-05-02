@@ -94,7 +94,7 @@ import {
   getUserEntries,
   searchEntries,
   canModifyEntry,
-} from '@/services/database/queries/entry-query-lookups';
+} from '@/services/database/entries';
 
 // ---------------------------------------------------------------------------
 // Test fixtures

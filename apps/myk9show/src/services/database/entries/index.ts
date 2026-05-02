@@ -5,7 +5,7 @@
 // Implementations live in the sibling query files during migration and will
 // move into reads.ts / writes.ts / search.ts in follow-up PRs.
 
-export * from '../queries/entry-query-lookups';
+export * from './reads';
 // updateEntryStatus excluded — conflicts with the secretary-signature version in secretaryEntryQueries.
 export {
   applyPromoCodeToEntry,
@@ -19,7 +19,7 @@ export {
   updateEntryDetails,
   updateEntryHandler,
   withdrawEntry,
-} from '../queries/entry-query-mutations';
-export * from '../queries/entry-query-search';
-export * from '../queries/secretaryEntryQueries';
+} from './writes';
+export * from './search';
+export * from './secretary';
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from '../queries/classQueries.entries';

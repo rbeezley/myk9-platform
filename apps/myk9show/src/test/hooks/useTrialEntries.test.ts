@@ -5,11 +5,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 
-vi.mock('@/services/database/queries/entry-query-lookups', () => ({
+vi.mock('@/services/database/entries', () => ({
   getEntriesByTrial: vi.fn(),
 }));
 
-import { getEntriesByTrial } from '@/services/database/queries/entry-query-lookups';
+import { getEntriesByTrial } from '@/services/database/entries';
 const mockGetEntriesByTrial = vi.mocked(getEntriesByTrial);
 
 const createWrapper = () => {

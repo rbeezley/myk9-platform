@@ -6,7 +6,7 @@
  * Mutation functions remain in entry-query-mutations.ts (DO NOT TOUCH).
  */
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import { withReplicationFallback } from './replicationUtils';
+import { withReplicationFallback } from '../queries/replicationUtils';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -14,7 +14,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
-import { buildMapFromArray } from './queryUtils';
+import { buildMapFromArray } from '../queries/queryUtils';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -706,11 +706,3 @@ export const getEntriesByStatus = async (status: EntryStatus) => {
     return { data: [], error: error as DatabaseError };
   }
 };
-
-// Statistics, search, and eligibility operations (re-exported for backward compatibility)
-export {
-  getEntryStatistics,
-  getUserEntries,
-  searchEntries,
-  canModifyEntry,
-} from './entry-query-search';

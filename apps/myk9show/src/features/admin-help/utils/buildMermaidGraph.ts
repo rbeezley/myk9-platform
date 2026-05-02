@@ -1,6 +1,6 @@
 import type { PageEntry } from '../types';
 
-const CALLBACK_NAME = '__myk9FlowNav';
+export const CALLBACK_NAME = '__myk9FlowNav';
 
 export function sanitizePath(path: string): string {
   const result = path.replace(/^\//, '').replace(/[/:]/g, '_');

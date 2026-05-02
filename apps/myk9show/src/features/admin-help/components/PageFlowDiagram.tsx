@@ -4,7 +4,11 @@ import { Loader2 } from 'lucide-react';
 import { buildMermaidGraph, sanitizePath } from '../utils/buildMermaidGraph';
 import type { PageEntry } from '../types';
 
-const CALLBACK_NAME = '__myk9FlowNav';
+declare global {
+  interface Window {
+    __myk9FlowNav?: (nodeId: string) => void;
+  }
+}
 
 interface PageFlowDiagramProps {
   pages: PageEntry[];
@@ -30,7 +34,7 @@ export function PageFlowDiagram({ pages }: PageFlowDiagramProps) {
       pathMap[sanitizePath(page.path)] = page.path;
     }
 
-    (window as any)[CALLBACK_NAME] = (nodeId: string) => {
+    window.__myk9FlowNav = (nodeId: string) => {
       const path = pathMap[nodeId];
       if (path) navigate(path);
     };
@@ -61,7 +65,7 @@ export function PageFlowDiagram({ pages }: PageFlowDiagramProps) {
 
     return () => {
       cancelled = true;
-      delete (window as any)[CALLBACK_NAME];
+      delete window.__myk9FlowNav;
     };
   }, [pages, navigate]);
 

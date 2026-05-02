@@ -1,14 +1,5 @@
-/**
- * Entry-related database queries
- *
- * Barrel file re-exporting all entry query operations.
- * Lookup/search operations are in entry-query-lookups.ts.
- * Mutation operations are in entry-query-mutations.ts.
- *
- * Note: Each row in the entries table represents one dog's entry into one class.
- */
-
-// Lookup and search operations
+// Redirect barrel — implementations moved to @/services/database/entries.
+// Callers should migrate to import from '@/services/database/entries' directly.
 export {
   getAllEntries,
   getEntryById,
@@ -20,16 +11,15 @@ export {
   getUserEntries,
   searchEntries,
   canModifyEntry,
-} from './entry-query-lookups';
-
-// Mutation operations
-export {
   createEntry,
   updateEntry,
   deleteEntry,
-  updateEntryStatus,
   createMultipleEntries,
   updateEntryDetails,
   updateEntryHandler,
   withdrawEntry,
-} from './entry-query-mutations';
+} from '@/services/database/entries';
+
+// updateEntryStatus excluded from the main barrel (name conflict with secretary version);
+// re-exported here from writes.ts directly for backward compatibility.
+export { updateEntryStatus } from '@/services/database/entries/writes';

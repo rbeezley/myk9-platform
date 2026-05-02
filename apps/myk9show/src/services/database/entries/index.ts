@@ -1,12 +1,9 @@
 // Authoritative data access module for the Entry entity.
 // All callers import from here — never from supabaseClient or replication
-// tables directly, and never from the legacy queries/ files below.
-//
-// Implementations live in the sibling query files during migration and will
-// move into reads.ts / writes.ts / search.ts in follow-up PRs.
+// tables directly, and never from the sibling implementation files below.
 
 export * from './reads';
-// updateEntryStatus excluded — conflicts with the secretary-signature version in secretaryEntryQueries.
+// updateEntryStatus excluded — conflicts with the secretary-signature version in secretary.ts.
 export {
   applyPromoCodeToEntry,
   compEntry,

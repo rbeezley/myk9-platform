@@ -3,7 +3,7 @@
  *
  * Read-only operations for fetching and filtering entries.
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
- * Mutation functions remain in entry-query-mutations.ts (DO NOT TOUCH).
+ * Mutation functions live in writes.ts and secretary.ts.
  */
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from '../queries/replicationUtils';

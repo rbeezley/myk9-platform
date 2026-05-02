@@ -17,6 +17,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
+    linksTo: ['/admin/permissions', '/admin/alerts'],
   },
   {
     path: '/admin/help',
@@ -26,6 +27,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/admin/permissions',
@@ -35,6 +37,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
+    linksTo: ['/admin/permissions/roles', '/admin/permissions/users', '/admin/permissions/audit'],
   },
   {
     path: '/admin/permissions/roles',
@@ -44,6 +47,12 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: [
+      '/admin/permissions',
+      '/admin/permissions/roles/new',
+      '/admin/permissions/roles/:roleId',
+      '/admin/permissions/roles/:roleId/clone',
+    ],
   },
   {
     path: '/admin/permissions/roles/new',
@@ -53,6 +62,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: ['/admin/permissions/roles'],
   },
   {
     path: '/admin/permissions/roles/:roleId',
@@ -62,6 +72,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: ['/admin/permissions/roles'],
   },
   {
     path: '/admin/permissions/roles/:roleId/clone',
@@ -71,6 +82,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: ['/admin/permissions/roles'],
   },
   {
     path: '/admin/permissions/users',
@@ -80,6 +92,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
+    linksTo: ['/admin/permissions'],
   },
   {
     path: '/admin/permissions/audit',
@@ -89,6 +102,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/admin/templates',
@@ -98,6 +112,11 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
+    linksTo: [
+      '/admin/templates/new',
+      '/admin/templates/:templateId/edit',
+      '/admin/templates/:templateId/test',
+    ],
   },
   {
     path: '/admin/templates/new',
@@ -107,6 +126,11 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
+    linksTo: [
+      '/admin/templates',
+      '/admin/templates/:templateId/edit',
+      '/admin/templates/:templateId/test',
+    ],
   },
   {
     path: '/admin/templates/:templateId/edit',
@@ -116,6 +140,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
+    linksTo: ['/admin/templates', '/admin/templates/:templateId/test'],
   },
   {
     path: '/admin/templates/:templateId/test',
@@ -125,6 +150,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: ['/admin/templates'],
   },
   {
     path: '/admin/sync',
@@ -134,6 +160,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/admin/performance',
@@ -143,6 +170,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/admin/data-lifecycle',
@@ -152,6 +180,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/admin/load-testing',
@@ -161,6 +190,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'hidden',
     category: 'Admin',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/admin/alerts',
@@ -170,6 +200,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'working',
+    linksTo: [],
   },
 
   // =========================
@@ -183,6 +214,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows/:id', '/secretary/classes'],
   },
   {
     path: '/secretary/classes',
@@ -192,6 +224,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows', '/secretary/dashboard'],
   },
   {
     path: '/secretary/results-control',
@@ -201,6 +234,17 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Results',
     status: 'working',
+    linksTo: [],
+  },
+  {
+    path: '/secretary/run-order',
+    title: 'Run Order',
+    description: 'Drag-and-drop run order for trial classes; assign judges per class.',
+    roles: [UserRole.SECRETARY],
+    classification: 'critical-path',
+    category: 'Trial Operations',
+    status: 'working',
+    linksTo: [],
   },
 
   // =========================
@@ -214,6 +258,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows/:id', '/calendar'],
   },
   {
     path: '/shows/:id',
@@ -223,6 +268,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows', '/shows/:showId/register'],
   },
   {
     path: '/shows/:showId/trials/:trialId',
@@ -232,6 +278,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows/:id', '/shows', '/trials/:trialId'],
   },
   {
     path: '/trials/:trialId',
@@ -241,6 +288,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows', '/shows/:showId/trials/:trialId'],
   },
   {
     path: '/shows/:showId/trials/:trialId/classes/:classId',
@@ -250,6 +298,11 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
+    linksTo: [
+      '/trials/:trialId',
+      '/shows/:showId/register',
+      '/shows/:showId/trials/:trialId/classes/:classId/results',
+    ],
   },
   {
     path: '/shows/:showId/trials/:trialId/classes/:classId/results',
@@ -259,6 +312,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Results',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/classes/:classId',
@@ -268,6 +322,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows', '/trials/:trialId'],
   },
   {
     path: '/browse-shows',
@@ -277,6 +332,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows'],
   },
   {
     path: '/my-entries',
@@ -286,6 +342,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Entries',
     status: 'working',
+    linksTo: ['/exhibitor/entries'],
   },
   {
     path: '/exhibitor/entries',
@@ -295,6 +352,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Entries',
     status: 'working',
+    linksTo: ['/shows', '/shows/:id', '/exhibitor/show-day'],
   },
   {
     path: '/exhibitor/show-day',
@@ -304,6 +362,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Entries',
     status: 'working',
+    linksTo: ['/shows', '/exhibitor/entries', '/shows/:id', '/classes/:classId'],
   },
   {
     path: '/exhibitor/entries/history',
@@ -313,6 +372,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Entries',
     status: 'working',
+    linksTo: ['/shows'],
   },
   {
     path: '/exhibitor/check-in/:entryId',
@@ -322,6 +382,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Entries',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/exhibitor/analytics',
@@ -331,6 +392,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Entries',
     status: 'working',
+    linksTo: ['/dogs/:id'],
   },
   {
     path: '/dogs',
@@ -340,6 +402,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Dogs',
     status: 'working',
+    linksTo: ['/dogs/:id'],
   },
   {
     path: '/dogs/:id',
@@ -349,6 +412,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Dogs',
     status: 'working',
+    linksTo: ['/dogs'],
   },
   {
     path: '/clubs',
@@ -358,6 +422,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Clubs',
     status: 'working',
+    linksTo: ['/clubs/:id'],
   },
   {
     path: '/clubs/:id',
@@ -367,6 +432,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Clubs',
     status: 'working',
+    linksTo: ['/clubs'],
   },
   {
     path: '/calendar',
@@ -376,6 +442,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Public',
     status: 'working',
+    linksTo: ['/shows/:showId/register'],
   },
   {
     path: '/subscription',
@@ -385,6 +452,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Payments',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/registration',
@@ -394,6 +462,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Public',
     status: 'stub',
+    linksTo: ['/shows/:showId/register'],
   },
   {
     path: '/shows/:showId/register',
@@ -403,6 +472,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Entries',
     status: 'working',
+    linksTo: [],
   },
   {
     path: '/cart',
@@ -412,6 +482,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Payments',
     status: 'working',
+    linksTo: ['/shows', '/shows/:id'],
   },
   {
     path: '/checkout/success',
@@ -421,6 +492,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Payments',
     status: 'working',
+    linksTo: ['/shows', '/my-entries', '/shows/:id'],
   },
   {
     path: '/checkout/cancel',
@@ -430,6 +502,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Payments',
     status: 'working',
+    linksTo: ['/cart', '/shows', '/shows/:id'],
   },
   {
     path: '/tv/:showId',
@@ -439,6 +512,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Shows',
     status: 'working',
+    linksTo: [],
   },
 
   // =========================
@@ -452,6 +526,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Shows',
     status: 'working',
+    linksTo: ['/shows'],
   },
   {
     path: '/judge/assignments',
@@ -461,5 +536,6 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Shows',
     status: 'working',
+    linksTo: [],
   },
 ] as const;

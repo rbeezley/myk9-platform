@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Table2, CalendarDays } from 'lucide-react';
+import { LayoutGrid, List, Table2, CalendarDays, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -7,6 +7,7 @@ const iconMap = {
   list: List,
   table: Table2,
   calendar: CalendarDays,
+  flow: Network,
 } as const;
 
 interface ViewMode {

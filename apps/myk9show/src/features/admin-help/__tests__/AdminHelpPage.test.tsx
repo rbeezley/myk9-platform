@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render, userEvent } from '@/test/utils/testUtils';
 
@@ -8,6 +8,12 @@ vi.mock('../hooks/useExampleIds', () => ({
     isLoading: false,
     isError: false,
   }),
+}));
+
+vi.mock('../components/PageFlowDiagram', () => ({
+  PageFlowDiagram: ({ pages }: { pages: unknown[] }) => (
+    <div data-testid="page-flow-diagram" data-page-count={String(pages.length)} />
+  ),
 }));
 
 vi.mock('../data/pageDirectory', async () => {
@@ -68,5 +74,34 @@ describe('AdminHelpPage', () => {
     await user.type(screen.getByPlaceholderText(/search pages/i), 'exhibitor');
     expect(screen.getByText('My Entries')).toBeInTheDocument();
     expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+  });
+});
+
+describe('AdminHelpPage — view toggle', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('renders ViewToggle with list and flow modes', () => {
+    render(<AdminHelpPage />);
+    expect(screen.getByTitle('List view')).toBeInTheDocument();
+    expect(screen.getByTitle('Flow view')).toBeInTheDocument();
+  });
+
+  it('shows list accordion by default, not PageFlowDiagram', () => {
+    render(<AdminHelpPage />);
+    expect(screen.queryByTestId('page-flow-diagram')).not.toBeInTheDocument();
+  });
+
+  it('mounts PageFlowDiagram when Flow mode is selected', async () => {
+    const user = userEvent.setup();
+    render(<AdminHelpPage />);
+    await user.click(screen.getByTitle('Flow view'));
+    expect(screen.getByTestId('page-flow-diagram')).toBeInTheDocument();
+  });
+
+  it('persists view mode to localStorage', async () => {
+    const user = userEvent.setup();
+    render(<AdminHelpPage />);
+    await user.click(screen.getByTitle('Flow view'));
+    expect(localStorage.getItem('view-pref-admin-help')).toBe('flow');
   });
 });

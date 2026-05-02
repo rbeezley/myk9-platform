@@ -19,6 +19,8 @@ export interface PageEntry {
   category: string;
   /** Triage flag visible to admin */
   status: PageStatus;
+  /** Paths this page navigates to (nav links, CTAs, tab/child routes) */
+  linksTo?: string[];
 }
 
 export interface ExampleIds {

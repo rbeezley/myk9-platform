@@ -481,7 +481,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   ) : (
                     <FileText className="h-4 w-4 mr-2" />
                   )}
-                  {submitLabel}
+                  {isLoading ? 'Saving...' : submitLabel}
                 </Button>
 
                 <Button onClick={onCreateAndPublish} disabled={isLoading} className="flex-1">

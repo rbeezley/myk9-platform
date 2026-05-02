@@ -196,7 +196,15 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
         cls.id === classId ? { ...cls, personnel: { ...cls.personnel, judgeId } } : cls
       )
     );
-    if (showId && judgeId) {
+    if (!showId) {
+      logger.warn(
+        'handleJudgeAssign: showId not yet loaded — judge pick will not persist',
+        'run-order',
+        { classId, judgeId }
+      );
+      return;
+    }
+    if (judgeId) {
       upsertClassJudgeAssignment(showId, classId, judgeId).catch(() => {
         notifications.error('Failed to save judge assignment');
       });
@@ -285,7 +293,7 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
     schedule,
     stats,
     availableJudges,
-    isLoading: trialClassesQuery.isLoading,
+    isLoading: trialClassesQuery.isLoading || trialQuery.isLoading || judgesQuery.isLoading,
 
     handleReorder,
     handleJudgeAssign,

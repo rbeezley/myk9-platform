@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-query', async () => {
 });
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { updateClass: vi.fn().mockResolvedValue(undefined) },
-  replicatedTrialsTable: {},
+  replicatedTrialsTable: { getTrialById: vi.fn() },
 }));
 vi.mock('@/services/database/queries/userQueries', () => ({
   getJudgesWithQualifications: vi.fn(),

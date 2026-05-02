@@ -278,8 +278,12 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
   };
 
   const handleOptimize = () => {
-    const optimized = timeEngine.optimizeSchedule(classes);
-    setClasses(optimized);
+    // Reassign sequential runOrder after sorting, then route through handleReorder
+    // so the new order is persisted to display_order just like a manual drag.
+    const reordered = timeEngine
+      .optimizeSchedule(classes)
+      .map((cls, i) => ({ ...cls, runOrder: i + 1 }));
+    handleReorder(reordered);
   };
 
   return {

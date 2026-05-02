@@ -1,8 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTrialClassesWithQuery } from '@/hooks/useClassStoreCompat';
 import { CreatedClass } from '@/types/template.types';
 import { ScheduleConfig, TimeCalculationEngine } from '@/lib/timeCalculation';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { queryKeys } from '@/lib/queryClient';
+import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
+import { getJudgesWithQualifications } from '@/services/database/queries/userQueries';
+import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
+import { DISPLAY_ORDER_STEP } from '@/features/pipeline/utils/pipelineReorder';
 import type {
   Personnel,
   PersonnelAssignment,
@@ -68,7 +75,7 @@ export interface UseRunOrderPageDataReturn {
   // Computed
   schedule: ReturnType<TimeCalculationEngine['calculateSchedule']>;
   stats: ReturnType<TimeCalculationEngine['getScheduleStats']>;
-  availableJudges: Personnel[];
+  availableJudges: { id: string; name: string }[];
   isLoading: boolean;
 
   // Handlers
@@ -85,6 +92,22 @@ export interface UseRunOrderPageDataReturn {
 
 export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPageDataReturn {
   const trialClassesQuery = useTrialClassesWithQuery(trialId ?? '', !!trialId);
+
+  // Fetch the trial row so we have showId for judge_assignments writes.
+  const trialQuery = useQuery({
+    queryKey: queryKeys.trial(trialId!),
+    queryFn: () => replicatedTrialsTable.getTrialById(trialId!),
+    enabled: !!trialId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const showId = trialQuery.data?.showId;
+
+  // Fetch real judges from DB — replaces the MOCK_PERSONNEL judge filter.
+  const judgesQuery = useQuery({
+    queryKey: queryKeys.judgesWithQualifications,
+    queryFn: getJudgesWithQualifications,
+    staleTime: 10 * 60 * 1000,
+  });
 
   const [activeTab, setActiveTab] = useState('runorder');
   const [classes, setClasses] = useState<CreatedClass[]>([]);
@@ -141,16 +164,30 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
   const stats = useMemo(() => timeEngine.getScheduleStats(schedule), [timeEngine, schedule]);
 
   const availableJudges = useMemo(
-    () => personnel.filter(p => p.roles.some(r => r.type === 'judge')),
-    [personnel]
+    () =>
+      (judgesQuery.data?.data ?? []).map(p => ({
+        id: p.id,
+        name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim(),
+      })),
+    [judgesQuery.data]
   );
 
   const handleReorder = (reorderedClasses: CreatedClass[]) => {
-    // INTENT: drag-to-reorder updates session state only. The DB has no
-    // class.run_order column today (ordering is encoded in start_time);
-    // persisting drag would need a schedule re-compute that this page
-    // doesn't yet drive. Keep session-local for now.
     setClasses(reorderedClasses);
+    // Skip writes when nothing moved (user clicked Save without dragging).
+    const unchanged = reorderedClasses.every((cls, i) => cls.id === classes[i]?.id);
+    if (unchanged) return;
+    const updates = reorderedClasses.map(cls =>
+      replicatedClassesTable.updateClass(cls.id, {
+        displayOrder: cls.runOrder * DISPLAY_ORDER_STEP,
+      })
+    );
+    Promise.allSettled(updates).then(results => {
+      const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      if (failures.length > 0) {
+        notifications.error('Failed to save run order — changes will be lost on reload');
+      }
+    });
   };
 
   const handleJudgeAssign = (classId: string, judgeId: string) => {
@@ -159,6 +196,19 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
         cls.id === classId ? { ...cls, personnel: { ...cls.personnel, judgeId } } : cls
       )
     );
+    if (!showId) {
+      logger.warn(
+        'handleJudgeAssign: showId not yet loaded — judge pick will not persist',
+        'run-order',
+        { classId, judgeId }
+      );
+      return;
+    }
+    if (judgeId) {
+      upsertClassJudgeAssignment(showId, classId, judgeId).catch(() => {
+        notifications.error('Failed to save judge assignment');
+      });
+    }
   };
 
   const handleAssignmentChange = (classId: string, role: string, personnelId: string | null) => {
@@ -228,8 +278,12 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
   };
 
   const handleOptimize = () => {
-    const optimized = timeEngine.optimizeSchedule(classes);
-    setClasses(optimized);
+    // Reassign sequential runOrder after sorting, then route through handleReorder
+    // so the new order is persisted to display_order just like a manual drag.
+    const reordered = timeEngine
+      .optimizeSchedule(classes)
+      .map((cls, i) => ({ ...cls, runOrder: i + 1 }));
+    handleReorder(reordered);
   };
 
   return {
@@ -243,7 +297,7 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
     schedule,
     stats,
     availableJudges,
-    isLoading: trialClassesQuery.isLoading,
+    isLoading: trialClassesQuery.isLoading || trialQuery.isLoading || judgesQuery.isLoading,
 
     handleReorder,
     handleJudgeAssign,

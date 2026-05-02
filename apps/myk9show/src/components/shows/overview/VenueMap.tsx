@@ -56,6 +56,10 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
     return () => clearTimeout(id);
   }, [location, hasApiKey]);
 
+  useEffect(() => {
+    setIframeError(false);
+  }, [location]);
+
   if (!location?.trim()) return null;
 
   const encodedAddress = encodeURIComponent(location);
@@ -73,7 +77,9 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
           </div>
         </div>
         <MapLinks directionsUrl={directionsUrl} viewOnMapsUrl={viewOnMapsUrl} />
-        <p className="text-xs text-muted-foreground">Interactive map not configured</p>
+        <p className="text-xs text-muted-foreground">
+          {hasApiKey ? 'Map unavailable' : 'Interactive map not configured'}
+        </p>
       </Card>
     );
   }

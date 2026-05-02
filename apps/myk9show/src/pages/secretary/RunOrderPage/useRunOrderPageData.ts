@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTrialClassesWithQuery } from '@/hooks/useClassStoreCompat';
 import { CreatedClass } from '@/types/template.types';
 import { ScheduleConfig, TimeCalculationEngine } from '@/lib/timeCalculation';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { replicatedClassesTable } from '@/services/replication';
+import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
+import { getJudgesWithQualifications } from '@/services/database/queries/userQueries';
+import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import type {
   Personnel,
   PersonnelAssignment,
@@ -72,7 +75,7 @@ export interface UseRunOrderPageDataReturn {
   // Computed
   schedule: ReturnType<TimeCalculationEngine['calculateSchedule']>;
   stats: ReturnType<TimeCalculationEngine['getScheduleStats']>;
-  availableJudges: Personnel[];
+  availableJudges: { id: string; name: string }[];
   isLoading: boolean;
 
   // Handlers
@@ -89,6 +92,22 @@ export interface UseRunOrderPageDataReturn {
 
 export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPageDataReturn {
   const trialClassesQuery = useTrialClassesWithQuery(trialId ?? '', !!trialId);
+
+  // Fetch the trial row so we have showId for judge_assignments writes.
+  const trialQuery = useQuery({
+    queryKey: ['trial', trialId],
+    queryFn: () => replicatedTrialsTable.getTrialById(trialId!),
+    enabled: !!trialId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const showId = trialQuery.data?.showId;
+
+  // Fetch real judges from DB — replaces the MOCK_PERSONNEL judge filter.
+  const judgesQuery = useQuery({
+    queryKey: ['judges-with-qualifications'],
+    queryFn: getJudgesWithQualifications,
+    staleTime: 10 * 60 * 1000,
+  });
 
   const [activeTab, setActiveTab] = useState('runorder');
   const [classes, setClasses] = useState<CreatedClass[]>([]);
@@ -145,8 +164,12 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
   const stats = useMemo(() => timeEngine.getScheduleStats(schedule), [timeEngine, schedule]);
 
   const availableJudges = useMemo(
-    () => personnel.filter(p => p.roles.some(r => r.type === 'judge')),
-    [personnel]
+    () =>
+      (judgesQuery.data?.data ?? []).map(p => ({
+        id: p.id,
+        name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim(),
+      })),
+    [judgesQuery.data]
   );
 
   const handleReorder = (reorderedClasses: CreatedClass[]) => {
@@ -173,6 +196,11 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
         cls.id === classId ? { ...cls, personnel: { ...cls.personnel, judgeId } } : cls
       )
     );
+    if (showId && judgeId) {
+      upsertClassJudgeAssignment(showId, classId, judgeId).catch(() => {
+        notifications.error('Failed to save judge assignment');
+      });
+    }
   };
 
   const handleAssignmentChange = (classId: string, role: string, personnelId: string | null) => {

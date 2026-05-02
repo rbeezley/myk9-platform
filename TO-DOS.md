@@ -53,7 +53,7 @@ Live triage log from walking the secretary golden path on `localhost:5173`. Item
 ### Open — Found-but-deferred during this walk
 
 - ~~**Cannot test Accept / Waitlist / Bulk-email paths without an exhibitor account**~~ ✓ resolved 2026-05-01 — `exhibitor1@myk9t.com` / `TestPass1234!` confirmed working. 3 entries (all Pending) seeded in "QA Walk Show 1777260779" (ID `a0505c45-64d0-4b04-b2b3-cb213ed738a6`). Seed state documented in [`docs/testing/secretary-walk-seed.md`](docs/testing/secretary-walk-seed.md).
-- ~~**Run Order drag + judge picks don't persist to Supabase**~~ ✓ resolved 2026-05-02 — Wired `classes.display_order` (already exists since migration 136) through the read path (`ClassData.displayOrder` → `mapDatabaseToClass` → `mapClassToCreatedClass`) and the write path (`handleReorder` now calls `replicatedClassesTable.updateClass({ displayOrder })` for each reordered class). `mapClassesToCreatedClasses` now sorts by `displayOrder` before mapping, so reload order matches saved order. 14 unit tests. Judge-picks persistence deferred — still using `MOCK_PERSONNEL` (separate task to replace with real people/judges data).
+- ~~**Run Order drag + judge picks don't persist to Supabase**~~ ✓ fully resolved 2026-05-02 — (a) Drag order: `classes.display_order` wired through read+write paths; `mapClassesToCreatedClasses` sorts by it on load; `handleReorder` calls `replicatedClassesTable.updateClass({ displayOrder })`. (b) Judge picks: `availableJudges` now loads from `getJudgesWithQualifications` via React Query; `handleJudgeAssign` calls `upsertClassJudgeAssignment(showId, classId, judgeId)` to persist to `judge_assignments`. `showId` resolved by fetching the trial from `replicatedTrialsTable`.
 
 ---
 

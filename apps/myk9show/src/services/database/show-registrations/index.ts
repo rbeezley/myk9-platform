@@ -13,4 +13,4 @@ export {
   updateRegistrationPayment,
   getConfirmationNumbersForEntries,
   updateEnrollmentPaymentStatus,
-} from '../queries/showRegistrationQueries';
+} from './reads';

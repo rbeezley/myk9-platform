@@ -16,4 +16,4 @@ export {
   getRegistrationStatistics,
   validateRegistrationNumber,
   getRegistrationsByOwner,
-} from '../queries/registrationQueries';
+} from './reads';

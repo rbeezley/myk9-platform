@@ -24,7 +24,7 @@ import { useActivityLogQuery } from '@/hooks/queries/useActivityLogDatabase';
 import type {
   ActivityRecordType,
   ActivityLogEntry,
-} from '@/services/database/queries/activityLogQueries';
+} from '@/services/database/activity-logs';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 

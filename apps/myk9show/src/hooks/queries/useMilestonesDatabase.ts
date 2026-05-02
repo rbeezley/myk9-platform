@@ -7,7 +7,7 @@ import {
   getUserMilestones,
   achieveMilestone,
   dismissMilestoneTip,
-} from '@/services/database/queries/milestoneQueries';
+} from '@/services/database/milestones';
 import type { UserMilestone } from '@/services/database/milestones';
 import { cacheStrategies } from '@/lib/queryClient';
 

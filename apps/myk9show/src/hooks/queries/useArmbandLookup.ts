@@ -3,7 +3,7 @@ import { cacheStrategies } from '@/lib/queryClient';
 import {
   getArmbandCountForShow,
   lookupDogByArmband,
-} from '@/services/database/queries/armbandQueries';
+} from '@/services/database/armbands';
 
 export const armbandQueryKeys = {
   count: (showId: string) => ['armbands', 'count', showId] as const,

@@ -1,7 +1,7 @@
 // Authoritative data access module for the Wait List entity.
 // All callers import from here — never from supabaseClient directly.
 
-export type { WaitlistEntry, ClassWithWaitlistCount } from '../queries/waitlistQueries';
+export type { WaitlistEntry, ClassWithWaitlistCount } from './reads';
 export {
   getWaitlistByShow,
   getWaitlistByClass,
@@ -11,4 +11,4 @@ export {
   getWaitlistPosition,
   joinWaitlist,
   acceptWaitlistOffer,
-} from '../queries/waitlistQueries';
+} from './reads';

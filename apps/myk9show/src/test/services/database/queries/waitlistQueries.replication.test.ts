@@ -70,7 +70,7 @@ import {
   getWaitlistByClass,
   getClassesWithWaitlistCounts,
   getWaitlistPosition,
-} from '@/services/database/queries/waitlistQueries';
+} from '@/services/database/waitlists';
 
 // ---------------------------------------------------------------------------
 // Test fixtures

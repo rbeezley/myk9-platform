@@ -68,7 +68,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 import {
   getArmbandCountForShow,
   lookupDogByArmband,
-} from '@/services/database/queries/armbandQueries';
+} from '@/services/database/armbands';
 
 // ---------------------------------------------------------------------------
 // Test fixtures

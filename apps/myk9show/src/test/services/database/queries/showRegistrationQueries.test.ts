@@ -6,7 +6,7 @@ import {
   getRegistrationsForShow,
   updateRegistrationPayment,
   getConfirmationNumbersForEntries,
-} from '@/services/database/queries/showRegistrationQueries';
+} from '@/services/database/show-registrations';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
 const MOCK_DB_ROW = {

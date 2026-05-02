@@ -12,7 +12,7 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 import type {
   WaitlistEntry,
   ClassWithWaitlistCount,
-} from '@/services/database/queries/waitlistQueries';
+} from '@/services/database/waitlists';
 
 /**
  * Map a ReplicatedWaitlistEntry + joined dog/class into the WaitlistEntry shape

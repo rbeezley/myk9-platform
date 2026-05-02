@@ -13,7 +13,7 @@ import {
   searchRegistrations,
   getRegistrationStatistics,
   validateRegistrationNumber
-} from '@/services/database/queries/registrationQueries';
+} from '@/services/database/registrations';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
 import type { DbDogRegistrationInsert, DbDogRegistrationUpdate } from '@/types/database-mappings';

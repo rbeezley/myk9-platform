@@ -355,7 +355,10 @@ test.describe('Trial Details — date display regression', () => {
 // ─── Regression: add-trials wizard button labels ──────────────────────────────
 
 test.describe('Trial Wizard — button labels in add-trials mode', () => {
+  let labelTestEventNumber: string | null = null;
+
   test.beforeEach(async ({ page }) => {
+    labelTestEventNumber = null;
     await signInAsSecretary(page);
     await page.evaluate(async () => {
       const { useWizardStore } = await import('/src/store/wizardStore.ts');
@@ -363,14 +366,26 @@ test.describe('Trial Wizard — button labels in add-trials mode', () => {
     });
   });
 
+  test.afterEach(async ({ page }) => {
+    if (!labelTestEventNumber) return;
+    await page.evaluate(async ev => {
+      try {
+        const { supabase } = await import('/src/lib/supabase.ts');
+        await supabase.from('trials').delete().eq('event_number', ev);
+      } catch {
+        /* best-effort */
+      }
+    }, labelTestEventNumber);
+  });
+
   test('Review step shows "Add Trials" label (not "Create Show") in add-trials mode', async ({
     page,
   }) => {
-    // Navigate directly to the Review step via the wizard store.
+    labelTestEventNumber = `LABEL-TEST-${RUN_ID}`;
+
     await page.goto(`/secretary/create-show/wizard?showId=${SEEDED_SHOW_ID}&mode=add-trials`);
     await page.waitForLoadState('networkidle');
 
-    // Add one trial so review validation passes
     const addFirst = page.getByRole('button', { name: 'Add First Trial' });
     const addMore = page.getByRole('button', { name: /^Add Trial$/ });
     if (await addFirst.isVisible().catch(() => false)) {
@@ -382,7 +397,7 @@ test.describe('Trial Wizard — button labels in add-trials mode', () => {
     await page
       .getByLabel(/^Event Number/)
       .first()
-      .fill(`LABEL-TEST-${RUN_ID}`);
+      .fill(labelTestEventNumber);
 
     await page.getByRole('button', { name: /^Next$/ }).click();
     await page
@@ -391,24 +406,9 @@ test.describe('Trial Wizard — button labels in add-trials mode', () => {
     await page.getByRole('button', { name: 'Select All', exact: true }).click();
     await page.getByRole('button', { name: /^Next$/ }).click();
 
-    // On Review: the submit button must exist with EITHER the mode-aware label
-    // ("Add Trials (Unpublished)") OR the legacy fallback ("Create Show (Unpublished)").
-    // The mode-aware label is the intended fix in ReviewStep.tsx / ShowCreationWizardPage.tsx;
-    // the fallback is acceptable from a pre-fix server cache. Either way the button must exist.
-    const submitBtn = page
-      .getByRole('button', { name: 'Add Trials (Unpublished)' })
-      .or(page.getByRole('button', { name: 'Create Show (Unpublished)' }));
-    await expect(submitBtn).toBeVisible({ timeout: 8000 });
-
-    // Clean up the trial we just created
-    await page.evaluate(async runId => {
-      try {
-        const { supabase } = await import('/src/lib/supabase.ts');
-        await supabase.from('trials').delete().eq('event_number', `LABEL-TEST-${runId}`);
-      } catch {
-        /* best-effort */
-      }
-    }, RUN_ID);
+    await expect(page.getByRole('button', { name: 'Add Trials (Unpublished)' })).toBeVisible({
+      timeout: 8000,
+    });
   });
 });
 
@@ -495,7 +495,7 @@ test.describe('Trial Wizard — Add Trial to existing show', () => {
     await page.getByRole('button', { name: /^Next$/ }).click();
 
     // ─ Step 4 — Review & Submit ─────────────────────────────────────────────
-    const createBtn = page.getByRole('button', { name: 'Create Show (Unpublished)' });
+    const createBtn = page.getByRole('button', { name: 'Add Trials (Unpublished)' });
     await createBtn.waitFor({ state: 'visible', timeout: 10000 });
 
     const trialInsertPromise = page.waitForResponse(

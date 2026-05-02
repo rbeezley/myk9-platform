@@ -365,16 +365,6 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/shows', '/exhibitor/entries', '/shows/:id', '/classes/:classId'],
   },
   {
-    path: '/exhibitor/entries/history',
-    title: 'Entry History',
-    description: 'Historical entries view (flagged for removal from sidebar per nav-ia).',
-    roles: [UserRole.EXHIBITOR, UserRole.SITE_ADMIN],
-    classification: 'park',
-    category: 'Entries',
-    status: 'working',
-    linksTo: ['/shows'],
-  },
-  {
     path: '/exhibitor/check-in/:entryId',
     title: 'Class Check-In',
     description: 'Exhibitor self check-in for a specific entry.',

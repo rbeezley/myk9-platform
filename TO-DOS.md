@@ -63,6 +63,8 @@ Live triage log from walking the secretary golden path on `localhost:5173`. Item
 
 ### Open — Phase 2 Planned Work
 
+- **Build `/exhibitor/check-in/:entryId` page** — The route exists and `ClassCheckIn.tsx` has full UI (check-in/scratch flow, late-fee logic, offline messaging), but the component only receives data via props and falls back to `createMockClassInfo()` — it never reads `entryId` from the URL or loads real entry data from Supabase. Needs: (1) a data-loading wrapper/page that reads `useParams<{ entryId }>()`, fetches the entry + class info via Supabase, and passes them to `ClassCheckIn` as props; (2) navigation entry point — a "Check In" button per entry on `/exhibitor/show-day` once the page is functional. **Files:** `apps/myk9show/src/components/exhibitor/ClassCheckIn.tsx` (component, already built), `apps/myk9show/src/pages/ShowDayPage.tsx` (add navigation CTA), `apps/myk9show/src/types/exhibitor-types.ts` (`ExhibitorClassInfo` type — verify shape matches DB).
+
 - **Secretary Task Timeline View** — Add a Timeline toggle to the Tasks tab on the secretary dashboard so secretaries can see task due dates on a date grid alongside the existing list view. Plan: [`docs/plans/2026-05-02-secretary-task-timeline-view-plan.md`](docs/plans/2026-05-02-secretary-task-timeline-view-plan.md). No migration required for v1 — derives everything from existing `due_date` column.
 
 ### Open — Found-but-deferred during this walk

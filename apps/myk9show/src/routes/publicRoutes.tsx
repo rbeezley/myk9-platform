@@ -193,18 +193,6 @@ export const PublicRoutes = () => (
       }
     />
     <Route
-      path="/exhibitor/entries/history"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <MyEntriesPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-    <Route
       path="/exhibitor/check-in/:entryId"
       element={
         <ProtectedRoute>

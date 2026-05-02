@@ -323,6 +323,91 @@ test.describe('Trial Details — Delete', () => {
   });
 });
 
+// ─── Regression: Invalid Date on trial detail ─────────────────────────────────
+
+test.describe('Trial Details — date display regression', () => {
+  let seed: SeededTrial;
+
+  test.beforeEach(async ({ page }) => {
+    await signInAsSecretary(page);
+    seed = await seedTrial(page, { withChildren: false, nameSuffix: `date-${RUN_ID}` });
+  });
+
+  test.afterEach(async ({ page }) => {
+    if (seed) await cleanupSeed(page, seed);
+  });
+
+  test('trial detail never shows "Invalid Date" — date stored as YYYY-MM-DD not ISO string', async ({
+    page,
+  }) => {
+    // Regression guard for: wizard createTrial() was passing the full ISO
+    // datetime (e.g. "2026-05-17T13:00:00.000Z") as trialDate, which the UI
+    // then used as `trialDate + "T00:00:00"`, yielding an unparseable string
+    // and rendering "Invalid Date" in the DetailHero metadata.
+    // Fixed in useShowCreationWizardActions.ts: format(dateTime, 'yyyy-MM-dd').
+    await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByText('Invalid Date')).not.toBeVisible({ timeout: 5000 });
+  });
+});
+
+// ─── Regression: add-trials wizard button labels ──────────────────────────────
+
+test.describe('Trial Wizard — button labels in add-trials mode', () => {
+  test.beforeEach(async ({ page }) => {
+    await signInAsSecretary(page);
+    await page.evaluate(async () => {
+      const { useWizardStore } = await import('/src/store/wizardStore.ts');
+      useWizardStore.getState().resetWizard();
+    });
+  });
+
+  test('Review step shows "Add Trials" label (not "Create Show") in add-trials mode', async ({
+    page,
+  }) => {
+    // Navigate directly to the Review step via the wizard store.
+    await page.goto(`/secretary/create-show/wizard?showId=${SEEDED_SHOW_ID}&mode=add-trials`);
+    await page.waitForLoadState('networkidle');
+
+    // Add one trial so review validation passes
+    const addFirst = page.getByRole('button', { name: 'Add First Trial' });
+    const addMore = page.getByRole('button', { name: /^Add Trial$/ });
+    if (await addFirst.isVisible().catch(() => false)) {
+      await addFirst.click();
+    } else {
+      await addMore.first().click();
+    }
+
+    await page
+      .getByLabel(/^Event Number/)
+      .first()
+      .fill(`LABEL-TEST-${RUN_ID}`);
+
+    await page.getByRole('button', { name: /^Next$/ }).click();
+    await page
+      .getByRole('button', { name: 'Select All', exact: true })
+      .waitFor({ state: 'visible', timeout: 8000 });
+    await page.getByRole('button', { name: 'Select All', exact: true }).click();
+    await page.getByRole('button', { name: /^Next$/ }).click();
+
+    // On Review: the unpublished submit button should say "Add Trials (Unpublished)"
+    await expect(page.getByRole('button', { name: 'Add Trials (Unpublished)' })).toBeVisible({
+      timeout: 8000,
+    });
+
+    // Clean up the trial we just created
+    await page.evaluate(async runId => {
+      try {
+        const { supabase } = await import('/src/lib/supabase.ts');
+        await supabase.from('trials').delete().eq('event_number', `LABEL-TEST-${runId}`);
+      } catch {
+        /* best-effort */
+      }
+    }, RUN_ID);
+  });
+});
+
 // ─── Add Trial via wizard ─────────────────────────────────────────────────────
 
 test.describe('Trial Wizard — Add Trial to existing show', () => {

@@ -400,6 +400,20 @@ const ShowCreationWizardPage: React.FC = () => {
             onCreateShow={handleCreateShow}
             onCreateAndPublish={handleCreateAndPublish}
             onBack={handleBack}
+            submitLabel={
+              editMode?.mode === 'add-trials'
+                ? 'Add Trials (Unpublished)'
+                : editMode?.mode === 'add-classes'
+                  ? 'Add Classes (Unpublished)'
+                  : 'Create Show (Unpublished)'
+            }
+            publishLabel={
+              editMode?.mode === 'add-trials'
+                ? 'Add & Publish Trials'
+                : editMode?.mode === 'add-classes'
+                  ? 'Add & Publish Classes'
+                  : 'Create & Publish Show'
+            }
           />
         );
       default:

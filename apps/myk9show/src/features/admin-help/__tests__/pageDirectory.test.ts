@@ -24,4 +24,17 @@ describe('pageDirectory (invariant)', () => {
     const invalid = pageDirectory.filter(e => e.roles.length === 0);
     expect(invalid).toEqual([]);
   });
+
+  it('every linksTo path resolves to an existing PageEntry path', () => {
+    const knownPaths = new Set(pageDirectory.map(e => e.path));
+    const orphans: string[] = [];
+    for (const entry of pageDirectory) {
+      for (const target of entry.linksTo ?? []) {
+        if (!knownPaths.has(target)) {
+          orphans.push(`${entry.path} → ${target}`);
+        }
+      }
+    }
+    expect(orphans).toEqual([]);
+  });
 });

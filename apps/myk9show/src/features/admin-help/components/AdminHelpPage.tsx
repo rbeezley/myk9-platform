@@ -16,6 +16,8 @@ import { resolveExamplePath } from '../utils/resolveExamplePath';
 import { routeDiff } from '../utils/routeDiff';
 import { PageDirectorySection } from './PageDirectorySection';
 import { UndocumentedRoutesPanel } from './UndocumentedRoutesPanel';
+import { PageFlowDiagram } from './PageFlowDiagram';
+import { ViewToggle } from '@/components/common/ViewToggle';
 import type { PageClassification, PageEntry, PageStatus } from '../types';
 
 const ROLE_ORDER: { role: UserRole; title: string; key: string }[] = [
@@ -25,6 +27,11 @@ const ROLE_ORDER: { role: UserRole; title: string; key: string }[] = [
   { role: UserRole.JUDGE, title: 'Judge', key: 'judge' },
   { role: UserRole.EXHIBITOR, title: 'Exhibitor', key: 'exhibitor' },
 ];
+
+const VIEW_MODES = [
+  { key: 'list', label: 'List', icon: 'list' as const },
+  { key: 'flow', label: 'Flow', icon: 'flow' as const },
+] as const;
 
 const ALL = 'all';
 
@@ -40,6 +47,23 @@ export function AdminHelpPage() {
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [showParked, setShowParked] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+
+  const [viewMode, setViewModeRaw] = useState<'list' | 'flow'>(() => {
+    try {
+      const stored = localStorage.getItem('view-pref-admin-help');
+      return stored === 'flow' ? 'flow' : 'list';
+    } catch {
+      return 'list';
+    }
+  });
+
+  const setViewMode = useCallback((mode: string) => {
+    const validated: 'list' | 'flow' = mode === 'flow' ? 'flow' : 'list';
+    setViewModeRaw(validated);
+    try {
+      localStorage.setItem('view-pref-admin-help', validated);
+    } catch {}
+  }, []);
 
   const { data: ids, isLoading } = useExampleIds();
 
@@ -88,8 +112,15 @@ export function AdminHelpPage() {
   return (
     <div className="container mx-auto max-w-5xl space-y-4 py-6">
       <header>
-        <h1 className="text-2xl font-bold">Page Directory</h1>
-        <p className="text-sm text-muted-foreground">Every page in myK9Show, grouped by role.</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-bold">Page Directory</h1>
+            <p className="text-sm text-muted-foreground">
+              Every page in myK9Show, grouped by role.
+            </p>
+          </div>
+          <ViewToggle modes={VIEW_MODES} active={viewMode} onChange={setViewMode} />
+        </div>
       </header>
 
       <div className="space-y-3 rounded-lg border bg-card p-3">
@@ -168,26 +199,32 @@ export function AdminHelpPage() {
         </div>
       </div>
 
-      {grouped.length === 0 && (
-        <div className="rounded-lg border p-6 text-center text-muted-foreground">
-          No pages match the current filters.
-        </div>
+      {viewMode === 'flow' ? (
+        <PageFlowDiagram pages={filtered} />
+      ) : (
+        <>
+          {grouped.length === 0 && (
+            <div className="rounded-lg border p-6 text-center text-muted-foreground">
+              No pages match the current filters.
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {grouped.map(group => (
+              <PageDirectorySection
+                key={group.key}
+                roleKey={group.key}
+                title={group.title}
+                entries={group.entries}
+                resolvePath={resolvePath}
+                loading={isLoading}
+              />
+            ))}
+          </div>
+
+          <UndocumentedRoutesPanel missing={ROUTE_DIFF.missing} extra={ROUTE_DIFF.extra} />
+        </>
       )}
-
-      <div className="space-y-3">
-        {grouped.map(group => (
-          <PageDirectorySection
-            key={group.key}
-            roleKey={group.key}
-            title={group.title}
-            entries={group.entries}
-            resolvePath={resolvePath}
-            loading={isLoading}
-          />
-        ))}
-      </div>
-
-      <UndocumentedRoutesPanel missing={ROUTE_DIFF.missing} extra={ROUTE_DIFF.extra} />
     </div>
   );
 }

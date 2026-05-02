@@ -36,6 +36,7 @@ function entry(path: string): PageEntry {
 
 beforeEach(() => {
   mockNavigate.mockReset();
+  delete (window as any).__myk9FlowNav; // clean up between tests
   // Default: resolve immediately so render completes
   vi.mocked(mermaid.render).mockResolvedValue({ svg: '<svg></svg>' });
 });
@@ -47,10 +48,18 @@ describe('PageFlowDiagram', () => {
   });
 
   it('shows spinner while mermaid is rendering', () => {
-    // Never resolves — spinner stays visible for the duration of this test
-    vi.mocked(mermaid.render).mockReturnValue(new Promise(() => {}));
-    render(<PageFlowDiagram pages={[entry('/admin/users')]} />);
+    let rejectFn!: (err: Error) => void;
+    vi.mocked(mermaid.render).mockReturnValue(
+      new Promise<{ svg: string }>((_resolve, reject) => {
+        rejectFn = reject;
+      })
+    );
+    const { unmount } = render(<PageFlowDiagram pages={[entry('/admin/users')]} />);
     expect(document.querySelector('.animate-spin')).toBeInTheDocument();
+    // Cancel the pending promise by unmounting (triggers cancelled = true cleanup)
+    // then reject so the chain settles and doesn't leak
+    unmount();
+    rejectFn(new Error('test cleanup'));
   });
 
   it('calls mermaid.render with the graph string', async () => {

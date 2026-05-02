@@ -52,9 +52,10 @@ export function PageFlowDiagram({ pages }: PageFlowDiagramProps) {
         });
         return mermaid.render(id, graph);
       })
-      .then(({ svg }) => {
+      .then(({ svg, bindFunctions }) => {
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
+          bindFunctions?.(containerRef.current);
         }
       })
       .catch(() => {

@@ -50,7 +50,10 @@ export function mapClassToCreatedClass(cls: SyncableClassData, index: number): C
     className: cls.className ?? cls.element ?? 'Unnamed Class',
     classNumber: cls.classNumber ?? '',
     status: cls.status,
-    runOrder: parseClassOrder(cls.classOrder) || index + 1,
+    runOrder:
+      cls.displayOrder != null
+        ? Math.round(cls.displayOrder / 10)
+        : parseClassOrder(cls.classOrder) || index + 1,
     fieldValues: {
       estimatedJudgingTime: estimatedMinutes,
     },
@@ -77,5 +80,9 @@ export function mapClassToCreatedClass(cls: SyncableClassData, index: number): C
 }
 
 export function mapClassesToCreatedClasses(classes: SyncableClassData[]): CreatedClass[] {
-  return classes.map((cls, i) => mapClassToCreatedClass(cls, i));
+  const sorted = [...classes].sort(
+    (a, b) =>
+      (a.displayOrder ?? Number.MAX_SAFE_INTEGER) - (b.displayOrder ?? Number.MAX_SAFE_INTEGER)
+  );
+  return sorted.map((cls, i) => mapClassToCreatedClass(cls, i));
 }

@@ -3,12 +3,16 @@ import { useTrialClassesWithQuery } from '@/hooks/useClassStoreCompat';
 import { CreatedClass } from '@/types/template.types';
 import { ScheduleConfig, TimeCalculationEngine } from '@/lib/timeCalculation';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { replicatedClassesTable } from '@/services/replication';
 import type {
   Personnel,
   PersonnelAssignment,
 } from '@/components/templates/secretary/PersonnelManager';
 import { MOCK_PERSONNEL } from './mockPersonnel';
 import { mapClassesToCreatedClasses } from './mapClassToCreatedClass';
+
+const DISPLAY_ORDER_STEP = 10;
 
 type StewardRole = 'gate' | 'table' | 'timer' | 'ring';
 
@@ -146,11 +150,21 @@ export function useRunOrderPageData(trialId: string | undefined): UseRunOrderPag
   );
 
   const handleReorder = (reorderedClasses: CreatedClass[]) => {
-    // INTENT: drag-to-reorder updates session state only. The DB has no
-    // class.run_order column today (ordering is encoded in start_time);
-    // persisting drag would need a schedule re-compute that this page
-    // doesn't yet drive. Keep session-local for now.
     setClasses(reorderedClasses);
+    // Persist display_order for each class so the order survives a page reload.
+    // RunOrderBoard assigns runOrder = index+1 before calling here, so
+    // displayOrder = runOrder * DISPLAY_ORDER_STEP (gaps allow future inserts).
+    const updates = reorderedClasses.map(cls =>
+      replicatedClassesTable.updateClass(cls.id, {
+        displayOrder: cls.runOrder * DISPLAY_ORDER_STEP,
+      })
+    );
+    Promise.allSettled(updates).then(results => {
+      const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      if (failures.length > 0) {
+        notifications.error('Failed to save run order — changes will be lost on reload');
+      }
+    });
   };
 
   const handleJudgeAssign = (classId: string, judgeId: string) => {

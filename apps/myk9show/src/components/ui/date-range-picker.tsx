@@ -139,22 +139,43 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
   const displayText = formatDisplay();
 
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onStartDateChange(undefined);
+    onEndDateChange(undefined);
+    setStartTime(startDefaultTime);
+    setEndTime(endDefaultTime);
+  };
+
   return (
     <>
-      <Button
-        {...(id !== undefined && { id })}
-        variant="outline"
-        className={cn(
-          'w-full justify-start text-left font-normal',
-          !displayText && 'text-muted-foreground',
-          className
+      <div className="relative w-full">
+        <Button
+          {...(id !== undefined && { id })}
+          variant="outline"
+          className={cn(
+            'w-full justify-start text-left font-normal',
+            !displayText && 'text-muted-foreground',
+            displayText && 'pr-8',
+            className
+          )}
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+          {displayText || placeholder}
+        </Button>
+        {displayText && !disabled && (
+          <button
+            type="button"
+            aria-label="Clear dates"
+            onClick={handleClear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         )}
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-      >
-        <CalendarIcon className="mr-2 h-4 w-4" />
-        {displayText || placeholder}
-      </Button>
+      </div>
 
       {/* Modal overlay — centered on screen */}
       {open && (

@@ -46,6 +46,7 @@ export function PageFlowDiagram({ pages }: PageFlowDiagramProps) {
       .then(({ default: mermaid }) => {
         mermaid.initialize({
           startOnLoad: false,
+          securityLevel: 'loose',
           theme: 'dark',
           flowchart: { curve: 'basis', useMaxWidth: true, htmlLabels: true },
         });

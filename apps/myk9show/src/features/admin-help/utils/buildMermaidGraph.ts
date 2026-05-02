@@ -22,7 +22,7 @@ export function buildMermaidGraph(pages: PageEntry[]): string {
     const id = sanitizePath(page.path);
     const label = `${escapeLabel(page.title)}<br/>${escapeLabel(page.path)}`;
     lines.push(`  ${id}["${label}"]`);
-    lines.push(`  click ${id} "${CALLBACK_NAME}"`);
+    lines.push(`  click ${id} ${CALLBACK_NAME}`);
   }
 
   // Edge definitions — only when both endpoints are in the filtered set

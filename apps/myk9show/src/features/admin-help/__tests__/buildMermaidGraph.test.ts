@@ -46,7 +46,7 @@ describe('buildMermaidGraph', () => {
   it('includes a click directive for every node', () => {
     const pages = [entry('/admin/users')];
     const graph = buildMermaidGraph(pages);
-    expect(graph).toContain('click admin_users "__myk9FlowNav"');
+    expect(graph).toContain('click admin_users __myk9FlowNav');
   });
 
   it('does not throw on cyclic edges (A → B → A)', () => {

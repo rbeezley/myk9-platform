@@ -12,7 +12,7 @@ export {
   judgeCertificationQueries,
   upsertClassJudgeAssignment,
   persistShowJudgeAssignments,
-} from '../queries/judgeQueries';
+} from './reads';
 export type {
   JudgeUtilizationFilters,
   JudgeUtilizationRow,
@@ -20,4 +20,4 @@ export type {
   RosterSummary,
   CreateJudgeCertificationDbData,
   JudgeAvailabilityUpsertData,
-} from '../queries/judgeQueries';
+} from './reads';

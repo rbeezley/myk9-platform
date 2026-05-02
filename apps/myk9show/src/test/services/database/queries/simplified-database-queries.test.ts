@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getAllDogs, createDog, searchDogs } from '@/services/database/dogs';
-import { getAllUsers, createUser } from '@/services/database/queries/userQueries';
+import { getAllUsers, createUser } from '@/services/database/users';
 import { getAllShows, createShow } from '@/services/database/shows';
 import type { DbDogInsert, DbUserInsert, DbShowInsert } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';

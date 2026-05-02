@@ -54,7 +54,7 @@ import {
   searchUsers,
   getUsersStatistics,
   checkEmailExists,
-} from '@/services/database/queries/userQueries';
+} from '@/services/database/users';
 
 import {
   getAllShows,

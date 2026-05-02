@@ -20,4 +20,4 @@ export {
   getClubsWithShowCounts,
   getClubStatistics,
   checkClubNameExists,
-} from '../queries/clubQueries';
+} from './reads';

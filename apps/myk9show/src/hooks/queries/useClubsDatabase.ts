@@ -13,7 +13,7 @@ import {
   getClubsWithShowCounts,
   getClubStatistics,
   checkClubNameExists
-} from '@/services/database/queries/clubQueries';
+} from '@/services/database/clubs';
 import {
   mapClubInputToInsert,
   mapClubInputToUpdate,

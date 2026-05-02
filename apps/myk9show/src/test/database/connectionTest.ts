@@ -1,6 +1,6 @@
 // Database connection and basic CRUD operation tests
 import { checkDatabaseConnection } from '../../services/database/supabaseClient';
-import { getAllClubs, getClubById } from '../../services/database/queries/clubQueries';
+import { getAllClubs, getClubById } from '../../services/database/clubs';
 import { getAllDogs, getDogById } from '../../services/database/dogs';
 import { logger } from '@/services/LoggingService';
 

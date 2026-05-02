@@ -10,7 +10,7 @@ import {
   getUsersWithDogCounts,
   getUsersStatistics,
   checkEmailExists,
-} from '@/services/database/queries/userQueries';
+} from '@/services/database/users';
 import type { DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 

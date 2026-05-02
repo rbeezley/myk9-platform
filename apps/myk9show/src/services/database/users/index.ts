@@ -21,4 +21,4 @@ export {
   getUsersWithDogCounts,
   getUsersStatistics,
   checkEmailExists,
-} from '../queries/userQueries';
+} from './reads';

@@ -14,6 +14,7 @@ import { useShowStore } from '@/store/showStore';
 import { logger } from '@/services/LoggingService';
 import {
   mapRowToRequirements,
+  normalizeOrganization,
   type ClassRequirements,
   type SportClassRuleRow,
 } from '@/hooks/queries/useClassRequirements';
@@ -36,19 +37,6 @@ export interface ClassRequirementsAutoFill {
   hidesUsed: RequirementFieldMeta;
   distractionsUsed: RequirementFieldMeta;
   timeLimitText: RequirementFieldMeta;
-}
-
-/**
- * Determine the organization type string for querying sport_templates.
- * The show's organization field may contain values like "AKC Scent Work"
- * but the sport_templates table uses simple "AKC", "UKC", "ASCA".
- */
-function normalizeOrganization(orgString: string): string | null {
-  const lower = orgString.toLowerCase();
-  if (lower.includes('akc')) return 'AKC';
-  if (lower.includes('ukc')) return 'UKC';
-  if (lower.includes('asca')) return 'ASCA';
-  return null;
 }
 
 /**

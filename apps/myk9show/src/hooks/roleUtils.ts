@@ -12,16 +12,16 @@ import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 /**
  * Lookup table mapping each role to its dashboard route.
  *
- * JUDGE intentionally shares /exhibitor/dashboard — no judge-specific
- * landing page exists yet, and this is a deliberate routing decision.
+ * Priority follows USER_ROLE_HIERARCHY. Roles without an entry fall back to
+ * /exhibitor/entries (CHAIRMAN, STEWARD).
  */
 export const ROLE_DASHBOARD_ROUTES: Partial<Record<UserRole, string>> = {
   [UserRole.SITE_ADMIN]: '/admin/dashboard',
   [UserRole.CLUB_ADMIN]: '/secretary/dashboard',
   [UserRole.SECRETARY]: '/secretary/dashboard',
-  // INTENT: JUDGE has no dedicated dashboard. Route to /exhibitor/entries
-  // (the consolidated My Shows page) until a judge-specific landing page is built.
-  [UserRole.JUDGE]: '/exhibitor/entries',
+  // INTENT: JUDGE routes to /judge/dashboard — a judge-specific landing page
+  // was added 2026-05-02 as part of Phase 2 golden-path work.
+  [UserRole.JUDGE]: '/judge/dashboard',
   [UserRole.EXHIBITOR]: '/exhibitor/entries',
 };
 

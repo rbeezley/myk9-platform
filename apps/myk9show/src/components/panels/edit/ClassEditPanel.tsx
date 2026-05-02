@@ -27,6 +27,7 @@ import {
   trialClassToFormData,
   formDataToClass,
   formDataToTrialClass,
+  isScentWorkNovice,
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
@@ -116,15 +117,20 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 readOnly
               />
             </FormField>
-            <FormField label="Section" fieldId="trialSection">
-              <Input
-                id="trialSection"
-                value={data.section}
-                className="bg-muted text-muted-foreground"
-                disabled
-                readOnly
-              />
-            </FormField>
+            {/* Section (A/B) only applies to AKC Scent Work Novice — Advanced and Excellent do not have sections */}
+            {isScentWorkNovice(data.level, data.element) ? (
+              <FormField label="Section" fieldId="trialSection">
+                <Input
+                  id="trialSection"
+                  value={data.section}
+                  className="bg-muted text-muted-foreground"
+                  disabled
+                  readOnly
+                />
+              </FormField>
+            ) : (
+              <div /> /* grid spacer — keeps Element in column 1 of the 3-col grid */
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-4">

@@ -11,29 +11,80 @@ interface VenueMapProps {
   venueName?: string | null;
 }
 
+/** Buttons shown in both the full card and the no-key fallback card. */
+function MapLinks({
+  directionsUrl,
+  viewOnMapsUrl,
+}: {
+  directionsUrl: string;
+  viewOnMapsUrl: string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <a
+        href={directionsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+      >
+        <Navigation className="h-4 w-4" />
+        Get Directions
+      </a>
+      <a
+        href={viewOnMapsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+      >
+        <ExternalLink className="h-4 w-4" />
+        View on Google Maps
+      </a>
+    </div>
+  );
+}
+
 export function VenueMap({ location, venueName }: VenueMapProps) {
   const [iframeReady, setIframeReady] = useState(false);
+  const [iframeError, setIframeError] = useState(false);
+
+  const embedApiKey = import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY as string | undefined;
+  const hasApiKey = Boolean(embedApiKey);
+
   useEffect(() => {
-    if (!location?.trim()) return;
+    if (!location?.trim() || !hasApiKey) return;
     const id = setTimeout(() => setIframeReady(true), IFRAME_DEFER_MS);
     return () => clearTimeout(id);
+  }, [location, hasApiKey]);
+
+  useEffect(() => {
+    setIframeError(false);
   }, [location]);
 
   if (!location?.trim()) return null;
 
   const encodedAddress = encodeURIComponent(location);
-  const embedApiKey = import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY as string | undefined;
-  // The documented Embed API reliably handles short queries like "Olathe, KS".
-  // The keyless `maps.google.com/maps?q=...&output=embed` endpoint often returns
-  // a blank iframe for city/state-only locations, so we prefer the Embed API when
-  // an API key is configured and fall back to the keyless embed otherwise.
-  const mapSrc = embedApiKey
-    ? `https://www.google.com/maps/embed/v1/place?key=${embedApiKey}&q=${encodedAddress}`
-    : `https://maps.google.com/maps?q=${encodedAddress}&output=embed`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
-  // Documented search URL — always works even when the keyless iframe embed
-  // silently fails (no onError fires for content-level failures).
   const viewOnMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+
+  if (!hasApiKey || iframeError) {
+    return (
+      <Card className="p-4 space-y-3" data-testid="venue-map-fallback">
+        <div className="flex items-start gap-2">
+          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <div>
+            {venueName && <div className="font-semibold text-foreground text-sm">{venueName}</div>}
+            <div className="text-sm text-muted-foreground">{location}</div>
+          </div>
+        </div>
+        <MapLinks directionsUrl={directionsUrl} viewOnMapsUrl={viewOnMapsUrl} />
+        <p className="text-xs text-muted-foreground">
+          {hasApiKey ? 'Map unavailable' : 'Interactive map not configured'}
+        </p>
+      </Card>
+    );
+  }
+
+  const mapSrc = `https://www.google.com/maps/embed/v1/place?key=${embedApiKey}&q=${encodedAddress}`;
 
   return (
     <Card className="overflow-hidden">
@@ -45,6 +96,7 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
           allowFullScreen
+          onError={() => setIframeError(true)}
         />
       ) : (
         <Skeleton data-testid="map-skeleton" className="w-full h-[300px] rounded-none" />
@@ -57,26 +109,7 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
             <div className="text-sm text-muted-foreground">{location}</div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={directionsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
-          >
-            <Navigation className="h-4 w-4" />
-            Get Directions
-          </a>
-          <a
-            href={viewOnMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
-          >
-            <ExternalLink className="h-4 w-4" />
-            View on Google Maps
-          </a>
-        </div>
+        <MapLinks directionsUrl={directionsUrl} viewOnMapsUrl={viewOnMapsUrl} />
       </div>
     </Card>
   );

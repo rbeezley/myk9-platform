@@ -122,6 +122,25 @@ function mapRowToRequirements(row: SportClassRuleRow): ClassRequirements {
 }
 
 // ---------------------------------------------------------------------------
+// Normalization
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize an organization string to the canonical short form used in
+ * sport_templates ('AKC', 'UKC', 'ASCA').
+ *
+ * Shows may store values like "AKC Scent Work" or "AKC" — both map to 'AKC'.
+ * Returns null when the organization is unrecognized so the query stays disabled.
+ */
+export function normalizeOrganization(org: string): string | null {
+  const lower = org.toLowerCase();
+  if (lower.includes('akc')) return 'AKC';
+  if (lower.includes('ukc')) return 'UKC';
+  if (lower.includes('asca')) return 'ASCA';
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
@@ -149,6 +168,9 @@ interface UseClassRequirementsResult {
  * For classes with sections (e.g., Novice A/B), the level param may include the
  * section suffix. We strip it to match the DB level, then filter by section if
  * present.
+ *
+ * The organization param is normalized before querying so that values like
+ * "AKC Scent Work" (stored in shows) resolve to "AKC" (used in sport_templates).
  */
 export function useClassRequirements({
   organization,
@@ -156,10 +178,11 @@ export function useClassRequirements({
   level,
   enabled: externalEnabled = true,
 }: UseClassRequirementsOptions): UseClassRequirementsResult {
-  const enabled = externalEnabled && !!organization && !!element && !!level;
+  const normalizedOrg = organization ? normalizeOrganization(organization) : null;
+  const enabled = externalEnabled && !!normalizedOrg && !!element && !!level;
 
   const { data, isLoading, error } = useQuery<ClassRequirements | null>({
-    queryKey: queryKeys.classRequirements(organization ?? '', element, level),
+    queryKey: queryKeys.classRequirements(normalizedOrg ?? '', element, level),
     queryFn: async () => {
       // Parse section from level if present (e.g., "Novice A" → level "Novice", section "A")
       const sectionMatch = level.match(/^(.+?)\s+([AB])$/i);
@@ -191,7 +214,7 @@ export function useClassRequirements({
           sport_templates!inner ( organization )
         `
         )
-        .eq('sport_templates.organization', organization!)
+        .eq('sport_templates.organization', normalizedOrg!)
         .eq('element', element)
         .eq('level', dbLevel);
 

@@ -62,7 +62,7 @@ import {
   getSecretaryShows,
   searchShows,
   getShowStatistics,
-} from '@/services/database/queries/showQueries';
+} from '@/services/database/shows';
 
 // ---------------------------------------------------------------------------
 // Test fixtures

@@ -17,7 +17,7 @@ import {
   getShowStatistics,
   getShowsWithEntryCounts,
   getShowsByDateRange
-} from '@/services/database/queries/showQueries';
+} from '@/services/database/shows';
 import {
   mapShowInputToInsert,
   mapShowInputToUpdate,

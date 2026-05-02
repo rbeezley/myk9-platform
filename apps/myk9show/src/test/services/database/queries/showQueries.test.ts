@@ -13,7 +13,7 @@ import {
   getShowStatistics,
   getShowsWithEntryCounts,
   getShowsByStatus,
-} from '@/services/database/queries/showQueries';
+} from '@/services/database/shows';
 import type { DbShowInsert, DbShowUpdate } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 

@@ -22,4 +22,4 @@ export {
   hardDeleteShow,
   restoreShow,
   getDeletedShows,
-} from '../queries/showQueries';
+} from './reads';

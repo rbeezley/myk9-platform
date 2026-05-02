@@ -61,7 +61,7 @@ import {
   createShow,
   searchShows,
   getShowStatistics,
-} from '@/services/database/queries/showQueries';
+} from '@/services/database/shows';
 
 import type {
   DbDogInsert,

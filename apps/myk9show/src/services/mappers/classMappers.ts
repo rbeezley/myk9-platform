@@ -232,6 +232,9 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     timeLimit3: '',
     photoUrl: '',
 
+    // Display order (secretary drag-reorder; maps to classes.display_order)
+    displayOrder: dbClass.display_order ?? undefined,
+
     // Custom fields
     customFields: {},
 
@@ -435,6 +438,7 @@ export const mapReplicatedClassToDbRow = (
       section: 'section',
       status: 'classStatus',
       class_order: 'classOrder',
+      display_order: 'displayOrder',
     }),
     is_completed: cls.isCompleted ?? false,
     is_scoring_finalized: cls.isScoringFinalized ?? false,

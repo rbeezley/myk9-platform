@@ -53,7 +53,7 @@ Live triage log from walking the secretary golden path on `localhost:5173`. Item
 ### Open — Found-but-deferred during this walk
 
 - ~~**Cannot test Accept / Waitlist / Bulk-email paths without an exhibitor account**~~ ✓ resolved 2026-05-01 — `exhibitor1@myk9t.com` / `TestPass1234!` confirmed working. 3 entries (all Pending) seeded in "QA Walk Show 1777260779" (ID `a0505c45-64d0-4b04-b2b3-cb213ed738a6`). Seed state documented in [`docs/testing/secretary-walk-seed.md`](docs/testing/secretary-walk-seed.md).
-- **Run Order drag + judge picks don't persist to Supabase** — Surface area discovered while wiring the read path on 2026-04-26. The DB has no `classes.run_order` column today (ordering is encoded in `start_time`); persisting drag would need a schedule re-compute. `handleReorder` and `handleJudgeAssign` in `useRunOrderPageData.ts` are session-local with an `INTENT:` comment. Follow-up: design persistence (either add `run_order` integer to `classes`, or write `start_time` / `judge_assignments` from the run-order page) in a separate task.
+- ~~**Run Order drag + judge picks don't persist to Supabase**~~ ✓ fully resolved 2026-05-02 — (a) Drag order: `classes.display_order` wired through read+write paths; `mapClassesToCreatedClasses` sorts by it on load; `handleReorder` calls `replicatedClassesTable.updateClass({ displayOrder })`. (b) Judge picks: `availableJudges` now loads from `getJudgesWithQualifications` via React Query; `handleJudgeAssign` calls `upsertClassJudgeAssignment(showId, classId, judgeId)` to persist to `judge_assignments`. `showId` resolved by fetching the trial from `replicatedTrialsTable`.
 
 ---
 

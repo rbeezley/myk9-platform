@@ -1,6 +1,7 @@
 import type { SyncableClassData } from '@/store/classStore';
 import type { CreatedClass } from '@/types/template.types';
 import { Organization, TrialType } from '@/types/template.types';
+import { DISPLAY_ORDER_STEP, sortByDisplayOrder } from '@/features/pipeline/utils/pipelineReorder';
 
 function parseEstimatedJudgingTime(raw: string | undefined): number {
   if (!raw) return 30;
@@ -50,7 +51,10 @@ export function mapClassToCreatedClass(cls: SyncableClassData, index: number): C
     className: cls.className ?? cls.element ?? 'Unnamed Class',
     classNumber: cls.classNumber ?? '',
     status: cls.status,
-    runOrder: parseClassOrder(cls.classOrder) || index + 1,
+    runOrder:
+      cls.displayOrder != null
+        ? cls.displayOrder / DISPLAY_ORDER_STEP
+        : parseClassOrder(cls.classOrder) || index + 1,
     fieldValues: {
       estimatedJudgingTime: estimatedMinutes,
     },
@@ -77,5 +81,5 @@ export function mapClassToCreatedClass(cls: SyncableClassData, index: number): C
 }
 
 export function mapClassesToCreatedClasses(classes: SyncableClassData[]): CreatedClass[] {
-  return classes.map((cls, i) => mapClassToCreatedClass(cls, i));
+  return sortByDisplayOrder(classes).map((cls, i) => mapClassToCreatedClass(cls, i));
 }

@@ -56,6 +56,19 @@ describe('mapClassToCreatedClass', () => {
     expect(created.runOrder).toBe(5);
   });
 
+  it('prefers displayOrder over classOrder for runOrder (displayOrder / 10)', () => {
+    const created = mapClassToCreatedClass(makeClass({ classOrder: '5', displayOrder: 30 }), 0);
+    expect(created.runOrder).toBe(3);
+  });
+
+  it('uses classOrder fallback when displayOrder is undefined', () => {
+    const created = mapClassToCreatedClass(
+      makeClass({ classOrder: '4', displayOrder: undefined }),
+      0
+    );
+    expect(created.runOrder).toBe(4);
+  });
+
   it('parses HH:MM estimated judging time into minutes', () => {
     const created = mapClassToCreatedClass(makeClass({ estimatedJudgingTime: '0:45' }), 0);
     expect(created.fieldValues.estimatedJudgingTime).toBe(45);
@@ -102,7 +115,7 @@ describe('mapClassToCreatedClass', () => {
 });
 
 describe('mapClassesToCreatedClasses', () => {
-  it('preserves array order and indexes runOrder per item', () => {
+  it('preserves array order and indexes runOrder per item when no displayOrder', () => {
     const result = mapClassesToCreatedClasses([
       makeClass({ id: 'a', classOrder: 'TBD' }),
       makeClass({ id: 'b', classOrder: 'TBD' }),
@@ -110,5 +123,31 @@ describe('mapClassesToCreatedClasses', () => {
     ]);
     expect(result.map(c => c.id)).toEqual(['a', 'b', 'c']);
     expect(result.map(c => c.runOrder)).toEqual([1, 2, 7]);
+  });
+
+  it('sorts by displayOrder when present, earliest first', () => {
+    const result = mapClassesToCreatedClasses([
+      makeClass({ id: 'third', displayOrder: 30 }),
+      makeClass({ id: 'first', displayOrder: 10 }),
+      makeClass({ id: 'second', displayOrder: 20 }),
+    ]);
+    expect(result.map(c => c.id)).toEqual(['first', 'second', 'third']);
+  });
+
+  it('sets runOrder to displayOrder / 10 after sorting', () => {
+    const result = mapClassesToCreatedClasses([
+      makeClass({ id: 'c', displayOrder: 30 }),
+      makeClass({ id: 'a', displayOrder: 10 }),
+      makeClass({ id: 'b', displayOrder: 20 }),
+    ]);
+    expect(result.map(c => c.runOrder)).toEqual([1, 2, 3]);
+  });
+
+  it('classes without displayOrder sort after those with it', () => {
+    const result = mapClassesToCreatedClasses([
+      makeClass({ id: 'no-order', classOrder: '1' }),
+      makeClass({ id: 'ordered', displayOrder: 10 }),
+    ]);
+    expect(result.map(c => c.id)).toEqual(['ordered', 'no-order']);
   });
 });

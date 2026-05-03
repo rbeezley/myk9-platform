@@ -28,13 +28,22 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
   const paidTier: PlanType = isExpired ? 'free' : rawTier;
   const isPaidPremium = paidTier === 'premium';
 
+  const isEarlyAdopter = profile?.person?.is_early_adopter === true;
+
   const isInTrial =
     !isPaidPremium &&
     !isExpired &&
     options?.trialShowCount !== undefined &&
     options.trialShowCount <= TRIAL_SHOW_LIMIT;
 
-  const tier: PlanType = isPaidPremium || isInTrial ? 'premium' : 'free';
+  const tier: PlanType = isPaidPremium || isEarlyAdopter || isInTrial ? 'premium' : 'free';
 
-  return { tier, isPremium: tier === 'premium', isExpired, isInTrial, isLoading } as const;
+  return {
+    tier,
+    isPremium: tier === 'premium',
+    isExpired,
+    isInTrial,
+    isEarlyAdopter,
+    isLoading,
+  } as const;
 }

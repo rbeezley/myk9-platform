@@ -26,6 +26,7 @@ export interface ExhibitorProfile {
     email: string;
     phone: string | null;
     profile_image: string | null;
+    is_early_adopter: boolean;
   };
 }
 
@@ -91,7 +92,8 @@ export function useExhibitorProfile() {
             last_name,
             email,
             phone,
-            profile_image
+            profile_image,
+            is_early_adopter
           )
         `
         )

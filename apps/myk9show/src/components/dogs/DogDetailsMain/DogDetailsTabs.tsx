@@ -19,6 +19,7 @@ import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { getDogDisplayName } from '@/types/dog-types';
 import type { DogDetailsTabsProps } from './types';
 import ActivityTab from './ActivityTab';
+import { features } from '@/config/features';
 
 // Lazy-loaded tabs
 const TrainingSection = lazy(
@@ -76,15 +77,25 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
 
     // Exhibitor tabs — premium ones get a lock icon via the locked flag
     const showLock = !isLoading && !isPremium;
-    return [
-      ...base,
-      { id: 'competitions', label: 'Competitions', icon: Trophy },
-      { id: 'title-progress', label: 'Title Progress', icon: Crown, locked: showLock },
-      { id: 'statistics', label: 'Statistics', icon: BarChart3, locked: showLock },
+    const tabs: PrimaryTabDef[] = [...base];
+
+    if (features.competitionsTab) {
+      tabs.push({ id: 'competitions', label: 'Competitions', icon: Trophy });
+    }
+
+    tabs.push({ id: 'title-progress', label: 'Title Progress', icon: Crown, locked: showLock });
+
+    if (features.statisticsTab) {
+      tabs.push({ id: 'statistics', label: 'Statistics', icon: BarChart3, locked: showLock });
+    }
+
+    tabs.push(
       { id: 'health-records', label: 'Health Records', icon: Stethoscope, locked: showLock },
       { id: 'training-journal', label: 'Training Journal', icon: BookOpen, locked: showLock },
-      { id: 'pedigree', label: 'Pedigree', icon: GitBranch, locked: showLock },
-    ];
+      { id: 'pedigree', label: 'Pedigree', icon: GitBranch, locked: showLock }
+    );
+
+    return tabs;
   }, [dog.registrations, isSecretary, isPremium, isLoading]);
 
   return (
@@ -97,7 +108,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
         <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
       </TabsContent>
 
-      {!isSecretary && (
+      {!isSecretary && features.competitionsTab && (
         <TabsContent value="competitions" className="pt-6">
           <Suspense fallback={<TabContentSkeleton />}>
             <CompetitionsTabs dogId={dog.id} isPremium={isPremium} />
@@ -120,7 +131,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
         </TabsContent>
       )}
 
-      {!isSecretary && (
+      {!isSecretary && features.statisticsTab && (
         <TabsContent value="statistics" className="pt-6">
           <BlurGate
             locked={!isLoading && !isPremium}

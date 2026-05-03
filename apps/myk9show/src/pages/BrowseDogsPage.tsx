@@ -11,6 +11,7 @@ import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
+import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -37,6 +38,9 @@ const BrowseDogsPage: React.FC = () => {
   const { getUserRoles } = useAuthContext();
   const currentUserPersonId = useCurrentUserPersonId();
   const { hasPermission, isLoading: rbacLoading } = useRBAC();
+
+  // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
+  const isExhibitorOnly = getPrimaryRole(getUserRoles()) === UserRole.EXHIBITOR;
 
   const {
     dogs,
@@ -88,14 +92,12 @@ const BrowseDogsPage: React.FC = () => {
     [setFilters]
   );
 
-  // Breadcrumbs for PageHeader
-  const breadcrumbs = useMemo(() => [{ label: 'Dogs', href: '/dogs' }], []);
+  const pageTitle = isExhibitorOnly ? 'My Dogs' : 'Dogs';
+  const breadcrumbs = useMemo(() => [{ label: pageTitle, href: '/dogs' }], [pageTitle]);
 
   const handleDogCreated = useCallback(
     (newDog: DogType) => {
       setShowCreateDogPanel(false);
-      // Pass the new dog in location state so DogDetailPage can render it
-      // immediately while the dogs query cache refetches in the background.
       navigate(`/dogs/${newDog.id}`, { replace: true, state: { createdDog: newDog } });
     },
     [navigate]
@@ -107,10 +109,10 @@ const BrowseDogsPage: React.FC = () => {
       canCreateDogs ? (
         <Button onClick={() => setShowCreateDogPanel(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          New Dog
+          {isExhibitorOnly ? 'Add Dog' : 'New Dog'}
         </Button>
       ) : undefined,
-    [canCreateDogs]
+    [canCreateDogs, isExhibitorOnly]
   );
 
   const renderContent = () => {
@@ -119,10 +121,18 @@ const BrowseDogsPage: React.FC = () => {
         <EmptyState
           icon={PawPrint}
           title="No dogs yet"
-          description="Add your first dog to track health records, registrations, and competitions."
+          description={
+            isExhibitorOnly
+              ? 'Add your first dog to start tracking titles, training, and health records.'
+              : 'Add your first dog to track health records, registrations, and competitions.'
+          }
           action={
             canCreateDogs
-              ? { label: 'New Dog', onClick: () => setShowCreateDogPanel(true), icon: Plus }
+              ? {
+                  label: isExhibitorOnly ? 'Add Dog' : 'New Dog',
+                  onClick: () => setShowCreateDogPanel(true),
+                  icon: Plus,
+                }
               : undefined
           }
         />
@@ -151,27 +161,28 @@ const BrowseDogsPage: React.FC = () => {
 
   return (
     <PageShell>
-      {/* Loading state */}
       {isLoading && dogs.length === 0 && (
         <BrowseDogsSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'table'} />
       )}
 
-      {/* Error state */}
       {hasError && !isLoading && (
         <ErrorState message="We couldn't load your dogs." onRetry={handleRetry} />
       )}
 
-      {/* Normal content */}
       {!isLoading && !hasError && (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title="Dogs" actions={actionButtons} />
+          <PageHeader breadcrumbs={breadcrumbs} title={pageTitle} actions={actionButtons} />
 
           {/* Filter toolbar */}
           <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
             <SearchBar
               value={filters.search}
               onChange={value => setFilters(prev => ({ ...prev, search: value }))}
-              placeholder="Search dogs by name, breed, or owner..."
+              placeholder={
+                isExhibitorOnly
+                  ? 'Search your dogs by name or breed...'
+                  : 'Search dogs by name, breed, or owner...'
+              }
             />
 
             <div className="flex flex-wrap items-center gap-2">

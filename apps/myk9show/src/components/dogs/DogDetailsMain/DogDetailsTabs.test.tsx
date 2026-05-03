@@ -37,6 +37,23 @@ vi.mock('@/hooks/useSubscriptionGate', () => ({
   useSubscriptionGate: vi.fn(),
 }));
 
+// Enable all tabs so BlurGate behavior is tested regardless of release flags
+vi.mock('@/config/features', () => ({
+  features: {
+    titleTracking: true,
+    trainingJournal: true,
+    healthRecords: true,
+    pedigree: true,
+    competitionsTab: true,
+    statisticsTab: true,
+    showRegistration: false,
+    myEntries: false,
+    calendar: false,
+    showDay: false,
+    analytics: false,
+  },
+}));
+
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 
 const mockDog: Dog = {

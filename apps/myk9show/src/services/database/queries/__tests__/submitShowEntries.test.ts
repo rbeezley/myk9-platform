@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { submitShowEntries } from '../entry-query-mutations';
+import { submitShowEntries } from '../../entries';
 
-// Mock the supabase client used by entry-query-mutations
+// Mock the supabase client used by the entries module
 const mockRpc = vi.fn();
 
 vi.mock('../../supabaseClient', () => ({

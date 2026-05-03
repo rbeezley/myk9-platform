@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Dog } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
 
 // ── Mock data ───────────────────────────────────────────────────────────────
 
@@ -57,12 +58,16 @@ vi.mock('@/hooks/useBrowseDogsData', () => ({
   useBrowseDogsData: () => mockBrowseDogsReturn,
 }));
 
+const mockGetUserRoles = vi.fn().mockReturnValue(['secretary']);
+const mockHasRole = vi.fn().mockReturnValue(false);
+
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const actual = await importOriginal();
   return {
     ...(actual as object),
     useAuthContext: () => ({
-      getUserRoles: () => ['exhibitor'],
+      getUserRoles: mockGetUserRoles,
+      hasRole: mockHasRole,
     }),
   };
 });
@@ -108,6 +113,7 @@ function renderPage() {
 describe('BrowseDogsPage (shared primitives migration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetUserRoles.mockReturnValue(['secretary']);
     mockBrowseDogsReturn = {
       dogs: [makeDog()],
       filteredDogs: [makeDog()],
@@ -250,5 +256,14 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     renderPage();
 
     expect(screen.getByTestId('dogs-skeleton')).toBeInTheDocument();
+  });
+
+  it('shows "My Dogs" title and exhibitor-friendly placeholder for exhibitor-only users', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: 'My Dogs' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search your dogs by name or breed...')).toBeInTheDocument();
   });
 });

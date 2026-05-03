@@ -6,6 +6,17 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
+// Mirrors apps/myk9show/src/services/notifications/ccSecretary.ts — Deno cannot import from apps/.
+function resolveSecretaryCc(
+  ccToggle: boolean | null | undefined,
+  secretaryEmail: string | null | undefined
+): string[] {
+  const enabled = ccToggle ?? true;
+  if (!enabled) return [];
+  if (!secretaryEmail) return [];
+  return [secretaryEmail];
+}
+
 const ALLOWED_ORIGINS = [
   'https://myk9-platform-myk9show.vercel.app',
   'https://myk9show.com',
@@ -187,7 +198,7 @@ Deno.serve(async (req: Request) => {
     const { data: registration, error: regError } = await supabase
       .from('enrollments')
       .select(
-        '*, show:shows(name, start_date, end_date, location, venue_name, confirmation_message, club_id, secretary_email), person:people(first_name, last_name, email, auth_user_id)'
+        '*, show:shows(name, start_date, end_date, location, venue_name, confirmation_message, club_id, secretary_email, cc_secretary_on_exhibitor_emails), person:people(first_name, last_name, email, auth_user_id)'
       )
       .eq('id', registrationId)
       .single();
@@ -260,8 +271,10 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Get show secretary email for CC (if available and enabled)
-    const secretaryEmail = registration.show?.secretary_email || null;
+    const secretaryCc = resolveSecretaryCc(
+      registration.show?.cc_secretary_on_exhibitor_emails,
+      registration.show?.secretary_email
+    );
 
     const show = registration.show;
     const html = buildRegistrationEmailHtml({
@@ -298,9 +311,8 @@ Deno.serve(async (req: Request) => {
       html,
     };
 
-    // Add secretary as CC if available
-    if (secretaryEmail) {
-      emailPayload.cc = [secretaryEmail];
+    if (secretaryCc.length > 0) {
+      emailPayload.cc = secretaryCc;
     }
 
     const response = await fetch('https://api.resend.com/emails', {

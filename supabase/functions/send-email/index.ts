@@ -32,7 +32,12 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 // Types for email data
-interface EntryConfirmationData {
+// Optional CC field shared by all email types
+interface WithCc {
+  cc?: string[];
+}
+
+interface EntryConfirmationData extends WithCc {
   type: 'entry_confirmation';
   to: string;
   exhibitorName: string;
@@ -52,7 +57,7 @@ interface EntryConfirmationData {
   receiptUrl?: string;
 }
 
-interface PaymentReceiptData {
+interface PaymentReceiptData extends WithCc {
   type: 'payment_receipt';
   to: string;
   exhibitorName: string;
@@ -70,13 +75,13 @@ interface PaymentReceiptData {
   paidAt: string;
 }
 
-interface WelcomeEmailData {
+interface WelcomeEmailData extends WithCc {
   type: 'welcome';
   to: string;
   name: string;
 }
 
-interface WaitlistOfferData {
+interface WaitlistOfferData extends WithCc {
   type: 'waitlist_offer';
   to: string;
   name: string;
@@ -86,7 +91,7 @@ interface WaitlistOfferData {
   expiresAt: string;
 }
 
-interface EntryDecisionData {
+interface EntryDecisionData extends WithCc {
   type: 'entry_decision';
   to: string;
   exhibitorName: string;
@@ -103,7 +108,12 @@ interface EntryDecisionData {
   }>;
 }
 
-type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData | WaitlistOfferData | EntryDecisionData;
+type EmailData =
+  | EntryConfirmationData
+  | PaymentReceiptData
+  | WelcomeEmailData
+  | WaitlistOfferData
+  | EntryDecisionData;
 
 Deno.serve(async req => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -139,7 +149,6 @@ Deno.serve(async req => {
     });
 
   try {
-
     // Check for API key
     if (!resendApiKey) {
       console.error('RESEND_API_KEY not configured');
@@ -187,6 +196,14 @@ Deno.serve(async req => {
         return jsonResponse({ error: `Unknown email type: ${(data as EmailData).type}` }, 400);
     }
 
+    const resendPayload = {
+      from: FROM_EMAIL,
+      to: data.to,
+      subject,
+      html,
+      ...(data.cc?.length ? { cc: data.cc } : {}),
+    };
+
     // Send email via Resend
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -194,12 +211,7 @@ Deno.serve(async req => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${resendApiKey}`,
       },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: data.to,
-        subject,
-        html,
-      }),
+      body: JSON.stringify(resendPayload),
     });
 
     if (!response.ok) {
@@ -221,10 +233,10 @@ Deno.serve(async req => {
     if ('registrationId' in data && data.registrationId) {
       logRow.related_id = data.registrationId;
     }
-    await supabase.from('email_log').insert(logRow).then(
-      null,
-      (err: unknown) => console.log('Could not log email:', err)
-    );
+    await supabase
+      .from('email_log')
+      .insert(logRow)
+      .then(null, (err: unknown) => console.log('Could not log email:', err));
 
     return jsonResponse({ success: true, id: result.id });
   } catch (error: unknown) {
@@ -586,17 +598,18 @@ function generateWaitlistOfferEmail(data: WaitlistOfferData): string {
 
 function generateEntryDecisionEmail(data: EntryDecisionData): string {
   const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
-    accepted:      { bg: '#d1fae5', color: '#065f46', label: 'Accepted' },
-    not_accepted:  { bg: '#fee2e2', color: '#7f1d1d', label: 'Not Accepted' },
-    waitlisted:    { bg: '#fef3c7', color: '#78350f', label: 'Waitlisted' },
-    withdrawn:     { bg: '#f3f4f6', color: '#374151', label: 'Withdrawn' },
-    missing_info:  { bg: '#fef3c7', color: '#78350f', label: 'Missing Info' },
-    pending:       { bg: '#f3f4f6', color: '#374151', label: 'Pending' },
+    accepted: { bg: '#d1fae5', color: '#065f46', label: 'Accepted' },
+    not_accepted: { bg: '#fee2e2', color: '#7f1d1d', label: 'Not Accepted' },
+    waitlisted: { bg: '#fef3c7', color: '#78350f', label: 'Waitlisted' },
+    withdrawn: { bg: '#f3f4f6', color: '#374151', label: 'Withdrawn' },
+    missing_info: { bg: '#fef3c7', color: '#78350f', label: 'Missing Info' },
+    pending: { bg: '#f3f4f6', color: '#374151', label: 'Pending' },
   };
 
-  const entriesHtml = data.entries.map(e => {
-    const s = statusStyles[e.status] ?? statusStyles.pending;
-    return `<tr>
+  const entriesHtml = data.entries
+    .map(e => {
+      const s = statusStyles[e.status] ?? statusStyles.pending;
+      return `<tr>
       <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-weight: 500;">${escapeHtml(e.dogName)}</td>
       <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280;">${escapeHtml(e.className)}</td>
       <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; text-align: center;">
@@ -604,7 +617,8 @@ function generateEntryDecisionEmail(data: EntryDecisionData): string {
       </td>
       <td style="padding: 10px 0; border-bottom: 1px solid #f3f4f6; text-align: right; color: #6b7280; font-size: 14px;">${e.armbandNumber ? `#${escapeHtml(e.armbandNumber)}` : ''}</td>
     </tr>`;
-  }).join('');
+    })
+    .join('');
 
   const hasWaitlisted = data.entries.some(e => e.status === 'waitlisted');
   const hasNotAccepted = data.entries.some(e => e.status === 'not_accepted');
@@ -637,16 +651,24 @@ function generateEntryDecisionEmail(data: EntryDecisionData): string {
           </thead>
           <tbody>${entriesHtml}</tbody>
         </table>
-        ${data.amountDue !== undefined ? `
+        ${
+          data.amountDue !== undefined
+            ? `
         <div style="background-color: #f9fafb; border-radius: 6px; padding: 16px; margin-top: 20px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
           <span style="font-weight: 600; font-size: 15px; color: #1f2937;">Amount Due</span>
           <span style="font-weight: 700; font-size: 18px; color: #1f2937;">$${data.amountDue.toFixed(2)}</span>
-        </div>` : ''}
-        ${data.message ? `
+        </div>`
+            : ''
+        }
+        ${
+          data.message
+            ? `
         <div style="background-color: #eff6ff; border-radius: 6px; padding: 16px; margin-top: 16px; border-left: 4px solid #3b82f6;">
           <p style="margin: 0 0 4px; font-weight: 600; font-size: 14px; color: #1e40af;">From the show secretary</p>
           <p style="margin: 0; color: #1e3a5f; font-size: 14px; line-height: 22px; white-space: pre-line;">${escapeHtml(data.message)}</p>
-        </div>` : ''}
+        </div>`
+            : ''
+        }
         ${hasWaitlisted ? `<p style="color: #6b7280; font-size: 14px; margin-top: 16px;">Waitlisted entries: you'll be notified if a spot opens up.</p>` : ''}
         ${hasNotAccepted ? `<p style="color: #6b7280; font-size: 14px; margin-top: 8px;">If you have questions about an entry that was not accepted, please contact the show secretary.</p>` : ''}
         ${hasMissingInfo ? `<p style="color: #78350f; font-size: 14px; margin-top: 8px;">One or more entries require additional information — please see the secretary's message above.</p>` : ''}

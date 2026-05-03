@@ -67,7 +67,20 @@ Live triage log from walking the secretary golden path on `localhost:5173`. Item
 
 - **Secretary Task Timeline View** — Add a Timeline toggle to the Tasks tab on the secretary dashboard so secretaries can see task due dates on a date grid alongside the existing list view. Plan: [`docs/plans/2026-05-02-secretary-task-timeline-view-plan.md`](docs/plans/2026-05-02-secretary-task-timeline-view-plan.md). No migration required for v1 — derives everything from existing `due_date` column.
 
-### Open — Found-but-deferred during this walk
+### ✅ Resolved 2026-05-03 — Exhibitor golden path walk (bugs 1, 6, 7, 8, 9)
+
+- **Browse shows shows 0 for unauthenticated visitors** — `useBrowseShowsData` now runs a React Query public shows fallback (`enabled: !user`) using direct Supabase query + `mapDatabaseShowsArray`. RLS already allows unauthenticated reads for published/upcoming/in_progress shows.
+- **Payment Method shows "Unknown" on confirmation screen** — `getPaymentMethodDisplay` default case changed to 'Credit/Debit Card (Online)' to handle unset online payment method. 6 new unit tests added.
+- **"bring your payment (payment)" template bug** — ConfirmationStep reminder condition tightened: now only shows for `paymentMethod === 'check' || === 'cash'`. Same fix applied to "Payment is due at show" alert.
+- **ShowDetailsPage hero doesn't update after registration** — `triggerSync()` called after `submitRegistration` completes so entry store refreshes before user navigates to ShowDetailsPage.
+- **Class names show trailing "#" when armband unassigned** — `MyEntryCard` now guards `cls.number` before rendering `#`.
+
+### Open — Found during exhibitor walk (2026-05-03)
+
+- **Show cards don't show personalized badge for logged-in users** — cards always show generic status ("Accepting Entries") even when user already entered. Needs `userHasEntriesForShow` wired into the card. Phase 3 enhancement.
+- **Entry date without label on MyEntriesPage** — calendar icon date is the entry close date, not show date, but has no label. Minor polish, Phase 3.
+
+### Open — Phase 2 Planned Work
 
 - ~~**Cannot test Accept / Waitlist / Bulk-email paths without an exhibitor account**~~ ✓ resolved 2026-05-01 — `exhibitor1@myk9t.com` / `TestPass1234!` confirmed working. 3 entries (all Pending) seeded in "QA Walk Show 1777260779" (ID `a0505c45-64d0-4b04-b2b3-cb213ed738a6`). Seed state documented in [`docs/testing/secretary-walk-seed.md`](docs/testing/secretary-walk-seed.md).
 - ~~**DateRangePicker has no "clear" button**~~ ✓ resolved 2026-05-02 — Added an X button (appears when a range is set) that calls `onStartDateChange(undefined)` + `onEndDateChange(undefined)` and resets local time state to defaults. `disabled` prop suppresses it. Fixed in [`apps/myk9show/src/components/ui/date-range-picker.tsx`](apps/myk9show/src/components/ui/date-range-picker.tsx).

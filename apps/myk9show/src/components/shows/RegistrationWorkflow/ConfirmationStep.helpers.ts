@@ -201,7 +201,7 @@ export function getPaymentMethodDisplay(paymentMethod: string): string {
     case 'waived':
       return 'Fees Waived';
     default:
-      return 'Unknown';
+      return 'Credit/Debit Card (Online)';
   }
 }
 

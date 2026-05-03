@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { generateReceiptHtml, type ReceiptData } from '../ConfirmationStep.helpers';
+import { generateReceiptHtml, getPaymentMethodDisplay, type ReceiptData } from '../ConfirmationStep.helpers';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
 function makeReceipt(overrides: Partial<ReceiptData> = {}): ReceiptData {
@@ -39,6 +39,34 @@ function makeReceipt(overrides: Partial<ReceiptData> = {}): ReceiptData {
     ...overrides,
   };
 }
+
+describe('getPaymentMethodDisplay', () => {
+  it('maps credit_card → Credit Card', () => {
+    expect(getPaymentMethodDisplay('credit_card')).toBe('Credit Card');
+  });
+
+  it('maps check → Check (Pay at Show)', () => {
+    expect(getPaymentMethodDisplay('check')).toBe('Check (Pay at Show)');
+  });
+
+  it('maps cash → Cash (Pay at Show)', () => {
+    expect(getPaymentMethodDisplay('cash')).toBe('Cash (Pay at Show)');
+  });
+
+  it('maps waived → Fees Waived', () => {
+    expect(getPaymentMethodDisplay('waived')).toBe('Fees Waived');
+  });
+
+  // Regression: empty string previously returned 'Unknown' when online payment
+  // was the only option and the user never explicitly selected it.
+  it('returns Credit/Debit Card for empty string (unset online payment)', () => {
+    expect(getPaymentMethodDisplay('')).toBe('Credit/Debit Card (Online)');
+  });
+
+  it('returns Credit/Debit Card for unrecognised values', () => {
+    expect(getPaymentMethodDisplay('stripe')).toBe('Credit/Debit Card (Online)');
+  });
+});
 
 describe('generateReceiptHtml — XSS protection', () => {
   it('escapes script tags in a dog name', () => {

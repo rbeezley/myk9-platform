@@ -108,7 +108,8 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
             <div key={cls.id} className="myk9-entries-class-item">
               <div className="flex items-center gap-2 flex-1">
                 <span className="myk9-entries-class-name">
-                  {cls.name} #{cls.number}
+                  {cls.name}
+                  {cls.number ? ` #${cls.number}` : ''}
                   {cls.jumpHeight && ` (${cls.jumpHeight})`}
                 </span>
 

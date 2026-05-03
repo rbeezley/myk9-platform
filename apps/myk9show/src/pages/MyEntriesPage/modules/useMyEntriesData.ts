@@ -56,6 +56,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       id: string;
       name: string;
       start_date: string;
+      entry_close_date?: string | null;
       venue?: string;
       city?: string;
       state?: string;
@@ -115,6 +116,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       paymentStatus,
       registrationNumber: registration?.confirmation_number,
       confirmationNumber,
+      entryCloseDate: show?.entry_close_date ? new Date(show.entry_close_date) : undefined,
       submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),
       lastUpdated: new Date(entry.updated_at as string),
     };

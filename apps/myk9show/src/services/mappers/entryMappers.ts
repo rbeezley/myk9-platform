@@ -466,6 +466,7 @@ export const mapReplicatedShowToEntryRow = (show: ReplicatedShow): Record<string
     name: 'name',
     start_date: 'startDate',
     end_date: 'endDate',
+    entry_close_date: 'entryCloseDate',
     location: 'location',
     status: 'status',
   });

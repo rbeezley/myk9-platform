@@ -144,8 +144,12 @@ export function useBrowseShowsFilters({
       });
     }
 
-    // Date range filter (only apply if not already filtered by tab)
-    if (selectedTab !== 'past' && filters.dateRange !== 'all') {
+    // Date range filter — skip for role-scoped tabs that already define their own
+    // time range ('past', 'managing', 'assignments').  Applying 'upcoming' on top
+    // of 'managing' would silently drop ongoing/past-start shows from the admin view.
+    const skipDateFilter =
+      selectedTab === 'past' || selectedTab === 'managing' || selectedTab === 'assignments';
+    if (!skipDateFilter && filters.dateRange !== 'all') {
       const now = new Date();
       if (filters.dateRange === 'upcoming') {
         filtered = filtered.filter(show => {

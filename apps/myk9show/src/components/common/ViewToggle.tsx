@@ -1,5 +1,4 @@
 import { LayoutGrid, List, Table2, CalendarDays, Network } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const iconMap = {
@@ -27,22 +26,26 @@ export function ViewToggle({ modes, active, onChange, className }: ViewTogglePro
   if (modes.length <= 1) return null;
 
   return (
-    <div className={cn('flex bg-muted/50 rounded-lg p-1', className)}>
+    <div className={cn('flex items-center border rounded-lg overflow-hidden', className)}>
       {modes.map(mode => {
         const Icon = iconMap[mode.icon];
+        const isActive = active === mode.key;
         return (
-          <Button
+          <button
             key={mode.key}
             type="button"
-            variant={active === mode.key ? 'default' : 'ghost'}
-            size="default"
+            aria-label={`${mode.label} view`}
             title={`${mode.label} view`}
             onClick={() => onChange(mode.key)}
-            className="h-10 px-3 transition-all duration-200"
+            className={cn(
+              'p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+              isActive
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
           >
-            <Icon className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{mode.label}</span>
-          </Button>
+            <Icon className="h-4 w-4" />
+          </button>
         );
       })}
     </div>

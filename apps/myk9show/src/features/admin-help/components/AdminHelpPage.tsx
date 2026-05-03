@@ -62,7 +62,9 @@ export function AdminHelpPage() {
     setViewModeRaw(validated);
     try {
       localStorage.setItem('view-pref-admin-help', validated);
-    } catch {}
+    } catch (_e) {
+      // localStorage may be unavailable in private browsing — ignore silently
+    }
   }, []);
 
   const { data: ids, isLoading } = useExampleIds();

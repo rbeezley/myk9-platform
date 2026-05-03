@@ -2,7 +2,7 @@ import React from 'react';
 import { Clock, Target, AlertTriangle, MapPin, Eye, Layers, Timer } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Badge } from '@/components/ui/badge';
-import { useClassRequirements } from '@/hooks/queries/useClassRequirements';
+import { useClassRequirements, type ClassRequirements } from '@/hooks/queries/useClassRequirements';
 import { cn } from '@/lib/utils';
 
 interface ClassRequirementsPanelProps {
@@ -54,6 +54,20 @@ function RequirementCard({ icon, colorClass, label, value, subtitle }: Requireme
 function buildTimeSubtitle(timeType: 'fixed' | 'range' | null): string | undefined {
   if (timeType === 'range') return 'Judge sets within range';
   return undefined;
+}
+
+/** Returns true if the requirements object has at least one card worth rendering. */
+function hasAnyDisplayableData(req: ClassRequirements | null): boolean {
+  if (!req) return false;
+  return (
+    !!req.time_limit_text ||
+    !!req.hides ||
+    (!!req.distractions && req.distractions !== '0') ||
+    req.area_count > 1 ||
+    req.has_blank ||
+    req.timer_mode === 'dual' ||
+    (req.odors != null && req.odors.length > 0)
+  );
 }
 
 export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
@@ -110,7 +124,7 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
             ))}
           </div>
         </div>
-      ) : !requirements ? (
+      ) : !requirements || !hasAnyDisplayableData(requirements) ? (
         <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
           <Layers className="h-10 w-10 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">

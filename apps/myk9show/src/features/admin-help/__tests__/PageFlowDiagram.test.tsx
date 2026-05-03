@@ -36,7 +36,7 @@ function entry(path: string): PageEntry {
 
 beforeEach(() => {
   mockNavigate.mockReset();
-  delete (window as any).__myk9FlowNav; // clean up between tests
+  delete (window as unknown as Record<string, unknown>).__myk9FlowNav; // clean up between tests
   // Default: resolve immediately so render completes
   vi.mocked(mermaid.render).mockResolvedValue({ svg: '<svg></svg>' });
 });
@@ -77,7 +77,7 @@ describe('PageFlowDiagram', () => {
     await waitFor(() => expect(mermaid.render).toHaveBeenCalled());
 
     // Simulate a Mermaid node click via the global callback
-    (window as any).__myk9FlowNav('admin_users');
+    (window as unknown as Record<string, unknown>).__myk9FlowNav('admin_users');
 
     expect(mockNavigate).toHaveBeenCalledWith('/admin/users');
   });

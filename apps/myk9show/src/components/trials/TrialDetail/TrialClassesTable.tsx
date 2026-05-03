@@ -10,12 +10,18 @@ import {
   DataTableSearch,
   DataTableColumnToggle,
 } from '@/components/ui/data-table';
-import { Plus, LayoutGrid, List, Layers } from 'lucide-react';
+import { Plus, Layers } from 'lucide-react';
+import { ViewToggle } from '@/components/common/ViewToggle';
 import { TrialClassesCards } from './TrialClassesCards';
 import { getClassStatusBadgeClasses } from '@myk9/core';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 
 type ViewMode = 'table' | 'cards';
+
+const TRIAL_CLASSES_VIEW_MODES = [
+  { key: 'table', label: 'Table', icon: 'list' as const },
+  { key: 'cards', label: 'Cards', icon: 'grid' as const },
+] as const;
 
 // Scent work uses different level names than the standard progression (Advanced/Excellent vs Intermediate/Senior)
 const LEVEL_PROGRESSION: Record<string, number> = {
@@ -195,32 +201,11 @@ export const TrialClassesTable = ({
           <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center border rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`p-2 transition-colors ${
-                viewMode === 'table'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-              }`}
-              title="Table view"
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('cards')}
-              className={`p-2 transition-colors ${
-                viewMode === 'cards'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-              }`}
-              title="Card view"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
+          <ViewToggle
+            modes={TRIAL_CLASSES_VIEW_MODES}
+            active={viewMode}
+            onChange={v => setViewMode(v as ViewMode)}
+          />
           {onAddClassesFromTemplate && (
             <Button
               onClick={onAddClassesFromTemplate}

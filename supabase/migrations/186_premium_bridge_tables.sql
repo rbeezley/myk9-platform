@@ -1,4 +1,4 @@
--- supabase/migrations/185_premium_bridge_tables.sql
+-- supabase/migrations/186_premium_bridge_tables.sql
 -- rollback: drop table public.premium_generations; drop table public.club_premium_templates;
 
 create table public.club_premium_templates (
@@ -27,16 +27,14 @@ create unique index club_premium_templates_default_unique
 create index club_premium_templates_club_type
   on public.club_premium_templates(club_id, trial_type);
 
+-- keep updated_at current on every write
+create trigger club_premium_templates_updated_at
+  before update on public.club_premium_templates
+  for each row execute function set_updated_at();
+
 alter table public.club_premium_templates enable row level security;
 
-create policy "club members can view premium templates"
-  on public.club_premium_templates for select
-  using (
-    public.is_site_admin()
-    or public.is_trial_secretary(club_id)
-    or public.is_club_admin(club_id)
-  );
-
+-- single "for all" policy covers select + insert + update + delete
 create policy "club members can manage premium templates"
   on public.club_premium_templates for all
   using (
@@ -54,7 +52,7 @@ create policy "club members can manage premium templates"
 create table public.premium_generations (
   id              uuid primary key default gen_random_uuid(),
   show_id         uuid not null references public.shows(id) on delete cascade,
-  club_id         uuid not null references public.clubs(id),
+  club_id         uuid not null references public.clubs(id) on delete cascade,
   template_id     uuid references public.club_premium_templates(id),
   org             text not null check (org in ('AKC', 'UKC')),
   generated_at    timestamptz not null default now(),

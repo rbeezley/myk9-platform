@@ -95,6 +95,7 @@ create table club_premium_templates (
   name            text not null,                     -- "Scent Work", "Outdoor Shows", etc.
   trial_type      text,                              -- nullable; matches show trial_type for auto-select
   is_default      boolean not null default false,
+  style           text not null default 'classic' check (style in ('classic', 'modern', 'minimal')),
   vet_clinic_name     text,
   vet_clinic_address  text,
   vet_clinic_phone    text,
@@ -177,6 +178,7 @@ Claude's role is limited to narrative generation, not data extraction. All factu
 ```typescript
 interface GeneratedPremium {
   org: 'AKC' | 'UKC'
+  style: 'classic' | 'modern' | 'minimal'  // from template; overridable per-show in GeneratePremiumPanel
   show: { name, startDate, endDate, venue, entryOpenDate, entryCloseDate,
           preEntryFee, dayOfFee, acceptChecks, acceptCash }
   club: { name, logo_url }
@@ -216,7 +218,7 @@ Both accept `GeneratedPremium` as props and render a download-ready PDF. Club lo
 
 ### 6e. Per-Show Overrides
 
-Before downloading, the secretary sees a preview panel listing all supplemental fields. Any field can be overridden for this show without modifying the club template. Overrides are ephemeral in the UI — they only persist if the secretary downloads (at which point they're logged to `premium_generations.field_overrides`).
+Before downloading, the secretary sees a preview panel listing all supplemental fields and a style picker. Any field — including the visual style — can be overridden for this show without modifying the club template. The style picker shows three options (Classic / Modern / Minimal) defaulting to whatever the club template specifies. Overrides are ephemeral in the UI — they only persist if the secretary downloads (at which point they're logged to `premium_generations.field_overrides`).
 
 ### 6f. Correction Logging
 

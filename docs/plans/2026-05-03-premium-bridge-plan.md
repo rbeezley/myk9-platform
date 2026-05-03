@@ -91,6 +91,7 @@ create table public.club_premium_templates (
   name                text not null,
   trial_type          text,
   is_default          boolean not null default false,
+  style               text not null default 'classic' check (style in ('classic', 'modern', 'minimal')),
   vet_clinic_name     text,
   vet_clinic_address  text,
   vet_clinic_phone    text,
@@ -206,6 +207,7 @@ export interface ClubPremiumTemplate {
   name: string
   trialType: string | null
   isDefault: boolean
+  style: PremiumStyle
   vetClinicName: string | null
   vetClinicAddress: string | null
   vetClinicPhone: string | null
@@ -225,8 +227,11 @@ export interface PremiumSupplemental {
   additionalNotes: string | null
 }
 
+export type PremiumStyle = 'classic' | 'modern' | 'minimal'
+
 export interface GeneratedPremium {
   org: 'AKC' | 'UKC'
+  style: PremiumStyle         // from template; overridable per-show in GeneratePremiumPanel
   templateId: string | null   // id of the club_premium_templates row used; null if none
   show: {
     name: string
@@ -474,7 +479,7 @@ git commit -m "feat(premium-bridge): types + selectPremiumTemplate + detectConse
 ```typescript
 // apps/myk9show/src/services/database/queries/premiumTemplateQueries.ts
 import { supabase } from '@/lib/supabase'
-import type { ClubPremiumTemplate, PremiumGeneration } from '../../../types/premium-types'
+import type { ClubPremiumTemplate, PremiumGeneration, PremiumStyle } from '../../../types/premium-types'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -485,6 +490,7 @@ function rowToTemplate(row: Record<string, unknown>): ClubPremiumTemplate {
     name: row.name as string,
     trialType: row.trial_type as string | null,
     isDefault: row.is_default as boolean,
+    style: (row.style as PremiumStyle) ?? 'classic',
     vetClinicName: row.vet_clinic_name as string | null,
     vetClinicAddress: row.vet_clinic_address as string | null,
     vetClinicPhone: row.vet_clinic_phone as string | null,
@@ -503,6 +509,7 @@ function templateToRow(t: Partial<ClubPremiumTemplate>): Record<string, unknown>
   if (t.name !== undefined) row.name = t.name
   if (t.trialType !== undefined) row.trial_type = t.trialType
   if (t.isDefault !== undefined) row.is_default = t.isDefault
+  if (t.style !== undefined) row.style = t.style
   if (t.vetClinicName !== undefined) row.vet_clinic_name = t.vetClinicName
   if (t.vetClinicAddress !== undefined) row.vet_clinic_address = t.vetClinicAddress
   if (t.vetClinicPhone !== undefined) row.vet_clinic_phone = t.vetClinicPhone
@@ -724,6 +731,7 @@ export function PremiumTemplatesTab({ clubId }: Props) {
     name: '',
     trialType: null,
     isDefault: false,
+    style: 'classic',
     vetClinicName: null,
     vetClinicAddress: null,
     vetClinicPhone: null,
@@ -743,6 +751,7 @@ export function PremiumTemplatesTab({ clubId }: Props) {
   function openEdit(t: ClubPremiumTemplate) {
     setForm({
       clubId: t.clubId, name: t.name, trialType: t.trialType, isDefault: t.isDefault,
+      style: t.style,
       vetClinicName: t.vetClinicName, vetClinicAddress: t.vetClinicAddress,
       vetClinicPhone: t.vetClinicPhone, accommodations: t.accommodations,
       hospitalityNotes: t.hospitalityNotes, awardsDescription: t.awardsDescription,
@@ -823,6 +832,26 @@ export function PremiumTemplatesTab({ clubId }: Props) {
             <div className="space-y-1">
               <Label className="text-xs">Trial Type (for auto-select)</Label>
               <Input value={form.trialType ?? ''} onChange={e => setForm(f => ({ ...f, trialType: e.target.value || null }))} placeholder="Scent Work" />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">Default Style</Label>
+            <div className="flex gap-2">
+              {(['classic', 'modern', 'minimal'] as const).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, style: s }))}
+                  className={`flex-1 py-1.5 text-xs rounded border capitalize transition-colors ${
+                    form.style === s
+                      ? 'border-primary bg-primary/10 text-primary font-medium'
+                      : 'border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1051,6 +1080,7 @@ Return ONLY the JSON object. No other text.`
 
   const generated = {
     org,
+    style: (template?.style ?? 'classic') as 'classic' | 'modern' | 'minimal',
     show: {
       name: show.name,
       startDate: show.start_date,
@@ -1257,20 +1287,55 @@ import type { GeneratedPremium } from '../../../types/premium-types'
 
 const PLACEHOLDER = '[REQUIRED — add before submitting]'
 
-const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: '#1a1a1a' },
-  header: { alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 16, fontFamily: 'Helvetica-Bold', textAlign: 'center' },
-  subtitle: { fontSize: 12, textAlign: 'center', marginTop: 4 },
-  section: { marginTop: 12 },
-  sectionTitle: { fontSize: 11, fontFamily: 'Helvetica-Bold', textAlign: 'center', marginBottom: 4, textTransform: 'uppercase' },
-  row: { flexDirection: 'row', marginBottom: 2 },
-  label: { fontFamily: 'Helvetica-Bold', width: 120 },
-  value: { flex: 1 },
-  narrative: { lineHeight: 1.5, marginTop: 4 },
-  placeholder: { color: '#cc0000', fontFamily: 'Helvetica-Oblique' },
-  divider: { borderBottom: '1pt solid #333', marginVertical: 8 },
-})
+// Style variants — classic uses serif feel + centered titles; modern is clean sans + left-aligned;
+// minimal strips decorative elements for dense black-and-white printing
+const STYLE_TOKENS = {
+  classic: {
+    bodyFont: 'Times-Roman' as const,
+    boldFont: 'Times-Bold' as const,
+    accentColor: '#1a1a5e',
+    dividerColor: '#1a1a5e',
+    sectionTitleAlign: 'center' as const,
+    sectionTitleSize: 11,
+    headerBg: null,
+  },
+  modern: {
+    bodyFont: 'Helvetica' as const,
+    boldFont: 'Helvetica-Bold' as const,
+    accentColor: '#0f172a',
+    dividerColor: '#94a3b8',
+    sectionTitleAlign: 'left' as const,
+    sectionTitleSize: 10,
+    headerBg: null,
+  },
+  minimal: {
+    bodyFont: 'Helvetica' as const,
+    boldFont: 'Helvetica-Bold' as const,
+    accentColor: '#000000',
+    dividerColor: '#000000',
+    sectionTitleAlign: 'left' as const,
+    sectionTitleSize: 9,
+    headerBg: null,
+  },
+}
+
+function buildStyles(style: PremiumStyle) {
+  const t = STYLE_TOKENS[style]
+  return StyleSheet.create({
+    page: { padding: 40, fontFamily: t.bodyFont, fontSize: 10, color: '#1a1a1a' },
+    header: { alignItems: 'center', marginBottom: 16 },
+    title: { fontSize: 16, fontFamily: t.boldFont, textAlign: 'center', color: t.accentColor },
+    subtitle: { fontSize: 12, textAlign: 'center', marginTop: 4 },
+    section: { marginTop: 12 },
+    sectionTitle: { fontSize: t.sectionTitleSize, fontFamily: t.boldFont, textAlign: t.sectionTitleAlign, marginBottom: 4, textTransform: 'uppercase', color: t.accentColor },
+    row: { flexDirection: 'row', marginBottom: 2 },
+    label: { fontFamily: t.boldFont, width: 120 },
+    value: { flex: 1 },
+    narrative: { lineHeight: 1.5, marginTop: 4 },
+    placeholder: { color: '#cc0000', fontFamily: 'Helvetica-Oblique' },
+    divider: { borderBottom: `1pt solid ${t.dividerColor}`, marginVertical: 8 },
+  })
+}
 
 interface Props { premium: GeneratedPremium }
 
@@ -1288,6 +1353,7 @@ function Field({ label, value }: { label: string; value: string | null }) {
 
 export function AKCPremiumTemplate({ premium }: Props) {
   const { show, club, secretary, trials, supplemental, narratives } = premium
+  const styles = buildStyles(premium.style)
 
   return (
     <Document>
@@ -1608,6 +1674,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
   const [premium, setPremium] = useState<GeneratedPremium | null>(null)
   const [overrides, setOverrides] = useState<GeneratedPremium['supplemental'] | null>(null)
   const [narrativeEdits, setNarrativeEdits] = useState<{ showHours: string; trialInformation: string } | null>(null)
+  const [styleOverride, setStyleOverride] = useState<PremiumStyle | null>(null)
   const [hasNarrativeError, setHasNarrativeError] = useState(false)
 
   async function handleGenerate() {
@@ -1615,6 +1682,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     setPremium(result)
     setOverrides(result.supplemental)
     setNarrativeEdits(result.narratives)
+    setStyleOverride(null)  // reset to template default on each generation
     setHasNarrativeError(result.narratives.showHours.startsWith('[REQUIRED'))
   }
 
@@ -1622,6 +1690,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     if (!premium || !overrides || !narrativeEdits) return premium!
     return {
       ...premium,
+      style: styleOverride ?? premium.style,
       supplemental: overrides,
       narratives: narrativeEdits,
     }
@@ -1643,6 +1712,9 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     if (narrativeEdits.trialInformation !== premium.narratives.trialInformation) {
       narrEdits['trialInformation'] = { generatedValue: premium.narratives.trialInformation, finalValue: narrativeEdits.trialInformation }
     }
+    if (styleOverride && styleOverride !== premium.style) {
+      fieldOverrides['style'] = { templateValue: premium.style, finalValue: styleOverride }
+    }
     // [EXPANDED] non-blocking — PDF already downloaded; losing the log is better than blocking the download
     try {
       await logPremiumGeneration(showId, clubId, premium, fieldOverrides, narrEdits)
@@ -1653,6 +1725,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
 
   const finalPremium = premium ? buildFinalPremium() : null
   const PdfTemplate = finalPremium?.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate
+  const activeStyle = styleOverride ?? premium?.style ?? 'classic'
 
   return (
     <Sheet open={open} onOpenChange={o => { if (!o) onClose() }}>
@@ -1706,6 +1779,31 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                 </AlertDescription>
               </Alert>
             )}
+
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Style</h4>
+              <div className="flex gap-2">
+                {(['classic', 'modern', 'minimal'] as const).map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStyleOverride(s)}
+                    className={`flex-1 py-1.5 text-xs rounded border capitalize transition-colors ${
+                      activeStyle === s
+                        ? 'border-primary bg-primary/10 text-primary font-medium'
+                        : 'border-border text-muted-foreground hover:border-primary/50'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              {styleOverride && styleOverride !== premium?.style && (
+                <p className="text-xs text-muted-foreground">
+                  Template default: {premium?.style}. This override applies to this premium only.
+                </p>
+              )}
+            </div>
 
             <div className="space-y-3">
               <h4 className="font-semibold text-sm">Supplemental Fields</h4>

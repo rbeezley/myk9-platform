@@ -11,9 +11,10 @@ import { ShowWithRelationship } from '@/types/unified-shows-types';
  * Check if user has permission to view a specific show
  */
 export function canViewShow(user: UserWithRoles | null, show: Show): boolean {
-  // Guest users can view public shows
+  // Guest users can view public shows (status values are lowercase post-migration 072)
   if (!user) {
-    return show.status === 'Upcoming' || show.status === 'Completed';
+    const s = show.status.toLowerCase();
+    return s === 'upcoming' || s === 'completed' || s === 'published' || s === 'in_progress';
   }
 
   // Authenticated users can view all shows
@@ -265,8 +266,11 @@ export function checkRoleWithAudit(
  */
 export function filterShowsByPermissions(shows: Show[], user: UserWithRoles | null): Show[] {
   if (!user) {
-    // Guests can only see public upcoming and completed shows
-    return shows.filter(show => show.status === 'Upcoming' || show.status === 'Completed');
+    // Guests can see public shows (status values are lowercase post-migration 072)
+    return shows.filter(show => {
+      const s = show.status.toLowerCase();
+      return s === 'upcoming' || s === 'completed' || s === 'published' || s === 'in_progress';
+    });
   }
 
   const roles = user.roles || [];

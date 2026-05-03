@@ -86,12 +86,13 @@ export function useBrowseShowsData({
 
   // Guest fallback: fetch public shows directly when not authenticated.
   // The shows_select RLS policy allows unauthenticated reads for published/upcoming/in_progress/completed.
-  const { data: publicShows } = useQuery({
+  const { data: publicShows, isLoading: publicShowsLoading } = useQuery({
     queryKey: ['shows', 'public'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('shows')
-        .select('*, club:clubs(name, address, email, logo_url, cover_image_url)')
+        // Exclude logo_url / cover_image_url — they can be multi-MB base64 blobs
+        .select('*, club:clubs(name, address, email)')
         .in('status', ['published', 'upcoming', 'in_progress', 'completed'])
         .is('deleted_at', null)
         .order('start_date', { ascending: true });
@@ -119,7 +120,11 @@ export function useBrowseShowsData({
     !!user &&
     (syncStatus.tablesStatus.shows === 'idle' || syncStatus.tablesStatus.shows === 'syncing');
   const isLoading =
-    authLoading || showsLoading || entriesLoading || (shows.length === 0 && showsSyncPending);
+    authLoading ||
+    showsLoading ||
+    entriesLoading ||
+    (shows.length === 0 && showsSyncPending) ||
+    publicShowsLoading;
   const hasError = !!(showsError || entriesError);
 
   // Get user show context for filtering with caching

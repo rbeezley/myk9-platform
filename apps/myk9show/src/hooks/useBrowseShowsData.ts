@@ -1,8 +1,11 @@
 import { useMemo, useCallback, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
 import { useShowStore } from '@/store/showStore';
+import { supabase } from '@/services/database/supabaseClient';
+import { mapDatabaseShowsArray } from '@/services/mappers/showMappers';
 import { logger } from '@/services/LoggingService';
 import type { Show } from '@/types/show-types';
 import type { UserShowContext, ShowRelationship } from '@/types/unified-shows-types';
@@ -78,8 +81,28 @@ export function useBrowseShowsData({
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const { userWithRoles: user, loading: authLoading } = useAuthContext();
-  const shows = useShowStore(s => s.shows);
+  const storeShows = useShowStore(s => s.shows);
   const showsLoading = useShowStore(s => s.isLoading);
+
+  // Guest fallback: fetch public shows directly when not authenticated.
+  // The shows_select RLS policy allows unauthenticated reads for published/upcoming/in_progress/completed.
+  const { data: publicShows } = useQuery({
+    queryKey: ['shows', 'public'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('shows')
+        .select('*, club:clubs(name, address, email, logo_url, cover_image_url)')
+        .in('status', ['published', 'upcoming', 'in_progress', 'completed'])
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true });
+      if (error) throw error;
+      return mapDatabaseShowsArray(data ?? []);
+    },
+    enabled: !authLoading && !user,
+    staleTime: 60_000,
+  });
+
+  const shows = user ? storeShows : (publicShows ?? storeShows);
   const storeErrorMsg = useShowStore(s => s.error);
   const showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
   const { entries, isLoading: entriesLoading, error: entriesError, loadEntries } = useEntryStore();

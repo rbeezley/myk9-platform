@@ -439,7 +439,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             </div>
             {(paymentStatus === PaymentStatus.PENDING ||
               paymentStatus === PaymentStatus.REFUNDED) &&
-              paymentMethod !== 'credit_card' && (
+              (paymentMethod === 'check' || paymentMethod === 'cash') && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="text-sm">
@@ -501,17 +501,13 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           <ul className="mt-2 space-y-1 list-disc list-inside text-sm">
             <li>Please arrive at least 30 minutes before your first class</li>
             <li>Bring your dog&apos;s vaccination records and registration papers</li>
-            {paymentStatus === PaymentStatus.PENDING && paymentMethod !== 'credit_card' && (
-              <li>
-                Remember to bring your payment (
-                {paymentMethod === 'check'
-                  ? 'check'
-                  : paymentMethod === 'cash'
-                    ? 'exact cash'
-                    : 'payment'}
-                )
-              </li>
-            )}
+            {paymentStatus === PaymentStatus.PENDING &&
+              (paymentMethod === 'check' || paymentMethod === 'cash') && (
+                <li>
+                  Remember to bring your{' '}
+                  {paymentMethod === 'check' ? 'check' : 'exact cash'} as payment
+                </li>
+              )}
             <li>Check-in at the show secretary&apos;s table upon arrival</li>
             {entryStatus === EntryStatus.WAITLIST && (
               <li className="text-orange-600 font-medium">

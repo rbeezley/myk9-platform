@@ -506,6 +506,8 @@ function RegistrationWizardContent() {
         }
 
         if (!mountedRef.current) return;
+        // Refresh entry store so ShowDetailsPage hero reflects the new entry immediately
+        triggerSync();
         markStepComplete(currentStep);
         setCurrentStep(prev => prev + 1);
       } catch (error) {

@@ -21,17 +21,15 @@ export function useExampleIds(): UseQueryResult<ExampleIds, Error> {
     queryKey: ['admin-help', 'example-ids'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const [show, trial, classRow, dog, club, role, template, entry] = await Promise.all([
+      // classes.show_id does not exist — classes link to shows via trial_id (see migration 164)
+      // organization_templates table is not yet built (post-fall deliverable) — skip gracefully
+      const [show, trial, classRow, dog, club, role, entry] = await Promise.all([
         firstRow<{ id: string }>('shows', 'id'),
         firstRow<{ id: string; show_id: string }>('trials', 'id, show_id'),
-        firstRow<{ id: string; trial_id: string; show_id: string }>(
-          'classes',
-          'id, trial_id, show_id'
-        ),
+        firstRow<{ id: string; trial_id: string }>('classes', 'id, trial_id'),
         firstRow<{ id: string }>('dogs', 'id'),
         firstRow<{ id: string }>('clubs', 'id'),
         firstRow<{ id: string }>('roles', 'id'),
-        firstRow<{ id: string }>('organization_templates', 'id'),
         firstRow<{ id: string }>('entries', 'id'),
       ]);
 
@@ -41,11 +39,9 @@ export function useExampleIds(): UseQueryResult<ExampleIds, Error> {
       if (trial?.show_id) result.trialShowId = trial.show_id;
       if (classRow?.id) result.classId = classRow.id;
       if (classRow?.trial_id) result.classTrialId = classRow.trial_id;
-      if (classRow?.show_id) result.classShowId = classRow.show_id;
       if (dog?.id) result.dogId = dog.id;
       if (club?.id) result.clubId = club.id;
       if (role?.id) result.roleId = role.id;
-      if (template?.id) result.templateId = template.id;
       if (entry?.id) result.entryId = entry.id;
       return result;
     },

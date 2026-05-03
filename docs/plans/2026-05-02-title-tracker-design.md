@@ -1,175 +1,192 @@
-# Design: AKC Scent Work Title Tracker
+# Design: Early Adopter Exhibitor Release
 
 **Date:** 2026-05-02  
 **Status:** Approved — ready for implementation planning  
-**Route:** `myk9show.com/titles`  
-**App:** `apps/myk9show` (existing app, new exhibitor-scoped section)
+**App:** `apps/myk9show` — no new app, no new Vercel project  
+**URL:** `myk9show.com` (existing deployment)
 
 ---
 
 ## 1. Overview
 
-A standalone-feeling section of myK9Show where AKC Scent Work exhibitors can track their dogs' qualifying legs and title progress. Exhibitors sign up for a myK9Show account, add their dogs, and manually log qualifying scores. The app computes title progress in real time.
+Release a polished, focused exhibitor experience on myK9Show before the full show management platform is complete. Early adopters get free access to dog management tools — title tracking, training journal, health records, pedigree — while show entry features arrive later.
 
-**Why build it now:** Gives exhibitors real value while myK9Show is still in development. When myK9Show is complete, the data is already there — dogs, scores, and history migrate automatically because they live in the same shared database.
+**The strategy:** myK9Show already has most of this built. The work is unlocking what exists, flagging what isn't ready, and giving exhibitors a clean entry point into the dog tools. When show management is complete, the "coming soon" screens flip to real features and early adopters' data is already in the system.
 
-**Design principle:** Exhibitors who sign up for the title tracker only see the title tracker. The half-finished secretary and admin screens are never exposed.
-
----
-
-## 2. Architecture
-
-Built entirely within `apps/myk9show`. No new Vercel project, no new app, no reverse proxy.
-
-**New pieces:**
-- Exhibitor-scoped route group at `/titles/*`
-- Element grid UI component in `packages/ui`
-- Score entry sheet component in `packages/ui`
-- AKC Scent Work seed data migration (sport templates + titles)
-
-**Reused pieces (already built):**
-- `titleEngine.ts` — pure computation, no changes needed
-- `useTitleProgress` hook — merges platform + manual results
-- `useQualifyingManualResultsQuery` — reads from `manual_results`
-- `public.manual_results` table — stores qualifying legs
-- `public.dogs` + `public.people` — dog roster and exhibitor profiles
-- `public.sport_templates` + `public.sport_titles` — title definitions (needs AKC SW data seeded)
-- Supabase auth — same account works across all myK9Show features
-
-**Routing access control:** Exhibitors who arrive at `/titles` only see the title tracker nav. The existing secretary/admin navigation is not rendered for the `exhibitor` role. This is already enforced by role-based routing.
+**Early adopter value proposition:** Track your dog's AKC Scent Work title progress, log training sessions, manage health records, and build your pedigree — free, today, on the platform that will eventually manage your show entries too.
 
 ---
 
-## 3. Data Model
+## 2. What Early Adopters See
 
-No new tables. All data lives in existing `public` schema tables.
+A clean, minimal experience focused entirely on dog management. Show-related features exist in the nav but show "coming soon" screens rather than being hidden — this builds anticipation and signals that more is coming.
 
-| Table | Usage |
-|---|---|
-| `auth.users` | Login — same account as myK9Show |
-| `public.people` | Exhibitor profile (`first_name`, `last_name`, `auth_user_id`) |
-| `public.dogs` | Dog roster (`name`, `call_name`, `breed`, `akc_number`, `date_of_birth`, `owner_id`) |
-| `public.manual_results` | Qualifying scores — one row per qualifying leg |
-| `public.sport_templates` | AKC Scent Work sport definition (needs seeding) |
-| `public.sport_titles` | Individual title definitions — SWCN, SWN, etc. (needs seeding) |
+### Nav for early adopters
+- **My Dogs** — their dog roster, entry point to all dog tools
+- **Shows** — coming soon placeholder
+- **My Entries** — coming soon placeholder  
+- **Calendar** — coming soon placeholder
+- **Account / Profile / Notifications** — fully functional
 
-**New migration required:** Seed AKC Scent Work title data into `sport_templates` and `sport_titles`. The exact leg counts per element/level must be verified against current AKC rulebook before writing the migration.
+### Dog Details tabs (at `/dogs/:id`)
 
-> ⚠️ **Important:** Once the title tracker is live with real exhibitors, `public.dogs`, `public.people`, and `public.manual_results` hold real user data. All myK9Show schema changes touching these tables must go through a Supabase branch test before pushing to main. See project memory: `project_titles_app_shared_tables.md`.
+| Tab | State | Notes |
+|---|---|---|
+| Activity | ✅ Live | Shows recent activity |
+| Registrations | ✅ Live | Shows their own entries |
+| Title Progress | ✅ Live (unlocked) | Early adopter bypass on BlurGate |
+| Training Journal | ✅ Live (unlocked) | Early adopter bypass on BlurGate |
+| Health Records | ✅ Live (unlocked) | Early adopter bypass on BlurGate |
+| Pedigree | ✅ Live (unlocked) | Early adopter bypass — verify build status before launch |
+| Competitions | 🔒 Feature flagged | Depends on show management |
+| Statistics | 🔒 Feature flagged | Depends on competition data |
 
 ---
 
-## 4. UI/UX
+## 3. Feature Flags
 
-### 4.1 Dog Picker
+A single TypeScript config file. Flip a flag to `true` and redeploy — the "coming soon" screen becomes the real page.
 
-Persistent dropdown at the top of the `/titles` screen. Shows all dogs owned by the signed-in exhibitor. Defaults to the last selected dog (persisted in `localStorage`). "Add a dog" option at the bottom opens the dog form.
+```typescript
+// src/config/features.ts
+export const features = {
+  // Dog tools — live for early adopters
+  titleTracking: true,
+  trainingJournal: true,
+  healthRecords: true,
+  pedigree: true,        // verify build status before enabling
 
-### 4.2 Element Grid
+  // Dog Details tabs — hidden until show management is ready
+  competitionsTab: false,
+  statisticsTab: false,
 
-The primary view. A matrix of **Element × Level** with each cell showing leg progress.
-
-```
-              Container    Interior    Exterior    Buried
-Novice        [2/3 ●●○]   [3/3 ✓]    [1/3 ●○○]   [0/3 ○○○]   → SWN
-Advanced      [0/3 ○○○]   [0/3 ○○○]  [0/3 ○○○]   [0/3 ○○○]   → SWA
-Excellent     [locked]    [locked]   [locked]    [locked]    → SWE
-Master        [locked]    [locked]   [locked]    [locked]    → SWM
+  // Show management — coming soon
+  browsShows: false,
+  showRegistration: false,
+  myEntries: false,
+  calendar: false,
+  showDay: false,
+  analytics: false,
+} as const;
 ```
 
-**Cell states:**
-- **In progress** — `X/Y legs` with filled/empty pip dots
-- **Complete** — checkmark + title abbreviation (e.g., SWCN), muted background
-- **Locked** — greyed out until the previous level for that element is complete
-- **Combined title banner** — appears at the end of each row when all 4 cells are complete (e.g., "SWN earned")
+**Two gates, different purposes:**
 
-**Interactions:**
-- Tap any in-progress or unlocked cell → opens Score Entry sheet pre-filled with that element + level
-- Tap a completed cell → shows the qualifying scores that earned it (date, show name, with delete option)
-- A persistent "+ Log Score" FAB opens the Score Entry sheet with no pre-fills
+| Gate | What it does | Used for |
+|---|---|---|
+| `features.*` | Shows a "coming soon" screen | Features not ready yet |
+| `BlurGate` / early adopter | Blurs content, upgrade CTA | Premium features |
+| Early adopter flag | Bypasses BlurGate | Free access during launch period |
 
-**Component location:** `packages/ui/src/components/title-tracker/ElementGrid.tsx`  
-myK9Show's existing `TitleProgressSection` (list-based) remains unchanged for now. The grid can replace it in a future session once it's proven in the title tracker.
-
-### 4.3 Score Entry Sheet
-
-Bottom sheet (mobile-friendly). Fields:
-
-| Field | Notes |
-|---|---|
-| Element | Pre-filled from cell tap; editable |
-| Level | Pre-filled from cell tap; editable |
-| Date | Defaults to today |
-| Show name | Free text, required |
-| Placement | Optional — 1st / 2nd / 3rd / 4th+ |
-| Notes | Optional free text |
-
-Only qualifying scores are logged here — no pass/fail field. Non-qualifying runs don't affect title progress.
-
-**On save:**
-- Optimistic UI — cell updates immediately
-- If this was the final leg for an element title: banner — "SWCN earned!"
-- If this also completes all 4 elements at that level: full celebration moment — "SWN earned!"
-
-**Edit/delete:** Tap a completed cell → score log list → delete icon per row. No inline edit (delete + re-enter is simpler and avoids stale-data edge cases).
-
-**Component location:** `packages/ui/src/components/title-tracker/ScoreEntrySheet.tsx`
-
-### 4.4 Dog Management
-
-Simple add/edit form for dog details. Fields mirror `public.dogs`: registered name, call name, breed, AKC number, DOB. Accessible from the dog picker "Add a dog" option and from a settings/profile page.
-
-### 4.5 Onboarding
-
-First sign-in: a one-screen prompt to capture `first_name` and `last_name` before landing on the grid. Writes to `public.people` with `auth_user_id` linked. If a `people` record already exists (returning myK9Show user), skip onboarding.
+Early adopters see real content instead of the blur — but still see "coming soon" screens for flagged features.
 
 ---
 
-## 5. Routes
+## 4. Early Adopter Access Model
 
-All under `/titles`, accessible to the `exhibitor` role:
+A single boolean column on `public.people`:
 
-| Route | Screen |
-|---|---|
-| `/titles` | Element grid for selected dog |
-| `/titles/dogs` | Dog roster (add / edit / delete) |
-| `/titles/dogs/new` | Add dog form |
-| `/titles/dogs/:id` | Edit dog form |
-| `/titles/onboarding` | First-time profile setup |
+```sql
+ALTER TABLE people ADD COLUMN is_early_adopter BOOLEAN NOT NULL DEFAULT FALSE;
+```
 
----
+`useSubscriptionGate` checks this alongside the existing premium check:
 
-## 6. AKC Scent Work Seeding
+```typescript
+const isPremium = subscription?.active || person?.is_early_adopter;
+```
 
-A single migration seeds the title definitions. Leg counts and prerequisites must be verified against the current AKC Scent Work rulebook before writing. The schema (`sport_templates`, `sport_titles`) is already in place — this is a data-only migration.
-
-Elements: Container, Interior, Exterior, Buried  
-Levels: Novice, Advanced, Excellent, Master  
-Element titles: SWCN, SWIN, SWEN, SWBN, SWCA, SWIA, SWEA, SWBA, SWCE, SWIE, SWEE, SWBE, SWCM, SWIM, SWEM, SWBM  
-Combined level titles: SWN, SWA, SWE, SWM
-
-> **TODO before migration:** Confirm exact leg counts per element/level with user — especially whether Master differs from the lower levels.
+Early adopters are set manually via Supabase dashboard for now — no self-serve signup flow needed for v1. When myK9Show launches fully, early adopters keep their access permanently as a reward for joining early.
 
 ---
 
-## 7. Integration Path to Full myK9Show
+## 5. My Dogs Page
 
-When myK9Show's exhibitor platform is complete:
+`/dogs` currently shows a public directory of all dogs on the platform. For exhibitors, redirect to a "My Dogs" view showing only their own dogs.
 
-1. The exhibitor's dogs are already in `public.dogs`
-2. Their qualifying scores are already in `public.manual_results`
-3. Their title progress is already computed by `titleEngine.ts`
-4. `useTitleProgress` will automatically merge any platform-scored results from myK9Show trials alongside their manual entries
-5. The `/titles` section either stays as-is or the element grid gets promoted into the Dog Details "Title Progress" tab — replacing the existing list UI
-
-No migration, no data transfer, no duplicate accounts. The title tracker is already myK9Show — just with a focused entry point.
+- Exhibitor role → `/dogs` renders their roster with an "Add a dog" CTA
+- Non-exhibitor roles → existing browse behavior unchanged
+- Dog form (add/edit): registered name, call name, breed, AKC number, DOB — writes to `public.dogs`
 
 ---
 
-## 8. Out of Scope (v1)
+## 6. Coming Soon Screens
 
-- Other sports (UKC, NACSW, etc.) — architecture supports them via sport templates; add data later
-- Automatic result population from myK9Show trials — happens when the exhibitor platform is complete
-- Push notifications for title achievements
-- Sharing / social features
-- PDF title certificate generation
+Flagged routes render a consistent placeholder instead of the real page. Simple, not apologetic — positions the feature as coming, not missing.
+
+```
+[Icon]
+[Feature Name]
+
+Show entry and competition management is coming soon.
+We're building it now — your dogs and training data
+will be ready and waiting when it arrives.
+
+[Notify me when it's ready →]  (optional — captures email interest)
+```
+
+One reusable `ComingSoonPage` component, takes a title, icon, and description as props.
+
+---
+
+## 7. AKC Scent Work Title Seeding
+
+A single migration seeds title definitions into `sport_templates` and `sport_titles`. The title engine already reads from these tables — this is data only, no code changes.
+
+**Structure:**
+- Elements: Container, Interior, Exterior, Buried
+- Levels: Novice, Advanced, Excellent, Master
+- Element titles: SWCN, SWIN, SWEN, SWBN, SWCA, SWIA, SWEA, SWBA, SWCE, SWIE, SWEE, SWBE, SWCM, SWIM, SWEM, SWBM
+- Combined level titles: SWN, SWA, SWE, SWM
+
+> ⚠️ **Before writing the migration:** Confirm exact leg counts per element/level with user against current AKC rulebook. Especially confirm whether Master differs from lower levels.
+
+---
+
+## 8. Implementation Order
+
+1. **Feature flags config** — `src/config/features.ts` + wire into routes and Dog Details tabs
+2. **Coming soon component** — one reusable page, apply to all flagged routes
+3. **Early adopter migration** — `is_early_adopter` column + `useSubscriptionGate` update
+4. **My Dogs redirect** — exhibitor role sees their roster at `/dogs`
+5. **AKC Scent Work seed migration** — title definitions (verify leg counts first)
+6. **Pedigree tab audit** — confirm it's shippable before enabling
+7. **QA walk** — sign in as a new exhibitor, walk the full early adopter experience end-to-end
+
+---
+
+## 9. Data Safety
+
+Once real exhibitors are using the platform, the following tables hold real user data and must be treated as production:
+
+- `public.people`
+- `public.dogs`
+- `public.manual_results`
+- `public.training_journal_entries`
+- `public.training_milestones`
+- `public.sport_templates` / `public.sport_titles`
+
+All myK9Show migrations touching these tables must be tested on a Supabase branch before pushing to main. See project memory: `project_titles_app_shared_tables.md`.
+
+---
+
+## 10. Integration Path to Full myK9Show
+
+When show management is complete:
+
+1. Flip feature flags to `true` for shows, entries, calendar, competitions tab, statistics tab
+2. Early adopters' dogs, scores, and training data are already in the system — no migration
+3. `useTitleProgress` automatically merges manual results with platform-scored trial results
+4. Early adopters retain free premium access permanently
+
+No data transfer, no duplicate accounts, no separate merge work.
+
+---
+
+## 11. Out of Scope (v1)
+
+- Self-serve early adopter signup flow
+- "Notify me" email capture on coming soon screens (add later)
+- Multi-sport title tracking beyond AKC Scent Work
+- Automatic result population from show trials
+- Social / sharing features

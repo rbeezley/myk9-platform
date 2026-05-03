@@ -11,9 +11,9 @@ interface Show {
 interface TaskRowProps {
   task: SecretaryTask;
   showName: string;
-  shows: Show[];
+  shows?: Show[];
   onToggleDone: (id: string) => void;
-  onUpdate: (id: string, update: UpdateTaskInput) => void;
+  onUpdate?: (id: string, update: UpdateTaskInput) => void;
   onDelete: (id: string) => void;
 }
 
@@ -27,7 +27,14 @@ function borderColor(task: SecretaryTask): string {
   return 'border-l-border';
 }
 
-export function TaskRow({ task, showName, shows, onToggleDone, onUpdate, onDelete }: TaskRowProps) {
+export function TaskRow({
+  task,
+  showName,
+  shows = [],
+  onToggleDone,
+  onUpdate,
+  onDelete,
+}: TaskRowProps) {
   const isDone = task.status === 'done';
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -44,7 +51,7 @@ export function TaskRow({ task, showName, shows, onToggleDone, onUpdate, onDelet
   function save() {
     const trimmed = editTitle.trim();
     if (!trimmed) return;
-    onUpdate(task.id, {
+    onUpdate?.(task.id, {
       title: trimmed,
       dueDate: editDueDate || null,
       showId: editShowId === 'general' ? null : editShowId,

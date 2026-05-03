@@ -53,37 +53,23 @@ const JudgeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, firstName } = useAuthContext();
   const [selectedTab, setSelectedTab] = useState('today');
-  const [assignments, setAssignments] = useState<JudgeClass[]>([]);
+  const [assignments] = useState<JudgeClass[]>([]); // TODO: wire to real query
   const [mountTime] = useState(() => Date.now());
 
-  const loadJudgeData = async () => {
-    // TODO: replace with real query once judge_assignments table is wired up
-    setAssignments([]);
-  };
-
-  // Load judge data and set up effects (ProtectedRoute gates access)
   useEffect(() => {
-    queueMicrotask(() => {
-      loadJudgeData();
-      auditService.log({
-        action: AuditAction.READ,
-        entityType: 'judge_dashboard',
-        entityId: user?.id || 'unknown',
-        metadata: {
-          page: 'judge_dashboard',
-          loadTime: new Date().toISOString(),
-        },
-      });
+    auditService.log({
+      action: AuditAction.READ,
+      entityType: 'judge_dashboard',
+      entityId: user?.id || 'unknown',
+      metadata: { page: 'judge_dashboard', loadTime: new Date().toISOString() },
     });
   }, [user?.id]);
 
-  const todaysClasses = assignments;
-
-  const completedCount = todaysClasses.filter(c => c.status === 'completed').length;
-  const totalEntries = todaysClasses.reduce((sum, c) => sum + c.totalEntries, 0);
-  const judgedEntries = todaysClasses.reduce((sum, c) => sum + c.completedEntries, 0);
+  const completedCount = assignments.filter(c => c.status === 'completed').length;
+  const totalEntries = assignments.reduce((sum, c) => sum + c.totalEntries, 0);
+  const judgedEntries = assignments.reduce((sum, c) => sum + c.completedEntries, 0);
   const completionRate = totalEntries > 0 ? Math.round((judgedEntries / totalEntries) * 100) : null;
-  const nextClass = todaysClasses
+  const nextClass = assignments
     .filter(c => c.status !== 'completed')
     .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())[0];
   const minutesUntilNext = nextClass
@@ -183,7 +169,7 @@ const JudgeDashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                {todaysClasses.length}
+                {assignments.length}
               </div>
               <p className="text-sm text-muted-foreground font-medium">
                 {completedCount} completed
@@ -275,7 +261,7 @@ const JudgeDashboard: React.FC = () => {
                 className="space-y-6"
               >
                 <TabsContent value="today" className="space-y-4">
-                  {todaysClasses.map(judgeClass => (
+                  {assignments.map(judgeClass => (
                     <div
                       key={judgeClass.id}
                       className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
@@ -319,7 +305,7 @@ const JudgeDashboard: React.FC = () => {
                     </div>
                   ))}
 
-                  {todaysClasses.length === 0 && (
+                  {assignments.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-16">
                       <div className="mx-auto w-24 h-24 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center mb-6">
                         <Trophy className="h-12 w-12 text-primary" />
@@ -350,7 +336,7 @@ const JudgeDashboard: React.FC = () => {
 
                 <TabsContent value="completed" className="mt-4">
                   <div className="space-y-4">
-                    {todaysClasses
+                    {assignments
                       .filter(c => c.status === 'completed')
                       .map(judgeClass => (
                         <div
@@ -382,7 +368,7 @@ const JudgeDashboard: React.FC = () => {
                         </div>
                       ))}
 
-                    {todaysClasses.filter(c => c.status === 'completed').length === 0 && (
+                    {assignments.filter(c => c.status === 'completed').length === 0 && (
                       <div className="flex flex-col items-center justify-center py-16">
                         <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
                           <CheckCircle2 className="h-12 w-12 text-success-green" />

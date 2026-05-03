@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,24 +33,13 @@ const JudgeCheckInDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedRing, setSelectedRing] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'ring-detail' | 'multi-ring'>('overview');
-  const [ringAssignments, setRingAssignments] = useState<RingAssignment[]>([]);
+  const [ringAssignments] = useState<RingAssignment[]>([]); // TODO: wire to real query
 
   // Generate breadcrumb items
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/judge/dashboard' },
     { label: 'Check-In Management', href: '/judge/check-in', isCurrentPage: true },
   ];
-
-  const loadRingAssignments = useCallback(async () => {
-    // TODO: replace with real query once ring_assignments table is wired up
-    setRingAssignments([]);
-  }, []);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      loadRingAssignments();
-    });
-  }, [loadRingAssignments]);
 
   const handleRingSelect = (ringNumber: string) => {
     setSelectedRing(ringNumber);
@@ -63,8 +52,9 @@ const JudgeCheckInDashboard: React.FC = () => {
   };
 
   const getStatusColor = (checked: number, total: number, conflicts: number) => {
-    const percentage = (checked / total) * 100;
     if (conflicts > 0) return 'border-red-200 bg-red-50 dark:bg-red-950/20';
+    if (total === 0) return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
+    const percentage = (checked / total) * 100;
     if (percentage >= 80) return 'border-green-200 bg-green-50 dark:bg-green-950/20';
     if (percentage >= 50) return 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20';
     return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
@@ -190,7 +180,9 @@ const JudgeCheckInDashboard: React.FC = () => {
               <CardContent>
                 <div className="text-2xl font-bold">{overallStats.checkedIn}</div>
                 <p className="text-xs text-muted-foreground">
-                  {Math.round((overallStats.checkedIn / overallStats.totalEntries) * 100)}% ready
+                  {overallStats.totalEntries > 0
+                    ? `${Math.round((overallStats.checkedIn / overallStats.totalEntries) * 100)}% ready`
+                    : 'No entries yet'}
                 </p>
               </CardContent>
             </Card>

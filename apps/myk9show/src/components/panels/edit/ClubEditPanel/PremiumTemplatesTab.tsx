@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { Plus, Trash2, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -84,13 +95,17 @@ export function PremiumTemplatesTab({ clubId }: Props) {
   }
 
   async function save() {
-    if (editing) {
-      await updateMutation.mutateAsync({ id: editing.id, updates: form });
-    } else {
-      await createMutation.mutateAsync(form);
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, updates: form });
+      } else {
+        await createMutation.mutateAsync(form);
+      }
+      setEditing(null);
+      setCreating(false);
+    } catch {
+      // error is captured in mutation.isError — rendered below
     }
-    setEditing(null);
-    setCreating(false);
   }
 
   if (isLoading) return <p className="text-sm text-muted-foreground p-4">Loading templates…</p>;
@@ -131,9 +146,28 @@ export function PremiumTemplatesTab({ clubId }: Props) {
               <Button size="sm" variant="ghost" onClick={() => openEdit(t)}>
                 Edit
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => deleteMutation.mutate(t.id)}>
-                <Trash2 className="w-3 h-3" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="ghost" disabled={deleteMutation.isPending}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete template?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete &quot;{t.name}&quot;. This action cannot be
+                      undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteMutation.mutate(t.id)}>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
           {t.vetClinicName && (
@@ -272,6 +306,9 @@ export function PremiumTemplatesTab({ clubId }: Props) {
               Save
             </Button>
           </div>
+          {(createMutation.isError || updateMutation.isError) && (
+            <p className="text-xs text-destructive">Failed to save template. Please try again.</p>
+          )}
         </div>
       )}
     </div>

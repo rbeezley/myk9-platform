@@ -2,8 +2,6 @@
  * Exhibitor-specific type definitions for the mobile experience
  */
 
-import type { CheckInStatus } from '@myk9/core';
-export type { CheckInStatus } from '@myk9/core';
 import { Dog } from './dog-types';
 
 // Define User interface with role
@@ -100,6 +98,27 @@ export interface ExhibitorEntry {
   checkInTime?: Date;
   result?: CompetitionResult;
 }
+
+/**
+ * Check-in status for exhibitor entries.
+ * Superset of @myk9/core CheckInStatus — includes both the ringside state
+ * machine values (no-status, at-gate, pulled, in-ring, conflict) and the
+ * exhibitor-display values (not-opened, pending, scratched, absent).
+ * Unifying these in @myk9/core is a follow-up task.
+ */
+export type CheckInStatus =
+  | 'no-status' // not yet visible to exhibitor
+  | 'not-opened' // check-in window not yet open
+  | 'pending' // window open, not checked in
+  | 'checked-in' // present and ready
+  | 'at-gate' // called to gate
+  | 'come-to-gate' // urgent gate call
+  | 'in-ring' // currently running
+  | 'conflict' // scheduling conflict flagged
+  | 'pulled' // pulled from ring
+  | 'scratched' // withdrawn by exhibitor
+  | 'absent' // no-show
+  | 'completed'; // judged
 
 /**
  * Conflict information for scheduling

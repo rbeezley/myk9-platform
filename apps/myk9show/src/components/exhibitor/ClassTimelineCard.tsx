@@ -22,6 +22,8 @@ interface ClassTimelineCardProps {
   onCheckInChange?: ((entryId: string, newStatus: CheckInStatus) => void) | undefined;
   /** Whether self-check-in is enabled for this class */
   selfCheckinEnabled?: boolean | undefined;
+  /** Navigates to the full check-in management page */
+  onManage?: ((entryId: string) => void) | undefined;
   className?: string | undefined;
 }
 
@@ -30,6 +32,7 @@ export function ClassTimelineCard({
   onNavigate,
   onCheckInChange,
   selfCheckinEnabled = true,
+  onManage,
   className,
 }: ClassTimelineCardProps) {
   const isCompleted = classData.isScored;
@@ -103,6 +106,19 @@ export function ClassTimelineCard({
           </span>
         ) : null}
       </div>
+
+      {!isCompleted && onManage && (
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation();
+            onManage(classData.entryId);
+          }}
+          className="text-xs text-muted-foreground hover:underline underline-offset-2 flex-shrink-0 min-h-[44px] px-1"
+        >
+          Manage →
+        </button>
+      )}
     </div>
   );
 }

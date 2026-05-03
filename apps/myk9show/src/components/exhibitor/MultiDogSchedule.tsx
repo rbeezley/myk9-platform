@@ -98,12 +98,10 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
     switch (status) {
       case 'checked-in':
         return 'text-green-600 dark:text-green-400';
-      case 'scratched':
+      case 'pulled':
         return 'text-red-600 dark:text-red-400';
       case 'completed':
         return 'text-purple-600 dark:text-purple-400';
-      case 'absent':
-        return 'text-orange-600 dark:text-orange-400';
       default:
         return 'text-gray-600 dark:text-gray-400';
     }
@@ -263,7 +261,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
                           {entry.checkInStatus === 'checked-in' && (
                             <CheckCircle className="w-4 h-4 inline" />
                           )}
-                          {entry.checkInStatus === 'scratched' && (
+                          {entry.checkInStatus === 'pulled' && (
                             <XCircle className="w-4 h-4 inline" />
                           )}
                           {entry.checkInStatus.replace('-', ' ')}

@@ -23,11 +23,21 @@ interface ShowDayHeroProps {
   onCheckInChange?: ((entryId: string, newStatus: CheckInStatus) => void) | undefined;
   /** Map of classId → whether self-check-in is enabled */
   selfCheckinEnabledMap?: Record<string, boolean> | undefined;
+  /** Navigates to the full check-in management page for an entry */
+  onManage?: ((entryId: string) => void) | undefined;
   className?: string | undefined;
 }
 
 export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function ShowDayHero(
-  { data, onClassNavigate, onShowSelect, onCheckInChange, selfCheckinEnabledMap, className },
+  {
+    data,
+    onClassNavigate,
+    onShowSelect,
+    onCheckInChange,
+    selfCheckinEnabledMap,
+    onManage,
+    className,
+  },
   ref
 ) {
   const isAllDone =
@@ -204,6 +214,7 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
           onNavigate={onClassNavigate}
           onCheckInChange={onCheckInChange}
           selfCheckinEnabled={selfCheckinEnabledMap?.[data.nextUp.classId] ?? true}
+          onManage={onManage}
         />
       )}
 
@@ -220,6 +231,7 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
               onNavigate={onClassNavigate}
               onCheckInChange={onCheckInChange}
               selfCheckinEnabled={selfCheckinEnabledMap?.[c.classId] ?? true}
+              onManage={onManage}
             />
           ))}
         </div>

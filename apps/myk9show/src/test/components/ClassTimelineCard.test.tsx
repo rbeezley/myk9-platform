@@ -180,4 +180,27 @@ describe('ClassTimelineCard', () => {
     );
     expect(screen.queryByText(/dogs ahead|You're next/)).not.toBeInTheDocument();
   });
+
+  it('renders Manage button when onManage is provided and class is not completed', () => {
+    const onManage = vi.fn();
+    render(<ClassTimelineCard classData={makeClass({ isScored: false })} onManage={onManage} />);
+    expect(screen.getByRole('button', { name: /manage/i })).toBeInTheDocument();
+  });
+
+  it('does not render Manage button when onManage is omitted', () => {
+    render(<ClassTimelineCard classData={makeClass({ isScored: false })} />);
+    expect(screen.queryByRole('button', { name: /manage/i })).not.toBeInTheDocument();
+  });
+
+  it('calls onManage with entryId when Manage button is clicked', async () => {
+    const onManage = vi.fn();
+    render(
+      <ClassTimelineCard
+        classData={makeClass({ entryId: 'entry-99', isScored: false })}
+        onManage={onManage}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: /manage/i }));
+    expect(onManage).toHaveBeenCalledWith('entry-99');
+  });
 });

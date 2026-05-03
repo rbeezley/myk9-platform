@@ -76,7 +76,7 @@ const createMockClassInfo = (): ExhibitorClassInfo => ({
     handlerId: 'handler-001',
     armband: '160',
     runningOrder: 3,
-    checkInStatus: 'pending',
+    checkInStatus: 'no-status',
     dogCallName: 'Storm',
     dogRegistrationNumber: 'HP12345678',
     breed: 'Border Collie',
@@ -221,10 +221,8 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
     switch (entry.checkInStatus) {
       case 'checked-in':
         return <CheckCircle2 className="h-6 w-6 text-green-600" />;
-      case 'scratched':
+      case 'pulled':
         return <XCircle className="h-6 w-6 text-red-600" />;
-      case 'absent':
-        return <AlertTriangle className="h-6 w-6 text-red-600" />;
       default:
         return <Clock className="h-6 w-6 text-gray-400" />;
     }
@@ -232,7 +230,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
 
   const isAlreadyCheckedIn =
     entry.checkInStatus === 'checked-in' ||
-    entry.checkInStatus === 'scratched' ||
+    entry.checkInStatus === 'pulled' ||
     entry.checkInStatus === 'completed';
 
   const lateFee = calculateLateFee();
@@ -349,10 +347,10 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                     <CheckCircle2 className="h-5 w-5 text-green-600" />
                     <span className="font-medium">You are checked in for this class</span>
                   </>
-                ) : entry.checkInStatus === 'scratched' ? (
+                ) : entry.checkInStatus === 'pulled' ? (
                   <>
                     <XCircle className="h-5 w-5 text-red-600" />
-                    <span className="font-medium">You have scratched from this class</span>
+                    <span className="font-medium">You have been pulled from this class</span>
                   </>
                 ) : (
                   <>

@@ -36,7 +36,7 @@ const mockClassInfo: ExhibitorClassInfo = {
     dogId: 'dog-1',
     handlerId: 'handler-1',
     armband: '42',
-    checkInStatus: 'pending',
+    checkInStatus: 'no-status',
     dogCallName: 'Storm',
     dogRegistrationNumber: '',
     breed: 'Border Collie',

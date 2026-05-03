@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import type { ExhibitorClassInfo, CheckInStatus } from '@/types/exhibitor-types';
+import type { ExhibitorClassInfo } from '@/types/exhibitor-types';
+import { isCheckInStatus } from '@myk9/core';
 
 // Raw shape returned by the Supabase query — typed manually because
 // ring_number was added via a migration after codegen was last run.
@@ -76,7 +77,9 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       handlerId: row.handler_id,
       armband: row.armband ?? '',
       ...(row.run_order != null ? { runningOrder: row.run_order } : {}),
-      checkInStatus: (row.entry_status as CheckInStatus) ?? 'pending',
+      checkInStatus: row.entry_status != null && isCheckInStatus(row.entry_status)
+        ? row.entry_status
+        : 'no-status',
       dogCallName: row.dog.call_name ?? '',
       dogRegistrationNumber: '',
       breed: row.dog.breed,
@@ -131,7 +134,7 @@ async function fetchCheckInData(
     )
     .eq('id', entryId)
     .eq('handler_id', userId)
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
   if (!data) return null;

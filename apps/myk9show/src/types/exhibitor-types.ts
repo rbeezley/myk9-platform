@@ -2,6 +2,8 @@
  * Exhibitor-specific type definitions for the mobile experience
  */
 
+import type { CheckInStatus } from '@myk9/core';
+export type { CheckInStatus } from '@myk9/core';
 import { Dog } from './dog-types';
 
 // Define User interface with role
@@ -85,7 +87,7 @@ export interface ExhibitorEntry {
   conflictWarning?: ConflictInfo;
   handler?: User;
   dog?: Dog;
-  
+
   // Additional fields for mobile interface
   dogCallName: string;
   dogRegistrationNumber: string;
@@ -98,17 +100,6 @@ export interface ExhibitorEntry {
   checkInTime?: Date;
   result?: CompetitionResult;
 }
-
-/**
- * Check-in status for exhibitor entries
- */
-export type CheckInStatus = 
-  | 'not-opened'    // Check-in not yet available
-  | 'pending'       // Available but not checked in
-  | 'checked-in'    // Present and ready
-  | 'scratched'     // Withdrawn from class
-  | 'absent'        // No-show
-  | 'completed';    // Already judged
 
 /**
  * Conflict information for scheduling
@@ -176,12 +167,12 @@ export interface OnDeckEntry {
  * Notification preferences for exhibitors
  */
 export interface NotificationPreferences {
-  ringCalls: boolean;      // "You're up in 2 dogs!"
-  results: boolean;        // "Your results are posted!"
-  delays: boolean;         // "Ring running 20 min late"
-  scheduling: boolean;     // "Class moved to Ring 2"
-  titles: boolean;         // "Title leg achieved!"
-  advanceTime?: number;    // Minutes before ring time to notify
+  ringCalls: boolean; // "You're up in 2 dogs!"
+  results: boolean; // "Your results are posted!"
+  delays: boolean; // "Ring running 20 min late"
+  scheduling: boolean; // "Class moved to Ring 2"
+  titles: boolean; // "Title leg achieved!"
+  advanceTime?: number; // Minutes before ring time to notify
 }
 
 /**

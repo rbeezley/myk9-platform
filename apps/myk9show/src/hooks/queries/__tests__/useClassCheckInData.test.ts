@@ -115,7 +115,7 @@ describe('mapRowToClassInfo', () => {
     };
     const result = mapRowToClassInfo(sparse);
     expect(result.entry.armband).toBe('');
-    expect(result.entry.checkInStatus).toBe('pending');
+    expect(result.entry.checkInStatus).toBe('no-status');
     expect(result.entry.dogCallName).toBe('');
     expect(result.class.element).toBe('');
     expect(result.class.level).toBe('');
@@ -133,11 +133,11 @@ const { mockChain, mockFrom } = vi.hoisted(() => {
   const chain: {
     select: ReturnType<typeof vi.fn>;
     eq: ReturnType<typeof vi.fn>;
-    single: ReturnType<typeof vi.fn>;
+    maybeSingle: ReturnType<typeof vi.fn>;
   } = {
     select: vi.fn(),
     eq: vi.fn(),
-    single: vi.fn(),
+    maybeSingle: vi.fn(),
   };
   chain.select = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
@@ -164,11 +164,12 @@ describe('useClassCheckInData', () => {
     vi.clearAllMocks();
     mockChain.select = vi.fn().mockReturnValue(mockChain);
     mockChain.eq = vi.fn().mockReturnValue(mockChain);
+    mockChain.maybeSingle = vi.fn();
     mockFrom.mockReturnValue(mockChain);
   });
 
   it('returns mapped ExhibitorClassInfo on success', async () => {
-    mockChain.single = vi.fn().mockResolvedValue({ data: baseRow, error: null });
+    mockChain.maybeSingle = vi.fn().mockResolvedValue({ data: baseRow, error: null });
 
     const { result } = renderHook(() => useClassCheckInData('entry-1'), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -180,7 +181,7 @@ describe('useClassCheckInData', () => {
   });
 
   it('returns null data when entry not found', async () => {
-    mockChain.single = vi.fn().mockResolvedValue({ data: null, error: null });
+    mockChain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
 
     const { result } = renderHook(() => useClassCheckInData('missing-entry'), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -190,7 +191,7 @@ describe('useClassCheckInData', () => {
   });
 
   it('surfaces error on Supabase failure', async () => {
-    mockChain.single = vi.fn().mockResolvedValue({
+    mockChain.maybeSingle = vi.fn().mockResolvedValue({
       data: null,
       error: { message: 'DB error' },
     });

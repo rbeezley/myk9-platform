@@ -43,7 +43,7 @@ const ClassCheckInPage: React.FC = () => {
         <Card>
           <CardContent className="pt-6 text-center">
             <p className="text-muted-foreground">Unable to load check-in. Please try again.</p>
-            <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">
+            <Button onClick={() => navigate(0)} variant="outline" className="mt-4">
               Retry
             </Button>
           </CardContent>

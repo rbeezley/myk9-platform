@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { JudgeCheckInInterface } from '@/components/judges/JudgeCheckInInterface';
 import { GateStewardInterface } from '@/components/stewards/GateStewardInterface';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useJudgeCheckInStats } from '@/hooks/queries/useJudgeCheckInStats';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import {
   Users,
-  Clock,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
@@ -18,24 +19,13 @@ import {
   Eye,
 } from 'lucide-react';
 
-interface RingAssignment {
-  ringNumber: string;
-  judgeName: string;
-  className: string;
-  startTime: Date;
-  totalEntries: number;
-  checkedInCount: number;
-  conflictCount: number;
-  atGateCount: number;
-  isActive: boolean;
-}
-
 const JudgeCheckInDashboard: React.FC = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
-  const [selectedRing, setSelectedRing] = useState<string | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'ring-detail' | 'multi-ring'>('overview');
-  const [ringAssignments, setRingAssignments] = useState<RingAssignment[]>([]);
+
+  const { rings: ringAssignments, isLoading } = useJudgeCheckInStats();
 
   // Generate breadcrumb items
   const breadcrumbItems = [
@@ -43,54 +33,19 @@ const JudgeCheckInDashboard: React.FC = () => {
     { label: 'Check-In Management', href: '/judge/check-in', isCurrentPage: true },
   ];
 
-  const loadRingAssignments = useCallback(async () => {
-    // Mock data - in real implementation, this would fetch judge's ring assignments
-    const mockAssignments: RingAssignment[] = [
-      {
-        ringNumber: '1',
-        judgeName: user?.email || 'Judge Smith',
-        className: 'Open Standard',
-        startTime: new Date(2024, 6, 15, 9, 0),
-        totalEntries: 24,
-        checkedInCount: 18,
-        conflictCount: 2,
-        atGateCount: 3,
-        isActive: true,
-      },
-      {
-        ringNumber: '3',
-        judgeName: user?.email || 'Judge Smith',
-        className: 'Excellent JWW',
-        startTime: new Date(2024, 6, 15, 11, 30),
-        totalEntries: 16,
-        checkedInCount: 12,
-        conflictCount: 1,
-        atGateCount: 1,
-        isActive: false,
-      },
-    ];
-
-    setRingAssignments(mockAssignments);
-  }, [user?.email]);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      loadRingAssignments();
-    });
-  }, [loadRingAssignments]);
-
-  const handleRingSelect = (ringNumber: string) => {
-    setSelectedRing(ringNumber);
+  const handleClassSelect = (classId: string) => {
+    setSelectedClassId(classId);
     setViewMode('ring-detail');
   };
 
   const handleBackToOverview = () => {
-    setSelectedRing(null);
+    setSelectedClassId(null);
     setViewMode('overview');
   };
 
-  const getStatusColor = (checked: number, total: number, conflicts: number) => {
-    const percentage = (checked / total) * 100;
+  const getStatusColor = (checkedIn: number, total: number, conflicts: number) => {
+    if (total === 0) return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
+    const percentage = (checkedIn / total) * 100;
     if (conflicts > 0) return 'border-red-200 bg-red-50 dark:bg-red-950/20';
     if (percentage >= 80) return 'border-green-200 bg-green-50 dark:bg-green-950/20';
     if (percentage >= 50) return 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20';
@@ -101,16 +56,15 @@ const JudgeCheckInDashboard: React.FC = () => {
   const overallStats = ringAssignments.reduce(
     (acc, ring) => ({
       totalEntries: acc.totalEntries + ring.totalEntries,
-      checkedIn: acc.checkedIn + ring.checkedInCount,
-      conflicts: acc.conflicts + ring.conflictCount,
-      atGate: acc.atGate + ring.atGateCount,
+      checkedIn: acc.checkedIn + ring.checkedIn,
+      conflicts: acc.conflicts + ring.conflicts,
     }),
-    { totalEntries: 0, checkedIn: 0, conflicts: 0, atGate: 0 }
+    { totalEntries: 0, checkedIn: 0, conflicts: 0 }
   );
 
-  if (viewMode === 'ring-detail' && selectedRing) {
-    const ringAssignment = ringAssignments.find(r => r.ringNumber === selectedRing);
+  const selectedAssignment = ringAssignments.find(r => r.classId === selectedClassId);
 
+  if (viewMode === 'ring-detail' && selectedClassId) {
     return (
       <div className="bg-background">
         <div className="container mx-auto px-6 py-6 max-w-7xl">
@@ -119,7 +73,11 @@ const JudgeCheckInDashboard: React.FC = () => {
             <Breadcrumb
               items={[
                 ...breadcrumbItems,
-                { label: `Ring ${selectedRing}`, href: '', isCurrentPage: true },
+                {
+                  label: selectedAssignment?.className ?? 'Class',
+                  href: '',
+                  isCurrentPage: true,
+                },
               ]}
               showHomeIcon={true}
               className="myk9-breadcrumb"
@@ -137,8 +95,8 @@ const JudgeCheckInDashboard: React.FC = () => {
 
             {/* Ring Check-In Interface */}
             <JudgeCheckInInterface
-              ringNumber={selectedRing}
-              judgeName={ringAssignment?.judgeName || 'Judge'}
+              ringNumber={selectedClassId}
+              judgeName={user?.email ?? 'Judge'}
             />
           </div>
         </div>
@@ -172,7 +130,7 @@ const JudgeCheckInDashboard: React.FC = () => {
             </Button>
 
             {/* Multi-Ring Gate Steward Interface */}
-            <GateStewardInterface assignedRings={ringAssignments.map(r => r.ringNumber)} />
+            <GateStewardInterface assignedRings={ringAssignments.map(r => r.classId)} />
           </div>
         </div>
       </div>
@@ -190,21 +148,25 @@ const JudgeCheckInDashboard: React.FC = () => {
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">Check-In Management</h1>
             <p className="text-muted-foreground text-lg">
-              Manage exhibitor check-in status for your assigned rings
+              Manage exhibitor check-in status for your assigned classes
             </p>
           </div>
 
           {/* Overall Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{overallStats.totalEntries}</div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  <div className="text-2xl font-bold">{overallStats.totalEntries}</div>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Across {ringAssignments.length} rings
+                  Across {ringAssignments.length} classes
                 </p>
               </CardContent>
             </Card>
@@ -215,9 +177,15 @@ const JudgeCheckInDashboard: React.FC = () => {
                 <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{overallStats.checkedIn}</div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  <div className="text-2xl font-bold">{overallStats.checkedIn}</div>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  {Math.round((overallStats.checkedIn / overallStats.totalEntries) * 100)}% ready
+                  {overallStats.totalEntries > 0
+                    ? `${Math.round((overallStats.checkedIn / overallStats.totalEntries) * 100)}% ready`
+                    : 'No entries yet'}
                 </p>
               </CardContent>
             </Card>
@@ -228,19 +196,12 @@ const JudgeCheckInDashboard: React.FC = () => {
                 <AlertTriangle className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{overallStats.conflicts}</div>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  <div className="text-2xl font-bold">{overallStats.conflicts}</div>
+                )}
                 <p className="text-xs text-muted-foreground">Need attention</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">At Gate</CardTitle>
-                <Eye className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{overallStats.atGate}</div>
-                <p className="text-xs text-muted-foreground">Ready to run</p>
               </CardContent>
             </Card>
           </div>
@@ -250,6 +211,7 @@ const JudgeCheckInDashboard: React.FC = () => {
             <Button
               onClick={() => setViewMode('multi-ring')}
               className="bg-primary text-primary-foreground"
+              disabled={ringAssignments.length === 0}
             >
               <Users className="h-4 w-4 mr-2" />
               Multi-Ring View
@@ -264,93 +226,89 @@ const JudgeCheckInDashboard: React.FC = () => {
             </Button>
           </div>
 
-          {/* Ring Assignments */}
+          {/* Class Assignments */}
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Your Ring Assignments</h2>
+            <h2 className="text-xl font-semibold">Your Class Assignments</h2>
 
-            <div className="grid gap-4">
-              {ringAssignments.map(ring => (
-                <Card
-                  key={ring.ringNumber}
-                  className={`transition-all duration-200 hover:shadow-md cursor-pointer ${getStatusColor(
-                    ring.checkedInCount,
-                    ring.totalEntries,
-                    ring.conflictCount
-                  )}`}
-                  onClick={() => handleRingSelect(ring.ringNumber)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="font-mono text-lg px-3 py-1">
-                            Ring {ring.ringNumber}
-                          </Badge>
-                          {ring.isActive && <Badge className="bg-green-500">Active</Badge>}
-                          {ring.conflictCount > 0 && (
-                            <Badge variant="destructive" className="animate-pulse">
-                              {ring.conflictCount} Conflicts
-                            </Badge>
-                          )}
+            {isLoading && (
+              <div className="grid gap-4">
+                {[1, 2].map(i => (
+                  <Skeleton key={i} className="h-24 w-full rounded-lg" />
+                ))}
+              </div>
+            )}
+
+            {!isLoading && (
+              <div className="grid gap-4">
+                {ringAssignments.map(ring => (
+                  <Card
+                    key={ring.classId}
+                    className={`transition-all duration-200 hover:shadow-md cursor-pointer ${getStatusColor(
+                      ring.checkedIn,
+                      ring.totalEntries,
+                      ring.conflicts
+                    )}`}
+                    onClick={() => handleClassSelect(ring.classId)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            {ring.conflicts > 0 && (
+                              <Badge variant="destructive" className="animate-pulse">
+                                {ring.conflicts} Conflicts
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="font-medium text-lg">{ring.className}</div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-4">
+                              <span className="flex items-center gap-1">
+                                <Users className="h-4 w-4" />
+                                {ring.totalEntries} entries
+                              </span>
+                            </div>
+                          </div>
                         </div>
 
-                        <div>
-                          <div className="font-medium text-lg">{ring.className}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-4">
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {ring.startTime.toLocaleTimeString()}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Users className="h-4 w-4" />
-                              {ring.totalEntries} entries
-                            </span>
+                        <div className="flex items-center gap-6">
+                          {/* Quick Stats */}
+                          <div className="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                              <div className="text-lg font-bold text-green-600">
+                                {ring.checkedIn}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Checked In</div>
+                            </div>
+                            <div>
+                              <div
+                                className={`text-lg font-bold ${
+                                  ring.conflicts > 0 ? 'text-red-600' : 'text-gray-400'
+                                }`}
+                              >
+                                {ring.conflicts}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Conflicts</div>
+                            </div>
                           </div>
+
+                          <ArrowRight className="h-5 w-5 text-muted-foreground" />
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
-                      <div className="flex items-center gap-6">
-                        {/* Quick Stats */}
-                        <div className="grid grid-cols-3 gap-4 text-center">
-                          <div>
-                            <div className="text-lg font-bold text-green-600">
-                              {ring.checkedInCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Checked In</div>
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-blue-600">
-                              {ring.atGateCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground">At Gate</div>
-                          </div>
-                          <div>
-                            <div
-                              className={`text-lg font-bold ${
-                                ring.conflictCount > 0 ? 'text-red-600' : 'text-gray-400'
-                              }`}
-                            >
-                              {ring.conflictCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Conflicts</div>
-                          </div>
-                        </div>
-
-                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {ringAssignments.length === 0 && (
+            {!isLoading && ringAssignments.length === 0 && (
               <Card>
                 <CardContent className="p-8 text-center">
                   <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Ring Assignments</h3>
+                  <h3 className="text-lg font-semibold mb-2">No Class Assignments</h3>
                   <p className="text-muted-foreground mb-4">
-                    You don't have any ring assignments for today.
+                    You don&apos;t have any class assignments for today.
                   </p>
                   <Button
                     variant="outline"

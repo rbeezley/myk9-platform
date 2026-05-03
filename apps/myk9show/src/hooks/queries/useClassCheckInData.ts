@@ -1,3 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/services/database/supabaseClient';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ExhibitorClassInfo, CheckInStatus } from '@/types/exhibitor-types';
 
 // Raw shape returned by the Supabase query — typed manually because
@@ -107,4 +110,44 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
   };
 }
 
-// Hook added in Task 2.
+async function fetchCheckInData(
+  entryId: string,
+  userId: string
+): Promise<ExhibitorClassInfo | null> {
+  const { data, error } = await supabase
+    .from('entries')
+    .select(
+      `
+      id, entry_status, armband, run_order, handler_id,
+      dog:dogs!inner(id, call_name, breed, sex, date_of_birth),
+      class:classes!inner(
+        id, name, element, level, max_entries, ring_number, start_time, judge_name,
+        trial:trials!inner(
+          id, name, date, planned_start_time,
+          show:shows!inner(id, name, location)
+        )
+      )
+    `
+    )
+    .eq('id', entryId)
+    .eq('handler_id', userId)
+    .single();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return mapRowToClassInfo(data as unknown as CheckInDataRow);
+}
+
+export function useClassCheckInData(entryId: string) {
+  const { userWithRoles } = useAuthContext();
+  const userId = userWithRoles?.databaseUserId ?? '';
+
+  return useQuery({
+    queryKey: ['entries', entryId, 'checkin-data'],
+    queryFn: () => fetchCheckInData(entryId, userId),
+    enabled: !!entryId && !!userId,
+    staleTime: 30_000,
+    gcTime: 60_000,
+    retry: 1,
+  });
+}

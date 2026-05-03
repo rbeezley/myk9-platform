@@ -46,6 +46,12 @@ function MapLinks({
 export function VenueMap({ location, venueName }: VenueMapProps) {
   const [iframeReady, setIframeReady] = useState(false);
   const [iframeError, setIframeError] = useState(false);
+  // Reset error state when location changes — derived-state pattern avoids an extra effect.
+  const [prevLocation, setPrevLocation] = useState(location);
+  if (prevLocation !== location) {
+    setPrevLocation(location);
+    setIframeError(false);
+  }
 
   const embedApiKey = import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY as string | undefined;
   const hasApiKey = Boolean(embedApiKey);
@@ -55,10 +61,6 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
     const id = setTimeout(() => setIframeReady(true), IFRAME_DEFER_MS);
     return () => clearTimeout(id);
   }, [location, hasApiKey]);
-
-  useEffect(() => {
-    setIframeError(false);
-  }, [location]);
 
   if (!location?.trim()) return null;
 

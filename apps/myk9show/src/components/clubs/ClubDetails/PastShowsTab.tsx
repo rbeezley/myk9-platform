@@ -38,8 +38,17 @@ export const PastShowsTab: React.FC<PastShowsTabProps> = ({ shows, onViewShowDet
         return (
           <div
             key={show.id}
-            className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30"
+            className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 cursor-pointer"
             style={accentBorderStyle(show.accentColor)}
+            onClick={() => onViewShowDetails(show.id)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onViewShowDetails(show.id);
+              }
+            }}
           >
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 flex-1">
@@ -48,7 +57,7 @@ export const PastShowsTab: React.FC<PastShowsTabProps> = ({ shows, onViewShowDet
                   {showStatus.label}
                 </div>
               </div>
-              <div className="flex items-start flex-shrink-0">
+              <div className="flex items-start flex-shrink-0" onClick={e => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -56,7 +65,7 @@ export const PastShowsTab: React.FC<PastShowsTabProps> = ({ shows, onViewShowDet
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onViewShowDetails(String(show.id))}>
+                    <DropdownMenuItem onClick={() => onViewShowDetails(show.id)}>
                       <Eye className="mr-2 h-4 w-4" />
                       View Results
                     </DropdownMenuItem>

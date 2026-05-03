@@ -239,7 +239,7 @@ describe('TrialClassesTable', () => {
       );
 
       expect(screen.getByTitle('Table view')).toBeInTheDocument();
-      expect(screen.getByTitle('Card view')).toBeInTheDocument();
+      expect(screen.getByTitle('Cards view')).toBeInTheDocument();
     });
 
     it('defaults to table view', () => {

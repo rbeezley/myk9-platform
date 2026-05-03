@@ -22,6 +22,7 @@ import { FormField } from '@/components/common/FormField';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import type { ClassEditFormData } from './ClassEditPanel.types';
+import { isScentWorkNovice } from './ClassEditPanel.helpers';
 
 /** A requirement field with optional auto-fill from rules */
 function RequirementField({
@@ -163,14 +164,19 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     readOnly
                   />
                 </FormField>
-                <FormField label="Section" fieldId="section">
-                  <Input
-                    id="section"
-                    value={data.section}
-                    className="bg-muted text-muted-foreground"
-                    readOnly
-                  />
-                </FormField>
+                {/* Section (A/B) only applies to AKC Scent Work Novice — Advanced and Excellent do not have sections */}
+                {isScentWorkNovice(data.level, data.element) ? (
+                  <FormField label="Section" fieldId="section">
+                    <Input
+                      id="section"
+                      value={data.section}
+                      className="bg-muted text-muted-foreground"
+                      readOnly
+                    />
+                  </FormField>
+                ) : (
+                  <div /> /* grid spacer */
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

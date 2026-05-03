@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { ClassRequirementsPanel } from '../ClassRequirementsPanel';
 import type { ClassRequirements } from '@/hooks/queries/useClassRequirements';
 
@@ -147,9 +147,31 @@ describe('ClassRequirementsPanel', () => {
     expect(screen.getByText('Dual Timer')).toBeInTheDocument();
   });
 
-  it('shows empty state message when no requirements found', () => {
+  it('shows empty state message when no requirements found (null)', () => {
     mockUseClassRequirements.mockReturnValue({
       requirements: null,
+      isLoading: false,
+      error: null,
+    });
+    render(<ClassRequirementsPanel {...defaultProps} />);
+    expect(
+      screen.getByText('No requirements found for this class configuration')
+    ).toBeInTheDocument();
+  });
+
+  it('shows empty state message when requirements exist but all display fields are empty', () => {
+    // A DB row exists but none of the conditional fields have displayable data —
+    // this was the original bug: the panel rendered completely blank with no feedback.
+    mockUseClassRequirements.mockReturnValue({
+      requirements: makeRequirements({
+        hides: '',
+        time_limit_text: '',
+        distractions: '0',
+        area_count: 1,
+        has_blank: false,
+        timer_mode: 'single',
+        odors: [],
+      }),
       isLoading: false,
       error: null,
     });

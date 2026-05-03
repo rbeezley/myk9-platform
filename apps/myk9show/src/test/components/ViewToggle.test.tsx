@@ -14,19 +14,20 @@ describe('ViewToggle', () => {
     expect(screen.getByTitle('Table view')).toBeInTheDocument();
   });
 
-  it('renders labels inside each button', () => {
+  it('uses title attributes instead of visible labels (icon-only style)', () => {
     render(<ViewToggle modes={modes} active="cards" onChange={vi.fn()} />);
-    expect(screen.getByText('Cards')).toBeInTheDocument();
-    expect(screen.getByText('Table')).toBeInTheDocument();
+    // Labels are conveyed via title, not visible text
+    expect(screen.queryByText('Cards')).toBeNull();
+    expect(screen.queryByText('Table')).toBeNull();
   });
 
-  it('highlights the active mode with default variant', () => {
+  it('highlights the active mode', () => {
     render(<ViewToggle modes={modes} active="cards" onChange={vi.fn()} />);
     const cardsBtn = screen.getByTitle('Cards view');
     expect(cardsBtn.className).toMatch(/bg-primary/);
   });
 
-  it('applies ghost variant to inactive modes', () => {
+  it('applies muted style to inactive modes', () => {
     render(<ViewToggle modes={modes} active="cards" onChange={vi.fn()} />);
     const tableBtn = screen.getByTitle('Table view');
     expect(tableBtn.className).not.toMatch(/bg-primary/);

@@ -22,6 +22,7 @@ import {
 } from '@/services/database/armbands';
 
 import { supabase } from '@/services/database/supabaseClient';
+import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
@@ -643,6 +644,22 @@ export function useEntryManagementActions({
       }
 
       try {
+        // EntryManagementShow is a slim type without secretary fields; fetch them separately.
+        // TODO: widen EntryManagementShow + getSecretaryShows to include these fields and remove this query.
+        let cc: string[] | undefined;
+        if (selectedShowId) {
+          const { data: showRow } = await supabase
+            .from('shows')
+            .select('secretary_email, cc_secretary_on_exhibitor_emails')
+            .eq('id', selectedShowId)
+            .maybeSingle();
+          const resolved = resolveSecretaryCc(
+            showRow?.cc_secretary_on_exhibitor_emails,
+            showRow?.secretary_email
+          );
+          if (resolved.length > 0) cc = resolved;
+        }
+
         const { error } = await supabase.functions.invoke('send-email', {
           body: {
             type: 'entry_decision',
@@ -653,6 +670,7 @@ export function useEntryManagementActions({
             registrationId,
             ...(message ? { message } : {}),
             ...(amountDue !== undefined ? { amountDue } : {}),
+            ...(cc ? { cc } : {}),
             entries: registrationEntries.map(e => ({
               dogName: e.dogName,
               className: e.classes?.[0]?.name ?? 'Unknown Class',
@@ -668,7 +686,7 @@ export function useEntryManagementActions({
         toast.error('Failed to send decision email. Please try again.');
       }
     },
-    [entries, selectedShow]
+    [entries, selectedShow, selectedShowId]
   );
 
   return {

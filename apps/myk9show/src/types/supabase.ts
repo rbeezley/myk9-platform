@@ -4927,6 +4927,7 @@ export type Database = {
           name: string
           organization: string
           pre_entry_fee: number | null
+          cc_secretary_on_exhibitor_emails: boolean
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -4973,6 +4974,7 @@ export type Database = {
           max_total_entries?: number | null
           name: string
           organization: string
+          cc_secretary_on_exhibitor_emails?: boolean
           pre_entry_fee?: number | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
@@ -5020,6 +5022,7 @@ export type Database = {
           max_total_entries?: number | null
           name?: string
           organization?: string
+          cc_secretary_on_exhibitor_emails?: boolean
           pre_entry_fee?: number | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null

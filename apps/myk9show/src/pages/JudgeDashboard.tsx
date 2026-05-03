@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -11,6 +12,7 @@ import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { logger } from '@/services/LoggingService';
 import { GlassCard } from '@/components/common/GlassCard';
+import { useJudgeTodayStats } from '@/hooks/queries/useJudgeTodayStats';
 import {
   Trophy,
   Clock,
@@ -53,47 +55,12 @@ const JudgeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, firstName } = useAuthContext();
   const [selectedTab, setSelectedTab] = useState('today');
-  const [assignments, setAssignments] = useState<JudgeClass[]>([]);
 
-  const loadJudgeData = async () => {
-    // Mock data - replace with actual data from stores
-    const mockClasses: JudgeClass[] = [
-      {
-        id: '1',
-        showId: 'show-001',
-        trialId: 'trial-001',
-        classId: 'class-001',
-        name: 'Interior Novice A',
-        element: 'Interior',
-        level: 'Novice',
-        scheduledTime: new Date(Date.now() + 30 * 60000),
-        ringNumber: 1,
-        totalEntries: 24,
-        completedEntries: 0,
-        status: 'pending',
-      },
-      {
-        id: '2',
-        showId: 'show-001',
-        trialId: 'trial-001',
-        classId: 'class-002',
-        name: 'Container Excellent',
-        element: 'Container',
-        level: 'Excellent',
-        scheduledTime: new Date(Date.now() + 90 * 60000),
-        ringNumber: 1,
-        totalEntries: 18,
-        completedEntries: 0,
-        status: 'pending',
-      },
-    ];
-    setAssignments(mockClasses);
-  };
+  const stats = useJudgeTodayStats();
 
-  // Load judge data and set up effects (ProtectedRoute gates access)
+  // Audit log on mount (ProtectedRoute gates access)
   useEffect(() => {
     queueMicrotask(() => {
-      loadJudgeData();
       auditService.log({
         action: AuditAction.READ,
         entityType: 'judge_dashboard',
@@ -106,8 +73,11 @@ const JudgeDashboard: React.FC = () => {
     });
   }, [user?.id]);
 
-  // Use assignments state instead of todaysClasses const
-  const todaysClasses = assignments;
+  // The class list shown in the Today tab comes from the check-in dashboard;
+  // here we only display aggregate stat cards. Keep todaysClasses as empty
+  // so the list body renders its "No Classes Today" empty state when real data
+  // is not yet available from a separate detailed query.
+  const todaysClasses: JudgeClass[] = [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -201,10 +171,20 @@ const JudgeDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                8
-              </div>
-              <p className="text-sm text-muted-foreground font-medium">3 completed</p>
+              {stats.isLoading ? (
+                <Skeleton className="h-10 w-16 mb-2" />
+              ) : (
+                <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                  {stats.totalToday}
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground font-medium">
+                {stats.isLoading ? (
+                  <Skeleton className="h-4 w-24" />
+                ) : (
+                  `${stats.completedToday} completed`
+                )}
+              </p>
             </CardContent>
           </GlassCard>
 
@@ -220,10 +200,20 @@ const JudgeDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                142
-              </div>
-              <p className="text-sm text-muted-foreground font-medium">57 judged</p>
+              {stats.isLoading ? (
+                <Skeleton className="h-10 w-16 mb-2" />
+              ) : (
+                <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                  {stats.totalEntries}
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground font-medium">
+                {stats.isLoading ? (
+                  <Skeleton className="h-4 w-24" />
+                ) : (
+                  `${stats.checkedInCount} checked in`
+                )}
+              </p>
             </CardContent>
           </GlassCard>
 
@@ -239,10 +229,22 @@ const JudgeDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                30m
-              </div>
-              <p className="text-sm text-muted-foreground font-medium">Interior Novice A</p>
+              {stats.isLoading ? (
+                <Skeleton className="h-10 w-16 mb-2" />
+              ) : (
+                <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                  {stats.nextClass ? '—' : '—'}
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground font-medium">
+                {stats.isLoading ? (
+                  <Skeleton className="h-4 w-32" />
+                ) : stats.nextClass ? (
+                  stats.nextClass
+                ) : (
+                  'No classes today'
+                )}
+              </p>
             </CardContent>
           </GlassCard>
 
@@ -258,13 +260,21 @@ const JudgeDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                95%
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
-                <span className="text-sm text-success-green font-medium">On schedule</span>
-              </div>
+              {stats.isLoading ? (
+                <Skeleton className="h-10 w-16 mb-2" />
+              ) : (
+                <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                  {stats.totalToday > 0
+                    ? `${Math.round((stats.completedToday / stats.totalToday) * 100)}%`
+                    : '—'}
+                </div>
+              )}
+              {!stats.isLoading && stats.totalToday > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
+                  <span className="text-sm text-success-green font-medium">On schedule</span>
+                </div>
+              )}
             </CardContent>
           </GlassCard>
         </StaggeredGrid>
@@ -279,8 +289,12 @@ const JudgeDashboard: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PrimaryTabs tabs={JUDGE_TABS} value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-
+              <PrimaryTabs
+                tabs={JUDGE_TABS}
+                value={selectedTab}
+                onValueChange={setSelectedTab}
+                className="space-y-6"
+              >
                 <TabsContent value="today" className="space-y-4">
                   {todaysClasses.map(judgeClass => (
                     <div

@@ -24,6 +24,7 @@ import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
 import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
+import { PremiumTemplatesTab } from './ClubEditPanel/PremiumTemplatesTab';
 
 interface ClubEditPanelProps {
   open: boolean;
@@ -87,7 +88,7 @@ const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
 });
 
 // Form content component
-const ClubEditForm: React.FC = () => {
+const ClubEditForm: React.FC<{ clubId: string }> = ({ clubId }) => {
   const { data, form } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
@@ -179,7 +180,7 @@ const ClubEditForm: React.FC = () => {
   return (
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
+        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
           <TabsTrigger
             value="basic"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
@@ -193,6 +194,12 @@ const ClubEditForm: React.FC = () => {
           >
             <Phone className="h-4 w-4" />
             Contact
+          </TabsTrigger>
+          <TabsTrigger
+            value="premium"
+            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+          >
+            Premium
           </TabsTrigger>
         </TabsList>
 
@@ -477,6 +484,14 @@ const ClubEditForm: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Premium Templates Tab */}
+        <TabsContent
+          value="premium"
+          className="animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
+          <PremiumTemplatesTab clubId={clubId} />
+        </TabsContent>
       </Tabs>
 
       {/* Club Photo Dialog */}
@@ -504,6 +519,7 @@ const ClubEditForm: React.FC = () => {
 export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
   open,
   onClose,
+  clubId,
   clubName,
   initialClubData,
   onSave,
@@ -544,7 +560,7 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
       saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
       cancelLabel="Cancel"
     >
-      <ClubEditForm />
+      <ClubEditForm clubId={clubId} />
     </EditPanelWrapper>
   );
 };

@@ -105,6 +105,7 @@ async function postgrestGetUserEntries(userId: string) {
         name,
         start_date,
         end_date,
+        entry_close_date,
         venue,
         city,
         state

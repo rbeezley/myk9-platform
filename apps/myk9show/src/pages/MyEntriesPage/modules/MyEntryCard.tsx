@@ -87,6 +87,16 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
           <span>{entry.showDate.toLocaleDateString()}</span>
         </div>
 
+        {entry.entryCloseDate && (
+          <div className="myk9-entries-detail-item">
+            <Calendar className="h-4 w-4" />
+            <span>
+              <span className="text-sm text-muted-foreground">Closes </span>
+              {entry.entryCloseDate.toLocaleDateString()}
+            </span>
+          </div>
+        )}
+
         <div className="myk9-entries-detail-item">
           <MapPin className="h-4 w-4" />
           <span>

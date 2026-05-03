@@ -22,6 +22,8 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 - [ ] **Phase 2 — Walk the Golden Paths** (~3–5 weeks) — Walk each role's journey end-to-end in a real browser with realistic data; fix every gap before moving on. Order: **(a) Secretary** (~2–3 weeks, reference against Access screenshots + knowledge base); **(b) Exhibitor** (~1–2 weeks); **(c) Admin minimum** (~few days, just enough for user to run the platform). Rules: no new features, no wandering to unrelated bugs on hidden features, fix root causes not symptoms. New unit tests for new/changed code (per `CLAUDE.md` policy). **Exit:** user completes both golden paths end-to-end on `localhost:5173` without a blocker; no TO-DOs remain on the golden paths.
 
+  **Progress 2026-05-03:** First full pass complete — (a) Secretary ✓ walked + bugs fixed (PRs #71, #75, #133), (b) Exhibitor ✓ walked + 7 bugs fixed (PRs #136, commits d73e6a80), (c) Admin minimum ✓ walked + 3 bugs fixed (commit c72bdbad). Keeping open for a second re-walk before Phase 3 hand-off to real users.
+
 - [ ] **Phase 3 — Real-User Testing** (~1–2 weeks) — Recruit 2–3 non-technical test users (one secretary, one or two exhibitors — not developers, not veterans who'll fill gaps mentally). Hand them written tasks, watch silently, every hesitation is a bug. Fix confusion-level findings, not just errors. Iterate until users stop getting stuck. Once golden paths are clean, revisit the "park" pile from Phase 0 and decide what to un-hide for a post-fall release. **Exit:** 2–3 test users complete both journeys unassisted; no confusion-level findings outstanding.
 
 ---

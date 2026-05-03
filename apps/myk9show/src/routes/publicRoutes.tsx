@@ -3,14 +3,31 @@
  *
  * All routes render inside UnifiedAppLayout (sidebar provided by parent).
  * Browse pages are public; exhibitor pages require authentication.
+ *
+ * Feature-flagged routes (features.* === false) render ComingSoonPage instead
+ * of the real component. Flip the flag in src/config/features.ts and redeploy
+ * to unlock — no other code changes required.
  */
 
-import { lazy } from 'react';
+import { lazy, type ReactNode } from 'react';
 import { Route, Navigate } from 'react-router-dom';
+import { BarChart3, Calendar, ClipboardList, Flag } from 'lucide-react';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { ClassDetailsRedirect } from './ClassDetailsRedirect';
+import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
+import { features } from '@/config/features';
+
+function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
+  return enabled ? (
+    <SuspenseWrapper>
+      <PageTransition>{page}</PageTransition>
+    </SuspenseWrapper>
+  ) : (
+    <ComingSoonPage {...coming} />
+  );
+}
 
 // Public page lazy imports
 const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
@@ -79,11 +96,12 @@ export const PublicRoutes = () => (
       path="/shows/:showId/register"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <RegistrationWizardPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          {featurePage(features.showRegistration, <RegistrationWizardPage />, {
+            title: 'Show Registration',
+            description:
+              'Online show entry is coming soon. Your dogs and training data will be ready and waiting when it arrives.',
+            icon: ClipboardList,
+          })}
         </ProtectedRoute>
       }
     />
@@ -143,11 +161,12 @@ export const PublicRoutes = () => (
       path="/my-entries"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <MyEntriesPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          {featurePage(features.myEntries, <MyEntriesPage />, {
+            title: 'My Entries',
+            description:
+              'Show entry management is coming soon. Your dogs and training data will be ready and waiting when it arrives.',
+            icon: ClipboardList,
+          })}
         </ProtectedRoute>
       }
     />
@@ -158,11 +177,11 @@ export const PublicRoutes = () => (
       path="/exhibitor/show-day"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ShowDayPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          {featurePage(features.showDay, <ShowDayPage />, {
+            title: 'Show Day',
+            description: 'Show day check-in and management is coming soon.',
+            icon: Flag,
+          })}
         </ProtectedRoute>
       }
     />
@@ -172,11 +191,11 @@ export const PublicRoutes = () => (
       path="/exhibitor/analytics"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <AnalyticsPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          {featurePage(features.analytics, <AnalyticsPage />, {
+            title: 'Analytics',
+            description: 'Performance analytics and statistics are coming soon.',
+            icon: BarChart3,
+          })}
         </ProtectedRoute>
       }
     />
@@ -184,11 +203,12 @@ export const PublicRoutes = () => (
       path="/exhibitor/entries"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <MyEntriesPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          {featurePage(features.myEntries, <MyEntriesPage />, {
+            title: 'My Entries',
+            description:
+              'Show entry management is coming soon. Your dogs and training data will be ready and waiting when it arrives.',
+            icon: ClipboardList,
+          })}
         </ProtectedRoute>
       }
     />
@@ -345,11 +365,12 @@ export const PublicRoutes = () => (
       path="/calendar"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <CalendarPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          {featurePage(features.calendar, <CalendarPage />, {
+            title: 'Calendar',
+            description:
+              'The show calendar is coming soon. Your dogs and training data will be ready and waiting when it arrives.',
+            icon: Calendar,
+          })}
         </ProtectedRoute>
       }
     />

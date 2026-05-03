@@ -10,6 +10,42 @@
 
 ---
 
+## Pre-Task: Environment Setup [ADDED]
+
+**Files:** none — operational prerequisite
+
+- [ ] **Step 1: Verify `ANTHROPIC_API_KEY` is set as a Supabase edge function secret**
+
+```bash
+npx supabase secrets list
+```
+
+Look for `ANTHROPIC_API_KEY` in the output. If it is absent, every call to `generate-premium` will catch the Anthropic SDK error and silently return placeholder narratives — the feature appears to work but Claude never runs.
+
+```bash
+# If missing:
+npx supabase secrets set ANTHROPIC_API_KEY=<your-key>
+```
+
+Expected after setting: `npx supabase secrets list` shows `ANTHROPIC_API_KEY`.
+
+- [ ] **Step 2: Verify `is_club_admin(uuid)` exists in the database**
+
+```sql
+-- Run in Supabase SQL editor or psql:
+select proname from pg_proc where proname = 'is_club_admin';
+```
+
+If the query returns **no rows**, the migration in Task 1 will fail on push. In that case, replace all `public.is_club_admin(club_id)` references in `185_premium_bridge_tables.sql` with the known-safe fallback:
+
+```sql
+-- Safe fallback using confirmed-existing functions:
+public.is_site_admin()
+or public.is_trial_secretary(club_id)
+```
+
+---
+
 ## File Map
 
 **New files:**
@@ -47,6 +83,7 @@
 
 ```sql
 -- supabase/migrations/185_premium_bridge_tables.sql
+-- rollback: drop table public.premium_generations; drop table public.club_premium_templates;
 
 create table public.club_premium_templates (
   id                  uuid primary key default gen_random_uuid(),
@@ -939,14 +976,21 @@ Deno.serve(async (req) => {
     .single()
   if (showError || !show) return jsonResponse({ error: 'Show not found' }, 404)
 
-  // verify caller has rights (SECRETARY, CLUB_ADMIN, SITE_ADMIN)
+  // verify caller has rights — SECRETARY is scoped to this show's club [EXPANDED]
   const { data: roles } = await supabase
     .from('user_roles')
     .select('role')
     .eq('auth_user_id', user.id)
   const roleNames = (roles ?? []).map((r: { role: string }) => r.role)
   const isAdmin = roleNames.includes('SITE_ADMIN') || roleNames.includes('CLUB_ADMIN')
-  const isSecretary = roleNames.includes('SECRETARY')
+
+  let isSecretary = false
+  if (!isAdmin && roleNames.includes('SECRETARY')) {
+    const { data: secCheck } = await supabase
+      .rpc('is_trial_secretary', { p_club_id: show.club_id })
+    isSecretary = !!secCheck
+  }
+
   if (!isAdmin && !isSecretary) return jsonResponse({ error: 'Forbidden' }, 403)
 
   // resolve club premium template
@@ -1587,7 +1631,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     if (!premium || !overrides || !narrativeEdits) return
     const fieldOverrides: Record<string, PremiumFieldOverride> = {}
     const narrEdits: Record<string, PremiumNarrativeEdit> = {}
-    // log vet_clinic override if changed
     if (JSON.stringify(overrides.vetClinic) !== JSON.stringify(premium.supplemental.vetClinic)) {
       fieldOverrides['vet_clinic'] = { templateValue: premium.supplemental.vetClinic, finalValue: overrides.vetClinic }
     }
@@ -1600,7 +1643,12 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     if (narrativeEdits.trialInformation !== premium.narratives.trialInformation) {
       narrEdits['trialInformation'] = { generatedValue: premium.narratives.trialInformation, finalValue: narrativeEdits.trialInformation }
     }
-    await logPremiumGeneration(showId, clubId, premium, fieldOverrides, narrEdits)
+    // [EXPANDED] non-blocking — PDF already downloaded; losing the log is better than blocking the download
+    try {
+      await logPremiumGeneration(showId, clubId, premium, fieldOverrides, narrEdits)
+    } catch {
+      console.error('[premium-bridge] Failed to log premium generation')
+    }
   }
 
   const finalPremium = premium ? buildFinalPremium() : null
@@ -1723,17 +1771,25 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
               </div>
             </div>
 
+            {/* [EXPANDED] handle PDFDownloadLink error state */}
             <PDFDownloadLink
               document={<PdfTemplate premium={finalPremium} />}
               fileName={`${premium.show.name.replace(/\s+/g, '-')}-premium.pdf`}
               onClick={handleDownloaded}
             >
-              {({ loading }) => (
-                <Button className="w-full" disabled={loading}>
-                  <Download className="h-4 w-4 mr-2" />
-                  {loading ? 'Preparing PDF…' : 'Download Premium PDF'}
-                </Button>
-              )}
+              {({ loading, error: pdfError }) => {
+                if (pdfError) return (
+                  <Button className="w-full" variant="destructive" disabled>
+                    PDF generation failed — check console
+                  </Button>
+                )
+                return (
+                  <Button className="w-full" disabled={loading}>
+                    <Download className="h-4 w-4 mr-2" />
+                    {loading ? 'Preparing PDF…' : 'Download Premium PDF'}
+                  </Button>
+                )
+              }}
             </PDFDownloadLink>
           </div>
         )}
@@ -1803,7 +1859,37 @@ const [premiumPanelOpen, setPremiumPanelOpen] = useState(false)
 />
 ```
 
-- [ ] **Step 2: Typecheck**
+- [ ] **Step 2: [ADDED] Also wire the button into the Pipeline dashboard**
+
+Open `apps/myk9show/src/features/pipeline/components/TrialPipelineDetail.tsx`. Add the same button and panel alongside the existing pipeline action buttons (around lines 205–220):
+
+```tsx
+// Add import at top:
+import { GeneratePremiumPanel } from '../../../features/premium/GeneratePremiumPanel'
+import { FileText } from 'lucide-react'
+
+// Add state near other useState calls:
+const [premiumPanelOpen, setPremiumPanelOpen] = useState(false)
+
+// Add button in the pipeline actions area:
+{(show.organization === 'AKC' || show.organization === 'UKC') && (
+  <Button variant="outline" size="sm" onClick={() => setPremiumPanelOpen(true)}>
+    <FileText className="h-4 w-4 mr-2" />
+    Generate Premium
+  </Button>
+)}
+
+// Add panel before closing fragment:
+<GeneratePremiumPanel
+  open={premiumPanelOpen}
+  onClose={() => setPremiumPanelOpen(false)}
+  showId={show.id}
+  clubId={show.club_id}
+  showOrg={show.organization as 'AKC' | 'UKC' | null}
+/>
+```
+
+- [ ] **Step 3: Typecheck**
 
 ```bash
 cd apps/myk9show && pnpm typecheck 2>&1 | head -20
@@ -1811,7 +1897,7 @@ cd apps/myk9show && pnpm typecheck 2>&1 | head -20
 
 Expected: no errors.
 
-- [ ] **Step 3: Start dev server and manually verify**
+- [ ] **Step 5: Start dev server and manually verify**
 
 ```bash
 pnpm dev:show
@@ -1826,11 +1912,12 @@ pnpm dev:show
 7. Click "Download Premium PDF" — PDF downloads to your browser
 8. Verify the downloaded PDF contains the show name, club name, fees, judge names, and edited content
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add apps/myk9show/src/pages/ShowDetailsPage.tsx
-git commit -m "feat(premium-bridge): Generate Premium button + panel on ShowDetailsPage"
+git add apps/myk9show/src/pages/ShowDetailsPage.tsx \
+        apps/myk9show/src/features/pipeline/components/TrialPipelineDetail.tsx
+git commit -m "feat(premium-bridge): Generate Premium button on ShowDetailsPage + Pipeline dashboard"
 ```
 
 ---
@@ -1875,7 +1962,19 @@ git commit -m "feat(premium-bridge): Generate Premium button + panel on ShowDeta
 2. Navigate to Club settings → Premium Templates tab
 3. Confirm the amber nudge appears: "You've changed Vet Clinic for your last 3 shows — consider updating your template."
 
-- [ ] **Step 5: Final typecheck + test run**
+- [ ] **Step 4: [ADDED] Verify auth + access control**
+
+1. Log in as `exhibitor1@myk9t.com` — navigate to a show detail page and confirm **"Generate Premium" button does not appear**
+2. Log in as `secretary@myk9t.com` — confirm button appears on both ShowDetailsPage and Pipeline dashboard for shows assigned to their club
+3. Confirm button is hidden for shows with `organization` set to anything other than `AKC` or `UKC`
+
+- [ ] **Step 5: [ADDED] Verify error states**
+
+1. Open a show where the club has no premium template → confirm amber "No template found" alert appears before clicking generate
+2. After generating, clear the vet clinic name field and download → open PDF and confirm `[REQUIRED — add before submitting]` appears in the Veterinary Information section
+3. Confirm the "Generate Premium" button on Pipeline dashboard opens the same panel and produces the same PDF as the ShowDetailsPage button
+
+- [ ] **Step 7: Final typecheck + test run**
 
 ```bash
 cd apps/myk9show && pnpm typecheck && npx vitest run src/features/premium/
@@ -1883,7 +1982,7 @@ cd apps/myk9show && pnpm typecheck && npx vitest run src/features/premium/
 
 Expected: typecheck clean, all premium tests pass.
 
-- [ ] **Step 6: Final commit**
+- [ ] **Step 8: Final commit**
 
 ```bash
 git add -A

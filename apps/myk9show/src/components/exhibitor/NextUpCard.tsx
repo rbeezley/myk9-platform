@@ -26,6 +26,8 @@ interface NextUpCardProps {
   selfCheckinEnabled?: boolean | undefined;
   /** Reason self-check-in is disabled */
   selfCheckinDisabledReason?: string | undefined;
+  /** Navigates to the full check-in management page */
+  onManage?: ((entryId: string) => void) | undefined;
   className?: string | undefined;
 }
 
@@ -35,6 +37,7 @@ export function NextUpCard({
   onCheckInChange,
   selfCheckinEnabled = true,
   selfCheckinDisabledReason,
+  onManage,
   className,
 }: NextUpCardProps) {
   const dogsAheadText = formatDogsAheadText(computeDogsAhead(classData));
@@ -199,6 +202,19 @@ export function NextUpCard({
         >
           <LogIn className="h-5 w-5" />
           {selfCheckinEnabled ? 'Check In' : 'Check-in Disabled'}
+        </button>
+      )}
+
+      {onManage && (
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation();
+            onManage(classData.entryId);
+          }}
+          className="mt-2 w-full text-center text-sm text-muted-foreground hover:underline underline-offset-2 min-h-[44px]"
+        >
+          Manage check-in →
         </button>
       )}
     </div>

@@ -238,7 +238,11 @@ cd apps/myk9show && npx tsc --noEmit
 ```
 Expected: no errors
 
-**Step 5: Commit**
+**Step 5: Nav/sidebar visibility decision**
+
+For the early adopter release, leave sidebar nav links visible — clicking a gated link shows the "Coming Soon" screen. This signals future roadmap features without dead-end errors. If the product decision changes to hide nav items entirely, apply `features.browseShows` etc. to the sidebar nav item definitions as a follow-up task.
+
+**Step 6: Commit**
 
 ```bash
 git add apps/myk9show/src/routes/publicRoutes.tsx
@@ -285,15 +289,25 @@ At the top of `DogDetailsTabs.tsx`, add:
 import { features } from '@/config/features';
 ```
 
-In the `tabDefs` array inside the `useMemo`, wrap the competitions and statistics entries:
+**Important:** The `useMemo` has two branches — the secretary early return and the exhibitor array. The feature-flag gates apply **only in the exhibitor array** (the `return [...]` after the `if (isSecretary)` block). Do not modify the secretary branch.
+
+Replace the exhibitor-only `return [...]` with:
 
 ```typescript
-// Replace the competitions entry:
-...(features.competitionsTab ? [{ id: 'competitions', label: 'Competitions', icon: Trophy }] : []),
-
-// Replace the statistics entry:
-...(features.statisticsTab ? [{ id: 'statistics', label: 'Statistics', icon: BarChart3, locked: showLock }] : []),
+// Exhibitor tabs — ONLY inside the non-secretary branch, after the isSecretary early return
+const showLock = !isLoading && !isPremium;
+return [
+  ...base,
+  ...(features.competitionsTab ? [{ id: 'competitions', label: 'Competitions', icon: Trophy }] : []),
+  { id: 'title-progress', label: 'Title Progress', icon: Crown, locked: showLock },
+  ...(features.statisticsTab ? [{ id: 'statistics', label: 'Statistics', icon: BarChart3, locked: showLock }] : []),
+  { id: 'health-records', label: 'Health Records', icon: Stethoscope, locked: showLock },
+  { id: 'training-journal', label: 'Training Journal', icon: BookOpen, locked: showLock },
+  { id: 'pedigree', label: 'Pedigree', icon: GitBranch, locked: showLock },
+];
 ```
+
+Note: `title-progress` is **not** gated by a feature flag — it stays visible but BlurGate-locked until Task 5 unlocks it for early adopters.
 
 Also wrap the corresponding `<TabsContent>` blocks:
 
@@ -330,7 +344,7 @@ git commit -m "feat(early-adopter): gate competitions and statistics tabs behind
 ### Task 5: Early Adopter Flag Migration
 
 **Files:**
-- Create: `supabase/migrations/184_early_adopter_flag.sql`
+- Create: `supabase/migrations/185_early_adopter_flag.sql`
 - Modify: `apps/myk9show/src/hooks/useExhibitorProfile.ts`
 - Modify: `apps/myk9show/src/hooks/useSubscriptionGate.ts`
 - Create: `apps/myk9show/src/hooks/__tests__/useSubscriptionGate.test.ts`
@@ -374,10 +388,22 @@ cd apps/myk9show && npx vitest run src/hooks/__tests__/useSubscriptionGate.test.
 ```
 Expected: FAIL — `isEarlyAdopter` does not exist, `isPremium` is false for free tier
 
-**Step 3: Create the migration**
+**Step 2.5: Verify RLS before writing migration**
+
+Confirm the existing `exhibitor_profiles` SELECT policy uses `SELECT *` (not an explicit column list) — if it does, the new column is automatically included after migration. Check in the Supabase dashboard under Authentication → Policies → exhibitor_profiles, or run:
 
 ```sql
--- supabase/migrations/184_early_adopter_flag.sql
+SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = 'exhibitor_profiles';
+```
+
+If any policy has an explicit column list, add `is_early_adopter` to it.
+
+**Step 3: Create the migration**
+
+> **Note:** The next available migration number is `185`. Migration `184` is already taken by `184_shows_cc_secretary_toggle.sql`.
+
+```sql
+-- supabase/migrations/185_early_adopter_flag.sql
 -- Adds is_early_adopter flag to exhibitor_profiles.
 -- Early adopters receive free premium access to dog management tools
 -- during the pre-launch period. Set manually via Supabase dashboard.
@@ -388,6 +414,10 @@ ALTER TABLE exhibitor_profiles
 CREATE INDEX IF NOT EXISTS exhibitor_profiles_early_adopter_idx
   ON exhibitor_profiles(is_early_adopter)
   WHERE is_early_adopter = TRUE;
+
+-- Rollback (run manually if needed):
+-- ALTER TABLE exhibitor_profiles DROP COLUMN IF EXISTS is_early_adopter;
+-- DROP INDEX IF EXISTS exhibitor_profiles_early_adopter_idx;
 ```
 
 **Step 4: Update ExhibitorProfile type**
@@ -458,7 +488,7 @@ source .env.local && npx supabase db push --db-url "postgresql://postgres.sojmvh
 **Step 8: Commit**
 
 ```bash
-git add supabase/migrations/184_early_adopter_flag.sql apps/myk9show/src/hooks/useExhibitorProfile.ts apps/myk9show/src/hooks/useSubscriptionGate.ts apps/myk9show/src/hooks/__tests__/useSubscriptionGate.test.ts
+git add supabase/migrations/185_early_adopter_flag.sql apps/myk9show/src/hooks/useExhibitorProfile.ts apps/myk9show/src/hooks/useSubscriptionGate.ts apps/myk9show/src/hooks/__tests__/useSubscriptionGate.test.ts
 git commit -m "feat(early-adopter): add is_early_adopter flag — bypasses premium BlurGate"
 ```
 
@@ -599,6 +629,12 @@ describe('LogQualifyingScoreDialog', () => {
     });
   });
 
+  it('disables Save when sport template is unavailable', () => {
+    vi.mocked(useSportTemplatesQuery).mockReturnValueOnce({ data: [] } as ReturnType<typeof useSportTemplatesQuery>);
+    render(<LogQualifyingScoreDialog {...defaultProps} />);
+    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+  });
+
   it('calls createMutation with correct data on submit', async () => {
     render(<LogQualifyingScoreDialog {...defaultProps} />);
     fireEvent.change(screen.getByPlaceholderText(/show name/i), {
@@ -686,6 +722,8 @@ export function LogQualifyingScoreDialog({
   const [error, setError] = useState('');
 
   const akcTemplate = templates.find(t => t.sport_code === 'akc-scent-work');
+
+  const templateMissing = !akcTemplate;
 
   const handleSubmit = () => {
     if (!showName.trim()) {
@@ -804,8 +842,11 @@ export function LogQualifyingScoreDialog({
         </div>
 
         <DialogFooter>
+          {templateMissing && (
+            <p className="text-sm text-destructive mr-auto">Sport template unavailable. Please try again.</p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button onClick={handleSubmit} disabled={isPending || templateMissing}>
             {isPending ? 'Saving...' : 'Save'}
           </Button>
         </DialogFooter>

@@ -27,6 +27,7 @@ export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
         <ShowCardHorizontal
           key={show.id}
           show={show}
+          userHasEntries={show.userHasEntries}
           isSelected={isSelected?.(show) ?? false}
           {...toggleProps}
         />

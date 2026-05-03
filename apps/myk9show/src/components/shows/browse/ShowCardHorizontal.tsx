@@ -14,6 +14,7 @@ import type { Show } from '@/types/show-types';
 
 export interface ShowCardHorizontalProps {
   show: Show;
+  userHasEntries?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
 }
@@ -24,12 +25,13 @@ export interface ShowCardHorizontalProps {
  */
 export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
   show,
+  userHasEntries = false,
   isSelected = false,
   onToggleSelect,
 }) => {
   const navigate = useNavigate();
 
-  const entryStatus = getEntryStatus(show, false);
+  const entryStatus = getEntryStatus(show, userHasEntries);
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
 
   return (
@@ -65,7 +67,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
             <h3 className="text-base font-bold leading-tight group-hover:text-primary transition-colors truncate">
               {show.name}
             </h3>
-            <EntryStatusBadge show={show} userHasEntries={false} size="sm" />
+            <EntryStatusBadge show={show} userHasEntries={userHasEntries} size="sm" />
           </div>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

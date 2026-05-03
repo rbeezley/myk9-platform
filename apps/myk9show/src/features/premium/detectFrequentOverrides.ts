@@ -1,6 +1,6 @@
 import type { PremiumGeneration } from '../../types/premium-types';
 
-export function detectConsecutiveOverrides(
+export function detectFrequentOverrides(
   generations: Array<Pick<PremiumGeneration, 'fieldOverrides'>>,
   threshold = 3
 ): string[] {

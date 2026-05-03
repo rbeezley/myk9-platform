@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectConsecutiveOverrides } from '../detectConsecutiveOverrides';
+import { detectFrequentOverrides } from '../detectFrequentOverrides';
 import type { PremiumGeneration } from '../../../types/premium-types';
 
 const makeGen = (fields: string[]): Pick<PremiumGeneration, 'fieldOverrides'> => ({
@@ -8,24 +8,24 @@ const makeGen = (fields: string[]): Pick<PremiumGeneration, 'fieldOverrides'> =>
   ),
 });
 
-describe('detectConsecutiveOverrides', () => {
+describe('detectFrequentOverrides', () => {
   it('returns empty array when no generations', () => {
-    expect(detectConsecutiveOverrides([])).toEqual([]);
+    expect(detectFrequentOverrides([])).toEqual([]);
   });
 
   it('returns field overridden 3+ times', () => {
     const gens = [makeGen(['vet_clinic']), makeGen(['vet_clinic']), makeGen(['vet_clinic'])];
-    expect(detectConsecutiveOverrides(gens)).toContain('vet_clinic');
+    expect(detectFrequentOverrides(gens)).toContain('vet_clinic');
   });
 
   it('does not return field overridden fewer than threshold times', () => {
     const gens = [makeGen(['vet_clinic']), makeGen(['vet_clinic'])];
-    expect(detectConsecutiveOverrides(gens)).not.toContain('vet_clinic');
+    expect(detectFrequentOverrides(gens)).not.toContain('vet_clinic');
   });
 
   it('respects custom threshold', () => {
     const gens = [makeGen(['vet_clinic']), makeGen(['vet_clinic'])];
-    expect(detectConsecutiveOverrides(gens, 2)).toContain('vet_clinic');
+    expect(detectFrequentOverrides(gens, 2)).toContain('vet_clinic');
   });
 
   it('handles multiple fields independently', () => {
@@ -34,7 +34,7 @@ describe('detectConsecutiveOverrides', () => {
       makeGen(['vet_clinic', 'hospitality']),
       makeGen(['vet_clinic']),
     ];
-    const result = detectConsecutiveOverrides(gens);
+    const result = detectFrequentOverrides(gens);
     expect(result).toContain('vet_clinic');
     expect(result).not.toContain('hospitality');
   });

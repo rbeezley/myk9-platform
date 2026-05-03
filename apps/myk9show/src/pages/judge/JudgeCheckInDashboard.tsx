@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { JudgeCheckInInterface } from '@/components/judges/JudgeCheckInInterface';
 import { GateStewardInterface } from '@/components/stewards/GateStewardInterface';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import {
   Users,
@@ -31,7 +30,6 @@ interface RingAssignment {
 }
 
 const JudgeCheckInDashboard: React.FC = () => {
-  const { user } = useAuthContext();
   const navigate = useNavigate();
   const [selectedRing, setSelectedRing] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'ring-detail' | 'multi-ring'>('overview');
@@ -44,34 +42,9 @@ const JudgeCheckInDashboard: React.FC = () => {
   ];
 
   const loadRingAssignments = useCallback(async () => {
-    // Mock data - in real implementation, this would fetch judge's ring assignments
-    const mockAssignments: RingAssignment[] = [
-      {
-        ringNumber: '1',
-        judgeName: user?.email || 'Judge Smith',
-        className: 'Open Standard',
-        startTime: new Date(2024, 6, 15, 9, 0),
-        totalEntries: 24,
-        checkedInCount: 18,
-        conflictCount: 2,
-        atGateCount: 3,
-        isActive: true,
-      },
-      {
-        ringNumber: '3',
-        judgeName: user?.email || 'Judge Smith',
-        className: 'Excellent JWW',
-        startTime: new Date(2024, 6, 15, 11, 30),
-        totalEntries: 16,
-        checkedInCount: 12,
-        conflictCount: 1,
-        atGateCount: 1,
-        isActive: false,
-      },
-    ];
-
-    setRingAssignments(mockAssignments);
-  }, [user?.email]);
+    // TODO: replace with real query once ring_assignments table is wired up
+    setRingAssignments([]);
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {

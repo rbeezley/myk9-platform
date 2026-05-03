@@ -23,17 +23,14 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 
 - [ ] **Admin / judge / club-admin interior audit** — Routes under `/admin/*`, `/judge/*`, `/club-admin/*` not walked end-to-end. Need a pass as SITE_ADMIN (and JUDGE for `/judge/*`) to surface 400s, broken UI, or missing data.
 - [ ] **`/results/dashboard` Base UI button warning** — Not reproducible on page load; may only fire on specific interactions. Re-investigate next time it surfaces with a repro path. Files: components rendered by `/results/dashboard`.
-- [ ] **Judge surfaces: mock/seed data** — `/judge/dashboard` shows "Today's Classes 8, 3 completed" and `/judge/check-in` shows "Total Entries 40 · Checked In 30 · Conflicts 3" for a fresh judge who has zero real data. Confirm whether dashboards read real data or hardcoded values; swap seeds for real queries / empty state.
 
 ## People & Clubs CRUD
 
 - [ ] **People CRUD full audit** — End-to-end audit: create, read, update, delete people as secretary + admin; monitor console/network. Files: `apps/myk9show/src/features/people/`. Full context in TO-DOS.md § "People CRUD + Test Clubs Audit — 2026-04-25".
 - [ ] **Clubs full CRUD audit** — Walk create, read, update, delete, list, detail as site admin; capture console/network errors. Files: `apps/myk9show/src/pages/clubs/`. Full context in TO-DOS.md § "Clubs Full CRUD Audit and Fix — 2026-04-25".
-- [ ] **Add Club: silent validation + RLS gate as secretary** — Button does nothing visible on first click; secretary 403s on submit anyway (by design but UI doesn't say so). Either hide Add Club from non-admins or gate button on `useIsSiteAdmin()`. Files: `apps/myk9show/src/components/panels/entities/ClubCreationPanel.tsx`. Full context in TO-DOS.md § "People CRUD Audit Findings — 2026-04-25".
 
 ## Payments & Email
 
-- [ ] **Wire Up Resend API Key** — `send-email` edge function silently returns 503; `RESEND_API_KEY` is missing from edge function secrets. Ops task only — copy key from Supabase Auth → Edge Function Secrets, add `RESEND_WEBHOOK_SECRET`. No code change. Full context in TO-DOS.md § "Wire Up Resend API Key — 2026-04-28".
 - [ ] **Stripe Integration** — No Stripe integration exists. Entry fees need Stripe Connect (club's connected account + platform convenience fee via `application_fee_amount`). Includes club Stripe onboarding flow + webhook. Full context in TO-DOS.md § "Stripe Integration + Exhibitor Payments Page — 2026-04-30".
 - [ ] **Exhibitor Payments page** — `/exhibitor/payments` list view: date, show name, amount, Stripe reference, status, receipt link. Blocked on Stripe integration above. Files: `apps/myk9show/src/pages/`.
 

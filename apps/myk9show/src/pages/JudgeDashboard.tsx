@@ -54,40 +54,11 @@ const JudgeDashboard: React.FC = () => {
   const { user, firstName } = useAuthContext();
   const [selectedTab, setSelectedTab] = useState('today');
   const [assignments, setAssignments] = useState<JudgeClass[]>([]);
+  const [mountTime] = useState(() => Date.now());
 
   const loadJudgeData = async () => {
-    // Mock data - replace with actual data from stores
-    const mockClasses: JudgeClass[] = [
-      {
-        id: '1',
-        showId: 'show-001',
-        trialId: 'trial-001',
-        classId: 'class-001',
-        name: 'Interior Novice A',
-        element: 'Interior',
-        level: 'Novice',
-        scheduledTime: new Date(Date.now() + 30 * 60000),
-        ringNumber: 1,
-        totalEntries: 24,
-        completedEntries: 0,
-        status: 'pending',
-      },
-      {
-        id: '2',
-        showId: 'show-001',
-        trialId: 'trial-001',
-        classId: 'class-002',
-        name: 'Container Excellent',
-        element: 'Container',
-        level: 'Excellent',
-        scheduledTime: new Date(Date.now() + 90 * 60000),
-        ringNumber: 1,
-        totalEntries: 18,
-        completedEntries: 0,
-        status: 'pending',
-      },
-    ];
-    setAssignments(mockClasses);
+    // TODO: replace with real query once judge_assignments table is wired up
+    setAssignments([]);
   };
 
   // Load judge data and set up effects (ProtectedRoute gates access)
@@ -106,8 +77,18 @@ const JudgeDashboard: React.FC = () => {
     });
   }, [user?.id]);
 
-  // Use assignments state instead of todaysClasses const
   const todaysClasses = assignments;
+
+  const completedCount = todaysClasses.filter(c => c.status === 'completed').length;
+  const totalEntries = todaysClasses.reduce((sum, c) => sum + c.totalEntries, 0);
+  const judgedEntries = todaysClasses.reduce((sum, c) => sum + c.completedEntries, 0);
+  const completionRate = totalEntries > 0 ? Math.round((judgedEntries / totalEntries) * 100) : null;
+  const nextClass = todaysClasses
+    .filter(c => c.status !== 'completed')
+    .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())[0];
+  const minutesUntilNext = nextClass
+    ? Math.max(0, Math.round((nextClass.scheduledTime.getTime() - mountTime) / 60000))
+    : null;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -202,9 +183,11 @@ const JudgeDashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                8
+                {todaysClasses.length}
               </div>
-              <p className="text-sm text-muted-foreground font-medium">3 completed</p>
+              <p className="text-sm text-muted-foreground font-medium">
+                {completedCount} completed
+              </p>
             </CardContent>
           </GlassCard>
 
@@ -221,9 +204,9 @@ const JudgeDashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                142
+                {totalEntries}
               </div>
-              <p className="text-sm text-muted-foreground font-medium">57 judged</p>
+              <p className="text-sm text-muted-foreground font-medium">{judgedEntries} judged</p>
             </CardContent>
           </GlassCard>
 
@@ -240,9 +223,11 @@ const JudgeDashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                30m
+                {minutesUntilNext !== null ? `${minutesUntilNext}m` : '—'}
               </div>
-              <p className="text-sm text-muted-foreground font-medium">Interior Novice A</p>
+              <p className="text-sm text-muted-foreground font-medium">
+                {nextClass ? nextClass.name : 'No classes today'}
+              </p>
             </CardContent>
           </GlassCard>
 
@@ -259,11 +244,15 @@ const JudgeDashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                95%
+                {completionRate !== null ? `${completionRate}%` : '—'}
               </div>
               <div className="flex items-center gap-1">
-                <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
-                <span className="text-sm text-success-green font-medium">On schedule</span>
+                {completionRate !== null && (
+                  <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
+                )}
+                <span className="text-sm text-success-green font-medium">
+                  {completionRate !== null ? 'On schedule' : 'No data yet'}
+                </span>
               </div>
             </CardContent>
           </GlassCard>
@@ -279,8 +268,12 @@ const JudgeDashboard: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PrimaryTabs tabs={JUDGE_TABS} value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-
+              <PrimaryTabs
+                tabs={JUDGE_TABS}
+                value={selectedTab}
+                onValueChange={setSelectedTab}
+                className="space-y-6"
+              >
                 <TabsContent value="today" className="space-y-4">
                   {todaysClasses.map(judgeClass => (
                     <div

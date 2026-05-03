@@ -18,7 +18,7 @@ import {
   approveScratchRequest,
   denyScratchRequest,
 } from '../scratchQueries';
-import { getEntryCountsByStatus } from '../secretaryEntryQueries';
+import { getEntryCountsByStatus } from '../../entries/secretary';
 import { autoAssignArmbands } from '../secretaryArmbandQueries';
 
 const mockFrom = vi.fn();

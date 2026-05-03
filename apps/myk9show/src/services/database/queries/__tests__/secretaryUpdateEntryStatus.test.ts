@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { updateEntryStatus, bulkUpdateEntryStatus } from '../secretaryEntryQueries';
+import { updateEntryStatus, bulkUpdateEntryStatus } from '../../entries/secretary';
 
 const mockFrom = vi.fn();
 

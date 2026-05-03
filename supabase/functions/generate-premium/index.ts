@@ -96,10 +96,15 @@ Deno.serve(async (req: Request) => {
 
     // Step 7: Auth check — verify user is SITE_ADMIN, CLUB_ADMIN, or SECRETARY for this club
     // Uses the same user_roles + auth_user_id pattern as is_trial_secretary() (migration 156)
-    const { data: roleRows } = await serviceClient
+    const { data: roleRows, error: roleError } = await serviceClient
       .from('user_roles')
       .select('role:roles(name), club_id, is_active, expires_at')
       .eq('auth_user_id', user.id);
+
+    if (roleError) {
+      console.error('Failed to fetch user roles:', roleError);
+      return jsonResponse({ error: 'Internal server error' }, 500);
+    }
 
     const now = new Date().toISOString();
     const activeRoles = (roleRows ?? []).filter(
@@ -184,50 +189,60 @@ Deno.serve(async (req: Request) => {
         }>;
       }>
     ).map(trial => ({
-      id: trial.id,
       name: trial.name,
       date: trial.date,
-      plannedStartTime: trial.planned_start_time,
+      startTime: trial.planned_start_time,
       eventNumber: trial.event_number,
-      trialType: trial.trial_type,
+      type: trial.trial_type ?? '',
       judges: (trial.judge_assignments ?? [])
         .map(ja => ja.people)
         .filter(Boolean)
         .map(p => ({
-          id: p!.id,
-          firstName: p!.first_name,
-          lastName: p!.last_name,
+          name: `${p!.first_name} ${p!.last_name}`.trim(),
+          elements: [] as string[],
         })),
       classes: (trial.classes ?? []).map(cls => ({
-        id: cls.id,
-        name: cls.name,
-        level: cls.level,
-        element: cls.element,
+        element: cls.element ?? '',
+        level: cls.level ?? '',
         section: cls.section,
       })),
     }));
 
     const clubData = show.clubs as { name: string; logo_url: string | null } | null;
 
+    // Build vetClinic as nested object matching PremiumSupplemental.vetClinic
+    const vetClinicName =
+      ((template as Record<string, unknown> | null)?.vet_clinic_name as string | null) ?? null;
+    const vetClinicAddress =
+      ((template as Record<string, unknown> | null)?.vet_clinic_address as string | null) ?? null;
+    const vetClinicPhone =
+      ((template as Record<string, unknown> | null)?.vet_clinic_phone as string | null) ?? null;
+    const vetClinic =
+      vetClinicName || vetClinicAddress || vetClinicPhone
+        ? {
+            name: vetClinicName ?? '',
+            address: vetClinicAddress ?? '',
+            phone: vetClinicPhone ?? '',
+          }
+        : null;
+
     const result = {
-      org: show.organization ?? 'AKC',
-      style: template?.style ?? 'classic',
-      templateId: template?.id ?? null,
+      org: (show.organization as string) ?? 'AKC',
+      style: (template as Record<string, unknown> | null)?.style ?? 'classic',
+      templateId: (template as Record<string, unknown> | null)?.id ?? null,
       show: {
-        id: show.id,
         name: show.name,
         startDate: show.start_date,
         endDate: show.end_date,
-        location: show.location,
+        venue: show.location,
         entryOpenDate: show.entry_open_date,
         entryCloseDate: show.entry_close_date,
         preEntryFee: show.pre_entry_fee,
-        dayOfShowFee: show.day_of_show_fee,
-        acceptCheckPayments: show.accept_check_payments,
-        acceptCashPayments: show.accept_cash_payments,
+        dayOfFee: show.day_of_show_fee,
+        acceptChecks: show.accept_check_payments,
+        acceptCash: show.accept_cash_payments,
       },
       club: {
-        id: show.club_id,
         name: clubData?.name ?? null,
         logoUrl: clubData?.logo_url ?? null,
       },
@@ -236,24 +251,25 @@ Deno.serve(async (req: Request) => {
       secretary: {
         name: show.secretary ?? null,
         email: show.secretary_email ?? null,
-        address: null,
+        mailingAddress: null,
         phone: null,
       },
       officials: {
-        // Judges are collected per-trial above; top-level is a convenience roll-up
-        judges: trials
-          .flatMap(t => t.judges)
-          .filter((j, idx, arr) => arr.findIndex(x => x.id === j.id) === idx),
+        chairman: null,
+        steward: null,
       },
       trials,
       supplemental: {
-        vetClinicName: template?.vet_clinic_name ?? null,
-        vetClinicAddress: template?.vet_clinic_address ?? null,
-        vetClinicPhone: template?.vet_clinic_phone ?? null,
-        accommodations: template?.accommodations ?? [],
-        hospitalityNotes: template?.hospitality_notes ?? null,
-        awardsDescription: template?.awards_description ?? null,
-        additionalNotes: template?.additional_notes ?? null,
+        vetClinic,
+        accommodations: (template as Record<string, unknown> | null)?.accommodations ?? [],
+        hospitalityNotes:
+          ((template as Record<string, unknown> | null)?.hospitality_notes as string | null) ??
+          null,
+        awardsDescription:
+          ((template as Record<string, unknown> | null)?.awards_description as string | null) ??
+          null,
+        additionalNotes:
+          ((template as Record<string, unknown> | null)?.additional_notes as string | null) ?? null,
       },
       narratives,
     };
@@ -337,7 +353,11 @@ Return exactly this JSON shape (no markdown, no extra keys):
   const data = await response.json();
   const text = data.content?.find((b: { type: string }) => b.type === 'text')?.text ?? '{}';
 
-  const parsed = JSON.parse(text);
+  const clean = text
+    .replace(/^```(?:json)?\n?/m, '')
+    .replace(/\n?```$/m, '')
+    .trim();
+  const parsed = JSON.parse(clean);
   return {
     showHours: typeof parsed.showHours === 'string' ? parsed.showHours : '',
     trialInformation: typeof parsed.trialInformation === 'string' ? parsed.trialInformation : '',

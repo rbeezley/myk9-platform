@@ -5,11 +5,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Club } from '@/types/club-types';
 
+// Mutable so individual tests can override role
+let mockAuthReturn: { user: { id: string } | null; userWithRoles: { roles: string[] } | null } = {
+  user: { id: 'test-user' },
+  userWithRoles: { roles: ['secretary'] },
+};
+
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({
-    user: { id: 'test-user' },
-    userWithRoles: { roles: ['secretary'] },
-  }),
+  useAuthContext: () => mockAuthReturn,
 }));
 
 // ── Mock data ───────────────────────────────────────────────────────────────
@@ -120,6 +123,10 @@ function renderPage() {
 describe('BrowseClubsPage (shared primitives migration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthReturn = {
+      user: { id: 'test-user' },
+      userWithRoles: { roles: ['secretary'] },
+    };
     mockBrowseClubsReturn = {
       clubs: [makeClub()],
       filteredClubs: [makeClub()],
@@ -175,11 +182,8 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
     renderPage();
 
     expect(screen.getByText('No clubs yet')).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Get started by creating your first club to manage organizations and events.'
-      )
-    ).toBeInTheDocument();
+    // Default mock role is 'secretary' (non-admin), so the non-admin description is shown
+    expect(screen.getByText('No clubs are listed yet.')).toBeInTheDocument();
   });
 
   it('renders filtered EmptyState when filters produce zero results', () => {
@@ -235,5 +239,58 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
 
     expect(screen.getByTestId('clubs-grid')).toBeInTheDocument();
     expect(screen.getByText('Golden State Dog Club')).toBeInTheDocument();
+  });
+});
+
+// ── Add Club button role-gate tests ─────────────────────────────────────────
+
+describe('BrowseClubsPage — Add Club button visibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBrowseClubsReturn = {
+      clubs: [makeClub()],
+      filteredClubs: [makeClub()],
+      isLoading: false,
+      hasError: false,
+      handleRetry: vi.fn(),
+      filters: { search: '', clubType: 'all' },
+      setFilters: vi.fn(),
+      hasActiveFilters: false,
+      clearAllFilters: vi.fn(),
+      clubShowCounts: new Map<string, number>(),
+    };
+  });
+
+  it('shows Add Club button when user is a site admin', () => {
+    mockAuthReturn = {
+      user: { id: 'admin-user' },
+      userWithRoles: { roles: ['site_admin'] },
+    };
+
+    renderPage();
+
+    expect(screen.getByRole('button', { name: /add club/i })).toBeInTheDocument();
+  });
+
+  it('hides Add Club button when user is a secretary', () => {
+    mockAuthReturn = {
+      user: { id: 'secretary-user' },
+      userWithRoles: { roles: ['secretary'] },
+    };
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: /add club/i })).not.toBeInTheDocument();
+  });
+
+  it('hides Add Club button when user is unauthenticated', () => {
+    mockAuthReturn = {
+      user: null,
+      userWithRoles: null,
+    };
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: /add club/i })).not.toBeInTheDocument();
   });
 });

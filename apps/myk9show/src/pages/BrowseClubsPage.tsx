@@ -33,16 +33,11 @@ const BrowseClubsPage: React.FC = () => {
   const { user, userWithRoles } = useAuthContext();
   const isAuthenticated = !!user;
 
-  // Mirror clubs_insert RLS (migration 160): only secretary, club_admin, and
-  // site_admin can create a club. Showing the button to other authenticated
-  // users would lead to a silent insert failure.
+  // clubs_insert RLS allows site_admin only. Hide the entry point entirely
+  // for all other roles — secretaries work within existing clubs.
   const canCreateClub = useMemo(() => {
     const roles = userWithRoles?.roles ?? [];
-    return (
-      roles.includes(UserRole.SECRETARY) ||
-      roles.includes(UserRole.CLUB_ADMIN) ||
-      roles.includes(UserRole.SITE_ADMIN)
-    );
+    return roles.includes(UserRole.SITE_ADMIN);
   }, [userWithRoles]);
 
   const [viewMode, setViewMode] = useViewPreference('clubs', 'cards');

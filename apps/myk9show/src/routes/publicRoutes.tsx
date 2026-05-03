@@ -33,7 +33,7 @@ const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
 const ShowDayPage = lazy(() => import('@/pages/ShowDayPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
-const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
+const ClassCheckInPage = lazy(() => import('@/pages/ClassCheckInPage'));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
 
 // TV Display
@@ -198,7 +198,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <ClassCheckIn />
+              <ClassCheckInPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

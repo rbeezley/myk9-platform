@@ -16,7 +16,7 @@ interface YearMonthCaptionProps extends MonthCaptionProps {
 function YearMonthCaption(props: YearMonthCaptionProps) {
   const displayMonth = props.calendarMonth.date;
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+  const years = Array.from({ length: 110 }, (_, i) => currentYear + 10 - i);
   // We'll dispatch a native event to the parent DayPicker for month change
   function handleYearChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newDate = new Date(displayMonth);

@@ -25,7 +25,7 @@ interface Props {
 const STYLES: PremiumStyle[] = ['classic', 'modern', 'minimal'];
 
 export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }: Props) {
-  const { generate, isLoading, error } = useGeneratePremium();
+  const { generate, isLoading, error, reset } = useGeneratePremium();
   const logMutation = useLogPremiumGeneration(clubId);
 
   // Original generated values (for diff computation)
@@ -45,7 +45,10 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     setSupplemental(result.supplemental);
     setNarratives(result.narratives);
     setStyleOverride(null);
-    setHasNarrativeError(result.narratives.showHours.startsWith('['));
+    setHasNarrativeError(
+      result.narratives.showHours === 'Show hours to be announced.' ||
+        result.narratives.trialInformation === 'Trial information to be announced.'
+    );
   }
 
   function buildFinalPremium(): GeneratedPremium {
@@ -82,6 +85,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
   const activeStyle = styleOverride ?? original?.style ?? 'classic';
 
   function handleClose() {
+    reset(); // clear hook error state
     // Reset state on close so next open starts fresh
     setOriginal(null);
     setSupplemental(null);

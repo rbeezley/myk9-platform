@@ -52,7 +52,9 @@ const logResultSchema = z.object({
   resultStatus: z.enum(['qualified', 'nq', 'absent', 'excused', 'withdrawn']),
   judge: z.string().optional(),
   location: z.string().optional(),
-  searchTimeSec: z.string().optional(),
+  searchMin: z.string().optional(),
+  searchSec: z.string().optional(),
+  searchHs: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -275,22 +277,41 @@ const LogResultForm: React.FC = () => {
         </FormField>
       </div>
 
-      {/* Search time */}
-      <FormField
-        label="Search time (seconds)"
-        fieldId="searchTimeSec"
-        error={form.getError('searchTimeSec')}
-        hint="Optional — enter time in seconds"
-      >
-        <Input
-          id="searchTimeSec"
-          type="number"
-          min={0}
-          step={0.01}
-          value={form.data.searchTimeSec ?? ''}
-          onChange={e => form.setValue('searchTimeSec', e.target.value)}
-          placeholder="e.g. 45.2"
-        />
+      {/* Search time — M : SS . hs */}
+      <FormField label="Search time" fieldId="searchMin" hint="Optional">
+        <div className="flex items-center gap-1">
+          <Input
+            id="searchMin"
+            type="number"
+            min={0}
+            max={99}
+            value={form.data.searchMin ?? ''}
+            onChange={e => form.setValue('searchMin', e.target.value)}
+            placeholder="0"
+            className="w-16 text-center"
+          />
+          <span className="text-muted-foreground font-mono">:</span>
+          <Input
+            type="number"
+            min={0}
+            max={59}
+            value={form.data.searchSec ?? ''}
+            onChange={e => form.setValue('searchSec', e.target.value)}
+            placeholder="00"
+            className="w-16 text-center"
+          />
+          <span className="text-muted-foreground font-mono">.</span>
+          <Input
+            type="number"
+            min={0}
+            max={99}
+            value={form.data.searchHs ?? ''}
+            onChange={e => form.setValue('searchHs', e.target.value)}
+            placeholder="00"
+            className="w-16 text-center"
+          />
+          <span className="text-sm text-muted-foreground ml-1">min : sec . hs</span>
+        </div>
       </FormField>
 
       {/* Notes */}
@@ -326,7 +347,9 @@ const INITIAL_DATA: LogResultFormData = {
   resultStatus: 'qualified',
   judge: '',
   location: '',
-  searchTimeSec: '',
+  searchMin: '',
+  searchSec: '',
+  searchHs: '',
   notes: '',
 };
 
@@ -339,7 +362,11 @@ const LogManualResultPanel: React.FC<LogManualResultPanelProps> = ({
   const createMutation = useCreateManualResultMutation();
 
   const handleSave = async (data: LogResultFormData) => {
-    const searchTimeSec = data.searchTimeSec ? parseFloat(data.searchTimeSec) : null;
+    const min = parseInt(data.searchMin || '0') || 0;
+    const sec = parseInt(data.searchSec || '0') || 0;
+    const hs = parseInt(data.searchHs || '0') || 0;
+    const hasTime = data.searchMin || data.searchSec || data.searchHs;
+    const searchTimeSec = hasTime ? min * 60 + sec + hs / 100 : null;
     await createMutation.mutateAsync({
       dog_id: dogId,
       owner_id: ownerId,

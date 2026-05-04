@@ -10,7 +10,6 @@ import {
   BookOpen,
   Plus,
   Search,
-  Filter,
   Calendar,
   Clock,
   Star,
@@ -65,20 +64,13 @@ export function EnhancedTrainingJournal({
   const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TrainingEntry | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterSkill, setFilterSkill] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-
-  // Get all unique skills for filtering
-  const allSkills = Array.from(new Set(entries.flatMap(entry => entry.skills)));
 
   const filteredEntries = entries
-    .filter(entry => {
-      const matchesSearch =
+    .filter(
+      entry =>
         entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.content.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesSkill = !filterSkill || entry.skills.includes(filterSkill);
-      return matchesSearch && matchesSkill;
-    })
+        entry.content.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     .sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const totalHours = entries.reduce((sum, entry) => sum + entry.duration, 0) / 60;
@@ -266,27 +258,6 @@ export function EnhancedTrainingJournal({
                 />
               </div>
             </div>
-
-            <select
-              value={filterSkill}
-              onChange={e => setFilterSkill(e.target.value)}
-              className="px-3 py-2 border rounded-md text-sm"
-            >
-              <option value="">All Skills</option>
-              {allSkills.map(skill => (
-                <option key={skill} value={skill}>
-                  {skill}
-                </option>
-              ))}
-            </select>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
-            >
-              <Filter className="h-4 w-4" />
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -294,15 +265,10 @@ export function EnhancedTrainingJournal({
       {/* Training Entries */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={viewMode}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={
-            viewMode === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
-              : 'space-y-4'
-          }
+          className="space-y-4"
         >
           {filteredEntries.map(entry => (
             <motion.div

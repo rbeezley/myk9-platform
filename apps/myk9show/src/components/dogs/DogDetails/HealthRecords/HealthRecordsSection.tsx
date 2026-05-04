@@ -20,7 +20,11 @@ import { HealthRecordsTraditionalView } from './HealthRecordsTraditionalView';
 
 const AddHealthItemDialog = lazy(() => import('./AddHealthItemDialog'));
 
-const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId = '' }) => {
+const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
+  user,
+  dogId = '',
+  vaccinationsOnly = false,
+}) => {
   const [viewMode, setViewMode] = useState<'timeline' | 'traditional'>('timeline');
   const [addDialogType, setAddDialogType] = useState<HealthItemType | null>(null);
   const { user: authUser } = useAuthContext();
@@ -216,6 +220,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
           events={timelineEvents}
           onEventClick={() => {}}
           onAddEvent={() => setAddDialogType('vaccination')}
+          vaccinationsOnly={vaccinationsOnly}
         />
       ) : (
         <HealthRecordsTraditionalView

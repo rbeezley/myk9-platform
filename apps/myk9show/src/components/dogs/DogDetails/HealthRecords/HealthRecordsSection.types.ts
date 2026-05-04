@@ -9,6 +9,7 @@ import type { OFAScreeningRecord, GeneticScreeningRecord } from '../../../../typ
 export interface HealthRecordsSectionProps {
   user: { isPremium: boolean };
   dogId?: string;
+  vaccinationsOnly?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Mutation results have varying TData/TVariables; dispatch function handles casting

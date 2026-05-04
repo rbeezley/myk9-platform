@@ -52,6 +52,7 @@ interface HealthTimelineProps {
   events: HealthEvent[];
   onEventClick?: (event: HealthEvent) => void;
   onAddEvent?: () => void;
+  vaccinationsOnly?: boolean;
 }
 
 const eventTypeConfig = {
@@ -87,9 +88,14 @@ const eventTypeConfig = {
   },
 };
 
-export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimelineProps) {
+export function HealthTimeline({
+  events,
+  onEventClick,
+  onAddEvent,
+  vaccinationsOnly = false,
+}: HealthTimelineProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>(vaccinationsOnly ? 'vaccination' : 'all');
   const [viewMode, setViewMode] = useState<'timeline' | 'grid'>('timeline');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
@@ -266,20 +272,22 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
           <h2 className="text-xl font-semibold">Health Timeline</h2>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Upload className="h-4 w-4 mr-2" />
-            Import Records
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export Timeline
-          </Button>
-          <Button size="sm" onClick={onAddEvent}>
-            <Plus className="h-4 w-4" />
-            Add Event
-          </Button>
-        </div>
+        {!vaccinationsOnly && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Upload className="h-4 w-4 mr-2" />
+              Import Records
+            </Button>
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export Timeline
+            </Button>
+            <Button size="sm" onClick={onAddEvent}>
+              <Plus className="h-4 w-4" />
+              Add Event
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Filters and Search */}
@@ -299,18 +307,20 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
             </div>
 
             <div className="flex gap-2">
-              <select
-                value={''}
-                onChange={e => setFilterType(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm"
-              >
-                <option value="all">All Types</option>
-                {Object.entries(eventTypeConfig).map(([key, config]) => (
-                  <option key={key} value={''}>
-                    {config.label}
-                  </option>
-                ))}
-              </select>
+              {!vaccinationsOnly && (
+                <select
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value)}
+                  className="px-3 py-2 border rounded-md text-sm"
+                >
+                  <option value="all">All Types</option>
+                  {Object.entries(eventTypeConfig).map(([key, config]) => (
+                    <option key={key} value={key}>
+                      {config.label}
+                    </option>
+                  ))}
+                </select>
+              )}
 
               <select
                 value={''}

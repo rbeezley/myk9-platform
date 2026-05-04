@@ -156,7 +156,11 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           description="Keep comprehensive health records for your dog's wellbeing."
         >
           <Suspense fallback={<TabContentSkeleton />}>
-            <HealthRecordsSection user={{ isPremium }} dogId={dog.id} />
+            <HealthRecordsSection
+              user={{ isPremium }}
+              dogId={dog.id}
+              vaccinationsOnly={isSecretary}
+            />
           </Suspense>
         </BlurGate>
       </TabsContent>

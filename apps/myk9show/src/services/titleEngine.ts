@@ -20,7 +20,9 @@ export interface QualifyingLeg {
   trial_date: string;
   show_name: string;
   judge?: string | null;
+  location?: string | null;
   notes?: string | null;
+  search_time_seconds?: number | null;
 }
 
 export interface TitleProgressResult {
@@ -71,7 +73,9 @@ export function mapManualResultToLeg(result: ManualResult): QualifyingLeg | null
     trial_date: result.trial_date,
     show_name: result.show_name,
     judge: result.judge,
+    location: result.location,
     notes: result.notes,
+    search_time_seconds: result.search_time_seconds,
   };
 }
 

@@ -5,6 +5,13 @@ import EarnedTitleBadge from './EarnedTitleBadge';
 import NextEligibleCallout from './NextEligibleCallout';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 
+function formatSearchTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  const hs = Math.round((seconds % 1) * 100);
+  return `${m}:${String(s).padStart(2, '0')}.${String(hs).padStart(2, '0')}`;
+}
+
 interface TitleProgressCardProps {
   progress: TitleProgressResult;
 }
@@ -104,13 +111,24 @@ const TitleProgressCard: React.FC<TitleProgressCardProps> = ({ progress }) => {
                 </span>
                 <span className="text-muted-foreground">{formatDateMMDDYYYY(leg.trial_date)}</span>
                 <span className="truncate">{leg.show_name}</span>
-                {leg.judge && (
+                {leg.location && (
+                  <span className="text-muted-foreground truncate">{leg.location}</span>
+                )}
+                {leg.search_time_seconds != null && (
+                  <span className="text-muted-foreground font-mono ml-auto shrink-0">
+                    {formatSearchTime(leg.search_time_seconds)}
+                  </span>
+                )}
+                {leg.judge && !leg.search_time_seconds && (
                   <span className="text-muted-foreground truncate ml-auto">{leg.judge}</span>
                 )}
               </div>
-              {leg.notes && (
-                <div className="text-xs text-muted-foreground italic px-2 pb-1">{leg.notes}</div>
-              )}
+              {(leg.judge && leg.search_time_seconds != null) || leg.notes ? (
+                <div className="text-xs text-muted-foreground px-2 pb-1 flex gap-3">
+                  {leg.judge && leg.search_time_seconds != null && <span>{leg.judge}</span>}
+                  {leg.notes && <span className="italic">{leg.notes}</span>}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

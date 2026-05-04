@@ -206,24 +206,26 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
             Track your dog&apos;s health history and upcoming care needs
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant={viewMode === 'timeline' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('timeline')}
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            Timeline View
-          </Button>
-          <Button
-            variant={viewMode === 'traditional' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('traditional')}
-          >
-            <List className="h-4 w-4 mr-2" />
-            Traditional View
-          </Button>
-        </div>
+        {!vaccinationsOnly && (
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === 'timeline' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('timeline')}
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Timeline View
+            </Button>
+            <Button
+              variant={viewMode === 'traditional' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('traditional')}
+            >
+              <List className="h-4 w-4 mr-2" />
+              Traditional View
+            </Button>
+          </div>
+        )}
       </div>
 
       {viewMode === 'timeline' ? (

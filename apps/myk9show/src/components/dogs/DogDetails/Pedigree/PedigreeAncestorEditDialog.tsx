@@ -94,6 +94,7 @@ const EditAncestorDialog: React.FC<EditAncestorDialogProps> = ({
           ref={formRef}
           formId={FORM_ID}
           initialValues={initialValues}
+          hideSex
           onSubmit={handleSubmit}
         />
       )}

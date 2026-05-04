@@ -82,7 +82,13 @@ const PedigreeAncestorAddDialog: React.FC<PedigreeAncestorAddDialogProps> = ({
         </>
       }
     >
-      <PedigreeAncestorForm ref={formRef} formId={FORM_ID} onSubmit={handleSubmit} />
+      <PedigreeAncestorForm
+        ref={formRef}
+        formId={FORM_ID}
+        initialValues={{ sex: position?.endsWith('sire') ? 'male' : 'female' }}
+        hideSex
+        onSubmit={handleSubmit}
+      />
     </StandardDialog>
   );
 };

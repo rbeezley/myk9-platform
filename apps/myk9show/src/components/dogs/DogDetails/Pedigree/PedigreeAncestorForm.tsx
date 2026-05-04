@@ -46,11 +46,12 @@ export interface PedigreeAncestorFormRef {
 interface PedigreeAncestorFormProps {
   formId: string;
   initialValues?: Partial<AncestorFormValues> | undefined;
+  hideSex?: boolean;
   onSubmit: (values: AncestorFormValues) => void;
 }
 
 const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncestorFormProps>(
-  ({ formId, initialValues, onSubmit }, ref) => {
+  ({ formId, initialValues, hideSex = false, onSubmit }, ref) => {
     const [form, setForm] = useState<AncestorFormValues>({
       ...INITIAL_VALUES,
       ...initialValues,
@@ -98,22 +99,24 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
           />
         </FormField>
         <div className="grid grid-cols-2 gap-4">
-          <FormField label="Sex" fieldId={`${formId}-sex`}>
-            <Select
-              value={form.sex}
-              onValueChange={val => {
-                if (val === 'male' || val === 'female') update('sex', val);
-              }}
-            >
-              <SelectTrigger id={`${formId}-sex`}>
-                <SelectValue placeholder="Select sex" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-              </SelectContent>
-            </Select>
-          </FormField>
+          {!hideSex && (
+            <FormField label="Sex" fieldId={`${formId}-sex`}>
+              <Select
+                value={form.sex}
+                onValueChange={val => {
+                  if (val === 'male' || val === 'female') update('sex', val);
+                }}
+              >
+                <SelectTrigger id={`${formId}-sex`}>
+                  <SelectValue placeholder="Select sex" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
           <FormField label="DOB" fieldId={`${formId}-dob`}>
             <DatePicker
               date={form.dob ? parseLocalDateString(form.dob) : undefined}

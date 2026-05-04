@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
-import { Plus, Trophy } from 'lucide-react';
+import { Plus, Trophy, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTitleProgress } from '@/hooks/useTitleProgress';
 import SportTitleGroup from './SportTitleGroup';
 import LogManualResultPanel from '@/components/panels/edit/LogManualResultPanel';
+import type { SportTemplateRow } from '@/types/sport-template-types';
+import type { TitleProgressResult } from '@/services/titleEngine';
 
 interface TitleProgressSectionProps {
   dogId: string;
   ownerId: string;
+}
+
+interface OrgGroup {
+  organization: string;
+  sports: { template: SportTemplateRow; progress: TitleProgressResult[] }[];
 }
 
 const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, ownerId }) => {
@@ -39,6 +46,25 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
 
   const sportIds = Object.keys(progressBySport);
 
+  // Group sports by organization
+  const orgGroups: OrgGroup[] = [];
+  const seenOrgs = new Set<string>();
+  for (const sportId of sportIds) {
+    const template = templates.find(t => t.id === sportId);
+    if (!template) continue;
+    const org = template.organization;
+    if (!seenOrgs.has(org)) {
+      seenOrgs.add(org);
+      orgGroups.push({ organization: org, sports: [] });
+    }
+    orgGroups
+      .find(g => g.organization === org)!
+      .sports.push({
+        template,
+        progress: progressBySport[sportId],
+      });
+  }
+
   return (
     <>
       <div className="mb-6">
@@ -54,18 +80,10 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
               </p>
             </div>
           ) : (
-            <div className="space-y-8">
-              {sportIds.map(sportId => {
-                const template = templates.find(t => t.id === sportId);
-                if (!template) return null;
-                return (
-                  <SportTitleGroup
-                    key={sportId}
-                    template={template}
-                    progress={progressBySport[sportId]}
-                  />
-                );
-              })}
+            <div className="space-y-3">
+              {orgGroups.map(group => (
+                <OrgSection key={group.organization} group={group} />
+              ))}
             </div>
           )}
         </div>
@@ -78,6 +96,56 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
         ownerId={ownerId}
       />
     </>
+  );
+};
+
+interface OrgSectionProps {
+  group: OrgGroup;
+}
+
+const OrgSection: React.FC<OrgSectionProps> = ({ group }) => {
+  const hasAnyProgress = group.sports.some(s =>
+    s.progress.some(p => p.isEarned || p.earnedLegs > 0)
+  );
+  const [open, setOpen] = useState(hasAnyProgress);
+
+  const totalEarned = group.sports.reduce(
+    (sum, s) => sum + s.progress.filter(p => p.isEarned && !p.isSuperseded).length,
+    0
+  );
+
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      {/* Org header */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 w-full px-4 py-3 text-left bg-muted/30 hover:bg-muted/50 transition-colors"
+      >
+        {open ? (
+          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        )}
+        <span className="font-semibold text-sm">{group.organization}</span>
+        <span className="text-xs text-muted-foreground">
+          {group.sports.length} {group.sports.length === 1 ? 'sport' : 'sports'}
+        </span>
+        {totalEarned > 0 && (
+          <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
+            {totalEarned} earned
+          </span>
+        )}
+      </button>
+
+      {/* Sports nested inside */}
+      {open && (
+        <div className="p-3 space-y-2">
+          {group.sports.map(({ template, progress }) => (
+            <SportTitleGroup key={template.id} template={template} progress={progress} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

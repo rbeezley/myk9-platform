@@ -79,7 +79,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
             <Button size="sm" variant="default" className="gap-1.5" asChild>
               <a href="/shows">
                 <Plus className="h-4 w-4" />
-                Sign up for a show
+                Enter a show
               </a>
             </Button>
           )}

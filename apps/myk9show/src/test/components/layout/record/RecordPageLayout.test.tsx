@@ -202,21 +202,23 @@ describe('RecordPageLayout', () => {
 
       render(<RecordPageLayout associations={associations} />);
 
-      expect(screen.getByTestId('association-card-assoc-0')).toBeInTheDocument();
-      expect(screen.getByTestId('association-card-assoc-1')).toBeInTheDocument();
+      // Each association card appears in both sidebar (lg:block) and mobile fallback (lg:hidden) = 2 instances each
+      expect(screen.getAllByTestId('association-card-assoc-0').length).toBe(2);
+      expect(screen.getAllByTestId('association-card-assoc-1').length).toBe(2);
     });
 
     it('renders associationsExtra content', () => {
       render(<RecordPageLayout associationsExtra={<div data-testid="extra-content">Extra</div>} />);
 
-      expect(screen.getByTestId('extra-content')).toBeInTheDocument();
+      // associationsExtra appears in both sidebar and mobile fallback = 2 instances
+      expect(screen.getAllByTestId('extra-content').length).toBe(2);
     });
 
     it('does not render right sidebar when associations is empty and no extra', () => {
       const { container } = render(<RecordPageLayout associations={[]} />);
 
-      // Right sidebar has "xl:block" class; should not be present
-      const rightSidebar = container.querySelector('.xl\\:block');
+      // Right sidebar has "lg:block" class; should not be present
+      const rightSidebar = container.querySelector('.lg\\:block');
       expect(rightSidebar).toBeNull();
     });
 
@@ -225,7 +227,9 @@ describe('RecordPageLayout', () => {
         <RecordPageLayout associationsExtra={<div data-testid="extra-only">Extra Only</div>} />
       );
 
-      expect(screen.getByTestId('extra-only')).toBeInTheDocument();
+      // associationsExtra appears in both sidebar (hidden on smaller) and mobile fallback (hidden lg:)
+      const extraElements = screen.getAllByTestId('extra-only');
+      expect(extraElements.length).toBe(2);
     });
   });
 
@@ -246,10 +250,11 @@ describe('RecordPageLayout', () => {
       expect(screen.getByTestId('property-section-section-0')).toBeInTheDocument();
       // Center panel (main)
       expect(screen.getByTestId('center-tabs')).toBeInTheDocument();
-      // Right sidebar (aside with xl:block)
-      expect(screen.getByTestId('association-card-assoc-0')).toBeInTheDocument();
+      // Right sidebar (aside with lg:block) + mobile fallback (div with lg:hidden) = 2 instances
+      const associationCards = screen.getAllByTestId('association-card-assoc-0');
+      expect(associationCards.length).toBe(2);
 
-      // Verify structural elements
+      // Verify structural elements (2 asides: left sidebar + right sidebar)
       const asides = container.querySelectorAll('aside');
       expect(asides.length).toBe(2);
       const mainEl = container.querySelector('main');
@@ -300,8 +305,9 @@ describe('RecordPageLayout', () => {
       expect(screen.getByTestId('hero')).toBeInTheDocument();
       expect(screen.getByTestId('property-section-section-0')).toBeInTheDocument();
       expect(screen.getByTestId('tabs')).toBeInTheDocument();
-      expect(screen.getByTestId('association-card-assoc-0')).toBeInTheDocument();
-      expect(screen.getByTestId('extra')).toBeInTheDocument();
+      // Each appears in both sidebar and mobile fallback = 2 instances
+      expect(screen.getAllByTestId('association-card-assoc-0').length).toBe(2);
+      expect(screen.getAllByTestId('extra').length).toBe(2);
     });
   });
 });

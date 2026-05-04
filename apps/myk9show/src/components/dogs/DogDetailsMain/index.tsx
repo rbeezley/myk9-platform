@@ -220,7 +220,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   return (
     <>
       <RecordPageLayout
-        className="py-20"
+        className="py-6"
         storageKey="myk9:dog"
         breadcrumb={<Breadcrumb items={breadcrumbItems} showHomeIcon={true} />}
         hero={

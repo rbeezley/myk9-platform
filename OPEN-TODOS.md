@@ -14,6 +14,11 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 
 - [ ] **Phase 3 — Real-User Testing** — Recruit 2–3 non-technical test users (one secretary, one or two exhibitors). Hand them written tasks, watch silently, fix every hesitation. Full plan: `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`.
 
+## Training Journal
+
+- [ ] **View Progress Report** — Plan and implement the "View Progress Report" button in the Training Journal Quick Actions card. Should show a breakdown of sessions by skill/sport tag, assessment distribution (breakthrough/solid/needs_work/regression), and training time trends over time. Files: `apps/myk9show/src/components/dogs/DogDetails/TrainingJournal/EnhancedTrainingJournal.tsx`.
+- [ ] **Set Training Goals** — Plan and implement the "Set Training Goals" button in the Training Journal Quick Actions card. Should allow users to define and track specific training goals (e.g., "earn NW1 by September"). Files: same as above; may require a new `training_goals` table (migration needed).
+
 ## Phase 3 Polish (found during Phase 2 walk, 2026-05-03)
 
 - [ ] **Show cards: no personalized badge for logged-in users** — Cards always show generic status ("Accepting Entries") even when user already entered. Needs `userHasEntriesForShow` wired into browse show cards.

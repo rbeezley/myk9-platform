@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { EnhancedTrainingJournal } from './EnhancedTrainingJournal';
 import { Button } from '@/components/ui/button';
 import { BookOpen, Calendar, List } from 'lucide-react';
+import { SafeHTML } from '@/utils/sanitization';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useTrainingEntriesQuery,
@@ -204,7 +205,14 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
                     {new Date(entry.date).toLocaleDateString()}
                     {entry.duration_minutes && ` \u2022 ${entry.duration_minutes}min`}
                   </p>
-                  {entry.content && <p className="text-sm mt-2">{entry.content}</p>}
+                  {entry.content && (
+                    <SafeHTML
+                      html={entry.content}
+                      config="richText"
+                      className="prose prose-sm max-w-none mt-2"
+                      fallback={null}
+                    />
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {entry.sport_tag && (

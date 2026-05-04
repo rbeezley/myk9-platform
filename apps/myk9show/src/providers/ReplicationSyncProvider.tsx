@@ -21,7 +21,7 @@ import {
   ReplicationSyncContext,
   type ReplicationSyncContextValue,
 } from '@/contexts/ReplicationSyncContext';
-import { MutationManager } from '@myk9/replication';
+import { MutationManager, SYNC_INTERVAL_MS } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 
 // Import replicated table singletons
@@ -354,6 +354,27 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       clearTimeout(startupTimer);
       hasStartedFlush.current = false; // Reset so StrictMode remount can re-trigger
     };
+  }, []);
+
+  // Background poll — keeps data fresh and recovers from any failed startup sync.
+  // SYNC_INTERVAL_MS was defined in the replication package but never wired up.
+  useEffect(() => {
+    if (!autoSync) return undefined;
+    const interval = setInterval(() => {
+      triggerSyncRef.current?.();
+    }, SYNC_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [autoSync]);
+
+  // Sync when tab regains visibility — catches stale data after the user returns.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        triggerSyncRef.current?.();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   // Listen for sync-requested events (e.g., from wizard after publish)

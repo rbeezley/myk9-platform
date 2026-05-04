@@ -19,6 +19,8 @@ export interface QualifyingLeg {
   level: string;
   trial_date: string;
   show_name: string;
+  judge?: string | null;
+  notes?: string | null;
 }
 
 export interface TitleProgressResult {
@@ -68,6 +70,8 @@ export function mapManualResultToLeg(result: ManualResult): QualifyingLeg | null
     level: result.level,
     trial_date: result.trial_date,
     show_name: result.show_name,
+    judge: result.judge,
+    notes: result.notes,
   };
 }
 

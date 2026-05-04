@@ -91,21 +91,26 @@ const TitleProgressCard: React.FC<TitleProgressCardProps> = ({ progress }) => {
             Qualifying Legs
           </div>
           {progress.legs.map(leg => (
-            <div
-              key={leg.id}
-              className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-muted/50"
-            >
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                  leg.source === 'platform'
-                    ? 'bg-primary/15 text-primary'
-                    : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                }`}
-              >
-                {leg.source === 'platform' ? 'Platform' : 'Manual'}
-              </span>
-              <span className="text-muted-foreground">{formatDateMMDDYYYY(leg.trial_date)}</span>
-              <span className="truncate">{leg.show_name}</span>
+            <div key={leg.id} className="rounded bg-muted/50">
+              <div className="flex items-center gap-2 text-xs py-1 px-2">
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                    leg.source === 'platform'
+                      ? 'bg-primary/15 text-primary'
+                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                  }`}
+                >
+                  {leg.source === 'platform' ? 'Platform' : 'Manual'}
+                </span>
+                <span className="text-muted-foreground">{formatDateMMDDYYYY(leg.trial_date)}</span>
+                <span className="truncate">{leg.show_name}</span>
+                {leg.judge && (
+                  <span className="text-muted-foreground truncate ml-auto">{leg.judge}</span>
+                )}
+              </div>
+              {leg.notes && (
+                <div className="text-xs text-muted-foreground italic px-2 pb-1">{leg.notes}</div>
+              )}
             </div>
           ))}
         </div>

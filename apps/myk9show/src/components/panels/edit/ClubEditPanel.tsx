@@ -88,7 +88,7 @@ const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
 });
 
 // Form content component
-const ClubEditForm: React.FC<{ clubId: string }> = ({ clubId }) => {
+const ClubEditForm: React.FC<{ clubId: string; onClose?: () => void }> = ({ clubId, onClose }) => {
   const { data, form } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
@@ -490,7 +490,7 @@ const ClubEditForm: React.FC<{ clubId: string }> = ({ clubId }) => {
           value="premium"
           className="animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
-          <PremiumTemplatesTab clubId={clubId} />
+          <PremiumTemplatesTab clubId={clubId} onClose={onClose} />
         </TabsContent>
       </Tabs>
 
@@ -560,7 +560,7 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
       saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
       cancelLabel="Cancel"
     >
-      <ClubEditForm clubId={clubId} />
+      <ClubEditForm clubId={clubId} onClose={onClose} />
     </EditPanelWrapper>
   );
 };

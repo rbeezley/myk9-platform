@@ -29,6 +29,7 @@ import type { ClubPremiumTemplate, PremiumStyle } from '../../../../types/premiu
 
 interface Props {
   clubId: string;
+  onClose: (() => void) | undefined;
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -41,7 +42,7 @@ const FIELD_LABELS: Record<string, string> = {
 
 const STYLES: PremiumStyle[] = ['classic', 'modern', 'minimal'];
 
-export function PremiumTemplatesTab({ clubId }: Props) {
+export function PremiumTemplatesTab({ clubId, onClose }: Props) {
   const { data: templates = [], isLoading } = useClubPremiumTemplates(clubId);
   const { data: recentGens = [] } = useRecentPremiumGenerations(clubId);
   const createMutation = useCreatePremiumTemplate(clubId);
@@ -98,11 +99,12 @@ export function PremiumTemplatesTab({ clubId }: Props) {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, updates: form });
+        setEditing(null);
       } else {
         await createMutation.mutateAsync(form);
+        setCreating(false);
+        onClose?.();
       }
-      setEditing(null);
-      setCreating(false);
     } catch {
       // error is captured in mutation.isError — rendered below
     }

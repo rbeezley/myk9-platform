@@ -18,19 +18,16 @@ import type { ManualResultStatus } from '@/types/manual-result-types';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const SPORT_TYPES = ['Scent Work', 'Obedience', 'Agility', 'Conformation'] as const;
-type SportType = (typeof SPORT_TYPES)[number];
-
-const SPORT_CODE_TO_SPORT: Record<string, SportType> = {
-  'akc-scent-work': 'Scent Work',
-  'ukc-nosework': 'Scent Work',
-  'asca-scent-detection': 'Scent Work',
-};
-
 const SPORT_CODE_TO_ORG: Record<string, string> = {
   'akc-scent-work': 'AKC',
   'ukc-nosework': 'UKC',
   'asca-scent-detection': 'ASCA',
+};
+
+const SPORT_CODE_TO_DISPLAY: Record<string, string> = {
+  'akc-scent-work': 'Scent Work',
+  'ukc-nosework': 'Nosework',
+  'asca-scent-detection': 'Scent Detection',
 };
 
 const RESULT_LABELS: Record<ManualResultStatus, string> = {
@@ -46,11 +43,11 @@ const today = new Date().toISOString().split('T')[0];
 // ── Schema ──────────────────────────────────────────────────────────────────
 
 const logResultSchema = z.object({
-  sportType: z.string().min(1, 'Sport is required'),
-  sportTemplateId: z.string().min(1, 'Organization is required'),
+  organization: z.string().min(1, 'Organization is required'),
+  sportTemplateId: z.string().min(1, 'Sport is required'),
   showName: z.string().min(1, 'Show name is required'),
   trialDate: z.string().min(1, 'Trial date is required'),
-  element: z.string().min(1, 'Element is required'),
+  element: z.string().optional(),
   level: z.string().min(1, 'Level is required'),
   resultStatus: z.enum(['qualified', 'nq', 'absent', 'excused', 'withdrawn']),
   judge: z.string().optional(),
@@ -61,76 +58,83 @@ const logResultSchema = z.object({
 
 type LogResultFormData = z.infer<typeof logResultSchema>;
 
-// ── Form fields (uses panel context) ────────────────────────────────────────
+// ── Form fields ───────────────────────────────────────────────────────────────
 
 const LogResultForm: React.FC = () => {
   const { form } = useEditPanel<LogResultFormData>();
   const { data: templates = [] } = useSportTemplatesQuery();
 
-  const selectedTemplateId = form?.data.sportTemplateId;
-  const selectedSportType = form?.data.sportType as SportType | '';
+  const selectedOrg = form?.data.organization ?? '';
+  const selectedTemplateId = form?.data.sportTemplateId ?? '';
 
-  // Templates available for the selected sport type
-  const filteredTemplates = useMemo(
-    () =>
-      selectedSportType
-        ? templates.filter(t => SPORT_CODE_TO_SPORT[t.sport_code] === selectedSportType)
-        : [],
-    [templates, selectedSportType]
+  // Unique orgs derived from available templates
+  const availableOrgs = useMemo(() => {
+    const orgs = new Set<string>();
+    templates.forEach(t => {
+      const org = SPORT_CODE_TO_ORG[t.sport_code];
+      if (org) orgs.add(org);
+    });
+    return [...orgs].sort();
+  }, [templates]);
+
+  // Templates for the selected org
+  const orgTemplates = useMemo(
+    () => templates.filter(t => SPORT_CODE_TO_ORG[t.sport_code] === selectedOrg),
+    [templates, selectedOrg]
   );
 
   const selectedTemplate = useMemo(
-    () => filteredTemplates.find(t => t.id === selectedTemplateId) ?? null,
-    [filteredTemplates, selectedTemplateId]
+    () => orgTemplates.find(t => t.id === selectedTemplateId) ?? null,
+    [orgTemplates, selectedTemplateId]
   );
 
-  // Compute org label from current value so the trigger always shows the name
-  const selectedOrgLabel = useMemo(() => {
+  // Compute sport display label from current template ID (avoids UUID-in-trigger bug)
+  const selectedSportLabel = useMemo(() => {
     if (!selectedTemplateId) return '';
     const t = templates.find(tmpl => tmpl.id === selectedTemplateId);
-    return t ? (SPORT_CODE_TO_ORG[t.sport_code] ?? t.sport_code) : '';
+    return t ? (SPORT_CODE_TO_DISPLAY[t.sport_code] ?? t.sport_code) : '';
   }, [templates, selectedTemplateId]);
 
   if (!form) return null;
 
-  const hasTemplatesForSport = filteredTemplates.length > 0;
-
   return (
     <div className="px-6 py-4 space-y-5">
-      {/* Sport type */}
-      <FormField label="Sport" fieldId="sportType" required error={form.getError('sportType')}>
+      {/* Organization */}
+      <FormField
+        label="Organization"
+        fieldId="organization"
+        required
+        error={form.getError('organization')}
+      >
         <Select
-          value={form.data.sportType}
+          value={form.data.organization}
           onValueChange={val => {
-            form.setValue('sportType', val);
+            form.setValue('organization', val);
             form.setValue('sportTemplateId', '');
             form.setValue('element', '');
             form.setValue('level', '');
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select sport" />
+            <SelectValue placeholder="Select organization" />
           </SelectTrigger>
           <SelectContent>
-            {SPORT_TYPES.map(sport => (
-              <SelectItem key={sport} value={sport}>
-                {sport}
+            {availableOrgs.map(org => (
+              <SelectItem key={org} value={org}>
+                {org}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </FormField>
 
-      {/* Organization — only shown once sport is selected */}
-      {form.data.sportType && (
+      {/* Sport — appears once org is selected */}
+      {selectedOrg && (
         <FormField
-          label="Organization"
+          label="Sport"
           fieldId="sportTemplateId"
           required
           error={form.getError('sportTemplateId')}
-          hint={
-            !hasTemplatesForSport ? `No ${form.data.sportType} templates configured yet` : undefined
-          }
         >
           <Select
             value={form.data.sportTemplateId}
@@ -139,24 +143,18 @@ const LogResultForm: React.FC = () => {
               form.setValue('element', '');
               form.setValue('level', '');
             }}
-            disabled={!hasTemplatesForSport}
           >
-            {/* Render label manually — SelectValue shows raw UUID when Content hasn't mounted */}
             <SelectTrigger>
-              {selectedOrgLabel ? (
-                <span className="text-sm">{selectedOrgLabel}</span>
+              {selectedSportLabel ? (
+                <span className="text-sm">{selectedSportLabel}</span>
               ) : (
-                <SelectValue placeholder="Select organization" />
+                <SelectValue placeholder="Select sport" />
               )}
             </SelectTrigger>
             <SelectContent>
-              {filteredTemplates.map(t => (
-                <SelectItem
-                  key={t.id}
-                  value={t.id}
-                  textValue={SPORT_CODE_TO_ORG[t.sport_code] ?? t.sport_code}
-                >
-                  {SPORT_CODE_TO_ORG[t.sport_code] ?? t.sport_code}
+              {orgTemplates.map(t => (
+                <SelectItem key={t.id} value={t.id}>
+                  {SPORT_CODE_TO_DISPLAY[t.sport_code] ?? t.sport_code}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -164,23 +162,29 @@ const LogResultForm: React.FC = () => {
         </FormField>
       )}
 
-      {/* Element + Level — only shown once an org template is selected */}
+      {/* Element + Level — appears once a sport template is selected.
+          Element is only shown for scent-work-style sports (templates with elements). */}
       {selectedTemplate && (
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Element" fieldId="element" required error={form.getError('element')}>
-            <Select value={form.data.element} onValueChange={val => form.setValue('element', val)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select element" />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedTemplate.elements.map(el => (
-                  <SelectItem key={el} value={el}>
-                    {el}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
+        <div className={selectedTemplate.elements.length > 0 ? 'grid grid-cols-2 gap-4' : ''}>
+          {selectedTemplate.elements.length > 0 && (
+            <FormField label="Element" fieldId="element" required error={form.getError('element')}>
+              <Select
+                value={form.data.element ?? ''}
+                onValueChange={val => form.setValue('element', val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select element" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedTemplate.elements.map(el => (
+                    <SelectItem key={el} value={el}>
+                      {el}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
 
           <FormField label="Level" fieldId="level" required error={form.getError('level')}>
             <Select value={form.data.level} onValueChange={val => form.setValue('level', val)}>
@@ -312,7 +316,7 @@ export interface LogManualResultPanelProps {
 }
 
 const INITIAL_DATA: LogResultFormData = {
-  sportType: '',
+  organization: '',
   sportTemplateId: '',
   showName: '',
   trialDate: today,
@@ -338,11 +342,11 @@ const LogManualResultPanel: React.FC<LogManualResultPanelProps> = ({
     await createMutation.mutateAsync({
       dog_id: dogId,
       owner_id: ownerId,
-      organization: data.sportTemplateId,
+      organization: data.organization,
       sport_template_id: data.sportTemplateId,
       show_name: data.showName,
       trial_date: data.trialDate,
-      element: data.element,
+      element: data.element ?? '',
       level: data.level,
       section: null,
       result_status: data.resultStatus,

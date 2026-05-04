@@ -15,7 +15,7 @@ import {
   Undo,
   Redo,
   Save,
-  Camera
+  Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,17 +31,16 @@ const ToolbarButton = ({
   onClick,
   isActive = false,
   disabled = false,
-  children
+  children,
 }: ToolbarButtonProps) => (
   <Button
-    variant={isActive ? "default" : "ghost"}
+    type="button"
+    variant={isActive ? 'default' : 'ghost'}
     size="sm"
+    onMouseDown={e => e.preventDefault()}
     onClick={onClick}
     disabled={disabled}
-    className={cn(
-      "h-8 w-8 p-0",
-      isActive && "bg-primary text-primary-foreground"
-    )}
+    className={cn('h-8 w-8 p-0', isActive && 'bg-primary text-primary-foreground')}
   >
     {children}
   </Button>
@@ -64,7 +63,7 @@ export function RichTextEditor({
   onImageUpload,
   placeholder = 'Start writing your training notes...',
   className,
-  readOnly = false
+  readOnly = false,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -86,19 +85,22 @@ export function RichTextEditor({
     editable: !readOnly,
   });
 
-  const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !onImageUpload || !editor) return;
+  const handleImageUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || !onImageUpload || !editor) return;
 
-    try {
-      const imageUrl = await onImageUpload(file);
-      // Note: setImage requires Image extension to be installed
-      // editor.chain().focus().setImage({ src: imageUrl }).run();
-      logger.debug('Image upload completed:', 'dogs', { data: imageUrl });
-    } catch (error) {
-      logger.error('Failed to upload image:', 'dogs', {}, error as Error);
-    }
-  }, [editor, onImageUpload]);
+      try {
+        const imageUrl = await onImageUpload(file);
+        // Note: setImage requires Image extension to be installed
+        // editor.chain().focus().setImage({ src: imageUrl }).run();
+        logger.debug('Image upload completed:', 'dogs', { data: imageUrl });
+      } catch (error) {
+        logger.error('Failed to upload image:', 'dogs', {}, error as Error);
+      }
+    },
+    [editor, onImageUpload]
+  );
 
   const handleSave = () => {
     if (editor && onSave) {
@@ -132,14 +134,14 @@ export function RichTextEditor({
               >
                 <Bold className="h-4 w-4" />
               </ToolbarButton>
-              
+
               <ToolbarButton
                 onClick={() => editor.chain().focus().toggleItalic().run()}
                 isActive={editor.isActive('italic')}
               >
                 <Italic className="h-4 w-4" />
               </ToolbarButton>
-              
+
               <ToolbarButton
                 onClick={() => editor.chain().focus().toggleStrike().run()}
                 isActive={editor.isActive('strike')}
@@ -156,7 +158,7 @@ export function RichTextEditor({
               >
                 <List className="h-4 w-4" />
               </ToolbarButton>
-              
+
               <ToolbarButton
                 onClick={() => editor.chain().focus().toggleOrderedList().run()}
                 isActive={editor.isActive('orderedList')}
@@ -176,17 +178,24 @@ export function RichTextEditor({
               {/* Headings */}
               <select
                 value={
-                  editor.isActive('heading', { level: 1 }) ? '1' :
-                  editor.isActive('heading', { level: 2 }) ? '2' :
-                  editor.isActive('heading', { level: 3 }) ? '3' :
-                  '0'
+                  editor.isActive('heading', { level: 1 })
+                    ? '1'
+                    : editor.isActive('heading', { level: 2 })
+                      ? '2'
+                      : editor.isActive('heading', { level: 3 })
+                        ? '3'
+                        : '0'
                 }
-                onChange={(e) => {
+                onChange={e => {
                   const level = parseInt(e.target.value);
                   if (level === 0) {
                     editor.chain().focus().setParagraph().run();
                   } else {
-                    editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run();
+                    editor
+                      .chain()
+                      .focus()
+                      .toggleHeading({ level: level as 1 | 2 | 3 })
+                      .run();
                   }
                 }}
                 className="px-2 py-1 text-sm border rounded h-8"
@@ -221,7 +230,7 @@ export function RichTextEditor({
               >
                 <Undo className="h-4 w-4" />
               </ToolbarButton>
-              
+
               <ToolbarButton
                 onClick={() => editor.chain().focus().redo().run()}
                 disabled={!editor.can().chain().focus().redo().run()}
@@ -243,24 +252,27 @@ export function RichTextEditor({
           </div>
         )}
 
-        <div className={cn(
-          "prose prose-sm max-w-none p-4 min-h-[200px] focus-within:outline-none",
-          readOnly && "prose-gray",
-          "prose-headings:font-semibold prose-h1:text-xl prose-h2:text-lg prose-h3:text-base",
-          "prose-p:my-2 prose-li:my-1",
-          "prose-blockquote:border-l-4 prose-blockquote:border-muted-foreground prose-blockquote:pl-4 prose-blockquote:italic",
-          "dark:prose-invert"
-        )}>
-          <EditorContent 
-            editor={editor} 
+        <div
+          className={cn(
+            'prose prose-sm max-w-none p-4 min-h-[200px] focus-within:outline-none',
+            readOnly && 'prose-gray',
+            'prose-headings:font-semibold prose-h1:text-xl prose-h2:text-lg prose-h3:text-base',
+            'prose-p:my-2 prose-li:my-1',
+            'prose-blockquote:border-l-4 prose-blockquote:border-muted-foreground prose-blockquote:pl-4 prose-blockquote:italic',
+            'dark:prose-invert',
+            '[&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6',
+            '[&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6',
+            '[&_.ProseMirror_li]:my-0.5'
+          )}
+        >
+          <EditorContent
+            editor={editor}
             className="outline-none"
             style={{ whiteSpace: 'pre-wrap' }}
           />
-          
+
           {editor.isEmpty && !readOnly && (
-            <p className="text-muted-foreground absolute pointer-events-none">
-              {placeholder}
-            </p>
+            <p className="text-muted-foreground absolute pointer-events-none">{placeholder}</p>
           )}
         </div>
       </CardContent>

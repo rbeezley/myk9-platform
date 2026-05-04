@@ -6,17 +6,17 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { RichTextEditor } from './RichTextEditor';
-import { 
-  BookOpen, 
-  Plus, 
-  Search, 
-  Filter, 
-  Calendar, 
-  Clock, 
+import {
+  BookOpen,
+  Plus,
+  Search,
+  Filter,
+  Calendar,
+  Clock,
   Star,
   Image,
   TrendingUp,
-  Award
+  Award,
 } from 'lucide-react';
 import { SafeHTML } from '@/utils/sanitization';
 
@@ -44,20 +44,20 @@ const progressColors = {
   excellent: 'bg-green-500',
   good: 'bg-blue-500',
   fair: 'bg-yellow-500',
-  needs_work: 'bg-red-500'
+  needs_work: 'bg-red-500',
 };
 
 const progressLabels = {
   excellent: 'Excellent',
   good: 'Good',
   fair: 'Fair',
-  needs_work: 'Needs Work'
+  needs_work: 'Needs Work',
 };
 
 export function EnhancedTrainingJournal({
   entries,
   onAddEntry,
-  onUpdateEntry
+  onUpdateEntry,
 }: EnhancedTrainingJournalProps) {
   const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TrainingEntry | null>(null);
@@ -68,18 +68,29 @@ export function EnhancedTrainingJournal({
   // Get all unique skills for filtering
   const allSkills = Array.from(new Set(entries.flatMap(entry => entry.skills)));
 
-  const filteredEntries = entries.filter(entry => {
-    const matchesSearch = entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         entry.content.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSkill = !filterSkill || entry.skills.includes(filterSkill);
-    return matchesSearch && matchesSkill;
-  }).sort((a, b) => b.date.getTime() - a.date.getTime());
+  const filteredEntries = entries
+    .filter(entry => {
+      const matchesSearch =
+        entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.content.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSkill = !filterSkill || entry.skills.includes(filterSkill);
+      return matchesSearch && matchesSkill;
+    })
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const totalHours = entries.reduce((sum, entry) => sum + entry.duration, 0) / 60;
-  const averageProgress = entries.length > 0 ? 
-    entries.filter(e => e.progress === 'excellent' || e.progress === 'good').length / entries.length * 100 : 0;
+  const averageProgress =
+    entries.length > 0
+      ? (entries.filter(e => e.progress === 'excellent' || e.progress === 'good').length /
+          entries.length) *
+        100
+      : 0;
 
-  const TrainingEntryForm = ({ entry, onSubmit, onCancel }: {
+  const TrainingEntryForm = ({
+    entry,
+    onSubmit,
+    onCancel,
+  }: {
     entry?: TrainingEntry;
     onSubmit: (data: Omit<TrainingEntry, 'id'>) => void;
     onCancel: () => void;
@@ -94,7 +105,7 @@ export function EnhancedTrainingJournal({
       progress: entry?.progress || 'good',
       photos: entry?.photos || [],
       notes: entry?.notes || '',
-      goals: entry?.goals || []
+      goals: entry?.goals || [],
     });
 
     const handleSubmit = () => {
@@ -108,30 +119,37 @@ export function EnhancedTrainingJournal({
           <div>
             <label className="block text-sm font-medium mb-2">Session Title</label>
             <Input
-              value={""}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              value={formData.title}
+              onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
               placeholder="e.g., Basic obedience training"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium mb-2">Duration (minutes)</label>
             <Input
               type="number"
-              value={""}
-              onChange={(e) => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) || 0 }))}
+              value={formData.duration}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) || 0 }))
+              }
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2">Difficulty</label>
             <select
-              value={""}
-              onChange={(e) => setFormData(prev => ({ ...prev, difficulty: parseInt(e.target.value) as 1|2|3|4|5 }))}
+              value={formData.difficulty}
+              onChange={e =>
+                setFormData(prev => ({
+                  ...prev,
+                  difficulty: parseInt(e.target.value) as 1 | 2 | 3 | 4 | 5,
+                }))
+              }
               className="w-full px-3 py-2 border rounded-md"
             >
               {[1, 2, 3, 4, 5].map(level => (
-                <option key={level} value={""}>
+                <option key={level} value={level}>
                   {'★'.repeat(level)} {level === 1 ? 'Very Easy' : level === 5 ? 'Very Hard' : ''}
                 </option>
               ))}
@@ -141,12 +159,19 @@ export function EnhancedTrainingJournal({
           <div>
             <label className="block text-sm font-medium mb-2">Progress</label>
             <select
-              value={""}
-              onChange={(e) => setFormData(prev => ({ ...prev, progress: e.target.value as TrainingEntry['progress'] }))}
+              value={formData.progress}
+              onChange={e =>
+                setFormData(prev => ({
+                  ...prev,
+                  progress: e.target.value as TrainingEntry['progress'],
+                }))
+              }
               className="w-full px-3 py-2 border rounded-md"
             >
               {Object.entries(progressLabels).map(([key, label]) => (
-                <option key={key} value={""}>{label}</option>
+                <option key={key} value={key}>
+                  {label}
+                </option>
               ))}
             </select>
           </div>
@@ -156,7 +181,7 @@ export function EnhancedTrainingJournal({
           <label className="block text-sm font-medium mb-2">Training Notes</label>
           <RichTextEditor
             content={formData.content}
-            onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+            onChange={content => setFormData(prev => ({ ...prev, content }))}
             placeholder="Describe what you worked on, how your dog performed, and any observations..."
           />
         </div>
@@ -207,10 +232,7 @@ export function EnhancedTrainingJournal({
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button 
-              onClick={() => setIsAddingEntry(true)}
-              className="w-full"
-            >
+            <Button onClick={() => setIsAddingEntry(true)} className="w-full">
               <Plus className="h-4 w-4 mr-2" />
               New Training Session
             </Button>
@@ -235,24 +257,26 @@ export function EnhancedTrainingJournal({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search training sessions..."
-                  value={""}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
-            
+
             <select
-              value={""}
-              onChange={(e) => setFilterSkill(e.target.value)}
+              value={filterSkill}
+              onChange={e => setFilterSkill(e.target.value)}
               className="px-3 py-2 border rounded-md text-sm"
             >
               <option value="">All Skills</option>
               {allSkills.map(skill => (
-                <option key={skill} value={""}>{skill}</option>
+                <option key={skill} value={skill}>
+                  {skill}
+                </option>
               ))}
             </select>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -271,7 +295,11 @@ export function EnhancedTrainingJournal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+              : 'space-y-4'
+          }
         >
           {filteredEntries.map(entry => (
             <motion.div
@@ -302,7 +330,7 @@ export function EnhancedTrainingJournal({
                     </div>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent>
                   <SafeHTML
                     html={entry.content}
@@ -310,7 +338,7 @@ export function EnhancedTrainingJournal({
                     className="prose prose-sm max-w-none mb-3 line-clamp-3"
                     fallback={<p className="text-gray-500 italic">No content available</p>}
                   />
-                  
+
                   {entry.skills.length > 0 && (
                     <div className="flex gap-1 flex-wrap mb-3">
                       {entry.skills.slice(0, 3).map(skill => (
@@ -337,11 +365,7 @@ export function EnhancedTrainingJournal({
                     <Badge variant="outline" className={progressColors[entry.progress]}>
                       {progressLabels[entry.progress]}
                     </Badge>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditingEntry(entry)}
-                    >
+                    <Button size="sm" variant="ghost" onClick={() => setEditingEntry(entry)}>
                       Edit
                     </Button>
                   </div>
@@ -358,7 +382,9 @@ export function EnhancedTrainingJournal({
             <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Training Sessions Found</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {searchTerm ? 'Try adjusting your search' : 'Start documenting your training journey!'}
+              {searchTerm
+                ? 'Try adjusting your search'
+                : 'Start documenting your training journey!'}
             </p>
             <Button onClick={() => setIsAddingEntry(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -375,7 +401,7 @@ export function EnhancedTrainingJournal({
             <DialogTitle>Add Training Session</DialogTitle>
           </DialogHeader>
           <TrainingEntryForm
-            onSubmit={(data) => {
+            onSubmit={data => {
               onAddEntry?.(data);
               setIsAddingEntry(false);
             }}
@@ -393,7 +419,7 @@ export function EnhancedTrainingJournal({
           {editingEntry && (
             <TrainingEntryForm
               entry={editingEntry}
-              onSubmit={(data) => {
+              onSubmit={data => {
                 onUpdateEntry?.(editingEntry.id, data);
                 setEditingEntry(null);
               }}

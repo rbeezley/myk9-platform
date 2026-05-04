@@ -100,7 +100,7 @@ describe('splitDatedUndated', () => {
 
   it('puts tasks with null due date in undated', () => {
     const t = makeTask({ dueDate: null });
-    const { dated, undated } = splitDatedUndated([t]);
+    const { dated: _dated, undated } = splitDatedUndated([t]);
     expect(undated).toHaveLength(1);
   });
 

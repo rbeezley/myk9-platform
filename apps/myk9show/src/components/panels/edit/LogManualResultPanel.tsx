@@ -137,6 +137,7 @@ const LogResultForm: React.FC = () => {
           error={form.getError('sportTemplateId')}
         >
           <Select
+            key={selectedOrg}
             value={form.data.sportTemplateId}
             onValueChange={val => {
               form.setValue('sportTemplateId', val);

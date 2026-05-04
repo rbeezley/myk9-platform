@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -12,7 +11,6 @@ import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { logger } from '@/services/LoggingService';
 import { GlassCard } from '@/components/common/GlassCard';
-import { useJudgeTodayStats } from '@/hooks/queries/useJudgeTodayStats';
 import {
   Trophy,
   Clock,
@@ -29,6 +27,7 @@ import {
 } from 'lucide-react';
 import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 import { FadeIn } from '@/components/layout/FadeIn';
+import { deriveJudgeDashboardStats, type JudgeClass } from './judgeStatsUtils';
 
 const JUDGE_TABS: PrimaryTabDef[] = [
   { id: 'today', label: 'Today', icon: CalendarDays },
@@ -36,48 +35,32 @@ const JUDGE_TABS: PrimaryTabDef[] = [
   { id: 'completed', label: 'Completed', icon: CheckCircle },
 ];
 
-interface JudgeClass {
-  id: string;
-  showId: string;
-  trialId: string;
-  classId: string;
-  name: string;
-  element: string;
-  level: string;
-  scheduledTime: Date;
-  ringNumber: number;
-  totalEntries: number;
-  completedEntries: number;
-  status: 'pending' | 'in-progress' | 'completed';
-}
-
 const JudgeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, firstName } = useAuthContext();
   const [selectedTab, setSelectedTab] = useState('today');
+  const [assignments] = useState<JudgeClass[]>([]); // TODO: wire to real query
+  const [mountTime] = useState(() => Date.now());
 
-  const stats = useJudgeTodayStats();
-
-  // Audit log on mount (ProtectedRoute gates access)
   useEffect(() => {
-    queueMicrotask(() => {
-      auditService.log({
-        action: AuditAction.READ,
-        entityType: 'judge_dashboard',
-        entityId: user?.id || 'unknown',
-        metadata: {
-          page: 'judge_dashboard',
-          loadTime: new Date().toISOString(),
-        },
-      });
+    auditService.log({
+      action: AuditAction.READ,
+      entityType: 'judge_dashboard',
+      entityId: user?.id || 'unknown',
+      metadata: { page: 'judge_dashboard', loadTime: new Date().toISOString() },
     });
   }, [user?.id]);
 
-  // The class list shown in the Today tab comes from the check-in dashboard;
-  // here we only display aggregate stat cards. Keep todaysClasses as empty
-  // so the list body renders its "No Classes Today" empty state when real data
-  // is not yet available from a separate detailed query.
-  const todaysClasses: JudgeClass[] = [];
+  // KNOWN-LIMITATION: mountTime is frozen at mount; replace with a setInterval
+  // ticker once the real query is wired so the countdown stays live.
+  const {
+    completedCount,
+    totalEntries,
+    judgedEntries,
+    completionRate,
+    nextClass,
+    minutesUntilNext,
+  } = deriveJudgeDashboardStats(assignments, mountTime);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -171,19 +154,11 @@ const JudgeDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {stats.isLoading ? (
-                <Skeleton className="h-10 w-16 mb-2" />
-              ) : (
-                <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                  {stats.totalToday}
-                </div>
-              )}
+              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {assignments.length}
+              </div>
               <p className="text-sm text-muted-foreground font-medium">
-                {stats.isLoading ? (
-                  <Skeleton className="h-4 w-24" />
-                ) : (
-                  `${stats.completedToday} completed`
-                )}
+                {completedCount} completed
               </p>
             </CardContent>
           </GlassCard>
@@ -200,20 +175,10 @@ const JudgeDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {stats.isLoading ? (
-                <Skeleton className="h-10 w-16 mb-2" />
-              ) : (
-                <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                  {stats.totalEntries}
-                </div>
-              )}
-              <p className="text-sm text-muted-foreground font-medium">
-                {stats.isLoading ? (
-                  <Skeleton className="h-4 w-24" />
-                ) : (
-                  `${stats.checkedInCount} checked in`
-                )}
-              </p>
+              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {totalEntries}
+              </div>
+              <p className="text-sm text-muted-foreground font-medium">{judgedEntries} judged</p>
             </CardContent>
           </GlassCard>
 
@@ -229,21 +194,11 @@ const JudgeDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {stats.isLoading ? (
-                <Skeleton className="h-10 w-16 mb-2" />
-              ) : (
-                <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                  {stats.nextClass ? '—' : '—'}
-                </div>
-              )}
+              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {minutesUntilNext !== null ? `${minutesUntilNext}m` : '—'}
+              </div>
               <p className="text-sm text-muted-foreground font-medium">
-                {stats.isLoading ? (
-                  <Skeleton className="h-4 w-32" />
-                ) : stats.nextClass ? (
-                  stats.nextClass
-                ) : (
-                  'No classes today'
-                )}
+                {nextClass ? nextClass.name : 'No classes today'}
               </p>
             </CardContent>
           </GlassCard>
@@ -260,21 +215,19 @@ const JudgeDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {stats.isLoading ? (
-                <Skeleton className="h-10 w-16 mb-2" />
-              ) : (
-                <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                  {stats.totalToday > 0
-                    ? `${Math.round((stats.completedToday / stats.totalToday) * 100)}%`
-                    : '—'}
-                </div>
-              )}
-              {!stats.isLoading && stats.totalToday > 0 && (
-                <div className="flex items-center gap-1">
+              <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {completionRate !== null ? `${completionRate}%` : '—'}
+              </div>
+              <div className="flex items-center gap-1">
+                {completionRate !== null && (
                   <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
-                  <span className="text-sm text-success-green font-medium">On schedule</span>
-                </div>
-              )}
+                )}
+                <span
+                  className={`text-sm font-medium ${completionRate !== null ? 'text-success-green' : 'text-muted-foreground'}`}
+                >
+                  {completionRate !== null ? 'On schedule' : 'No data yet'}
+                </span>
+              </div>
             </CardContent>
           </GlassCard>
         </StaggeredGrid>
@@ -296,7 +249,7 @@ const JudgeDashboard: React.FC = () => {
                 className="space-y-6"
               >
                 <TabsContent value="today" className="space-y-4">
-                  {todaysClasses.map(judgeClass => (
+                  {assignments.map(judgeClass => (
                     <div
                       key={judgeClass.id}
                       className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
@@ -340,7 +293,7 @@ const JudgeDashboard: React.FC = () => {
                     </div>
                   ))}
 
-                  {todaysClasses.length === 0 && (
+                  {assignments.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-16">
                       <div className="mx-auto w-24 h-24 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center mb-6">
                         <Trophy className="h-12 w-12 text-primary" />
@@ -371,7 +324,7 @@ const JudgeDashboard: React.FC = () => {
 
                 <TabsContent value="completed" className="mt-4">
                   <div className="space-y-4">
-                    {todaysClasses
+                    {assignments
                       .filter(c => c.status === 'completed')
                       .map(judgeClass => (
                         <div
@@ -403,7 +356,7 @@ const JudgeDashboard: React.FC = () => {
                         </div>
                       ))}
 
-                    {todaysClasses.filter(c => c.status === 'completed').length === 0 && (
+                    {assignments.filter(c => c.status === 'completed').length === 0 && (
                       <div className="flex flex-col items-center justify-center py-16">
                         <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
                           <CheckCircle2 className="h-12 w-12 text-success-green" />

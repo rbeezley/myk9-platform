@@ -16,7 +16,7 @@ import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/Reg
 import { BlurGate } from '@/components/common/BlurGate';
 import { TabContentSkeleton } from './Skeletons';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import type { DogDetailsTabsProps } from './types';
 import ActivityTab from './ActivityTab';
@@ -57,7 +57,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   role = 'exhibitor',
 }) => {
   const { isPremium, isLoading } = useSubscriptionGate();
-  const currentUserPersonId = useCurrentUserPersonId();
+  const { user } = useAuthContext();
   const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'activity');
   const isSecretary = role === 'secretary';
   const dogName = getDogDisplayName(dog);
@@ -127,7 +127,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             description="Monitor your dog's progress toward titles and certifications."
           >
             <Suspense fallback={<TabContentSkeleton />}>
-              <TitleProgressSection dogId={dog.id} ownerId={currentUserPersonId ?? ''} />
+              <TitleProgressSection dogId={dog.id} ownerId={user?.id ?? ''} />
             </Suspense>
           </BlurGate>
         </TabsContent>

@@ -10,6 +10,10 @@ import {
 import { TaskRow } from './TaskRow';
 import { TaskAddForm } from './TaskAddForm';
 import { FilterChips } from './FilterChips';
+import { ViewToggle } from '@/components/common/ViewToggle';
+import { TaskTimelineView } from './TaskTimelineView';
+import { useTaskViewPreference, TASK_VIEW_MODES } from './useTaskViewPreference';
+import type { SecretaryTask } from './types';
 
 interface Show {
   id: string;
@@ -27,6 +31,7 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
   const [filter, setFilter] = useState<Filter>('all');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [viewMode, setViewMode] = useTaskViewPreference();
 
   const { data: tasks = [], isLoading } = useSecretaryTasks(filter === 'all' ? undefined : filter);
   const createTask = useCreateTask();
@@ -60,18 +65,35 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
   const visible = showCompleted ? sorted : sorted.filter(t => t.status !== 'done');
   const hasCompletedTasks = sorted.some(t => t.status === 'done');
 
+  function handleToggleDone(id: string) {
+    const task = tasks.find((t: SecretaryTask) => t.id === id);
+    if (!task) return;
+    updateTask.mutate({ id, update: { status: task.status === 'done' ? 'todo' : 'done' } });
+  }
+
+  function handleUpdate(id: string, update: Parameters<typeof updateTask.mutate>[0]['update']) {
+    updateTask.mutate({ id, update }, { onError: () => toast.error('Failed to update task.') });
+  }
+
+  function handleDelete(id: string) {
+    deleteTask.mutate(id, { onError: () => toast.error('Failed to delete task.') });
+  }
+
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <FilterChips options={filterOptions} active={filter} onChange={setFilter} />
-        {clubId && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="ml-auto rounded border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted"
-          >
-            + Add Task
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          <ViewToggle modes={TASK_VIEW_MODES} active={viewMode} onChange={setViewMode} />
+          {clubId && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="rounded border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted"
+            >
+              + Add Task
+            </button>
+          )}
+        </div>
       </div>
 
       {showAddForm && (
@@ -90,41 +112,38 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        {isLoading ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
-        ) : visible.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {filter === 'all' ? 'No open tasks.' : 'No tasks for this show.'}
-          </p>
-        ) : (
-          visible.map(task => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              showName={task.showId ? (showNameMap[task.showId] ?? task.showId) : 'General'}
-              shows={shows}
-              onToggleDone={id =>
-                updateTask.mutate({
-                  id,
-                  update: { status: task.status === 'done' ? 'todo' : 'done' },
-                })
-              }
-              onUpdate={(id, update) =>
-                updateTask.mutate(
-                  { id, update },
-                  { onError: () => toast.error('Failed to update task.') }
-                )
-              }
-              onDelete={id =>
-                deleteTask.mutate(id, {
-                  onError: () => toast.error('Failed to delete task.'),
-                })
-              }
-            />
-          ))
-        )}
-      </div>
+      {isLoading ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+      ) : viewMode === 'timeline' ? (
+        <TaskTimelineView
+          tasks={sorted}
+          shows={shows}
+          showIdFilter={filter}
+          showCompleted={showCompleted}
+          onToggleDone={handleToggleDone}
+          onUpdate={handleUpdate}
+        />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {visible.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              {filter === 'all' ? 'No open tasks.' : 'No tasks for this show.'}
+            </p>
+          ) : (
+            visible.map(task => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                showName={task.showId ? (showNameMap[task.showId] ?? task.showId) : 'General'}
+                shows={shows}
+                onToggleDone={handleToggleDone}
+                onUpdate={handleUpdate}
+                onDelete={handleDelete}
+              />
+            ))
+          )}
+        </div>
+      )}
 
       {hasCompletedTasks && (
         <button

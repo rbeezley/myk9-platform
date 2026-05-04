@@ -5,6 +5,7 @@ import { Heart, Calendar, List, AlertTriangle } from 'lucide-react';
 import type { HealthItemType } from './AddHealthItemDialog';
 import {
   useDogHealthDataQuery,
+  useVaccinationsQuery,
   useCreateVaccinationMutation,
   useCreateMedicationMutation,
   useCreateAllergyMutation,
@@ -36,10 +37,18 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
     vetVisits,
     ofaScreenings,
     geneticScreenings,
-    isLoading,
-    isError,
-    error,
+    isLoading: isFullLoading,
+    isError: isFullError,
+    error: fullError,
   } = useDogHealthDataQuery(dogId, user.isPremium);
+
+  // When vaccinationsOnly, use a scoped query that avoids RLS errors on
+  // tables secretaries can't access (medications, allergies, vet_visits, etc.)
+  const vaccinationsOnlyQuery = useVaccinationsQuery(vaccinationsOnly ? dogId : undefined);
+
+  const isLoading = vaccinationsOnly ? vaccinationsOnlyQuery.isLoading : isFullLoading;
+  const isError = vaccinationsOnly ? vaccinationsOnlyQuery.isError : isFullError;
+  const error = vaccinationsOnly ? vaccinationsOnlyQuery.error : fullError;
 
   const createVaccination = useCreateVaccinationMutation();
   const createMedication = useCreateMedicationMutation();
@@ -48,7 +57,10 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   const createOFAScreening = useCreateOFAScreeningMutation();
   const createGeneticScreening = useCreateGeneticScreeningMutation();
 
-  const vaccinationsData = useMemo(() => vaccinations.data || [], [vaccinations.data]);
+  const vaccinationsData = useMemo(
+    () => (vaccinationsOnly ? vaccinationsOnlyQuery.data : vaccinations.data) || [],
+    [vaccinationsOnly, vaccinationsOnlyQuery.data, vaccinations.data]
+  );
   const medicationsData = useMemo(() => medications.data || [], [medications.data]);
   const allergiesData = useMemo(() => allergies.data || [], [allergies.data]);
   const vetVisitsData = useMemo(() => vetVisits.data || [], [vetVisits.data]);

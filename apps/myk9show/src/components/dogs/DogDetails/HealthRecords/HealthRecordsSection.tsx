@@ -128,7 +128,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
     [mutations, authUser?.id]
   );
 
-  if (!user.isPremium) {
+  if (!user.isPremium && !vaccinationsOnly) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Heart className="h-12 w-12 text-muted-foreground mb-4" />

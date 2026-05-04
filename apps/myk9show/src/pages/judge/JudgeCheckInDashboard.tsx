@@ -215,6 +215,7 @@ const JudgeCheckInDashboard: React.FC = () => {
             <Button
               onClick={() => setViewMode('multi-ring')}
               className="bg-primary text-primary-foreground"
+              disabled={ringAssignments.length === 0}
             >
               <Users className="h-4 w-4 mr-2" />
               Multi-Ring View

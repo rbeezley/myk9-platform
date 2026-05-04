@@ -27,27 +27,13 @@ import {
 } from 'lucide-react';
 import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 import { FadeIn } from '@/components/layout/FadeIn';
+import { deriveJudgeDashboardStats, type JudgeClass } from './judgeStatsUtils';
 
 const JUDGE_TABS: PrimaryTabDef[] = [
   { id: 'today', label: 'Today', icon: CalendarDays },
   { id: 'upcoming', label: 'Upcoming', icon: Calendar },
   { id: 'completed', label: 'Completed', icon: CheckCircle },
 ];
-
-interface JudgeClass {
-  id: string;
-  showId: string;
-  trialId: string;
-  classId: string;
-  name: string;
-  element: string;
-  level: string;
-  scheduledTime: Date;
-  ringNumber: number;
-  totalEntries: number;
-  completedEntries: number;
-  status: 'pending' | 'in-progress' | 'completed';
-}
 
 const JudgeDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -65,16 +51,16 @@ const JudgeDashboard: React.FC = () => {
     });
   }, [user?.id]);
 
-  const completedCount = assignments.filter(c => c.status === 'completed').length;
-  const totalEntries = assignments.reduce((sum, c) => sum + c.totalEntries, 0);
-  const judgedEntries = assignments.reduce((sum, c) => sum + c.completedEntries, 0);
-  const completionRate = totalEntries > 0 ? Math.round((judgedEntries / totalEntries) * 100) : null;
-  const nextClass = assignments
-    .filter(c => c.status !== 'completed')
-    .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())[0];
-  const minutesUntilNext = nextClass
-    ? Math.max(0, Math.round((nextClass.scheduledTime.getTime() - mountTime) / 60000))
-    : null;
+  // KNOWN-LIMITATION: mountTime is frozen at mount; replace with a setInterval
+  // ticker once the real query is wired so the countdown stays live.
+  const {
+    completedCount,
+    totalEntries,
+    judgedEntries,
+    completionRate,
+    nextClass,
+    minutesUntilNext,
+  } = deriveJudgeDashboardStats(assignments, mountTime);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -236,7 +222,9 @@ const JudgeDashboard: React.FC = () => {
                 {completionRate !== null && (
                   <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
                 )}
-                <span className="text-sm text-success-green font-medium">
+                <span
+                  className={`text-sm font-medium ${completionRate !== null ? 'text-success-green' : 'text-muted-foreground'}`}
+                >
                   {completionRate !== null ? 'On schedule' : 'No data yet'}
                 </span>
               </div>

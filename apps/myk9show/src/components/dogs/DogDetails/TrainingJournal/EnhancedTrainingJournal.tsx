@@ -17,6 +17,7 @@ import {
   Image,
   TrendingUp,
   Award,
+  Trash2,
 } from 'lucide-react';
 import { SafeHTML } from '@/utils/sanitization';
 
@@ -38,6 +39,7 @@ interface EnhancedTrainingJournalProps {
   entries: TrainingEntry[];
   onAddEntry?: (entry: Omit<TrainingEntry, 'id'>) => void;
   onUpdateEntry?: (id: string, entry: Partial<TrainingEntry>) => void;
+  onDeleteEntry?: (id: string) => void;
 }
 
 const progressColors = {
@@ -58,6 +60,7 @@ export function EnhancedTrainingJournal({
   entries,
   onAddEntry,
   onUpdateEntry,
+  onDeleteEntry,
 }: EnhancedTrainingJournalProps) {
   const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TrainingEntry | null>(null);
@@ -365,9 +368,19 @@ export function EnhancedTrainingJournal({
                     <Badge variant="outline" className={progressColors[entry.progress]}>
                       {progressLabels[entry.progress]}
                     </Badge>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingEntry(entry)}>
-                      Edit
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => setEditingEntry(entry)}>
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => onDeleteEntry?.(entry.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

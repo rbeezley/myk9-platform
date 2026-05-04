@@ -1,8 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { EnhancedTrainingJournal } from './EnhancedTrainingJournal';
-import { Button } from '@/components/ui/button';
-import { BookOpen, Calendar, List } from 'lucide-react';
-import { SafeHTML } from '@/utils/sanitization';
+import { BookOpen } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useTrainingEntriesQuery,
@@ -63,7 +61,6 @@ interface TrainingSectionProps {
 }
 
 export default function TrainingSection({ dogId }: TrainingSectionProps) {
-  const [viewMode, setViewMode] = useState<'enhanced' | 'traditional'>('enhanced');
   const { user } = useAuth();
 
   const { data: entries = [], isLoading, isError, error } = useTrainingEntriesQuery(dogId);
@@ -141,97 +138,12 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
     );
   }
 
-  if (viewMode === 'enhanced') {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <BookOpen className="h-6 w-6" />
-              Training Journal
-            </h2>
-            <p className="text-muted-foreground">
-              Track training sessions, progress, and achievements with our enhanced journal
-            </p>
-          </div>
-
-          <Button variant="outline" size="sm" onClick={() => setViewMode('traditional')}>
-            <List className="h-4 w-4 mr-2" />
-            Traditional View
-          </Button>
-        </div>
-
-        <EnhancedTrainingJournal
-          entries={enhancedEntries}
-          onAddEntry={handleAddEntry}
-          onUpdateEntry={handleUpdateEntry}
-        />
-      </div>
-    );
-  }
-
-  // Traditional view
   return (
-    <div className="bg-background rounded-xl shadow-sm p-6 border">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <BookOpen className="h-5 w-5" />
-          Training Journal
-        </h2>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setViewMode('enhanced')}>
-            <Calendar className="h-4 w-4 mr-2" />
-            Enhanced View
-          </Button>
-        </div>
-      </div>
-
-      {entries.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No training sessions recorded yet.</p>
-          <p className="text-sm mt-1">
-            Switch to Enhanced View to add your first training session.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {entries.map(entry => (
-            <div key={entry.id} className="p-4 border rounded-lg">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium">{entry.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(entry.date).toLocaleDateString()}
-                    {entry.duration_minutes && ` \u2022 ${entry.duration_minutes}min`}
-                  </p>
-                  {entry.content && (
-                    <SafeHTML
-                      html={entry.content}
-                      config="richText"
-                      className="prose prose-sm max-w-none mt-2"
-                      fallback={null}
-                    />
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {entry.sport_tag && (
-                    <span className="text-xs text-muted-foreground">{entry.sport_tag}</span>
-                  )}
-                  {entry.assessment && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted">
-                      {entry.assessment}
-                    </span>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(entry.id)}>
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <EnhancedTrainingJournal
+      entries={enhancedEntries}
+      onAddEntry={handleAddEntry}
+      onUpdateEntry={handleUpdateEntry}
+      onDeleteEntry={id => deleteMutation.mutate(id)}
+    />
   );
 }

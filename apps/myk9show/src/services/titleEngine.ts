@@ -19,6 +19,7 @@ export interface QualifyingLeg {
   level: string;
   trial_date: string;
   show_name: string;
+  sport_template_id?: string | null;
   judge?: string | null;
   location?: string | null;
   notes?: string | null;
@@ -72,6 +73,7 @@ export function mapManualResultToLeg(result: ManualResult): QualifyingLeg | null
     level: result.level,
     trial_date: result.trial_date,
     show_name: result.show_name,
+    sport_template_id: result.sport_template_id,
     judge: result.judge,
     location: result.location,
     notes: result.notes,

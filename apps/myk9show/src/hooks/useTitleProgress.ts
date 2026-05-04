@@ -44,7 +44,11 @@ export function useTitleProgress(dogId: string) {
       const sportTitles = allTitles.filter(t => t.sport_template_id === template.id);
       if (sportTitles.length === 0) continue;
 
-      const sportLegs = allLegs; // All legs — engine filters by element::level matching
+      // Filter to legs belonging to this sport. Manual results carry sport_template_id;
+      // platform results don't (they predate per-sport tagging) and are allowed through.
+      const sportLegs = allLegs.filter(
+        leg => !leg.sport_template_id || leg.sport_template_id === template.id
+      );
       const progress = computeTitleProgress(sportLegs, sportTitles, template.levels);
       if (progress.length > 0) {
         result[template.id] = progress;

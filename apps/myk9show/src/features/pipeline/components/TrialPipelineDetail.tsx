@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, ChevronLeft, Lock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronLeft, FileText, Lock } from 'lucide-react';
+import { GeneratePremiumPanel } from '@/features/premium/GeneratePremiumPanel';
+import { useShowStore } from '@/store/showStore';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { useTrialStore } from '@/store/trialStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,9 +35,12 @@ export const TrialPipelineDetail: React.FC = () => {
     1) as PipelineStage;
   const [viewingStage, setViewingStage] = useState<PipelineStage>(pipelineStage);
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
+  const [premiumPanelOpen, setPremiumPanelOpen] = useState(false);
 
   // Show settings + trial overrides — declared before evalCtx so hooks run unconditionally.
   const showId = trial?.showId ?? null;
+  const getShowById = useShowStore(s => s.getShowById);
+  const show = showId ? getShowById(showId) : null;
 
   // Judge count from judge_assignments for this show (show-level assignment from wizard)
   const { data: judgeCount = 0 } = useQuery({
@@ -156,13 +161,22 @@ export const TrialPipelineDetail: React.FC = () => {
           Mission Control
         </Button>
 
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {trial.name ?? `Trial ${trial.trialNumber}`}
-          </h1>
-          <p className="text-muted-foreground">
-            {new Date(trial.trialDate + 'T00:00:00').toLocaleDateString()} &mdash; {stageMeta.label}
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {trial.name ?? `Trial ${trial.trialNumber}`}
+            </h1>
+            <p className="text-muted-foreground">
+              {new Date(trial.trialDate + 'T00:00:00').toLocaleDateString()} &mdash;{' '}
+              {stageMeta.label}
+            </p>
+          </div>
+          {show && (show.organization === 'AKC' || show.organization === 'UKC') && (
+            <Button variant="outline" size="sm" onClick={() => setPremiumPanelOpen(true)}>
+              <FileText className="h-4 w-4 mr-2" />
+              Generate Premium
+            </Button>
+          )}
         </div>
 
         <StageNavigation
@@ -270,6 +284,13 @@ export const TrialPipelineDetail: React.FC = () => {
         trialId={trialId!}
         showId={trial.showId}
         onClose={() => setActivePanel(null)}
+      />
+      <GeneratePremiumPanel
+        open={premiumPanelOpen}
+        onClose={() => setPremiumPanelOpen(false)}
+        showId={trial.showId}
+        clubId={show?.clubId ?? ''}
+        showOrg={(show?.organization as 'AKC' | 'UKC' | null) ?? null}
       />
     </>
   );

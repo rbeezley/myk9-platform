@@ -141,6 +141,19 @@ describe('computePremiumDiff', () => {
     expect(diff.narrativeEdits['trialInformation']).toBeDefined();
   });
 
+  it('detects accommodations change', () => {
+    const original = makeOriginal();
+    const newAccommodations = [{ name: 'Hilton', address: '200 Hotel Rd', phone: '918-222-2222' }];
+    const result = computePremiumDiff(
+      original,
+      { ...original.supplemental, accommodations: newAccommodations },
+      original.narratives,
+      original.style
+    );
+    expect('accommodations' in result.fieldOverrides).toBe(true);
+    expect(result.fieldOverrides['accommodations'].finalValue).toEqual(newAccommodations);
+  });
+
   it('records multiple field overrides simultaneously', () => {
     const original = makeOriginal();
     const finalSupplemental = makeSupplemental({

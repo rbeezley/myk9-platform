@@ -28,6 +28,15 @@ export function computePremiumDiff(
       finalValue: finalSupplemental.vetClinic,
     };
   }
+  if (
+    JSON.stringify(finalSupplemental.accommodations) !==
+    JSON.stringify(original.supplemental.accommodations)
+  ) {
+    fieldOverrides['accommodations'] = {
+      templateValue: original.supplemental.accommodations,
+      finalValue: finalSupplemental.accommodations,
+    };
+  }
   if (finalSupplemental.hospitalityNotes !== original.supplemental.hospitalityNotes) {
     fieldOverrides['hospitality_notes'] = {
       templateValue: original.supplemental.hospitalityNotes,

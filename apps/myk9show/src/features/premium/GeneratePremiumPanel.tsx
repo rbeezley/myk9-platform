@@ -254,6 +254,26 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                     }
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Awards Description</Label>
+                  <Textarea
+                    rows={2}
+                    value={supplemental.awardsDescription ?? ''}
+                    onChange={e =>
+                      setSupplemental(s => ({ ...s!, awardsDescription: e.target.value || null }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Additional Notes</Label>
+                  <Textarea
+                    rows={2}
+                    value={supplemental.additionalNotes ?? ''}
+                    onChange={e =>
+                      setSupplemental(s => ({ ...s!, additionalNotes: e.target.value || null }))
+                    }
+                  />
+                </div>
               </div>
 
               {/* Narrative editing */}

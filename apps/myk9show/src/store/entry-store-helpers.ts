@@ -181,10 +181,29 @@ export function buildBatchEntries(
 }
 
 /**
+ * Parse a search time string (e.g. "1:30.00", "0:45.5", "90", "90.25") to seconds.
+ * Returns undefined for empty/unparseable input.
+ */
+function parseSearchTimeToSeconds(timeStr: string | undefined): number | undefined {
+  if (!timeStr) return undefined;
+  const trimmed = timeStr.trim();
+  if (!trimmed) return undefined;
+  const mmss = trimmed.match(/^(\d{1,2}):([0-5]?\d)(?:\.(\d{1,3}))?$/);
+  if (mmss) {
+    const minutes = parseInt(mmss[1], 10);
+    const seconds = parseInt(mmss[2], 10);
+    const frac = mmss[3] ? parseFloat(`0.${mmss[3]}`) : 0;
+    return minutes * 60 + seconds + frac;
+  }
+  const plain = Number(trimmed);
+  return Number.isFinite(plain) ? plain : undefined;
+}
+
+/**
  * Convert SyncableShowEntry to ReplicatedEntry for storage
  */
 export function entryToReplicated(entry: SyncableShowEntry): ReplicatedEntry {
-  return {
+  const base: ReplicatedEntry = {
     id: entry.id,
     showId: entry.showId,
     classId: entry.classId,
@@ -211,4 +230,33 @@ export function entryToReplicated(entry: SyncableShowEntry): ReplicatedEntry {
     _syncStatus: entry._syncStatus,
     _localOnly: entry._localOnly,
   };
+
+  const cd = entry.competitionData;
+  if (cd) {
+    base.isScored = true;
+    base.is_scored = true;
+    base.resultStatus = cd.qualified ? 'qualified' : 'nq';
+    base.result_status = cd.qualified ? 'qualified' : 'nq';
+    const seconds = parseSearchTimeToSeconds(cd.time);
+    if (seconds !== undefined) {
+      base.searchTimeSeconds = seconds;
+      base.search_time_seconds = seconds;
+    }
+    if (cd.faults !== undefined) {
+      base.totalFaults = cd.faults;
+      base.total_faults = cd.faults;
+    }
+    if (cd.placement !== undefined) {
+      base.finalPlacement = cd.placement;
+      base.final_placement = cd.placement;
+    }
+    if (cd.judgeNotes !== undefined) {
+      base.judgeNotes = cd.judgeNotes;
+      base.judge_notes = cd.judgeNotes;
+    }
+    base.scoringCompletedAt = cd.recordedAt;
+    base.scoring_completed_at = cd.recordedAt;
+  }
+
+  return base;
 }

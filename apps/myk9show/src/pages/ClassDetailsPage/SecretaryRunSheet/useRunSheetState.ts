@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useEntryStore } from '@/store/entryStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
@@ -35,11 +36,13 @@ export function useRunSheetState({
   updateClass,
   userId,
 }: UseRunSheetStateProps): UseRunSheetStateReturn {
+  const queryClient = useQueryClient();
   const [sortMode, setSortMode] = useState<SortMode>('runOrder');
   const [randomSnapshot, setRandomSnapshot] = useState<RunSheetEntry[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const classPhase = toClassPhase(currentClass?.status);
+  const classId = currentClass?.id;
 
   const sortedEntries = useMemo(() => {
     if (sortMode === 'random') return randomSnapshot;
@@ -58,6 +61,9 @@ export function useRunSheetState({
   ) => {
     try {
       await useEntryStore.getState().updateCheckInStatus(entryId, status, userId);
+      if (classId) {
+        await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
+      }
     } catch {
       toast.error(errorMsg);
     }
@@ -81,6 +87,9 @@ export function useRunSheetState({
         recordedBy: userId,
         recordedAt: new Date().toISOString(),
       });
+      if (classId) {
+        await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
+      }
       toast.success('Result saved');
     } catch {
       toast.error('Failed to save result');

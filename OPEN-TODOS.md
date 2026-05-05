@@ -54,6 +54,10 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 
 ---
 
+## Feature Flags — Enable When Ready
+
+- [ ] **Enable competitions + statistics tabs on Dog Details** — Flip `competitionsTab: true` and `statisticsTab: true` in `apps/myk9show/src/config/features.ts`. Both depend on show entry data; enable once show registration + entry system is live. File: `apps/myk9show/src/config/features.ts`.
+
 ## Post-Fall (parked — do not pick up before Phase 3 exit)
 
 - [ ] **Prevent Duplicate Rows in Core Tables** — Uniqueness constraints on people/dogs/clubs. Requires duplicate-audit + merge migration before adding constraints. Full context in TO-DOS.md.

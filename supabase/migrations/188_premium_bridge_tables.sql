@@ -1,4 +1,4 @@
--- supabase/migrations/186_premium_bridge_tables.sql
+-- supabase/migrations/188_premium_bridge_tables.sql
 -- rollback: drop table public.premium_generations; drop table public.club_premium_templates;
 
 create table public.club_premium_templates (

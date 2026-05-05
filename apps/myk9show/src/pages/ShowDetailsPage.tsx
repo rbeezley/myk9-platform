@@ -10,6 +10,7 @@ import {
   BarChart3,
   Trash2,
   Pencil,
+  FileText,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,7 @@ import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
+import { GeneratePremiumPanel } from '@/features/premium/GeneratePremiumPanel';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -110,6 +112,7 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [premiumPanelOpen, setPremiumPanelOpen] = useState(false);
 
   // Fallback: Find current show from database
   const actualCurrentShow = useMemo(() => {
@@ -365,6 +368,13 @@ const ShowDetailsPage: React.FC = () => {
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
+                {(actualCurrentShow.organization === 'AKC' ||
+                  actualCurrentShow.organization === 'UKC') && (
+                  <Button variant="outline" size="sm" onClick={() => setPremiumPanelOpen(true)}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Generate Premium
+                  </Button>
+                )}
                 <ThreeDotMenu
                   items={[
                     {
@@ -464,6 +474,13 @@ const ShowDetailsPage: React.FC = () => {
           showName={actualCurrentShow.name || 'Unknown Show'}
         />
       )}
+      <GeneratePremiumPanel
+        open={premiumPanelOpen}
+        onClose={() => setPremiumPanelOpen(false)}
+        showId={actualCurrentShow.id}
+        clubId={actualCurrentShow.clubId}
+        showOrg={actualCurrentShow.organization as 'AKC' | 'UKC' | null}
+      />
     </>
   );
 };

@@ -101,6 +101,8 @@ jobs:
 
       - name: Build all
         run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
 
   # E2E jobs temporarily disabled to conserve GitHub Actions minutes (1,805/2,000 used).
   # Resets April 1, 2026. Re-enable after reset.

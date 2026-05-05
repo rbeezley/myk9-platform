@@ -170,4 +170,25 @@ describe('computePremiumDiff', () => {
     expect(diff.fieldOverrides['awards_description']).toBeDefined();
     expect(diff.fieldOverrides['vet_clinic']).toBeUndefined();
   });
+
+  it('does NOT flag vet_clinic as overridden when only key order differs', () => {
+    // Postgres JSONB does not preserve insertion order on round-trip; the same
+    // logical value can come back with shuffled keys. The diff must use a
+    // stable serializer so this is not flagged as a user-driven override.
+    const original = makeOriginal(
+      makeSupplemental({
+        vetClinic: { name: 'Riverside Vet', address: '123 Main St', phone: '555-0100' },
+      })
+    );
+    const reorderedFinal = makeSupplemental({
+      vetClinic: { phone: '555-0100', name: 'Riverside Vet', address: '123 Main St' },
+    });
+    const diff = computePremiumDiff(
+      original,
+      reorderedFinal,
+      original.narratives,
+      original.style
+    );
+    expect(diff.fieldOverrides['vet_clinic']).toBeUndefined();
+  });
 });

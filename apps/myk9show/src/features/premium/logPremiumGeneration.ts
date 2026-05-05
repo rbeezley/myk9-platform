@@ -9,6 +9,19 @@ export interface PremiumDownloadDiff {
   narrativeEdits: Record<string, PremiumNarrativeEdit>;
 }
 
+// Order-stable JSON serializer. Postgres JSONB does not preserve key order on
+// round-trip, so naive JSON.stringify can flag false-positive overrides when
+// the only difference is key ordering. Sorting keys first guarantees that
+// equivalent objects stringify to equal strings regardless of source order.
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const keys = Object.keys(value as Record<string, unknown>).sort();
+  return `{${keys
+    .map(k => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`)
+    .join(',')}}`;
+}
+
 // Computes the diff between original generated values and final downloaded values
 export function computePremiumDiff(
   original: GeneratedPremium,
@@ -21,7 +34,8 @@ export function computePremiumDiff(
 
   // Check supplemental field overrides
   if (
-    JSON.stringify(finalSupplemental.vetClinic) !== JSON.stringify(original.supplemental.vetClinic)
+    stableStringify(finalSupplemental.vetClinic) !==
+    stableStringify(original.supplemental.vetClinic)
   ) {
     fieldOverrides['vet_clinic'] = {
       templateValue: original.supplemental.vetClinic,
@@ -29,8 +43,8 @@ export function computePremiumDiff(
     };
   }
   if (
-    JSON.stringify(finalSupplemental.accommodations) !==
-    JSON.stringify(original.supplemental.accommodations)
+    stableStringify(finalSupplemental.accommodations) !==
+    stableStringify(original.supplemental.accommodations)
   ) {
     fieldOverrides['accommodations'] = {
       templateValue: original.supplemental.accommodations,

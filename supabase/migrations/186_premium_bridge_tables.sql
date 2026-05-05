@@ -32,6 +32,28 @@ create trigger club_premium_templates_updated_at
   before update on public.club_premium_templates
   for each row execute function set_updated_at();
 
+-- atomically clear the prior default when a new one is set, so that
+-- "make this template the default" works without the caller having to
+-- run two updates in a transaction.
+create or replace function public.clear_prior_premium_default()
+  returns trigger language plpgsql as $$
+begin
+  if new.is_default then
+    update public.club_premium_templates
+       set is_default = false
+     where club_id = new.club_id
+       and id <> new.id
+       and is_default = true;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger club_premium_templates_clear_prior_default
+  before insert or update of is_default on public.club_premium_templates
+  for each row when (new.is_default = true)
+  execute function public.clear_prior_premium_default();
+
 alter table public.club_premium_templates enable row level security;
 
 -- single "for all" policy covers select + insert + update + delete
@@ -53,7 +75,7 @@ create table public.premium_generations (
   id              uuid primary key default gen_random_uuid(),
   show_id         uuid not null references public.shows(id) on delete cascade,
   club_id         uuid not null references public.clubs(id) on delete cascade,
-  template_id     uuid references public.club_premium_templates(id),
+  template_id     uuid references public.club_premium_templates(id) on delete set null,
   org             text not null check (org in ('AKC', 'UKC')),
   generated_at    timestamptz not null default now(),
   field_overrides jsonb not null default '{}',

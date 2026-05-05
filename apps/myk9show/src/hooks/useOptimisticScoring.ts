@@ -62,11 +62,13 @@ export interface OptimisticScoringOptions {
  * Convert result text to status for IndexedDB
  */
 function convertResultTextToStatus(resultText: string): string {
+  // Must match the `entries.result_status` CHECK constraint:
+  // pending | qualified | nq | absent | excused | withdrawn
   switch (resultText) {
     case 'Q':
       return 'qualified';
     case 'NQ':
-      return 'not_qualified';
+      return 'nq';
     case 'ABS':
       return 'absent';
     case 'EX':

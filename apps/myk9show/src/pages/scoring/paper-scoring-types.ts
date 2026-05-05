@@ -21,14 +21,15 @@ export const DEFAULT_SESSION_SETTINGS: SessionSettings = {
 };
 
 /**
- * Maps display result codes to the value stored in result_status column.
- * These must match the values in mapResultStatusToQualification() in types.ts.
+ * Maps display result codes to the lowercase enum stored in `entries.result_status`.
+ * Values must satisfy the DB CHECK constraint (`pending|qualified|nq|absent|excused|withdrawn`).
+ * The reverse mapping (DB → display) is in `mapResultStatusToQualification()` in types.ts.
  */
 export const RESULT_STATUS_MAP: Record<PaperResult, string> = {
-  Q: 'Qualified',
-  NQ: 'Not Qualified',
-  ABS: 'Absent',
-  EX: 'Excused',
+  Q: 'qualified',
+  NQ: 'nq',
+  ABS: 'absent',
+  EX: 'excused',
 };
 
 /**

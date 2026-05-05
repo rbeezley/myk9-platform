@@ -68,8 +68,8 @@ describe('usePaperScoring', () => {
     expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith(
       'e1',
       expect.objectContaining({
-        result_status: 'Qualified',
-        resultStatus: 'Qualified',
+        result_status: 'qualified',
+        resultStatus: 'qualified',
         search_time_seconds: 83.45,
         searchTimeSeconds: 83.45,
         total_faults: 0,
@@ -88,9 +88,27 @@ describe('usePaperScoring', () => {
     expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith(
       'e1',
       expect.objectContaining({
-        result_status: 'Not Qualified',
+        result_status: 'nq',
         search_time_seconds: 0,
       })
+    );
+  });
+
+  it('saveEntry writes the lowercase DB enum for ABS and EX', async () => {
+    const { replicatedEntriesTable } =
+      await import('@/services/replication/ReplicatedEntriesTable');
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
+
+    await act(() => result.current.saveEntry('e1', 'ABS', '', 0));
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenLastCalledWith(
+      'e1',
+      expect.objectContaining({ result_status: 'absent', resultStatus: 'absent' })
+    );
+
+    await act(() => result.current.saveEntry('e2', 'EX', '', 0));
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenLastCalledWith(
+      'e2',
+      expect.objectContaining({ result_status: 'excused', resultStatus: 'excused' })
     );
   });
 });

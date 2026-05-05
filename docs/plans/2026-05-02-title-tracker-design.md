@@ -47,8 +47,12 @@ A clean, minimal experience focused entirely on dog management. Show-related fea
 
 A single TypeScript config file. Flip a flag to `true` and redeploy — the "coming soon" screen becomes the real page.
 
+Show-management flags default to `import.meta.env.DEV` so local development (`localhost:5173`) keeps the full exhibitor experience intact for continued Phase 2 testing, while production builds (Vercel) serve the "coming soon" screens. No `.env` files or secrets needed — Vite sets `DEV` automatically.
+
 ```typescript
 // src/config/features.ts
+const dev = import.meta.env.DEV;
+
 export const features = {
   // Dog tools — live for early adopters
   titleTracking: true,
@@ -56,17 +60,17 @@ export const features = {
   healthRecords: true,
   pedigree: true,        // verify build status before enabling
 
-  // Dog Details tabs — hidden until show management is ready
+  // Dog Details tabs — hidden until competition data exists
   competitionsTab: false,
   statisticsTab: false,
 
-  // Show management — coming soon
-  browsShows: false,
-  showRegistration: false,
-  myEntries: false,
-  calendar: false,
-  showDay: false,
-  analytics: false,
+  // Show management — production off, dev on
+  browsShows: dev,
+  showRegistration: dev,
+  myEntries: dev,
+  calendar: dev,
+  showDay: dev,
+  analytics: dev,
 } as const;
 ```
 

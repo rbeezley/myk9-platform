@@ -9,7 +9,6 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { useBlocker } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -234,15 +233,10 @@ export function BulkResultEntry({
   // Unsaved-changes guard
   const hasUnsavedChanges = useMemo(() => bulkData.some(item => item.hasChanges), [bulkData]);
 
-  // Block in-app navigation when there are unsaved changes
-  useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      hasUnsavedChanges &&
-      currentLocation.pathname !== nextLocation.pathname &&
-      !window.confirm('You have unsaved scores. Leave anyway? Your entries will be lost.')
-  );
-
   // Block browser tab close / refresh
+  // Note: in-app navigation guard via useBlocker requires a data router
+  // (createBrowserRouter); this app uses the legacy <BrowserRouter> JSX
+  // provider, so beforeunload is the only available hook here.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {

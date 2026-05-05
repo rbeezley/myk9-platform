@@ -9,12 +9,19 @@ const RESULT_STATUS_TO_QUALIFICATION: Record<string, QualificationStatus> = {
 };
 
 const QUALIFICATION_TO_RESULT_STATUS: Record<string, string> = {
+  // Long display forms
   Qualified: 'qualified',
   'Not Qualified': 'nq',
   Absent: 'absent',
   Excused: 'excused',
   Withdrawn: 'withdrawn',
   Eliminated: 'nq',
+  // Short scoresheet codes
+  Q: 'qualified',
+  NQ: 'nq',
+  ABS: 'absent',
+  EX: 'excused',
+  WD: 'withdrawn',
 };
 
 export function mapResultStatusToQualification(
@@ -24,7 +31,9 @@ export function mapResultStatusToQualification(
   return RESULT_STATUS_TO_QUALIFICATION[resultStatus] ?? '';
 }
 
-export function mapQualificationToResultStatus(qualification: QualificationStatus | ''): string {
+export function mapQualificationToResultStatus(
+  qualification: QualificationStatus | '' | string
+): string {
   if (!qualification) return 'pending';
   return QUALIFICATION_TO_RESULT_STATUS[qualification] ?? 'pending';
 }

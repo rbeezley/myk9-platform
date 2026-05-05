@@ -38,14 +38,15 @@ describe('useExampleIds', () => {
   });
 
   it('returns ids for every table when queries succeed', async () => {
+    // classShowId is omitted by design — classes.show_id does not exist post-migration 164.
+    // templateId is omitted by design — organization_templates is a post-fall deliverable.
     const mocks: Record<string, unknown> = {
       shows: { id: 'SHOW_1' },
       trials: { id: 'TRIAL_1', show_id: 'SHOW_1' },
-      classes: { id: 'CLASS_1', trial_id: 'TRIAL_1', show_id: 'SHOW_1' },
+      classes: { id: 'CLASS_1', trial_id: 'TRIAL_1' },
       dogs: { id: 'DOG_1' },
       clubs: { id: 'CLUB_1' },
       roles: { id: 'ROLE_1' },
-      organization_templates: { id: 'TEMPLATE_1' },
       entries: { id: 'ENTRY_1' },
     };
     getFromMock().mockImplementation((table: string) =>
@@ -64,11 +65,9 @@ describe('useExampleIds', () => {
       trialShowId: 'SHOW_1',
       classId: 'CLASS_1',
       classTrialId: 'TRIAL_1',
-      classShowId: 'SHOW_1',
       dogId: 'DOG_1',
       clubId: 'CLUB_1',
       roleId: 'ROLE_1',
-      templateId: 'TEMPLATE_1',
       entryId: 'ENTRY_1',
     });
   });

@@ -16,6 +16,7 @@ import { useOptimisticUpdate } from './useOptimisticUpdate';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { useScoringStore, type QualifyingResult } from '@/stores/scoringStore';
 import { logger } from '@/services/LoggingService';
+import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
 
 export interface ScoreSubmissionData {
   entryId: string | number;
@@ -59,26 +60,6 @@ export interface OptimisticScoringOptions {
 }
 
 /**
- * Convert result text to status for IndexedDB
- */
-function convertResultTextToStatus(resultText: string): string {
-  // Must match the `entries.result_status` CHECK constraint:
-  // pending | qualified | nq | absent | excused | withdrawn
-  switch (resultText) {
-    case 'Q':
-      return 'qualified';
-    case 'NQ':
-      return 'nq';
-    case 'ABS':
-      return 'absent';
-    case 'EX':
-      return 'excused';
-    default:
-      return 'pending';
-  }
-}
-
-/**
  * Convert time string (M:SS.ss) to seconds
  */
 function convertTimeToSeconds(timeStr: string): number {
@@ -119,7 +100,7 @@ export function useOptimisticScoring() {
 
       // Update IndexedDB cache immediately (works offline)
       try {
-        const resultStatus = convertResultTextToStatus(optimisticResult);
+        const resultStatus = mapQualificationToResultStatus(optimisticResult);
         const searchTimeSeconds = scoreData.searchTime
           ? convertTimeToSeconds(scoreData.searchTime)
           : 0;

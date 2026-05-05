@@ -233,10 +233,8 @@ export function BulkResultEntry({
   // Unsaved-changes guard
   const hasUnsavedChanges = useMemo(() => bulkData.some(item => item.hasChanges), [bulkData]);
 
-  // Block browser tab close / refresh
-  // Note: in-app navigation guard via useBlocker requires a data router
-  // (createBrowserRouter); this app uses the legacy <BrowserRouter> JSX
-  // provider, so beforeunload is the only available hook here.
+  // Block browser tab close / refresh. (No in-app guard: useBlocker requires
+  // a data router; this app uses the legacy <BrowserRouter>.)
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {

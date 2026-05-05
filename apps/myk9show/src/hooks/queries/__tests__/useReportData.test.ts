@@ -4,7 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useReportData } from '../useReportData';
 
-vi.mock('@/services/database/queries/trialQueries', () => ({
+vi.mock('@/services/database/trials', () => ({
   getTrialsByShow: vi.fn(),
 }));
 

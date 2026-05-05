@@ -4,10 +4,10 @@ import type { ScoringEntry } from '../types';
 import {
   digitsToSeconds,
   modeStorageKey,
-  RESULT_STATUS_MAP,
   DEFAULT_SESSION_SETTINGS,
   sortByExhibitorOrder,
 } from '../paper-scoring-types';
+import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
 import type { PaperResult, PaperScoringMode, SessionSettings } from '../paper-scoring-types';
 
 function readModeFromStorage(userId: string): PaperScoringMode {
@@ -50,7 +50,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   const performSave = useCallback(
     async (entryId: string, result: PaperResult, timeDigits: string, faults: number) => {
       const seconds = digitsToSeconds(timeDigits);
-      const statusValue = RESULT_STATUS_MAP[result];
+      const statusValue = mapQualificationToResultStatus(result);
       setIsSaving(true);
       try {
         await replicatedEntriesTable.updateEntry(entryId, {

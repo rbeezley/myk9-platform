@@ -150,8 +150,8 @@ export function calculatePlacements(entries: ScoringEntry[]): ScoringEntry[] {
     const placement = placementMap.get(entry.entryId);
     if (placement) return { ...entry, placement };
     if (entry.placement === undefined) return entry;
-    const { placement: _stale, ...rest } = entry;
-    return rest as ScoringEntry;
+    const { placement: _stripped, ...rest } = entry;
+    return rest;
   });
 }
 

@@ -21,18 +21,6 @@ export const DEFAULT_SESSION_SETTINGS: SessionSettings = {
 };
 
 /**
- * Maps display result codes to the lowercase enum stored in `entries.result_status`.
- * Values must satisfy the DB CHECK constraint (`pending|qualified|nq|absent|excused|withdrawn`).
- * The reverse mapping (DB → display) is in `mapResultStatusToQualification()` in types.ts.
- */
-export const RESULT_STATUS_MAP: Record<PaperResult, string> = {
-  Q: 'qualified',
-  NQ: 'nq',
-  ABS: 'absent',
-  EX: 'excused',
-};
-
-/**
  * Convert a TimeInput digit string to floating-point seconds.
  * "12345" → digits padded to "012345" → 1 min 23.45 sec → 83.45
  * "" or "0" → 0

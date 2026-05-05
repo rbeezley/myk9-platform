@@ -231,6 +231,11 @@ describe('titleEngine', () => {
         level: 'Novice',
         trial_date: '2025-02-10',
         show_name: 'Club Trial',
+        judge: 'Judge Smith',
+        location: 'Springfield',
+        notes: null,
+        search_time_seconds: 25,
+        sport_template_id: TEMPLATE_ID,
       });
     });
 

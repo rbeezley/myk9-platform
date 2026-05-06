@@ -1,17 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { STYLE_TOKENS, STYLE_ORG_SUPPORT, resolveTokens } from '../pdf/pdfStyles';
+import {
+  STYLE_TOKENS,
+  STYLE_ORG_SUPPORT,
+  INK_SAVER_PALETTE,
+  resolveTokens,
+} from '../pdf/pdfStyles';
 import type { PremiumStyle } from '../../../types/premium-types';
 
-const ALL_STYLES: PremiumStyle[] = [
-  'monogram',
-  'banner',
-  'headline',
-  'magazine',
-  'poster',
-  'gazette',
-  'fieldGuide',
-  'heritage',
-];
+// Source the style list from STYLE_TOKENS so this test self-extends as new
+// styles are added.
+const ALL_STYLES = Object.keys(STYLE_TOKENS) as PremiumStyle[];
 
 describe('STYLE_TOKENS', () => {
   it('defines tokens for every PremiumStyle', () => {
@@ -46,20 +44,25 @@ describe('resolveTokens', () => {
     expect(tokens).toEqual(STYLE_TOKENS.monogram);
   });
 
-  it('collapses the palette to high-contrast B&W when inkSaver is true', () => {
-    const base = STYLE_TOKENS.monogram;
-    const inkSaver = resolveTokens('monogram', { inkSaver: true });
-    expect(inkSaver.surfaceColor).toBe('#ffffff');
-    expect(inkSaver.accentColor).toBe('#000000');
-    expect(inkSaver.secondaryColor).toBe('#1a1a1a');
-    // Layout/typography fields are unchanged.
-    expect(inkSaver.displayFont).toBe(base.displayFont);
-    expect(inkSaver.bodyFont).toBe(base.bodyFont);
-    expect(inkSaver.pagePadding).toBe(base.pagePadding);
-    expect(inkSaver.bodyFontSize).toBe(base.bodyFontSize);
-    expect(inkSaver.coverStyle).toBe(base.coverStyle);
-    expect(inkSaver.bodyLayout).toBe(base.bodyLayout);
-  });
+  it.each(ALL_STYLES)(
+    'collapses the palette to high-contrast B&W for %s when inkSaver is true',
+    style => {
+      const base = STYLE_TOKENS[style];
+      const inkSaver = resolveTokens(style, { inkSaver: true });
+      expect(inkSaver.surfaceColor).toBe(INK_SAVER_PALETTE.surfaceColor);
+      expect(inkSaver.accentColor).toBe(INK_SAVER_PALETTE.accentColor);
+      expect(inkSaver.secondaryColor).toBe(INK_SAVER_PALETTE.secondaryColor);
+      // Layout/typography fields are unchanged from the base tokens.
+      expect(inkSaver.displayFont).toBe(base.displayFont);
+      expect(inkSaver.bodyFont).toBe(base.bodyFont);
+      expect(inkSaver.pagePadding).toBe(base.pagePadding);
+      expect(inkSaver.bodyFontSize).toBe(base.bodyFontSize);
+      expect(inkSaver.coverStyle).toBe(base.coverStyle);
+      expect(inkSaver.bodyLayout).toBe(base.bodyLayout);
+      expect(inkSaver.boldWeight).toBe(base.boldWeight);
+      expect(inkSaver.textColor).toBe(base.textColor);
+    }
+  );
 
   it('passes through the base palette when inkSaver is explicitly false', () => {
     const tokens = resolveTokens('banner', { inkSaver: false });

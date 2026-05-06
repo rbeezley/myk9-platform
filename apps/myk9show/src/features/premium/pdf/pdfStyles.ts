@@ -265,6 +265,14 @@ export interface ResolveTokensOptions {
   inkSaver?: boolean;
 }
 
+// High-contrast B&W palette swapped in when ink-saver is requested. Layout
+// and typography stay intact — only the color triplet collapses.
+export const INK_SAVER_PALETTE = {
+  surfaceColor: '#ffffff',
+  accentColor: '#000000',
+  secondaryColor: '#1a1a1a',
+} as const;
+
 /**
  * Resolve final tokens for a style, optionally with an ink-saver palette.
  * Ink saver collapses the palette to black/white/near-black so home printers
@@ -273,12 +281,7 @@ export interface ResolveTokensOptions {
 export function resolveTokens(style: PremiumStyle, opts?: ResolveTokensOptions): StyleTokens {
   const base = STYLE_TOKENS[style];
   if (!opts?.inkSaver) return base;
-  return {
-    ...base,
-    surfaceColor: '#ffffff',
-    accentColor: '#000000',
-    secondaryColor: '#1a1a1a',
-  };
+  return { ...base, ...INK_SAVER_PALETTE };
 }
 
 export interface BuildStylesOptions {

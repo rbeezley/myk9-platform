@@ -1,7 +1,6 @@
 import type { GeneratedPremium } from '../../../types/premium-types';
 import { resolveTokens } from './pdfStyles';
-import { AKCStandardBody } from './bodies/AKCStandardBody';
-import { UKCStandardBody } from './bodies/UKCStandardBody';
+import { StandardBody } from './bodies/StandardBody';
 import { PosterBody } from './bodies/PosterBody';
 import { isPosterMinimumDataMet } from './bodies/posterPredicates';
 
@@ -19,7 +18,7 @@ function assertNever(x: never): never {
  * token. Each AKC and UKC template calls this exactly once so the body-layout
  * branching lives in a single place.
  *
- * - `'standard'`  — section-stacked layout (AKC/UKC variants)
+ * - `'standard'`  — section-stacked layout (shared between AKC/UKC)
  * - `'poster'`    — single-page hero with typography shift on inner pages.
  *                   Falls back to StandardBody when minimum data is missing
  *                   (no judges, no fees, no trials) so we never ship a
@@ -29,19 +28,18 @@ function assertNever(x: never): never {
  */
 export function TemplateBody({ data, org }: Props) {
   const tokens = resolveTokens(data.style);
-  const StandardBody = org === 'AKC' ? AKCStandardBody : UKCStandardBody;
 
   switch (tokens.bodyLayout) {
     case 'standard':
-      return <StandardBody data={data} />;
+      return <StandardBody data={data} org={org} />;
     case 'poster':
-      if (!isPosterMinimumDataMet(data)) return <StandardBody data={data} />;
+      if (!isPosterMinimumDataMet(data)) return <StandardBody data={data} org={org} />;
       return <PosterBody data={data} tokens={tokens} />;
     case 'gazette':
     case 'fieldguide':
       // Phase 4 — these layouts render via the standard body until their
       // dedicated components land.
-      return <StandardBody data={data} />;
+      return <StandardBody data={data} org={org} />;
     default:
       return assertNever(tokens.bodyLayout);
   }

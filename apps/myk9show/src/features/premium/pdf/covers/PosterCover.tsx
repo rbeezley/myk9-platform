@@ -2,6 +2,15 @@ import { Page, Text, View } from '@react-pdf/renderer';
 import { formatDate } from '../pdfStyles';
 import type { CoverContext } from './coverContext';
 
+// ─── Visual layout constants ─────────────────────────────────────────────────
+// Local to this cover — these are visual values only PosterCover uses.
+const FULL_CIRCLE_RADIUS = 9999;
+const INK_BLOT_DIAMETER = 280;
+const INK_BLOT_TOP_OFFSET = 120;
+const INK_BLOT_RIGHT_OFFSET = 40;
+const CALL_OUT_WIDTH = 200;
+const CALL_OUT_HEIGHT = 96;
+
 // ─── Poster ──────────────────────────────────────────────────────────────────
 //
 // Bold, ink-hungry single-page hero. Stacked Archivo Black headline, a red
@@ -63,11 +72,11 @@ export function renderPosterCover(ctx: CoverContext) {
         <View
           style={{
             position: 'absolute',
-            top: 120,
-            right: 40,
-            width: 280,
-            height: 280,
-            borderRadius: 9999,
+            top: INK_BLOT_TOP_OFFSET,
+            right: INK_BLOT_RIGHT_OFFSET,
+            width: INK_BLOT_DIAMETER,
+            height: INK_BLOT_DIAMETER,
+            borderRadius: FULL_CIRCLE_RADIUS,
             backgroundColor: t.accentColor,
             opacity: 0.92,
           }}
@@ -117,53 +126,57 @@ export function renderPosterCover(ctx: CoverContext) {
           </Text>
         </View>
 
-        {/* Closing call-out card */}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-          <View
-            style={{
-              width: 200,
-              height: 96,
-              backgroundColor: t.secondaryColor,
-              padding: 14,
-              justifyContent: 'center',
-            }}
-          >
-            <Text
+        {/* Closing call-out card — hidden entirely when no closing date is
+            available (don't show "TBD"), and the time line is omitted when
+            the source has no time component. */}
+        {closing.date ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+            <View
               style={{
-                fontFamily: 'IBM Plex Mono',
-                fontSize: 8,
-                color: t.surfaceColor,
-                textTransform: 'uppercase',
-                letterSpacing: 2,
-                marginBottom: 4,
+                width: CALL_OUT_WIDTH,
+                height: CALL_OUT_HEIGHT,
+                backgroundColor: t.secondaryColor,
+                padding: 14,
+                justifyContent: 'center',
               }}
             >
-              Entries Close
-            </Text>
-            <Text
-              style={{
-                fontFamily: t.displayFont,
-                fontSize: 18,
-                color: t.surfaceColor,
-                lineHeight: 1.05,
-              }}
-            >
-              {closing.date}
-            </Text>
-            {closing.detail ? (
               <Text
                 style={{
                   fontFamily: 'IBM Plex Mono',
                   fontSize: 8,
                   color: t.surfaceColor,
-                  marginTop: 4,
+                  textTransform: 'uppercase',
+                  letterSpacing: 2,
+                  marginBottom: 4,
                 }}
               >
-                {closing.detail}
+                Entries Close
               </Text>
-            ) : null}
+              <Text
+                style={{
+                  fontFamily: t.displayFont,
+                  fontSize: 18,
+                  color: t.surfaceColor,
+                  lineHeight: 1.05,
+                }}
+              >
+                {closing.date}
+              </Text>
+              {closing.detail ? (
+                <Text
+                  style={{
+                    fontFamily: 'IBM Plex Mono',
+                    fontSize: 8,
+                    color: t.surfaceColor,
+                    marginTop: 4,
+                  }}
+                >
+                  {closing.detail}
+                </Text>
+              ) : null}
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {/* Date + venue baseline (small, balanced against the closing card) */}
         <View style={{ marginTop: 16 }}>
@@ -259,11 +272,39 @@ function readLicense(ctx: CoverContext): string | null {
 }
 
 interface ClosingDisplay {
-  date: string;
-  detail: string;
+  date: string | null;
+  detail: string | null;
 }
 
 function composeClosing(entryCloseDate: string | null): ClosingDisplay {
-  if (!entryCloseDate) return { date: 'TBD', detail: '' };
-  return { date: formatDate(entryCloseDate), detail: '5:00 PM' };
+  if (!entryCloseDate) return { date: null, detail: null };
+  return {
+    date: formatDate(entryCloseDate),
+    detail: formatClosingTime(entryCloseDate),
+  };
+}
+
+/**
+ * Extract a friendly closing time from `entryCloseDate`. Returns null when
+ * the source is missing, unparsable, or carries no time component (e.g., a
+ * date-only column like `'2026-06-13'`). Renders in UTC to match
+ * `formatDate`'s convention so date-only columns don't roll backward in
+ * negative-offset timezones.
+ *
+ * Exported for tests.
+ */
+export function formatClosingTime(entryCloseDate: string | null | undefined): string | null {
+  if (!entryCloseDate) return null;
+  // A date-only string like '2026-06-13' has no real time component — JS
+  // parses it as midnight UTC, which would render as "12:00 AM". That's a
+  // fabricated time, so suppress it.
+  if (!/[T ]\d{2}:\d{2}/.test(entryCloseDate)) return null;
+  const date = new Date(entryCloseDate);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleTimeString('en-US', {
+    timeZone: 'UTC',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }

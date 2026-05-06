@@ -1,10 +1,10 @@
 import type { GeneratedPremium } from '../../../../types/premium-types';
 
 /**
- * Predicate: is there enough data on the show to make the Poster's compressed
- * single-page hero credible? When all of judges, fees, and trials are missing
- * the Poster collapses into a near-empty sheet — fall back to StandardBody so
- * a half-empty hero never ships.
+ * Returns true when the show has enough data for the Poster's compressed
+ * single-page hero to look credible — i.e., judges AND fees AND trials are
+ * all present. If any one is missing, render the standard body instead so
+ * the Poster never ships as a half-empty sheet.
  *
  * Lives in its own module so the PosterBody component file exports only the
  * component (keeps Vite Fast Refresh happy).

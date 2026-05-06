@@ -1,3 +1,4 @@
+// Shared body for both AKC and UKC. The 'org' prop is the seam for future org-specific divergence; today both orgs render identically.
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { buildStyles, formatDate, formatPhone, resolveTokens } from '../pdfStyles';
@@ -7,15 +8,15 @@ const REQUIRED = '[REQUIRED — add before submitting]';
 
 interface Props {
   data: GeneratedPremium;
+  org: 'AKC' | 'UKC';
 }
 
 /**
- * UKC standard body — the section-stacked layout used by every style whose
- * `bodyLayout === 'standard'`. Extracted from `UKCPremiumTemplate` so the
- * body-layout dispatcher in `TemplateBody` can swap to alternative layouts
- * (Poster, Gazette, Field Guide) without duplicating this markup.
+ * Standard body — the section-stacked layout used by every style whose
+ * `bodyLayout === 'standard'`. Shared between AKC and UKC; the `org` prop
+ * is the seam where future org-specific divergence will land.
  */
-export function UKCStandardBody({ data }: Props) {
+export function StandardBody({ data, org: _org }: Props) {
   const s = buildStyles(data.style);
   const t = resolveTokens(data.style);
   const divider = <SectionDivider style={data.style} tokens={t} />;

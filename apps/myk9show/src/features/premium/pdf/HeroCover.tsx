@@ -1,6 +1,7 @@
 import { Image, Page, Text, View } from '@react-pdf/renderer';
 import { STYLE_TOKENS, type StyleTokens, buildMonogram, formatDate } from './pdfStyles';
 import type { GeneratedPremium } from '../../../types/premium-types';
+import { AtAGlancePanel } from './AtAGlancePanel';
 
 interface HeroCoverProps {
   data: GeneratedPremium;
@@ -53,13 +54,15 @@ export function HeroCover({ data }: HeroCoverProps) {
     case 'lowerthird':
       return renderLowerthirdCover(ctx);
     case 'editorial':
+      return renderEditorialCover(ctx);
+    case 'engraved':
+      return renderEngravedCover(ctx);
     case 'poster':
     case 'masthead':
     case 'fieldindex':
-    case 'engraved':
-      // Phase 1: stub styles fall back to the centered layout until Phases 2–4
-      // add their own renderers. Their tokens are clones of monogram so the
-      // output is intentional, not accidental.
+      // Phase 1 stubs still falling through to centered until Phases 3/4 add
+      // their dedicated renderers. Their tokens remain monogram clones so the
+      // output looks intentional rather than accidental.
       return renderCenteredCover(ctx);
     default:
       return assertNever(t.coverStyle);
@@ -388,4 +391,284 @@ function renderLowerthirdCover({ t, data, dateRange, club, venue, org }: CoverCo
       </View>
     </Page>
   );
+}
+
+// ─── Editorial (Magazine) ────────────────────────────────────────────────────
+//
+// Cormorant Garamond display title above a tagline (date · venue) and an
+// At-a-Glance panel filling the lower portion of the page in lieu of a hero
+// image (image upload deferred — panel always renders).
+function renderEditorialCover({ t, data, dateRange, club, venue, org }: CoverContext) {
+  const welcome = pickWelcome(data);
+  const tagline = welcome ? trimWelcome(welcome) : composeTagline(dateRange, venue);
+
+  return (
+    <Page size="LETTER" style={{ backgroundColor: t.surfaceColor, padding: 0 }}>
+      <View style={{ flex: 1, paddingHorizontal: 64, paddingTop: 80, paddingBottom: 56 }}>
+        <Text
+          style={{
+            fontFamily: t.bodyFont,
+            fontSize: 8,
+            color: t.secondaryColor,
+            textTransform: 'uppercase',
+            letterSpacing: 4,
+            textAlign: 'center',
+            marginBottom: 8,
+          }}
+        >
+          {org} · Premium List
+        </Text>
+        <Text
+          style={{
+            fontFamily: t.bodyFont,
+            fontSize: 10,
+            color: t.accentColor,
+            textTransform: 'uppercase',
+            letterSpacing: 2,
+            textAlign: 'center',
+            marginBottom: 32,
+          }}
+        >
+          {club}
+        </Text>
+        <Text
+          style={{
+            fontFamily: t.displayFont,
+            fontSize: 48,
+            color: t.accentColor,
+            textAlign: 'center',
+            lineHeight: 1.05,
+            marginBottom: 18,
+          }}
+        >
+          {data.show.name}
+        </Text>
+        <Text
+          style={{
+            fontFamily: t.displayFont,
+            fontStyle: 'italic',
+            fontSize: 13,
+            color: t.secondaryColor,
+            textAlign: 'center',
+            lineHeight: 1.4,
+          }}
+        >
+          {tagline}
+        </Text>
+        <AtAGlancePanel data={data} tokens={t} />
+      </View>
+    </Page>
+  );
+}
+
+// ─── Engraved (Heritage) ─────────────────────────────────────────────────────
+//
+// Ivory page with a double-line border frame inset from each edge, ornamental
+// rules above and below the show name, an EB Garamond display title, and a
+// Roman-numeral folio centered at the foot.
+function renderEngravedCover({ t, data, dateRange, club, venue }: CoverContext) {
+  const welcome = pickWelcome(data);
+  const inset = 36;
+  const innerInset = 8;
+
+  return (
+    <Page size="LETTER" style={{ backgroundColor: t.surfaceColor, padding: 0 }}>
+      {/* Outer frame */}
+      <View
+        style={{
+          position: 'absolute',
+          top: inset,
+          left: inset,
+          right: inset,
+          bottom: inset,
+          borderWidth: 1.25,
+          borderColor: t.accentColor,
+        }}
+      />
+      {/* Inner frame */}
+      <View
+        style={{
+          position: 'absolute',
+          top: inset + innerInset,
+          left: inset + innerInset,
+          right: inset + innerInset,
+          bottom: inset + innerInset,
+          borderWidth: 0.5,
+          borderColor: t.accentColor,
+        }}
+      />
+      <View
+        style={{
+          flex: 1,
+          paddingHorizontal: inset + innerInset + 36,
+          paddingTop: inset + innerInset + 72,
+          paddingBottom: inset + innerInset + 36,
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: t.bodyFont,
+            fontSize: 8,
+            color: t.tertiaryColor ?? t.accentColor,
+            textTransform: 'uppercase',
+            letterSpacing: 5,
+            marginBottom: 24,
+          }}
+        >
+          Premium List
+        </Text>
+        <OrnamentalRule tokens={t} />
+        <Text
+          style={{
+            fontFamily: t.displayFont,
+            fontSize: 44,
+            color: t.accentColor,
+            textAlign: 'center',
+            lineHeight: 1.1,
+            marginVertical: 18,
+          }}
+        >
+          {data.show.name}
+        </Text>
+        <OrnamentalRule tokens={t} />
+        <Text
+          style={{
+            fontFamily: t.displayFont,
+            fontSize: 13,
+            color: t.accentColor,
+            textAlign: 'center',
+            marginTop: 28,
+            lineHeight: 1.5,
+          }}
+        >
+          By way of Welcome to {club}
+        </Text>
+        {welcome && (
+          <Text
+            style={{
+              fontFamily: t.displayFont,
+              fontStyle: 'italic',
+              fontSize: 12,
+              color: t.textColor,
+              textAlign: 'center',
+              marginTop: 16,
+              lineHeight: 1.5,
+            }}
+          >
+            {firstSentence(welcome)}
+          </Text>
+        )}
+        <Text
+          style={{
+            fontFamily: t.displayFont,
+            fontSize: 11,
+            color: t.secondaryColor,
+            textAlign: 'center',
+            marginTop: 24,
+            letterSpacing: 1.5,
+          }}
+        >
+          {dateRange}
+        </Text>
+        {venue && (
+          <Text
+            style={{
+              fontFamily: t.bodyFont,
+              fontSize: 10,
+              color: t.textColor,
+              textAlign: 'center',
+              marginTop: 6,
+            }}
+          >
+            {venue}
+          </Text>
+        )}
+      </View>
+      {/* Roman-numeral folio */}
+      <Text
+        style={{
+          position: 'absolute',
+          bottom: inset + innerInset + 14,
+          left: 0,
+          right: 0,
+          textAlign: 'center',
+          fontFamily: t.displayFont,
+          fontSize: 11,
+          color: t.secondaryColor,
+          letterSpacing: 3,
+        }}
+      >
+        I
+      </Text>
+    </Page>
+  );
+}
+
+function OrnamentalRule({ tokens }: { tokens: StyleTokens }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '70%',
+      }}
+    >
+      <View
+        style={{
+          flex: 1,
+          borderTopWidth: 0.5,
+          borderTopColor: tokens.secondaryColor,
+        }}
+      />
+      <Text
+        style={{
+          fontFamily: tokens.displayFont,
+          fontSize: 12,
+          color: tokens.tertiaryColor ?? tokens.accentColor,
+          marginHorizontal: 10,
+          lineHeight: 1,
+        }}
+      >
+        {'§'}
+      </Text>
+      <View
+        style={{
+          flex: 1,
+          borderTopWidth: 0.5,
+          borderTopColor: tokens.secondaryColor,
+        }}
+      />
+    </View>
+  );
+}
+
+// Optional narrative field. The base GeneratedPremium type doesn't yet declare
+// a welcome-from-chair string, but readers may pass one through richer fixture
+// data. Read defensively so the cover gracefully ignores it when absent.
+function pickWelcome(data: GeneratedPremium): string | null {
+  const candidate = (data as { welcomeFromChair?: unknown }).welcomeFromChair;
+  if (typeof candidate !== 'string') return null;
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function composeTagline(dateRange: string, venue: string): string {
+  return venue ? `${dateRange} · ${venue}` : dateRange;
+}
+
+function trimWelcome(welcome: string): string {
+  const limit = 120;
+  if (welcome.length <= limit) return welcome;
+  const slice = welcome.slice(0, limit);
+  const lastSpace = slice.lastIndexOf(' ');
+  const cut = lastSpace > 60 ? slice.slice(0, lastSpace) : slice;
+  return `${cut.trimEnd()}…`;
+}
+
+function firstSentence(welcome: string): string {
+  const match = welcome.match(/^[^.!?]*[.!?]/);
+  return (match ? match[0] : welcome).trim();
 }

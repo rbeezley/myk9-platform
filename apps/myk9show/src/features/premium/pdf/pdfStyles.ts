@@ -171,6 +171,9 @@ export interface StyleTokens {
   secondaryColor: string;
   surfaceColor: string;
   textColor: string;
+  // Optional accent for styles that need a third color (e.g., Heritage's
+  // oxblood for ornamental detail). Only set on styles that use it.
+  tertiaryColor?: string;
   // Layout
   pagePadding: number;
   bodyFontSize: number;
@@ -235,16 +238,39 @@ export const STYLE_TOKENS: Record<PremiumStyle, StyleTokens> = {
     coverStyle: 'lowerthird',
     bodyLayout: 'standard',
   },
-  // TODO: Phase 2/3 — replace with real magazine tokens
-  magazine: { ...MONOGRAM_TOKENS },
+  magazine: {
+    displayFont: 'Cormorant Garamond',
+    bodyFont: 'Source Serif 4',
+    boldWeight: 700,
+    accentColor: '#4a3826', // Deep warm umber (gradient terminus)
+    secondaryColor: '#c9a87c', // Warm gold (gradient origin)
+    surfaceColor: '#fbf8f1', // Warm cream
+    textColor: '#1a1a1a',
+    pagePadding: 56,
+    bodyFontSize: 11,
+    coverStyle: 'editorial',
+    bodyLayout: 'standard',
+  },
   // TODO: Phase 2/3 — replace with real poster tokens
   poster: { ...MONOGRAM_TOKENS },
   // TODO: Phase 2/3 — replace with real gazette tokens
   gazette: { ...MONOGRAM_TOKENS },
   // TODO: Phase 2/3 — replace with real fieldGuide tokens
   fieldGuide: { ...MONOGRAM_TOKENS },
-  // TODO: Phase 2/3 — replace with real heritage tokens
-  heritage: { ...MONOGRAM_TOKENS },
+  heritage: {
+    displayFont: 'Cormorant Garamond',
+    bodyFont: 'EB Garamond',
+    boldWeight: 700,
+    accentColor: '#29200f', // Ink
+    secondaryColor: '#b08948', // Gold
+    surfaceColor: '#f4ecd8', // Ivory
+    textColor: '#29200f',
+    tertiaryColor: '#7a1f1f', // Oxblood
+    pagePadding: 64,
+    bodyFontSize: 11,
+    coverStyle: 'engraved',
+    bodyLayout: 'standard',
+  },
 };
 
 // Org parity matrix. Default: each style supports both AKC and UKC. Narrow

@@ -1,7 +1,8 @@
 import { Document, Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../types/premium-types';
-import { buildStyles, formatDate, formatPhone } from './pdfStyles';
+import { buildStyles, formatDate, formatPhone, resolveTokens } from './pdfStyles';
 import { HeroCover } from './HeroCover';
+import { SectionDivider } from './SectionDivider';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,8 @@ interface Props {
 
 export function UKCPremiumTemplate({ premium }: Props) {
   const s = buildStyles(premium.style);
+  const t = resolveTokens(premium.style);
+  const divider = <SectionDivider style={premium.style} tokens={t} />;
   const { show, secretary, officials, trials, supplemental, narratives } = premium;
 
   return (
@@ -55,7 +58,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
           </Text>
         </View>
 
-        <View style={s.divider} />
+        {divider}
 
         <Text style={s.sectionTitle}>Trial Secretary</Text>
         <View style={s.row}>
@@ -83,7 +86,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
 
         {(officials.chairman || officials.steward) && (
           <>
-            <View style={s.divider} />
+            {divider}
             <Text style={s.sectionTitle}>Officials</Text>
             {officials.chairman && (
               <View style={s.row}>
@@ -100,7 +103,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
           </>
         )}
 
-        <View style={s.divider} />
+        {divider}
 
         <Text style={s.sectionTitle}>Trials &amp; Judges</Text>
         {trials.map((trial, i) => (
@@ -141,17 +144,17 @@ export function UKCPremiumTemplate({ premium }: Props) {
           </View>
         ))}
 
-        <View style={s.divider} />
+        {divider}
 
         <Text style={s.sectionTitle}>Show Hours</Text>
         <Text style={s.body}>{narratives.showHours}</Text>
 
-        <View style={s.divider} />
+        {divider}
 
         <Text style={s.sectionTitle}>Trial Information</Text>
         <Text style={s.body}>{narratives.trialInformation}</Text>
 
-        <View style={s.divider} />
+        {divider}
 
         <Text style={s.sectionTitle}>Veterinary Services</Text>
         {supplemental.vetClinic ? (
@@ -166,7 +169,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
 
         {supplemental.accommodations.length > 0 && (
           <>
-            <View style={s.divider} />
+            {divider}
             <Text style={s.sectionTitle}>Accommodations</Text>
             {supplemental.accommodations.map((a, i) => (
               <View key={i} style={s.trialBlock}>
@@ -180,7 +183,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
 
         {supplemental.hospitalityNotes && (
           <>
-            <View style={s.divider} />
+            {divider}
             <Text style={s.sectionTitle}>Hospitality</Text>
             <Text style={s.body}>{supplemental.hospitalityNotes}</Text>
           </>
@@ -188,7 +191,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
 
         {supplemental.awardsDescription && (
           <>
-            <View style={s.divider} />
+            {divider}
             <Text style={s.sectionTitle}>Awards</Text>
             <Text style={s.body}>{supplemental.awardsDescription}</Text>
           </>
@@ -196,7 +199,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
 
         {supplemental.additionalNotes && (
           <>
-            <View style={s.divider} />
+            {divider}
             <Text style={s.sectionTitle}>Additional Information</Text>
             <Text style={s.body}>{supplemental.additionalNotes}</Text>
           </>

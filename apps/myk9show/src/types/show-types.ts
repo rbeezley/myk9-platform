@@ -66,6 +66,11 @@ export interface Show {
   status: string;
   events: string[];
   source: 'myK9Show' | 'external';
+  // Published premium PDF — set by the Publish-for-Exhibitors flow.
+  // Stable public Storage URL across re-publishes; null = never published.
+  publishedPremiumUrl?: string | null;
+  publishedPremiumAt?: string | null;
+  updatedAt?: string | null;
   // Entry information
   entryOpenDate: string;
   entryCloseDate: string;

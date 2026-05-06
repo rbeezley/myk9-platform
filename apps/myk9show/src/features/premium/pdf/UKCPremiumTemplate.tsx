@@ -1,6 +1,7 @@
-import { Document, Image, Page, Text, View } from '@react-pdf/renderer';
+import { Document, Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../types/premium-types';
 import { buildStyles, formatDate, formatPhone } from './pdfStyles';
+import { HeroCover } from './HeroCover';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -14,99 +15,85 @@ interface Props {
 
 export function UKCPremiumTemplate({ premium }: Props) {
   const s = buildStyles(premium.style);
-  const { show, club, secretary, officials, trials, supplemental, narratives } = premium;
+  const { show, secretary, officials, trials, supplemental, narratives } = premium;
 
   return (
     <Document>
+      <HeroCover data={premium} />
+
       <Page size="LETTER" style={s.page}>
-        {/* Header */}
-        <View style={s.header}>
-          {club.logoUrl && (
-            <Image src={club.logoUrl} style={{ width: 60, height: 60, marginBottom: 6 }} />
-          )}
-          <Text style={s.clubName}>{club.name}</Text>
-          <Text style={s.showName}>{show.name}</Text>
-          <Text style={s.subheader}>
-            {formatDate(show.startDate)}
-            {show.endDate !== show.startDate ? ` – ${formatDate(show.endDate)}` : ''}
-          </Text>
-          <Text style={s.subheader}>{show.venue}</Text>
+        <Text style={s.sectionTitle}>Entry Information</Text>
+        <View style={s.pullQuoteRow}>
+          <View style={s.pullQuoteCell}>
+            <Text style={s.pullQuoteValue}>${show.preEntryFee ?? '—'}</Text>
+            <Text style={s.pullQuoteLabel}>Pre-Entry Fee</Text>
+          </View>
+          <View style={s.pullQuoteCell}>
+            <Text style={s.pullQuoteValue}>${show.dayOfFee ?? '—'}</Text>
+            <Text style={s.pullQuoteLabel}>Day-Of Fee</Text>
+          </View>
+          <View style={s.pullQuoteCell}>
+            <Text style={s.pullQuoteValue}>
+              {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash']
+                .filter(Boolean)
+                .join(' · ') || '—'}
+            </Text>
+            <Text style={s.pullQuoteLabel}>Accepted Payment</Text>
+          </View>
         </View>
 
-        <View style={s.divider} />
-
-        {/* Entry Information */}
-        <Text style={s.sectionTitle}>ENTRY INFORMATION</Text>
         <View style={s.row}>
-          <Text style={s.label}>Entry Opens:</Text>
+          <Text style={s.label}>Entry Opens</Text>
           <Text style={s.value}>
             {show.entryOpenDate ? formatDate(show.entryOpenDate) : REQUIRED}
           </Text>
         </View>
         <View style={s.row}>
-          <Text style={s.label}>Entry Closes:</Text>
+          <Text style={s.label}>Entry Closes</Text>
           <Text style={s.value}>
             {show.entryCloseDate ? formatDate(show.entryCloseDate) : REQUIRED}
-          </Text>
-        </View>
-        <View style={s.row}>
-          <Text style={s.label}>Pre-Entry Fee:</Text>
-          <Text style={s.value}>${show.preEntryFee}</Text>
-        </View>
-        <View style={s.row}>
-          <Text style={s.label}>Day-Of Fee:</Text>
-          <Text style={s.value}>${show.dayOfFee}</Text>
-        </View>
-        <View style={s.row}>
-          <Text style={s.label}>Payment:</Text>
-          <Text style={s.value}>
-            {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash']
-              .filter(Boolean)
-              .join(', ') || 'See event details'}
           </Text>
         </View>
 
         <View style={s.divider} />
 
-        {/* Secretary */}
-        <Text style={s.sectionTitle}>TRIAL SECRETARY</Text>
+        <Text style={s.sectionTitle}>Trial Secretary</Text>
         <View style={s.row}>
-          <Text style={s.label}>Name:</Text>
+          <Text style={s.label}>Name</Text>
           <Text style={s.value}>{secretary.name ?? REQUIRED}</Text>
         </View>
         {secretary.email && (
           <View style={s.row}>
-            <Text style={s.label}>Email:</Text>
+            <Text style={s.label}>Email</Text>
             <Text style={s.value}>{secretary.email}</Text>
           </View>
         )}
         {secretary.phone && (
           <View style={s.row}>
-            <Text style={s.label}>Phone:</Text>
+            <Text style={s.label}>Phone</Text>
             <Text style={s.value}>{formatPhone(secretary.phone)}</Text>
           </View>
         )}
         {secretary.mailingAddress && (
           <View style={s.row}>
-            <Text style={s.label}>Address:</Text>
+            <Text style={s.label}>Address</Text>
             <Text style={s.value}>{secretary.mailingAddress}</Text>
           </View>
         )}
 
-        {/* Officials */}
         {(officials.chairman || officials.steward) && (
           <>
             <View style={s.divider} />
-            <Text style={s.sectionTitle}>OFFICIALS</Text>
+            <Text style={s.sectionTitle}>Officials</Text>
             {officials.chairman && (
               <View style={s.row}>
-                <Text style={s.label}>Trial Chairman:</Text>
+                <Text style={s.label}>Trial Chairman</Text>
                 <Text style={s.value}>{officials.chairman}</Text>
               </View>
             )}
             {officials.steward && (
               <View style={s.row}>
-                <Text style={s.label}>Steward:</Text>
+                <Text style={s.label}>Steward</Text>
                 <Text style={s.value}>{officials.steward}</Text>
               </View>
             )}
@@ -115,13 +102,12 @@ export function UKCPremiumTemplate({ premium }: Props) {
 
         <View style={s.divider} />
 
-        {/* Trials */}
-        <Text style={s.sectionTitle}>TRIALS &amp; JUDGES</Text>
+        <Text style={s.sectionTitle}>Trials &amp; Judges</Text>
         {trials.map((trial, i) => (
           <View key={i} style={s.trialBlock}>
             <Text style={s.trialTitle}>{trial.name}</Text>
             <View style={s.row}>
-              <Text style={s.label}>Date:</Text>
+              <Text style={s.label}>Date</Text>
               <Text style={s.value}>
                 {formatDate(trial.date)}
                 {trial.startTime ? ` at ${trial.startTime}` : ''}
@@ -129,13 +115,13 @@ export function UKCPremiumTemplate({ premium }: Props) {
             </View>
             {trial.eventNumber && (
               <View style={s.row}>
-                <Text style={s.label}>Event #:</Text>
+                <Text style={s.label}>Event #</Text>
                 <Text style={s.value}>{trial.eventNumber}</Text>
               </View>
             )}
             {trial.judges.map((j, ji) => (
               <View key={ji} style={s.row}>
-                <Text style={s.label}>{ji === 0 ? 'Judge:' : ''}</Text>
+                <Text style={s.label}>{ji === 0 ? 'Judge' : ''}</Text>
                 <Text style={s.value}>
                   {j.name}
                   {j.elements.length > 0 ? ` (${j.elements.join(', ')})` : ''}
@@ -144,10 +130,10 @@ export function UKCPremiumTemplate({ premium }: Props) {
             ))}
             {trial.classes.length > 0 && (
               <View style={s.row}>
-                <Text style={s.label}>Classes:</Text>
+                <Text style={s.label}>Classes</Text>
                 <Text style={s.value}>
                   {trial.classes
-                    .map(c => `${c.element} ${c.level}${c.section ? ` Sec. ${c.section}` : ''}`)
+                    .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                     .join(', ')}
                 </Text>
               </View>
@@ -157,20 +143,17 @@ export function UKCPremiumTemplate({ premium }: Props) {
 
         <View style={s.divider} />
 
-        {/* Show Hours */}
-        <Text style={s.sectionTitle}>SHOW HOURS</Text>
+        <Text style={s.sectionTitle}>Show Hours</Text>
         <Text style={s.body}>{narratives.showHours}</Text>
 
         <View style={s.divider} />
 
-        {/* Trial Information */}
-        <Text style={s.sectionTitle}>TRIAL INFORMATION</Text>
+        <Text style={s.sectionTitle}>Trial Information</Text>
         <Text style={s.body}>{narratives.trialInformation}</Text>
 
         <View style={s.divider} />
 
-        {/* Supplemental */}
-        <Text style={s.sectionTitle}>VETERINARY SERVICES</Text>
+        <Text style={s.sectionTitle}>Veterinary Services</Text>
         {supplemental.vetClinic ? (
           <>
             <Text style={s.body}>{supplemental.vetClinic.name}</Text>
@@ -184,7 +167,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
         {supplemental.accommodations.length > 0 && (
           <>
             <View style={s.divider} />
-            <Text style={s.sectionTitle}>ACCOMMODATIONS</Text>
+            <Text style={s.sectionTitle}>Accommodations</Text>
             {supplemental.accommodations.map((a, i) => (
               <View key={i} style={s.trialBlock}>
                 <Text style={s.trialTitle}>{a.name}</Text>
@@ -198,7 +181,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
         {supplemental.hospitalityNotes && (
           <>
             <View style={s.divider} />
-            <Text style={s.sectionTitle}>HOSPITALITY</Text>
+            <Text style={s.sectionTitle}>Hospitality</Text>
             <Text style={s.body}>{supplemental.hospitalityNotes}</Text>
           </>
         )}
@@ -206,7 +189,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
         {supplemental.awardsDescription && (
           <>
             <View style={s.divider} />
-            <Text style={s.sectionTitle}>AWARDS</Text>
+            <Text style={s.sectionTitle}>Awards</Text>
             <Text style={s.body}>{supplemental.awardsDescription}</Text>
           </>
         )}
@@ -214,28 +197,10 @@ export function UKCPremiumTemplate({ premium }: Props) {
         {supplemental.additionalNotes && (
           <>
             <View style={s.divider} />
-            <Text style={s.sectionTitle}>ADDITIONAL INFORMATION</Text>
+            <Text style={s.sectionTitle}>Additional Information</Text>
             <Text style={s.body}>{supplemental.additionalNotes}</Text>
           </>
         )}
-
-        <View style={s.divider} />
-
-        {/* UKC-specific boilerplate */}
-        <Text style={s.sectionTitle}>REGISTRATION REQUIREMENT</Text>
-        <Text style={s.boilerplate}>
-          A UKC REGISTRATION NUMBER IS REQUIRED TO PARTICIPATE IN LICENSED TRIALS. For information
-          on UKC registration and rules: www.ukcdogs.com.
-        </Text>
-
-        <View style={s.divider} />
-
-        <Text style={s.sectionTitle}>WAIVER</Text>
-        <Text style={s.boilerplate}>
-          All events are held under the Official Rules and Regulations of the United Kennel Club. By
-          entering, exhibitors agree to be bound by said rules and regulations and release the
-          United Kennel Club, the hosting club, and all officials from any liability whatsoever.
-        </Text>
       </Page>
     </Document>
   );

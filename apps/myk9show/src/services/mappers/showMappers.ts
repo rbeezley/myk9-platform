@@ -209,6 +209,11 @@ export const mapDatabaseToShow = (
       '', // Direct field or relation
     logoUrl:
       dbShow.logo_url || ((dbShow.club as Record<string, unknown>)?.logo_url as string) || '',
+    publishedPremiumUrl:
+      ((dbShow as Record<string, unknown>).published_premium_url as string | null) ?? null,
+    publishedPremiumAt:
+      ((dbShow as Record<string, unknown>).published_premium_at as string | null) ?? null,
+    updatedAt: ((dbShow as Record<string, unknown>).updated_at as string | null) ?? null,
     coverImageUrl:
       dbShow.cover_image_url ||
       ((dbShow.club as Record<string, unknown>)?.cover_image_url as string) ||

@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import { Download, AlertTriangle, Loader2 } from 'lucide-react';
+import { Download, AlertTriangle, Loader2, Globe, Check } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { publishPremium } from './publishPremium';
+import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -27,6 +30,9 @@ const STYLES: PremiumStyle[] = ['classic', 'modern', 'minimal'];
 export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }: Props) {
   const { generate, isLoading, error, reset } = useGeneratePremium();
   const logMutation = useLogPremiumGeneration(clubId);
+  const queryClient = useQueryClient();
+  const [publishing, setPublishing] = useState(false);
+  const [publishedAt, setPublishedAt] = useState<string | null>(null);
 
   // Original generated values (for diff computation)
   const [original, setOriginal] = useState<GeneratedPremium | null>(null);
@@ -59,6 +65,24 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
       supplemental,
       narratives,
     };
+  }
+
+  async function handlePublish() {
+    const finalPremium = buildFinalPremium();
+    if (!finalPremium) return;
+    setPublishing(true);
+    try {
+      const { publishedAt: at } = await publishPremium(showId, finalPremium);
+      setPublishedAt(at);
+      // Refresh any cached show queries so the exhibitor download card picks
+      // up the new URL without a hard refresh.
+      await queryClient.invalidateQueries({ queryKey: ['shows', showId] });
+      notifications.success('Premium published — exhibitors can now download it.');
+    } catch (err) {
+      notifications.error(`Failed to publish: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setPublishing(false);
+    }
   }
 
   async function handleDownloaded() {
@@ -322,6 +346,34 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                   );
                 }}
               </PDFDownloadLink>
+
+              {/* Publish for exhibitors — uploads the rendered PDF to public
+                  Storage so the show details page can show a download link. */}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  void handlePublish();
+                }}
+                disabled={publishing}
+              >
+                {publishing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : publishedAt ? (
+                  <Check className="h-4 w-4 mr-2" />
+                ) : (
+                  <Globe className="h-4 w-4 mr-2" />
+                )}
+                {publishing
+                  ? 'Publishing…'
+                  : publishedAt
+                    ? 'Published — Re-publish'
+                    : 'Publish for Exhibitors'}
+              </Button>
+              <p className="text-xs text-muted-foreground -mt-1">
+                Publishing uploads this PDF to a public link on the show page so exhibitors can
+                download it. The link is stable across re-publishes.
+              </p>
 
               {/* Regenerate option */}
               <Button

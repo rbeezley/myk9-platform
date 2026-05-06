@@ -68,7 +68,9 @@ const premium: GeneratedPremium = {
 describe('UKCPremiumTemplate', () => {
   it('renders the club name', () => {
     render(<UKCPremiumTemplate premium={premium} />);
-    expect(screen.getAllByText('UKC Test Club').length).toBeGreaterThan(0);
+    // Modern cover renders the club name inside "Hosted by {club}" — partial
+    // match instead of exact so the cover layout can wrap the value in copy.
+    expect(screen.getAllByText(/UKC Test Club/).length).toBeGreaterThan(0);
   });
 
   it('renders the pre-entry fee', () => {

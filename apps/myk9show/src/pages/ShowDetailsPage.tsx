@@ -45,6 +45,7 @@ import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { GeneratePremiumPanel } from '@/features/premium/GeneratePremiumPanel';
+import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -390,6 +391,10 @@ const ShowDetailsPage: React.FC = () => {
           }
           footer={<QuickInfoCards show={actualCurrentShow} />}
         />
+
+        <div className="mt-4">
+          <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
+        </div>
 
         <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
           <TabsContent value="overview">

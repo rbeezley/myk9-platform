@@ -17,10 +17,15 @@ interface Row {
  * Editorial "At a Glance" panel rendered inside the Magazine cover where an
  * image slot would otherwise sit. Lists trial count + dates, elements, levels,
  * sanctioning org, and a field-limit / entry-close fallback. Empty rows hide
- * individually; a fully empty card collapses to a single italic placeholder.
+ * individually; the card collapses to a single italic placeholder when none
+ * of the substantive fields (trials/elements/levels) are populated — org or
+ * entry-close alone aren't enough to make the panel useful.
  */
 export function AtAGlancePanel({ data, tokens }: Props) {
   const rows = buildRows(data);
+  const hasSubstantiveContent = rows.some(
+    r => r.label === 'Trials' || r.label === 'Elements' || r.label === 'Levels'
+  );
 
   return (
     <View
@@ -50,7 +55,7 @@ export function AtAGlancePanel({ data, tokens }: Props) {
       >
         At a Glance
       </Text>
-      {rows.length === 0 ? (
+      {!hasSubstantiveContent ? (
         <Text
           style={{
             fontFamily: tokens.displayFont,

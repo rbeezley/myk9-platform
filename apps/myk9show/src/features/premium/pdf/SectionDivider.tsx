@@ -34,7 +34,7 @@ export function SectionDivider({ style, tokens }: Props) {
           style={{
             fontFamily: tokens.displayFont,
             fontSize: 12,
-            color: tokens.tertiaryColor ?? tokens.accentColor,
+            color: tokens.accentDeep ?? tokens.accentColor,
             marginHorizontal: 12,
             lineHeight: 1,
           }}

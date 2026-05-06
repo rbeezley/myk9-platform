@@ -3,6 +3,7 @@ import {
   STYLE_TOKENS,
   STYLE_ORG_SUPPORT,
   INK_SAVER_PALETTE,
+  numberToRoman,
   resolveTokens,
 } from '../pdf/pdfStyles';
 import type { PremiumStyle } from '../../../types/premium-types';
@@ -67,5 +68,27 @@ describe('resolveTokens', () => {
   it('passes through the base palette when inkSaver is explicitly false', () => {
     const tokens = resolveTokens('banner', { inkSaver: false });
     expect(tokens).toEqual(STYLE_TOKENS.banner);
+  });
+});
+
+describe('numberToRoman', () => {
+  it('maps 1 → I', () => {
+    expect(numberToRoman(1)).toBe('I');
+  });
+
+  it('maps 5 → V', () => {
+    expect(numberToRoman(5)).toBe('V');
+  });
+
+  it('maps 10 → X', () => {
+    expect(numberToRoman(10)).toBe('X');
+  });
+
+  it('falls back to a decimal string above the lookup table (11 → "11")', () => {
+    expect(numberToRoman(11)).toBe('11');
+  });
+
+  it('returns the empty-string sentinel at index 0', () => {
+    expect(numberToRoman(0)).toBe('');
   });
 });

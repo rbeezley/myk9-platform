@@ -171,9 +171,9 @@ export interface StyleTokens {
   secondaryColor: string;
   surfaceColor: string;
   textColor: string;
-  // Optional accent for styles that need a third color (e.g., Heritage's
-  // oxblood for ornamental detail). Only set on styles that use it.
-  tertiaryColor?: string;
+  // Optional accent for styles that need a deep secondary accent (e.g.,
+  // Heritage's oxblood for ornamental detail). Only set on styles that use it.
+  accentDeep?: string;
   // Layout
   pagePadding: number;
   bodyFontSize: number;
@@ -265,7 +265,7 @@ export const STYLE_TOKENS: Record<PremiumStyle, StyleTokens> = {
     secondaryColor: '#b08948', // Gold
     surfaceColor: '#f4ecd8', // Ivory
     textColor: '#29200f',
-    tertiaryColor: '#7a1f1f', // Oxblood
+    accentDeep: '#7a1f1f', // Oxblood
     pagePadding: 64,
     bodyFontSize: 11,
     coverStyle: 'engraved',
@@ -493,4 +493,12 @@ export function formatPhone(raw: string | null | undefined): string {
     return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
   }
   return raw;
+}
+
+// Roman numeral helper for cover folios. Only supports 1–10 today; falls back
+// to a decimal string for anything outside the lookup table.
+const ROMAN_NUMERALS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
+export function numberToRoman(n: number): string {
+  return ROMAN_NUMERALS[n] ?? String(n);
 }

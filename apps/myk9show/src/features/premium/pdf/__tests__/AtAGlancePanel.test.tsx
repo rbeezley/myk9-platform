@@ -95,10 +95,11 @@ describe('AtAGlancePanel', () => {
     expect(screen.queryByText('Entries Close')).toBeNull();
   });
 
-  it('falls back to "Details coming soon" when nothing renders', () => {
+  it('falls back to "Details coming soon" when no substantive rows render', () => {
+    // Org alone is never enough to make the panel useful — the fallback fires
+    // when trials/elements/levels are all empty, regardless of org.
     const data: GeneratedPremium = {
       ...fullData,
-      org: '' as 'AKC',
       trials: [],
       show: { ...fullData.show, entryCloseDate: null },
     };

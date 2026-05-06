@@ -6,6 +6,7 @@ import { renderTopblockCover } from './covers/TopblockCover';
 import { renderLowerthirdCover } from './covers/LowerthirdCover';
 import { renderEditorialCover } from './covers/EditorialCover';
 import { renderEngravedCover } from './covers/EngravedCover';
+import { renderPosterCover } from './covers/PosterCover';
 
 interface HeroCoverProps {
   data: GeneratedPremium;
@@ -19,8 +20,8 @@ function assertNever(x: never): never {
  * Cover page dispatcher. Each cover renderer lives in its own file under
  * `covers/` so individual layouts stay focused and the dispatcher stays small.
  *
- * The 3 stub coverStyles ('poster' | 'masthead' | 'fieldindex') still fall
- * through to the centered renderer until Phases 3/4 add their dedicated
+ * The 2 remaining stub coverStyles ('masthead' | 'fieldindex') still fall
+ * through to the centered renderer until Phase 4 adds their dedicated
  * layouts — their tokens are monogram clones so the output looks intentional.
  */
 export function HeroCover({ data }: HeroCoverProps) {
@@ -48,9 +49,10 @@ export function HeroCover({ data }: HeroCoverProps) {
     case 'engraved':
       return renderEngravedCover(ctx);
     case 'poster':
+      return renderPosterCover(ctx);
     case 'masthead':
     case 'fieldindex':
-      // Phase 1 stubs still falling through to centered until Phases 3/4 add
+      // Phase 1 stubs still falling through to centered until Phase 4 adds
       // their dedicated renderers.
       return renderCenteredCover(ctx);
     default:

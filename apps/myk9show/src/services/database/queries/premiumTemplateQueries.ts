@@ -27,7 +27,7 @@ function rowToTemplate(row: Record<string, unknown>): ClubPremiumTemplate {
     name: row.name as string,
     trialType: row.trial_type as string | null,
     isDefault: row.is_default as boolean,
-    style: (row.style as PremiumStyle) ?? 'classic',
+    style: (row.style as PremiumStyle) ?? 'monogram',
     vetClinicName: row.vet_clinic_name as string | null,
     vetClinicAddress: row.vet_clinic_address as string | null,
     vetClinicPhone: row.vet_clinic_phone as string | null,

@@ -40,7 +40,7 @@ const FIELD_LABELS: Record<string, string> = {
   style: 'Style',
 };
 
-const STYLES: PremiumStyle[] = ['classic', 'modern', 'minimal'];
+const STYLES: PremiumStyle[] = ['monogram', 'banner', 'headline'];
 
 export function PremiumTemplatesTab({ clubId, onClose }: Props) {
   const { data: templates = [], isLoading } = useClubPremiumTemplates(clubId);
@@ -59,7 +59,7 @@ export function PremiumTemplatesTab({ clubId, onClose }: Props) {
     name: '',
     trialType: null,
     isDefault: false,
-    style: 'classic',
+    style: 'monogram',
     vetClinicName: null,
     vetClinicAddress: null,
     vetClinicPhone: null,

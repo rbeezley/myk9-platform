@@ -15,7 +15,7 @@ const makeOriginal = (
   supplemental: PremiumSupplemental = makeSupplemental()
 ): GeneratedPremium => ({
   org: 'AKC',
-  style: 'classic',
+  style: 'monogram',
   templateId: 'tmpl-1',
   show: {
     name: 'Test Show',
@@ -87,10 +87,10 @@ describe('computePremiumDiff', () => {
 
   it('records style override when style changes', () => {
     const original = makeOriginal();
-    const diff = computePremiumDiff(original, original.supplemental, original.narratives, 'modern');
+    const diff = computePremiumDiff(original, original.supplemental, original.narratives, 'banner');
     expect(diff.fieldOverrides['style']).toEqual({
-      templateValue: 'classic',
-      finalValue: 'modern',
+      templateValue: 'monogram',
+      finalValue: 'banner',
     });
   });
 
@@ -100,7 +100,7 @@ describe('computePremiumDiff', () => {
       original,
       original.supplemental,
       original.narratives,
-      'classic'
+      'monogram'
     );
     expect(diff.fieldOverrides['style']).toBeUndefined();
   });
@@ -183,12 +183,7 @@ describe('computePremiumDiff', () => {
     const reorderedFinal = makeSupplemental({
       vetClinic: { phone: '555-0100', name: 'Riverside Vet', address: '123 Main St' },
     });
-    const diff = computePremiumDiff(
-      original,
-      reorderedFinal,
-      original.narratives,
-      original.style
-    );
+    const diff = computePremiumDiff(original, reorderedFinal, original.narratives, original.style);
     expect(diff.fieldOverrides['vet_clinic']).toBeUndefined();
   });
 });

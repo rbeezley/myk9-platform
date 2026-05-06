@@ -25,7 +25,7 @@ interface Props {
   showOrg: 'AKC' | 'UKC' | null;
 }
 
-const STYLES: PremiumStyle[] = ['classic', 'modern', 'minimal'];
+const STYLES: PremiumStyle[] = ['monogram', 'banner', 'headline'];
 
 export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }: Props) {
   const { generate, isLoading, error, reset } = useGeneratePremium();
@@ -106,7 +106,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
 
   const finalPremium = original ? buildFinalPremium() : null;
   const PdfTemplate = finalPremium?.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
-  const activeStyle = styleOverride ?? original?.style ?? 'classic';
+  const activeStyle = styleOverride ?? original?.style ?? 'monogram';
 
   function handleClose() {
     reset(); // clear hook error state

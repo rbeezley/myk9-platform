@@ -232,7 +232,7 @@ Deno.serve(async (req: Request) => {
 
     const result = {
       org: showOrg,
-      style: (template as Record<string, unknown> | null)?.style ?? 'classic',
+      style: (template as Record<string, unknown> | null)?.style ?? 'monogram',
       templateId: (template as Record<string, unknown> | null)?.id ?? null,
       show: {
         name: show.name,

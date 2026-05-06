@@ -10,9 +10,13 @@ interface HeroCoverProps {
  * Cover page for the premium list. Three structurally different layouts —
  * picked by style — designed to look intentional regardless of upload quality.
  *
- * - classic: typographic monogram + hairline gold rule + small logo stamp
- * - modern: full-bleed top color band, no logo (typography carries it)
- * - minimal: lower-third editorial layout, no logo (pure type-driven)
+ * - monogram: typographic monogram + hairline gold rule + small logo stamp
+ * - banner: full-bleed top color band, no logo (typography carries it)
+ * - headline: lower-third editorial layout, no logo (pure type-driven)
+ *
+ * The 5 new style tokens (magazine, poster, gazette, fieldGuide, heritage)
+ * still render through the monogram cover branch in Phase 1 — Phase 2 adds
+ * dedicated branches for each new coverStyle.
  */
 export function HeroCover({ data }: HeroCoverProps) {
   const t = STYLE_TOKENS[data.style];
@@ -25,7 +29,7 @@ export function HeroCover({ data }: HeroCoverProps) {
   const org = data.org;
   const monogram = buildMonogram(club);
 
-  if (data.style === 'classic') {
+  if (t.coverStyle === 'centered') {
     return (
       <Page size="LETTER" style={{ backgroundColor: '#ffffff', padding: 0 }}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 64 }}>
@@ -129,7 +133,7 @@ export function HeroCover({ data }: HeroCoverProps) {
     );
   }
 
-  if (data.style === 'modern') {
+  if (t.coverStyle === 'topblock') {
     // No logo on cover — typography carries the brand. White surface with a
     // narrow accent ribbon at the top so the cover is print-friendly (no large
     // ink-heavy fills). The upload (if any) appears as a small corner mark.

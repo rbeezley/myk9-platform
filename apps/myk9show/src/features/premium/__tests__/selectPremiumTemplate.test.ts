@@ -8,7 +8,7 @@ const base: ClubPremiumTemplate = {
   name: 'Test',
   trialType: null,
   isDefault: false,
-  style: 'classic',
+  style: 'monogram',
   vetClinicName: null,
   vetClinicAddress: null,
   vetClinicPhone: null,

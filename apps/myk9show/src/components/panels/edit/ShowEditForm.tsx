@@ -15,7 +15,7 @@ import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
-import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
+import { ShowOfficialsEditor } from './ShowOfficialsEditor';
 import { toLocalDateOnly } from '@/utils/date-format';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
@@ -192,7 +192,7 @@ export const ShowEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               {data.id ? (
-                <ShowOfficials showId={data.id as string} />
+                <ShowOfficialsEditor showId={data.id as string} />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Save the show first to assign officials.

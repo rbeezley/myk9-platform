@@ -18,6 +18,7 @@ export interface ShowEditPanelProps {
 
 // Form data interface extending ShowInput for edit panel needs
 export interface ShowEditFormData extends Record<string, unknown> {
+  id?: string;
   name: string;
   status: string;
   organization: string;

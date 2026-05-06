@@ -11,6 +11,7 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 // Convert Show to form data
 export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
   return {
+    ...(show.id !== undefined && { id: show.id }),
     name: show.name || '',
     status: show.status || 'draft',
     organization: show.organization || '',

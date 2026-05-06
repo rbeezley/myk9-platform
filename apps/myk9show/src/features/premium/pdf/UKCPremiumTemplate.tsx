@@ -1,6 +1,6 @@
 import { Document, Image, Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../types/premium-types';
-import { buildStyles, formatDate } from './pdfStyles';
+import { buildStyles, formatDate, formatPhone } from './pdfStyles';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
         {secretary.phone && (
           <View style={s.row}>
             <Text style={s.label}>Phone:</Text>
-            <Text style={s.value}>{secretary.phone}</Text>
+            <Text style={s.value}>{formatPhone(secretary.phone)}</Text>
           </View>
         )}
         {secretary.mailingAddress && (
@@ -175,7 +175,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
           <>
             <Text style={s.body}>{supplemental.vetClinic.name}</Text>
             <Text style={s.body}>{supplemental.vetClinic.address}</Text>
-            <Text style={s.body}>{supplemental.vetClinic.phone}</Text>
+            <Text style={s.body}>{formatPhone(supplemental.vetClinic.phone)}</Text>
           </>
         ) : (
           <Text style={s.required}>{REQUIRED}</Text>
@@ -189,7 +189,7 @@ export function UKCPremiumTemplate({ premium }: Props) {
               <View key={i} style={s.trialBlock}>
                 <Text style={s.trialTitle}>{a.name}</Text>
                 <Text style={s.body}>{a.address}</Text>
-                <Text style={s.body}>{a.phone}</Text>
+                <Text style={s.body}>{formatPhone(a.phone)}</Text>
               </View>
             ))}
           </>

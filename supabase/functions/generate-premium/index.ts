@@ -79,7 +79,6 @@ Deno.serve(async (req: Request) => {
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, club_id,
-        secretary, secretary_email,
         clubs(name, logo_url),
         trials(
           id, name, date, planned_start_time, event_number, trial_type,
@@ -94,7 +93,16 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (showError || !show) {
-      return jsonResponse({ error: 'Show not found' }, 404);
+      console.error('Show fetch failed:', { show_id, showError });
+      return jsonResponse(
+        {
+          error: 'Show not found',
+          detail: showError?.message ?? null,
+          code: showError?.code ?? null,
+          hint: showError?.hint ?? null,
+        },
+        404
+      );
     }
 
     // Step 7: Reject unsupported organizations early. The premium_generations
@@ -109,6 +117,27 @@ Deno.serve(async (req: Request) => {
         400
       );
     }
+
+    // Step 7b: Resolve secretary from user_roles (migration 099 moved officials
+    // off shows.secretary/secretary_email into the user_roles + people tables).
+    const { data: secretaryRoleRow } = await userClient
+      .from('user_roles')
+      .select('people:user_id(first_name, last_name, email), roles!inner(name)')
+      .eq('show_id', show_id)
+      .eq('is_active', true)
+      .eq('roles.name', 'secretary')
+      .limit(1)
+      .maybeSingle();
+    const secretaryPerson =
+      (
+        secretaryRoleRow as {
+          people?: { first_name?: string; last_name?: string; email?: string } | null;
+        } | null
+      )?.people ?? null;
+    const secretaryName = secretaryPerson
+      ? `${secretaryPerson.first_name ?? ''} ${secretaryPerson.last_name ?? ''}`.trim() || null
+      : null;
+    const secretaryEmail = secretaryPerson?.email ?? null;
 
     // Step 8: Template resolution — find best matching template for this show's trial type
     const { data: templates } = await userClient
@@ -221,11 +250,11 @@ Deno.serve(async (req: Request) => {
         name: clubData?.name ?? null,
         logoUrl: clubData?.logo_url ?? null,
       },
-      // Secretary info is stored as free-text on shows.secretary and shows.secretary_email.
-      // There is no separate secretary_person_id FK — return what we have.
+      // Secretary now lives in user_roles + people (migration 099 dropped the
+      // shows.secretary / shows.secretary_email TEXT columns).
       secretary: {
-        name: show.secretary ?? null,
-        email: show.secretary_email ?? null,
+        name: secretaryName,
+        email: secretaryEmail,
         mailingAddress: null,
         phone: null,
       },
@@ -260,6 +289,21 @@ Deno.serve(async (req: Request) => {
 // Helpers
 // ---------------------------------------------------------------------------
 
+function formatDateForPrompt(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) return 'TBD';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  // Always emit as a human-readable date with no time component. The narratives
+  // are general-purpose, and including raw UTC timestamps caused Claude to
+  // hallucinate phrases like "1:00 PM UTC" that exhibitors don't think in.
+  return d.toLocaleDateString('en-US', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
 function buildShowSummary(show: Record<string, unknown>): string {
   const trials =
     (show.trials as Array<{
@@ -273,18 +317,19 @@ function buildShowSummary(show: Record<string, unknown>): string {
     const classNames = (t.classes ?? [])
       .map(c => [c.level, c.element, c.name].filter(Boolean).join(' '))
       .join(', ');
-    return `  - ${t.name} (${t.date}): ${t.trial_type ?? 'unknown type'} — classes: ${classNames || 'none'}`;
+    return `  - ${t.name} (${formatDateForPrompt(t.date)}): ${t.trial_type ?? 'unknown type'} — classes: ${classNames || 'none'}`;
   });
 
   return [
     `Show: ${show.name}`,
     `Organization: ${show.organization ?? 'AKC'}`,
-    `Dates: ${show.start_date} to ${show.end_date}`,
+    `Dates: ${formatDateForPrompt(show.start_date)} to ${formatDateForPrompt(show.end_date)}`,
     `Location: ${show.location ?? 'TBD'}`,
-    `Entry opens: ${show.entry_open_date ?? 'TBD'}, closes: ${show.entry_close_date ?? 'TBD'}`,
+    `Entry opens: ${formatDateForPrompt(show.entry_open_date)}, closes: ${formatDateForPrompt(show.entry_close_date)}`,
     `Pre-entry fee: $${show.pre_entry_fee ?? 'TBD'}, day-of fee: $${show.day_of_show_fee ?? 'TBD'}`,
     `Payment: checks=${show.accept_check_payments}, cash=${show.accept_cash_payments}`,
     `Trials:\n${trialLines.join('\n')}`,
+    'Note: Do not invent specific clock times or timezones in the narrative — only mention times if explicitly provided above.',
   ].join('\n');
 }
 

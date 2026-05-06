@@ -6,7 +6,6 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { useShowStore } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { logger } from '@/services/LoggingService';
-import { notifications } from '@/lib/notifications';
 import { UserRole } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { Club } from '@/types/club-types';
@@ -128,14 +127,16 @@ export async function saveShowAtomicOnline(
       : [savedShow, ...old];
   });
 
-  // Fire-and-forget role grants. Failures are logged and the officials query
-  // is invalidated either way, so downstream UI refreshes without waiting.
+  // Block on official-role grants. A show without its mandatory officials is
+  // a worse end state than a failed save — the secretary loses access, the
+  // generated premium has no contact info, and the failure mode is silent.
+  // Throw if any grant fails so the wizard's catch block surfaces a real error.
   const officialGrants = [
     ...(show.officials.secretary ?? []).map(id => ({ id, role: UserRole.SECRETARY })),
     ...(show.officials.chairman ?? []).map(id => ({ id, role: UserRole.CHAIRMAN })),
     ...(show.officials.steward ?? []).map(id => ({ id, role: UserRole.STEWARD })),
   ];
-  void Promise.allSettled(
+  const grantResults = await Promise.allSettled(
     officialGrants.map(async grant => {
       const { error } = await supabase.rpc('grant_show_official', {
         p_person_id: grant.id,
@@ -144,21 +145,20 @@ export async function saveShowAtomicOnline(
       });
       if (error) throw error;
     })
-  ).then(results => {
-    const failures = results.filter(r => r.status === 'rejected');
-    failures.forEach(r => {
-      const err = (r as PromiseRejectedResult).reason;
-      logger.warn('Failed to auto-grant official role', 'wizard', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+  );
+  const grantFailures = grantResults.filter(r => r.status === 'rejected');
+  grantFailures.forEach(r => {
+    const err = (r as PromiseRejectedResult).reason;
+    logger.warn('Failed to grant official role', 'wizard', {
+      error: err instanceof Error ? err.message : String(err),
     });
-    if (failures.length > 0) {
-      notifications.warning(
-        `Show created, but ${failures.length} official role ${failures.length === 1 ? 'grant' : 'grants'} failed. Check the Officials tab to verify assignments.`
-      );
-    }
-    queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
   });
+  queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
+  if (grantFailures.length > 0) {
+    throw new Error(
+      `Failed to assign ${grantFailures.length} official role${grantFailures.length === 1 ? '' : 's'}. The show was created but officials could not be set — please retry or assign them manually via the Officials tab.`
+    );
+  }
 
   queryClient.invalidateQueries({ queryKey: ['shows', showId, 'schedule-timeline'] });
 

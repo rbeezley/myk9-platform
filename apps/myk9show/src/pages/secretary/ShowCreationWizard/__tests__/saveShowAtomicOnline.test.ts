@@ -177,7 +177,7 @@ describe('saveShowAtomicOnline', () => {
     expect(triggerSync).toHaveBeenCalled();
   });
 
-  it('surfaces a warning notification when grant_show_official fails', async () => {
+  it('throws when grant_show_official fails so the wizard surfaces a real save error', async () => {
     rpcMock.mockImplementation(async (fn: string) => {
       if (fn === 'grant_show_official') return { error: { message: 'forbidden' } };
       return { error: null };
@@ -188,23 +188,17 @@ describe('saveShowAtomicOnline', () => {
       officials: { secretary: ['11111111-0000-4000-8000-000000000001'], chairman: [], steward: [] },
     };
 
-    const { showId } = await saveShowAtomicOnline({
-      show: showWithOfficial,
-      trials: baseTrials,
-      judgeDetails: {},
-      clubs: [],
-      status: 'unpublished',
-      queryClient: makeQueryClient(),
-      triggerSync: vi.fn().mockResolvedValue(undefined),
-    });
-
-    expect(showId).toBeTruthy();
-    // Fire-and-forget allSettled chain resolves after the function returns;
-    // vi.waitFor polls microtasks until the warning fires.
-    await vi.waitFor(() => expect(notificationsWarningMock).toHaveBeenCalled());
-    expect(notificationsWarningMock.mock.calls[0]![0]).toMatch(
-      /1 official role grant failed\. Check the Officials tab/
-    );
+    await expect(
+      saveShowAtomicOnline({
+        show: showWithOfficial,
+        trials: baseTrials,
+        judgeDetails: {},
+        clubs: [],
+        status: 'unpublished',
+        queryClient: makeQueryClient(),
+        triggerSync: vi.fn().mockResolvedValue(undefined),
+      })
+    ).rejects.toThrow(/Failed to assign 1 official role/);
   });
 
   it('skips addShowLegacy when the show is already in the store (idempotent retry)', async () => {

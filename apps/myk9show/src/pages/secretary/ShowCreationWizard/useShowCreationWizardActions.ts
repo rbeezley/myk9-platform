@@ -328,18 +328,15 @@ export function useShowCreationWizardActions({
         }
 
         // Grant official roles scoped to the show via the grant_show_official
-        // RPC (migration 144). The RPC is SECURITY DEFINER and runs the
-        // authorization check + club_id lookup server-side, bypassing the
-        // user_roles RLS gate that previously silently rejected every grant.
-        // Fire-and-forget so this doesn't block navigation, but surface a toast
-        // if any grants fail so the bug isn't hidden again.
+        // RPC (migration 144). Block on results so a failed grant surfaces as
+        // a save error rather than a silently-missing secretary on the show.
         const officialGrants = [
           ...show.officials.secretary.map(id => ({ id, role: UserRole.SECRETARY })),
           ...show.officials.chairman.map(id => ({ id, role: UserRole.CHAIRMAN })),
           ...show.officials.steward.map(id => ({ id, role: UserRole.STEWARD })),
         ];
 
-        Promise.allSettled(
+        const grantResults = await Promise.allSettled(
           officialGrants.map(async grant => {
             const { error } = await supabase.rpc('grant_show_official', {
               p_person_id: grant.id,
@@ -348,21 +345,20 @@ export function useShowCreationWizardActions({
             });
             if (error) throw error;
           })
-        ).then(results => {
-          const failures = results.filter(r => r.status === 'rejected');
-          failures.forEach(r => {
-            const err = (r as PromiseRejectedResult).reason;
-            logger.warn('Failed to auto-grant official role', 'wizard', {
-              error: err instanceof Error ? err.message : String(err),
-            });
+        );
+        const grantFailures = grantResults.filter(r => r.status === 'rejected');
+        grantFailures.forEach(r => {
+          const err = (r as PromiseRejectedResult).reason;
+          logger.warn('Failed to grant official role', 'wizard', {
+            error: err instanceof Error ? err.message : String(err),
           });
-          if (failures.length > 0) {
-            notifications.warning(
-              `Show created, but ${failures.length} official role ${failures.length === 1 ? 'grant' : 'grants'} failed. Check the Officials tab to verify assignments.`
-            );
-          }
-          queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
         });
+        queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
+        if (grantFailures.length > 0) {
+          throw new Error(
+            `Failed to assign ${grantFailures.length} official role${grantFailures.length === 1 ? '' : 's'}. The show was created but officials could not be set — please retry or assign them manually via the Officials tab.`
+          );
+        }
 
         // Second sync pass to flush the child INSERTs (trials/classes) we just
         // queued. Fire-and-forget — any failure flows through the global

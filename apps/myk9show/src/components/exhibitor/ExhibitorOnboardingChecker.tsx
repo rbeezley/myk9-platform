@@ -36,7 +36,7 @@ function isExemptPath(pathname: string): boolean {
 }
 
 export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingCheckerProps) {
-  const { user, loading: authLoading } = useAuthContext();
+  const { user, loading: authLoading, isSecretary, hasRole } = useAuthContext();
   const { needsOnboarding, onboardingCompleted, isLoading: profileLoading } = useExhibitorProfile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +47,10 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     if (isLoading) return;
     if (!user) return;
     if (isExemptPath(location.pathname)) return;
+
+    // Secretaries, site admins, judges, and club admins don't have exhibitor_profiles
+    // rows — they are staff roles, not exhibitors. Never route them to exhibitor onboarding.
+    if (isSecretary || hasRole('site_admin') || hasRole('judge') || hasRole('club_admin')) return;
 
     // Only redirect users who have no profile row yet (brand new accounts).
     // The !onboardingCompleted check is intentionally omitted until migration 125

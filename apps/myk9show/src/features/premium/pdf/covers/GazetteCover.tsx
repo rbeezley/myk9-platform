@@ -1,6 +1,23 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { CoverContext } from './coverContext';
 import { formatDate } from '../pdfStyles';
+import {
+  MIDDOT,
+  buildJudgeStrip,
+  composeFallbackArticle,
+  extractCityState,
+} from './gazetteHelpers';
+
+// ─── Layout constants ────────────────────────────────────────────────────────
+// Hoisted from inline literals so a designer can tune the masthead in one
+// place without grepping for magic numbers.
+
+const MASTHEAD_FONT_SIZE = 36;
+const LETTER_SPACE_TIGHT = 1;
+const LETTER_SPACE_WIDE = 2;
+const PHOTO_PLACEHOLDER_HEIGHT = 180;
+// Pulls the caption up against the placeholder's bottom border without an extra wrapper.
+const PHOTO_CAPTION_OFFSET = -16;
 
 /**
  * Gazette cover — newspaper masthead. Large Playfair club name, thin rule,
@@ -36,7 +53,7 @@ export function renderGazetteCover(ctx: CoverContext) {
       ? welcome
       : composeFallbackArticle(club, data.show.name, venue, dateRange);
 
-  // Flatten judges across all trials, dedup by name, take up to 4.
+  // Flatten judges across all trials, dedup by name, take up to JUDGES_STRIP_MAX.
   const judgeStrip = buildJudgeStrip(data.trials);
 
   return (
@@ -54,12 +71,12 @@ export function renderGazetteCover(ctx: CoverContext) {
       <Text
         style={{
           fontFamily: t.displayFont,
-          fontSize: 36,
+          fontSize: MASTHEAD_FONT_SIZE,
           fontWeight: 700,
           textTransform: 'uppercase',
           textAlign: 'center',
           color: t.textColor,
-          letterSpacing: 1,
+          letterSpacing: LETTER_SPACE_TIGHT,
         }}
       >
         {club || 'Premium Gazette'}
@@ -76,15 +93,15 @@ export function renderGazetteCover(ctx: CoverContext) {
           fontFamily: t.bodyFont,
           fontSize: 8,
           textTransform: 'uppercase',
-          letterSpacing: 2,
+          letterSpacing: LETTER_SPACE_WIDE,
           textAlign: 'center',
           color: t.secondaryColor,
           marginBottom: 4,
         }}
       >
-        VOL. I {middot()} {formatDate(data.show.startDate)}
-        {cityState ? ` ${middot()} ${cityState}` : ''}
-        {akcLicenseNumber ? ` ${middot()} LICENSE NO. ${akcLicenseNumber}` : ''}
+        VOL. I {MIDDOT} {formatDate(data.show.startDate)}
+        {cityState ? ` ${MIDDOT} ${cityState}` : ''}
+        {akcLicenseNumber ? ` ${MIDDOT} LICENSE NO. ${akcLicenseNumber}` : ''}
       </Text>
       <View
         style={{
@@ -135,7 +152,7 @@ export function renderGazetteCover(ctx: CoverContext) {
           borderWidth: 1,
           borderColor: t.accentColor,
           borderStyle: 'solid',
-          height: 180,
+          height: PHOTO_PLACEHOLDER_HEIGHT,
           marginVertical: 24,
           backgroundColor: t.surfaceColor,
         }}
@@ -145,7 +162,7 @@ export function renderGazetteCover(ctx: CoverContext) {
           fontSize: 8,
           fontStyle: 'italic',
           color: t.secondaryColor,
-          marginTop: -16,
+          marginTop: PHOTO_CAPTION_OFFSET,
           marginBottom: 16,
         }}
       >
@@ -168,7 +185,7 @@ export function renderGazetteCover(ctx: CoverContext) {
               fontFamily: t.bodyFont,
               fontSize: 7,
               textTransform: 'uppercase',
-              letterSpacing: 2,
+              letterSpacing: LETTER_SPACE_WIDE,
               color: t.secondaryColor,
               marginBottom: 4,
             }}
@@ -194,52 +211,4 @@ export function renderGazetteCover(ctx: CoverContext) {
       )}
     </Page>
   );
-}
-
-function middot() {
-  return '·';
-}
-
-function extractCityState(venue: string): string {
-  if (!venue) return '';
-  // Heuristic: pull the segment before the ZIP. Address shape we see is
-  // "<street>, <city>, <state> <zip>"; we want "<city>, <state>".
-  const parts = venue
-    .split(',')
-    .map(p => p.trim())
-    .filter(Boolean);
-  if (parts.length >= 2) {
-    const last = parts[parts.length - 1] ?? '';
-    const stateOnly = last.replace(/\d{4,}/g, '').trim();
-    const city = parts[parts.length - 2] ?? '';
-    return [city, stateOnly].filter(Boolean).join(', ');
-  }
-  return parts[0] ?? '';
-}
-
-function composeFallbackArticle(
-  club: string,
-  showName: string,
-  venue: string,
-  dateRange: string
-): string {
-  const who = club || 'The host club';
-  const what = showName ? `the ${showName}` : 'an upcoming scent work trial';
-  const where = venue ? ` at ${venue}` : '';
-  return `${who} is pleased to announce ${what}${where}, running ${dateRange}. Exhibitors will find the schedule, judges, and entry details on the inside pages.`;
-}
-
-function buildJudgeStrip(trials: CoverContext['data']['trials']): string[] {
-  const seen = new Set<string>();
-  const entries: string[] = [];
-  for (const trial of trials) {
-    for (const j of trial.judges) {
-      if (!j.name || seen.has(j.name)) continue;
-      seen.add(j.name);
-      const elements = j.elements.length > 0 ? ` ${middot()} ${j.elements[0]}` : '';
-      entries.push(`${j.name}${elements}`);
-    }
-  }
-  if (entries.length <= 4) return entries;
-  return [...entries.slice(0, 3), `${middot()} and others`];
 }

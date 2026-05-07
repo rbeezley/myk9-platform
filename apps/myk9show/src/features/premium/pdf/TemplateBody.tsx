@@ -38,9 +38,9 @@ export function TemplateBody({ data, org }: Props) {
       if (!isPosterMinimumDataMet(data)) return <StandardBody data={data} org={org} />;
       return <PosterBody data={data} tokens={tokens} />;
     case 'gazette':
-      return <GazetteBody data={data} tokens={tokens} org={org} />;
+      return <GazetteBody data={data} tokens={tokens} />;
     case 'fieldguide':
-      return <FieldGuideBody data={data} tokens={tokens} org={org} />;
+      return <FieldGuideBody data={data} tokens={tokens} />;
     default:
       return assertNever(tokens.bodyLayout);
   }

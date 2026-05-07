@@ -19,15 +19,16 @@ const SECTIONS: Array<readonly [string, string]> = [
 export function renderFieldGuideCover(ctx: CoverContext) {
   const { t, data, dateRange } = ctx;
   const showName = data.show.name || 'Premium Information';
+  const monoFont = t.monoFont ?? 'IBM Plex Mono';
 
   const trialsCount = data.trials.length;
   const elements = new Set<string>();
   const levels = new Set<string>();
   const judgeNames = new Set<string>();
   for (const trial of data.trials) {
-    for (const c of trial.classes) {
-      if (c.element) elements.add(c.element);
-      if (c.level) levels.add(c.level);
+    for (const c of trial.classes ?? []) {
+      if (c?.element) elements.add(c.element);
+      if (c?.level) levels.add(c.level);
     }
     for (const j of trial.judges ?? []) {
       if (j?.name) judgeNames.add(j.name);
@@ -56,7 +57,7 @@ export function renderFieldGuideCover(ctx: CoverContext) {
       {/* Eyebrow */}
       <Text
         style={{
-          fontFamily: 'IBM Plex Mono',
+          fontFamily: monoFont,
           fontSize: 9,
           color: t.accentColor,
           textTransform: 'uppercase',
@@ -103,7 +104,7 @@ export function renderFieldGuideCover(ctx: CoverContext) {
       {/* Section index — 8 rows, single column */}
       <Text
         style={{
-          fontFamily: 'IBM Plex Mono',
+          fontFamily: monoFont,
           fontSize: 8,
           color: t.secondaryColor,
           textTransform: 'uppercase',
@@ -127,7 +128,7 @@ export function renderFieldGuideCover(ctx: CoverContext) {
           >
             <Text
               style={{
-                fontFamily: 'IBM Plex Mono',
+                fontFamily: monoFont,
                 fontSize: 10,
                 color: t.accentColor,
                 width: 36,
@@ -164,7 +165,7 @@ export function renderFieldGuideCover(ctx: CoverContext) {
           <View key={label} style={{ flex: 1, paddingHorizontal: 4 }}>
             <Text
               style={{
-                fontFamily: 'IBM Plex Mono',
+                fontFamily: monoFont,
                 fontSize: 7,
                 color: t.secondaryColor,
                 textTransform: 'uppercase',

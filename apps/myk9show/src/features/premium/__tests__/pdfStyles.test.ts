@@ -29,6 +29,10 @@ describe('STYLE_TOKENS', () => {
     expect(STYLE_TOKENS.fieldGuide.bodyLayout).toBe('fieldguide');
     expect(STYLE_TOKENS.fieldGuide.coverStyle).toBe('fieldindex');
   });
+
+  it('exposes a monoFont on the fieldGuide token so callers consume the token system', () => {
+    expect(STYLE_TOKENS.fieldGuide.monoFont).toBe('IBM Plex Mono');
+  });
 });
 
 describe('STYLE_ORG_SUPPORT', () => {

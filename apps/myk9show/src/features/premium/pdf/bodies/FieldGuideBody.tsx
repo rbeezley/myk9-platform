@@ -8,19 +8,18 @@ import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
 interface Props {
   data: GeneratedPremium;
   tokens: StyleTokens;
-  // org reserved for future org-specific divergence.
-  org: 'AKC' | 'UKC';
 }
 
-export function FieldGuideBody({ data, tokens, org: _org }: Props) {
+export function FieldGuideBody({ data, tokens }: Props) {
   const { show, secretary, officials, trials, supplemental, narratives } = data;
+  const monoFont = tokens.monoFont ?? 'IBM Plex Mono';
 
   const rowStyle = {
     flexDirection: 'row' as const,
     paddingVertical: 2,
   };
   const labelStyle = {
-    fontFamily: 'IBM Plex Mono',
+    fontFamily: monoFont,
     fontSize: 8,
     color: tokens.secondaryColor,
     width: 90,
@@ -64,7 +63,7 @@ export function FieldGuideBody({ data, tokens, org: _org }: Props) {
     >
       <Text
         style={{
-          fontFamily: 'IBM Plex Mono',
+          fontFamily: monoFont,
           fontSize: 11,
           color: tokens.accentColor,
           marginRight: 8,
@@ -196,6 +195,7 @@ export function FieldGuideBody({ data, tokens, org: _org }: Props) {
         </View>
       )}
 
+      {/* source: narratives.showHours — closest existing field; spec accepted this proxy in Phase 4 review. */}
       {hasSchedule && (
         <View style={blockStyle}>
           {renderHeader('§05', 'Schedule')}

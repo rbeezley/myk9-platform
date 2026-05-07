@@ -10,6 +10,10 @@ export interface StyleTokens {
   // Typography
   displayFont: string;
   bodyFont: string;
+  // Optional monospace face for utility/reference layouts (e.g., Field Guide
+  // eyebrows, §-numbers, stat labels). Styles that don't need a mono leave it
+  // undefined; consumers fall back to a literal at the call site.
+  monoFont?: string;
   boldWeight: 700;
   // Palette
   accentColor: string;
@@ -127,6 +131,7 @@ export const STYLE_TOKENS: Record<PremiumStyle, StyleTokens> = {
     // utility-reference sans look.
     displayFont: 'Inter',
     bodyFont: 'Inter',
+    monoFont: 'IBM Plex Mono',
     boldWeight: 700,
     accentColor: '#c96442', // Indicator orange
     secondaryColor: '#1f2a24', // Dark ink

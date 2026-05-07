@@ -11,11 +11,9 @@ import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
 interface Props {
   data: GeneratedPremium;
   tokens: StyleTokens;
-  // org reserved for future org-specific divergence in the gazette body.
-  org: 'AKC' | 'UKC';
 }
 
-export function GazetteBody({ data, tokens, org: _org }: Props) {
+export function GazetteBody({ data, tokens }: Props) {
   const { show, secretary, officials, trials, supplemental } = data;
 
   const sectionStyle = {

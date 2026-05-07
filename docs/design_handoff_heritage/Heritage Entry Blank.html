@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Entry Blank · Bexar County K.C. Spring Scent Work Trial 2026</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --hl-paper: #f8f4ea;
+      --hl-ink: #1a1612;
+      --hl-claret: #8a1818;
+      --hl-gold: #8a6a45;
+      --hl-quill: #6b4f3a;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #d9d2c2;
+      font-family: "EB Garamond", "Garamond", serif;
+      color: var(--hl-ink);
+    }
+    .screen-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: var(--hl-ink);
+      color: var(--hl-paper);
+      padding: 10px 20px;
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+    .screen-bar button {
+      background: var(--hl-paper);
+      color: var(--hl-ink);
+      border: none;
+      padding: 6px 14px;
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+    }
+    .page {
+      width: 8.5in;
+      min-height: 11in;
+      margin: 56px auto;
+      background: var(--hl-paper);
+      box-sizing: border-box;
+      padding: 0.6in 0.7in;
+      position: relative;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+    /* Engraved double border */
+    .frame {
+      position: absolute;
+      inset: 0.32in;
+      border: 1px solid var(--hl-ink);
+      pointer-events: none;
+    }
+    .frame::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border: 1px solid var(--hl-ink);
+    }
+    .corner {
+      position: absolute;
+      width: 18px; height: 18px;
+      background: radial-gradient(circle, var(--hl-claret) 0 3.5px, transparent 4.5px);
+    }
+    .corner.tl { top: 0.22in; left: 0.22in; }
+    .corner.tr { top: 0.22in; right: 0.22in; }
+    .corner.bl { bottom: 0.22in; left: 0.22in; }
+    .corner.br { bottom: 0.22in; right: 0.22in; }
+
+    /* Header */
+    .head {
+      text-align: center;
+      position: relative;
+      z-index: 2;
+      padding-bottom: 14px;
+    }
+    .supra {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 12px;
+      color: var(--hl-quill);
+      letter-spacing: 0.04em;
+    }
+    .club {
+      font-family: "Cormorant Garamond", serif;
+      font-weight: 600;
+      font-size: 18px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      margin: 4px 0 2px;
+    }
+    .est {
+      font-family: "EB Garamond", serif;
+      font-style: italic;
+      font-size: 11px;
+      color: var(--hl-quill);
+      margin-bottom: 14px;
+    }
+    .rule-orn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--hl-claret);
+      margin: 8px auto;
+      max-width: 320px;
+    }
+    .rule-orn .l { flex: 1; height: 1px; background: var(--hl-ink); }
+    .rule-orn .di {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 16px;
+    }
+    .rule-orn.gold { color: var(--hl-gold); }
+    .rule-orn.gold .l { background: var(--hl-gold); }
+
+    .form-title {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-weight: 500;
+      font-size: 38px;
+      line-height: 1;
+      margin: 6px 0 2px;
+      letter-spacing: -0.005em;
+    }
+    .form-title em { color: var(--hl-claret); font-family: "Cormorant Garamond", serif; font-style: italic; }
+    .form-sub {
+      font-family: "EB Garamond", serif;
+      font-size: 12px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--hl-quill);
+      margin-top: 8px;
+    }
+    .form-meta {
+      margin-top: 12px;
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 13px;
+      color: var(--hl-quill);
+    }
+    .form-meta strong { font-weight: 500; color: var(--hl-ink); font-style: normal; }
+
+    /* Section header */
+    .sec {
+      margin-top: 18px;
+      position: relative;
+      z-index: 2;
+    }
+    .sec-head {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      border-bottom: 1px solid var(--hl-ink);
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+    }
+    .sec-folio {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      color: var(--hl-claret);
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+      white-space: nowrap;
+      min-width: 32px;
+    }
+    .sec-title { white-space: nowrap; }
+    .sec-title {
+      font-family: "EB Garamond", serif;
+      font-size: 12px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--hl-ink);
+    }
+
+    /* Field grid */
+    .fields {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      column-gap: 14px;
+      row-gap: 10px;
+    }
+    .f {
+      grid-column: span 12;
+      display: flex;
+      flex-direction: column;
+    }
+    .f.col-6 { grid-column: span 6; }
+    .f.col-4 { grid-column: span 4; }
+    .f.col-3 { grid-column: span 3; }
+    .f.col-8 { grid-column: span 8; }
+    .f .lbl {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 11px;
+      color: var(--hl-quill);
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+    .f .ln {
+      border-bottom: 1px solid var(--hl-ink);
+      height: 18px;
+    }
+    .f .ln.dotted { border-bottom: 1px dotted var(--hl-gold); }
+    .f .hint {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 10px;
+      color: var(--hl-quill);
+      margin-top: 2px;
+    }
+
+    /* Class checkbox grid */
+    .class-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 4px 14px;
+      margin-top: 6px;
+    }
+    .cls-row-head {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 14px;
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 11px;
+      color: var(--hl-quill);
+      border-bottom: 1px dotted var(--hl-gold);
+      padding-bottom: 3px;
+      margin-bottom: 4px;
+    }
+    .cls-row-head span:first-child { grid-column: span 1; }
+    .cls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: "EB Garamond", serif;
+      font-size: 12px;
+    }
+    .cb {
+      width: 11px; height: 11px;
+      border: 1px solid var(--hl-ink);
+      flex-shrink: 0;
+      display: inline-block;
+    }
+    .cls .lev {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      color: var(--hl-claret);
+      font-size: 12px;
+      width: 60px;
+      flex-shrink: 0;
+    }
+    .cls .el {
+      font-family: "EB Garamond", serif;
+      font-size: 12px;
+    }
+
+    /* Trial selection */
+    .trials-tbl {
+      display: grid;
+      grid-template-columns: 60px 1fr 1fr 1fr 80px;
+      gap: 4px 12px;
+      font-size: 12px;
+      align-items: center;
+    }
+    .trials-tbl .h {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 11px;
+      color: var(--hl-quill);
+      border-bottom: 1px solid var(--hl-ink);
+      padding-bottom: 3px;
+    }
+    .trials-tbl .row {
+      display: contents;
+    }
+    .trials-tbl .row > * {
+      padding: 5px 0;
+      border-bottom: 1px dotted var(--hl-gold);
+      font-family: "EB Garamond", serif;
+    }
+    .trials-tbl .row .num {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      color: var(--hl-claret);
+    }
+    .trials-tbl .row .check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Fee box */
+    .fee-box {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 24px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--hl-ink);
+      border-bottom: 1px solid var(--hl-ink);
+    }
+    .fee-box .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: "EB Garamond", serif;
+      font-size: 13px;
+      border-bottom: 1px dotted var(--hl-gold);
+      padding: 3px 0;
+    }
+    .fee-box .row .lbl {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      color: var(--hl-quill);
+    }
+    .fee-box .row .v {
+      font-family: "EB Garamond", serif;
+      min-width: 60px;
+      text-align: right;
+      border-bottom: none;
+    }
+    .fee-box .total {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 6px;
+      padding-top: 8px;
+      border-top: 1px solid var(--hl-ink);
+      font-family: "Cormorant Garamond", serif;
+    }
+    .fee-box .total .lbl {
+      font-style: italic;
+      font-size: 14px;
+      color: var(--hl-ink);
+    }
+    .fee-box .total .v {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--hl-claret);
+      min-width: 100px;
+      text-align: right;
+      border-bottom: 1px solid var(--hl-ink);
+      padding: 0 4px 2px;
+    }
+
+    /* Agreement */
+    .agreement {
+      margin-top: 18px;
+      padding: 12px 16px;
+      background: rgba(138, 106, 69, 0.06);
+      border-left: 2px solid var(--hl-gold);
+      border-right: 2px solid var(--hl-gold);
+      font-family: "EB Garamond", serif;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--hl-ink);
+      text-align: justify;
+    }
+    .agreement strong {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-weight: 500;
+      color: var(--hl-claret);
+    }
+
+    .sig-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 32px;
+      margin-top: 18px;
+    }
+    .sig-row .sig-cell .ln {
+      border-bottom: 1px solid var(--hl-ink);
+      height: 28px;
+    }
+    .sig-row .sig-cell .lbl {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 11px;
+      color: var(--hl-quill);
+      margin-top: 3px;
+      text-align: center;
+    }
+
+    /* Mail panel */
+    .mail-panel {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      padding: 14px 18px;
+      border: 1px solid var(--hl-ink);
+      position: relative;
+    }
+    .mail-panel::before {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      border: 1px solid var(--hl-ink);
+      pointer-events: none;
+    }
+    .mail-panel > div {
+      position: relative;
+      z-index: 1;
+    }
+    .mail-panel .h {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      color: var(--hl-claret);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .mail-panel .body {
+      font-family: "EB Garamond", serif;
+      font-size: 11.5px;
+      line-height: 1.5;
+    }
+    .mail-panel .body strong {
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-weight: 500;
+      color: var(--hl-quill);
+      display: block;
+      margin-bottom: 1px;
+    }
+
+    .foot-rule {
+      margin-top: 14px;
+    }
+    .foot {
+      text-align: center;
+      font-family: "Cormorant Garamond", serif;
+      font-style: italic;
+      font-size: 10px;
+      color: var(--hl-quill);
+      margin-top: 4px;
+    }
+
+    /* Print */
+    @media print {
+      html, body { background: #fff; }
+      .screen-bar { display: none; }
+      .page { box-shadow: none; margin: 0; }
+      @page { size: letter; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="screen-bar">
+    <div>Heritage Entry Blank — print on US Letter (8.5 × 11), portrait</div>
+    <button onclick="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <div class="page">
+    <div class="frame"></div>
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+
+    <!-- HEADER -->
+    <div class="head">
+      <div class="supra">Official Entry Blank</div>
+      <div class="club">Bexar County Kennel Club</div>
+      <div class="est">Established MCMXLVII · San Antonio, Texas</div>
+
+      <div class="rule-orn"><span class="l"></span><span class="di">✦</span><span class="l"></span></div>
+
+      <h1 class="form-title">Spring <em>Scent Work</em> Trial</h1>
+      <div class="form-sub">An A.K.C. Licensed Trial · 12 – 14 June 2026</div>
+
+      <div class="rule-orn gold"><span class="l"></span><span class="di">✦</span><span class="l"></span></div>
+
+      <div class="form-meta">
+        Entries close <strong>3 June 2026 · 8:00 PM Central</strong> &nbsp;·&nbsp;
+        One dog per blank &nbsp;·&nbsp; Please print clearly in ink
+      </div>
+    </div>
+
+    <!-- §I — DOG -->
+    <div class="sec">
+      <div class="sec-head">
+        <div class="sec-folio">§ I</div>
+        <div class="sec-title">Particulars of the Dog</div>
+      </div>
+      <div class="fields">
+        <div class="f col-8">
+          <div class="lbl">Registered name (in full)</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">Call name</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">Breed</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">Variety / colour</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">Sex</div>
+          <div class="ln"></div>
+          <div class="hint">M · F · S · N</div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">Date of birth</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">Place of birth</div>
+          <div class="ln"></div>
+          <div class="hint">U.S.A. · Foreign</div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">A.K.C. registration number</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-6">
+          <div class="lbl">Sire</div>
+          <div class="ln dotted"></div>
+        </div>
+        <div class="f col-6">
+          <div class="lbl">Dam</div>
+          <div class="ln dotted"></div>
+        </div>
+        <div class="f col-6">
+          <div class="lbl">Breeder</div>
+          <div class="ln dotted"></div>
+        </div>
+        <div class="f col-6">
+          <div class="lbl">Actual owner(s)</div>
+          <div class="ln dotted"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- §II — CLASSES -->
+    <div class="sec">
+      <div class="sec-head">
+        <div class="sec-folio">§ II</div>
+        <div class="sec-title">Classes Entered &nbsp;·&nbsp; Mark all that apply</div>
+      </div>
+
+      <div class="trials-tbl">
+        <div class="h">Trial</div>
+        <div class="h">Date</div>
+        <div class="h">Element</div>
+        <div class="h">Judge</div>
+        <div class="h" style="text-align:center">Enter</div>
+
+        <div class="row">
+          <div class="num">I</div>
+          <div>Fri 12 Jun</div>
+          <div>Containers · Interiors · Buried</div>
+          <div>C. Beagles</div>
+          <div class="check"><span class="cb"></span><span style="font-style:italic; font-family:'Cormorant Garamond',serif; color:var(--hl-quill); font-size:11px;">level ↓</span></div>
+        </div>
+        <div class="row">
+          <div class="num">II</div>
+          <div>Fri 12 Jun</div>
+          <div>Exteriors · Vehicles · Handler Disc.</div>
+          <div>M. Whitfield</div>
+          <div class="check"><span class="cb"></span><span style="font-style:italic; font-family:'Cormorant Garamond',serif; color:var(--hl-quill); font-size:11px;">level ↓</span></div>
+        </div>
+        <div class="row">
+          <div class="num">III</div>
+          <div>Sat 13 Jun</div>
+          <div>Containers · Interiors · Buried</div>
+          <div>C. Beagles</div>
+          <div class="check"><span class="cb"></span><span style="font-style:italic; font-family:'Cormorant Garamond',serif; color:var(--hl-quill); font-size:11px;">level ↓</span></div>
+        </div>
+        <div class="row">
+          <div class="num">IV</div>
+          <div>Sat 13 Jun</div>
+          <div>Exteriors · Vehicles · Handler Disc.</div>
+          <div>M. Whitfield</div>
+          <div class="check"><span class="cb"></span><span style="font-style:italic; font-family:'Cormorant Garamond',serif; color:var(--hl-quill); font-size:11px;">level ↓</span></div>
+        </div>
+        <div class="row">
+          <div class="num">V</div>
+          <div>Sun 14 Jun</div>
+          <div>Containers · Interiors · Buried</div>
+          <div>C. Beagles</div>
+          <div class="check"><span class="cb"></span><span style="font-style:italic; font-family:'Cormorant Garamond',serif; color:var(--hl-quill); font-size:11px;">level ↓</span></div>
+        </div>
+        <div class="row">
+          <div class="num">VI</div>
+          <div>Sun 14 Jun</div>
+          <div>Exteriors · Vehicles · Handler Disc.</div>
+          <div>M. Whitfield</div>
+          <div class="check"><span class="cb"></span><span style="font-style:italic; font-family:'Cormorant Garamond',serif; color:var(--hl-quill); font-size:11px;">level ↓</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <div style="font-family:'Cormorant Garamond',serif; font-style:italic; font-size:11px; color:var(--hl-quill); margin-bottom:4px;">Mark the level entered for each element:</div>
+        <div class="class-grid">
+          <div class="cls"><span class="lev">Novice</span><span class="cb"></span><span class="el">Containers</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Interiors</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Exteriors</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Buried</span></div>
+
+          <div class="cls"><span class="lev">Advanced</span><span class="cb"></span><span class="el">Containers</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Interiors</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Exteriors</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Buried</span></div>
+
+          <div class="cls"><span class="lev">Excellent</span><span class="cb"></span><span class="el">Containers</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Interiors</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Exteriors</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Buried</span></div>
+
+          <div class="cls"><span class="lev">Master</span><span class="cb"></span><span class="el">Containers</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Interiors</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Exteriors</span></div>
+          <div class="cls"><span class="cb"></span><span class="el">Buried</span></div>
+
+          <div class="cls" style="grid-column: span 4; margin-top: 4px;"><span class="lev">Other</span><span class="cb"></span><span class="el">Handler Discrimination</span> &nbsp; <span class="cb"></span><span class="el">Detective (Master)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- §III — OWNER & HANDLER -->
+    <div class="sec">
+      <div class="sec-head">
+        <div class="sec-folio">§ III</div>
+        <div class="sec-title">Owner &amp; Handler</div>
+      </div>
+      <div class="fields">
+        <div class="f col-6">
+          <div class="lbl">Owner's name (as on registration)</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-6">
+          <div class="lbl">Handler at this trial (if not owner)</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-12">
+          <div class="lbl">Mailing address</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">City</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-2">
+          <div class="lbl">State</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-3">
+          <div class="lbl">ZIP</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-3">
+          <div class="lbl">Telephone</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-8">
+          <div class="lbl">Email (for confirmation)</div>
+          <div class="ln"></div>
+        </div>
+        <div class="f col-4">
+          <div class="lbl">Junior handler? (age)</div>
+          <div class="ln"></div>
+          <div class="hint">leave blank if not applicable</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- §IV — FEES -->
+    <div class="sec">
+      <div class="sec-head">
+        <div class="sec-folio">§ IV</div>
+        <div class="sec-title">Fees Tendered</div>
+      </div>
+
+      <div class="fee-box">
+        <div class="row"><span class="lbl">First entry · $25</span><span class="v">$ ______</span></div>
+        <div class="row"><span class="lbl">Additional entries · $22 each</span><span class="v">$ ______</span></div>
+        <div class="row"><span class="lbl">Junior handler · $18</span><span class="v">$ ______</span></div>
+        <div class="row"><span class="lbl">Mail-in processing · $3</span><span class="v">$ ______</span></div>
+        <div class="total">
+          <span class="lbl">Total enclosed</span>
+          <span class="v">$ &nbsp;</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 10px; display: flex; gap: 18px; align-items: center; font-family:'EB Garamond',serif; font-size: 12px;">
+        <span style="font-family:'Cormorant Garamond',serif; font-style:italic; color:var(--hl-quill);">Payment by:</span>
+        <span><span class="cb"></span> Check (payable to <em>Bexar County K.C.</em>)</span>
+        <span><span class="cb"></span> Money order</span>
+        <span><span class="cb"></span> Online (separate)</span>
+      </div>
+    </div>
+
+    <!-- §V — AGREEMENT -->
+    <div class="sec">
+      <div class="sec-head">
+        <div class="sec-folio">§ V</div>
+        <div class="sec-title">Agreement &amp; Signature</div>
+      </div>
+
+      <div class="agreement">
+        <strong>I certify</strong> that I am the actual owner of the dog, or that I am the duly authorized agent of the actual owner whose name I have entered above. In consideration of the acceptance of this entry, I (we) agree to abide by the rules and regulations of <strong>The American Kennel Club</strong> in effect at the time of this trial, and by any additional rules and regulations appearing in the premium list of this trial, and further agree to be bound by the <em>Agreement</em> printed in full on the premium list. I (we) certify and represent that the dog entered is not a hazard to persons or other dogs. This entry is submitted for acceptance on the foregoing representations and Agreement.
+      </div>
+
+      <div class="sig-row">
+        <div class="sig-cell">
+          <div class="ln"></div>
+          <div class="lbl">Signature of owner or duly authorised agent</div>
+        </div>
+        <div class="sig-cell">
+          <div class="ln"></div>
+          <div class="lbl">Date</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- §VI — MAIL TO -->
+    <div class="mail-panel">
+      <div>
+        <div class="h">Return this blank, with payment, to:</div>
+        <div class="body">
+          <strong>BCKC Trial Secretary</strong>
+          James Nakamura<br/>
+          PO Box 4421<br/>
+          San Antonio, TX 78212
+        </div>
+      </div>
+      <div>
+        <div class="h">Or scan and email to:</div>
+        <div class="body">
+          <strong>Email entries</strong>
+          secretary@bckc.org<br/>
+          Subject line: <em>Spring 2026 Entry</em><br/>
+          Include payment confirmation.
+        </div>
+      </div>
+    </div>
+
+    <div class="rule-orn gold foot-rule"><span class="l"></span><span class="di">✦</span><span class="l"></span></div>
+    <div class="foot">
+      Entries must be received by <strong style="font-style:normal; color:var(--hl-ink);">3 June 2026</strong>. Confirmations posted 6 June. Online entry available at <em>myk9show.com/bckc-spring-2026</em>.
+    </div>
+  </div>
+
+</body>
+</html>

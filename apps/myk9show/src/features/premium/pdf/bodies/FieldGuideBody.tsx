@@ -99,14 +99,14 @@ export function FieldGuideBody({ data, tokens }: Props) {
       }}
     >
       {hasOverview && (
-        <View style={blockStyle}>
+        <View style={blockStyle} wrap={false}>
           {renderHeader('§00', 'Overview')}
           <Text style={valueStyle}>{narratives.trialInformation}</Text>
         </View>
       )}
 
       {hasOfficials && (
-        <View style={blockStyle}>
+        <View style={blockStyle} wrap={false}>
           {renderHeader('§01', 'Officials')}
           {officials.chairman && (
             <View style={rowStyle}>
@@ -134,7 +134,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
       )}
 
       {hasJudges && (
-        <View style={blockStyle}>
+        <View style={blockStyle} wrap={false}>
           {renderHeader('§02', 'Judges')}
           {trials.flatMap((trial, ti) =>
             (trial.judges ?? []).map((j, ji) => (
@@ -151,7 +151,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
       )}
 
       {hasClasses && (
-        <View style={blockStyle}>
+        <View style={blockStyle} wrap={false}>
           {renderHeader('§03', 'Classes')}
           {trials.map((trial, i) => (
             <View key={i} style={{ marginBottom: 6 }}>
@@ -172,7 +172,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
       )}
 
       {hasEntry && (
-        <View style={blockStyle}>
+        <View style={blockStyle} wrap={false}>
           {renderHeader('§04', 'Entry')}
           {/* INTENT: Online via myK9Show is the primary entry method —
               listed first and bolded so this reference layout doesn't bury
@@ -206,14 +206,14 @@ export function FieldGuideBody({ data, tokens }: Props) {
 
       {/* source: narratives.showHours — closest existing field; spec accepted this proxy in Phase 4 review. */}
       {hasSchedule && (
-        <View style={blockStyle}>
+        <View style={blockStyle} wrap={false}>
           {renderHeader('§05', 'Schedule')}
           <Text style={valueStyle}>{narratives.showHours}</Text>
         </View>
       )}
 
       {hasLocation && (
-        <View style={blockStyle}>
+        <View style={blockStyle} wrap={false}>
           {renderHeader('§06', 'Location')}
           {show.venue && (
             <View style={rowStyle}>
@@ -245,7 +245,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
       )}
 
       {hasNotices && (
-        <View style={blockStyle}>
+        <View style={blockStyle} wrap={false}>
           {renderHeader('§07', 'Notices')}
           {supplemental.additionalNotes && (
             <Text style={{ ...valueStyle, marginBottom: 4 }}>{supplemental.additionalNotes}</Text>

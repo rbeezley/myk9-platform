@@ -68,6 +68,14 @@ cd apps/myk9show && npx vitest run -t "pattern"
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
 - **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
 
+### Heritage / registry columns (migration 192)
+
+- `shows.landing_style` — `'default' | 'heritage'`. Read via `getShowLandingStyle(show)` from `@/features/registries`.
+- `trials.registry_id` — sanctioning body (default `'AKC'`). Read via `getTrialRegistry(trial)`.
+- `trials.confirmation_date` — when the Heritage confirmation email is sent. NULL = no formal step.
+- `trials.timezone` — IANA name (default `'America/New_York'`). Read via `getTrialTimezone(trial)`.
+- `entries.confirmation_email_sent_at / message_id / status` — idempotent send tracking (`'pending' | 'sent' | 'bounced' | 'failed'`).
+
 ## Deployment
 
 - **myK9Show staging:** myk9-platform-myk9show.vercel.app (auto-deploys from `main`)
@@ -104,7 +112,6 @@ When test runners hang or appear stuck for more than 30 seconds, stop and report
 Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render` — it wraps with QueryClient, Auth, and Router providers.
 
 **Assertion-first for value-sensitive bugs.** When a bug involves a specific value going to a specific place (enum string to a DB column, key in a response object, header in an HTTP call), write the `expect(...).toHaveBeenCalledWith(...)` line first and run it red before touching the implementation. A failing test proves the current wrong value; the fix then flips it green. This catches silent overwrites that visual inspection and typechecking miss.
-
 
 ## Workflow
 

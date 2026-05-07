@@ -6,6 +6,10 @@ import type { GeneratedPremium } from '@/types/premium-types';
 
 const BUCKET = 'premium-published';
 
+export interface PublishPremiumOptions {
+  inkSaver?: boolean;
+}
+
 /**
  * Render the premium PDF in the browser, upload it to public Storage, and
  * stamp the show row so the exhibitor-facing download link can pick it up.
@@ -17,10 +21,27 @@ const BUCKET = 'premium-published';
  */
 export async function publishPremium(
   showId: string,
-  premium: GeneratedPremium
+  premium: GeneratedPremium,
+  opts?: PublishPremiumOptions
 ): Promise<{ url: string; publishedAt: string }> {
   const Template = premium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
-  const blob = await pdf(<Template premium={premium} />).toBlob();
+  const inkSaver = opts?.inkSaver ?? false;
+
+  // Render and upload BEFORE updating DB columns. A failed render must not
+  // invalidate the previously-published premium.
+  let blob: Blob;
+  try {
+    blob = await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
+  } catch (err) {
+    console.error('[premium-publish] PDF render failed', {
+      showId,
+      style: premium.style,
+      org: premium.org,
+      inkSaver,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
 
   const path = `${showId}.pdf`;
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, blob, {

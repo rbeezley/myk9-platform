@@ -10,11 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AKCPremiumTemplate } from './pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from './pdf/UKCPremiumTemplate';
 import { useGeneratePremium } from './useGeneratePremium';
 import { useLogPremiumGeneration } from '../../hooks/queries/usePremiumGenerations';
 import { computePremiumDiff } from './logPremiumGeneration';
+import { STYLE_ORG_SUPPORT } from './pdf/pdfStyles';
+import { isStyleEnabled } from './premiumFeatureFlags';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
 interface Props {
@@ -25,7 +28,54 @@ interface Props {
   showOrg: 'AKC' | 'UKC' | null;
 }
 
-const STYLES: PremiumStyle[] = ['monogram', 'banner', 'headline'];
+interface StyleOption {
+  key: PremiumStyle;
+  name: string;
+  tagline: string;
+}
+
+const STYLE_OPTIONS: StyleOption[] = [
+  {
+    key: 'monogram',
+    name: 'Monogram',
+    tagline: 'Centered TC monogram, large serif title — conservative classic.',
+  },
+  {
+    key: 'banner',
+    name: 'Banner',
+    tagline: 'Black bar across top, left-aligned title — clean and direct.',
+  },
+  {
+    key: 'headline',
+    name: 'Headline',
+    tagline: 'Stacked header with double-rule divider — quietly bold.',
+  },
+  {
+    key: 'magazine',
+    name: 'Magazine',
+    tagline: 'Editorial spread — display serif cover, pull quotes inside.',
+  },
+  {
+    key: 'poster',
+    name: 'Poster',
+    tagline: 'Bold single-page hero — Archivo Black, ink-blot accents.',
+  },
+  {
+    key: 'gazette',
+    name: 'Gazette',
+    tagline: 'Newspaper broadsheet — masthead, multi-column body.',
+  },
+  {
+    key: 'fieldGuide',
+    name: 'Field Guide',
+    tagline: 'Utility reference — §-numbered sections, dense data tables.',
+  },
+  {
+    key: 'heritage',
+    name: 'Heritage',
+    tagline: 'Traditional kennel club — ivory paper, ornamental rules.',
+  },
+];
 
 export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }: Props) {
   const { generate, isLoading, error, reset } = useGeneratePremium();
@@ -34,9 +84,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
   const [publishing, setPublishing] = useState(false);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
 
-  // Original generated values (for diff computation)
   const [original, setOriginal] = useState<GeneratedPremium | null>(null);
-  // Editable copies
   const [supplemental, setSupplemental] = useState<GeneratedPremium['supplemental'] | null>(null);
   const [narratives, setNarratives] = useState<{
     showHours: string;
@@ -44,6 +92,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
   } | null>(null);
   const [styleOverride, setStyleOverride] = useState<PremiumStyle | null>(null);
   const [hasNarrativeError, setHasNarrativeError] = useState(false);
+  const [inkSaver, setInkSaver] = useState(false);
 
   async function handleGenerate() {
     const result = await generate(showId);
@@ -72,14 +121,14 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     if (!finalPremium) return;
     setPublishing(true);
     try {
-      const { publishedAt: at } = await publishPremium(showId, finalPremium);
+      const { publishedAt: at } = await publishPremium(showId, finalPremium, { inkSaver });
       setPublishedAt(at);
-      // Refresh any cached show queries so the exhibitor download card picks
-      // up the new URL without a hard refresh.
       await queryClient.invalidateQueries({ queryKey: ['shows', showId] });
       notifications.success('Premium published — exhibitors can now download it.');
     } catch (err) {
-      notifications.error(`Failed to publish: ${err instanceof Error ? err.message : String(err)}`);
+      notifications.error(
+        `This style failed to render — please try a different one or report the issue. (${err instanceof Error ? err.message : String(err)})`
+      );
     } finally {
       setPublishing(false);
     }
@@ -99,7 +148,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
         narrativeEdits: diff.narrativeEdits,
       });
     } catch {
-      // Non-blocking — PDF already downloaded; losing the log is preferable to blocking download
       console.error('[premium-bridge] Failed to log premium generation');
     }
   }
@@ -109,15 +157,22 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
   const activeStyle = styleOverride ?? original?.style ?? 'monogram';
 
   function handleClose() {
-    reset(); // clear hook error state
-    // Reset state on close so next open starts fresh
+    reset();
     setOriginal(null);
     setSupplemental(null);
     setNarratives(null);
     setStyleOverride(null);
     setHasNarrativeError(false);
+    setInkSaver(false);
     onClose();
   }
+
+  const visibleStyles = STYLE_OPTIONS.filter(opt => {
+    if (!isStyleEnabled(opt.key)) return false;
+    const orgKey = original?.org ?? showOrg;
+    if (!orgKey) return true;
+    return STYLE_ORG_SUPPORT[opt.key].includes(orgKey);
+  });
 
   return (
     <Sheet
@@ -132,7 +187,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
         </SheetHeader>
 
         <div className="mt-6 space-y-4">
-          {/* Initial generate button */}
           {!original && !isLoading && (
             <>
               {!showOrg && (
@@ -155,7 +209,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
             </>
           )}
 
-          {/* Loading state */}
           {isLoading && (
             <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin" />
@@ -163,14 +216,12 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
             </div>
           )}
 
-          {/* Error */}
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          {/* Generated content */}
           {original && supplemental && narratives && (
             <>
               {hasNarrativeError && (
@@ -192,24 +243,40 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                 </Alert>
               )}
 
-              {/* Style picker */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Style</Label>
-                <div className="flex gap-2">
-                  {STYLES.map(s => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setStyleOverride(s)}
-                      className={`flex-1 py-1.5 text-xs rounded border capitalize transition-colors ${
-                        activeStyle === s
-                          ? 'border-primary bg-primary/10 text-primary font-medium'
-                          : 'border-border text-muted-foreground hover:border-primary/50'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
+                <div
+                  role="radiogroup"
+                  aria-label="Premium style"
+                  className="grid grid-cols-2 gap-2"
+                >
+                  {visibleStyles.map(opt => {
+                    const selected = activeStyle === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setStyleOverride(opt.key)}
+                        className={`text-left p-3 rounded-md border transition-colors ${
+                          selected
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}>
+                            {opt.name}
+                          </span>
+                          {selected && <Check className="h-3.5 w-3.5 text-primary" />}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground leading-snug">
+                          {opt.tagline}
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
                 {styleOverride && styleOverride !== original.style && (
                   <p className="text-xs text-muted-foreground">
@@ -218,7 +285,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                 )}
               </div>
 
-              {/* Supplemental overrides */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Supplemental Fields</Label>
                 <div className="space-y-1">
@@ -300,7 +366,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                 </div>
               </div>
 
-              {/* Narrative editing */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Generated Narratives (editable)</Label>
                 <div className="space-y-1">
@@ -323,21 +388,32 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                 </div>
               </div>
 
-              {/* Download button */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={inkSaver}
+                  onCheckedChange={checked => setInkSaver(Boolean(checked))}
+                />
+                <span className="text-sm">Print-friendly (saves ink)</span>
+              </label>
+
               <PDFDownloadLink
-                document={<PdfTemplate premium={finalPremium!} />}
+                document={<PdfTemplate premium={finalPremium!} inkSaver={inkSaver} />}
                 fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}
                 onClick={() => {
                   void handleDownloaded();
                 }}
               >
                 {({ loading, error: pdfError }) => {
-                  if (pdfError)
+                  if (pdfError) {
+                    notifications.error(
+                      'This style failed to render — please try a different one or report the issue.'
+                    );
                     return (
                       <Button className="w-full" variant="destructive" disabled>
-                        PDF generation failed — check console
+                        PDF generation failed — try another style
                       </Button>
                     );
+                  }
                   return (
                     <Button className="w-full" disabled={loading}>
                       <Download className="h-4 w-4 mr-2" />
@@ -347,8 +423,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                 }}
               </PDFDownloadLink>
 
-              {/* Publish for exhibitors — uploads the rendered PDF to public
-                  Storage so the show details page can show a download link. */}
               <Button
                 variant="outline"
                 className="w-full"
@@ -375,7 +449,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                 download it. The link is stable across re-publishes.
               </p>
 
-              {/* Regenerate option */}
               <Button
                 variant="ghost"
                 size="sm"

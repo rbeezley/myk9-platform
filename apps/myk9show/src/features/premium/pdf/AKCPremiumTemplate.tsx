@@ -5,13 +5,14 @@ import { TemplateBody } from './TemplateBody';
 
 interface Props {
   premium: GeneratedPremium;
+  inkSaver?: boolean;
 }
 
-export function AKCPremiumTemplate({ premium }: Props) {
+export function AKCPremiumTemplate({ premium, inkSaver = false }: Props) {
   return (
     <Document>
-      <HeroCover data={premium} />
-      <TemplateBody data={premium} org="AKC" />
+      <HeroCover data={premium} inkSaver={inkSaver} />
+      <TemplateBody data={premium} org="AKC" inkSaver={inkSaver} />
     </Document>
   );
 }

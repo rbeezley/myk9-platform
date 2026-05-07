@@ -1,4 +1,4 @@
-import { STYLE_TOKENS, buildMonogram, formatDate } from './pdfStyles';
+import { resolveTokens, buildMonogram, formatDate } from './pdfStyles';
 import type { GeneratedPremium } from '../../../types/premium-types';
 import type { CoverContext } from './covers/coverContext';
 import { renderCenteredCover } from './covers/CenteredCover';
@@ -12,6 +12,7 @@ import { renderFieldGuideCover } from './covers/FieldGuideCover';
 
 interface HeroCoverProps {
   data: GeneratedPremium;
+  inkSaver?: boolean;
 }
 
 function assertNever(x: never): never {
@@ -22,8 +23,8 @@ function assertNever(x: never): never {
  * Cover page dispatcher. Each cover renderer lives in its own file under
  * `covers/` so individual layouts stay focused and the dispatcher stays small.
  */
-export function HeroCover({ data }: HeroCoverProps) {
-  const t = STYLE_TOKENS[data.style];
+export function HeroCover({ data, inkSaver = false }: HeroCoverProps) {
+  const t = resolveTokens(data.style, { inkSaver });
   const dateRange =
     data.show.endDate && data.show.endDate !== data.show.startDate
       ? `${formatDate(data.show.startDate)} – ${formatDate(data.show.endDate)}`

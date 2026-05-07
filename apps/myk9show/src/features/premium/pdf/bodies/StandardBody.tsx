@@ -9,6 +9,7 @@ const REQUIRED = '[REQUIRED — add before submitting]';
 interface Props {
   data: GeneratedPremium;
   org: 'AKC' | 'UKC';
+  inkSaver?: boolean;
 }
 
 /**
@@ -16,9 +17,9 @@ interface Props {
  * `bodyLayout === 'standard'`. Shared between AKC and UKC; the `org` prop
  * is the seam where future org-specific divergence will land.
  */
-export function StandardBody({ data, org: _org }: Props) {
-  const s = buildStyles(data.style);
-  const t = resolveTokens(data.style);
+export function StandardBody({ data, org: _org, inkSaver = false }: Props) {
+  const s = buildStyles(data.style, { inkSaver });
+  const t = resolveTokens(data.style, { inkSaver });
   const divider = <SectionDivider style={data.style} tokens={t} />;
   const { show, secretary, officials, trials, supplemental, narratives } = data;
 

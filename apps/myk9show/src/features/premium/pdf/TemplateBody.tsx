@@ -9,6 +9,7 @@ import { isPosterMinimumDataMet } from './bodies/posterPredicates';
 interface Props {
   data: GeneratedPremium;
   org: 'AKC' | 'UKC';
+  inkSaver?: boolean;
 }
 
 function assertNever(x: never): never {
@@ -28,14 +29,15 @@ function assertNever(x: never): never {
  * - `'gazette'`   — 3-column classifieds layout (newspaper-style).
  * - `'fieldguide'` — §-numbered reference layout.
  */
-export function TemplateBody({ data, org }: Props) {
-  const tokens = resolveTokens(data.style);
+export function TemplateBody({ data, org, inkSaver = false }: Props) {
+  const tokens = resolveTokens(data.style, { inkSaver });
 
   switch (tokens.bodyLayout) {
     case 'standard':
-      return <StandardBody data={data} org={org} />;
+      return <StandardBody data={data} org={org} inkSaver={inkSaver} />;
     case 'poster':
-      if (!isPosterMinimumDataMet(data)) return <StandardBody data={data} org={org} />;
+      if (!isPosterMinimumDataMet(data))
+        return <StandardBody data={data} org={org} inkSaver={inkSaver} />;
       return <PosterBody data={data} tokens={tokens} />;
     case 'gazette':
       return <GazetteBody data={data} tokens={tokens} />;

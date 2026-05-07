@@ -1,6 +1,7 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { compareClassesByProgression } from './classOrder';
 
 interface Props {
   data: GeneratedPremium;
@@ -72,6 +73,12 @@ export function PosterBody({ data, tokens }: Props) {
 
       <View style={sectionGap}>
         <Text style={labelStyle}>Entry</Text>
+        {/* INTENT: Online via myK9Show is the primary entry method — bolded
+            here so exhibitors don't default to mail-in (which is slower and
+            doesn't generate platform revenue). */}
+        <Text style={{ ...bodyStyle, fontWeight: 700, marginBottom: 6 }}>
+          Online entries via myK9Show
+        </Text>
         <Text style={bodyStyle}>
           Pre-entry ${show.preEntryFee ?? '—'} · Day-of ${show.dayOfFee ?? '—'} ·{' '}
           {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash'].filter(Boolean).join(', ') ||
@@ -135,7 +142,8 @@ export function PosterBody({ data, tokens }: Props) {
             )}
             {(trial.classes?.length ?? 0) > 0 && (
               <Text style={bodyStyle}>
-                {(trial.classes ?? [])
+                {[...(trial.classes ?? [])]
+                  .sort(compareClassesByProgression)
                   .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                   .join(' · ')}
               </Text>

@@ -4,6 +4,7 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { compareClassesByProgression } from './classOrder';
 
 interface Props {
   data: GeneratedPremium;
@@ -159,7 +160,8 @@ export function FieldGuideBody({ data, tokens }: Props) {
               </Text>
               {(trial.classes?.length ?? 0) > 0 && (
                 <Text style={valueStyle}>
-                  {(trial.classes ?? [])
+                  {[...(trial.classes ?? [])]
+                    .sort(compareClassesByProgression)
                     .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                     .join(' · ')}
                 </Text>
@@ -172,6 +174,13 @@ export function FieldGuideBody({ data, tokens }: Props) {
       {hasEntry && (
         <View style={blockStyle}>
           {renderHeader('§04', 'Entry')}
+          {/* INTENT: Online via myK9Show is the primary entry method —
+              listed first and bolded so this reference layout doesn't bury
+              the revenue-generating channel beneath dates and fees. */}
+          <View style={rowStyle}>
+            <Text style={labelStyle}>Method</Text>
+            <Text style={{ ...valueStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
+          </View>
           {show.entryOpenDate && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Opens</Text>

@@ -3,6 +3,7 @@ import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { buildStyles, formatDate, formatPhone, resolveTokens } from '../pdfStyles';
 import { SectionDivider } from '../SectionDivider';
+import { compareClassesByProgression } from './classOrder';
 
 const REQUIRED = '[REQUIRED — add before submitting]';
 
@@ -57,6 +58,20 @@ export function StandardBody({ data, org: _org, inkSaver = false }: Props) {
           {show.entryCloseDate ? formatDate(show.entryCloseDate) : REQUIRED}
         </Text>
       </View>
+
+      {/* INTENT: Online via myK9Show is the primary (and revenue-generating)
+          entry method — the bold value below makes that prominent across every
+          standard-layout style. Mail is listed only as a backup option. */}
+      <View style={s.row}>
+        <Text style={s.label}>Entry Method</Text>
+        <Text style={{ ...s.value, fontWeight: 700 }}>Online entries via myK9Show</Text>
+      </View>
+      {secretary.mailingAddress && (
+        <View style={s.row}>
+          <Text style={s.label}> </Text>
+          <Text style={s.value}>Mail-in entries also accepted (see Trial Secretary).</Text>
+        </View>
+      )}
 
       {divider}
 
@@ -135,7 +150,8 @@ export function StandardBody({ data, org: _org, inkSaver = false }: Props) {
             <View style={s.row}>
               <Text style={s.label}>Classes</Text>
               <Text style={s.value}>
-                {(trial.classes ?? [])
+                {[...(trial.classes ?? [])]
+                  .sort(compareClassesByProgression)
                   .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                   .join(', ')}
               </Text>

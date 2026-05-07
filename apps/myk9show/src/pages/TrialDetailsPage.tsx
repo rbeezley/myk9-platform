@@ -56,6 +56,8 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { useTrialStats, type EntryForStats } from '@/hooks/useTrialStats';
 import { useTrialTemplates } from '@/hooks/useTrialTemplates';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
+import { getShowLandingStyle } from '@/features/registries';
+import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
 
 const TAB_IDS = ['overview', 'entries', 'promo-codes', 'financials'] as const;
 
@@ -264,6 +266,27 @@ const TrialDetailsPage: React.FC = () => {
           onRetry={() => navigate(showId ? `/shows/${showId}` : '/shows')}
         />
       </PageShell>
+    );
+  }
+
+  // Heritage landing page branch — renders instead of the secretary/admin UI when
+  // the parent show has landing_style === 'heritage'. All hooks above fire
+  // unconditionally so this early return is safe (no hooks-after-conditional issue).
+  //
+  // Casts: shows.landing_style was added in migration 192; frontend types will
+  // re-tighten after `supabase gen types typescript` runs. The store's SyncableTrial
+  // shape is structurally compatible with the data hook's TrialLike at runtime.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (getShowLandingStyle(parentShow as any) === 'heritage') {
+    return (
+      <HeritageLandingPage
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        show={parentShow as any}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trial={(currentTrial as any) ?? null}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        allTrials={showTrials as any[]}
+      />
     );
   }
 

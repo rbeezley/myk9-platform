@@ -1,7 +1,8 @@
 /*
- * Heritage CSS — scoped under `[data-heritage]` so styles never leak into
- * non-Heritage pages. Tokens duplicated here as CSS custom properties for
- * use by transitions and ::before/::after pseudos that can't read JS values.
+ * Heritage CSS — all selectors scoped under `[data-heritage]` so styles
+ * never leak into non-Heritage pages. Tokens duplicated here as CSS custom
+ * properties for use by transitions and ::before/::after pseudos that can't
+ * read JS values.
  *
  * Source: docs/design_handoff_heritage/heritage.css. The handoff CSS is the
  * design reference; this file is the production port — same visual decisions,
@@ -19,14 +20,14 @@
 
 /* ─── HeritageOrnamentRule ────────────────────────────────────────────── */
 
-.hl-rule-orn {
+[data-heritage] .hl-rule-orn {
   display: flex;
   align-items: center;
   gap: 16px;
   color: var(--hl-ink);
 }
 
-.hl-rule-orn .l {
+[data-heritage] .hl-rule-orn .l {
   flex: 1;
   height: 1px;
   background: var(--hl-rule);
@@ -35,7 +36,7 @@
   transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.hl-rule-orn .di {
+[data-heritage] .hl-rule-orn .di {
   font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 18px;
   line-height: 1;
@@ -43,25 +44,25 @@
   transition: opacity 360ms ease 200ms;
 }
 
-.hl-rule-orn.gold {
+[data-heritage] .hl-rule-orn.gold {
   color: var(--hl-gold);
 }
 
-.hl-rule-orn.gold .l {
+[data-heritage] .hl-rule-orn.gold .l {
   background: var(--hl-gold);
 }
 
-.hl-rule-orn.in .l {
+[data-heritage] .hl-rule-orn.in .l {
   transform: scaleX(1);
 }
 
-.hl-rule-orn.in .di {
+[data-heritage] .hl-rule-orn.in .di {
   opacity: 1;
 }
 
 /* ─── HeritageSectionFolio ────────────────────────────────────────────── */
 
-.hl-sec-folio {
+[data-heritage] .hl-sec-folio {
   font-family: 'Cormorant Garamond', Georgia, serif;
   font-style: italic;
   font-weight: 500;
@@ -73,7 +74,7 @@
 
 /* ─── HeritageSectionHead (used by section headings) ──────────────────── */
 
-.hl-section-head {
+[data-heritage] .hl-section-head {
   opacity: 0;
   transform: translateY(12px);
   transition:
@@ -81,20 +82,20 @@
     transform 720ms ease-out;
 }
 
-.hl-section-head.in {
+[data-heritage] .hl-section-head.in {
   opacity: 1;
   transform: translateY(0);
 }
 
 /* ─── HeritageEngravedFrame ───────────────────────────────────────────── */
 
-.hl-engraved {
+[data-heritage] .hl-engraved {
   position: relative;
   border: 1px solid var(--hl-ink);
   padding: 24px;
 }
 
-.hl-engraved::before {
+[data-heritage] .hl-engraved::before {
   content: '';
   position: absolute;
   inset: 6px;
@@ -102,7 +103,7 @@
   pointer-events: none;
 }
 
-.hl-engraved .hl-corner {
+[data-heritage] .hl-engraved .hl-corner {
   position: absolute;
   width: 8px;
   height: 8px;
@@ -111,63 +112,74 @@
   pointer-events: none;
 }
 
-.hl-engraved .hl-corner.tl {
+[data-heritage] .hl-engraved .hl-corner.tl {
   top: -4px;
   left: -4px;
 }
-.hl-engraved .hl-corner.tr {
+[data-heritage] .hl-engraved .hl-corner.tr {
   top: -4px;
   right: -4px;
 }
-.hl-engraved .hl-corner.bl {
+[data-heritage] .hl-engraved .hl-corner.bl {
   bottom: -4px;
   left: -4px;
 }
-.hl-engraved .hl-corner.br {
+[data-heritage] .hl-engraved .hl-corner.br {
   bottom: -4px;
   right: -4px;
 }
 
 /* ─── HeritageHeading ─────────────────────────────────────────────────── */
 
-.hl-heading {
+[data-heritage] .hl-heading {
   font-family: 'Cormorant Garamond', Georgia, serif;
   color: var(--hl-ink);
   margin: 0;
   letter-spacing: -0.005em;
 }
 
-.hl-heading.italic {
+[data-heritage] .hl-heading.italic {
   font-style: italic;
 }
 
-.hl-heading.h1 {
+[data-heritage] .hl-heading.h1 {
   font-size: clamp(48px, 7vw, 84px);
   line-height: 1.05;
 }
 
-.hl-heading.h2 {
+[data-heritage] .hl-heading.h2 {
   font-size: clamp(28px, 4vw, 40px);
   line-height: 1.15;
 }
 
-.hl-heading.h3 {
+[data-heritage] .hl-heading.h3 {
   font-size: clamp(20px, 2.4vw, 26px);
   line-height: 1.2;
 }
 
 /* ─── prefers-reduced-motion fallback ─────────────────────────────────── */
+/*
+ * Each element gets its own rule so the transform values are unambiguous.
+ * .l needs scaleX(1) (show at full width); .hl-section-head needs none
+ * (remove translateY); grouping them caused a redundant override in the
+ * original draft — the grouped `transform: none` on .l was immediately
+ * beaten by the per-element `scaleX(1)` lower in the block.
+ */
 
 @media (prefers-reduced-motion: reduce) {
-  .hl-rule-orn .l,
-  .hl-rule-orn .di,
-  .hl-section-head {
+  [data-heritage] .hl-rule-orn .l {
     transition: none !important;
-    transform: none !important;
+    transform: scaleX(1) !important;
+  }
+
+  [data-heritage] .hl-rule-orn .di {
+    transition: none !important;
     opacity: 1 !important;
   }
 
-  .hl-rule-orn .l {
-    transform: scaleX(1) !important;
+  [data-heritage] .hl-section-head {
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
   }
 }

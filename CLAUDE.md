@@ -68,7 +68,7 @@ cd apps/myk9show && npx vitest run -t "pattern"
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
 - **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
 
-### Heritage / registry columns (migration 192)
+### Heritage / registry columns (migrations 192–193)
 
 - `shows.landing_style` — `'default' | 'heritage'`. Read via `getShowLandingStyle(show)` from `@/features/registries`.
 - `trials.registry_id` — sanctioning body (default `'AKC'`). Read via `getTrialRegistry(trial)`.

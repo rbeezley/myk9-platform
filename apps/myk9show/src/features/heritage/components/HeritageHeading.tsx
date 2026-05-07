@@ -19,8 +19,10 @@ interface HeritageHeadingProps {
  * when the content is fully italicized; partial italics should be inline
  * `<em>` for semantic correctness.
  */
+const TAG: Record<HeadingLevel, 'h1' | 'h2' | 'h3'> = { 1: 'h1', 2: 'h2', 3: 'h3' };
+
 export function HeritageHeading({ level, children, italic, className }: HeritageHeadingProps) {
-  const Tag = `h${level}` as 'h1' | 'h2' | 'h3';
+  const Tag = TAG[level];
   const classes = ['hl-heading', `h${level}`, italic ? 'italic' : '', className ?? '']
     .filter(Boolean)
     .join(' ');

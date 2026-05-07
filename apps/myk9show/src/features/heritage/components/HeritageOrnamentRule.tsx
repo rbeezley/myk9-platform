@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { useRevealOnScroll } from '../hooks/useRevealOnScroll';
 import { heritageOrnaments } from '../tokens';
 
@@ -24,14 +25,7 @@ export function HeritageOrnamentRule({
   className,
 }: HeritageOrnamentRuleProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const classes = [
-    'hl-rule-orn',
-    variant === 'gold' ? 'gold' : '',
-    revealed ? 'in' : '',
-    className ?? '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const classes = cn('hl-rule-orn', variant === 'gold' && 'gold', revealed && 'in', className);
 
   return (
     <div ref={ref} className={classes} aria-hidden={ariaHidden}>

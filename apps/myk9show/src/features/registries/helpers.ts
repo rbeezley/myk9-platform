@@ -44,6 +44,11 @@ export function getTrialRegistry(trial: TrialLike | null | undefined): Registry 
   if (process.env.NODE_ENV !== 'production') {
     throw new Error(`Trial references unknown registry "${id}"`);
   }
+  // Log in production so the misconfigured trial shows up in monitoring
+  // rather than silently serving AKC legal language to a non-AKC entrant.
+  console.error(
+    `[Heritage] Unknown registry "${id}" on trial — falling back to AKC. Check trials.registry_id.`
+  );
   return getRegistry('AKC');
 }
 

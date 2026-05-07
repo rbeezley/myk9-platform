@@ -1,8 +1,4 @@
-import {
-  AKC_SCENT_WORK_ELEMENTS,
-  AKC_SCENT_WORK_LEVELS,
-  ELEMENT_COLUMN_HEADERS,
-} from '@/lib/reports/entryFormTypes';
+import { AKC_SCENT_WORK_LEVELS, ELEMENT_COLUMN_HEADERS } from '@/lib/reports/entryFormTypes';
 import type { Registry } from './types';
 
 /**
@@ -48,6 +44,3 @@ export const akcRegistry: Registry = {
     optional: ['variety', 'sire', 'dam', 'breeder', 'placeOfBirth'],
   },
 };
-
-// Re-export upstream constants so future call sites can converge on the registry import path.
-export { AKC_SCENT_WORK_ELEMENTS, AKC_SCENT_WORK_LEVELS, ELEMENT_COLUMN_HEADERS };

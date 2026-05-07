@@ -119,6 +119,23 @@ describe('Magazine + Heritage style matrix', () => {
   );
 });
 
+describe('Magazine sparse-show (no trials)', () => {
+  it.each(['AKC', 'UKC'] as Org[])(
+    'renders magazine cover without crashing when trials is empty (org=%s) — italic placeholder path',
+    org => {
+      const premium: GeneratedPremium = {
+        ...makePremium(org, 'magazine'),
+        trials: [],
+      };
+      // This exercises the !hasSubstantiveContent branch in AtAGlancePanel,
+      // which renders "Details coming soon" with fontStyle:'italic' on
+      // Cormorant Garamond — the family must have an italic variant registered.
+      expect(() => renderTemplate(org, premium)).not.toThrow();
+      expect(screen.getAllByText('Details coming soon').length).toBeGreaterThan(0);
+    }
+  );
+});
+
 describe('Magazine + Heritage ink-saver palette', () => {
   it.each(STYLES)('buildStyles(%s, { inkSaver: true }) collapses palette to B&W', style => {
     const sheet = buildStyles(style, { inkSaver: true });

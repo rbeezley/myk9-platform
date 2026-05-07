@@ -65,6 +65,11 @@ Font.register({
       src: `${FS}/cormorant-garamond@5/files/cormorant-garamond-latin-700-normal.woff`,
       fontWeight: 700,
     },
+    {
+      src: `${FS}/cormorant-garamond@5/files/cormorant-garamond-latin-400-italic.woff`,
+      fontWeight: 400,
+      fontStyle: 'italic',
+    },
   ],
 });
 

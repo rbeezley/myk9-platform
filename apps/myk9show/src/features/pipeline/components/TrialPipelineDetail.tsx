@@ -174,7 +174,7 @@ export const TrialPipelineDetail: React.FC = () => {
           {show && (show.organization === 'AKC' || show.organization === 'UKC') && (
             <Button variant="outline" size="sm" onClick={() => setPremiumPanelOpen(true)}>
               <FileText className="h-4 w-4 mr-2" />
-              Generate Premium
+              Premium List
             </Button>
           )}
         </div>

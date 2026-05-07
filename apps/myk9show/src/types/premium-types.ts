@@ -1,4 +1,12 @@
-export type PremiumStyle = 'classic' | 'modern' | 'minimal';
+export type PremiumStyle =
+  | 'monogram'
+  | 'banner'
+  | 'headline'
+  | 'magazine'
+  | 'poster'
+  | 'gazette'
+  | 'fieldGuide'
+  | 'heritage';
 
 export interface ClubPremiumTemplate {
   id: string;

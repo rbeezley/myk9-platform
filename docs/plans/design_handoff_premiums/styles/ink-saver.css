@@ -1,0 +1,225 @@
+/* ================================================================
+   INK SAVER MODE
+   Activated by `body.ink-saver`. Strips background fills, gradients,
+   and color accents from all 8 styles. Keeps typography, structure,
+   borders, and 1-bit imagery (b&w halftones print fine). Designed
+   for laser/inkjet printing where solid color fields waste toner.
+   ================================================================ */
+
+body.ink-saver {
+  /* --- shared sheet background: keep paper white in print mode --- */
+}
+
+body.ink-saver .sheet {
+  background: #ffffff !important;
+}
+
+body.ink-saver .dc-artboard {
+  background: #ffffff !important;
+}
+
+/* ============= STYLE 4 · MAGAZINE ============= */
+body.ink-saver .s4-cover-art {
+  background: #ffffff !important;
+  border: 1px solid #000 !important;
+}
+body.ink-saver .s4-cover-art::before {
+  display: none !important;
+}
+body.ink-saver .s4-cover-art-fallback {
+  color: #000 !important;
+}
+body.ink-saver .s4-cover-art-fallback * {
+  color: #000 !important;
+}
+body.ink-saver .s4-cover-art-fallback .rule {
+  background: #000 !important;
+}
+body.ink-saver .s4-cover {
+  background: #ffffff !important;
+  color: #000 !important;
+}
+body.ink-saver .s4-cover-band {
+  background: #ffffff !important;
+  color: #000 !important;
+  border-top: 1px solid #000 !important;
+  border-bottom: 1px solid #000 !important;
+}
+body.ink-saver .s4-cover-band * {
+  color: #000 !important;
+}
+body.ink-saver .s4-cover .s4-monogram-circle {
+  background: #ffffff !important;
+  border: 2px solid #000 !important;
+  color: #000 !important;
+}
+body.ink-saver .s4-pull-quote {
+  background: #ffffff !important;
+  color: #000 !important;
+  border-top: 1px solid #000 !important;
+  border-bottom: 1px solid #000 !important;
+}
+body.ink-saver .s4-pull-quote * {
+  color: #000 !important;
+}
+body.ink-saver .s4-cover-h1,
+body.ink-saver .s4-cover-eyebrow,
+body.ink-saver .s4-cover-sub,
+body.ink-saver .s4-section-h,
+body.ink-saver .s4-deck,
+body.ink-saver .s4-kicker,
+body.ink-saver .s4-folio {
+  color: #000 !important;
+}
+body.ink-saver .s4-judge-card {
+  background: #ffffff !important;
+  border: 1px solid #000 !important;
+}
+body.ink-saver .s4-judge-card * { color: #000 !important; }
+body.ink-saver .s4-fee-pill {
+  background: #ffffff !important;
+  color: #000 !important;
+  border: 1px solid #000 !important;
+}
+body.ink-saver .s4-rule { background: #000 !important; }
+
+/* ============= STYLE 5 · POSTER ============= */
+body.ink-saver .s5 .sheet { background: #ffffff !important; }
+body.ink-saver .s5-poster {
+  background: #ffffff !important;
+}
+body.ink-saver .s5-poster::before,
+body.ink-saver .s5-poster::after {
+  content: none !important;
+}
+body.ink-saver .s5-poster *,
+body.ink-saver .s5-inner * {
+  color: #000 !important;
+}
+body.ink-saver .s5-title .accent { color: #000 !important; }
+body.ink-saver .s5-title .scribe { color: #000 !important; }
+body.ink-saver .s5-fee-card,
+body.ink-saver .s5-fee-card.alt {
+  background: #ffffff !important;
+  border: 2px solid #000 !important;
+}
+body.ink-saver .s5-fee-card *,
+body.ink-saver .s5-fee-card.alt * {
+  color: #000 !important;
+}
+body.ink-saver .s5-block .lbl { color: #000 !important; }
+body.ink-saver .s5-poster-bottom .closing {
+  background: #ffffff !important;
+  border: 2px solid #000 !important;
+}
+body.ink-saver .s5-poster-bottom .closing * { color: #000 !important; }
+body.ink-saver .s5-meta-strip .cell {
+  border-right: 2px solid #000 !important;
+}
+
+/* ============= STYLE 6 · GAZETTE ============= */
+body.ink-saver .s6 .sheet,
+body.ink-saver .s6-page {
+  background: #ffffff !important;
+}
+body.ink-saver .s6-page,
+body.ink-saver .s6-page * {
+  color: #000 !important;
+}
+body.ink-saver .s6-img {
+  background: #ffffff !important;
+  border: 1px solid #000 !important;
+}
+body.ink-saver .s6-pull {
+  background: #ffffff !important;
+  border-top: 1px solid #000 !important;
+  border-bottom: 1px solid #000 !important;
+}
+body.ink-saver .s6-h-section {
+  border-bottom: 1px solid #000 !important;
+}
+body.ink-saver .s6-classified-h {
+  background: #ffffff !important;
+  border-top: 2px solid #000 !important;
+  border-bottom: 2px solid #000 !important;
+}
+
+/* ============= STYLE 7 · FIELD GUIDE ============= */
+body.ink-saver .s7 .sheet,
+body.ink-saver .s7-page {
+  background: #ffffff !important;
+}
+body.ink-saver .s7-page,
+body.ink-saver .s7-page * {
+  color: #000 !important;
+}
+body.ink-saver .s7-section {
+  background: #ffffff !important;
+  border: 1px solid #000 !important;
+}
+body.ink-saver .s7-section-h {
+  background: #ffffff !important;
+  color: #000 !important;
+  border-bottom: 1px solid #000 !important;
+}
+body.ink-saver .s7-stat-grid .s {
+  background: #ffffff !important;
+  border: 1px solid #000 !important;
+}
+body.ink-saver .s7-stat-grid .s * { color: #000 !important; }
+body.ink-saver .s7-callout {
+  background: #ffffff !important;
+  border: 1px solid #000 !important;
+}
+
+/* ============= STYLE 8 · HERITAGE ============= */
+body.ink-saver .s8 .sheet,
+body.ink-saver .s8-page {
+  background: #ffffff !important;
+}
+body.ink-saver .s8-page,
+body.ink-saver .s8-page * {
+  color: #000 !important;
+}
+body.ink-saver .s8-frame-border {
+  border-color: #000 !important;
+}
+body.ink-saver .s8-rule-orn .line {
+  background: #000 !important;
+}
+body.ink-saver .s8-fee {
+  background: #ffffff !important;
+  border: 1px solid #000 !important;
+}
+body.ink-saver .s8-judge-formal {
+  border-bottom: 1px solid #000 !important;
+}
+
+/* ============= EXISTING STYLES 1, 2, 3 ============= */
+body.ink-saver .ex-doc {
+  background: #ffffff !important;
+  color: #000 !important;
+}
+body.ink-saver .ex-doc * {
+  color: #000 !important;
+}
+body.ink-saver .ex1-monogram {
+  background: #000 !important;
+  color: #fff !important;
+}
+body.ink-saver .ex1-monogram * { color: #fff !important; }
+body.ink-saver .ex2-bar {
+  background: #000 !important;
+}
+body.ink-saver .ex-doc .footer-stripe {
+  background: #ffffff !important;
+  border-top: 1px solid #000 !important;
+}
+
+/* ============= PRINT MEDIA QUERY ============= */
+/* Force ink-saver behavior automatically when printing,
+   even if the user forgot to toggle it on. They can override
+   by checking "Print backgrounds" in the print dialog. */
+@media print {
+  body .sheet { background: #ffffff !important; }
+}

@@ -1,0 +1,270 @@
+/* ============================================
+   STYLE 5 — BOLD POSTER
+   Inspired by Swiss/Wim Crouwel/concert posters.
+   Page 1 is a giant typographic poster. Pages 2-3
+   are clean utility under it.
+   ============================================ */
+
+.s5 {
+  font-family: "Inter Tight", sans-serif;
+  color: #0c0c0c;
+}
+
+.s5 .sheet { background: #f3ede0; }
+
+.s5-poster {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 56px 48px;
+  box-sizing: border-box;
+  background:
+    linear-gradient(135deg, #f3ede0 0%, #e8dcc0 100%);
+  overflow: hidden;
+}
+
+.s5-poster::before {
+  /* huge blocky abstract shape */
+  content: "";
+  position: absolute;
+  right: -120px; bottom: -200px;
+  width: 720px; height: 720px;
+  background: #c83b1a;
+  border-radius: 50%;
+  z-index: 0;
+}
+.s5-poster::after {
+  content: none;
+}
+
+.s5-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #1f1d18;
+  padding-bottom: 18px;
+  border-bottom: 2px solid #1f1d18;
+}
+
+.s5-club {
+  position: relative;
+  z-index: 2;
+  margin-top: 28px;
+  font-family: "Archivo Black", sans-serif;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  color: #1f1d18;
+  text-transform: uppercase;
+}
+
+.s5-title {
+  position: relative;
+  z-index: 2;
+  margin: 8px 0 0;
+  font-family: "Archivo Black", sans-serif;
+  font-size: 168px;
+  line-height: 0.84;
+  letter-spacing: -0.05em;
+  color: #1f1d18;
+  text-transform: uppercase;
+}
+.s5-title .accent { color: #f3ede0; }
+.s5-title .scribe { color: #c83b1a; }
+
+.s5-meta-strip {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 2px solid #1f1d18;
+  border-bottom: 2px solid #1f1d18;
+  margin-top: 36px;
+}
+.s5-meta-strip .cell {
+  padding: 16px 12px;
+  border-right: 2px solid #1f1d18;
+}
+.s5-meta-strip .cell:last-child { border-right: none; }
+.s5-meta-strip .l {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #1f1d18;
+  margin-bottom: 4px;
+}
+.s5-meta-strip .v {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 18px;
+  text-transform: uppercase;
+  color: #1f1d18;
+}
+
+.s5-poster-bottom {
+  position: absolute;
+  z-index: 2;
+  left: 48px; right: 48px; bottom: 36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.s5-poster-bottom .judges {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #f3ede0;
+  max-width: 340px;
+  line-height: 1.4;
+}
+.s5-poster-bottom .judges b {
+  font-family: "Archivo Black", sans-serif;
+  display: block;
+  font-size: 18px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.s5-poster-bottom .closing {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: right;
+  color: #f3ede0;
+  background: #1f1d18;
+  padding: 14px 18px;
+  border-radius: 2px;
+}
+.s5-poster-bottom .closing b {
+  font-family: "Archivo Black", sans-serif;
+  display: block;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+  margin-top: 4px;
+}
+
+/* INNER PAGES */
+.s5-inner {
+  padding: 48px 56px;
+  height: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+.s5-inner-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid #1f1d18;
+  padding-bottom: 14px;
+  margin-bottom: 28px;
+}
+.s5-inner-head h2 {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 36px;
+  margin: 0;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+.s5-inner-head .pg {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.s5-block {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 32px;
+  border-top: 1px solid #1f1d18;
+  padding: 18px 0;
+}
+.s5-block:last-child { border-bottom: 1px solid #1f1d18; }
+.s5-block .lbl {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+  color: #c83b1a;
+}
+.s5-block .body {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f1d18;
+}
+.s5-block .body b { font-family: "Archivo Black", sans-serif; font-weight: normal; }
+
+.s5-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+.s5-fee-card {
+  background: #1f1d18;
+  color: #f3ede0;
+  padding: 24px;
+  position: relative;
+}
+.s5-fee-card.alt { background: #c83b1a; color: #f3ede0; }
+.s5-fee-card .l {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.s5-fee-card .n {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 64px;
+  line-height: 1;
+  margin: 8px 0;
+  letter-spacing: -0.03em;
+}
+.s5-fee-card .x {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 12px;
+  opacity: 0.85;
+  line-height: 1.4;
+}
+
+.s5-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.s5-table th, .s5-table td {
+  text-align: left;
+  padding: 12px 8px;
+  font-size: 13px;
+  border-bottom: 1px solid #1f1d18;
+}
+.s5-table th {
+  font-family: "Archivo Black", sans-serif;
+  font-weight: normal;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  background: #1f1d18;
+  color: #f3ede0;
+  border-bottom: 2px solid #1f1d18;
+}
+.s5-table td b { font-family: "Archivo Black", sans-serif; font-weight: normal; }
+
+.s5-foot {
+  position: absolute;
+  bottom: 32px; left: 56px; right: 56px;
+  border-top: 2px solid #1f1d18;
+  padding-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #1f1d18;
+}

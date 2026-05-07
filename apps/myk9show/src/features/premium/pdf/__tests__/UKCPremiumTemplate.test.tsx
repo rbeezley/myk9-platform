@@ -19,7 +19,7 @@ vi.mock('@react-pdf/renderer', () => ({
 
 const premium: GeneratedPremium = {
   org: 'UKC',
-  style: 'modern',
+  style: 'banner',
   templateId: null,
   show: {
     name: 'Fall Scent Trial',

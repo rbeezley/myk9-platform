@@ -1,21 +1,30 @@
-import { Image, Page, Text, View } from '@react-pdf/renderer';
-import { STYLE_TOKENS, buildMonogram, formatDate } from './pdfStyles';
+import { resolveTokens, buildMonogram, formatDate } from './pdfStyles';
 import type { GeneratedPremium } from '../../../types/premium-types';
+import type { CoverContext } from './covers/coverContext';
+import { renderCenteredCover } from './covers/CenteredCover';
+import { renderTopblockCover } from './covers/TopblockCover';
+import { renderLowerthirdCover } from './covers/LowerthirdCover';
+import { renderEditorialCover } from './covers/EditorialCover';
+import { renderEngravedCover } from './covers/EngravedCover';
+import { renderPosterCover } from './covers/PosterCover';
+import { renderGazetteCover } from './covers/GazetteCover';
+import { renderFieldGuideCover } from './covers/FieldGuideCover';
 
 interface HeroCoverProps {
   data: GeneratedPremium;
+  inkSaver?: boolean;
+}
+
+function assertNever(x: never): never {
+  throw new Error(`Unhandled coverStyle: ${String(x)}`);
 }
 
 /**
- * Cover page for the premium list. Three structurally different layouts —
- * picked by style — designed to look intentional regardless of upload quality.
- *
- * - classic: typographic monogram + hairline gold rule + small logo stamp
- * - modern: full-bleed top color band, no logo (typography carries it)
- * - minimal: lower-third editorial layout, no logo (pure type-driven)
+ * Cover page dispatcher. Each cover renderer lives in its own file under
+ * `covers/` so individual layouts stay focused and the dispatcher stays small.
  */
-export function HeroCover({ data }: HeroCoverProps) {
-  const t = STYLE_TOKENS[data.style];
+export function HeroCover({ data, inkSaver = false }: HeroCoverProps) {
+  const t = resolveTokens(data.style, { inkSaver });
   const dateRange =
     data.show.endDate && data.show.endDate !== data.show.startDate
       ? `${formatDate(data.show.startDate)} – ${formatDate(data.show.endDate)}`
@@ -25,324 +34,26 @@ export function HeroCover({ data }: HeroCoverProps) {
   const org = data.org;
   const monogram = buildMonogram(club);
 
-  if (data.style === 'classic') {
-    return (
-      <Page size="LETTER" style={{ backgroundColor: '#ffffff', padding: 0 }}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 64 }}>
-          {/* Monogram — large display-serif initials, treated like a wax seal */}
-          <Text
-            style={{
-              fontFamily: t.displayFont,
-              fontSize: 96,
-              color: t.accentColor,
-              lineHeight: 1,
-              marginBottom: 8,
-            }}
-          >
-            {monogram}
-          </Text>
-          <View
-            style={{
-              borderTopWidth: 1,
-              borderTopColor: t.secondaryColor,
-              width: 80,
-              marginBottom: 14,
-            }}
-          />
-          {/* Optional small logo stamp — sits beneath the monogram, intentional */}
-          {data.club.logoUrl && (
-            <Image
-              src={data.club.logoUrl}
-              style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 28 }}
-            />
-          )}
-          <Text
-            style={{
-              fontFamily: t.bodyFont,
-              fontSize: 9,
-              color: t.secondaryColor,
-              textTransform: 'uppercase',
-              letterSpacing: 4,
-              marginBottom: 12,
-            }}
-          >
-            {org} · Premium List
-          </Text>
-          <Text
-            style={{
-              fontFamily: t.displayFont,
-              fontSize: 11,
-              color: t.accentColor,
-              textTransform: 'uppercase',
-              letterSpacing: 3,
-              marginBottom: 24,
-            }}
-          >
-            {club}
-          </Text>
-          <View
-            style={{
-              borderTopWidth: 1,
-              borderTopColor: t.secondaryColor,
-              width: 60,
-              marginBottom: 24,
-            }}
-          />
-          <Text
-            style={{
-              fontFamily: t.displayFont,
-              fontSize: 48,
-              color: t.accentColor,
-              textAlign: 'center',
-              marginBottom: 16,
-              lineHeight: 1.1,
-            }}
-          >
-            {data.show.name}
-          </Text>
-          <Text
-            style={{
-              fontFamily: t.displayFont,
-              fontStyle: 'italic',
-              fontSize: 14,
-              color: t.secondaryColor,
-              textAlign: 'center',
-              marginBottom: 8,
-            }}
-          >
-            {dateRange}
-          </Text>
-          {venue && (
-            <Text
-              style={{
-                fontFamily: t.bodyFont,
-                fontSize: 10,
-                color: t.textColor,
-                textAlign: 'center',
-              }}
-            >
-              {venue}
-            </Text>
-          )}
-        </View>
-      </Page>
-    );
-  }
+  const ctx: CoverContext = { t, data, dateRange, club, venue, org, monogram };
 
-  if (data.style === 'modern') {
-    // No logo on cover — typography carries the brand. White surface with a
-    // narrow accent ribbon at the top so the cover is print-friendly (no large
-    // ink-heavy fills). The upload (if any) appears as a small corner mark.
-    return (
-      <Page size="LETTER" style={{ backgroundColor: '#ffffff', padding: 0 }}>
-        {/* Thin accent ribbon — visual identity without burning toner */}
-        <View style={{ height: 6, backgroundColor: t.accentColor }} />
-        <View style={{ paddingHorizontal: 44, paddingTop: 64, paddingBottom: 32 }}>
-          <Text
-            style={{
-              fontFamily: t.bodyFont,
-              fontSize: 8,
-              color: t.secondaryColor,
-              textTransform: 'uppercase',
-              letterSpacing: 2,
-              marginBottom: 32,
-            }}
-          >
-            {org} Premium · {dateRange}
-          </Text>
-          <Text
-            style={{
-              fontFamily: t.displayFont,
-              fontWeight: 700,
-              fontSize: 56,
-              color: t.accentColor,
-              lineHeight: 1.0,
-              marginBottom: 24,
-            }}
-          >
-            {data.show.name}
-          </Text>
-          <Text
-            style={{
-              fontFamily: t.displayFont,
-              fontWeight: 500,
-              fontSize: 14,
-              color: t.secondaryColor,
-            }}
-          >
-            Hosted by {club}
-          </Text>
-        </View>
-        <View style={{ paddingHorizontal: 44, paddingTop: 32, flex: 1 }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              gap: 32,
-              marginTop: 16,
-              marginBottom: 24,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontFamily: t.bodyFont,
-                  fontSize: 7,
-                  color: t.secondaryColor,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.5,
-                  marginBottom: 6,
-                }}
-              >
-                Venue
-              </Text>
-              <Text
-                style={{
-                  fontFamily: t.displayFont,
-                  fontWeight: 500,
-                  fontSize: 14,
-                  color: t.accentColor,
-                }}
-              >
-                {venue || 'TBD'}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontFamily: t.bodyFont,
-                  fontSize: 7,
-                  color: t.secondaryColor,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.5,
-                  marginBottom: 6,
-                }}
-              >
-                Dates
-              </Text>
-              <Text
-                style={{
-                  fontFamily: t.displayFont,
-                  fontWeight: 500,
-                  fontSize: 14,
-                  color: t.accentColor,
-                }}
-              >
-                {dateRange}
-              </Text>
-            </View>
-          </View>
-          {/* Bottom-right monogram stamp — subtle club identifier */}
-          <Text
-            style={{
-              fontFamily: t.displayFont,
-              fontWeight: 700,
-              fontSize: 32,
-              color: t.secondaryColor,
-              opacity: 0.4,
-              position: 'absolute',
-              right: 44,
-              bottom: 44,
-            }}
-          >
-            {monogram}
-          </Text>
-        </View>
-      </Page>
-    );
+  switch (t.coverStyle) {
+    case 'centered':
+      return renderCenteredCover(ctx);
+    case 'topblock':
+      return renderTopblockCover(ctx);
+    case 'lowerthird':
+      return renderLowerthirdCover(ctx);
+    case 'editorial':
+      return renderEditorialCover(ctx);
+    case 'engraved':
+      return renderEngravedCover(ctx);
+    case 'poster':
+      return renderPosterCover(ctx);
+    case 'masthead':
+      return renderGazetteCover(ctx);
+    case 'fieldindex':
+      return renderFieldGuideCover(ctx);
+    default:
+      return assertNever(t.coverStyle);
   }
-
-  // minimal — lower-third editorial layout, type-only
-  return (
-    <Page size="LETTER" style={{ backgroundColor: '#ffffff', padding: 0 }}>
-      <View style={{ flex: 1, paddingHorizontal: 72, paddingTop: 72 }}>
-        <Text
-          style={{
-            fontFamily: t.bodyFont,
-            fontSize: 7,
-            color: t.secondaryColor,
-            textTransform: 'uppercase',
-            letterSpacing: 4,
-          }}
-        >
-          {club}
-        </Text>
-        <Text
-          style={{
-            fontFamily: t.bodyFont,
-            fontSize: 7,
-            color: t.secondaryColor,
-            textTransform: 'uppercase',
-            letterSpacing: 4,
-            marginTop: 4,
-          }}
-        >
-          {org} Premium List
-        </Text>
-      </View>
-      <View
-        style={{
-          paddingHorizontal: 72,
-          paddingBottom: 72,
-        }}
-      >
-        <View
-          style={{
-            borderTopWidth: 0.5,
-            borderTopColor: t.secondaryColor,
-            paddingTop: 32,
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: t.displayFont,
-              fontSize: 64,
-              color: t.accentColor,
-              lineHeight: 0.95,
-              marginBottom: 24,
-            }}
-          >
-            {data.show.name}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 48 }}>
-            <View>
-              <Text
-                style={{
-                  fontFamily: t.bodyFont,
-                  fontSize: 7,
-                  color: t.secondaryColor,
-                  textTransform: 'uppercase',
-                  letterSpacing: 2,
-                  marginBottom: 4,
-                }}
-              >
-                Dates
-              </Text>
-              <Text style={{ fontFamily: t.displayFont, fontSize: 13, color: t.textColor }}>
-                {dateRange}
-              </Text>
-            </View>
-            {venue && (
-              <View>
-                <Text
-                  style={{
-                    fontFamily: t.bodyFont,
-                    fontSize: 7,
-                    color: t.secondaryColor,
-                    textTransform: 'uppercase',
-                    letterSpacing: 2,
-                    marginBottom: 4,
-                  }}
-                >
-                  Venue
-                </Text>
-                <Text style={{ fontFamily: t.displayFont, fontSize: 13, color: t.textColor }}>
-                  {venue}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-    </Page>
-  );
 }

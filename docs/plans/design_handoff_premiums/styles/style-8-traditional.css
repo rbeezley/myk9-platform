@@ -1,0 +1,381 @@
+/* ============================================
+   STYLE 8 — TRADITIONAL CERTIFICATE / FORMAL
+   Engraved kennel-club certificate aesthetic.
+   Symmetric, ruled borders, copperplate-feel script,
+   small caps, tasteful flourishes. Print friendly.
+   ============================================ */
+
+.s8 {
+  font-family: "EB Garamond", "Garamond", serif;
+  color: #1a1612;
+}
+.s8 .sheet { background: #f8f4ea; }
+
+.s8-page {
+  padding: 64px 72px;
+  height: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* ornamental double border */
+.s8-frame {
+  position: absolute;
+  inset: 32px;
+  border: 1px solid #1a1612;
+  pointer-events: none;
+}
+.s8-frame::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid #1a1612;
+}
+.s8-corner {
+  position: absolute;
+  width: 28px; height: 28px;
+  background: radial-gradient(circle, #8a1818 0 5px, transparent 6px);
+}
+.s8-corner.tl { top: 22px; left: 22px; }
+.s8-corner.tr { top: 22px; right: 22px; }
+.s8-corner.bl { bottom: 22px; left: 22px; }
+.s8-corner.br { bottom: 22px; right: 22px; }
+
+/* COVER */
+.s8-cover {
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+.s8-supra {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 16px;
+  color: #6b4f3a;
+  margin-bottom: 4px;
+}
+.s8-club {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 600;
+  font-size: 28px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 8px 0;
+  color: #1a1612;
+}
+.s8-est {
+  font-family: "EB Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #6b4f3a;
+  margin-bottom: 38px;
+}
+.s8-rule-orn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #8a1818;
+  margin: 18px 0;
+}
+.s8-rule-orn .line { flex: 1; height: 1px; background: #1a1612; max-width: 180px; }
+.s8-rule-orn .di {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 22px;
+}
+.s8-rule-orn.gold { color: #8a6a45; }
+.s8-rule-orn.gold .line { background: #8a6a45; }
+
+.s8-presents {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 22px;
+  color: #6b4f3a;
+  margin: 8px 0 16px;
+}
+.s8-title {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 500;
+  font-size: 84px;
+  letter-spacing: -0.005em;
+  line-height: 1;
+  margin: 0 0 8px;
+}
+.s8-title em { font-family: "Cormorant Garamond", serif; font-style: italic; color: #8a1818; }
+.s8-subtitle {
+  font-family: "EB Garamond", serif;
+  font-size: 18px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #6b4f3a;
+  margin: 18px 0 0;
+}
+
+.s8-cover-meta {
+  margin-top: 48px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 32px;
+  text-align: center;
+}
+.s8-cover-meta .l {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #6b4f3a;
+  margin-bottom: 4px;
+}
+.s8-cover-meta .v {
+  font-family: "EB Garamond", serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.s8-seal {
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  border: 2px solid #8a1818;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin: 36px auto 0;
+  color: #8a1818;
+  background: rgba(248, 244, 234, 0.7);
+  position: relative;
+}
+.s8-seal::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid #8a1818;
+  border-radius: 50%;
+}
+.s8-seal .icon { font-family: "Cormorant Garamond", serif; font-size: 36px; font-style: italic; font-weight: 600; }
+.s8-seal .lbl {
+  font-family: "EB Garamond", serif;
+  font-size: 9px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.s8-cover-foot {
+  position: absolute;
+  bottom: 56px;
+  left: 72px; right: 72px;
+  text-align: center;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #6b4f3a;
+}
+
+/* INNER */
+.s8-running {
+  font-family: "EB Garamond", serif;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #6b4f3a;
+  border-bottom: 1px solid #1a1612;
+  padding-bottom: 8px;
+  margin-bottom: 24px;
+}
+
+.s8-h2 {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 36px;
+  font-weight: 500;
+  text-align: center;
+  margin: 18px 0 8px;
+}
+.s8-h2-eng {
+  text-align: center;
+  font-family: "EB Garamond", serif;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #8a1818;
+  margin-bottom: 24px;
+}
+
+.s8-officer-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 32px;
+}
+.s8-officer-row .o {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  border-bottom: 1px dotted #8a6a45;
+  padding: 8px 0;
+  font-size: 14px;
+  align-items: baseline;
+}
+.s8-officer-row .o .role {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  color: #6b4f3a;
+  font-size: 14px;
+}
+.s8-officer-row .o .name {
+  font-family: "EB Garamond", serif;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.s8-judge-formal {
+  text-align: center;
+  border-top: 1px solid #1a1612;
+  border-bottom: 1px solid #1a1612;
+  padding: 24px 0;
+  margin: 16px 0;
+}
+.s8-judge-formal .j-name {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 32px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.s8-judge-formal .j-loc {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #6b4f3a;
+  margin-bottom: 10px;
+}
+.s8-judge-formal .j-x {
+  font-family: "EB Garamond", serif;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #1a1612;
+}
+
+.s8-roster {
+  display: grid;
+  grid-template-columns: 110px 1fr 90px 1fr;
+  gap: 6px 16px;
+  font-size: 13px;
+  align-items: baseline;
+}
+.s8-roster .l {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  color: #6b4f3a;
+  text-align: right;
+}
+.s8-roster .v { font-weight: 500; border-bottom: 1px dotted #8a6a45; padding-bottom: 4px; }
+
+.s8-fees {
+  display: flex;
+  justify-content: center;
+  gap: 36px;
+  margin: 12px 0 24px;
+}
+.s8-fee {
+  text-align: center;
+  padding: 0 24px;
+}
+.s8-fee .l {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 13px;
+  color: #6b4f3a;
+}
+.s8-fee .n {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 48px;
+  font-weight: 500;
+  color: #8a1818;
+}
+
+.s8-prose {
+  font-family: "EB Garamond", serif;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  margin: 0 32px 12px;
+  text-wrap: pretty;
+}
+.s8-prose em {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  color: #8a1818;
+}
+
+.s8-list-formal {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+}
+.s8-list-formal li {
+  font-family: "EB Garamond", serif;
+  font-size: 14px;
+  padding: 8px 0;
+  border-bottom: 1px dotted #8a6a45;
+}
+.s8-list-formal li:last-child { border-bottom: none; }
+.s8-list-formal li .n {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  color: #8a1818;
+  margin-right: 8px;
+}
+
+.s8-sig-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  margin-top: 56px;
+  text-align: center;
+}
+.s8-sig-row .sig {
+  border-top: 1px solid #1a1612;
+  padding-top: 8px;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #6b4f3a;
+}
+
+.s8-foot {
+  position: absolute;
+  bottom: 36px; left: 72px; right: 72px;
+  text-align: center;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 12px;
+  color: #6b4f3a;
+}
+
+.s8-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.s8-table th, .s8-table td {
+  text-align: left;
+  padding: 8px 12px;
+}
+.s8-table th {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 13px;
+  color: #6b4f3a;
+  border-bottom: 1px solid #1a1612;
+}
+.s8-table td {
+  border-bottom: 1px dotted #8a6a45;
+  font-family: "EB Garamond", serif;
+}
+.s8-table td.em {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  color: #8a1818;
+}

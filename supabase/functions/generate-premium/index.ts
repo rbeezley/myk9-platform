@@ -230,9 +230,19 @@ Deno.serve(async (req: Request) => {
           }
         : null;
 
+    // Remap pre-migration-191 style names so clients never receive a key that
+    // STYLE_TOKENS doesn't recognise. Safe to run before OR after the migration.
+    const LEGACY_STYLE_REMAP: Record<string, string> = {
+      classic: 'monogram',
+      modern: 'banner',
+      minimal: 'headline',
+    };
+    const rawStyle = ((template as Record<string, unknown> | null)?.style as string) ?? 'monogram';
+    const resolvedStyle = LEGACY_STYLE_REMAP[rawStyle] ?? rawStyle;
+
     const result = {
       org: showOrg,
-      style: (template as Record<string, unknown> | null)?.style ?? 'classic',
+      style: resolvedStyle,
       templateId: (template as Record<string, unknown> | null)?.id ?? null,
       show: {
         name: show.name,

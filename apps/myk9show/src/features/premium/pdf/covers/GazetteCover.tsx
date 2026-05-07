@@ -7,6 +7,7 @@ import {
   composeFallbackArticle,
   extractCityState,
 } from './gazetteHelpers';
+import { compareClassesByProgression } from '../bodies/classOrder';
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 // Hoisted from inline literals so a designer can tune the masthead in one
@@ -15,9 +16,6 @@ import {
 const MASTHEAD_FONT_SIZE = 36;
 const LETTER_SPACE_TIGHT = 1;
 const LETTER_SPACE_WIDE = 2;
-const PHOTO_PLACEHOLDER_HEIGHT = 180;
-// Pulls the caption up against the placeholder's bottom border without an extra wrapper.
-const PHOTO_CAPTION_OFFSET = -16;
 
 /**
  * Gazette cover — newspaper masthead. Large Playfair club name, thin rule,
@@ -55,6 +53,35 @@ export function renderGazetteCover(ctx: CoverContext) {
 
   // Flatten judges across all trials, dedup by name, take up to JUDGES_STRIP_MAX.
   const judgeStrip = buildJudgeStrip(data.trials);
+
+  // "At a Glance" lines used by the cover-image fallback panel below.
+  const trials = data.trials ?? [];
+  const allClasses = trials
+    .flatMap(tr => tr.classes ?? [])
+    .slice()
+    .sort(compareClassesByProgression);
+  const elements = Array.from(new Set(allClasses.map(c => c.element))).filter(Boolean);
+  const levels = Array.from(new Set(allClasses.map(c => c.level))).filter(Boolean);
+  const atAGlanceLines: Array<{ label: string; value: string }> = [];
+  if (trials.length > 0) {
+    atAGlanceLines.push({
+      label: 'Trials',
+      value: `${trials.length} ${MIDDOT} ${formatDate(data.show.startDate)}`,
+    });
+  }
+  if (elements.length > 0) {
+    atAGlanceLines.push({ label: 'Elements', value: elements.join(` ${MIDDOT} `) });
+  }
+  if (levels.length > 0) {
+    atAGlanceLines.push({ label: 'Levels', value: levels.join(` ${MIDDOT} `) });
+  }
+  atAGlanceLines.push({ label: 'Sanctioning', value: org });
+  if (data.show.entryCloseDate) {
+    atAGlanceLines.push({
+      label: 'Entries Close',
+      value: formatDate(data.show.entryCloseDate),
+    });
+  }
 
   return (
     <Page
@@ -146,28 +173,48 @@ export function renderGazetteCover(ctx: CoverContext) {
         {article}
       </Text>
 
-      {/* Photo placeholder */}
+      {/* "At a Glance" fallback panel — replaces the empty photo box when no
+          cover image is uploaded. TODO: when cover-image upload ships, render
+          an <Image src={…}/> here instead of (or above) this fallback. */}
       <View
         style={{
           borderWidth: 1,
           borderColor: t.accentColor,
           borderStyle: 'solid',
-          height: PHOTO_PLACEHOLDER_HEIGHT,
+          padding: 16,
           marginVertical: 24,
           backgroundColor: t.surfaceColor,
         }}
-      />
-      <Text
-        style={{
-          fontSize: 8,
-          fontStyle: 'italic',
-          color: t.secondaryColor,
-          marginTop: PHOTO_CAPTION_OFFSET,
-          marginBottom: 16,
-        }}
       >
-        Photo by club secretary
-      </Text>
+        <Text
+          style={{
+            fontFamily: t.displayFont,
+            fontSize: 9,
+            color: t.accentColor,
+            textTransform: 'uppercase',
+            letterSpacing: LETTER_SPACE_WIDE,
+            marginBottom: 8,
+          }}
+        >
+          At a Glance
+        </Text>
+        {atAGlanceLines.map((line, i) => (
+          <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
+            <Text
+              style={{
+                width: 90,
+                fontSize: 8,
+                color: t.secondaryColor,
+                textTransform: 'uppercase',
+                letterSpacing: LETTER_SPACE_TIGHT,
+              }}
+            >
+              {line.label}
+            </Text>
+            <Text style={{ flex: 1, fontSize: 10, color: t.textColor }}>{line.value}</Text>
+          </View>
+        ))}
+      </View>
 
       {/* Judges strip */}
       {judgeStrip.length > 0 && (

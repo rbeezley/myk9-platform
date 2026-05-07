@@ -7,6 +7,7 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { compareClassesByProgression } from './classOrder';
 
 interface Props {
   data: GeneratedPremium;
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export function GazetteBody({ data, tokens }: Props) {
-  const { show, secretary, officials, trials, supplemental } = data;
+  const { show, secretary, officials, trials, supplemental, narratives } = data;
 
   const sectionStyle = {
     flexBasis: '32%' as const,
@@ -112,6 +113,8 @@ export function GazetteBody({ data, tokens }: Props) {
                 {(trial.classes?.length ?? 0) > 0 && (
                   <Text style={denseStyle}>
                     {(trial.classes ?? [])
+                      .slice()
+                      .sort(compareClassesByProgression)
                       .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                       .join(' · ')}
                   </Text>
@@ -141,11 +144,18 @@ export function GazetteBody({ data, tokens }: Props) {
             <View style={headerWrapStyle}>
               <Text style={headerTextStyle}>Entry Methods</Text>
             </View>
+            <Text style={{ ...bodyTextStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
+            <Text style={bodyTextStyle}>myk9show.com</Text>
             {show.entryOpenDate && (
               <Text style={bodyTextStyle}>Opens: {formatDate(show.entryOpenDate)}</Text>
             )}
             {show.entryCloseDate && (
               <Text style={bodyTextStyle}>Closes: {formatDate(show.entryCloseDate)}</Text>
+            )}
+            {(secretary.email || secretary.mailingAddress || secretary.phone) && (
+              <Text style={{ ...bodyTextStyle, marginTop: 6, color: tokens.secondaryColor }}>
+                Alternate methods:
+              </Text>
             )}
             {secretary.email && <Text style={bodyTextStyle}>Email: {secretary.email}</Text>}
             {secretary.mailingAddress && (
@@ -180,21 +190,42 @@ export function GazetteBody({ data, tokens }: Props) {
             <Text style={bodyTextStyle}>{supplemental.awardsDescription}</Text>
           </View>
         )}
-
-        {hasNotices && (
-          <View style={sectionStyle} wrap={false}>
-            <View style={headerWrapStyle}>
-              <Text style={headerTextStyle}>Notices</Text>
-            </View>
-            {supplemental.additionalNotes && (
-              <Text style={bodyTextStyle}>{supplemental.additionalNotes}</Text>
-            )}
-            {supplemental.hospitalityNotes && (
-              <Text style={bodyTextStyle}>{supplemental.hospitalityNotes}</Text>
-            )}
-          </View>
-        )}
       </View>
+
+      {/* Show Hours, Trial Information, and Notices run full-width below the
+          3-col grid — these are paragraph-length narratives that don't read
+          well in a 32% column. */}
+      {narratives?.showHours?.trim() && (
+        <View style={{ marginTop: 16 }}>
+          <View style={headerWrapStyle}>
+            <Text style={headerTextStyle}>Show Hours</Text>
+          </View>
+          <Text style={bodyTextStyle}>{narratives.showHours}</Text>
+        </View>
+      )}
+
+      {narratives?.trialInformation?.trim() && (
+        <View style={{ marginTop: 16 }}>
+          <View style={headerWrapStyle}>
+            <Text style={headerTextStyle}>Trial Information</Text>
+          </View>
+          <Text style={bodyTextStyle}>{narratives.trialInformation}</Text>
+        </View>
+      )}
+
+      {hasNotices && (
+        <View style={{ marginTop: 16 }}>
+          <View style={headerWrapStyle}>
+            <Text style={headerTextStyle}>Notices</Text>
+          </View>
+          {supplemental.additionalNotes && (
+            <Text style={bodyTextStyle}>{supplemental.additionalNotes}</Text>
+          )}
+          {supplemental.hospitalityNotes && (
+            <Text style={bodyTextStyle}>{supplemental.hospitalityNotes}</Text>
+          )}
+        </View>
+      )}
     </Page>
   );
 }

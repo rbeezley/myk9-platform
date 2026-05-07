@@ -16,6 +16,15 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       colors: {
+        /* Heritage style palette — see features/heritage/tokens.ts for the canonical source */
+        heritage: {
+          paper: '#f8f4ea',
+          ink: '#1a1612',
+          claret: '#8a1818',
+          gold: '#8a6a45',
+          quill: '#6b4f3a',
+          'paper-dark': '#d9d2c2',
+        },
         /* Warm dark surface scale — replaces cool gray-900/800 in dark mode */
         warm: {
           950: '#141413',

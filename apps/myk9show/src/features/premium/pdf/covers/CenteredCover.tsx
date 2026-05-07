@@ -1,4 +1,4 @@
-import { Image, Page, Text, View } from '@react-pdf/renderer';
+import { Page, Text, View } from '@react-pdf/renderer';
 import type { CoverContext } from './coverContext';
 
 export function renderCenteredCover({
@@ -33,13 +33,8 @@ export function renderCenteredCover({
             marginBottom: 14,
           }}
         />
-        {/* Optional small logo stamp — sits beneath the monogram, intentional */}
-        {data.club.logoUrl && (
-          <Image
-            src={data.club.logoUrl}
-            style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 28 }}
-          />
-        )}
+        {/* Logo stamp intentionally omitted — cross-origin image fetching
+            throws "Buffer is not defined" in @react-pdf's browser runtime. */}
         <Text
           style={{
             fontFamily: t.bodyFont,

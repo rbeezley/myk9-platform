@@ -134,7 +134,7 @@ function renderHarness() {
 }
 
 async function openPanel() {
-  fireEvent.click(screen.getByRole('button', { name: /Generate from Show Data/i }));
+  // Generation auto-triggers when the panel opens; just await the picker.
   await waitFor(() => {
     expect(screen.getByRole('radiogroup', { name: /Premium style/i })).toBeInTheDocument();
   });

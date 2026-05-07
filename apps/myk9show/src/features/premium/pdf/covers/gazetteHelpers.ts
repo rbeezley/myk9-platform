@@ -53,11 +53,11 @@ export function composeFallbackArticle(
 export function buildJudgeStrip(trials: CoverContext['data']['trials']): string[] {
   const seen = new Set<string>();
   const entries: string[] = [];
-  for (const trial of trials) {
-    for (const j of trial.judges) {
-      if (!j.name || seen.has(j.name)) continue;
+  for (const trial of trials ?? []) {
+    for (const j of trial.judges ?? []) {
+      if (!j?.name || seen.has(j.name)) continue;
       seen.add(j.name);
-      const elements = j.elements.length > 0 ? ` ${MIDDOT} ${j.elements[0]}` : '';
+      const elements = (j.elements?.length ?? 0) > 0 ? ` ${MIDDOT} ${j.elements[0]}` : '';
       entries.push(`${j.name}${elements}`);
     }
   }

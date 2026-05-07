@@ -95,15 +95,10 @@ Font.register({
   ],
 });
 
-Font.register({
-  family: 'Archivo Black',
-  fonts: [
-    {
-      src: `${FS}/archivo-black@5/files/archivo-black-latin-400-normal.woff`,
-      fontWeight: 400,
-    },
-  ],
-});
+// Note: Archivo Black and Oswald both use CFF outlines which crash @react-pdf's
+// glyph-metrics parser. The Poster style uses Inter Tight 700 (TrueType, already
+// registered above) for its display font — condensed and heavy enough for the
+// poster aesthetic without the CFF rendering issue.
 
 Font.register({
   family: 'IBM Plex Mono',
@@ -129,6 +124,11 @@ Font.register({
     {
       src: `${FS}/source-serif-4@5/files/source-serif-4-latin-700-normal.woff`,
       fontWeight: 700,
+    },
+    {
+      src: `${FS}/source-serif-4@5/files/source-serif-4-latin-400-italic.woff`,
+      fontWeight: 400,
+      fontStyle: 'italic',
     },
   ],
 });

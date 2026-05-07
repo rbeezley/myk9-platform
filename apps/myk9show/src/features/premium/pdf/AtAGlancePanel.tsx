@@ -119,12 +119,21 @@ function buildRows(data: GeneratedPremium): Row[] {
     });
   }
 
-  const elements = unique(trials.flatMap(t => t.classes.map(c => c.element)).filter(Boolean));
+  const elements = unique(
+    trials.flatMap(t => (t.classes ?? []).map(c => c.element)).filter(Boolean)
+  );
   if (elements.length > 0) {
     rows.push({ label: 'Elements', value: elements.join(' · ') });
   }
 
-  const levels = unique(trials.flatMap(t => t.classes.map(c => c.level)).filter(Boolean));
+  const LEVEL_ORDER = ['Novice', 'Advanced', 'Excellent', 'Master'];
+  const levels = unique(
+    trials.flatMap(t => (t.classes ?? []).map(c => c.level)).filter(Boolean)
+  ).sort((a, b) => {
+    const ai = LEVEL_ORDER.indexOf(a);
+    const bi = LEVEL_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
   if (levels.length > 0) {
     rows.push({ label: 'Levels', value: levels.join(' · ') });
   }

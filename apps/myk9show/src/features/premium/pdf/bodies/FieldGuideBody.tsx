@@ -37,14 +37,14 @@ export function FieldGuideBody({ data, tokens }: Props) {
 
   const hasOverview = Boolean(narratives?.trialInformation?.trim());
   const hasOfficials = Boolean(officials.chairman || officials.steward || secretary.name);
-  const hasJudges = trials.some(t => t.judges.length > 0);
+  const hasJudges = trials.some(t => (t.judges?.length ?? 0) > 0);
   const hasClasses = trials.length > 0;
   const hasEntry = Boolean(
     show.entryOpenDate || show.entryCloseDate || show.preEntryFee || show.dayOfFee
   );
   const hasSchedule = Boolean(narratives?.showHours?.trim());
   const hasLocation = Boolean(
-    show.venue || supplemental.accommodations.length || supplemental.vetClinic
+    show.venue || (supplemental.accommodations?.length ?? 0) > 0 || supplemental.vetClinic
   );
   const hasNotices = Boolean(
     supplemental.additionalNotes || supplemental.hospitalityNotes || supplemental.awardsDescription
@@ -136,12 +136,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
         <View style={blockStyle}>
           {renderHeader('§02', 'Judges')}
           {trials.flatMap((trial, ti) =>
-            trial.judges.map((j, ji) => (
+            (trial.judges ?? []).map((j, ji) => (
               <View key={`${ti}-${ji}`} style={rowStyle}>
                 <Text style={labelStyle}>{trial.name}</Text>
                 <Text style={valueStyle}>
                   {j.name}
-                  {j.elements.length > 0 ? ` · ${j.elements.join(', ')}` : ''}
+                  {(j.elements?.length ?? 0) > 0 ? ` · ${j.elements.join(', ')}` : ''}
                 </Text>
               </View>
             ))
@@ -157,9 +157,9 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={{ ...valueStyle, fontWeight: 700, marginBottom: 2 }}>
                 {trial.name} — {formatDate(trial.date)}
               </Text>
-              {trial.classes.length > 0 && (
+              {(trial.classes?.length ?? 0) > 0 && (
                 <Text style={valueStyle}>
-                  {trial.classes
+                  {(trial.classes ?? [])
                     .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                     .join(' · ')}
                 </Text>
@@ -223,7 +223,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
               </Text>
             </View>
           )}
-          {supplemental.accommodations.map((a, i) => (
+          {(supplemental.accommodations ?? []).map((a, i) => (
             <View key={i} style={rowStyle}>
               <Text style={labelStyle}>Lodging</Text>
               <Text style={valueStyle}>

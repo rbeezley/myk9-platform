@@ -101,7 +101,12 @@ export const STYLE_TOKENS: Record<PremiumStyle, StyleTokens> = {
     bodyLayout: 'standard',
   },
   poster: {
-    displayFont: 'Archivo Black',
+    // Archivo Black, Oswald, and Inter Tight all use CFF outlines which crash
+    // @react-pdf's glyph-metrics parser. Falling back to Inter 700 — proven
+    // to render reliably (used by Banner, Headline, Field Guide). The poster
+    // aesthetic is preserved via large fontSize + uppercase + tight tracking
+    // in PosterCover/PosterBody.
+    displayFont: 'Inter',
     bodyFont: 'Inter',
     boldWeight: 700,
     accentColor: '#c83b1a', // Red

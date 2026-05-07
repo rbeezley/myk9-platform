@@ -89,8 +89,10 @@ export function renderPosterCover(ctx: CoverContext) {
               key={i}
               style={{
                 fontFamily: t.displayFont,
+                fontWeight: 700,
                 fontSize: 84,
                 lineHeight: 0.95,
+                letterSpacing: -3,
                 color: line.accent ? t.accentColor : t.secondaryColor,
                 textTransform: 'uppercase',
               }}

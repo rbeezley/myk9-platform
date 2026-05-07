@@ -122,20 +122,20 @@ export function StandardBody({ data, org: _org, inkSaver = false }: Props) {
               <Text style={s.value}>{trial.eventNumber}</Text>
             </View>
           )}
-          {trial.judges.map((j, ji) => (
+          {(trial.judges ?? []).map((j, ji) => (
             <View key={ji} style={s.row}>
               <Text style={s.label}>{ji === 0 ? 'Judge' : ''}</Text>
               <Text style={s.value}>
                 {j.name}
-                {j.elements.length > 0 ? ` (${j.elements.join(', ')})` : ''}
+                {(j.elements?.length ?? 0) > 0 ? ` (${j.elements.join(', ')})` : ''}
               </Text>
             </View>
           ))}
-          {trial.classes.length > 0 && (
+          {(trial.classes?.length ?? 0) > 0 && (
             <View style={s.row}>
               <Text style={s.label}>Classes</Text>
               <Text style={s.value}>
-                {trial.classes
+                {(trial.classes ?? [])
                   .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                   .join(', ')}
               </Text>
@@ -167,11 +167,11 @@ export function StandardBody({ data, org: _org, inkSaver = false }: Props) {
         <Text style={s.required}>{REQUIRED}</Text>
       )}
 
-      {supplemental.accommodations.length > 0 && (
+      {(supplemental.accommodations?.length ?? 0) > 0 && (
         <>
           {divider}
           <Text style={s.sectionTitle}>Accommodations</Text>
-          {supplemental.accommodations.map((a, i) => (
+          {(supplemental.accommodations ?? []).map((a, i) => (
             <View key={i} style={s.trialBlock}>
               <Text style={s.trialTitle}>{a.name}</Text>
               <Text style={s.body}>{a.address}</Text>

@@ -78,7 +78,7 @@ const STYLE_OPTIONS: StyleOption[] = [
   {
     key: 'poster',
     name: 'Poster',
-    tagline: 'Bold single-page hero — Archivo Black, ink-blot accents.',
+    tagline: 'Bold single-page hero — tight uppercase, ink-blot accents.',
   },
   {
     key: 'gazette',
@@ -125,6 +125,15 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
       'This style failed to render — please try a different one or report the issue.'
     );
   }, []);
+
+  // Auto-generate when the panel opens (org must be set first).
+  // This removes the need for a second "Generate from Show Data" click.
+  useEffect(() => {
+    if (open && showOrg && !original && !isLoading) {
+      void handleGenerate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   async function handleGenerate() {
     lastPdfErrorMessageRef.current = null;
@@ -216,30 +225,17 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     >
       <SheetContent className="w-[500px] sm:max-w-[500px] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Generate Premium</SheetTitle>
+          <SheetTitle>Premium List</SheetTitle>
         </SheetHeader>
 
         <div className="mt-6 space-y-4">
-          {!original && !isLoading && (
-            <>
-              {!showOrg && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    This show has no organization set. Set AKC or UKC before generating a premium.
-                  </AlertDescription>
-                </Alert>
-              )}
-              <Button
-                onClick={() => {
-                  void handleGenerate();
-                }}
-                disabled={!showOrg}
-                className="w-full"
-              >
-                Generate from Show Data
-              </Button>
-            </>
+          {!original && !isLoading && !showOrg && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                This show has no organization set. Set AKC or UKC before generating a premium.
+              </AlertDescription>
+            </Alert>
           )}
 
           {isLoading && (
@@ -429,69 +425,71 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                 <span className="text-sm">Print-friendly (saves ink)</span>
               </label>
 
-              <PDFDownloadLink
-                document={<PdfTemplate premium={finalPremium!} inkSaver={inkSaver} />}
-                fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}
-                onClick={() => {
-                  void handleDownloaded();
-                }}
-              >
-                {({ loading, error: pdfError }) => (
-                  <>
-                    <DownloadLinkErrorWatcher error={pdfError ?? null} onError={handlePdfError} />
-                    {pdfError ? (
-                      <Button className="w-full" variant="destructive" disabled>
-                        PDF generation failed — try another style
-                      </Button>
-                    ) : (
-                      <Button className="w-full" disabled={loading}>
-                        <Download className="h-4 w-4 mr-2" />
-                        {loading ? 'Preparing PDF…' : 'Download Premium PDF'}
-                      </Button>
-                    )}
-                  </>
-                )}
-              </PDFDownloadLink>
+              <div className="mt-4 flex flex-col gap-2">
+                <PDFDownloadLink
+                  document={<PdfTemplate premium={finalPremium!} inkSaver={inkSaver} />}
+                  fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}
+                  onClick={() => {
+                    void handleDownloaded();
+                  }}
+                >
+                  {({ loading, error: pdfError }) => (
+                    <>
+                      <DownloadLinkErrorWatcher error={pdfError ?? null} onError={handlePdfError} />
+                      {pdfError ? (
+                        <Button className="w-full" variant="destructive" disabled>
+                          PDF generation failed — try another style
+                        </Button>
+                      ) : (
+                        <Button className="w-full" disabled={loading}>
+                          <Download className="h-4 w-4 mr-2" />
+                          {loading ? 'Preparing PDF…' : 'Download Premium PDF'}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </PDFDownloadLink>
 
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  void handlePublish();
-                }}
-                disabled={publishing}
-              >
-                {publishing ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : publishedAt ? (
-                  <Check className="h-4 w-4 mr-2" />
-                ) : (
-                  <Globe className="h-4 w-4 mr-2" />
-                )}
-                {publishing
-                  ? 'Publishing…'
-                  : publishedAt
-                    ? 'Published — Re-publish'
-                    : 'Publish for Exhibitors'}
-              </Button>
-              <p className="text-xs text-muted-foreground -mt-1">
-                Publishing uploads this PDF to a public link on the show page so exhibitors can
-                download it. The link is stable across re-publishes.
-              </p>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    void handlePublish();
+                  }}
+                  disabled={publishing}
+                >
+                  {publishing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : publishedAt ? (
+                    <Check className="h-4 w-4 mr-2" />
+                  ) : (
+                    <Globe className="h-4 w-4 mr-2" />
+                  )}
+                  {publishing
+                    ? 'Publishing…'
+                    : publishedAt
+                      ? 'Published — Re-publish'
+                      : 'Publish for Exhibitors'}
+                </Button>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Publishing uploads this PDF to a public link on the show page so exhibitors can
+                  download it. The link is stable across re-publishes.
+                </p>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full"
-                onClick={() => {
-                  setOriginal(null);
-                  setSupplemental(null);
-                  setNarratives(null);
-                  setStyleOverride(null);
-                }}
-              >
-                ↺ Regenerate
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setOriginal(null);
+                    setSupplemental(null);
+                    setNarratives(null);
+                    setStyleOverride(null);
+                  }}
+                >
+                  ↺ Regenerate
+                </Button>
+              </div>
             </>
           )}
         </div>

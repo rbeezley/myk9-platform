@@ -21,11 +21,11 @@ export function renderFieldGuideCover(ctx: CoverContext) {
   const showName = data.show.name || 'Premium Information';
   const monoFont = t.monoFont ?? 'IBM Plex Mono';
 
-  const trialsCount = data.trials.length;
+  const trialsCount = data.trials?.length ?? 0;
   const elements = new Set<string>();
   const levels = new Set<string>();
   const judgeNames = new Set<string>();
-  for (const trial of data.trials) {
+  for (const trial of data.trials ?? []) {
     for (const c of trial.classes ?? []) {
       if (c?.element) elements.add(c.element);
       if (c?.level) levels.add(c.level);

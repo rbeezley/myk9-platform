@@ -44,13 +44,13 @@ export function GazetteBody({ data, tokens }: Props) {
   const denseStyle = { ...bodyTextStyle, fontSize: tokens.bodyFontSize - 1 };
 
   const hasOfficials = Boolean(officials.chairman || officials.steward);
-  const hasJudges = trials.some(t => t.judges.length > 0);
-  const hasClasses = trials.some(t => t.classes.length > 0);
+  const hasJudges = trials.some(t => (t.judges?.length ?? 0) > 0);
+  const hasClasses = trials.some(t => (t.classes?.length ?? 0) > 0);
   const hasFees = (show.preEntryFee ?? 0) > 0 || (show.dayOfFee ?? 0) > 0;
   const hasEntry = Boolean(
     show.entryOpenDate || show.entryCloseDate || secretary.email || secretary.mailingAddress
   );
-  const hasLodging = supplemental.accommodations.length > 0;
+  const hasLodging = (supplemental.accommodations?.length ?? 0) > 0;
   const hasAwards = Boolean(supplemental.awardsDescription);
   const hasNotices = Boolean(supplemental.additionalNotes || supplemental.hospitalityNotes);
 
@@ -83,10 +83,10 @@ export function GazetteBody({ data, tokens }: Props) {
               <Text style={headerTextStyle}>Judges</Text>
             </View>
             {trials.flatMap((trial, ti) =>
-              trial.judges.map((j, ji) => (
+              (trial.judges ?? []).map((j, ji) => (
                 <Text key={`${ti}-${ji}`} style={denseStyle}>
                   {j.name}
-                  {j.elements.length > 0 ? ` — ${j.elements.join(', ')}` : ''}
+                  {(j.elements?.length ?? 0) > 0 ? ` — ${j.elements.join(', ')}` : ''}
                 </Text>
               ))
             )}
@@ -109,9 +109,9 @@ export function GazetteBody({ data, tokens }: Props) {
                 >
                   {trial.name}
                 </Text>
-                {trial.classes.length > 0 && (
+                {(trial.classes?.length ?? 0) > 0 && (
                   <Text style={denseStyle}>
-                    {trial.classes
+                    {(trial.classes ?? [])
                       .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                       .join(' · ')}
                   </Text>
@@ -162,7 +162,7 @@ export function GazetteBody({ data, tokens }: Props) {
             <View style={headerWrapStyle}>
               <Text style={headerTextStyle}>Lodging</Text>
             </View>
-            {supplemental.accommodations.map((a, i) => (
+            {(supplemental.accommodations ?? []).map((a, i) => (
               <View key={i} style={{ marginBottom: 4 }}>
                 <Text style={{ ...denseStyle, fontWeight: 700 }}>{a.name}</Text>
                 <Text style={denseStyle}>{a.address}</Text>

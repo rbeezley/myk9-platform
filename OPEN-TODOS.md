@@ -4,6 +4,12 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 
 ---
 
+## Premium PDF Styles — Poster crash
+
+- [ ] **Poster style crashes @react-pdf at render time** — Selecting "Poster" in the Generate Premium picker throws `RangeError: Offset is outside the bounds of the DataView` from `_getCBox` / `_getMetrics` / `advanceWidth` in @react-pdf's CFF font parser. Reproduces with Archivo Black, Oswald, Inter Tight (the heavy display fonts we tried) and at fontSize: 84 with plain Inter — the parser overflows reading Int16BE while computing glyph metrics for the headline characters at large sizes. The other 7 styles render cleanly. **Fix:** identify a heavy/condensed display font with TrueType (glyf) outlines that's also available on @fontsource — candidates worth verifying end-to-end: Barlow Condensed 800, Roboto Condensed 700, Fjalla One, or building a smoke test that renders the headline at 84pt before adopting any new font. Files: `apps/myk9show/src/features/premium/pdf/pdfFonts.ts`, `pdfTokens.ts`, `covers/PosterCover.tsx`. Branch where the issue surfaced: `feat/premium-styles-handoff` (2026-05-07).
+
+---
+
 ## North Star — Phase 2: Walk the Golden Paths
 
 - [ ] **Phase 2 re-walk** — First pass complete 2026-05-03. Do a second end-to-end walk for secretary and exhibitor paths before Phase 3 hand-off. Exit: both paths complete without a blocker.

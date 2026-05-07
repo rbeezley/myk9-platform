@@ -43,7 +43,7 @@ export function PosterBody({ data, tokens }: Props) {
   const sectionGap = { marginBottom: 22 };
 
   const hasOfficials = officials.chairman || officials.steward;
-  const hasAccommodations = supplemental.accommodations.length > 0;
+  const hasAccommodations = (supplemental.accommodations?.length ?? 0) > 0;
 
   return (
     <Page
@@ -122,17 +122,20 @@ export function PosterBody({ data, tokens }: Props) {
               {trial.startTime ? ` at ${trial.startTime}` : ''}
               {trial.eventNumber ? ` · Event ${trial.eventNumber}` : ''}
             </Text>
-            {trial.judges.length > 0 && (
+            {(trial.judges?.length ?? 0) > 0 && (
               <Text style={{ ...bodyStyle, marginBottom: 4 }}>
                 Judged by{' '}
-                {trial.judges
-                  .map(j => `${j.name}${j.elements.length ? ` (${j.elements.join(', ')})` : ''}`)
+                {(trial.judges ?? [])
+                  .map(
+                    j =>
+                      `${j.name}${(j.elements?.length ?? 0) ? ` (${j.elements.join(', ')})` : ''}`
+                  )
                   .join(' & ')}
               </Text>
             )}
-            {trial.classes.length > 0 && (
+            {(trial.classes?.length ?? 0) > 0 && (
               <Text style={bodyStyle}>
-                {trial.classes
+                {(trial.classes ?? [])
                   .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
                   .join(' · ')}
               </Text>
@@ -169,7 +172,7 @@ export function PosterBody({ data, tokens }: Props) {
       {hasAccommodations && (
         <View style={sectionGap}>
           <Text style={labelStyle}>Accommodations</Text>
-          {supplemental.accommodations.map((a, i) => (
+          {(supplemental.accommodations ?? []).map((a, i) => (
             <Text key={i} style={bodyStyle}>
               {a.name} — {a.address} · {formatPhone(a.phone)}
             </Text>

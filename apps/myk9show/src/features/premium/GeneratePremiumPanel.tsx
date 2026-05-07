@@ -50,19 +50,22 @@ function DownloadLinkErrorWatcher({
 }
 
 // Captures the PDF blob URL from the PDFDownloadLink render-prop, forwarding
-// each distinct URL to onUrl once. Same "child component effect" pattern as
-// DownloadLinkErrorWatcher above — calling setState inline in a render prop
-// causes repeated firings.
+// it to onUrl only when loading=false. @react-pdf emits new blob URLs on
+// every internal tick during rendering; capturing intermediate URLs makes
+// the preview iframe reload repeatedly and flash white. Waiting for the
+// final stable URL (loading=false) avoids that.
 function DownloadLinkUrlCapture({
   url,
+  loading,
   onUrl,
 }: {
   url: string | null;
+  loading: boolean;
   onUrl: (url: string) => void;
 }) {
   useEffect(() => {
-    if (url) onUrl(url);
-  }, [url, onUrl]);
+    if (url && !loading) onUrl(url);
+  }, [url, loading, onUrl]);
   return null;
 }
 
@@ -462,7 +465,11 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                           error={pdfError ?? null}
                           onError={handlePdfError}
                         />
-                        <DownloadLinkUrlCapture url={url ?? null} onUrl={setPdfUrl} />
+                        <DownloadLinkUrlCapture
+                          url={url ?? null}
+                          loading={loading}
+                          onUrl={setPdfUrl}
+                        />
                         {pdfError ? (
                           <Button className="w-full" variant="destructive" disabled>
                             PDF generation failed — try another style

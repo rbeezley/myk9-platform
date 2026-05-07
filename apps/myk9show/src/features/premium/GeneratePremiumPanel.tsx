@@ -467,6 +467,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                   <PDFDownloadLink
                     document={pdfDocument!}
                     fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}
+                    className="block"
                     onClick={() => {
                       void handleDownloaded();
                     }}
@@ -487,7 +488,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                             PDF generation failed — try another style
                           </Button>
                         ) : (
-                          <>
+                          <div className="flex flex-col gap-2">
                             <Button
                               variant="outline"
                               className="w-full"
@@ -505,7 +506,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                               <Download className="h-4 w-4 mr-2" />
                               Download PDF
                             </Button>
-                          </>
+                          </div>
                         )}
                       </>
                     )}

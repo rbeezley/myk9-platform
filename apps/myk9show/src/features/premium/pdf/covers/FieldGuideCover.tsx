@@ -23,19 +23,23 @@ export function renderFieldGuideCover(ctx: CoverContext) {
   const trialsCount = data.trials.length;
   const elements = new Set<string>();
   const levels = new Set<string>();
+  const judgeNames = new Set<string>();
   for (const trial of data.trials) {
     for (const c of trial.classes) {
       if (c.element) elements.add(c.element);
       if (c.level) levels.add(c.level);
     }
+    for (const j of trial.judges ?? []) {
+      if (j?.name) judgeNames.add(j.name);
+    }
   }
-  const capacity = data.trials.length * 30; // best-effort proxy: no capacity field on the type yet.
+  const judgeCount = judgeNames.size;
 
   const stats: Array<readonly [string, string]> = [
     ['TRIALS', String(trialsCount)],
     ['ELEMENTS', String(elements.size)],
     ['LEVELS', String(levels.size)],
-    ['CAPACITY', `~${capacity}`],
+    ['JUDGES', String(judgeCount)],
   ];
 
   return (

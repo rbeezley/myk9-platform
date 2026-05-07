@@ -27,11 +27,20 @@ export function FieldGuideBody({ data, tokens }: Props) {
     textTransform: 'uppercase' as const,
     letterSpacing: 1,
   };
+  // flex:1 is correct only inside rowStyle (flexDirection:'row') cells where it
+  // takes remaining horizontal space. In column contexts (standalone paragraphs)
+  // flex:1 makes @react-pdf compute height as 0, causing sections to overlap.
   const valueStyle = {
     fontFamily: tokens.bodyFont,
     fontSize: 9,
     color: tokens.textColor,
     flex: 1,
+    lineHeight: 1.4,
+  };
+  const bodyStyle = {
+    fontFamily: tokens.bodyFont,
+    fontSize: 9,
+    color: tokens.textColor,
     lineHeight: 1.4,
   };
   const blockStyle = { marginBottom: 14 };
@@ -101,7 +110,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
       {hasOverview && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§00', 'Overview')}
-          <Text style={valueStyle}>{narratives.trialInformation}</Text>
+          <Text style={bodyStyle}>{narratives.trialInformation}</Text>
         </View>
       )}
 
@@ -155,11 +164,11 @@ export function FieldGuideBody({ data, tokens }: Props) {
           {renderHeader('§03', 'Classes')}
           {trials.map((trial, i) => (
             <View key={i} style={{ marginBottom: 6 }}>
-              <Text style={{ ...valueStyle, fontWeight: 700, marginBottom: 2 }}>
+              <Text style={{ ...bodyStyle, fontWeight: 700, marginBottom: 2 }}>
                 {trial.name} — {formatDate(trial.date)}
               </Text>
               {(trial.classes?.length ?? 0) > 0 && (
-                <Text style={valueStyle}>
+                <Text style={bodyStyle}>
                   {[...(trial.classes ?? [])]
                     .sort(compareClassesByProgression)
                     .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
@@ -208,7 +217,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
       {hasSchedule && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§05', 'Schedule')}
-          <Text style={valueStyle}>{narratives.showHours}</Text>
+          <Text style={bodyStyle}>{narratives.showHours}</Text>
         </View>
       )}
 
@@ -248,13 +257,13 @@ export function FieldGuideBody({ data, tokens }: Props) {
         <View style={blockStyle} wrap={false}>
           {renderHeader('§07', 'Notices')}
           {supplemental.additionalNotes && (
-            <Text style={{ ...valueStyle, marginBottom: 4 }}>{supplemental.additionalNotes}</Text>
+            <Text style={{ ...bodyStyle, marginBottom: 4 }}>{supplemental.additionalNotes}</Text>
           )}
           {supplemental.hospitalityNotes && (
-            <Text style={{ ...valueStyle, marginBottom: 4 }}>{supplemental.hospitalityNotes}</Text>
+            <Text style={{ ...bodyStyle, marginBottom: 4 }}>{supplemental.hospitalityNotes}</Text>
           )}
           {supplemental.awardsDescription && (
-            <Text style={valueStyle}>{supplemental.awardsDescription}</Text>
+            <Text style={bodyStyle}>{supplemental.awardsDescription}</Text>
           )}
         </View>
       )}

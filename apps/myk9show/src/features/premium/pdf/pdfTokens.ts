@@ -184,13 +184,27 @@ export const INK_SAVER_PALETTE = {
   secondaryColor: '#1a1a1a',
 } as const;
 
+// Legacy style names from before migration 191. If the DB hasn't been migrated
+// yet (or the edge function returns a stale value), map them forward so the
+// renderer never receives an unknown key.
+const LEGACY_STYLE_MAP: Record<string, PremiumStyle> = {
+  classic: 'monogram',
+  modern: 'banner',
+  minimal: 'headline',
+};
+
 /**
  * Resolve final tokens for a style, optionally with an ink-saver palette.
  * Ink saver collapses the palette to black/white/near-black so home printers
  * can run a draft without burning toner. Layout/typography unchanged.
+ *
+ * Defensively remaps pre-migration-191 style names ('classic', 'modern',
+ * 'minimal') to their canonical equivalents so the renderer never crashes
+ * on a stale DB value.
  */
 export function resolveTokens(style: PremiumStyle, opts?: ResolveTokensOptions): StyleTokens {
-  const base = STYLE_TOKENS[style];
+  const canonical = LEGACY_STYLE_MAP[style as string] ?? style;
+  const base = STYLE_TOKENS[canonical] ?? MONOGRAM_TOKENS;
   if (!opts?.inkSaver) return base;
   return { ...base, ...INK_SAVER_PALETTE };
 }

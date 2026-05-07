@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { notifications } from '@/lib/notifications';
 import { heritageOrnaments } from '../../tokens';
 
 interface StickyNavProps {
@@ -14,17 +15,8 @@ const SECTIONS = [
   { id: 'day', label: 'On the Day' },
 ] as const;
 
-function copyToClipboard(text: string, onDone: () => void) {
-  navigator.clipboard
-    ?.writeText(text)
-    .then(onDone)
-    .catch(() => {});
-}
-
 export function StickyNav({ clubName, entryWizardUrl }: StickyNavProps) {
   const [activeId, setActiveId] = useState<string>('overview');
-  const [toastVisible, setToastVisible] = useState(false);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track active section via IntersectionObserver
   useEffect(() => {
@@ -46,11 +38,14 @@ export function StickyNav({ clubName, entryWizardUrl }: StickyNavProps) {
   }, []);
 
   const handleShare = () => {
-    copyToClipboard(window.location.href, () => {
-      setToastVisible(true);
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-      toastTimer.current = setTimeout(() => setToastVisible(false), 1800);
-    });
+    navigator.clipboard
+      ?.writeText(window.location.href)
+      .then(() =>
+        notifications.success(`Link copied to clipboard ${heritageOrnaments.diamond}`, {
+          duration: 1800,
+        })
+      )
+      .catch(() => {});
   };
 
   return (
@@ -116,20 +111,6 @@ export function StickyNav({ clubName, entryWizardUrl }: StickyNavProps) {
           </a>
         </div>
       </nav>
-
-      {/* Share toast */}
-      {toastVisible && (
-        <div
-          className="fixed bottom-6 right-6 z-50 px-4 py-2 text-sm"
-          style={{
-            background: 'var(--hl-ink)',
-            color: 'var(--hl-paper)',
-            fontFamily: "'EB Garamond', Georgia, serif",
-          }}
-        >
-          Link copied to clipboard {heritageOrnaments.diamond}
-        </div>
-      )}
     </>
   );
 }

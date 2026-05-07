@@ -18,21 +18,17 @@ interface HeroBlockProps {
   entryWizardUrl: string;
 }
 
-function pad(n: number) {
-  return String(n).padStart(2, '0');
-}
-
 function CountdownBlock({
-  targetIso,
-  timezone,
+  days,
+  hours,
+  minutes,
   closed,
 }: {
-  targetIso: string | null;
-  timezone: string;
+  days: number;
+  hours: number;
+  minutes: number;
   closed: boolean;
 }) {
-  const { days, hours, minutes } = useCountdown(targetIso, timezone);
-
   if (closed) {
     return (
       <div
@@ -47,8 +43,6 @@ function CountdownBlock({
       </div>
     );
   }
-
-  if (!targetIso) return null;
 
   const blocks = [
     { value: days, label: 'Days' },
@@ -69,7 +63,7 @@ function CountdownBlock({
               color: 'var(--hl-ink)',
             }}
           >
-            {pad(value)}
+            {String(value).padStart(2, '0')}
           </span>
           <span
             className="mt-1 text-xs uppercase tracking-widest"
@@ -102,7 +96,7 @@ export function HeroBlock({
   entryWizardUrl,
 }: HeroBlockProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>(0.1);
-  const { closed } = useCountdown(entryCloseDate, timezone);
+  const { days, hours, minutes, closed } = useCountdown(entryCloseDate, timezone);
 
   const locationLabel = [venueName, venueCity].filter(Boolean).join(', ');
   const dateLabel = [
@@ -198,7 +192,7 @@ export function HeroBlock({
           {/* Countdown */}
           {entryCloseDate && (
             <div className="mt-4 flex flex-col items-center gap-3">
-              <CountdownBlock targetIso={entryCloseDate} timezone={timezone} closed={closed} />
+              <CountdownBlock days={days} hours={hours} minutes={minutes} closed={closed} />
               {!closed && (
                 <p
                   className="text-xs italic"

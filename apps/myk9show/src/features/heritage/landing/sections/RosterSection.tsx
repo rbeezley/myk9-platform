@@ -2,7 +2,6 @@ import { HeritageSectionFolio } from '../../components/HeritageSectionFolio';
 import { HeritageHeading } from '../../components/HeritageHeading';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { formatJourneyDate } from '../utils/dateFormat';
 import type { HeritageJourneyStep } from '../types';
 
@@ -15,13 +14,13 @@ interface RosterSectionProps {
 
 function CapacityMeter({ count, limit }: { count: number; limit: number | null }) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const reduced = useReducedMotion();
   const pct = limit && limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : null;
 
   return (
     <div
       ref={ref}
       className={`hl-capacity flex flex-col items-center gap-4 ${revealed ? 'in' : ''}`}
+      style={pct != null ? ({ '--hl-bar-pct': `${pct}%` } as React.CSSProperties) : undefined}
     >
       <div className="flex items-baseline gap-2">
         <span
@@ -54,16 +53,7 @@ function CapacityMeter({ count, limit }: { count: number; limit: number | null }
           className="h-1.5 w-full max-w-md overflow-hidden rounded-full"
           style={{ background: 'var(--hl-paperDark, #d9d2c2)' }}
         >
-          <div
-            className="h-full transition-[width]"
-            style={{
-              width: reduced ? `${pct}%` : '0%',
-              background: 'var(--hl-claret)',
-              transitionDuration: revealed ? '1400ms' : '0ms',
-              transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-              ...(revealed && !reduced ? { width: `${pct}%` } : {}),
-            }}
-          />
+          <div className="h-full hl-capacity-bar" />
         </div>
       )}
     </div>

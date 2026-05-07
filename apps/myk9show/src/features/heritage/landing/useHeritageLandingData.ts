@@ -8,6 +8,7 @@ import { useMemo } from 'react';
 import type { Show } from '@/types/show-types';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getRegistry, getTrialTimezone } from '@/features/registries';
+import { formatFee } from '@/utils/format';
 import type { HeritageLandingData, HeritageTrial, HeritageJourneyStep, HeritageFee } from './types';
 
 interface TrialLike {
@@ -24,7 +25,7 @@ interface TrialLike {
 
 function toRoman(n: number | string | null | undefined): string {
   if (n == null) return '';
-  const num = typeof n === 'string' ? parseInt(n, 10) : n;
+  let num = typeof n === 'string' ? parseInt(n, 10) : n;
   if (isNaN(num) || num <= 0) return String(n);
   const vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
   const syms = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
@@ -32,19 +33,10 @@ function toRoman(n: number | string | null | undefined): string {
   for (let i = 0; i < vals.length; i++) {
     while (num >= vals[i]) {
       result += syms[i];
-      // num -= vals[i]; — safe: reassign disallowed with const but num is let above
+      num -= vals[i];
     }
   }
   return result || String(n);
-}
-
-function formatFee(cents: number | string | null | undefined): string {
-  if (cents == null) return '';
-  const n = typeof cents === 'string' ? parseFloat(cents) : cents;
-  if (isNaN(n)) return String(cents);
-  // If value looks like it's already in dollars (< 100), treat as dollars
-  if (n < 100) return `$${n.toFixed(2)}`;
-  return `$${(n / 100).toFixed(2)}`;
 }
 
 function buildJourneySteps(
@@ -81,6 +73,7 @@ export function useHeritageLandingData(
 ): HeritageLandingData {
   const showId = show?.id ?? '';
   const { data: entries = [] } = useEntriesByShowQuery(showId, !!showId);
+  const entryCount = entries.length;
 
   const akc = getRegistry('AKC');
   const timezone = getTrialTimezone(currentTrial);
@@ -182,7 +175,7 @@ export function useHeritageLandingData(
       trials,
       judges,
 
-      entryCount: entries.length,
+      entryCount,
       entryLimit,
 
       fees,
@@ -202,5 +195,5 @@ export function useHeritageLandingData(
 
       entryWizardUrl: show?.id ? `/shows/${show.id}/register` : '/shows',
     };
-  }, [show, currentTrial, allTrials, entries, akc, timezone]);
+  }, [show, currentTrial, allTrials, entryCount, akc, timezone]);
 }

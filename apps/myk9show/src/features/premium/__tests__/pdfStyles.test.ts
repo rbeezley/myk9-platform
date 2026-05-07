@@ -21,19 +21,13 @@ describe('STYLE_TOKENS', () => {
     }
   });
 
-  it('keeps the remaining stub styles on the standard body layout (Phase 4 pending)', () => {
-    // Phase 3 promoted 'poster' to its own bodyLayout. Phase 4 will do the same
-    // for gazette + fieldGuide; until then they stay on the standard body so
-    // the templates render something credible.
-    const stubStyles: PremiumStyle[] = ['gazette', 'fieldGuide'];
-    for (const style of stubStyles) {
-      expect(STYLE_TOKENS[style].bodyLayout).toBe('standard');
-    }
-  });
-
-  it('promotes the poster style to its own bodyLayout (Phase 3)', () => {
+  it('assigns each non-standard style its own dedicated bodyLayout', () => {
     expect(STYLE_TOKENS.poster.bodyLayout).toBe('poster');
     expect(STYLE_TOKENS.poster.coverStyle).toBe('poster');
+    expect(STYLE_TOKENS.gazette.bodyLayout).toBe('gazette');
+    expect(STYLE_TOKENS.gazette.coverStyle).toBe('masthead');
+    expect(STYLE_TOKENS.fieldGuide.bodyLayout).toBe('fieldguide');
+    expect(STYLE_TOKENS.fieldGuide.coverStyle).toBe('fieldindex');
   });
 });
 

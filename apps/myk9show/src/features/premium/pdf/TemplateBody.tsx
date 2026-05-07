@@ -2,6 +2,8 @@ import type { GeneratedPremium } from '../../../types/premium-types';
 import { resolveTokens } from './pdfStyles';
 import { StandardBody } from './bodies/StandardBody';
 import { PosterBody } from './bodies/PosterBody';
+import { GazetteBody } from './bodies/GazetteBody';
+import { FieldGuideBody } from './bodies/FieldGuideBody';
 import { isPosterMinimumDataMet } from './bodies/posterPredicates';
 
 interface Props {
@@ -23,8 +25,8 @@ function assertNever(x: never): never {
  *                   Falls back to StandardBody when minimum data is missing
  *                   (no judges, no fees, no trials) so we never ship a
  *                   half-empty hero sheet.
- * - `'gazette'` / `'fieldguide'` — Phase 4. For now they fall back to
- *                   StandardBody so the templates render something credible.
+ * - `'gazette'`   — 3-column classifieds layout (newspaper-style).
+ * - `'fieldguide'` — §-numbered reference layout.
  */
 export function TemplateBody({ data, org }: Props) {
   const tokens = resolveTokens(data.style);
@@ -36,10 +38,9 @@ export function TemplateBody({ data, org }: Props) {
       if (!isPosterMinimumDataMet(data)) return <StandardBody data={data} org={org} />;
       return <PosterBody data={data} tokens={tokens} />;
     case 'gazette':
+      return <GazetteBody data={data} tokens={tokens} org={org} />;
     case 'fieldguide':
-      // Phase 4 — these layouts render via the standard body until their
-      // dedicated components land.
-      return <StandardBody data={data} org={org} />;
+      return <FieldGuideBody data={data} tokens={tokens} org={org} />;
     default:
       return assertNever(tokens.bodyLayout);
   }

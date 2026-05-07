@@ -7,6 +7,8 @@ import { renderLowerthirdCover } from './covers/LowerthirdCover';
 import { renderEditorialCover } from './covers/EditorialCover';
 import { renderEngravedCover } from './covers/EngravedCover';
 import { renderPosterCover } from './covers/PosterCover';
+import { renderGazetteCover } from './covers/GazetteCover';
+import { renderFieldGuideCover } from './covers/FieldGuideCover';
 
 interface HeroCoverProps {
   data: GeneratedPremium;
@@ -19,10 +21,6 @@ function assertNever(x: never): never {
 /**
  * Cover page dispatcher. Each cover renderer lives in its own file under
  * `covers/` so individual layouts stay focused and the dispatcher stays small.
- *
- * The 2 remaining stub coverStyles ('masthead' | 'fieldindex') still fall
- * through to the centered renderer until Phase 4 adds their dedicated
- * layouts — their tokens are monogram clones so the output looks intentional.
  */
 export function HeroCover({ data }: HeroCoverProps) {
   const t = STYLE_TOKENS[data.style];
@@ -51,10 +49,9 @@ export function HeroCover({ data }: HeroCoverProps) {
     case 'poster':
       return renderPosterCover(ctx);
     case 'masthead':
+      return renderGazetteCover(ctx);
     case 'fieldindex':
-      // Phase 1 stubs still falling through to centered until Phase 4 adds
-      // their dedicated renderers.
-      return renderCenteredCover(ctx);
+      return renderFieldGuideCover(ctx);
     default:
       return assertNever(t.coverStyle);
   }

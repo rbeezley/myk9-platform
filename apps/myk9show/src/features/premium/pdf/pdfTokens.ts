@@ -109,10 +109,34 @@ export const STYLE_TOKENS: Record<PremiumStyle, StyleTokens> = {
     coverStyle: 'poster',
     bodyLayout: 'poster',
   },
-  // TODO: Phase 2/3 — replace with real gazette tokens
-  gazette: { ...MONOGRAM_TOKENS },
-  // TODO: Phase 2/3 — replace with real fieldGuide tokens
-  fieldGuide: { ...MONOGRAM_TOKENS },
+  gazette: {
+    displayFont: 'Playfair Display',
+    bodyFont: 'Source Serif 4',
+    boldWeight: 700,
+    accentColor: '#6b4f3a', // Sepia
+    secondaryColor: '#2a2520', // Newsprint ink
+    surfaceColor: '#f7f1e3', // Ivory newsprint
+    textColor: '#2a2520',
+    pagePadding: 56,
+    bodyFontSize: 10,
+    coverStyle: 'masthead',
+    bodyLayout: 'gazette',
+  },
+  fieldGuide: {
+    // IBM Plex Sans is not registered in pdfFonts; fall back to Inter for the
+    // utility-reference sans look.
+    displayFont: 'Inter',
+    bodyFont: 'Inter',
+    boldWeight: 700,
+    accentColor: '#c96442', // Indicator orange
+    secondaryColor: '#1f2a24', // Dark ink
+    surfaceColor: '#f6f1e6', // Parchment
+    textColor: '#1f2a24',
+    pagePadding: 48,
+    bodyFontSize: 9,
+    coverStyle: 'fieldindex',
+    bodyLayout: 'fieldguide',
+  },
   heritage: {
     displayFont: 'Cormorant Garamond',
     bodyFont: 'EB Garamond',

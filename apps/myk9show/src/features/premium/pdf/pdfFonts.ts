@@ -100,19 +100,21 @@ Font.register({
 // registered above) for its display font — condensed and heavy enough for the
 // poster aesthetic without the CFF rendering issue.
 
-// IBM Plex Mono's WOFF subset on @fontsource v5 triggers @react-pdf's glyph
-// metrics parser to throw `RangeError: Offset is outside the bounds of the
-// DataView` from `_getCBox` / `_getMetrics` / `advanceWidth` (any text using
-// this family crashes the entire PDF render). Both Poster and Field Guide
-// styles depended on it. Roboto Mono ships a compact (~15KB) TrueType WOFF
-// that @react-pdf reads cleanly. Registered under the original
-// `IBM Plex Mono` family name so Poster and Field Guide consume it
-// transparently — visually similar grotesque mono, no other files change.
+// IBM Plex Mono (@fontsource v4 and v5) triggers @react-pdf's glyph-metrics
+// parser to overflow — RangeError in _getCBox/_getMetrics/advanceWidth —
+// on every use of the family, crashing Poster and Field Guide entirely.
+// Root cause is something in IBM Plex Mono's specific glyf table structure
+// that @react-pdf/fontkit misreads at render time.
+// JetBrains Mono is purpose-built for code/reference display, has nearly
+// identical proportions and weight, and is available as a compact TrueType
+// WOFF on @fontsource that @react-pdf parses cleanly.
+// Registered as 'IBM Plex Mono' so Poster eyebrow caps and Field Guide
+// §-prefixed rows pick it up transparently — no call-site changes needed.
 Font.register({
   family: 'IBM Plex Mono',
   fonts: [
-    { src: `${FS}/roboto-mono@5/files/roboto-mono-latin-400-normal.woff`, fontWeight: 400 },
-    { src: `${FS}/roboto-mono@5/files/roboto-mono-latin-700-normal.woff`, fontWeight: 700 },
+    { src: `${FS}/jetbrains-mono@5/files/jetbrains-mono-latin-400-normal.woff`, fontWeight: 400 },
+    { src: `${FS}/jetbrains-mono@5/files/jetbrains-mono-latin-700-normal.woff`, fontWeight: 700 },
   ],
 });
 

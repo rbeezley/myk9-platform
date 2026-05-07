@@ -1,0 +1,207 @@
+/* ============================================
+   STYLES 1–3: Existing premium styles
+   Recreated from the 3 PDFs the user uploaded.
+   All three share a sparse, label-heavy aesthetic.
+   ============================================ */
+
+.ex-doc {
+  font-family: "Inter", system-ui, sans-serif;
+  color: #1a1a1a;
+}
+
+.ex-doc .label {
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+  margin-bottom: 8px;
+}
+
+.ex-doc h2.section-title {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #111;
+  margin: 0 0 4px 0;
+}
+
+.ex-doc .section-rule {
+  border-top: 1px solid #1a1a1a;
+  margin: 0 0 24px 0;
+}
+
+.ex-doc .section {
+  padding: 0 64px;
+  margin-bottom: 36px;
+}
+
+.ex-doc .stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+  padding: 0 64px;
+  margin: 32px 0 40px;
+}
+.ex-doc .stat-num {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+  color: #111;
+  letter-spacing: -0.02em;
+}
+.ex-doc .stat-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+  margin-top: 10px;
+}
+
+.ex-doc .info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px 48px;
+}
+.ex-doc .info-grid .field-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 6px;
+}
+.ex-doc .info-grid .field-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111;
+}
+
+.ex-doc .footer-stripe {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 64px;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+  display: flex;
+  justify-content: space-between;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* --- Style 1: TC monogram (centered) --- */
+.ex1-hero {
+  text-align: center;
+  padding: 80px 64px 32px;
+}
+.ex1-monogram {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  color: #fff;
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 38px;
+  line-height: 96px;
+  margin: 0 auto 24px;
+  letter-spacing: -0.02em;
+}
+.ex1-club {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+  margin-bottom: 14px;
+}
+.ex1-title {
+  font-family: "Playfair Display", serif;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111;
+  line-height: 1.05;
+  margin: 0 0 18px;
+}
+.ex1-meta {
+  font-size: 13px;
+  color: #444;
+  letter-spacing: 0.04em;
+}
+.ex1-divider-dot {
+  display: inline-block;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: #999;
+  margin: 0 10px;
+  vertical-align: middle;
+}
+
+/* --- Style 2: top bar --- */
+.ex2-bar {
+  height: 14px;
+  background: #1a1a1a;
+}
+.ex2-hero {
+  padding: 48px 64px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid #1a1a1a;
+  margin-bottom: 36px;
+}
+.ex2-hero h1 {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0 0 6px;
+}
+.ex2-hero .ex2-club { font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #6b6b6b; }
+.ex2-hero .ex2-date {
+  text-align: right;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #444;
+}
+
+/* --- Style 3: stacked header --- */
+.ex3-hero {
+  padding: 56px 64px 32px;
+  border-bottom: 4px double #1a1a1a;
+  margin-bottom: 36px;
+}
+.ex3-club {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+  margin-bottom: 18px;
+}
+.ex3-title {
+  font-family: "Inter Tight", sans-serif;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  margin: 0 0 22px;
+  color: #111;
+}
+.ex3-meta {
+  display: flex;
+  gap: 32px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #555;
+  font-weight: 500;
+}

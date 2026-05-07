@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>myK9Show · Premium Designs</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Playfair+Display:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="styles/shared.css" />
+<link rel="stylesheet" href="styles/styles-existing.css" />
+<link rel="stylesheet" href="styles/style-4-editorial.css" />
+<link rel="stylesheet" href="styles/style-5-poster.css" />
+<link rel="stylesheet" href="styles/style-6-newspaper.css" />
+<link rel="stylesheet" href="styles/style-7-field.css" />
+<link rel="stylesheet" href="styles/style-8-traditional.css" />
+<link rel="stylesheet" href="styles/ink-saver.css" />
+
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #ece8e0; }
+  body { font-family: "Inter", system-ui, sans-serif; }
+  /* Canvas itself takes the whole viewport */
+  #root { height: 100vh; width: 100vw; }
+</style>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#7a1f1f"/>
+    <rect x="22" y="18" width="56" height="64" rx="2" fill="#f4ecd8"/>
+    <rect x="30" y="32" width="40" height="3" fill="#7a1f1f"/>
+    <rect x="30" y="40" width="32" height="2" fill="#a83a1d"/>
+    <rect x="30" y="46" width="40" height="1.5" fill="#6b4f3a"/>
+    <rect x="30" y="50" width="40" height="1.5" fill="#6b4f3a"/>
+    <rect x="30" y="54" width="28" height="1.5" fill="#6b4f3a"/>
+    <circle cx="50" cy="68" r="8" fill="#a83a1d"/>
+    <circle cx="50" cy="68" r="5" fill="#7a1f1f"/>
+  </svg>
+</template>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="image-slot.js"></script>
+
+<!-- React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Data + canvas + premium components -->
+<script src="data.js"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="styles/styles-existing.jsx"></script>
+<script type="text/babel" src="styles/style-4-editorial.jsx"></script>
+<script type="text/babel" src="styles/style-5-poster.jsx"></script>
+<script type="text/babel" src="styles/style-6-newspaper.jsx"></script>
+<script type="text/babel" src="styles/style-7-field.jsx"></script>
+<script type="text/babel" src="styles/style-8-traditional.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+  /* eslint-disable */
+  const {
+    DesignCanvas, DCSection, DCArtboard,
+    Style1Existing, Style2Existing, Style3Existing,
+    Style4Editorial, Style5Poster, Style6Newspaper, Style7Field, Style8Traditional,
+    TweaksPanel, useTweaks, TweakSection, TweakToggle, TweakRadio
+  } = window;
+
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "inkSaver": false
+  }/*EDITMODE-END*/;
+
+  // Letter sheet width is 816px. We render multi-page docs vertically,
+  // so each artboard is 816 wide and as tall as N pages (with 24px gaps + 48px padding).
+  const W = 816;
+  // helper for artboard height: pages * 1056 + (pages-1)*24 + 48 padding (24 top, 24 bottom)
+  const H = (pages) => pages * 1056 + (pages - 1) * 24 + 48;
+
+  function App() {
+    const [t, setT] = useTweaks(TWEAK_DEFAULTS);
+
+    React.useEffect(() => {
+      document.body.classList.toggle('ink-saver', t.inkSaver);
+    }, [t.inkSaver]);
+
+    return (
+      <React.Fragment>
+        <TweaksPanel title="Tweaks">
+          <TweakSection title="Print mode">
+            <TweakRadio
+              label="Output"
+              value={t.inkSaver ? 'ink' : 'color'}
+              options={[
+                { value: 'color', label: 'Color' },
+                { value: 'ink', label: 'Ink saver' }
+              ]}
+              onChange={v => setT('inkSaver', v === 'ink')}
+            />
+            <div style={{fontSize: 11, color: '#666', marginTop: 8, lineHeight: 1.4}}>
+              Ink saver removes background fills and converts colored accents to black for low-ink printing. Toggle either before printing or before saving as PDF.
+            </div>
+          </TweakSection>
+        </TweaksPanel>
+        <DesignCanvas
+          title="myK9Show · Premium List Designs"
+          subtitle="The 3 styles you ship today + 5 new directions. Pan, zoom, drag-reorder, click any artboard to open in focus mode."
+          defaultZoom={0.22}
+        >
+        <DCSection
+          id="existing"
+          title="Currently shipping"
+          subtitle="The three styles your Generate Premium button creates today, recreated from the PDFs you sent."
+          gap={64}
+        >
+          <DCArtboard id="ex1" label="01 · Monogram" width={W} height={H(3)}>
+            <Style1Existing />
+          </DCArtboard>
+          <DCArtboard id="ex2" label="02 · Banner" width={W} height={H(3)}>
+            <Style2Existing />
+          </DCArtboard>
+          <DCArtboard id="ex3" label="03 · Headline" width={W} height={H(3)}>
+            <Style3Existing />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="new"
+          title="New directions"
+          subtitle="Five fresh styles. Each rendered with a realistic Scent Work premium so you can see the layouts under real content load."
+          gap={64}
+        >
+          <DCArtboard id="s4" label="04 · Magazine" width={W} height={H(4)}>
+            <Style4Editorial />
+          </DCArtboard>
+          <DCArtboard id="s5" label="05 · Poster" width={W} height={H(4)}>
+            <Style5Poster />
+          </DCArtboard>
+          <DCArtboard id="s6" label="06 · Gazette" width={W} height={H(4)}>
+            <Style6Newspaper />
+          </DCArtboard>
+          <DCArtboard id="s7" label="07 · Field Guide" width={W} height={H(4)}>
+            <Style7Field />
+          </DCArtboard>
+          <DCArtboard id="s8" label="08 · Heritage" width={W} height={H(4)}>
+            <Style8Traditional />
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+      </React.Fragment>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

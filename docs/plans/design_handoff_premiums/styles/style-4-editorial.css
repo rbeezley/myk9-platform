@@ -1,0 +1,464 @@
+/* ============================================
+   STYLE 4 — EDITORIAL MAGAZINE
+   Inspired by The Gentlewoman / Apartamento.
+   Cover image-led, generous whitespace, serif/sans
+   contrast, drop caps, pull quotes.
+   ============================================ */
+
+.s4 {
+  font-family: "EB Garamond", "Garamond", serif;
+  color: #1c1a16;
+}
+
+.s4 .sheet { background: #faf6ee; }
+
+/* --- COVER --- */
+.s4-cover {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.s4-cover-top {
+  display: flex;
+  justify-content: space-between;
+  padding: 36px 56px 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6b5d3f;
+}
+.s4-issue {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 22px;
+  font-weight: 500;
+  text-align: center;
+  margin-top: 80px;
+  color: #6b4f3a;
+  letter-spacing: 0.04em;
+}
+.s4-issue::before, .s4-issue::after {
+  content: "—"; margin: 0 14px; color: #b39e7a;
+}
+.s4-cover h1 {
+  font-family: "Playfair Display", serif;
+  font-weight: 900;
+  font-size: 124px;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  text-align: center;
+  margin: 16px 56px 0;
+  color: #1c1a16;
+}
+.s4-cover h1 em {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-weight: 500;
+}
+.s4-tagline {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 26px;
+  text-align: center;
+  margin: 36px 96px 0;
+  color: #3e362a;
+  line-height: 1.35;
+}
+.s4-cover-art {
+  flex: 1;
+  margin: 56px 56px 28px;
+  background: linear-gradient(135deg, #c9a87c 0%, #8a6a45 50%, #4a3826 100%);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.s4-cover-art::before {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.18), transparent 60%),
+    radial-gradient(circle at 70% 80%, rgba(0,0,0,0.25), transparent 60%);
+}
+.s4-cover-art-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px 64px;
+  color: #f4ecd8;
+  font-family: "Cormorant Garamond", serif;
+  pointer-events: none;
+}
+.s4-cover-art-fallback .hd {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+.s4-cover-art-fallback .rule {
+  width: 80px;
+  height: 1px;
+  background: #f4ecd8;
+  opacity: 0.5;
+  margin: 0 auto 24px;
+}
+.s4-cover-art-fallback .rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.s4-cover-art-fallback .r {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px dotted rgba(244,236,216,0.35);
+  padding-bottom: 6px;
+  gap: 16px;
+}
+.s4-cover-art-fallback .k {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+.s4-cover-art-fallback .v {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 15px;
+  text-align: right;
+}
+/* When a photo is dropped, hide the fallback */
+.s4-cover-art:has(image-slot[data-filled]) .s4-cover-art-fallback {
+  display: none;
+}
+.s4-cover-art:has(image-slot[data-filled]) {
+  background: #000 !important;
+}
+.s4-cover-art:has(image-slot[data-filled])::before {
+  display: none;
+}
+.s4-cover-art:has(image-slot[data-filled]) .s4-cover-art-fallback {
+  display: none;
+}
+.s4-cover-art-badge { display: none; }
+.s4-cover-art-badge-old {
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: #faf6ee;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  position: relative;
+  z-index: 2;
+}
+.s4-cover-art-badge .y { font-size: 48px; font-weight: 600; }
+.s4-cover-art-badge .l {
+  font-family: "IBM Plex Mono", monospace;
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  margin-top: 4px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.s4-cover-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 56px 36px;
+}
+.s4-cover-bottom .left {
+  font-family: "EB Garamond", serif;
+  font-size: 14px;
+  color: #3e362a;
+  max-width: 280px;
+  line-height: 1.4;
+}
+.s4-cover-bottom .right {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: right;
+  color: #6b5d3f;
+}
+
+/* --- INNER PAGES --- */
+.s4-page { padding: 56px 64px; }
+
+.s4-eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #a83a1d;
+  font-weight: 600;
+}
+.s4-rule {
+  height: 1px; background: #c9b896; margin: 14px 0 24px;
+}
+
+.s4-h1 {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 56px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin: 0 0 12px;
+  color: #1c1a16;
+}
+.s4-h1 em { font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 500; }
+
+.s4-h2 {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: -0.015em;
+  margin: 0 0 14px;
+}
+
+.s4-lede {
+  font-family: "EB Garamond", serif;
+  font-size: 17px;
+  line-height: 1.55;
+  color: #2a2520;
+  text-wrap: pretty;
+}
+
+.s4-lede::first-letter {
+  font-family: "Playfair Display", serif;
+  font-size: 78px;
+  font-weight: 700;
+  float: left;
+  line-height: 0.88;
+  margin: 4px 12px -4px 0;
+  color: #a83a1d;
+}
+
+.s4-2col { columns: 2; column-gap: 32px; }
+.s4-2col p {
+  font-family: "EB Garamond", serif;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0 0 12px;
+  text-wrap: pretty;
+  break-inside: avoid;
+}
+
+.s4-pullquote {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 28px;
+  line-height: 1.25;
+  text-align: center;
+  color: #a83a1d;
+  margin: 36px 24px;
+  padding: 0 24px;
+  border-top: 1px solid #c9b896;
+  border-bottom: 1px solid #c9b896;
+  padding: 24px 24px;
+}
+
+.s4-judge-card {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid #c9b896;
+}
+.s4-judge-card:last-child { border-bottom: none; }
+.s4-judge-portrait {
+  width: 88px; height: 88px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d6c19a, #8a6a45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Playfair Display", serif;
+  color: #faf6ee;
+  font-size: 32px;
+  font-weight: 700;
+}
+.s4-judge-name {
+  font-family: "Playfair Display", serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1c1a16;
+  margin: 0 0 2px;
+}
+.s4-judge-loc {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #6b5d3f;
+  margin-bottom: 8px;
+}
+.s4-judge-meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #2a2520;
+  text-transform: uppercase;
+}
+.s4-judge-element {
+  font-family: "EB Garamond", serif;
+  font-size: 13px;
+  color: #3e362a;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+.s4-schedule {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  row-gap: 12px;
+  column-gap: 20px;
+  font-size: 14px;
+  color: #2a2520;
+}
+.s4-schedule .t {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: #a83a1d;
+  letter-spacing: 0.04em;
+  padding-top: 2px;
+}
+.s4-schedule .x {
+  font-family: "EB Garamond", serif;
+  border-bottom: 1px dotted #c9b896;
+  padding-bottom: 10px;
+}
+
+.s4-fees {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.s4-fee {
+  text-align: center;
+  padding: 24px 12px;
+  background: #fff;
+  border: 1px solid #c9b896;
+}
+.s4-fee .n {
+  font-family: "Playfair Display", serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: #a83a1d;
+}
+.s4-fee .l {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6b5d3f;
+  margin-top: 4px;
+}
+
+.s4-running-head {
+  position: absolute;
+  top: 28px;
+  left: 0; right: 0;
+  text-align: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #b39e7a;
+}
+.s4-running-foot {
+  position: absolute;
+  bottom: 28px;
+  left: 64px; right: 64px;
+  display: flex; justify-content: space-between;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #b39e7a;
+}
+
+.s4-officers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 28px;
+}
+.s4-officers .o {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dotted #c9b896;
+  padding: 8px 0;
+  font-size: 14px;
+}
+.s4-officers .o .role {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  color: #6b5d3f;
+}
+.s4-officers .o .name {
+  font-family: "EB Garamond", serif;
+  font-weight: 500;
+}
+
+.s4-hotel-row {
+  display: grid;
+  grid-template-columns: 1.5fr 0.7fr 0.7fr 0.6fr;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #c9b896;
+  font-size: 13px;
+}
+.s4-hotel-row .h-name {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 15px;
+}
+.s4-hotel-row .h-meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  color: #6b5d3f;
+  letter-spacing: 0.04em;
+}
+
+.s4-toc {
+  display: grid;
+  grid-template-columns: 30px 1fr 50px;
+  row-gap: 14px;
+  font-family: "EB Garamond", serif;
+  font-size: 16px;
+}
+.s4-toc .num {
+  font-family: "IBM Plex Mono", monospace;
+  color: #a83a1d;
+  font-size: 11px;
+  padding-top: 2px;
+}
+.s4-toc .t {
+  border-bottom: 1px dotted #c9b896;
+  padding-bottom: 8px;
+}
+.s4-toc .pg {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: #6b5d3f;
+  text-align: right;
+  padding-top: 2px;
+}

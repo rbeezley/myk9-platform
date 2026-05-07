@@ -75,6 +75,16 @@ describe('resolveTokens', () => {
     const tokens = resolveTokens('banner', { inkSaver: false });
     expect(tokens).toEqual(STYLE_TOKENS.banner);
   });
+
+  it.each(ALL_STYLES)(
+    'returns the reference-equal STYLE_TOKENS object for %s when inkSaver is false (early return preserved)',
+    style => {
+      // Reference equality matters: the early-return path avoids allocating a
+      // fresh object so callers can rely on stable identity for memoization.
+      expect(resolveTokens(style, { inkSaver: false })).toBe(STYLE_TOKENS[style]);
+      expect(resolveTokens(style)).toBe(STYLE_TOKENS[style]);
+    }
+  );
 });
 
 describe('numberToRoman', () => {

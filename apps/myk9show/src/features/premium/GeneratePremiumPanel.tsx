@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Download, AlertTriangle, Loader2, Globe, Check } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,6 +26,26 @@ interface Props {
   showId: string;
   clubId: string;
   showOrg: 'AKC' | 'UKC' | null;
+}
+
+/**
+ * Watches the PDFDownloadLink render-prop's `error` value and forwards each
+ * distinct error to `onError` exactly once. Lives as a child component so the
+ * effect runs outside the render-prop body — calling notifications inline
+ * fires repeatedly because PDFDownloadLink re-invokes its render prop on
+ * every internal state tick.
+ */
+function DownloadLinkErrorWatcher({
+  error,
+  onError,
+}: {
+  error: Error | null;
+  onError: (e: Error) => void;
+}) {
+  useEffect(() => {
+    if (error) onError(error);
+  }, [error, error?.message, onError]);
+  return null;
 }
 
 interface StyleOption {
@@ -94,7 +114,20 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
   const [hasNarrativeError, setHasNarrativeError] = useState(false);
   const [inkSaver, setInkSaver] = useState(false);
 
+  // INTENT: Toast at most once per distinct PDF render error message. The
+  // PDFDownloadLink render-prop re-fires on every internal state tick, so the
+  // toast must live outside that body (see DownloadLinkErrorWatcher below).
+  const lastPdfErrorMessageRef = useRef<string | null>(null);
+  const handlePdfError = useCallback((err: Error) => {
+    if (lastPdfErrorMessageRef.current === err.message) return;
+    lastPdfErrorMessageRef.current = err.message;
+    notifications.error(
+      'This style failed to render — please try a different one or report the issue.'
+    );
+  }, []);
+
   async function handleGenerate() {
+    lastPdfErrorMessageRef.current = null;
     const result = await generate(showId);
     setOriginal(result);
     setSupplemental(result.supplemental);
@@ -403,24 +436,21 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                   void handleDownloaded();
                 }}
               >
-                {({ loading, error: pdfError }) => {
-                  if (pdfError) {
-                    notifications.error(
-                      'This style failed to render — please try a different one or report the issue.'
-                    );
-                    return (
+                {({ loading, error: pdfError }) => (
+                  <>
+                    <DownloadLinkErrorWatcher error={pdfError ?? null} onError={handlePdfError} />
+                    {pdfError ? (
                       <Button className="w-full" variant="destructive" disabled>
                         PDF generation failed — try another style
                       </Button>
-                    );
-                  }
-                  return (
-                    <Button className="w-full" disabled={loading}>
-                      <Download className="h-4 w-4 mr-2" />
-                      {loading ? 'Preparing PDF…' : 'Download Premium PDF'}
-                    </Button>
-                  );
-                }}
+                    ) : (
+                      <Button className="w-full" disabled={loading}>
+                        <Download className="h-4 w-4 mr-2" />
+                        {loading ? 'Preparing PDF…' : 'Download Premium PDF'}
+                      </Button>
+                    )}
+                  </>
+                )}
               </PDFDownloadLink>
 
               <Button

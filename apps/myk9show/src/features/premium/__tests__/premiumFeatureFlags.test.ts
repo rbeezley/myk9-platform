@@ -47,4 +47,19 @@ describe('isStyleEnabled', () => {
     vi.stubEnv('VITE_PREMIUM_NEW_STYLES_ENABLED', '');
     expect(isStyleEnabled('magazine')).toBe(false);
   });
+
+  it('trims whitespace before comparing — "true " enables new styles', () => {
+    vi.stubEnv('VITE_PREMIUM_NEW_STYLES_ENABLED', 'true ');
+    expect(isStyleEnabled('magazine')).toBe(true);
+  });
+
+  it('trims whitespace before comparing — " true " enables new styles', () => {
+    vi.stubEnv('VITE_PREMIUM_NEW_STYLES_ENABLED', ' true ');
+    expect(isStyleEnabled('magazine')).toBe(true);
+  });
+
+  it('trims whitespace before comparing — " false " keeps new styles disabled', () => {
+    vi.stubEnv('VITE_PREMIUM_NEW_STYLES_ENABLED', ' false ');
+    expect(isStyleEnabled('magazine')).toBe(false);
+  });
 });

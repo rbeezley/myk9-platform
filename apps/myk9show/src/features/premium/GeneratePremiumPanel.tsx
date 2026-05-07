@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Download, AlertTriangle, Loader2, Globe, Check, Eye } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -217,8 +217,20 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     }
   }
 
-  const finalPremium = original ? buildFinalPremium() : null;
-  const PdfTemplate = finalPremium?.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
+  // Memoized so PDFDownloadLink receives a stable `document` prop and doesn't
+  // regenerate the PDF on every parent render. Without this, setPdfUrl → re-render
+  // → new buildFinalPremium() ref → new JSX element → PDF regenerates → new URL
+  // → setPdfUrl again → infinite render loop with button text flashing.
+  const finalPremium = useMemo(
+    () => (original ? buildFinalPremium() : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [original, supplemental, narratives, styleOverride]
+  );
+  const pdfDocument = useMemo(() => {
+    if (!finalPremium) return null;
+    const Template = finalPremium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
+    return <Template premium={finalPremium} inkSaver={inkSaver} />;
+  }, [finalPremium, inkSaver]);
   const activeStyle = styleOverride ?? original?.style ?? 'monogram';
 
   function handleClose() {
@@ -453,7 +465,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
 
                 <div className="mt-4 flex flex-col gap-2">
                   <PDFDownloadLink
-                    document={<PdfTemplate premium={finalPremium!} inkSaver={inkSaver} />}
+                    document={pdfDocument!}
                     fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}
                     onClick={() => {
                       void handleDownloaded();

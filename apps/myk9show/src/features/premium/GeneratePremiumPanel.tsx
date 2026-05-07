@@ -463,7 +463,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                   <span className="text-sm">Print-friendly (saves ink)</span>
                 </label>
 
-                <div className="mt-4 flex flex-col gap-2">
+                <div className="mt-4 flex flex-col gap-3">
                   <PDFDownloadLink
                     document={pdfDocument!}
                     fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}
@@ -546,6 +546,8 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                       setSupplemental(null);
                       setNarratives(null);
                       setStyleOverride(null);
+                      setPdfUrl(null);
+                      void handleGenerate();
                     }}
                   >
                     ↺ Regenerate

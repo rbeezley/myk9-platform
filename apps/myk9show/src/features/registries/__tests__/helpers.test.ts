@@ -1,6 +1,48 @@
 import { describe, it, expect } from 'vitest';
-import { getShowLandingStyle, getTrialRegistry, getTrialTimezone } from '../helpers';
+import { getShowStyle, getShowLandingStyle, getTrialRegistry, getTrialTimezone } from '../helpers';
 import { akcRegistry } from '../akc';
+
+describe('getShowStyle', () => {
+  it('reads style column (migration 195) over landing_style', () => {
+    expect(getShowStyle({ style: 'heritage', landing_style: 'default' })).toBe('heritage');
+  });
+
+  it('falls back to landing_style when style is absent', () => {
+    expect(getShowStyle({ landing_style: 'heritage' })).toBe('heritage');
+  });
+
+  it('maps "default" → "monogram"', () => {
+    expect(getShowStyle({ style: 'default' })).toBe('monogram');
+    expect(getShowStyle({ landing_style: 'default' })).toBe('monogram');
+  });
+
+  it('passes through all 8 valid styles', () => {
+    const styles = [
+      'monogram',
+      'banner',
+      'headline',
+      'magazine',
+      'poster',
+      'gazette',
+      'fieldGuide',
+      'heritage',
+    ] as const;
+    for (const s of styles) {
+      expect(getShowStyle({ style: s })).toBe(s);
+    }
+  });
+
+  it('defaults to "monogram" for invalid/unknown values', () => {
+    expect(getShowStyle({ style: 'unknown-future-style' })).toBe('monogram');
+  });
+
+  it('defaults to "monogram" for null / undefined / empty show', () => {
+    expect(getShowStyle(null)).toBe('monogram');
+    expect(getShowStyle(undefined)).toBe('monogram');
+    expect(getShowStyle({})).toBe('monogram');
+    expect(getShowStyle({ style: null })).toBe('monogram');
+  });
+});
 
 describe('getShowLandingStyle', () => {
   it('returns "heritage" when the show has landing_style = "heritage"', () => {
@@ -19,8 +61,9 @@ describe('getShowLandingStyle', () => {
     expect(getShowLandingStyle(undefined)).toBe('default');
   });
 
-  it('returns "default" for an unrecognized value (forward-compat)', () => {
+  it('returns "default" for any non-heritage value (shim — only heritage is special)', () => {
     expect(getShowLandingStyle({ landing_style: 'magazine' })).toBe('default');
+    expect(getShowLandingStyle({ style: 'gazette' })).toBe('default');
   });
 });
 

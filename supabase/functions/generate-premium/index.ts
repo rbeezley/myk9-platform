@@ -230,14 +230,20 @@ Deno.serve(async (req: Request) => {
           }
         : null;
 
-    // Remap pre-migration-191 style names so clients never receive a key that
-    // STYLE_TOKENS doesn't recognise. Safe to run before OR after the migration.
+    // Style authority (migration 195+): shows.style is the single source of
+    // truth for all four experience touchpoints. Fall back to the template's
+    // style for shows that haven't been migrated yet, then remap any
+    // pre-migration-191 legacy names so clients never receive an unknown key.
     const LEGACY_STYLE_REMAP: Record<string, string> = {
       classic: 'monogram',
       modern: 'banner',
       minimal: 'headline',
+      default: 'monogram',
     };
-    const rawStyle = ((template as Record<string, unknown> | null)?.style as string) ?? 'monogram';
+    const showStyleRaw = (show as Record<string, unknown>).style as string | null | undefined;
+    const templateStyleRaw =
+      ((template as Record<string, unknown> | null)?.style as string) ?? 'monogram';
+    const rawStyle = showStyleRaw ?? templateStyleRaw;
     const resolvedStyle = LEGACY_STYLE_REMAP[rawStyle] ?? rawStyle;
 
     const result = {

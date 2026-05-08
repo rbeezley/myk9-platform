@@ -17,9 +17,7 @@ import { UKCPremiumTemplate } from './pdf/UKCPremiumTemplate';
 import { useGeneratePremium } from './useGeneratePremium';
 import { useLogPremiumGeneration } from '../../hooks/queries/usePremiumGenerations';
 import { computePremiumDiff } from './logPremiumGeneration';
-import { STYLE_ORG_SUPPORT } from './pdf/pdfStyles';
-import { isStyleEnabled } from './premiumFeatureFlags';
-import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
+import type { GeneratedPremium } from '../../types/premium-types';
 
 interface Props {
   open: boolean;
@@ -69,55 +67,6 @@ function DownloadLinkUrlCapture({
   return null;
 }
 
-interface StyleOption {
-  key: PremiumStyle;
-  name: string;
-  tagline: string;
-}
-
-const STYLE_OPTIONS: StyleOption[] = [
-  {
-    key: 'monogram',
-    name: 'Monogram',
-    tagline: 'Centered TC monogram, large serif title — conservative classic.',
-  },
-  {
-    key: 'banner',
-    name: 'Banner',
-    tagline: 'Black bar across top, left-aligned title — clean and direct.',
-  },
-  {
-    key: 'headline',
-    name: 'Headline',
-    tagline: 'Stacked header with double-rule divider — quietly bold.',
-  },
-  {
-    key: 'magazine',
-    name: 'Magazine',
-    tagline: 'Editorial spread — display serif cover, pull quotes inside.',
-  },
-  {
-    key: 'poster',
-    name: 'Poster',
-    tagline: 'Bold single-page hero — tight uppercase, ink-blot accents.',
-  },
-  {
-    key: 'gazette',
-    name: 'Gazette',
-    tagline: 'Newspaper broadsheet — masthead, multi-column body.',
-  },
-  {
-    key: 'fieldGuide',
-    name: 'Field Guide',
-    tagline: 'Utility reference — §-numbered sections, dense data tables.',
-  },
-  {
-    key: 'heritage',
-    name: 'Heritage',
-    tagline: 'Traditional kennel club — ivory paper, ornamental rules.',
-  },
-];
-
 export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }: Props) {
   const { generate, isLoading, error, reset } = useGeneratePremium();
   const logMutation = useLogPremiumGeneration(clubId);
@@ -131,7 +80,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     showHours: string;
     trialInformation: string;
   } | null>(null);
-  const [styleOverride, setStyleOverride] = useState<PremiumStyle | null>(null);
   const [hasNarrativeError, setHasNarrativeError] = useState(false);
   const [inkSaver, setInkSaver] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -164,7 +112,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     setOriginal(result);
     setSupplemental(result.supplemental);
     setNarratives(result.narratives);
-    setStyleOverride(null);
     setHasNarrativeError(
       result.narratives.showHours === 'Show hours to be announced.' ||
         result.narratives.trialInformation === 'Trial information to be announced.'
@@ -175,7 +122,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
     if (!original || !supplemental || !narratives) return original!;
     return {
       ...original,
-      style: styleOverride ?? original.style,
+      style: original.style,
       supplemental,
       narratives,
     };
@@ -201,7 +148,7 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
 
   async function handleDownloaded() {
     if (!original || !supplemental || !narratives) return;
-    const activeStyle = styleOverride ?? original.style;
+    const activeStyle = original.style;
     const diff = computePremiumDiff(original, supplemental, narratives, activeStyle);
     try {
       await logMutation.mutateAsync({
@@ -224,32 +171,22 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
   const finalPremium = useMemo(
     () => (original ? buildFinalPremium() : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [original, supplemental, narratives, styleOverride]
+    [original, supplemental, narratives]
   );
   const pdfDocument = useMemo(() => {
     if (!finalPremium) return null;
     const Template = finalPremium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
     return <Template premium={finalPremium} inkSaver={inkSaver} />;
   }, [finalPremium, inkSaver]);
-  const activeStyle = styleOverride ?? original?.style ?? 'monogram';
-
   function handleClose() {
     reset();
     setOriginal(null);
     setSupplemental(null);
     setNarratives(null);
-    setStyleOverride(null);
     setHasNarrativeError(false);
     setInkSaver(false);
     onClose();
   }
-
-  const visibleStyles = STYLE_OPTIONS.filter(opt => {
-    if (!isStyleEnabled(opt.key)) return false;
-    const orgKey = original?.org ?? showOrg;
-    if (!orgKey) return true;
-    return STYLE_ORG_SUPPORT[opt.key].includes(orgKey);
-  });
 
   return (
     <>
@@ -307,50 +244,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                     </AlertDescription>
                   </Alert>
                 )}
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Style</Label>
-                  <div
-                    role="radiogroup"
-                    aria-label="Premium style"
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    {visibleStyles.map(opt => {
-                      const selected = activeStyle === opt.key;
-                      return (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          onClick={() => setStyleOverride(opt.key)}
-                          className={`text-left p-3 rounded-md border transition-colors ${
-                            selected
-                              ? 'border-primary bg-primary/10'
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}
-                            >
-                              {opt.name}
-                            </span>
-                            {selected && <Check className="h-3.5 w-3.5 text-primary" />}
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground leading-snug">
-                            {opt.tagline}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {styleOverride && styleOverride !== original.style && (
-                    <p className="text-xs text-muted-foreground">
-                      Template default: {original.style}. Override applies to this premium only.
-                    </p>
-                  )}
-                </div>
 
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Supplemental Fields</Label>
@@ -546,7 +439,6 @@ export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }:
                       setOriginal(null);
                       setSupplemental(null);
                       setNarratives(null);
-                      setStyleOverride(null);
                       setPdfUrl(null);
                       void handleGenerate();
                     }}

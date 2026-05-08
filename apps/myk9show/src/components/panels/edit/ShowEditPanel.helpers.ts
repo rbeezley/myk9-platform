@@ -6,6 +6,7 @@
  */
 
 import type { Show } from '@/types/show-types';
+import type { ShowStyle } from '@/features/registries';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 // Convert Show to form data
@@ -32,6 +33,13 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     }),
     acceptCheckPayments: show.acceptCheckPayments ?? false,
     acceptCashPayments: show.acceptCashPayments ?? false,
+    // Read show.style (migration 195) with fallback to landing_style (migration 192).
+    // Map 'default' → 'monogram' so legacy rows never produce a value rejected by
+    // the new shows_style_check constraint.
+    style: ((): ShowStyle => {
+      const raw = show.style ?? show.landing_style ?? 'monogram';
+      return (raw === 'default' ? 'monogram' : raw) as ShowStyle;
+    })(),
   };
 };
 
@@ -52,6 +60,7 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   allowNonOwnerHandlers: formData.allowNonOwnerHandlers,
   acceptCheckPayments: formData.acceptCheckPayments,
   acceptCashPayments: formData.acceptCashPayments,
+  style: formData.style,
   // Conditionally include optional string fields only when non-empty
   // (exactOptionalPropertyTypes forbids assigning undefined to string properties)
   ...(formData.location && { location: formData.location }),

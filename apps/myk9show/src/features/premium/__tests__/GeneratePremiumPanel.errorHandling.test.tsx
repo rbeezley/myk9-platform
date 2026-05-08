@@ -134,9 +134,11 @@ function renderHarness() {
 }
 
 async function openPanel() {
-  // Generation auto-triggers when the panel opens; just await the picker.
+  // Generation auto-triggers when the panel opens; await the supplemental fields
+  // section which appears once generation completes (style picker was removed in
+  // migration 195 — style is now set on the show, not per-generation).
   await waitFor(() => {
-    expect(screen.getByRole('radiogroup', { name: /Premium style/i })).toBeInTheDocument();
+    expect(screen.getByText(/Supplemental Fields/i)).toBeInTheDocument();
   });
 }
 

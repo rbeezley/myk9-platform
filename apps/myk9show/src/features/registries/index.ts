@@ -48,5 +48,5 @@ export type {
   RegistryRegistrationField,
 } from './types';
 export { akcRegistry, AKC_EXHIBITOR_AGREEMENT } from './akc';
-export { getShowLandingStyle, getTrialRegistry, getTrialTimezone } from './helpers';
-export type { LandingStyle } from './helpers';
+export { getShowStyle, getShowLandingStyle, getTrialRegistry, getTrialTimezone } from './helpers';
+export type { ShowStyle, LandingStyle } from './helpers';

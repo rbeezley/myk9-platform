@@ -1,18 +1,31 @@
 /**
- * Selectors that read the new Heritage / registry columns off show + trial
- * rows. Defensive defaults: if migration 192 hasn't been pushed yet (or a row
+ * Selectors that read the show style and trial registry/timezone columns.
+ * Defensive defaults: if a migration hasn't been pushed yet (or a row
  * predates it), these return safe values so the app doesn't crash.
  *
- * These are NOT React hooks — they are pure, synchronous selectors. Naming
- * stays as `getX` to make that explicit. Plan §4.4 originally called them
- * `useX`; that was a misnomer (no React state involvement).
+ * These are NOT React hooks — they are pure, synchronous selectors.
  */
 
 import { getRegistry, type Registry } from './index';
 
+/** All experience styles a show can be assigned. Mirrors PremiumStyle. */
+export type ShowStyle =
+  | 'monogram'
+  | 'banner'
+  | 'headline'
+  | 'magazine'
+  | 'poster'
+  | 'gazette'
+  | 'fieldGuide'
+  | 'heritage';
+
+/** @deprecated Use ShowStyle instead */
 export type LandingStyle = 'default' | 'heritage';
 
 interface ShowLike {
+  /** Post-migration 195: shows.style */
+  style?: string | null;
+  /** Pre-migration 195 fallback */
   landing_style?: string | null;
 }
 
@@ -21,15 +34,34 @@ interface TrialLike {
   timezone?: string | null;
 }
 
+const VALID_STYLES = new Set<ShowStyle>([
+  'monogram',
+  'banner',
+  'headline',
+  'magazine',
+  'poster',
+  'gazette',
+  'fieldGuide',
+  'heritage',
+]);
+
 /**
- * Read the landing style off a show row. Falls back to 'default' when the
- * column is absent or null. Unknown values also fall back — a future renderer
- * may add 'magazine' / etc.; this helper never throws on display surfaces.
+ * Read the experience style off a show row.
+ * Reads `style` first (migration 195+), falls back to `landing_style`
+ * (migration 192), then defaults to 'monogram'.
+ */
+export function getShowStyle(show: ShowLike | null | undefined): ShowStyle {
+  const raw = show?.style ?? show?.landing_style;
+  if (raw === 'default') return 'monogram';
+  if (raw && VALID_STYLES.has(raw as ShowStyle)) return raw as ShowStyle;
+  return 'monogram';
+}
+
+/**
+ * @deprecated Use getShowStyle. Returns 'heritage' or 'default' for legacy callers.
  */
 export function getShowLandingStyle(show: ShowLike | null | undefined): LandingStyle {
-  const raw = show?.landing_style;
-  if (raw === 'heritage') return 'heritage';
-  return 'default';
+  return getShowStyle(show) === 'heritage' ? 'heritage' : 'default';
 }
 
 /**
@@ -39,13 +71,9 @@ export function getShowLandingStyle(show: ShowLike | null | undefined): LandingS
 export function getTrialRegistry(trial: TrialLike | null | undefined): Registry {
   const id = trial?.registry_id ?? 'AKC';
   if (id === 'AKC') return getRegistry('AKC');
-  // Unknown registry id: fail loud during dev so we notice, but don't crash
-  // anonymous public visitors. Fall back to AKC for production safety.
   if (process.env.NODE_ENV !== 'production') {
     throw new Error(`Trial references unknown registry "${id}"`);
   }
-  // Log in production so the misconfigured trial shows up in monitoring
-  // rather than silently serving AKC legal language to a non-AKC entrant.
   console.error(
     `[Heritage] Unknown registry "${id}" on trial — falling back to AKC. Check trials.registry_id.`
   );

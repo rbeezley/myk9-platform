@@ -124,21 +124,31 @@ export function WorkflowStepContent({
       showName: currentShow?.name ?? '',
       clubName: currentShow?.clubName ?? currentShow?.name ?? '',
       dateRange: currentShow?.startDate
-        ? currentShow.endDate && currentShow.endDate !== currentShow.startDate
-          ? `${currentShow.startDate} – ${currentShow.endDate}`
-          : currentShow.startDate
+        ? (() => {
+            // Format as "12–14 June 2026" (Heritage style). T12:00:00 prevents UTC-midnight
+            // drift for date-only ISO strings (same guard applied to confirmationDate below).
+            const fmt = (iso: string) =>
+              new Date(iso.split('T')[0] + 'T12:00:00').toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              });
+            return currentShow.endDate && currentShow.endDate !== currentShow.startDate
+              ? `${fmt(currentShow.startDate)} – ${fmt(currentShow.endDate)}`
+              : fmt(currentShow.startDate);
+          })()
         : '',
       dogRegisteredName: firstDog?.registrations?.[0]?.registeredName ?? firstDog?.name ?? '',
       dogCallName: firstDog?.callName ?? null,
       classSummary,
       // Use T12:00:00 (noon) so date-only strings from Postgres never shift a calendar
-      // day when parsed as UTC midnight by users west of UTC.
+      // day when parsed as UTC midnight by users west of UTC. Strip any existing time
+      // component first in case the DB ever stores a full timestamp.
       confirmationDateLabel: firstTrial?.confirmationDate
-        ? new Date(firstTrial.confirmationDate + 'T12:00:00').toLocaleDateString('en-US', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })
+        ? new Date(firstTrial.confirmationDate.split('T')[0] + 'T12:00:00').toLocaleDateString(
+            'en-US',
+            { day: 'numeric', month: 'long', year: 'numeric' }
+          )
         : null,
     } as const;
   }, [currentStepId, showId, shows, allTrials, dogs, classes, optimisticState]);
@@ -258,6 +268,10 @@ export function WorkflowStepContent({
             totalFeesFormatted={`$${currentRegistrationTotalFees.toFixed(2)}`}
             registrationNumber={registrationNumber ?? null}
             confirmationDateLabel={heritageReceipt.confirmationDateLabel}
+            // INTENT: The entry blank is printed after the draw, not at entry time.
+            // Full pre-filled PDF (Phase 3 HeritageEntryBlankButton) requires judge
+            // assignments that don't exist until the draw — replaced by informational
+            // toast here. Wire to HeritageEntryBlankButton once draw data is available.
             onPrintEntryBlank={() =>
               notifications.info('Entry blank', {
                 description:

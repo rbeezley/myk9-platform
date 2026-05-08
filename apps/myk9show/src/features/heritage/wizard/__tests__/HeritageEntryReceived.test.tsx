@@ -52,6 +52,20 @@ describe('HeritageEntryReceived', () => {
     expect(screen.getByText('Bexar County Kennel Club')).toBeTruthy();
   });
 
+  it('displays show name', () => {
+    render(<HeritageEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(/Spring Scent Work Trial/)).toBeTruthy();
+  });
+
+  it('displays class summary', () => {
+    render(<HeritageEntryReceived {...BASE_PROPS} />);
+    expect(
+      screen.getAllByText(
+        (_, el) => el?.tagName === 'P' && (el.textContent ?? '').includes('Excellent · Containers')
+      ).length
+    ).toBeGreaterThan(0);
+  });
+
   it('displays dog name', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} />);
     // Call name appears inside a paragraph — getAllByText handles parent elements sharing the text

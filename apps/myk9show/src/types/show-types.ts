@@ -150,6 +150,8 @@ export interface ShowInput {
   startingArmbandNumber?: number | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  // Experience style — drives all 4 touchpoints (migration 195)
+  style?: string | null;
   // Index signature for compatibility with Record<string, unknown>
   [key: string]: unknown;
 }

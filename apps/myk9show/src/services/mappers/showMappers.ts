@@ -66,6 +66,7 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
     update.confirmation_message = input.confirmationMessage || null;
   if (input.startingArmbandNumber !== undefined)
     update.starting_armband_number = input.startingArmbandNumber;
+  if (input.style !== undefined) update.style = input.style;
 
   // Note: events, source, club_name, club_address, club_email do NOT exist in the
   // database schema. These are app-only fields derived from the club relation or
@@ -233,6 +234,7 @@ export const mapDatabaseToShow = (
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
     startingArmbandNumber:
       ((dbShow as Record<string, unknown>).starting_armband_number as number | undefined) ?? 100,
+    style: ((dbShow as Record<string, unknown>).style as string | null) ?? null,
 
     // Sync metadata for Local-First architecture
     _version: 1, // Default version
@@ -283,6 +285,7 @@ export const mapShowToShowInput = (show: Show): ShowInput => {
     trials: show.trials,
     confirmationMessage: show.confirmationMessage,
     startingArmbandNumber: show.startingArmbandNumber,
+    ...(show.style != null && { style: show.style }),
   };
 };
 

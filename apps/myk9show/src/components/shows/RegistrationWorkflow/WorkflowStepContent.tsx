@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 import { ClassSelectionStep } from './ClassSelectionStep';
@@ -5,6 +6,11 @@ import { PaymentStep } from './PaymentStep';
 import { ConfirmationStep } from './ConfirmationStep';
 import { HandlerAssignmentStep } from './HandlerAssignmentStep';
 import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/ErrorBoundary';
+import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { getShowLandingStyle } from '@/features/registries';
+import { HeritageEntryReceived } from '@/features/heritage/wizard/HeritageEntryReceived';
 import {
   ClassSelectionData,
   RegistrationFormData,
@@ -86,6 +92,44 @@ export function WorkflowStepContent({
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
+
+  // Heritage branch — hooks must be top-level (Rules of Hooks);
+  // expensive .find() lookups are memoized and only compute during confirmation step.
+  const shows = useShowStore(s => s.shows);
+  const allTrials = useTrialStore(s => s.trials);
+  const { dogs } = useDogStoreCompat();
+
+  const heritageReceipt = useMemo(() => {
+    if (currentStepId !== 'confirmation') return null;
+    const currentShow = shows.find(s => s.id === showId);
+    const isHeritage = getShowLandingStyle(currentShow) === 'heritage';
+    if (!isHeritage) return { isHeritage: false } as const;
+
+    const firstTrial = allTrials.find(t => t.showId === showId);
+    const firstDogId = optimisticState.formData.selectedDogs[0];
+    const firstDog = dogs.find(d => d.id === firstDogId);
+    const firstClassSelection = optimisticState.classSelections.find(s => s.dogId === firstDogId);
+
+    return {
+      isHeritage: true,
+      showName: currentShow?.name ?? '',
+      dateRange: currentShow?.startDate
+        ? currentShow.endDate && currentShow.endDate !== currentShow.startDate
+          ? `${currentShow.startDate} – ${currentShow.endDate}`
+          : currentShow.startDate
+        : '',
+      dogRegisteredName: firstDog?.registrations?.[0]?.registeredName ?? firstDog?.name ?? '',
+      dogCallName: firstDog?.callName ?? null,
+      classSummary: firstClassSelection?.selectedClasses.map(sc => sc.classId).join(', ') ?? '',
+      confirmationDateLabel: firstTrial?.confirmationDate
+        ? new Date(firstTrial.confirmationDate).toLocaleDateString('en-US', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })
+        : null,
+    } as const;
+  }, [currentStepId, showId, shows, allTrials, dogs, optimisticState]);
   return (
     <div className="min-h-[300px]">
       {currentStepId === 'dog-selection' && (
@@ -190,35 +234,48 @@ export function WorkflowStepContent({
         </PaymentErrorBoundary>
       )}
 
-      {currentStepId === 'confirmation' && (
-        <ConfirmationStep
-          registrationNumber={registrationNumber}
-          selectedDogs={optimisticState.formData.selectedDogs}
-          classSelections={optimisticState.classSelections}
-          documents={optimisticState.formData.documents}
-          paymentMethod={optimisticState.formData.paymentMethod || ''}
-          paymentStatus={optimisticState.paymentStatus}
-          entryStatus={optimisticState.entryStatus}
-          totalFees={currentRegistrationTotalFees}
-          showId={showId}
-          armbandAssignments={armbandAssignments}
-          onDownloadReceipt={undefined}
-          onSendEmail={undefined}
-          onStatusChange={async (_dogId: string, status: EntryStatus) => {
-            setEntryStatus(status);
-            if (registrationId) {
-              try {
-                await onEntryStatusChange(registrationId, status);
-              } catch (error: unknown) {
-                notifications.error(getErrorMessage(error));
+      {currentStepId === 'confirmation' &&
+        (heritageReceipt?.isHeritage ? (
+          <HeritageEntryReceived
+            showName={heritageReceipt.showName}
+            clubName={heritageReceipt.showName}
+            dateRange={heritageReceipt.dateRange}
+            dogRegisteredName={heritageReceipt.dogRegisteredName}
+            dogCallName={heritageReceipt.dogCallName}
+            classSummary={heritageReceipt.classSummary}
+            totalFeesFormatted={`$${currentRegistrationTotalFees.toFixed(2)}`}
+            registrationNumber={registrationNumber ?? null}
+            confirmationDateLabel={heritageReceipt.confirmationDateLabel}
+          />
+        ) : (
+          <ConfirmationStep
+            registrationNumber={registrationNumber}
+            selectedDogs={optimisticState.formData.selectedDogs}
+            classSelections={optimisticState.classSelections}
+            documents={optimisticState.formData.documents}
+            paymentMethod={optimisticState.formData.paymentMethod || ''}
+            paymentStatus={optimisticState.paymentStatus}
+            entryStatus={optimisticState.entryStatus}
+            totalFees={currentRegistrationTotalFees}
+            showId={showId}
+            armbandAssignments={armbandAssignments}
+            onDownloadReceipt={undefined}
+            onSendEmail={undefined}
+            onStatusChange={async (_dogId: string, status: EntryStatus) => {
+              setEntryStatus(status);
+              if (registrationId) {
+                try {
+                  await onEntryStatusChange(registrationId, status);
+                } catch (error: unknown) {
+                  notifications.error(getErrorMessage(error));
+                }
               }
-            }
-          }}
-          onNotificationToggle={(type, enabled) => {
-            logger.debug(`Notification ${type}: ${enabled}`, 'shows', {});
-          }}
-        />
-      )}
+            }}
+            onNotificationToggle={(type, enabled) => {
+              logger.debug(`Notification ${type}: ${enabled}`, 'shows', {});
+            }}
+          />
+        ))}
     </div>
   );
 }

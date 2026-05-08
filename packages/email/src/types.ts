@@ -8,6 +8,68 @@ export interface ResetPasswordProps {
   firstName: string;
 }
 
+// ─── Heritage Confirmation Email ─────────────────────────────────────────────
+
+export interface HeritageRunRow {
+  /** Roman numeral from trial_number, e.g. "I", "III". */
+  trialNumeral: string;
+  /** Formatted date, e.g. "Fri 12 Jun". */
+  dayLabel: string;
+  /** "Excellent · Containers" */
+  classLabel: string;
+  /** Judge display name. */
+  judgeName: string;
+  /** Armband number (may be null if not yet assigned). */
+  armband: string | null;
+}
+
+export interface HeritageConfirmationProps {
+  // Header
+  clubName: string;
+  clubEstablished: string | null;
+  clubCity: string | null;
+  showTitle: string;
+  /** e.g. "12–14 June 2026" */
+  dateRange: string;
+
+  // Greeting
+  /** "Ms. Patricia Holloway" — full salutation name */
+  salutation: string;
+
+  // Entry detail card
+  dogRegisteredName: string;
+  dogCallName: string | null;
+  dogBreed: string | null;
+  dogSex: string | null;
+  runs: HeritageRunRow[];
+  runCount: number;
+  totalFeesFormatted: string;
+  receiptNumber: string | null;
+
+  // On the day
+  doorsTime: string | null;
+  firstClassTime: string | null;
+  venueNameAndAddress: string | null;
+  parkingNotes: string | null;
+  hospitalityNotes: string | null;
+  cratingNotes: string | null;
+
+  // Withdraw / contact
+  secretaryEmail: string | null;
+  secretaryPhone: string | null;
+
+  // CTA
+  trialUrl: string | null;
+
+  // Signature
+  trialChairName: string | null;
+  trialChairTitle: string | null;
+
+  // Footer
+  memberClubLanguage: string;
+  showSlug: string | null;
+}
+
 export interface RegistrationConfirmationProps {
   firstName: string;
   confirmationNumber: string;

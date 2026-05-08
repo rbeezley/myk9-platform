@@ -182,7 +182,7 @@ importers:
         version: 8.5.6
       rollup-plugin-visualizer:
         specifier: ^6.0.5
-        version: 6.0.5(rollup@4.57.1)
+        version: 6.0.5(rollup@2.79.2)
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -243,6 +243,9 @@ importers:
       '@myk9/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@myk9/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@myk9/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -432,7 +435,7 @@ importers:
         version: 19.2.3(@types/react@19.2.10)
       '@vercel/node':
         specifier: ^5.6.15
-        version: 5.6.15(rollup@2.79.2)
+        version: 5.6.15(rollup@4.57.1)
       '@vitejs/plugin-react':
         specifier: ^5.1.2
         version: 5.1.2(vite@7.3.1(@types/node@25.1.0)(jiti@1.21.7)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -477,7 +480,7 @@ importers:
         version: 8.5.6
       rollup-plugin-visualizer:
         specifier: ^6.0.5
-        version: 6.0.5(rollup@2.79.2)
+        version: 6.0.5(rollup@4.57.1)
       supabase:
         specifier: ^2.74.3
         version: 2.74.3
@@ -8560,6 +8563,14 @@ snapshots:
     optionalDependencies:
       rollup: 2.79.2
 
+  '@rollup/pluginutils@5.3.0(rollup@4.57.1)':
+    dependencies:
+      '@types/estree': 1.0.8
+      estree-walker: 2.0.2
+      picomatch: 4.0.3
+    optionalDependencies:
+      rollup: 4.57.1
+
   '@rollup/rollup-android-arm-eabi@4.57.1':
     optional: true
 
@@ -9381,10 +9392,10 @@ snapshots:
 
   '@vercel/error-utils@2.0.3': {}
 
-  '@vercel/nft@1.1.1(rollup@2.79.2)':
+  '@vercel/nft@1.1.1(rollup@4.57.1)':
     dependencies:
       '@mapbox/node-pre-gyp': 2.0.3
-      '@rollup/pluginutils': 5.3.0(rollup@2.79.2)
+      '@rollup/pluginutils': 5.3.0(rollup@4.57.1)
       acorn: 8.15.0
       acorn-import-attributes: 1.9.5(acorn@8.15.0)
       async-sema: 3.1.1
@@ -9400,7 +9411,7 @@ snapshots:
       - rollup
       - supports-color
 
-  '@vercel/node@5.6.15(rollup@2.79.2)':
+  '@vercel/node@5.6.15(rollup@4.57.1)':
     dependencies:
       '@edge-runtime/node-utils': 2.3.0
       '@edge-runtime/primitives': 4.1.0
@@ -9408,7 +9419,7 @@ snapshots:
       '@types/node': 20.11.0
       '@vercel/build-utils': 13.8.0
       '@vercel/error-utils': 2.0.3
-      '@vercel/nft': 1.1.1(rollup@2.79.2)
+      '@vercel/nft': 1.1.1(rollup@4.57.1)
       '@vercel/static-config': 3.2.0
       async-listen: 3.0.0
       cjs-module-lexer: 1.2.3
@@ -9489,7 +9500,7 @@ snapshots:
       obug: 2.1.1
       std-env: 3.10.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@edge-runtime/vm@3.2.0)(@types/node@25.1.0)(@vitest/ui@4.0.18)(jiti@1.21.7)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.18(@edge-runtime/vm@3.2.0)(@types/node@25.1.0)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   '@vitest/expect@4.0.18':
     dependencies:
@@ -9542,7 +9553,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@edge-runtime/vm@3.2.0)(@types/node@25.1.0)(@vitest/ui@4.0.18)(jiti@1.21.7)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.18(@edge-runtime/vm@3.2.0)(@types/node@25.1.0)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   '@vitest/utils@4.0.18':
     dependencies:

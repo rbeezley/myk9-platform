@@ -155,9 +155,10 @@ export const showSchemas = {
       startDate: z.string().min(1, 'Please select a start date'),
       endDate: z.string().min(1, 'Please select an end date'),
       location: z.string(),
-      chairman: z.string(),
-      secretary: z.string(),
-      chiefSteward: z.string(),
+      // Optional staffing fields — not always present in ShowEditFormData
+      chairman: z.string().optional().default(''),
+      secretary: z.string().optional().default(''),
+      chiefSteward: z.string().optional().default(''),
       entryOpenDate: z.string(),
       entryCloseDate: z.string(),
       preEntryFee: z.string().refine(
@@ -182,6 +183,9 @@ export const showSchemas = {
       maxEntriesPerDog: z.number().optional(),
       maxTotalEntries: z.number().optional(),
       allowNonOwnerHandlers: z.boolean().optional(),
+      acceptCheckPayments: z.boolean().optional(),
+      acceptCashPayments: z.boolean().optional(),
+      style: z.string().default('monogram'),
     })
     .refine(
       data => {

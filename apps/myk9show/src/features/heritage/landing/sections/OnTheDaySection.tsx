@@ -8,6 +8,7 @@ interface OnTheDaySectionProps {
   venueAddress: string | null;
   awardsDescription: string | null;
   houseRulesNotes: string | null;
+  hospitalityNotes: string | null;
 }
 
 interface DayCard {
@@ -20,13 +21,14 @@ export function OnTheDaySection({
   venueAddress,
   awardsDescription,
   houseRulesNotes,
+  hospitalityNotes,
 }: OnTheDaySectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
   const cards: DayCard[] = [
     { title: 'The Venue', body: [venueName, venueAddress].filter(Boolean).join('\n') || null },
     { title: 'Awards & Honours', body: awardsDescription },
-    { title: 'Hospitality', body: 'Refreshments available throughout the event.' },
+    { title: 'Hospitality', body: hospitalityNotes },
     { title: 'House Rules', body: houseRulesNotes },
   ].filter(c => c.body);
 

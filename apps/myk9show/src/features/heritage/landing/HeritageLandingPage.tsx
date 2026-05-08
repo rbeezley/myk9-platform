@@ -114,6 +114,7 @@ export function HeritageLandingPage({ show, trial, allTrials }: HeritageLandingP
           venueAddress={data.venueAddress}
           awardsDescription={data.awardsDescription}
           houseRulesNotes={data.houseRulesNotes}
+          hospitalityNotes={data.hospitalityNotes}
         />
 
         <OfficersSection

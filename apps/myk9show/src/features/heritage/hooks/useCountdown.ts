@@ -41,6 +41,7 @@ export function useCountdown(targetIso: string | null, _timezone: string): Count
 
   useEffect(() => {
     if (!targetIso) return;
+    prevSecondsRef.current = -1; // reset so first tick of new target always fires
 
     const tick = () => {
       const next = compute();

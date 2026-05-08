@@ -71,7 +71,7 @@ const TrialDetailsPage: React.FC = () => {
     updateTrial,
     deleteTrial: deleteTrialAsync,
   } = useTrialStore();
-  const { user, isSecretary, isAdmin } = useAuthContext();
+  const { user, isSecretary, isAdmin, hasRole } = useAuthContext();
   const { templates, initializeDefaultTemplates } = useTemplateStore();
   const { shows } = useShowStore();
 
@@ -276,7 +276,12 @@ const TrialDetailsPage: React.FC = () => {
   // Casts: shows.landing_style was added in migration 192; frontend types will
   // re-tighten after `supabase gen types typescript` runs.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (getShowLandingStyle(parentShow as any) === 'heritage' && !isSecretary && !isAdmin) {
+  if (
+    getShowLandingStyle(parentShow as any) === 'heritage' &&
+    !isSecretary &&
+    !isAdmin &&
+    !hasRole('club_admin')
+  ) {
     return (
       <HeritageLandingPage
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

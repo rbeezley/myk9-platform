@@ -17,6 +17,12 @@ export interface Trial {
   name?: string | undefined;
   trialType?: string | undefined;
   pipelineStage?: number | undefined;
+  // Heritage / registry columns (migration 192)
+  entryCloseDate?: string | null;
+  timezone?: string | null;
+  maxTotalEntries?: number | null;
+  judge?: string | null;
+  confirmationDate?: string | null;
 }
 
 export interface TrialClass {

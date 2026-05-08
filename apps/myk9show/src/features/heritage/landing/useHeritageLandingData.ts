@@ -6,22 +6,11 @@
 
 import { useMemo } from 'react';
 import type { Show } from '@/types/show-types';
+import type { Trial } from '@/components/trials/types/trial.types';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { getRegistry, getTrialTimezone } from '@/features/registries';
 import { formatFee } from '@/utils/format';
 import type { HeritageLandingData, HeritageTrial, HeritageJourneyStep, HeritageFee } from './types';
-
-interface TrialLike {
-  id: string;
-  showId?: string | null;
-  trialDate?: string | null;
-  trialNumber?: number | string | null;
-  entryCloseDate?: string | null;
-  timezone?: string | null;
-  maxTotalEntries?: number | null;
-  judge?: string | null;
-  type?: string | null;
-}
 
 export function toRoman(n: number | string | null | undefined): string {
   if (n == null) return '';
@@ -68,8 +57,8 @@ export function buildJourneySteps(
 
 export function useHeritageLandingData(
   show: Show | null | undefined,
-  currentTrial: TrialLike | null | undefined,
-  allTrials: TrialLike[]
+  currentTrial: Trial | null | undefined,
+  allTrials: Trial[]
 ): HeritageLandingData {
   const showId = show?.id ?? '';
   const { data: entries = [] } = useEntriesByShowQuery(showId, !!showId);
@@ -149,7 +138,7 @@ export function useHeritageLandingData(
     const journeySteps = buildJourneySteps(
       show?.entryOpenDate ?? null,
       entryCloseDate,
-      null, // TODO: wire trials.confirmation_date after `supabase gen types` picks up migration 192
+      currentTrial?.confirmationDate ?? null,
       trialStartDate,
       trialEndDate
     );
@@ -163,7 +152,7 @@ export function useHeritageLandingData(
 
       entryOpenDate: show?.entryOpenDate ?? null,
       entryCloseDate: entryCloseDate ?? null,
-      confirmationDate: null, // populated once trials.confirmation_date types are regenerated
+      confirmationDate: currentTrial?.confirmationDate ?? null,
       trialStartDate,
       trialEndDate,
       timezone,

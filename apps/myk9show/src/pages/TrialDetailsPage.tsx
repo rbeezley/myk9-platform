@@ -272,25 +272,14 @@ const TrialDetailsPage: React.FC = () => {
   // Heritage landing page branch — public face only; staff always see the full
   // management UI so they retain access to entries, promo-codes, and financials.
   // All hooks above fire unconditionally so this early return is safe.
-  //
-  // Casts: shows.landing_style was added in migration 192; frontend types will
-  // re-tighten after `supabase gen types typescript` runs.
   if (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getShowLandingStyle(parentShow as any) === 'heritage' &&
+    getShowLandingStyle(parentShow) === 'heritage' &&
     !isSecretary &&
     !isAdmin &&
     !hasRole('club_admin')
   ) {
     return (
-      <HeritageLandingPage
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        show={parentShow as any}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        trial={(currentTrial as any) ?? null}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        allTrials={showTrials as any[]}
-      />
+      <HeritageLandingPage show={parentShow} trial={currentTrial ?? null} allTrials={showTrials} />
     );
   }
 

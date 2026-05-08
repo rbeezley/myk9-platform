@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
+import type { Trial } from '@/components/trials/types/trial.types';
 import { ensureHeritageFontsLoaded } from '../fonts';
 import { useHeritageLandingData } from './useHeritageLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -15,22 +16,10 @@ import { FinalCtaBand } from './sections/FinalCtaBand';
 import { HeritageFooter } from './sections/HeritageFooter';
 import '../heritage.css';
 
-interface TrialLike {
-  id: string;
-  showId?: string | null;
-  trialDate?: string | null;
-  trialNumber?: number | string | null;
-  entryCloseDate?: string | null;
-  timezone?: string | null;
-  maxTotalEntries?: number | null;
-  judge?: string | null;
-  type?: string | null;
-}
-
 interface HeritageLandingPageProps {
   show: Show | null | undefined;
-  trial: TrialLike | null | undefined;
-  allTrials: TrialLike[];
+  trial: Trial | null | undefined;
+  allTrials: Trial[];
 }
 
 /**

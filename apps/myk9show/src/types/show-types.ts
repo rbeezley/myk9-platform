@@ -105,6 +105,9 @@ export interface Show {
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
 
+  // Heritage / registry columns (migration 192)
+  landing_style?: string | null;
+
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
   _lastModified?: Date | undefined;

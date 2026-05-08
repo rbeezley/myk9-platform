@@ -1052,6 +1052,68 @@ export type Database = {
           },
         ]
       }
+      club_premium_templates: {
+        Row: {
+          accommodations: Json
+          additional_notes: string | null
+          awards_description: string | null
+          club_id: string
+          created_at: string
+          hospitality_notes: string | null
+          id: string
+          is_default: boolean
+          name: string
+          style: string
+          trial_type: string | null
+          updated_at: string
+          vet_clinic_address: string | null
+          vet_clinic_name: string | null
+          vet_clinic_phone: string | null
+        }
+        Insert: {
+          accommodations?: Json
+          additional_notes?: string | null
+          awards_description?: string | null
+          club_id: string
+          created_at?: string
+          hospitality_notes?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          style?: string
+          trial_type?: string | null
+          updated_at?: string
+          vet_clinic_address?: string | null
+          vet_clinic_name?: string | null
+          vet_clinic_phone?: string | null
+        }
+        Update: {
+          accommodations?: Json
+          additional_notes?: string | null
+          awards_description?: string | null
+          club_id?: string
+          created_at?: string
+          hospitality_notes?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          style?: string
+          trial_type?: string | null
+          updated_at?: string
+          vet_clinic_address?: string | null
+          vet_clinic_name?: string | null
+          vet_clinic_phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_premium_templates_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clubs: {
         Row: {
           accent_color: string | null
@@ -1475,6 +1537,9 @@ export type Database = {
           class_id: string | null
           comped: boolean | null
           comped_reason: string | null
+          confirmation_email_message_id: string | null
+          confirmation_email_sent_at: string | null
+          confirmation_email_status: string
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -1549,6 +1614,9 @@ export type Database = {
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
+          confirmation_email_message_id?: string | null
+          confirmation_email_sent_at?: string | null
+          confirmation_email_status?: string
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -1623,6 +1691,9 @@ export type Database = {
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
+          confirmation_email_message_id?: string | null
+          confirmation_email_sent_at?: string | null
+          confirmation_email_status?: string
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3519,6 +3590,7 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          is_early_adopter: boolean
           last_name: string
           license_key: string | null
           phone: string | null
@@ -3541,6 +3613,7 @@ export type Database = {
           email?: string | null
           first_name: string
           id?: string
+          is_early_adopter?: boolean
           last_name: string
           license_key?: string | null
           phone?: string | null
@@ -3563,6 +3636,7 @@ export type Database = {
           email?: string | null
           first_name?: string
           id?: string
+          is_early_adopter?: boolean
           last_name?: string
           license_key?: string | null
           phone?: string | null
@@ -3681,6 +3755,103 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      premium_generations: {
+        Row: {
+          club_id: string
+          field_overrides: Json
+          generated_at: string
+          id: string
+          narrative_edits: Json
+          org: string
+          show_id: string
+          template_id: string | null
+        }
+        Insert: {
+          club_id: string
+          field_overrides?: Json
+          generated_at?: string
+          id?: string
+          narrative_edits?: Json
+          org: string
+          show_id: string
+          template_id?: string | null
+        }
+        Update: {
+          club_id?: string
+          field_overrides?: Json
+          generated_at?: string
+          id?: string
+          narrative_edits?: Json
+          org?: string
+          show_id?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_generations_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "club_premium_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_codes: {
         Row: {
@@ -4900,6 +5071,7 @@ export type Database = {
           accept_check_payments: boolean
           address: string | null
           allow_non_owner_handlers: boolean | null
+          cc_secretary_on_exhibitor_emails: boolean
           city: string | null
           club_id: string | null
           confirmation_message: string | null
@@ -4914,6 +5086,7 @@ export type Database = {
           entry_close_date: string | null
           entry_open_date: string | null
           id: string
+          landing_style: string
           license_key: string | null
           location: string | null
           logo_url: string | null
@@ -4927,6 +5100,8 @@ export type Database = {
           name: string
           organization: string
           pre_entry_fee: number | null
+          published_premium_at: string | null
+          published_premium_url: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -4947,6 +5122,7 @@ export type Database = {
           accept_check_payments?: boolean
           address?: string | null
           allow_non_owner_handlers?: boolean | null
+          cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
           club_id?: string | null
           confirmation_message?: string | null
@@ -4961,6 +5137,7 @@ export type Database = {
           entry_close_date?: string | null
           entry_open_date?: string | null
           id?: string
+          landing_style?: string
           license_key?: string | null
           location?: string | null
           logo_url?: string | null
@@ -4974,6 +5151,8 @@ export type Database = {
           name: string
           organization: string
           pre_entry_fee?: number | null
+          published_premium_at?: string | null
+          published_premium_url?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -4994,6 +5173,7 @@ export type Database = {
           accept_check_payments?: boolean
           address?: string | null
           allow_non_owner_handlers?: boolean | null
+          cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
           club_id?: string | null
           confirmation_message?: string | null
@@ -5008,6 +5188,7 @@ export type Database = {
           entry_close_date?: string | null
           entry_open_date?: string | null
           id?: string
+          landing_style?: string
           license_key?: string | null
           location?: string | null
           logo_url?: string | null
@@ -5021,6 +5202,8 @@ export type Database = {
           name?: string
           organization?: string
           pre_entry_fee?: number | null
+          published_premium_at?: string | null
+          published_premium_url?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -5851,6 +6034,7 @@ export type Database = {
           actual_start_time: string | null
           allow_self_checkin: boolean | null
           category: string | null
+          confirmation_date: string | null
           created_at: string | null
           date: string
           deleted_at: string | null
@@ -5865,8 +6049,10 @@ export type Database = {
           name: string
           pipeline_stage: number
           planned_start_time: string | null
+          registry_id: string
           show_id: string
           status: string | null
+          timezone: string
           trial_number: string | null
           trial_type: string | null
           updated_at: string | null
@@ -5876,6 +6062,7 @@ export type Database = {
           actual_start_time?: string | null
           allow_self_checkin?: boolean | null
           category?: string | null
+          confirmation_date?: string | null
           created_at?: string | null
           date: string
           deleted_at?: string | null
@@ -5890,8 +6077,10 @@ export type Database = {
           name: string
           pipeline_stage?: number
           planned_start_time?: string | null
+          registry_id?: string
           show_id: string
           status?: string | null
+          timezone?: string
           trial_number?: string | null
           trial_type?: string | null
           updated_at?: string | null
@@ -5901,6 +6090,7 @@ export type Database = {
           actual_start_time?: string | null
           allow_self_checkin?: boolean | null
           category?: string | null
+          confirmation_date?: string | null
           created_at?: string | null
           date?: string
           deleted_at?: string | null
@@ -5915,8 +6105,10 @@ export type Database = {
           name?: string
           pipeline_stage?: number
           planned_start_time?: string | null
+          registry_id?: string
           show_id?: string
           status?: string | null
+          timezone?: string
           trial_number?: string | null
           trial_type?: string | null
           updated_at?: string | null

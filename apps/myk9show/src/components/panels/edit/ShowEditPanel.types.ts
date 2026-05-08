@@ -4,6 +4,7 @@
 
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
+import type { ShowStyle } from '@/features/registries';
 
 export interface ShowEditPanelProps {
   open: boolean;
@@ -39,5 +40,5 @@ export interface ShowEditFormData extends Record<string, unknown> {
   acceptCheckPayments?: boolean;
   acceptCashPayments?: boolean;
   /** Experience style — drives all 4 touchpoints (migration 195) */
-  style: string;
+  style: ShowStyle;
 }

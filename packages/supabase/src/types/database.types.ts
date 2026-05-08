@@ -5086,7 +5086,6 @@ export type Database = {
           entry_close_date: string | null
           entry_open_date: string | null
           id: string
-          landing_style: string
           license_key: string | null
           location: string | null
           logo_url: string | null
@@ -5109,6 +5108,7 @@ export type Database = {
           starting_armband_number: number
           state: string | null
           status: string | null
+          style: string
           updated_at: string | null
           venue_name: string | null
           venue_wifi_network: string | null
@@ -5137,7 +5137,6 @@ export type Database = {
           entry_close_date?: string | null
           entry_open_date?: string | null
           id?: string
-          landing_style?: string
           license_key?: string | null
           location?: string | null
           logo_url?: string | null
@@ -5160,6 +5159,7 @@ export type Database = {
           starting_armband_number?: number
           state?: string | null
           status?: string | null
+          style?: string
           updated_at?: string | null
           venue_name?: string | null
           venue_wifi_network?: string | null
@@ -5188,7 +5188,6 @@ export type Database = {
           entry_close_date?: string | null
           entry_open_date?: string | null
           id?: string
-          landing_style?: string
           license_key?: string | null
           location?: string | null
           logo_url?: string | null
@@ -5211,6 +5210,7 @@ export type Database = {
           starting_armband_number?: number
           state?: string | null
           status?: string | null
+          style?: string
           updated_at?: string | null
           venue_name?: string | null
           venue_wifi_network?: string | null
@@ -7742,3 +7742,5 @@ export const Constants = {
     Enums: {},
   },
 } as const
+A new version of Supabase CLI is available: v2.98.2 (currently installed v2.90.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

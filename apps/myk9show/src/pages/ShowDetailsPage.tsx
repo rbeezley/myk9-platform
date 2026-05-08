@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { getShowLandingStyle } from '@/features/registries';
+import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -75,7 +77,7 @@ const ShowDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { endNavigation } = useNavigationPerformance();
-  const { user, isSecretary, isAdmin } = useAuthContext();
+  const { user, isSecretary, isAdmin, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const { data: showEntries = [] } = useEntriesByShowQuery(id || '', !!id);
@@ -298,6 +300,23 @@ const ShowDetailsPage: React.FC = () => {
       <PageShell>
         <NotFoundState entityName="Show" backTo="/shows" backLabel="Back to Shows" />
       </PageShell>
+    );
+  }
+
+  // Heritage public landing — renders for any visitor who is not staff.
+  // Staff (secretary / admin / club_admin) always reach the management UI.
+  if (
+    getShowLandingStyle(actualCurrentShow) === 'heritage' &&
+    !isSecretary &&
+    !isAdmin &&
+    !hasRole('club_admin')
+  ) {
+    return (
+      <HeritageLandingPage
+        show={actualCurrentShow}
+        trial={associatedTrials[0] ?? null}
+        allTrials={associatedTrials}
+      />
     );
   }
 

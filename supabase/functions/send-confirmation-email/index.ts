@@ -14,6 +14,11 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
+// Shared secret for caller auth. Set HERITAGE_CONFIRMATION_SECRET in Supabase
+// dashboard → Edge Functions → send-confirmation-email → Secrets. The pg_cron
+// SQL (migration 193) must pass this value in the x-function-secret header.
+// Without this env var the check is skipped (facilitates local dev / first deploy).
+const FUNCTION_SECRET = Deno.env.get('HERITAGE_CONFIRMATION_SECRET');
 
 // ─── Palette (must match packages/email/src/templates/HeritageConfirmationEmail.tsx) ──
 
@@ -320,6 +325,19 @@ Deno.serve(async (req: Request) => {
   const cors = corsHeaders(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
+  // Caller auth: when HERITAGE_CONFIRMATION_SECRET is configured, every
+  // non-OPTIONS request must carry it in x-function-secret. The pg_cron
+  // SQL in migration 193 must be updated to pass this header.
+  if (FUNCTION_SECRET) {
+    const provided = req.headers.get('x-function-secret');
+    if (provided !== FUNCTION_SECRET) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
   if (!RESEND_API_KEY) {
     return new Response(JSON.stringify({ error: 'Email service not configured' }), {
       status: 503,
@@ -434,8 +452,7 @@ Deno.serve(async (req: Request) => {
         `
         )
         .eq('trial_id', trialId)
-        .is('confirmation_email_sent_at', null)
-        .neq('confirmation_email_status', 'sent');
+        .in('confirmation_email_status', ['pending', 'failed']);
 
       for (const entry of entries ?? []) {
         const recipientEmail = entry.handler?.email;

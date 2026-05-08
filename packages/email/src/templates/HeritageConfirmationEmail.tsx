@@ -1,17 +1,10 @@
 import { Body, Head, Html, Link, Preview } from '@react-email/components';
 import type { JSX } from 'react';
 import type { HeritageConfirmationProps, HeritageRunRow } from '../types';
+import { HC } from '../heritageTokens';
 
-// ─── Palette ─────────────────────────────────────────────────────────────────
-const INK = '#1a1612';
-const PAPER = '#f8f4ea';
-const CLARET = '#8a1818';
-const GOLD = '#8a6a45';
-const QUILL = '#6b4f3a';
-
-// ─── Font stacks ─────────────────────────────────────────────────────────────
-const DISPLAY = "'Cormorant Garamond', Georgia, serif";
-const BODY_FONT = "'EB Garamond', Georgia, serif";
+const { INK, PAPER, CLARET, GOLD, QUILL, DISPLAY } = HC;
+const BODY_FONT = HC.BODY;
 
 // ─── Ornament rule (email-safe: div line-trick, not border) ──────────────────
 // Outlook strips borders on inline elements but respects background-color on div.

@@ -6,6 +6,7 @@ export type {
   HeritageRunRow,
 } from './types';
 export { HeritageConfirmationEmail } from './templates/HeritageConfirmationEmail';
+export { HC as HeritageTokens } from './heritageTokens';
 
 export { ConfirmEmail } from './templates/ConfirmEmail';
 export { ResetPassword } from './templates/ResetPassword';

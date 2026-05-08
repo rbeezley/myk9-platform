@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 import { ClassSelectionStep } from './ClassSelectionStep';
@@ -5,6 +6,12 @@ import { PaymentStep } from './PaymentStep';
 import { ConfirmationStep } from './ConfirmationStep';
 import { HandlerAssignmentStep } from './HandlerAssignmentStep';
 import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/ErrorBoundary';
+import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { getShowLandingStyle } from '@/features/registries';
+import { HeritageEntryReceived } from '@/features/heritage/wizard/HeritageEntryReceived';
 import {
   ClassSelectionData,
   RegistrationFormData,
@@ -86,6 +93,65 @@ export function WorkflowStepContent({
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
+
+  // Heritage branch — hooks must be top-level (Rules of Hooks);
+  // expensive .find() lookups are memoized and only compute during confirmation step.
+  const shows = useShowStore(s => s.shows);
+  const allTrials = useTrialStore(s => s.trials);
+  const { dogs } = useDogStoreCompat();
+  const { classes } = useClassStoreCompat();
+
+  const heritageReceipt = useMemo(() => {
+    if (currentStepId !== 'confirmation') return null;
+    const currentShow = shows.find(s => s.id === showId);
+    const isHeritage = getShowLandingStyle(currentShow) === 'heritage';
+    if (!isHeritage) return { isHeritage: false } as const;
+
+    const firstTrial = allTrials.find(t => t.showId === showId);
+    const firstDogId = optimisticState.formData.selectedDogs[0];
+    const firstDog = dogs.find(d => d.id === firstDogId);
+    const firstClassSelection = optimisticState.classSelections.find(s => s.dogId === firstDogId);
+    const classSummary =
+      firstClassSelection?.selectedClasses
+        .map(sc => {
+          const cls = classes.find(c => c.id === sc.classId);
+          return cls?.className ?? sc.classId;
+        })
+        .join(', ') ?? '';
+
+    return {
+      isHeritage: true,
+      showName: currentShow?.name ?? '',
+      clubName: currentShow?.clubName ?? currentShow?.name ?? '',
+      dateRange: currentShow?.startDate
+        ? (() => {
+            // Format as "12–14 June 2026" (Heritage style). T12:00:00 prevents UTC-midnight
+            // drift for date-only ISO strings (same guard applied to confirmationDate below).
+            const fmt = (iso: string) =>
+              new Date(iso.split('T')[0] + 'T12:00:00').toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              });
+            return currentShow.endDate && currentShow.endDate !== currentShow.startDate
+              ? `${fmt(currentShow.startDate)} – ${fmt(currentShow.endDate)}`
+              : fmt(currentShow.startDate);
+          })()
+        : '',
+      dogRegisteredName: firstDog?.registrations?.[0]?.registeredName ?? firstDog?.name ?? '',
+      dogCallName: firstDog?.callName ?? null,
+      classSummary,
+      // Use T12:00:00 (noon) so date-only strings from Postgres never shift a calendar
+      // day when parsed as UTC midnight by users west of UTC. Strip any existing time
+      // component first in case the DB ever stores a full timestamp.
+      confirmationDateLabel: firstTrial?.confirmationDate
+        ? new Date(firstTrial.confirmationDate.split('T')[0] + 'T12:00:00').toLocaleDateString(
+            'en-US',
+            { day: 'numeric', month: 'long', year: 'numeric' }
+          )
+        : null,
+    } as const;
+  }, [currentStepId, showId, shows, allTrials, dogs, classes, optimisticState]);
   return (
     <div className="min-h-[300px]">
       {currentStepId === 'dog-selection' && (
@@ -190,35 +256,58 @@ export function WorkflowStepContent({
         </PaymentErrorBoundary>
       )}
 
-      {currentStepId === 'confirmation' && (
-        <ConfirmationStep
-          registrationNumber={registrationNumber}
-          selectedDogs={optimisticState.formData.selectedDogs}
-          classSelections={optimisticState.classSelections}
-          documents={optimisticState.formData.documents}
-          paymentMethod={optimisticState.formData.paymentMethod || ''}
-          paymentStatus={optimisticState.paymentStatus}
-          entryStatus={optimisticState.entryStatus}
-          totalFees={currentRegistrationTotalFees}
-          showId={showId}
-          armbandAssignments={armbandAssignments}
-          onDownloadReceipt={undefined}
-          onSendEmail={undefined}
-          onStatusChange={async (_dogId: string, status: EntryStatus) => {
-            setEntryStatus(status);
-            if (registrationId) {
-              try {
-                await onEntryStatusChange(registrationId, status);
-              } catch (error: unknown) {
-                notifications.error(getErrorMessage(error));
-              }
+      {currentStepId === 'confirmation' &&
+        (heritageReceipt?.isHeritage ? (
+          <HeritageEntryReceived
+            showName={heritageReceipt.showName}
+            clubName={heritageReceipt.clubName}
+            dateRange={heritageReceipt.dateRange}
+            dogRegisteredName={heritageReceipt.dogRegisteredName}
+            dogCallName={heritageReceipt.dogCallName}
+            classSummary={heritageReceipt.classSummary}
+            totalFeesFormatted={`$${currentRegistrationTotalFees.toFixed(2)}`}
+            registrationNumber={registrationNumber ?? null}
+            confirmationDateLabel={heritageReceipt.confirmationDateLabel}
+            // INTENT: The entry blank is printed after the draw, not at entry time.
+            // Full pre-filled PDF (Phase 3 HeritageEntryBlankButton) requires judge
+            // assignments that don't exist until the draw — replaced by informational
+            // toast here. Wire to HeritageEntryBlankButton once draw data is available.
+            onPrintEntryBlank={() =>
+              notifications.info('Entry blank', {
+                description:
+                  'A printable entry blank will be available after the draw is complete.',
+              })
             }
-          }}
-          onNotificationToggle={(type, enabled) => {
-            logger.debug(`Notification ${type}: ${enabled}`, 'shows', {});
-          }}
-        />
-      )}
+          />
+        ) : (
+          <ConfirmationStep
+            registrationNumber={registrationNumber}
+            selectedDogs={optimisticState.formData.selectedDogs}
+            classSelections={optimisticState.classSelections}
+            documents={optimisticState.formData.documents}
+            paymentMethod={optimisticState.formData.paymentMethod || ''}
+            paymentStatus={optimisticState.paymentStatus}
+            entryStatus={optimisticState.entryStatus}
+            totalFees={currentRegistrationTotalFees}
+            showId={showId}
+            armbandAssignments={armbandAssignments}
+            onDownloadReceipt={undefined}
+            onSendEmail={undefined}
+            onStatusChange={async (_dogId: string, status: EntryStatus) => {
+              setEntryStatus(status);
+              if (registrationId) {
+                try {
+                  await onEntryStatusChange(registrationId, status);
+                } catch (error: unknown) {
+                  notifications.error(getErrorMessage(error));
+                }
+              }
+            }}
+            onNotificationToggle={(type, enabled) => {
+              logger.debug(`Notification ${type}: ${enabled}`, 'shows', {});
+            }}
+          />
+        ))}
     </div>
   );
 }

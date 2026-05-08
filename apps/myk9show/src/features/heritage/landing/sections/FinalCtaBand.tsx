@@ -3,8 +3,6 @@ import { heritageOrnaments } from '../../tokens';
 
 interface FinalCtaBandProps {
   entryWizardUrl: string;
-  entryCloseDate: string | null;
-  timezone: string;
 }
 
 export function FinalCtaBand({ entryWizardUrl }: FinalCtaBandProps) {

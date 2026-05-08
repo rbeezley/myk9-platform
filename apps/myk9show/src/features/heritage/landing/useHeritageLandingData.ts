@@ -23,7 +23,7 @@ interface TrialLike {
   type?: string | null;
 }
 
-function toRoman(n: number | string | null | undefined): string {
+export function toRoman(n: number | string | null | undefined): string {
   if (n == null) return '';
   let num = typeof n === 'string' ? parseInt(n, 10) : n;
   if (isNaN(num) || num <= 0) return String(n);
@@ -39,7 +39,7 @@ function toRoman(n: number | string | null | undefined): string {
   return result || String(n);
 }
 
-function buildJourneySteps(
+export function buildJourneySteps(
   entryOpenDate: string | null,
   entryCloseDate: string | null,
   confirmationDate: string | null,
@@ -149,7 +149,7 @@ export function useHeritageLandingData(
     const journeySteps = buildJourneySteps(
       show?.entryOpenDate ?? null,
       entryCloseDate,
-      currentTrial?.timezone ? null : null, // confirmation_date not yet on TrialLike — null until type regen
+      null, // TODO: wire trials.confirmation_date after `supabase gen types` picks up migration 192
       trialStartDate,
       trialEndDate
     );

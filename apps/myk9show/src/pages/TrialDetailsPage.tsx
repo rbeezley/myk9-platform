@@ -269,15 +269,14 @@ const TrialDetailsPage: React.FC = () => {
     );
   }
 
-  // Heritage landing page branch — renders instead of the secretary/admin UI when
-  // the parent show has landing_style === 'heritage'. All hooks above fire
-  // unconditionally so this early return is safe (no hooks-after-conditional issue).
+  // Heritage landing page branch — public face only; staff always see the full
+  // management UI so they retain access to entries, promo-codes, and financials.
+  // All hooks above fire unconditionally so this early return is safe.
   //
   // Casts: shows.landing_style was added in migration 192; frontend types will
-  // re-tighten after `supabase gen types typescript` runs. The store's SyncableTrial
-  // shape is structurally compatible with the data hook's TrialLike at runtime.
+  // re-tighten after `supabase gen types typescript` runs.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (getShowLandingStyle(parentShow as any) === 'heritage') {
+  if (getShowLandingStyle(parentShow as any) === 'heritage' && !isSecretary && !isAdmin) {
     return (
       <HeritageLandingPage
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

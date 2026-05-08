@@ -122,11 +122,7 @@ export function HeritageLandingPage({ show, trial, allTrials }: HeritageLandingP
           secretaryEmail={data.secretaryEmail}
         />
 
-        <FinalCtaBand
-          entryWizardUrl={data.entryWizardUrl}
-          entryCloseDate={data.entryCloseDate}
-          timezone={data.timezone}
-        />
+        <FinalCtaBand entryWizardUrl={data.entryWizardUrl} />
       </main>
 
       <HeritageFooter

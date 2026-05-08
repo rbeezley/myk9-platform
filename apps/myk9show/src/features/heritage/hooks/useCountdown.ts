@@ -6,6 +6,8 @@ export interface CountdownValue {
   minutes: number;
   seconds: number;
   closed: boolean;
+  /** false when targetIso is null — distinguishes "no date set" from "counting down" */
+  hasTarget: boolean;
 }
 
 /**
@@ -13,13 +15,15 @@ export interface CountdownValue {
  *
  * Updates at most once per second by comparing the previous digit set —
  * avoids redundant re-renders on every animation frame. Returns `closed: true`
- * once the target date has passed.
+ * once the target date has passed, `hasTarget: false` when no date is provided.
  */
 export function useCountdown(targetIso: string | null, _timezone: string): CountdownValue {
   const compute = (): CountdownValue => {
-    if (!targetIso) return { days: 0, hours: 0, minutes: 0, seconds: 0, closed: false };
+    if (!targetIso)
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, closed: false, hasTarget: false };
     const diff = new Date(targetIso).getTime() - Date.now();
-    if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, closed: true };
+    if (diff <= 0)
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, closed: true, hasTarget: true };
     const totalSeconds = Math.floor(diff / 1000);
     return {
       days: Math.floor(totalSeconds / 86400),
@@ -27,6 +31,7 @@ export function useCountdown(targetIso: string | null, _timezone: string): Count
       minutes: Math.floor((totalSeconds % 3600) / 60),
       seconds: totalSeconds % 60,
       closed: false,
+      hasTarget: true,
     };
   };
 

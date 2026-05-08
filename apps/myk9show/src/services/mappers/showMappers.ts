@@ -511,6 +511,7 @@ export const mapReplicatedShowToDbRow = (
       logo_url: 'logoUrl',
       cover_image_url: 'coverImageUrl',
       accent_color: 'accentColor',
+      style: 'style',
     }),
     deleted_at: null,
   };

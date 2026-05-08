@@ -148,6 +148,7 @@ export interface ShowInput {
   startingArmbandNumber?: number | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  style?: string | null;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
   trials?:
     | Array<{
@@ -355,6 +356,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if ('coverImageUrl' in updates)
         replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
       if ('accentColor' in updates) replicatedUpdates.accentColor = updates.accentColor as string;
+      if (updates.style !== undefined) replicatedUpdates.style = updates.style ?? undefined;
 
       await replicatedShowsTable.updateShow(id, replicatedUpdates);
 
@@ -389,6 +391,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.assignedJudges !== undefined)
         definedUpdates.assignedJudges = updates.assignedJudges;
       if (updates.trials !== undefined) definedUpdates.trials = updates.trials;
+      if (updates.style !== undefined) definedUpdates.style = updates.style;
 
       const updatedShow: Show = {
         ...currentShow,

@@ -28,13 +28,35 @@ export function LandingPageCard({ showId, showStyle }: LandingPageCardProps) {
   const styleLabel = STYLE_LABELS[showStyle] ?? showStyle;
 
   const handleCopy = useCallback(async () => {
+    const copyViaFallback = () => {
+      const el = document.createElement('textarea');
+      el.value = url;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    };
+
     try {
-      await navigator.clipboard.writeText(url);
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        copyViaFallback();
+      }
       setCopied(true);
       notifications.success('URL copied', { description: 'Share it with exhibitors.' });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      notifications.error('Could not copy — please copy the URL manually.');
+      try {
+        copyViaFallback();
+        setCopied(true);
+        notifications.success('URL copied', { description: 'Share it with exhibitors.' });
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        notifications.error('Could not copy — please copy the URL manually.');
+      }
     }
   }, [url]);
 

@@ -42,6 +42,7 @@ export interface ReplicatedShow {
   logoUrl?: string | undefined;
   coverImageUrl?: string | undefined;
   accentColor?: string | undefined;
+  style?: string | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -75,6 +76,7 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     logoUrl: row.logo_url ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,
     accentColor: row.accent_color ?? undefined,
+    style: ((row as Record<string, unknown>).style as string | undefined) ?? undefined,
   };
 }
 
@@ -142,6 +144,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       logo_url: show.logoUrl ?? null,
       cover_image_url: show.coverImageUrl ?? null,
       accent_color: show.accentColor ?? null,
+      style: show.style ?? null,
       updated_at: new Date().toISOString(),
     };
   }

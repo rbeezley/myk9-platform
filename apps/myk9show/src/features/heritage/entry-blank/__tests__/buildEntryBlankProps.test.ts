@@ -96,7 +96,7 @@ describe('buildEntryBlankProps — blank mode', () => {
     expect(props.dog.registeredName).toBeNull();
     expect(props.dog.callName).toBeNull();
     expect(props.dog.breed).toBeNull();
-    expect(props.dog.akc_number).toBeUndefined();
+    expect(props.dog.registrationNumber).toBeNull();
   });
 
   it('all owner fields are null', () => {

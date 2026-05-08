@@ -151,6 +151,8 @@ export interface BuildEntryBlankOptions {
 
 export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankProps {
   const { show, trials, classes, judges, club, secretary, entry, dog, handler } = opts;
+  // Phase 3: AKC-only per plan §7. When multi-registry support ships, replace
+  // with getRegistry(trials[0]?.registry_id ?? 'AKC').
   const registry = getRegistry('AKC');
   const ownerDisplayName = handler
     ? [handler.first_name, handler.last_name].filter(Boolean).join(' ')

@@ -20,7 +20,11 @@ export function HeritageEntryBlankButton({
 }: Props) {
   const props = buildEntryBlankProps(opts);
   const pdfFilename =
-    filename ?? `${opts.show.name.replace(/\s+/g, '-').toLowerCase()}-entry-blank.pdf`;
+    filename ??
+    `${opts.show.name
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')}-entry-blank.pdf`;
 
   return (
     <PDFDownloadLink

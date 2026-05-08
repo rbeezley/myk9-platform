@@ -56,6 +56,8 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { useTrialStats, type EntryForStats } from '@/hooks/useTrialStats';
 import { useTrialTemplates } from '@/hooks/useTrialTemplates';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
+import { getShowLandingStyle } from '@/features/registries';
+import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
 
 const TAB_IDS = ['overview', 'entries', 'promo-codes', 'financials'] as const;
 
@@ -69,7 +71,7 @@ const TrialDetailsPage: React.FC = () => {
     updateTrial,
     deleteTrial: deleteTrialAsync,
   } = useTrialStore();
-  const { user, isSecretary, isAdmin } = useAuthContext();
+  const { user, isSecretary, isAdmin, hasRole } = useAuthContext();
   const { templates, initializeDefaultTemplates } = useTemplateStore();
   const { shows } = useShowStore();
 
@@ -264,6 +266,31 @@ const TrialDetailsPage: React.FC = () => {
           onRetry={() => navigate(showId ? `/shows/${showId}` : '/shows')}
         />
       </PageShell>
+    );
+  }
+
+  // Heritage landing page branch — public face only; staff always see the full
+  // management UI so they retain access to entries, promo-codes, and financials.
+  // All hooks above fire unconditionally so this early return is safe.
+  //
+  // Casts: shows.landing_style was added in migration 192; frontend types will
+  // re-tighten after `supabase gen types typescript` runs.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (
+    getShowLandingStyle(parentShow as any) === 'heritage' &&
+    !isSecretary &&
+    !isAdmin &&
+    !hasRole('club_admin')
+  ) {
+    return (
+      <HeritageLandingPage
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        show={parentShow as any}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        trial={(currentTrial as any) ?? null}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        allTrials={showTrials as any[]}
+      />
     );
   }
 

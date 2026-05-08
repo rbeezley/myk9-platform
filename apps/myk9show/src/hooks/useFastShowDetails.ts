@@ -2,14 +2,21 @@
  * Fast Show Details Hook
  *
  * Performance-optimized hook for show details page that eliminates
- * the 10-second loading delay by using cached data and smart loading strategies
+ * the 10-second loading delay by using cached data and smart loading strategies.
+ *
+ * Uses useQuery with placeholderData so the component renders immediately
+ * from any pre-existing list/store cache AND reacts to cache updates after
+ * mutations (unlike the previous getQueryData-in-useMemo approach, which
+ * only read the cache once and never re-ran).
  */
 
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { useShowQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { useShowStore } from '@/store/showStore';
+import { getShowById } from '@/services/database/shows';
+import { mapDatabaseToShow } from '@/services/mappers/showMappers';
 import type { Show } from '@/types/show-types';
 import { logger } from '@/services/LoggingService';
 
@@ -27,7 +34,6 @@ interface FastShowDetailsResult {
 export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResult {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  // Use lazy state initialization for start time (runs only once on mount)
   const [loadStartTime] = useState(() => performance.now());
   const [loadTime, setLoadTime] = useState(0);
   const hasRecordedLoadTime = useRef(false);
@@ -36,63 +42,42 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
 
   const showId = explicitShowId || id || null;
 
-  // Try to get cached data first (from browse shows page)
-  const { cachedShow, foundInCache } = useMemo(() => {
-    if (!showId) return { cachedShow: null, foundInCache: false };
-
-    // Check individual show cache first
-    const individualCache = queryClient.getQueryData<Show>(showQueryKeys.detail(showId));
-    if (individualCache) {
-      return { cachedShow: individualCache, foundInCache: true };
-    }
-
-    // Check shows list cache
-    const showsList = queryClient.getQueryData<Show[]>(showQueryKeys.lists());
-    if (showsList) {
-      const foundShow = showsList.find(show => show.id === showId);
-      if (foundShow) {
-        // Also cache it for individual queries
-        queryClient.setQueryData(showQueryKeys.detail(showId), foundShow);
-        return { cachedShow: foundShow, foundInCache: true };
-      }
-    }
-
-    return { cachedShow: null, foundInCache: false };
-  }, [showId, queryClient]);
-
-  // Try store data (replication layer) as second source
-  const storeShow = useMemo(() => {
-    if (foundInCache || !showId) return null;
-    return storeShows.find(s => s.id === showId) || null;
-  }, [showId, foundInCache, storeShows]);
-
-  // Derive isFromCache directly from foundInCache (no state sync needed)
-  const isFromCache = foundInCache;
-
-  // Only use network query if no cached or store data is available
-  const needsNetwork = !cachedShow && !storeShow;
   const {
-    data: networkShow,
+    data: show,
     isLoading: isNetworkLoading,
     isError: isNetworkError,
     refetch,
-  } = useShowQuery(needsNetwork ? showId || '' : '');
+    isPlaceholderData,
+  } = useQuery({
+    queryKey: showQueryKeys.detail(showId || ''),
+    queryFn: async () => {
+      const { data, error } = await getShowById(showId!);
+      if (error) throw error;
+      return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
+    },
+    enabled: !!showId,
+    // placeholderData provides instant display from pre-existing caches while
+    // the real query runs in the background — preserves fast navigation feel.
+    placeholderData: (): Show | undefined => {
+      if (!showId) return undefined;
+      const listCache = queryClient.getQueryData<Show[]>(showQueryKeys.lists());
+      const fromList = listCache?.find(s => s.id === showId);
+      if (fromList) return fromList;
+      return storeShows.find(s => s.id === showId) ?? undefined;
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    gcTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  // Use cached data if available, otherwise use network data
-  const show = cachedShow || storeShow || networkShow || null;
-  const isLoading = !cachedShow && !storeShow && isNetworkLoading;
+  // isPlaceholderData = true while the real query is pending and we're showing cached data
+  const isFromCache = isPlaceholderData;
 
   // Record load time once when data first arrives
   useEffect(() => {
     if (show && !hasRecordedLoadTime.current) {
       hasRecordedLoadTime.current = true;
       const duration = performance.now() - loadStartTime;
-
-      // Use queueMicrotask to defer state update
-      queueMicrotask(() => {
-        setLoadTime(duration);
-      });
-
+      queueMicrotask(() => setLoadTime(duration));
       if (import.meta.env.DEV) {
         logger.debug(
           `Show details loaded in ${duration.toFixed(2)}ms${isFromCache ? ' (from cache)' : ' (from network)'}`,
@@ -103,13 +88,11 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
     }
   }, [show, loadStartTime, isFromCache]);
 
-  const isError = !cachedShow && !storeShow && isNetworkError;
-
   return {
     showId,
-    show,
-    isLoading,
-    isError,
+    show: show ?? null,
+    isLoading: isNetworkLoading && !show,
+    isError: isNetworkError && !show,
     refetch,
     isFromCache,
     loadTime,

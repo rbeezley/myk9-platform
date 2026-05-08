@@ -46,7 +46,20 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
   const publishedUrl = data?.publishedUrl;
   const publishedAt = data?.publishedAt;
   const showUpdatedAt = data?.updatedAt;
-  if (!publishedUrl || !publishedAt) return null;
+
+  if (!publishedUrl || !publishedAt) {
+    return (
+      <Card className="p-4 flex items-center gap-4">
+        <div className="bg-muted text-muted-foreground rounded-md p-3">
+          <FileText className="h-6 w-6" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-sm">Premium List</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Not yet published</p>
+        </div>
+      </Card>
+    );
+  }
 
   const publishedLabel = new Date(publishedAt).toLocaleDateString('en-US', {
     year: 'numeric',

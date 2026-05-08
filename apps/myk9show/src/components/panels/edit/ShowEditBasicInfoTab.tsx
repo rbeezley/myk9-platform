@@ -14,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar } from 'lucide-react';
+import { Calendar, Check, Palette } from 'lucide-react';
+import type { PremiumStyle } from '@/types/premium-types';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
@@ -251,6 +252,102 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Experience Style */}
+      <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            Show Experience Style
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Sets the look and feel for all four touchpoints: premium list, landing page, entry
+            blank, and confirmation email.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div
+            className="grid grid-cols-2 gap-2"
+            role="radiogroup"
+            aria-label="Show experience style"
+          >
+            {STYLE_OPTIONS.map(opt => {
+              const selected = (data.style || 'monogram') === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => handleSelectChange('style')(opt.key)}
+                  className={`text-left p-3 rounded-md border transition-colors ${
+                    selected
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}>
+                      {opt.name}
+                    </span>
+                    {selected && <Check className="h-3.5 w-3.5 text-primary" />}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground leading-snug">{opt.tagline}</p>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </TabsContent>
   );
 };
+
+interface StyleOption {
+  key: PremiumStyle;
+  name: string;
+  tagline: string;
+}
+
+const STYLE_OPTIONS: StyleOption[] = [
+  {
+    key: 'monogram',
+    name: 'Monogram',
+    tagline: 'Centered TC monogram, large serif title — conservative classic.',
+  },
+  {
+    key: 'banner',
+    name: 'Banner',
+    tagline: 'Black bar across top, left-aligned title — clean and direct.',
+  },
+  {
+    key: 'headline',
+    name: 'Headline',
+    tagline: 'Stacked header with double-rule divider — quietly bold.',
+  },
+  {
+    key: 'magazine',
+    name: 'Magazine',
+    tagline: 'Editorial spread — display serif cover, pull quotes inside.',
+  },
+  {
+    key: 'poster',
+    name: 'Poster',
+    tagline: 'Bold single-page hero — tight uppercase, ink-blot accents.',
+  },
+  {
+    key: 'gazette',
+    name: 'Gazette',
+    tagline: 'Newspaper broadsheet — masthead, multi-column body.',
+  },
+  {
+    key: 'fieldGuide',
+    name: 'Field Guide',
+    tagline: 'Utility reference — §-numbered sections, dense data tables.',
+  },
+  {
+    key: 'heritage',
+    name: 'Heritage',
+    tagline: 'Traditional kennel club — ivory paper, ornamental rules.',
+  },
+];

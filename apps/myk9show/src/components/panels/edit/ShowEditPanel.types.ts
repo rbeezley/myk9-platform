@@ -38,4 +38,6 @@ export interface ShowEditFormData extends Record<string, unknown> {
   allowNonOwnerHandlers?: boolean;
   acceptCheckPayments?: boolean;
   acceptCashPayments?: boolean;
+  /** Experience style — drives all 4 touchpoints (migration 195) */
+  style: string;
 }

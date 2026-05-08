@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getShowLandingStyle } from '@/features/registries';
+import { getShowStyle } from '@/features/registries';
 import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -306,7 +306,7 @@ const ShowDetailsPage: React.FC = () => {
   // Heritage public landing — renders for any visitor who is not staff.
   // Staff (secretary / admin / club_admin) always reach the management UI.
   if (
-    getShowLandingStyle(actualCurrentShow) === 'heritage' &&
+    getShowStyle(actualCurrentShow) === 'heritage' &&
     !isSecretary &&
     !isAdmin &&
     !hasRole('club_admin')

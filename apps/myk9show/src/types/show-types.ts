@@ -107,6 +107,8 @@ export interface Show {
 
   // Heritage / registry columns (migration 192)
   landing_style?: string | null;
+  // Experience style — single source of truth for all 4 touchpoints (migration 195)
+  style?: string | null;
 
   // Sync metadata for Local-First architecture
   _version?: number | undefined;

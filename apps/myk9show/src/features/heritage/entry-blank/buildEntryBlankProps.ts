@@ -233,10 +233,10 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   };
 
   // §IV — fees
-  // AKC convention: first entry fee includes a $3 mail-in processing surcharge;
-  // additional entries are $3 less. Shows without a pre_entry_fee set default to $25/$22.
+  // AKC convention: first entry includes a $3 mail-in processing surcharge;
+  // additional entries are $3 less. Null pre_entry_fee → AKC defaults ($25/$22).
   const preEntry = show.pre_entry_fee ?? 25;
-  const additional = preEntry > 3 ? preEntry - 3 : 22;
+  const additional = show.pre_entry_fee != null ? Math.max(0, preEntry - 3) : 22;
   const total = entry?.entry_fee != null ? formatFee(entry.entry_fee) : null;
   const pm = entry?.payment_status ?? null;
   // Only mail-in payment methods (check/money_order/online) appear on the physical blank.
@@ -262,7 +262,7 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
     emailSubject: secretary.emailSubject ?? null,
   };
 
-  const timezone = trials[0]?.timezone ?? 'America/New_York';
+  const timezone = sortedTrials[0]?.timezone ?? 'America/New_York';
   const closeIso = show.entry_close_date ?? null;
 
   return {

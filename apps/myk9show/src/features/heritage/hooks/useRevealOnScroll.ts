@@ -19,15 +19,12 @@ export function useRevealOnScroll<T extends HTMLElement = HTMLElement>(
 ): { ref: React.RefObject<T | null>; revealed: boolean } {
   const ref = useRef<T | null>(null);
   const reduced = useReducedMotion();
-  const [revealed, setRevealed] = useState(reduced);
+  const [revealed, setRevealed] = useState(
+    () => reduced || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined'
+  );
 
   useEffect(() => {
-    if (reduced) {
-      setRevealed(true);
-      return;
-    }
-    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
-      setRevealed(true);
+    if (reduced || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
       return;
     }
     const node = ref.current;

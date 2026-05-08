@@ -59,7 +59,16 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     if (needsOnboarding) {
       navigate('/onboarding', { replace: true });
     }
-  }, [isLoading, user, needsOnboarding, onboardingCompleted, navigate, location.pathname]);
+  }, [
+    isLoading,
+    user,
+    needsOnboarding,
+    onboardingCompleted,
+    navigate,
+    location.pathname,
+    hasRole,
+    isSecretary,
+  ]);
 
   return <>{children}</>;
 }

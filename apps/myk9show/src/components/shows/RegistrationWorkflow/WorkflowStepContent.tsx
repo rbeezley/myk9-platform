@@ -131,8 +131,10 @@ export function WorkflowStepContent({
       dogRegisteredName: firstDog?.registrations?.[0]?.registeredName ?? firstDog?.name ?? '',
       dogCallName: firstDog?.callName ?? null,
       classSummary,
+      // Use T12:00:00 (noon) so date-only strings from Postgres never shift a calendar
+      // day when parsed as UTC midnight by users west of UTC.
       confirmationDateLabel: firstTrial?.confirmationDate
-        ? new Date(firstTrial.confirmationDate).toLocaleDateString('en-US', {
+        ? new Date(firstTrial.confirmationDate + 'T12:00:00').toLocaleDateString('en-US', {
             day: 'numeric',
             month: 'long',
             year: 'numeric',

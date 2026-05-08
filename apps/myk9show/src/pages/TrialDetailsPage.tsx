@@ -275,8 +275,8 @@ const TrialDetailsPage: React.FC = () => {
   //
   // Casts: shows.landing_style was added in migration 192; frontend types will
   // re-tighten after `supabase gen types typescript` runs.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getShowLandingStyle(parentShow as any) === 'heritage' &&
     !isSecretary &&
     !isAdmin &&

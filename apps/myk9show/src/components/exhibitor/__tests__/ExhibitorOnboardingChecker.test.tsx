@@ -35,8 +35,14 @@ function setupMocks({
   profileLoading = false,
   needsOnboarding = false,
   onboardingCompleted = true,
+  isSecretary = false,
 } = {}) {
-  mockUseAuthContext.mockReturnValue({ user, loading: authLoading });
+  mockUseAuthContext.mockReturnValue({
+    user,
+    loading: authLoading,
+    isSecretary,
+    hasRole: vi.fn().mockReturnValue(false),
+  });
   mockUseExhibitorProfile.mockReturnValue({
     needsOnboarding,
     onboardingCompleted,

@@ -9,6 +9,7 @@ import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/E
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { getShowLandingStyle } from '@/features/registries';
 import { HeritageEntryReceived } from '@/features/heritage/wizard/HeritageEntryReceived';
 import {
@@ -98,6 +99,7 @@ export function WorkflowStepContent({
   const shows = useShowStore(s => s.shows);
   const allTrials = useTrialStore(s => s.trials);
   const { dogs } = useDogStoreCompat();
+  const { classes } = useClassStoreCompat();
 
   const heritageReceipt = useMemo(() => {
     if (currentStepId !== 'confirmation') return null;
@@ -109,10 +111,18 @@ export function WorkflowStepContent({
     const firstDogId = optimisticState.formData.selectedDogs[0];
     const firstDog = dogs.find(d => d.id === firstDogId);
     const firstClassSelection = optimisticState.classSelections.find(s => s.dogId === firstDogId);
+    const classSummary =
+      firstClassSelection?.selectedClasses
+        .map(sc => {
+          const cls = classes.find(c => c.id === sc.classId);
+          return cls?.className ?? sc.classId;
+        })
+        .join(', ') ?? '';
 
     return {
       isHeritage: true,
       showName: currentShow?.name ?? '',
+      clubName: currentShow?.clubName ?? currentShow?.name ?? '',
       dateRange: currentShow?.startDate
         ? currentShow.endDate && currentShow.endDate !== currentShow.startDate
           ? `${currentShow.startDate} – ${currentShow.endDate}`
@@ -120,7 +130,7 @@ export function WorkflowStepContent({
         : '',
       dogRegisteredName: firstDog?.registrations?.[0]?.registeredName ?? firstDog?.name ?? '',
       dogCallName: firstDog?.callName ?? null,
-      classSummary: firstClassSelection?.selectedClasses.map(sc => sc.classId).join(', ') ?? '',
+      classSummary,
       confirmationDateLabel: firstTrial?.confirmationDate
         ? new Date(firstTrial.confirmationDate).toLocaleDateString('en-US', {
             day: 'numeric',
@@ -129,7 +139,7 @@ export function WorkflowStepContent({
           })
         : null,
     } as const;
-  }, [currentStepId, showId, shows, allTrials, dogs, optimisticState]);
+  }, [currentStepId, showId, shows, allTrials, dogs, classes, optimisticState]);
   return (
     <div className="min-h-[300px]">
       {currentStepId === 'dog-selection' && (
@@ -238,7 +248,7 @@ export function WorkflowStepContent({
         (heritageReceipt?.isHeritage ? (
           <HeritageEntryReceived
             showName={heritageReceipt.showName}
-            clubName={heritageReceipt.showName}
+            clubName={heritageReceipt.clubName}
             dateRange={heritageReceipt.dateRange}
             dogRegisteredName={heritageReceipt.dogRegisteredName}
             dogCallName={heritageReceipt.dogCallName}

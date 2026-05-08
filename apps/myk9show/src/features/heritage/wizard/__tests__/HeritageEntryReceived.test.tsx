@@ -78,8 +78,23 @@ describe('HeritageEntryReceived', () => {
   });
 
   it('renders "Print my entry blank" button', () => {
+    render(<HeritageEntryReceived {...BASE_PROPS} onPrintEntryBlank={() => {}} />);
+    const btn = screen.getByRole('button', { name: /print my entry blank/i });
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('"Print my entry blank" is disabled when onPrintEntryBlank is not provided', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('button', { name: /print my entry blank/i })).toBeTruthy();
+    const btn = screen.getByRole('button', { name: /print my entry blank/i });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('calls onPrintEntryBlank when button clicked', async () => {
+    const onPrint = vi.fn();
+    render(<HeritageEntryReceived {...BASE_PROPS} onPrintEntryBlank={onPrint} />);
+    await userEvent.click(screen.getByRole('button', { name: /print my entry blank/i }));
+    expect(onPrint).toHaveBeenCalledOnce();
   });
 
   it('renders "Return to dashboard" button', () => {

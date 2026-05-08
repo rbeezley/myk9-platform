@@ -256,6 +256,12 @@ export function WorkflowStepContent({
             totalFeesFormatted={`$${currentRegistrationTotalFees.toFixed(2)}`}
             registrationNumber={registrationNumber ?? null}
             confirmationDateLabel={heritageReceipt.confirmationDateLabel}
+            onPrintEntryBlank={() =>
+              notifications.info('Entry blank', {
+                description:
+                  'A printable entry blank will be available after the draw is complete.',
+              })
+            }
           />
         ) : (
           <ConfirmationStep

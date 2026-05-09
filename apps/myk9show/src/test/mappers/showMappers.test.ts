@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapDatabaseToShow } from '@/services/mappers/showMappers';
+import { mapDatabaseToShow, mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
 import type { DbShow } from '@/types/database-mappings';
 
 /**
@@ -145,5 +145,41 @@ describe('mapDatabaseToShow — branding fallback', () => {
     expect(show.experiencePublishedContent?.narratives.showHours).toBe(
       'Doors open at 7:00 AM.'
     );
+  });
+
+  it('preserves published experience fields when mapping replicated shows to DB rows', () => {
+    const row = mapReplicatedShowToDbRow({
+      id: 'show-1',
+      name: 'Test Show',
+      organization: 'AKC',
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      style: 'poster',
+      experienceIsPublished: true,
+      experiencePublishedAt: '2026-05-09T14:00:00.000Z',
+      experiencePublishedStyle: 'poster',
+      experiencePublishedContent: {
+        narratives: {
+          showHours: 'Doors open at 7:00 AM.',
+          trialInformation: 'Running order will be posted before judging.',
+        },
+        supplemental: {
+          vetClinic: null,
+          accommodations: [],
+          hospitalityNotes: null,
+          awardsDescription: null,
+          additionalNotes: null,
+        },
+        outputs: { premiumUrl: 'https://example.com/premium.pdf' },
+      },
+    });
+
+    expect(row.experience_is_published).toBe(true);
+    expect(row.experience_published_at).toBe('2026-05-09T14:00:00.000Z');
+    expect(row.experience_published_style).toBe('poster');
+    expect(
+      (row.experience_published_content as { narratives: { showHours: string } }).narratives
+        .showHours
+    ).toBe('Doors open at 7:00 AM.');
   });
 });

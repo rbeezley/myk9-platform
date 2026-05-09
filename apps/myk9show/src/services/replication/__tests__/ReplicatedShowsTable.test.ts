@@ -143,6 +143,43 @@ describe('ReplicatedShowsTable', () => {
         expect(result?.allowsNonOwnerHandlers).toBe(true);
       });
 
+      it('should preserve published experience metadata for local-first reads', async () => {
+        const show: ReplicatedShow = {
+          id: 'show-1',
+          name: 'Published Show',
+          organization: 'AKC',
+          startDate: '2026-05-22',
+          endDate: '2026-05-23',
+          style: 'poster',
+          experienceIsPublished: true,
+          experiencePublishedAt: '2026-05-09T14:00:00.000Z',
+          experiencePublishedStyle: 'poster',
+          experiencePublishedContent: {
+            narratives: {
+              showHours: 'Doors open at 7:00 AM.',
+              trialInformation: 'Running order will be posted before judging.',
+            },
+            supplemental: {
+              vetClinic: null,
+              accommodations: [],
+              hospitalityNotes: null,
+              awardsDescription: null,
+              additionalNotes: null,
+            },
+            outputs: { premiumUrl: 'https://example.com/premium.pdf' },
+          },
+        };
+
+        await table.set('show-1', show);
+
+        const result = await table.getShowById('show-1');
+        expect(result?.experienceIsPublished).toBe(true);
+        expect(result?.experiencePublishedStyle).toBe('poster');
+        expect(result?.experiencePublishedContent?.narratives.showHours).toBe(
+          'Doors open at 7:00 AM.'
+        );
+      });
+
       it('should handle shows with minimal data', async () => {
         const show: ReplicatedShow = {
           id: 'show-1',

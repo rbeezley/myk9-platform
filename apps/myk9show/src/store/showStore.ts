@@ -60,6 +60,11 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
     stats: [], // Local-only: calculated
     acceptCheckPayments: replicated.acceptCheckPayments,
     acceptCashPayments: replicated.acceptCashPayments,
+    style: replicated.style ?? null,
+    experienceIsPublished: replicated.experienceIsPublished ?? false,
+    experiencePublishedAt: replicated.experiencePublishedAt ?? null,
+    experiencePublishedStyle: replicated.experiencePublishedStyle ?? null,
+    experiencePublishedContent: replicated.experiencePublishedContent ?? null,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

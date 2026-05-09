@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { showSchemas } from '@/lib/validation';
-import { formDataToShowSaveData } from '../ShowEditPanel.helpers';
+import { formDataToShowSaveData, showToFormData } from '../ShowEditPanel.helpers';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 
 const generatedPremium: GeneratedPremium = {
@@ -57,6 +57,21 @@ const baseFormData: ShowEditFormData = {
 };
 
 describe('ShowEditPanel helpers', () => {
+  it('treats publish as a per-save action for already-published shows', () => {
+    const result = showToFormData({
+      id: 'show-1',
+      name: 'QA Walk Show',
+      status: 'published',
+      organization: 'AKC',
+      clubId: 'club-1',
+      startDate: '2026-05-22',
+      endDate: '2026-05-23',
+      experienceIsPublished: true,
+    });
+
+    expect(result.publishExperience).toBe(false);
+  });
+
   it('preserves publish-only fields for the save side effect payload', () => {
     const result = formDataToShowSaveData({
       ...baseFormData,

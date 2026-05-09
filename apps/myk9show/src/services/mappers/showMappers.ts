@@ -521,6 +521,10 @@ export const mapReplicatedShowToDbRow = (
       cover_image_url: 'coverImageUrl',
       accent_color: 'accentColor',
       style: 'style',
+      experience_is_published: 'experienceIsPublished',
+      experience_published_at: 'experiencePublishedAt',
+      experience_published_style: 'experiencePublishedStyle',
+      experience_published_content: 'experiencePublishedContent',
     }),
     deleted_at: null,
   };

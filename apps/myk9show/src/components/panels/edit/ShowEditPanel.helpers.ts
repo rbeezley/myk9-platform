@@ -44,7 +44,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
       const raw = show.style ?? show.landing_style ?? 'monogram';
       return (raw === 'default' ? 'monogram' : raw) as ShowStyle;
     })(),
-    publishExperience: show.experienceIsPublished ?? false,
+    publishExperience: false,
     inkSaver: false,
   };
 };

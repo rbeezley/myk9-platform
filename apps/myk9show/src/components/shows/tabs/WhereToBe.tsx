@@ -57,7 +57,17 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2.5 hover:bg-muted/70 transition-colors"
       aria-label={`${entry.classTitle} — ${entry.dayLabel} ${entry.startTime}`}
     >
-      <span className="w-16 shrink-0 font-mono text-sm font-semibold tabular-nums">
+      <span
+        className="w-16 shrink-0 font-mono text-sm font-semibold tabular-nums"
+        aria-label={entry.armband ? `Armband ${entry.armband}` : 'No armband assigned'}
+      >
+        {entry.armband || '-'}
+      </span>
+
+      <span
+        className="hidden"
+        aria-hidden="true"
+      >
         {entry.startTime || '—'}
       </span>
 
@@ -70,9 +80,9 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
             <span className="font-normal text-muted-foreground"> · {entry.classTitle}</span>
           )}
         </p>
-        {(entry.trialName || entry.judgeName) && (
+        {(entry.startTime || entry.trialName || entry.judgeName) && (
           <p className="text-xs text-muted-foreground truncate">
-            {[entry.trialName, entry.judgeName ? `Judge ${entry.judgeName}` : '']
+            {[entry.startTime, entry.trialName, entry.judgeName ? `Judge ${entry.judgeName}` : '']
               .filter(Boolean)
               .join(' · ')}
           </p>

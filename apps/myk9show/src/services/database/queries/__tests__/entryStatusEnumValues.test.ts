@@ -19,7 +19,7 @@ import {
   denyScratchRequest,
 } from '../scratchQueries';
 import { getEntryCountsByStatus } from '../../entries/secretary';
-import { autoAssignArmbands } from '../secretaryArmbandQueries';
+import { autoAssignArmbands, getNextArmbandForShow } from '../secretaryArmbandQueries';
 
 const mockFrom = vi.fn();
 
@@ -40,6 +40,7 @@ function chainMock(overrides: Record<string, unknown> = {}) {
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     single: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     delete: vi.fn().mockReturnThis(),
@@ -162,6 +163,55 @@ describe('entry_status enum values used by query layer', () => {
   });
 
   describe('secretaryEntryQueries', () => {
+    it('getNextArmbandForShow honors the show starting armband number', async () => {
+      const armbandsChain = chainMock({
+        not: vi.fn().mockResolvedValue({ data: [], error: null }),
+      });
+      const showsChain = chainMock({
+        maybeSingle: vi
+          .fn()
+          .mockResolvedValue({ data: { starting_armband_number: 100 }, error: null }),
+      });
+      mockFrom.mockImplementation(table => (table === 'armbands' ? armbandsChain : showsChain));
+
+      await expect(getNextArmbandForShow('show-1')).resolves.toBe(100);
+    });
+
+    it('getNextArmbandForShow starts after the existing max armband', async () => {
+      const armbandsChain = chainMock({
+        not: vi.fn().mockResolvedValue({
+          data: [{ armband_number: '100' }, { armband_number: '104' }],
+          error: null,
+        }),
+      });
+      const showsChain = chainMock({
+        maybeSingle: vi
+          .fn()
+          .mockResolvedValue({ data: { starting_armband_number: 100 }, error: null }),
+      });
+      mockFrom.mockImplementation(table => (table === 'armbands' ? armbandsChain : showsChain));
+
+      await expect(getNextArmbandForShow('show-1')).resolves.toBe(105);
+    });
+
+    it('autoAssignArmbands reports the configured start when no entries need assignment', async () => {
+      const showsChain = chainMock({
+        maybeSingle: vi
+          .fn()
+          .mockResolvedValue({ data: { starting_armband_number: 100 }, error: null }),
+      });
+      const entriesChain = chainMock();
+      entriesChain.is = vi
+        .fn()
+        .mockReturnValueOnce(entriesChain)
+        .mockResolvedValueOnce({ data: [], error: null });
+      mockFrom.mockImplementation(table => (table === 'shows' ? showsChain : entriesChain));
+
+      const { data } = await autoAssignArmbands('show-1');
+
+      expect(data?.startedAt).toBe(100);
+    });
+
     it('autoAssignArmbands selects entries with entry_status in ["accepted", "confirmed"]', async () => {
       const chain = chainMock({
         is: vi.fn().mockResolvedValue({ data: [], error: null }),

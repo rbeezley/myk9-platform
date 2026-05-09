@@ -100,6 +100,13 @@ describe('CheckInSheet', () => {
     expect(screen.getByText('Class Entries: 0')).toBeInTheDocument();
   });
 
+  it('renders a dash for entries without armband numbers', () => {
+    render(<CheckInSheet {...baseProps} entries={[{ ...entryBuddy, armband: 0 }]} />);
+
+    const rows = screen.getAllByRole('row');
+    expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('-');
+  });
+
   it('shows section when provided and non-empty', () => {
     const propsWithSection: ReportProps = {
       ...baseProps,

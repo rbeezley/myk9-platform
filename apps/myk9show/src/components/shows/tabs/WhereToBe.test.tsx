@@ -99,8 +99,14 @@ describe('WhereToBe', () => {
     expect(screen.getByText('10:30 AM')).toBeInTheDocument();
   });
 
-  it('shows dash when startTime is empty', () => {
-    render(<WhereToBe entries={[makeEntry({ startTime: '' })]} showId={SHOW_ID} />);
+  it('shows armband in the leading column', () => {
+    render(<WhereToBe entries={[makeEntry({ armband: '104' })]} showId={SHOW_ID} />);
+    expect(screen.getByLabelText('Armband 104')).toHaveTextContent('104');
+  });
+
+  it('shows dash when armband is empty', () => {
+    render(<WhereToBe entries={[makeEntry({ armband: '', startTime: '' })]} showId={SHOW_ID} />);
+    expect(screen.getByLabelText('No armband assigned')).toHaveTextContent('-');
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 });

@@ -66,6 +66,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 // Now import the functions under test
 import {
+  assignArmband,
   getArmbandCountForShow,
   lookupDogByArmband,
 } from '@/services/database/armbands';
@@ -136,6 +137,52 @@ function setupOwnerQuery(owner: { first_name: string; last_name: string } | null
 describe('armbandQueries (replication)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('assignArmband', () => {
+    it('syncs the assigned armband back to all entries for the dog in the show', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: 104, error: null });
+
+      const isMock = vi.fn().mockResolvedValue({ error: null });
+      const secondEqMock = vi.fn().mockReturnValue({ is: isMock });
+      const firstEqMock = vi.fn().mockReturnValue({ eq: secondEqMock });
+      const updateMock = vi.fn().mockReturnValue({ eq: firstEqMock });
+      mockSupabase.from.mockReturnValue({ update: updateMock });
+
+      const result = await assignArmband('show-1', 'dog-1');
+
+      expect(result).toEqual({ armband: '104', error: null });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('assign_armband', {
+        p_show_id: 'show-1',
+        p_dog_id: 'dog-1',
+      });
+      expect(mockSupabase.from).toHaveBeenCalledWith('entries');
+      expect(updateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          armband: '104',
+        })
+      );
+      expect(firstEqMock).toHaveBeenCalledWith('show_id', 'show-1');
+      expect(secondEqMock).toHaveBeenCalledWith('dog_id', 'dog-1');
+      expect(isMock).toHaveBeenCalledWith('deleted_at', null);
+    });
+
+    it('returns an error when the entry armband sync fails', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: 104, error: null });
+
+      const updateError = new Error('update failed');
+      const isMock = vi.fn().mockResolvedValue({ error: updateError });
+      const secondEqMock = vi.fn().mockReturnValue({ is: isMock });
+      const firstEqMock = vi.fn().mockReturnValue({ eq: secondEqMock });
+      mockSupabase.from.mockReturnValue({
+        update: vi.fn().mockReturnValue({ eq: firstEqMock }),
+      });
+
+      const result = await assignArmband('show-1', 'dog-1');
+
+      expect(result.armband).toBeNull();
+      expect(result.error).toEqual({ message: 'update failed' });
+    });
   });
 
   // -----------------------------------------------------------------------

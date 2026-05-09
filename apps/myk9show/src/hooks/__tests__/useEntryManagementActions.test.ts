@@ -1,0 +1,123 @@
+import { act, renderHook } from '@/test/utils/testUtils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useEntryManagementActions } from '../useEntryManagementActions';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { assignArmband } from '@/services/database/armbands/secretary';
+
+const mocks = vi.hoisted(() => ({
+  assignArmband: vi.fn(),
+  autoAssignArmbands: vi.fn(),
+  getEntryArmbandById: vi.fn(),
+  getNextArmbandForShow: vi.fn(),
+}));
+
+vi.mock('@/services/database/armbands/secretary', () => ({
+  assignArmband: mocks.assignArmband,
+  autoAssignArmbands: mocks.autoAssignArmbands,
+  getEntryArmbandById: mocks.getEntryArmbandById,
+  getNextArmbandForShow: mocks.getNextArmbandForShow,
+}));
+
+vi.mock('@/services/database/entries', () => ({
+  updateEntryStatus: vi.fn(),
+  updateCheckInStatus: vi.fn(),
+  bulkCheckIn: vi.fn(),
+  bulkUpdateEntryStatus: vi.fn(),
+  getEntriesForExport: vi.fn(),
+  compEntry: vi.fn(),
+  uncompEntry: vi.fn(),
+}));
+
+vi.mock('@/services/notifications/ccSecretary', () => ({
+  resolveSecretaryCc: vi.fn(),
+}));
+
+vi.mock('@/services/database/show-registrations', () => ({
+  updateEnrollmentPaymentStatus: vi.fn(),
+}));
+
+vi.mock('@/services/AuditService', () => ({
+  auditService: {
+    logAction: vi.fn(),
+  },
+}));
+
+vi.mock('@/services/LoggingService', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+function makeEntry(): EntryManagementEntry {
+  return {
+    id: 'entry-1',
+    registrationId: 'registration-1',
+    entryNumber: '',
+    showId: 'show-1',
+    dogId: 'dog-1',
+    dogName: 'UAT Secretary Dog',
+    ownerName: 'UAT Owner',
+    ownerEmail: 'owner@example.test',
+    handlerName: 'UAT Handler',
+    classes: [],
+    totalFee: 10,
+    paidAmount: 0,
+    entryStatus: EntryStatus.PENDING,
+    paymentStatus: PaymentStatus.PENDING,
+    submittedAt: new Date('2026-05-08T12:00:00Z'),
+    lastUpdated: new Date('2026-05-08T12:00:00Z'),
+  };
+}
+
+describe('useEntryManagementActions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.assignArmband.mockResolvedValue({ data: { updated: 1, armband: '89742' }, error: null });
+  });
+
+  it('assigns secretary armbands by entry id and requested armband number', async () => {
+    const entry = makeEntry();
+    const setEntries = vi.fn();
+    const setError = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [entry],
+        setEntries,
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError,
+        user: { id: 'secretary-1', email: 'secretary@example.test' },
+      })
+    );
+
+    act(() => {
+      result.current.setArmbandDialog({
+        open: true,
+        entry,
+        value: '89742',
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleAssignArmband();
+    });
+
+    expect(assignArmband).toHaveBeenCalledWith('entry-1', '89742');
+    expect(setError).not.toHaveBeenCalled();
+
+    const updater = setEntries.mock.calls[0]?.[0];
+    expect(typeof updater).toBe('function');
+    expect(updater([entry])).toEqual([
+      {
+        ...entry,
+        armbandNumber: '89742',
+        entryNumber: '89742',
+      },
+    ]);
+  });
+});

@@ -1,0 +1,21 @@
+import { expect, type Page } from '@playwright/test';
+
+export const SECRETARY_USER = {
+  email: 'secretary@myk9t.com',
+  password: 'testpass123',
+};
+
+export async function signIn(page: Page, email: string, password: string) {
+  await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('email-input')).toBeVisible({ timeout: 15000 });
+  await page.getByTestId('email-input').fill(email);
+  await page.getByTestId('password-input').fill(password);
+  await page.getByTestId('sign-in-button').click();
+  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
+  await page.waitForLoadState('domcontentloaded');
+  await expect(page).not.toHaveURL(/\/sign-in/);
+}
+
+export async function signInAsSecretary(page: Page) {
+  await signIn(page, SECRETARY_USER.email, SECRETARY_USER.password);
+}

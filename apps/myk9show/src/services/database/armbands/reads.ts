@@ -171,7 +171,22 @@ export const assignArmband = async (
       } as never
     );
     if (!error && data != null) {
-      return { armband: String(data), error: null };
+      const armband = String(data);
+      const { error: updateError } = await supabase
+        .from('entries')
+        .update({ armband, updated_at: new Date().toISOString() })
+        .eq('show_id', showId)
+        .eq('dog_id', dogId)
+        .is('deleted_at', null);
+
+      if (updateError) {
+        return {
+          armband: null,
+          error: createDatabaseError(updateError, 'entries', 'sync_assigned_armband'),
+        };
+      }
+
+      return { armband, error: null };
     }
     return { armband: null, error: error ?? null };
   } catch (error) {

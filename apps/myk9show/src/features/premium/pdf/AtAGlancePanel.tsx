@@ -1,5 +1,6 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../types/premium-types';
+import { compareLevelsByProgression } from './bodies/classOrder';
 import type { StyleTokens } from './pdfStyles';
 import { formatDate } from './pdfStyles';
 
@@ -126,14 +127,9 @@ function buildRows(data: GeneratedPremium): Row[] {
     rows.push({ label: 'Elements', value: elements.join(' · ') });
   }
 
-  const LEVEL_ORDER = ['Novice', 'Advanced', 'Excellent', 'Master'];
   const levels = unique(
     trials.flatMap(t => (t.classes ?? []).map(c => c.level)).filter(Boolean)
-  ).sort((a, b) => {
-    const ai = LEVEL_ORDER.indexOf(a);
-    const bi = LEVEL_ORDER.indexOf(b);
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-  });
+  ).sort(compareLevelsByProgression);
   if (levels.length > 0) {
     rows.push({ label: 'Levels', value: levels.join(' · ') });
   }

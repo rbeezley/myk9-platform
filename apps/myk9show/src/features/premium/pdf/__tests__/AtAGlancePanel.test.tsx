@@ -75,6 +75,28 @@ describe('AtAGlancePanel', () => {
     expect(screen.getByText('Entries Close')).toBeTruthy();
   });
 
+  it('renders levels in competition progression order', () => {
+    const data: GeneratedPremium = {
+      ...fullData,
+      trials: [
+        {
+          ...fullData.trials[0]!,
+          classes: [
+            { element: 'Container', level: 'Master', section: null },
+            { element: 'Container', level: 'Novice A', section: null },
+            { element: 'Container', level: 'Excellent', section: null },
+            { element: 'Container', level: 'Novice B', section: null },
+            { element: 'Container', level: 'Advanced', section: null },
+          ],
+        },
+      ],
+    };
+
+    render(<AtAGlancePanel data={data} tokens={tokens} />);
+
+    expect(screen.getByText('Novice A · Novice B · Advanced · Excellent · Master')).toBeTruthy();
+  });
+
   it('hides the Elements row when no class elements are present', () => {
     const data: GeneratedPremium = {
       ...fullData,

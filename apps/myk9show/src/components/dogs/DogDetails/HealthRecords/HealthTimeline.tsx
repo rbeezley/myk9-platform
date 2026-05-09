@@ -22,6 +22,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { downloadFile, exportToCSV } from '@/lib/export';
 
 export interface HealthEvent {
   id: string;
@@ -88,7 +89,22 @@ const eventTypeConfig = {
   },
 };
 
+const exportColumns = [
+  'Date',
+  'Type',
+  'Title',
+  'Status',
+  'Description',
+  'Veterinarian',
+  'Clinic',
+  'Cost',
+  'Expiration Date',
+  'Notes',
+  'Attachments',
+] as const;
+
 export function HealthTimeline({
+  dogId,
   events,
   onEventClick,
   onAddEvent,
@@ -140,6 +156,41 @@ export function HealthTimeline({
   const years = Object.keys(eventsByYear)
     .map(Number)
     .sort((a, b) => b - a);
+
+  const getExportFilename = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return `${dogId}-health-timeline-${today}`;
+  };
+
+  const handleExportTimeline = () => {
+    const filename = getExportFilename();
+
+    if (events.length === 0) {
+      const headers = exportColumns.map(column => `"${column}"`).join(',');
+      downloadFile(headers, `${filename}.csv`, 'text/csv');
+      return;
+    }
+
+    const exportRows =
+      events
+        .slice()
+        .sort((a, b) => b.date.getTime() - a.date.getTime())
+        .map(event => ({
+          Date: event.date,
+          Type: eventTypeConfig[event.type].label,
+          Title: event.title,
+          Status: event.status.charAt(0).toUpperCase() + event.status.slice(1),
+          Description: event.description || '',
+          Veterinarian: event.vetName || '',
+          Clinic: event.clinic || '',
+          Cost: event.cost ?? '',
+          'Expiration Date': event.expiration || '',
+          Notes: event.notes || '',
+          Attachments: event.attachments?.map(attachment => attachment.name).join('; ') || '',
+        }));
+
+    exportToCSV(exportRows, filename, { dateFormat: 'YYYY-MM-DD' });
+  };
 
   const getStatusBadge = (status: string, expiration?: Date) => {
     if (status === 'overdue' || (expiration && expiration < new Date())) {
@@ -278,7 +329,7 @@ export function HealthTimeline({
               <Upload className="h-4 w-4 mr-2" />
               Import Records
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportTimeline}>
               <Download className="h-4 w-4 mr-2" />
               Export Timeline
             </Button>

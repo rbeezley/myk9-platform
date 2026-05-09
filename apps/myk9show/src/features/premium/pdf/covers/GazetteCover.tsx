@@ -7,7 +7,7 @@ import {
   composeFallbackArticle,
   extractCityState,
 } from './gazetteHelpers';
-import { compareClassesByProgression } from '../bodies/classOrder';
+import { compareClassesByProgression, compareLevelsByProgression } from '../bodies/classOrder';
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 // Hoisted from inline literals so a designer can tune the masthead in one
@@ -61,7 +61,9 @@ export function renderGazetteCover(ctx: CoverContext) {
     .slice()
     .sort(compareClassesByProgression);
   const elements = Array.from(new Set(allClasses.map(c => c.element))).filter(Boolean);
-  const levels = Array.from(new Set(allClasses.map(c => c.level))).filter(Boolean);
+  const levels = Array.from(new Set(allClasses.map(c => c.level)))
+    .filter(Boolean)
+    .sort(compareLevelsByProgression);
   const atAGlanceLines: Array<{ label: string; value: string }> = [];
   if (trials.length > 0) {
     atAGlanceLines.push({

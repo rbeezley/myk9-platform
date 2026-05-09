@@ -19,8 +19,8 @@ export const features = {
   pedigree: true,
 
   // Dog Details tabs — hidden until show management is ready
-  competitionsTab: false,
-  statisticsTab: false,
+  competitionsTab: true,
+  statisticsTab: true,
 
   // Show management — coming soon for exhibitors
   showRegistration: false,

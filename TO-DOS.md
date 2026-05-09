@@ -12,6 +12,21 @@ Higher-level planning documents that govern how the items below should be sequen
 
 ---
 
+## ✅ Resolved 2026-05-09 — Premium PDF cover level ordering
+
+- **Editorial + Gazette cover "Levels" line sorted alphabetically when upstream data was not pre-sorted** — Fixed by adding `compareLevelsByProgression` in [`classOrder.ts`](apps/myk9show/src/features/premium/pdf/bodies/classOrder.ts) and using it for the Magazine `AtAGlancePanel` plus Gazette cover fallback panel. Added a regression test with deliberately scrambled levels in [`AtAGlancePanel.test.tsx`](apps/myk9show/src/features/premium/pdf/__tests__/AtAGlancePanel.test.tsx).
+
+---
+
+## ✅ Resolved 2026-05-09 — Quick wins batch
+
+- **Health Timeline export** — Wired `Export Timeline` to a CSV export with stable columns, date-sorted rows, and a header-only empty export. Added focused tests in [`HealthTimeline.test.tsx`](apps/myk9show/src/components/dogs/DogDetails/HealthRecords/HealthTimeline.test.tsx) and plan [`docs/plan-health-timeline-export.md`](docs/plan-health-timeline-export.md).
+- **My Entries close-date label** — Changed the ambiguous `Closes` label to `Entries close` in [`MyEntryCard.tsx`](apps/myk9show/src/pages/MyEntriesPage/modules/MyEntryCard.tsx), with updated card tests.
+- **Results dashboard button warning follow-up** — No concrete Base UI `render` warning source was found route-locally; the quick-access tiles now render as native `<button>` elements in [`ResultEntryDashboard.tsx`](apps/myk9show/src/pages/ResultEntryDashboard.tsx), with focused warning/navigation tests.
+- **Dog Details tabs enabled** — Flipped `competitionsTab` and `statisticsTab` to `true` in [`features.ts`](apps/myk9show/src/config/features.ts), verified by the DogDetailsTabs test.
+
+---
+
 ## Fall 2026 Stabilization Phases (North Star) — 2026-04-11
 
 The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy/2026-04-11-north-star-fall-2026.md`](docs/plans/strategy/2026-04-11-north-star-fall-2026.md). Task-level progress lives inside the plan document, not here.
@@ -80,7 +95,7 @@ Live triage log from walking the secretary golden path on `localhost:5173`. Item
 ### Open — Found during exhibitor walk (2026-05-03)
 
 - **Show cards don't show personalized badge for logged-in users** — cards always show generic status ("Accepting Entries") even when user already entered. Needs `userHasEntriesForShow` wired into the card. Phase 3 enhancement.
-- **Entry date without label on MyEntriesPage** — calendar icon date is the entry close date, not show date, but has no label. Minor polish, Phase 3.
+- ~~**Entry date without label on MyEntriesPage**~~ ✓ resolved 2026-05-09 — calendar icon date now has the explicit `Entries close` label.
 
 ### Open — Phase 2 Planned Work
 
@@ -419,7 +434,7 @@ Initial audit flagged ~17 missing sidebar links across roles. **On review these 
 
 ### Judge route findings (post role-assignment, 2026-04-18 21:50)
 
-- **`/results/dashboard` Base UI button warning** — **Status 2026-04-18:** Not reproducible on initial page load — only perf warnings appear in console. May only fire on specific interactions (filter open, date picker, etc.). Re-investigate next time it surfaces with a repro path. **Files:** components rendered by `/results/dashboard` page. **Solution:** find the Base UI component using `render` prop with non-`<button>` element; either pass a real `<button>` or set `nativeButton={false}`.
+- ~~**`/results/dashboard` Base UI button warning**~~ ✓ resolved 2026-05-09 — no concrete Base UI `render` source found route-locally; quick-access clickable cards now render as native `<button>` elements and focused tests guard against the warning during dashboard interactions.
 - **Possible mock/seed data on judge surfaces** — **Problem:** `/judge/dashboard` shows "Today's Classes 8, 3 completed" and `/judge/check-in` shows "Total Entries 40 · Checked In 30 · Conflicts 3" but `/judge/stats` correctly shows 0 SHOWS JUDGED / 0 CLASSES JUDGED for the same judge. `/results/dashboard` also shows fictional "Container Expert - Results Posted, 1st: Luna (95.5 pts)" recent activity. **Solution:** confirm whether dashboards are reading real data or hardcoded seed values; if seeds, swap for real queries (likely empty-state for fresh judges).
 
 ### Exhibitor route observations (audited as site admin proxy — re-verify with real exhibitor)

@@ -109,9 +109,10 @@ const ResultEntryDashboard: React.FC = () => {
       {/* Quick Access Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {quickAccessCards.map((card, index) => (
-          <Card 
-            key={index} 
-            className="cursor-pointer hover:shadow-md transition-shadow"
+          <button
+            key={index}
+            type="button"
+            className="rounded-xl border border-border/50 bg-card text-card-foreground shadow-card text-left cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             onClick={card.onClick}
           >
             <CardHeader>
@@ -129,7 +130,7 @@ const ResultEntryDashboard: React.FC = () => {
               <CardTitle className="mt-4">{card.title}</CardTitle>
               <CardDescription>{card.description}</CardDescription>
             </CardHeader>
-          </Card>
+          </button>
         ))}
       </div>
 

@@ -4,10 +4,6 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 
 ---
 
-## Premium PDF Styles — Cover at-a-glance level ordering
-
-- [ ] **EditorialCover & GazetteCover "Levels" line uses alphabetical, not progression, order when data isn't pre-sorted upstream** — Surfaced 2026-05-07 while writing cross-style invariant tests (`apps/myk9show/src/features/premium/pdf/__tests__/bodyContractInvariants.test.tsx`). Production data hits the cover with levels already deduped and progression-ordered, so the live June 2026 cover renders correctly ("Novice · Advanced · Excellent · Master"). But if upstream pipeline ever changes or a club has non-canonical level data, the at-a-glance summary will read alphabetically (Advanced · Excellent · Master · Novice A · Novice B) which contradicts the body's progression order. **Fix:** sort the Set output through `compareClassesByProgression`-style level comparator in `GazetteCover.tsx:64–76` and (less obvious) wherever EditorialCover builds its at-a-glance levels. Files: `apps/myk9show/src/features/premium/pdf/covers/GazetteCover.tsx`, `EditorialCover.tsx`, `bodies/classOrder.ts`.
-
 ## Premium PDF Styles — Cover image upload
 
 - [ ] **Cover-image upload for Gazette + Magazine** — Both styles have a "photo" or "image slot" area on the cover. Today both render an "At a Glance" stat-summary fallback (sepia-bordered for Gazette; warm-cream for Magazine) when no image is present. Build the upload path: (1) add `coverImageUrl: string | null` to `PremiumSupplemental` and the `club_premium_templates` table (migration), (2) add file-input UI to GeneratePremiumPanel that uploads to Supabase Storage and writes the URL onto the show, (3) render `<Image src={coverImageUrl}/>` in `GazetteCover` / `EditorialCover` when the URL is present, falling back to the existing stat panel when it's null. **Watch out for:** the `Buffer is not defined` browser issue we hit with `<Image>` in CenteredCover — need to either pre-fetch as base64 data URL or handle the runtime gracefully (try/catch wrap + fall back to the stat panel). Files: `apps/myk9show/src/types/premium-types.ts`, `apps/myk9show/src/features/premium/pdf/covers/GazetteCover.tsx`, `EditorialCover.tsx`, `GeneratePremiumPanel.tsx`.
@@ -27,7 +23,6 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 ## Health Records
 
 - [ ] **Import Records button** — "Import Records" button on the Health Timeline has no onClick handler. Plan and implement: define supported import formats (CSV? PDF from vet portals?), build import flow. File: `HealthTimeline.tsx` line 272.
-- [ ] **Export Timeline button** — "Export Timeline" button has no onClick handler. Plan and implement: decide on export format (PDF, CSV, JSON), generate and download a file of the dog's health events. File: `HealthTimeline.tsx` line 276.
 - [ ] **Wire up edit for all health record types** — Edit dialogs exist for VetVisit, Vaccination, Medication, and Allergy but are not reachable from the UI. Requires: (1) fix field name mismatches between the edit dialogs (built against mock types) and the live DB types (`reason` vs `title`, `visit_date` vs `date`, `vet_name` vs `vetName`, etc.), (2) import and call the existing `useUpdate*Mutation` hooks from `useHealthDatabase.ts` in `HealthRecordsSection.tsx`, (3) add `onEditItem` callback through `TraditionalViewProps` → row-level Edit button in `HealthRecordsTraditionalView.tsx`. OFA Screenings and Genetic Tests have no edit dialogs at all — decide whether to build or defer. Files: `HealthRecordsSection.tsx`, `HealthRecordsTraditionalView.tsx`, `VetVisits/EditVetVisitDialog.tsx`, `Vaccinations/EditVaccinationDialog.tsx`, `Medications/EditMedicationDialog.tsx`, `Allergies/EditAllergyDialog.tsx`.
 
 ## Training Journal
@@ -38,12 +33,10 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 ## Phase 3 Polish (found during Phase 2 walk, 2026-05-03)
 
 - [ ] **Show cards: no personalized badge for logged-in users** — Cards always show generic status ("Accepting Entries") even when user already entered. Needs `userHasEntriesForShow` wired into browse show cards.
-- [ ] **Entry date missing label on MyEntriesPage** — Calendar icon date is the entry close date but has no label clarifying that. Minor polish.
 
 ## Route & Page Audit Findings
 
 - [ ] **Admin / judge / club-admin interior audit** — Routes under `/admin/*`, `/judge/*`, `/club-admin/*` not walked end-to-end. Need a pass as SITE_ADMIN (and JUDGE for `/judge/*`) to surface 400s, broken UI, or missing data.
-- [ ] **`/results/dashboard` Base UI button warning** — Not reproducible on page load; may only fire on specific interactions. Re-investigate next time it surfaces with a repro path. Files: components rendered by `/results/dashboard`.
 
 ## People & Clubs CRUD
 
@@ -61,12 +54,6 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 - [ ] **Require PRs to merge into main** — Enable branch protection on `main` with CI as required status check. No direct pushes to main in production.
 - [ ] **Make E2E CI jobs blocking** — Skipped historically due to billing issues + unstable test suite. Revisit once tests are stable.
 - [ ] **Pre-load AKC & UKC Judge Directory** — Import judge directories into `people` + `judge_qualifications` before launch. Format TBD; check akc.org and ukc.org for CSV/XML export.
-
----
-
-## Feature Flags — Enable When Ready
-
-- [ ] **Enable competitions + statistics tabs on Dog Details** — Flip `competitionsTab: true` and `statisticsTab: true` in `apps/myk9show/src/config/features.ts`. Both depend on show entry data; enable once show registration + entry system is live. File: `apps/myk9show/src/config/features.ts`.
 
 ## Post-Fall (parked — do not pick up before Phase 3 exit)
 

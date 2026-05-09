@@ -91,7 +91,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
           <div className="myk9-entries-detail-item">
             <Calendar className="h-4 w-4" />
             <span>
-              <span className="text-sm text-muted-foreground">Closes </span>
+              <span className="text-sm text-muted-foreground">Entries close </span>
               {entry.entryCloseDate.toLocaleDateString()}
             </span>
           </div>

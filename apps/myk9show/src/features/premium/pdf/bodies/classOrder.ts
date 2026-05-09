@@ -15,6 +15,12 @@ function levelIndex(level: string): number {
   return i === -1 ? 999 : i;
 }
 
+export function compareLevelsByProgression(a: string, b: string): number {
+  const progression = levelIndex(a) - levelIndex(b);
+  if (progression !== 0) return progression;
+  return a.localeCompare(b);
+}
+
 export interface ClassLike {
   element: string;
   level: string;
@@ -29,7 +35,7 @@ export interface ClassLike {
  */
 export function compareClassesByProgression(a: ClassLike, b: ClassLike): number {
   if (a.element !== b.element) return a.element.localeCompare(b.element);
-  const li = levelIndex(a.level) - levelIndex(b.level);
+  const li = compareLevelsByProgression(a.level, b.level);
   if (li !== 0) return li;
   if (a.section === b.section) return 0;
   if (!a.section) return 1;

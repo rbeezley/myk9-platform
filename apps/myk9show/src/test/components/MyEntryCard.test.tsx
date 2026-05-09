@@ -34,7 +34,7 @@ const baseEntry: MyEntry = {
 const noop = vi.fn();
 
 describe('MyEntryCard — entry close date label', () => {
-  it('renders "Closes" label with the entry close date when entryCloseDate is set', () => {
+  it('renders "Entries close" label with the entry close date when entryCloseDate is set', () => {
     const closeDate = new Date('2026-06-30');
     render(
       <MyEntryCard
@@ -45,7 +45,7 @@ describe('MyEntryCard — entry close date label', () => {
       />
     );
 
-    expect(screen.getByText('Closes')).toBeInTheDocument();
+    expect(screen.getByText('Entries close')).toBeInTheDocument();
     expect(screen.getByText(closeDate.toLocaleDateString())).toBeInTheDocument();
   });
 
@@ -59,6 +59,6 @@ describe('MyEntryCard — entry close date label', () => {
       />
     );
 
-    expect(screen.queryByText('Closes')).not.toBeInTheDocument();
+    expect(screen.queryByText('Entries close')).not.toBeInTheDocument();
   });
 });

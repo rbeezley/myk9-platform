@@ -41,9 +41,9 @@ const SCRAMBLED_CLASSES = [
 ];
 
 // Search for the body's rendered "Container <Level>" pairs rather than the
-// bare level name. Cover summaries (e.g. EditorialCover's alphabetical "At a
-// Glance" line) and narrative copy ("Novice title required for Advanced")
-// also contain bare level words, which would corrupt a substring scan.
+// bare level name. Cover summaries and narrative copy ("Novice title required
+// for Advanced") also contain bare level words, which would corrupt a
+// substring scan.
 const EXPECTED_ORDER = [
   'Container Novice A',
   'Container Novice B',

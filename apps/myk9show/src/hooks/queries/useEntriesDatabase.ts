@@ -12,11 +12,11 @@ import {
   createEntry,
   updateEntry,
   deleteEntry,
-  updateEntryStatus,
+  updateEntryStatusWithAudit,
   createMultipleEntries,
   getEntryStatistics,
   searchEntries,
-} from '@/services/database/queries/entryQueries';
+} from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
 import type { DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
@@ -281,7 +281,7 @@ export const useUpdateEntryStatusMutation = () => {
       userId: string;
       reason?: string;
     }) => {
-      const { data, error } = await updateEntryStatus(params);
+      const { data, error } = await updateEntryStatusWithAudit(params);
       if (error) throw error;
       return data;
     },

@@ -15,6 +15,7 @@ export {
   updateEntry,
   updateEntryDetails,
   updateEntryHandler,
+  updateEntryStatus as updateEntryStatusWithAudit,
   withdrawEntry,
 } from './writes';
 export * from './search';

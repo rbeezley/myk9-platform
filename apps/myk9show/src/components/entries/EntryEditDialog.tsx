@@ -45,7 +45,7 @@ import {
   updateEntryHandler,
   withdrawEntry,
   canModifyEntry,
-} from '@/services/database/queries/entryQueries';
+} from '@/services/database/entries';
 import { logger } from '@/services/LoggingService';
 
 interface EntryClass {

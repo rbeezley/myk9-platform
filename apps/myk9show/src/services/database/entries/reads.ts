@@ -20,6 +20,7 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { EntryStatus } from '@/types/entry-lifecycle';
+import type { DbEntryWithRelations } from '@/services/mappers/classMappers';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -653,6 +654,18 @@ export const getEntriesByClass = async (classId: string) => {
   } catch (error) {
     return { data: [], error: error as DatabaseError };
   }
+};
+
+// Compatibility name used by class-oriented callers. Keep the implementation
+// here so Entry reads remain behind the Entry module interface.
+export const getEntriesByClassId = async (
+  classId: string
+): Promise<{ data: DbEntryWithRelations[]; error: DatabaseError | null }> => {
+  const result = await getEntriesByClass(classId);
+  return {
+    data: result.data as DbEntryWithRelations[],
+    error: result.error,
+  };
 };
 
 // Get entries by dog ID

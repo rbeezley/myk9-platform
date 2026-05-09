@@ -33,8 +33,9 @@ vi.mock('@/services/LoggingService', () => ({
     }),
   },
 }));
-vi.mock('@/services/database/queries/entryQueries', () => ({
+vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null }),
+  updateCheckInStatus: vi.fn().mockResolvedValue({ data: null, error: null }),
 }));
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsByOwnerQuery: () => ({ data: [] }),

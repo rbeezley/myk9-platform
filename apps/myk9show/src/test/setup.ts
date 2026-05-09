@@ -66,7 +66,9 @@ vi.mock('@react-pdf/renderer', async () => {
     View: wrap('div'),
     Text: wrap('span'),
     Image: () => null,
-    Link: wrap('a'),
+    // Preserve `src` as `href` so URL assertions work without a custom mock.
+    Link: ({ src, children }: { src?: string; children?: React.ReactNode }) =>
+      React.createElement('a', { href: src }, children),
     StyleSheet: { create: (s: unknown) => s },
     Font: { register: vi.fn() },
   };

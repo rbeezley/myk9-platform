@@ -379,7 +379,13 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     };
 
     await this.set(showId, updatedShow, true); // Mark as dirty
-    const mutationId = await this.queueMutation('UPDATE', showId, this.toSupabaseRow(updatedShow));
+    const updatePayload = this.toSupabaseRow(updatedShow);
+    if (!('experienceIsPublished' in updates)) delete updatePayload.experience_is_published;
+    if (!('experiencePublishedAt' in updates)) delete updatePayload.experience_published_at;
+    if (!('experiencePublishedStyle' in updates)) delete updatePayload.experience_published_style;
+    if (!('experiencePublishedContent' in updates)) delete updatePayload.experience_published_content;
+
+    const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
     return mutationId;

@@ -571,6 +571,44 @@ describe('ReplicatedShowsTable', () => {
       expect(result?._syncStatus).toBe('pending');
     });
 
+    it('should not queue stale published experience columns for ordinary show updates', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Published Show',
+        organization: 'AKC',
+        startDate: '2026-05-22',
+        endDate: '2026-05-23',
+        experienceIsPublished: false,
+        experiencePublishedAt: null,
+        experiencePublishedStyle: null,
+        experiencePublishedContent: null,
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('show-1', show);
+      await table.updateShow('show-1', { name: 'Renamed Show' });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        expect.not.objectContaining({
+          experience_is_published: expect.anything(),
+          experience_published_at: expect.anything(),
+          experience_published_style: expect.anything(),
+          experience_published_content: expect.anything(),
+        })
+      );
+    });
+
     it('should throw error when updating non-existent show', async () => {
       await expect(table.updateShow('nonexistent', { name: 'Updated' })).rejects.toThrow(
         'Show nonexistent not found'

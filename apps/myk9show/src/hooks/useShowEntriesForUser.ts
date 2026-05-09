@@ -64,6 +64,18 @@ function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
   return a.startTime.localeCompare(b.startTime);
 }
 
+function hasScopedClubRole(
+  userWithRoles: ReturnType<typeof useAuthContext>['userWithRoles'],
+  role: UserRole,
+  clubId: string | undefined
+): boolean {
+  if (!clubId) return false;
+  return (userWithRoles?.scopes ?? []).some(
+    scope =>
+      scope.scopeType === ScopeType.CLUB && scope.scopeId === clubId && scope.roleId === role
+  );
+}
+
 export function useShowEntriesForUser(showId: string | undefined): UseShowEntriesForUserResult {
   const { userWithRoles, isAdmin, isSecretary, hasRole } = useAuthContext();
   const {
@@ -81,14 +93,10 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
   const showClubId = shows.find(show => show.id === showId)?.clubId;
   const clubAdminCanSeeShow =
     hasRole(UserRole.CLUB_ADMIN) &&
-    !!showClubId &&
-    (userWithRoles?.scopes ?? []).some(
-      scope =>
-        scope.scopeType === ScopeType.CLUB &&
-        scope.scopeId === showClubId &&
-        scope.roleId === UserRole.CLUB_ADMIN
-    );
-  const canSeeAll = isAdmin || isSecretary || clubAdminCanSeeShow;
+    hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, showClubId);
+  const secretaryCanSeeShow =
+    isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, showClubId);
+  const canSeeAll = isAdmin || secretaryCanSeeShow || clubAdminCanSeeShow;
 
   return useMemo(() => {
     const empty = { dogGroups: [], allEntries: [], totalClasses: 0, isLoading, isError: !!error };

@@ -61,6 +61,7 @@ BEGIN
       updated_at  = NOW()
   WHERE show_id    = NEW.show_id
     AND dog_id     = NEW.dog_id
+    AND id         <> NEW.id
     AND deleted_at IS NULL
     AND armband IS DISTINCT FROM v_armband;
 

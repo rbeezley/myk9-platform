@@ -141,14 +141,25 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries).toHaveLength(0);
   });
 
-  it('includes all show entries for secretary users', () => {
+  it('includes all show entries for secretary users scoped to the show club', () => {
     setMocks({
       dogs: [makeDog({ ownerId: 'other-user' })],
       isSecretary: true,
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: UserRole.SECRETARY }],
     });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries).toHaveLength(1);
     expect(result.current.allEntries[0].dogName).toBe('Maggie');
+  });
+
+  it('does not expose all show entries for secretary users scoped to a different club', () => {
+    setMocks({
+      dogs: [makeDog({ ownerId: 'other-user' })],
+      isSecretary: true,
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'other-club', roleId: UserRole.SECRETARY }],
+    });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries).toHaveLength(0);
   });
 
   it('includes all show entries for club admins scoped to the show club', () => {

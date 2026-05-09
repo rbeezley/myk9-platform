@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
+import { HeadlineLandingPage } from '@/features/headline/landing/HeadlineLandingPage';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -28,10 +29,7 @@ import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { GeneratedPremium } from '@/types/premium-types';
-import {
-  useShowsQuery,
-  showQueryKeys,
-} from '@/hooks/queries/useShowsDatabase';
+import { useShowsQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { useShowStore } from '@/store/showStore';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
@@ -350,16 +348,23 @@ const ShowDetailsPage: React.FC = () => {
       ? { ...actualCurrentShow, style: actualCurrentShow.experiencePublishedStyle }
       : actualCurrentShow;
 
-  // Heritage public landing — renders for any visitor who is not staff.
+  // Styled public landing — renders for any visitor who is not staff.
   // Staff (secretary / admin / club_admin) always reach the management UI.
+  const publicShowStyle = getShowStyle(publicLandingShow);
   if (
-    getShowStyle(publicLandingShow) === 'heritage' &&
+    (publicShowStyle === 'heritage' || publicShowStyle === 'headline') &&
     !isSecretary &&
     !isAdmin &&
     !hasRole('club_admin')
   ) {
-    return (
+    return publicShowStyle === 'heritage' ? (
       <HeritageLandingPage
+        show={publicLandingShow}
+        trial={associatedTrials[0] ?? null}
+        allTrials={associatedTrials}
+      />
+    ) : (
+      <HeadlineLandingPage
         show={publicLandingShow}
         trial={associatedTrials[0] ?? null}
         allTrials={associatedTrials}
@@ -551,7 +556,6 @@ const ShowDetailsPage: React.FC = () => {
               queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
               queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
             }
-
           }
           setShowEditPanel(false);
         }}

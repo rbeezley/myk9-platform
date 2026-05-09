@@ -10,8 +10,9 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { getShowLandingStyle } from '@/features/registries';
+import { getShowStyle } from '@/features/registries';
 import { HeritageEntryReceived } from '@/features/heritage/wizard/HeritageEntryReceived';
+import { HeadlineEntryReceived } from '@/features/headline/wizard/HeadlineEntryReceived';
 import {
   ClassSelectionData,
   RegistrationFormData,
@@ -94,18 +95,18 @@ export function WorkflowStepContent({
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
 
-  // Heritage branch — hooks must be top-level (Rules of Hooks);
+  // Styled receipt branch — hooks must be top-level (Rules of Hooks);
   // expensive .find() lookups are memoized and only compute during confirmation step.
   const shows = useShowStore(s => s.shows);
   const allTrials = useTrialStore(s => s.trials);
   const { dogs } = useDogStoreCompat();
   const { classes } = useClassStoreCompat();
 
-  const heritageReceipt = useMemo(() => {
+  const styledReceipt = useMemo(() => {
     if (currentStepId !== 'confirmation') return null;
     const currentShow = shows.find(s => s.id === showId);
-    const isHeritage = getShowLandingStyle(currentShow) === 'heritage';
-    if (!isHeritage) return { isHeritage: false } as const;
+    const style = getShowStyle(currentShow);
+    if (style !== 'heritage' && style !== 'headline') return null;
 
     const firstTrial = allTrials.find(t => t.showId === showId);
     const firstDogId = optimisticState.formData.selectedDogs[0];
@@ -120,7 +121,7 @@ export function WorkflowStepContent({
         .join(', ') ?? '';
 
     return {
-      isHeritage: true,
+      style,
       showName: currentShow?.name ?? '',
       clubName: currentShow?.clubName ?? currentShow?.name ?? '',
       dateRange: currentShow?.startDate
@@ -152,6 +153,31 @@ export function WorkflowStepContent({
         : null,
     } as const;
   }, [currentStepId, showId, shows, allTrials, dogs, classes, optimisticState]);
+
+  const printEntryBlankUnavailable = () =>
+    notifications.info('Entry blank', {
+      description: 'A printable entry blank will be available after the draw is complete.',
+    });
+
+  const styledReceiptProps =
+    styledReceipt === null
+      ? null
+      : {
+          showName: styledReceipt.showName,
+          clubName: styledReceipt.clubName,
+          dateRange: styledReceipt.dateRange,
+          dogRegisteredName: styledReceipt.dogRegisteredName,
+          dogCallName: styledReceipt.dogCallName,
+          classSummary: styledReceipt.classSummary,
+          totalFeesFormatted: `$${currentRegistrationTotalFees.toFixed(2)}`,
+          registrationNumber: registrationNumber ?? null,
+          confirmationDateLabel: styledReceipt.confirmationDateLabel,
+          // INTENT: The entry blank is printed after the draw, not at entry time.
+          // Full pre-filled PDF (Phase 3 HeritageEntryBlankButton) requires judge
+          // assignments that don't exist until the draw — replaced by informational
+          // toast here. Wire to the style-specific entry blank button once draw data is available.
+          onPrintEntryBlank: printEntryBlankUnavailable,
+        };
   return (
     <div className="min-h-[300px]">
       {currentStepId === 'dog-selection' && (
@@ -257,28 +283,10 @@ export function WorkflowStepContent({
       )}
 
       {currentStepId === 'confirmation' &&
-        (heritageReceipt?.isHeritage ? (
-          <HeritageEntryReceived
-            showName={heritageReceipt.showName}
-            clubName={heritageReceipt.clubName}
-            dateRange={heritageReceipt.dateRange}
-            dogRegisteredName={heritageReceipt.dogRegisteredName}
-            dogCallName={heritageReceipt.dogCallName}
-            classSummary={heritageReceipt.classSummary}
-            totalFeesFormatted={`$${currentRegistrationTotalFees.toFixed(2)}`}
-            registrationNumber={registrationNumber ?? null}
-            confirmationDateLabel={heritageReceipt.confirmationDateLabel}
-            // INTENT: The entry blank is printed after the draw, not at entry time.
-            // Full pre-filled PDF (Phase 3 HeritageEntryBlankButton) requires judge
-            // assignments that don't exist until the draw — replaced by informational
-            // toast here. Wire to HeritageEntryBlankButton once draw data is available.
-            onPrintEntryBlank={() =>
-              notifications.info('Entry blank', {
-                description:
-                  'A printable entry blank will be available after the draw is complete.',
-              })
-            }
-          />
+        (styledReceipt?.style === 'heritage' && styledReceiptProps ? (
+          <HeritageEntryReceived {...styledReceiptProps} />
+        ) : styledReceipt?.style === 'headline' && styledReceiptProps ? (
+          <HeadlineEntryReceived {...styledReceiptProps} />
         ) : (
           <ConfirmationStep
             registrationNumber={registrationNumber}

@@ -2,11 +2,12 @@
 // All callers import from here — never from supabaseClient or replication
 // tables directly, and never from the legacy queries/ files below.
 //
-// Implementations live in showQueries.ts during migration and will
-// move into reads.ts / writes.ts in follow-up PRs.
+// Implementations live in reads.ts / writes.ts. The legacy
+// services/database/queries/showQueries.ts file only re-exports this module.
 
 export {
   getAllShows,
+  getPublicShows,
   getShowById,
   getUpcomingShows,
   getShowsByDateRange,
@@ -16,10 +17,13 @@ export {
   getShowsWithEntryCounts,
   getShowsByStatus,
   getSecretaryShows,
+} from './reads';
+
+export {
   createShow,
   updateShow,
   deleteShow,
   hardDeleteShow,
   restoreShow,
   getDeletedShows,
-} from './reads';
+} from './writes';

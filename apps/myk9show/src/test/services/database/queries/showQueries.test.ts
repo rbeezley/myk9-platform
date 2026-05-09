@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   getAllShows,
   getShowById,
+  getPublicShows,
   getUpcomingShows,
   getShowsByDateRange,
   getShowsByClub,
@@ -113,6 +114,45 @@ describe('Show Queries', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
+    });
+  });
+
+  describe('getPublicShows', () => {
+    it('should fetch public shows for guest browse views', async () => {
+      const mockData = [
+        {
+          id: '1',
+          name: 'Public Spring Show',
+          status: 'published',
+          start_date: '2024-04-15',
+          end_date: '2024-04-17',
+          club: {
+            name: 'Metropolitan Dog Club',
+            address: '123 Main St',
+            email: 'club@example.com',
+          },
+        },
+      ];
+
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+
+      const result = await getPublicShows();
+
+      expect(result.data).toEqual(mockData);
+      expect(result.error).toBeNull();
+    });
+
+    it('should handle public show query errors', async () => {
+      const mockError = { message: 'Database unavailable', code: 'CONNECTION_ERROR' };
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
+
+      const result = await getPublicShows();
+
+      expect(result.data).toEqual([]);
+      expect(result.error).toBeDefined();
+      expect(result.error.message).toBe('Database unavailable');
+      expect(result.error.table).toBe('show');
+      expect(result.error.operation).toBe('select_public');
     });
   });
 

@@ -4,7 +4,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
 import { useShowStore } from '@/store/showStore';
-import { supabase } from '@/services/database/supabaseClient';
+import { getPublicShows } from '@/services/database/shows';
 import { mapDatabaseShowsArray } from '@/services/mappers/showMappers';
 import { logger } from '@/services/LoggingService';
 import type { Show } from '@/types/show-types';
@@ -89,13 +89,7 @@ export function useBrowseShowsData({
   const { data: publicShows, isLoading: publicShowsLoading } = useQuery({
     queryKey: ['shows', 'public'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('shows')
-        // Exclude logo_url / cover_image_url — they can be multi-MB base64 blobs
-        .select('*, club:clubs(name, address, email)')
-        .in('status', ['published', 'upcoming', 'in_progress', 'completed'])
-        .is('deleted_at', null)
-        .order('start_date', { ascending: true });
+      const { data, error } = await getPublicShows();
       if (error) throw error;
       return mapDatabaseShowsArray(data ?? []);
     },

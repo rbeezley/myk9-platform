@@ -15,11 +15,11 @@ import {
   uncompEntry,
 } from '@/services/database/entries';
 import {
-  assignArmband,
   autoAssignArmbands,
   getNextArmbandForShow,
   getEntryArmbandById,
-} from '@/services/database/armbands';
+  assignArmband,
+} from '@/services/database/armbands/secretary';
 
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';

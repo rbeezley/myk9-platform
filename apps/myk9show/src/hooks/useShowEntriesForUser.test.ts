@@ -76,11 +76,17 @@ function setMocks({
   classes = [makeClass()],
   dogs = [makeDog()],
   userId = USER_ID,
+  isAdmin = false,
+  isSecretary = false,
+  hasRole = vi.fn(() => false),
   isLoading = false,
   error = null,
 } = {}) {
   vi.mocked(useAuthContext).mockReturnValue({
     userWithRoles: { databaseUserId: userId },
+    isAdmin,
+    isSecretary,
+    hasRole,
   } as ReturnType<typeof useAuthContext>);
 
   vi.mocked(useEntryStore).mockImplementation((selector: (s: unknown) => unknown) => {
@@ -124,6 +130,16 @@ describe('useShowEntriesForUser', () => {
     setMocks({ dogs: [makeDog({ ownerId: 'other-user' })] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries).toHaveLength(0);
+  });
+
+  it('includes all show entries for secretary users', () => {
+    setMocks({
+      dogs: [makeDog({ ownerId: 'other-user' })],
+      isSecretary: true,
+    });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries).toHaveLength(1);
+    expect(result.current.allEntries[0].dogName).toBe('Maggie');
   });
 
   it('enriches entry with element, level, classTitle from class store', () => {

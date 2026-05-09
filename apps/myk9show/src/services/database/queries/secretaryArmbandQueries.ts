@@ -22,6 +22,17 @@ async function fetchMaxArmbandForShow(showId: string): Promise<string | null> {
   return nums.length === 0 ? null : String(Math.max(...nums));
 }
 
+async function fetchStartingArmbandForShow(showId: string): Promise<number> {
+  const { data } = await supabase
+    .from('shows')
+    .select('starting_armband_number')
+    .eq('id', showId)
+    .maybeSingle();
+
+  const start = Number(data?.starting_armband_number);
+  return Number.isFinite(start) && start > 0 ? start : 100;
+}
+
 export const assignArmband = async (entryId: string, armband: string) => {
   const startTime = Date.now();
 
@@ -88,10 +99,11 @@ export const assignArmband = async (entryId: string, armband: string) => {
   }
 };
 
-export const autoAssignArmbands = async (showId: string, startNumber: number = 1) => {
+export const autoAssignArmbands = async (showId: string, startNumber?: number) => {
   const startTime = Date.now();
 
   try {
+    const configuredStartNumber = startNumber ?? (await fetchStartingArmbandForShow(showId));
     const { data: unassigned, error: fetchError } = await supabase
       .from('entries')
       .select('dog_id')
@@ -105,11 +117,11 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
     const dogIds = [...new Set((unassigned ?? []).map(e => e.dog_id).filter(Boolean) as string[])];
 
     if (dogIds.length === 0) {
-      return { data: { assigned: 0, startedAt: startNumber }, error: null };
+      return { data: { assigned: 0, startedAt: configuredStartNumber }, error: null };
     }
 
     const maxArmband = await fetchMaxArmbandForShow(showId);
-    const nextNumber = resolveStartNumber(maxArmband, startNumber);
+    const nextNumber = resolveStartNumber(maxArmband, configuredStartNumber);
     const assignments = computeArmbandAssignments(dogIds, nextNumber);
 
     let assignedCount = 0;
@@ -158,8 +170,11 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
 
 /** Returns the next available armband number for a show (numeric max + 1, or 1). */
 export const getNextArmbandForShow = async (showId: string): Promise<number> => {
-  const maxArmband = await fetchMaxArmbandForShow(showId);
-  return resolveStartNumber(maxArmband, 1);
+  const [maxArmband, startingArmband] = await Promise.all([
+    fetchMaxArmbandForShow(showId),
+    fetchStartingArmbandForShow(showId),
+  ]);
+  return resolveStartNumber(maxArmband, startingArmband);
 };
 
 /**

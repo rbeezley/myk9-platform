@@ -5,6 +5,7 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
 import { entryIsScored } from '@/utils/entryPredicates';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
@@ -63,7 +64,7 @@ function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
 }
 
 export function useShowEntriesForUser(showId: string | undefined): UseShowEntriesForUserResult {
-  const { userWithRoles } = useAuthContext();
+  const { userWithRoles, isAdmin, isSecretary, hasRole } = useAuthContext();
   const {
     entries: storeEntries,
     isLoading,
@@ -75,22 +76,29 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
   const { dogs } = useDogStoreCompat();
 
   const databaseUserId = userWithRoles?.databaseUserId;
+  const canSeeAll = isAdmin || isSecretary || hasRole(UserRole.CLUB_ADMIN);
 
   return useMemo(() => {
     const empty = { dogGroups: [], allEntries: [], totalClasses: 0, isLoading, isError: !!error };
 
-    if (!showId || !databaseUserId) return empty;
-
-    const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
-    if (myDogIds.size === 0) return empty;
+    if (!showId) return empty;
 
     const allShowEntries = storeEntries.filter(e => e.showId === showId);
-    const myEntries = allShowEntries.filter(e => myDogIds.has(e.dogId));
+    let myEntries = allShowEntries;
+    let visibleDogIds = new Set(allShowEntries.map(e => e.dogId));
+    if (!canSeeAll) {
+      if (!databaseUserId) return empty;
+      visibleDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
+      if (visibleDogIds.size === 0) return empty;
+      myEntries = allShowEntries.filter(e => visibleDogIds.has(e.dogId));
+    }
     if (myEntries.length === 0) return empty;
 
     const classMap = new Map(classes.map(c => [c.id, c]));
     const dogNameMap = new Map(
-      dogs.filter(d => myDogIds.has(d.id)).map(d => [d.id, getDogDisplayName(d) || 'Unknown Dog'])
+      dogs
+        .filter(d => visibleDogIds.has(d.id))
+        .map(d => [d.id, getDogDisplayName(d) || 'Unknown Dog'])
     );
 
     // Pre-group all show entries by classId for O(N) dogsAhead computation.
@@ -182,5 +190,5 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
       isLoading,
       isError: !!error,
     };
-  }, [showId, databaseUserId, storeEntries, classes, dogs, isLoading, error]);
+  }, [showId, databaseUserId, canSeeAll, storeEntries, classes, dogs, isLoading, error]);
 }

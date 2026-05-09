@@ -43,7 +43,7 @@ export const CheckInSheet: React.FC<ReportProps> = ({
               <td className="checkbox-cell">
                 <div className="checkbox-square"></div>
               </td>
-              <td>{entry.armband}</td>
+              <td>{entry.armband || '-'}</td>
               <td>{entry.callName}</td>
               <td>{entry.breed}</td>
               <td>{entry.registrationNumber ?? ''}</td>

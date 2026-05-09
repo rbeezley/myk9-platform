@@ -304,17 +304,22 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
+  const publicLandingShow =
+    actualCurrentShow.experienceIsPublished && actualCurrentShow.experiencePublishedStyle
+      ? { ...actualCurrentShow, style: actualCurrentShow.experiencePublishedStyle }
+      : actualCurrentShow;
+
   // Heritage public landing — renders for any visitor who is not staff.
   // Staff (secretary / admin / club_admin) always reach the management UI.
   if (
-    getShowStyle(actualCurrentShow) === 'heritage' &&
+    getShowStyle(publicLandingShow) === 'heritage' &&
     !isSecretary &&
     !isAdmin &&
     !hasRole('club_admin')
   ) {
     return (
       <HeritageLandingPage
-        show={actualCurrentShow}
+        show={publicLandingShow}
         trial={associatedTrials[0] ?? null}
         allTrials={associatedTrials}
       />
@@ -496,6 +501,11 @@ const ShowDetailsPage: React.FC = () => {
                 inkSaver: Boolean(publishableShowData.inkSaver),
               });
               queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] });
+              queryClient.invalidateQueries({
+                queryKey: ['shows', showId, 'published-experience-content'],
+              });
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
             }
 
           }

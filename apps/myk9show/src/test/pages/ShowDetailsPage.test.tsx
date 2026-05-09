@@ -18,6 +18,7 @@ const mockAuthContext = {
   user: { id: 'user-1' } as Record<string, unknown> | null,
   isSecretary: false,
   isAdmin: false,
+  hasRole: vi.fn(() => false),
   personId: 'person-1',
 };
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -78,6 +79,11 @@ vi.mock('@/services/database/judges', () => ({
 
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: (args: unknown) => publishExperienceMock(args),
+}));
+vi.mock('@/features/heritage/landing/HeritageLandingPage', () => ({
+  HeritageLandingPage: ({ show }: { show: { style?: string | null } }) => (
+    <div data-testid="heritage-landing">{show.style}</div>
+  ),
 }));
 
 // Mock navigation performance
@@ -224,6 +230,7 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.user = { id: 'user-1' };
     mockAuthContext.isSecretary = false;
     mockAuthContext.isAdmin = false;
+    mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
     updateShowLocallyMock.mockReset();
     updateShowLocallyMock.mockImplementation(async (id: string, updates: Record<string, unknown>) => ({
@@ -335,6 +342,19 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
+  it('uses the published experience style for public landing selection', () => {
+    mockShow = {
+      ...mockShow,
+      style: 'poster',
+      experienceIsPublished: true,
+      experiencePublishedStyle: 'heritage',
+    };
+
+    renderPage();
+
+    expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
+  });
+
   it('publishes experience after saving draft show changes when requested', async () => {
     const user = userEvent.setup();
     const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
@@ -379,10 +399,13 @@ describe('ShowDetailsPage', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['shows', 'show-1', 'publish-info'],
     });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'show-1', 'published-experience-content'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['shows', 'detail', 'show-1'],
     });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({
+    expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['shows', 'list'],
     });
     expect(setQueryDataSpy).toHaveBeenCalledWith(

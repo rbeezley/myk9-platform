@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pnpm typecheck 2>&1 | head -30",
+            "command": "pnpm typecheck",
             "timeout": 60,
             "statusMessage": "Running typecheck..."
           }

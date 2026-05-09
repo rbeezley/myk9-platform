@@ -85,6 +85,11 @@ vi.mock('@/features/heritage/landing/HeritageLandingPage', () => ({
     <div data-testid="heritage-landing">{show.style}</div>
   ),
 }));
+vi.mock('@/features/headline/landing/HeadlineLandingPage', () => ({
+  HeadlineLandingPage: ({ show }: { show: { style?: string | null } }) => (
+    <div data-testid="headline-landing">{show.style}</div>
+  ),
+}));
 
 // Mock navigation performance
 vi.mock('@/hooks/useNavigationPerformance', () => ({
@@ -243,11 +248,13 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
     updateShowLocallyMock.mockReset();
-    updateShowLocallyMock.mockImplementation(async (id: string, updates: Record<string, unknown>) => ({
-      ...mockShow,
-      ...updates,
-      id,
-    }));
+    updateShowLocallyMock.mockImplementation(
+      async (id: string, updates: Record<string, unknown>) => ({
+        ...mockShow,
+        ...updates,
+        id,
+      })
+    );
     showEditPanelMock.impl = () => null;
   });
 
@@ -363,6 +370,17 @@ describe('ShowDetailsPage', () => {
     renderPage();
 
     expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
+  });
+
+  it('renders the Headline public landing for public visitors', () => {
+    mockShow = {
+      ...mockShow,
+      style: 'headline',
+    };
+
+    renderPage();
+
+    expect(screen.getByTestId('headline-landing')).toHaveTextContent('headline');
   });
 
   it('publishes experience after saving draft show changes when requested', async () => {

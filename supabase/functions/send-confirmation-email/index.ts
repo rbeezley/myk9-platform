@@ -1,6 +1,6 @@
 // supabase/functions/send-confirmation-email/index.ts
 //
-// Heritage confirmation email — sent on trials.confirmation_date via pg_cron.
+// Styled confirmation email — sent on trials.confirmation_date via pg_cron.
 // Called with { trial_id } or with no body (batch mode: process today's trials).
 //
 // Deploy: supabase functions deploy send-confirmation-email --no-verify-jwt
@@ -9,6 +9,8 @@
 // The pg_cron job (migration 193) calls this at 09:00 UTC each day.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { resolveEmailStyle, selectEmailBuilderKey } from './email-style-registry.ts';
+import { buildHeadlineHtml } from './headline-email.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -30,7 +32,6 @@ const GOLD = '#8a6a45';
 const QUILL = '#6b4f3a';
 const DISPLAY = "'Cormorant Garamond', Georgia, serif";
 const BODY_FONT = "'EB Garamond', Georgia, serif";
-
 // ─── HTML helpers ─────────────────────────────────────────────────────────────
 
 function esc(s: string | null | undefined): string {
@@ -399,7 +400,7 @@ Deno.serve(async (req: Request) => {
       const { data: show } = await supabase
         .from('shows')
         .select(
-          'id, name, start_date, end_date, venue_name, city, state, address, organization, club_id, experience_is_published, experience_published_content'
+          'id, name, start_date, end_date, venue_name, city, state, address, organization, club_id, style, experience_is_published, experience_published_style, experience_published_content'
         )
         .eq('id', trial.show_id)
         .single();
@@ -487,7 +488,7 @@ Deno.serve(async (req: Request) => {
             .filter(Boolean)
             .join('\n') || null;
 
-        const html = buildHtml({
+        const emailData: Parameters<typeof buildHtml>[0] = {
           clubName: show.name,
           clubEstablished: null,
           clubCity: [show.city, show.state].filter(Boolean).join(', ') || null,
@@ -514,7 +515,11 @@ Deno.serve(async (req: Request) => {
           trialChairName: null,
           trialChairTitle: null,
           memberClubLanguage: 'A member club of the American Kennel Club',
-        });
+        };
+        const showStyle = resolveEmailStyle(show.experience_published_style ?? show.style);
+        const emailBuilder = selectEmailBuilderKey(showStyle);
+        const html =
+          emailBuilder === 'headline' ? buildHeadlineHtml(emailData) : buildHtml(emailData);
 
         // Mark pending before send (prevents double-sends on retry)
         await supabase
@@ -527,7 +532,7 @@ Deno.serve(async (req: Request) => {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${RESEND_API_KEY}`,
-            'Idempotency-Key': `heritage-confirm-${entry.id}`,
+            'Idempotency-Key': `${showStyle}-confirm-${entry.id}`,
           },
           body: JSON.stringify({
             from: FROM_EMAIL,

@@ -393,7 +393,9 @@ export const getShowById = async (id: string) => {
     return await withReplicationFallback(
       async () => {
         const show = await replicatedShowsTable.getShowById(id);
-        if (!show) return { data: null, error: null };
+        if (!show) {
+          throw new Error('Show not found in replicated store');
+        }
 
         const [club, trials, judgeAssignments] = await Promise.all([
           show.clubId ? replicatedClubsTable.getClubById(show.clubId) : Promise.resolve(null),

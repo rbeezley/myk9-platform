@@ -18,6 +18,10 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: vi.fn(),
 }));
 
+vi.mock('@/hooks/useShowStoreCompat', () => ({
+  useShowStoreCompat: vi.fn(),
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
 }));
@@ -25,7 +29,9 @@ vi.mock('@/hooks/useAuthContext', () => ({
 import { useEntryStore } from '@/store/entryStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { ScopeType, UserRole } from '@/types/auth-types';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -75,15 +81,17 @@ function setMocks({
   entries = [makeEntry()],
   classes = [makeClass()],
   dogs = [makeDog()],
+  shows = [{ id: SHOW_ID, clubId: 'club-1' }],
   userId = USER_ID,
   isAdmin = false,
   isSecretary = false,
+  scopes = [],
   hasRole = vi.fn(() => false),
   isLoading = false,
   error = null,
 } = {}) {
   vi.mocked(useAuthContext).mockReturnValue({
-    userWithRoles: { databaseUserId: userId },
+    userWithRoles: { databaseUserId: userId, scopes },
     isAdmin,
     isSecretary,
     hasRole,
@@ -96,6 +104,7 @@ function setMocks({
 
   vi.mocked(useClassStoreCompat).mockReturnValue({ classes } as ReturnType<typeof useClassStoreCompat>);
   vi.mocked(useDogStoreCompat).mockReturnValue({ dogs } as ReturnType<typeof useDogStoreCompat>);
+  vi.mocked(useShowStoreCompat).mockReturnValue({ shows } as ReturnType<typeof useShowStoreCompat>);
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +149,26 @@ describe('useShowEntriesForUser', () => {
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries).toHaveLength(1);
     expect(result.current.allEntries[0].dogName).toBe('Maggie');
+  });
+
+  it('includes all show entries for club admins scoped to the show club', () => {
+    setMocks({
+      dogs: [makeDog({ ownerId: 'other-user' })],
+      hasRole: vi.fn(role => role === UserRole.CLUB_ADMIN),
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: UserRole.CLUB_ADMIN }],
+    });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries).toHaveLength(1);
+  });
+
+  it('does not expose all show entries for club admins scoped to a different club', () => {
+    setMocks({
+      dogs: [makeDog({ ownerId: 'other-user' })],
+      hasRole: vi.fn(role => role === UserRole.CLUB_ADMIN),
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'other-club', roleId: UserRole.CLUB_ADMIN }],
+    });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries).toHaveLength(0);
   });
 
   it('enriches entry with element, level, classTitle from class store', () => {

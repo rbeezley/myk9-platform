@@ -4,8 +4,9 @@ import { useEntryStore } from '@/store/entryStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import { getDogDisplayName } from '@/types/dog-types';
-import { UserRole } from '@/types/auth-types';
+import { ScopeType, UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
 import { entryIsScored } from '@/utils/entryPredicates';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
@@ -74,9 +75,20 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
   );
   const { classes } = useClassStoreCompat();
   const { dogs } = useDogStoreCompat();
+  const { shows } = useShowStoreCompat();
 
   const databaseUserId = userWithRoles?.databaseUserId;
-  const canSeeAll = isAdmin || isSecretary || hasRole(UserRole.CLUB_ADMIN);
+  const showClubId = shows.find(show => show.id === showId)?.clubId;
+  const clubAdminCanSeeShow =
+    hasRole(UserRole.CLUB_ADMIN) &&
+    !!showClubId &&
+    (userWithRoles?.scopes ?? []).some(
+      scope =>
+        scope.scopeType === ScopeType.CLUB &&
+        scope.scopeId === showClubId &&
+        scope.roleId === UserRole.CLUB_ADMIN
+    );
+  const canSeeAll = isAdmin || isSecretary || clubAdminCanSeeShow;
 
   return useMemo(() => {
     const empty = { dogGroups: [], allEntries: [], totalClasses: 0, isLoading, isError: !!error };

@@ -74,6 +74,39 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
   not_yet_open: 'default',
 };
 
+function parseOptionalCurrency(value: string | number | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function applyShowFormDataToPremium(
+  premium: GeneratedPremium,
+  formData: Partial<ShowInput>
+): GeneratedPremium {
+  const preEntryFee = parseOptionalCurrency(formData.preEntryFee);
+  const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
+
+  return {
+    ...premium,
+    style: (formData.style ?? premium.style) as GeneratedPremium['style'],
+    show: {
+      ...premium.show,
+      name: formData.name ?? premium.show.name,
+      startDate: formData.startDate ?? premium.show.startDate,
+      endDate: formData.endDate ?? premium.show.endDate,
+      venue: formData.location ?? premium.show.venue,
+      entryOpenDate: formData.entryOpenDate ?? premium.show.entryOpenDate,
+      entryCloseDate: formData.entryCloseDate ?? premium.show.entryCloseDate,
+      preEntryFee: preEntryFee ?? premium.show.preEntryFee,
+      dayOfFee: dayOfFee ?? premium.show.dayOfFee,
+      acceptChecks: formData.acceptCheckPayments ?? premium.show.acceptChecks,
+      acceptCash: formData.acceptCashPayments ?? premium.show.acceptCash,
+    },
+  };
+}
+
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -497,7 +530,10 @@ const ShowDetailsPage: React.FC = () => {
             if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
               await publishExperience({
                 showId,
-                premium: publishableShowData.generatedPremium,
+                premium: applyShowFormDataToPremium(
+                  publishableShowData.generatedPremium,
+                  showData as Partial<ShowInput>
+                ),
                 inkSaver: Boolean(publishableShowData.inkSaver),
               });
               queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] });

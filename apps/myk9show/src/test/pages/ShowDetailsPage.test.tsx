@@ -364,12 +364,17 @@ describe('ShowDetailsPage', () => {
       <button
         onClick={() =>
           onSave({
-            name: 'Bluegrass Classic',
+            name: 'Bluegrass Classic Renamed',
             status: 'draft',
             organization: 'AKC',
             clubId: 'club-1',
             startDate: '2026-03-22',
             endDate: '2026-03-23',
+            location: 'Lexington, KY',
+            preEntryFee: '31.50',
+            dayOfShowFee: '41',
+            acceptCheckPayments: true,
+            acceptCashPayments: true,
             assignedJudges: [],
             style: 'heritage',
             publishExperience: true,
@@ -388,12 +393,23 @@ describe('ShowDetailsPage', () => {
 
     expect(updateShowLocallyMock).toHaveBeenCalledWith(
       'show-1',
-      expect.objectContaining({ style: 'heritage' })
+      expect.objectContaining({ name: 'Bluegrass Classic Renamed', style: 'heritage' })
     );
     expect(publishExperienceMock).toHaveBeenCalledWith(
       expect.objectContaining({
         showId: 'show-1',
         inkSaver: false,
+        premium: expect.objectContaining({
+          style: 'heritage',
+          show: expect.objectContaining({
+            name: 'Bluegrass Classic Renamed',
+            venue: 'Lexington, KY',
+            preEntryFee: 31.5,
+            dayOfFee: 41,
+            acceptChecks: true,
+            acceptCash: true,
+          }),
+        }),
       })
     );
     expect(invalidateSpy).toHaveBeenCalledWith({

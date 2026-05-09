@@ -104,6 +104,14 @@ function applyShowFormDataToPremium(
       acceptChecks: formData.acceptCheckPayments ?? premium.show.acceptChecks,
       acceptCash: formData.acceptCashPayments ?? premium.show.acceptCash,
     },
+    trials: premium.trials.map(trial => ({
+      ...trial,
+      judges:
+        formData.assignedJudges?.map(judge => ({
+          name: judge.judgeName,
+          elements: judge.assignedClasses ?? [],
+        })) ?? trial.judges,
+    })),
   };
 }
 

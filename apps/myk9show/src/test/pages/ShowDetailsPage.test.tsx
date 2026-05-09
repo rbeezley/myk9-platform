@@ -196,7 +196,17 @@ function makeGeneratedPremium(style: 'heritage' = 'heritage') {
     club: { name: 'Bluegrass KC', logoUrl: null },
     secretary: { name: null, email: null, phone: null, mailingAddress: null },
     officials: { chairman: null, steward: null },
-    trials: [],
+    trials: [
+      {
+        name: 'Trial 1',
+        date: '2026-03-22',
+        startTime: null,
+        eventNumber: '20260001',
+        type: 'Scent Work',
+        judges: [{ name: 'Stale Judge', elements: ['Exterior'] }],
+        classes: [],
+      },
+    ],
     supplemental: {
       vetClinic: null,
       accommodations: [],
@@ -375,7 +385,14 @@ describe('ShowDetailsPage', () => {
             dayOfShowFee: '41',
             acceptCheckPayments: true,
             acceptCashPayments: true,
-            assignedJudges: [],
+            assignedJudges: [
+              {
+                judgeId: 'judge-1',
+                judgeName: 'Fresh Judge',
+                assignedDate: '2026-01-01',
+                assignedClasses: ['Container', 'Interior'],
+              },
+            ],
             style: 'heritage',
             publishExperience: true,
             generatedPremium: makeGeneratedPremium('heritage'),
@@ -409,6 +426,16 @@ describe('ShowDetailsPage', () => {
             acceptChecks: true,
             acceptCash: true,
           }),
+          trials: expect.arrayContaining([
+            expect.objectContaining({
+              judges: [
+                {
+                  name: 'Fresh Judge',
+                  elements: ['Container', 'Interior'],
+                },
+              ],
+            }),
+          ]),
         }),
       })
     );

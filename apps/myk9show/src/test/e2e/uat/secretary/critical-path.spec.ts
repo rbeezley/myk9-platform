@@ -21,7 +21,8 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await signInAsSecretary(page);
   });
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async (fixtures, testInfo) => {
+    void fixtures;
     const health = healthByTest.get(testInfo.testId) ?? createBrowserHealth();
     const details = summarizeHealth(health);
     const status = testInfo.status === testInfo.expectedStatus ? 'passed' : 'failed';

@@ -34,6 +34,11 @@ describe('scoringStore', () => {
       expect(store.getState().currentSession).not.toBeNull();
       expect(store2.getState().currentSession).toBeNull();
     });
+
+    it('should accept legacy boolean devtools options', () => {
+      const legacyStore = createScoringStore(false);
+      expect(legacyStore.getState().currentSession).toBeNull();
+    });
   });
 
   describe('startScoringSession', () => {
@@ -83,6 +88,17 @@ describe('scoringStore', () => {
       expect(state.currentSession!.scores[0]!.qualifying).toBe('Q');
       expect(state.currentSession!.scores[0]!.syncStatus).toBe('pending');
       expect(state.currentSession!.scores[0]!.scoredAt).toBeDefined();
+    });
+
+    it('should support string entry IDs from myK9Show', () => {
+      store.getState().submitScore({
+        entryId: 'entry-101',
+        armband: 201,
+        qualifying: 'Q',
+      });
+
+      const state = store.getState();
+      expect(state.currentSession!.scores[0]!.entryId).toBe('entry-101');
     });
 
     it('should update lastScoredEntry', () => {
@@ -295,7 +311,7 @@ describe('scoringStore', () => {
     });
 
     it('should handle corrupted localStorage gracefully', () => {
-      localStorage.setItem('myk9-scoring-storage', 'invalid-json{{{');
+      localStorage.setItem('scoring-storage', 'invalid-json{{{');
 
       // Should create a new store with default state
       const newStore = createScoringStore();
@@ -304,6 +320,14 @@ describe('scoringStore', () => {
       expect(state.currentSession).toBeNull();
       expect(state.isScoring).toBe(false);
       expect(state.lastScoredEntry).toBeNull();
+    });
+
+    it('should use a configured storage name', () => {
+      const customStore = createScoringStore({ storageName: 'custom-scoring-storage' });
+      customStore.getState().startScoringSession(7, 'Advanced', 'AKC_SCENT_WORK', 'judge1', 3);
+
+      expect(localStorage.getItem('custom-scoring-storage')).not.toBeNull();
+      expect(localStorage.getItem('scoring-storage')).toBeNull();
     });
   });
 

@@ -43,7 +43,7 @@ export type SyncStatus = 'pending' | 'synced' | 'error';
  * Individual score record
  */
 export interface Score {
-  entryId: number;
+  entryId: string | number;
   armband: number;
   points?: number;
   time?: string;

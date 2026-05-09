@@ -9,6 +9,11 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { Score, ScoringSession, CompetitionType } from '../types';
 
+interface ScoringStoreOptions {
+  enableDevtools?: boolean;
+  storageName?: string;
+}
+
 interface ScoringState {
   currentSession: ScoringSession | null;
   isScoring: boolean;
@@ -24,7 +29,7 @@ interface ScoringState {
   ) => void;
 
   submitScore: (score: Omit<Score, 'scoredAt' | 'syncStatus'>) => void;
-  updateScoreSync: (entryId: number, syncStatus: 'synced' | 'error') => void;
+  updateScoreSync: (entryId: string | number, syncStatus: 'synced' | 'error') => void;
   undoLastScore: () => void;
   moveToNextEntry: () => void;
   moveToPreviousEntry: () => void;
@@ -35,9 +40,13 @@ interface ScoringState {
 /**
  * Create the scoring store with persistence
  *
- * @param enableDevtools - Enable Redux DevTools integration (default: false)
+ * @param options - Enable Redux DevTools and configure persisted storage.
  */
-export function createScoringStore(enableDevtools = false) {
+export function createScoringStore(options: boolean | ScoringStoreOptions = {}) {
+  const resolvedOptions: ScoringStoreOptions =
+    typeof options === 'boolean' ? { enableDevtools: options } : options;
+  const { enableDevtools = false, storageName = 'scoring-storage' } = resolvedOptions;
+
   return create<ScoringState>()(
     devtools(
       persist(
@@ -188,7 +197,7 @@ export function createScoringStore(enableDevtools = false) {
           },
         }),
         {
-          name: 'myk9-scoring-storage',
+          name: storageName,
           partialize: (state) => ({
             currentSession: state.currentSession,
             lastScoredEntry: state.lastScoredEntry,
@@ -204,4 +213,4 @@ export function createScoringStore(enableDevtools = false) {
 export const useScoringStore = createScoringStore();
 
 // Re-export types for convenience
-export type { ScoringState };
+export type { ScoringState, ScoringStoreOptions };

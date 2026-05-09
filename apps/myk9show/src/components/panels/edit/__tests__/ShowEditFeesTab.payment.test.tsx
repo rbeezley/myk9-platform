@@ -22,6 +22,7 @@ const baseData: ShowEditFormData = {
   assignedJudges: [],
   acceptCheckPayments: false,
   acceptCashPayments: false,
+  style: 'monogram',
 };
 
 describe('ShowEditFeesTab — Payment Methods section', () => {

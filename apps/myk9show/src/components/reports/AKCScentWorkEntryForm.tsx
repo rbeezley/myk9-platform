@@ -15,6 +15,7 @@ import type {
   GridCell,
 } from '@/lib/reports/entryFormTypes';
 import { getRegistry } from '@/features/registries';
+import { getLiveExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 
 // AKC agreement text is sourced from the registry config layer so legal copy
 // has a single canonical location across premium PDF, entry blank, and email.
@@ -113,6 +114,19 @@ const styles = {
     fontSize: '7px',
     fontStyle: 'italic' as const,
     color: '#666',
+  },
+  sharedNotes: {
+    border: '1px solid #000',
+    padding: '4px',
+    marginBottom: '6px',
+    fontSize: '7.5px',
+  },
+  sharedNotesTitle: {
+    fontWeight: 'bold' as const,
+    margin: '0 0 2px 0',
+  },
+  sharedNotesText: {
+    margin: '0',
   },
 } as const;
 
@@ -331,6 +345,17 @@ function AgreementSection({ agreementDate }: { agreementDate: string | null }) {
   );
 }
 
+function SharedExperienceNotes({ notes }: { notes: string | null }) {
+  if (!notes) return null;
+
+  return (
+    <div style={styles.sharedNotes}>
+      <p style={styles.sharedNotesTitle}>On the Day</p>
+      <p style={styles.sharedNotesText}>{notes}</p>
+    </div>
+  );
+}
+
 // ─── Single form page for one dog ─────────────────────────────────────────
 
 function EntryFormPage({
@@ -338,17 +363,20 @@ function EntryFormPage({
   secretary,
   trials,
   isFirst,
+  hospitalityNotes,
 }: {
   dog: EntryFormDog;
   secretary: EntryFormSecretary | null;
   trials: EntryFormTrial[];
   isFirst: boolean;
+  hospitalityNotes: string | null;
 }) {
   const grid = buildClassGrid(dog.entries, trials);
 
   return (
     <div style={{ ...styles.page, ...(isFirst ? styles.firstPage : {}) }}>
       <FormHeader secretary={secretary} />
+      <SharedExperienceNotes notes={hospitalityNotes} />
       <ClassGrid grid={grid} trials={trials} />
       <DogInfoTable dog={dog} />
       <AgreementSection agreementDate={dog.agreementDate} />
@@ -364,11 +392,13 @@ export const AKCScentWorkEntryForm: React.FC<ReportProps> = ({
   dogId,
   trialId,
 }) => {
-  const { dogs, secretary, trials, isLoading, isError } = useEntryFormData({
+  const { dogs, secretary, trials, show, isLoading, isError } = useEntryFormData({
     showId: showId ?? '',
     trialId,
     dogId,
   });
+  const liveExperience = getLiveExperienceSnapshot(show ?? {});
+  const hospitalityNotes = liveExperience?.supplemental.hospitalityNotes ?? null;
 
   if (!showId) {
     return (
@@ -421,6 +451,7 @@ export const AKCScentWorkEntryForm: React.FC<ReportProps> = ({
           secretary={secretary}
           trials={trials}
           isFirst={index === 0}
+          hospitalityNotes={hospitalityNotes}
         />
       ))}
     </>

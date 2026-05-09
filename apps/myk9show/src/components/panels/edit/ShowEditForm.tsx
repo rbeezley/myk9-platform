@@ -5,12 +5,12 @@
  * using the EditPanel context for data and update callbacks.
  */
 
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useEditPanel } from './useEditPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, Users, UserCheck, DollarSign } from 'lucide-react';
+import { Calendar, Users, UserCheck, DollarSign, FileText } from 'lucide-react';
 import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -21,9 +21,11 @@ import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
+import { ShowEditPremiumTab } from './ShowEditPremiumTab';
 
 export const ShowEditForm: React.FC = () => {
   const { data, form } = useEditPanel<ShowEditFormData>();
+  const [activeTab, setActiveTab] = useState('basic');
 
   // Store data
   const { templates } = useTemplateStore();
@@ -69,6 +71,14 @@ export const ShowEditForm: React.FC = () => {
     (field: keyof ShowEditFormData) => (checked: boolean) => {
       form?.setValue(field, checked);
     },
+    [form]
+  );
+
+  const handleValueChange = useCallback(
+    <K extends keyof ShowEditFormData>(field: K) =>
+      (value: ShowEditFormData[K]) => {
+        form?.setValue(field, value);
+      },
     [form]
   );
 
@@ -135,8 +145,8 @@ export const ShowEditForm: React.FC = () => {
 
   return (
     <div className="space-y-6 p-6">
-      <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
           <TabsTrigger
             value="basic"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
@@ -164,6 +174,13 @@ export const ShowEditForm: React.FC = () => {
           >
             <DollarSign className="h-4 w-4" />
             Fees
+          </TabsTrigger>
+          <TabsTrigger
+            value="premium"
+            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+          >
+            <FileText className="h-4 w-4" />
+            Experience
           </TabsTrigger>
         </TabsList>
 
@@ -306,6 +323,18 @@ export const ShowEditForm: React.FC = () => {
           form={form}
           handleInputChange={handleInputChange}
           handleCheckboxChange={handleCheckboxChange}
+        />
+
+        <ShowEditPremiumTab
+          data={data}
+          clubId={data.clubId}
+          showOrg={
+            data.organization === 'AKC' || data.organization === 'UKC' ? data.organization : null
+          }
+          isActive={activeTab === 'premium'}
+          handleSelectChange={handleSelectChange}
+          handleCheckboxChange={handleCheckboxChange}
+          handleValueChange={handleValueChange}
         />
       </Tabs>
     </div>

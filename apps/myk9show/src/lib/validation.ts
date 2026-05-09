@@ -186,6 +186,9 @@ export const showSchemas = {
       acceptCheckPayments: z.boolean().optional(),
       acceptCashPayments: z.boolean().optional(),
       style: z.string().default('monogram'),
+      publishExperience: z.boolean().optional(),
+      generatedPremium: z.custom<import('@/types/premium-types').GeneratedPremium>().optional(),
+      inkSaver: z.boolean().optional(),
     })
     .refine(
       data => {
@@ -221,6 +224,13 @@ export const showSchemas = {
       {
         message: 'Entry close date must be before show start date',
         path: ['entryCloseDate'],
+      }
+    )
+    .refine(
+      data => !data.publishExperience || Boolean(data.generatedPremium),
+      {
+        message: 'Wait for shared show content to finish before publishing to exhibitors',
+        path: ['generatedPremium'],
       }
     ),
 

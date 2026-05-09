@@ -143,6 +143,43 @@ describe('ReplicatedShowsTable', () => {
         expect(result?.allowsNonOwnerHandlers).toBe(true);
       });
 
+      it('should preserve published experience metadata for local-first reads', async () => {
+        const show: ReplicatedShow = {
+          id: 'show-1',
+          name: 'Published Show',
+          organization: 'AKC',
+          startDate: '2026-05-22',
+          endDate: '2026-05-23',
+          style: 'poster',
+          experienceIsPublished: true,
+          experiencePublishedAt: '2026-05-09T14:00:00.000Z',
+          experiencePublishedStyle: 'poster',
+          experiencePublishedContent: {
+            narratives: {
+              showHours: 'Doors open at 7:00 AM.',
+              trialInformation: 'Running order will be posted before judging.',
+            },
+            supplemental: {
+              vetClinic: null,
+              accommodations: [],
+              hospitalityNotes: null,
+              awardsDescription: null,
+              additionalNotes: null,
+            },
+            outputs: { premiumUrl: 'https://example.com/premium.pdf' },
+          },
+        };
+
+        await table.set('show-1', show);
+
+        const result = await table.getShowById('show-1');
+        expect(result?.experienceIsPublished).toBe(true);
+        expect(result?.experiencePublishedStyle).toBe('poster');
+        expect(result?.experiencePublishedContent?.narratives.showHours).toBe(
+          'Doors open at 7:00 AM.'
+        );
+      });
+
       it('should handle shows with minimal data', async () => {
         const show: ReplicatedShow = {
           id: 'show-1',
@@ -534,6 +571,44 @@ describe('ReplicatedShowsTable', () => {
       expect(result?._syncStatus).toBe('pending');
     });
 
+    it('should not queue stale published experience columns for ordinary show updates', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Published Show',
+        organization: 'AKC',
+        startDate: '2026-05-22',
+        endDate: '2026-05-23',
+        experienceIsPublished: false,
+        experiencePublishedAt: null,
+        experiencePublishedStyle: null,
+        experiencePublishedContent: null,
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('show-1', show);
+      await table.updateShow('show-1', { name: 'Renamed Show' });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        expect.not.objectContaining({
+          experience_is_published: expect.anything(),
+          experience_published_at: expect.anything(),
+          experience_published_style: expect.anything(),
+          experience_published_content: expect.anything(),
+        })
+      );
+    });
+
     it('should throw error when updating non-existent show', async () => {
       await expect(table.updateShow('nonexistent', { name: 'Updated' })).rejects.toThrow(
         'Show nonexistent not found'
@@ -669,6 +744,35 @@ describe('ReplicatedShowsTable', () => {
       expect(result._syncStatus).toBe('pending');
       expect(result._version).toBe(1);
       expect(result._localOnly).toBe(true);
+    });
+
+    it('should queue an empty published experience object for new show inserts', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      const result = await table.createShow({
+        name: 'Test Show',
+        organization: 'Obedience',
+        startDate: '2024-06-15',
+        endDate: '2024-06-16',
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'INSERT',
+        result.id,
+        expect.objectContaining({
+          experience_is_published: false,
+          experience_published_content: {},
+        })
+      );
     });
 
     it('should create show with full metadata', async () => {

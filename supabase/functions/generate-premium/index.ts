@@ -8,6 +8,7 @@ const CORS_HEADERS = {
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
+const NARRATIVE_TIMEOUT_MS = 8000;
 
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), {
@@ -368,36 +369,44 @@ Return exactly this JSON shape (no markdown, no extra keys):
   "trialInformation": "<3-5 sentences covering the trial format, classes offered, and any relevant competition notes>"
 }`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), NARRATIVE_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Claude API error (${response.status}): ${errorText}`);
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Claude API error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    const text = data.content?.find((b: { type: string }) => b.type === 'text')?.text ?? '{}';
+
+    const clean = text
+      .replace(/^```(?:json)?\n?/m, '')
+      .replace(/\n?```$/m, '')
+      .trim();
+    const parsed = JSON.parse(clean);
+    return {
+      showHours: typeof parsed.showHours === 'string' ? parsed.showHours : '',
+      trialInformation: typeof parsed.trialInformation === 'string' ? parsed.trialInformation : '',
+    };
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const data = await response.json();
-  const text = data.content?.find((b: { type: string }) => b.type === 'text')?.text ?? '{}';
-
-  const clean = text
-    .replace(/^```(?:json)?\n?/m, '')
-    .replace(/\n?```$/m, '')
-    .trim();
-  const parsed = JSON.parse(clean);
-  return {
-    showHours: typeof parsed.showHours === 'string' ? parsed.showHours : '',
-    trialInformation: typeof parsed.trialInformation === 'string' ? parsed.trialInformation : '',
-  };
 }

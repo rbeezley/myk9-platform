@@ -124,6 +124,38 @@ describe('AKCScentWorkEntryForm', () => {
     expect(screen.getByText('OFFICIAL ENTRY FORM')).toBeInTheDocument();
   });
 
+  it('renders published experience notes when available', () => {
+    mockUseEntryFormData.mockReturnValue({
+      dogs: mockDogs,
+      secretary: mockSecretary,
+      trials: mockTrials,
+      classes: mockClasses,
+      show: {
+        experienceIsPublished: true,
+        experiencePublishedContent: {
+          style: 'heritage',
+          generatedAt: '2026-05-09T14:00:00.000Z',
+          narratives: { showHours: 'Hours', trialInformation: 'Info' },
+          supplemental: {
+            vetClinic: null,
+            accommodations: [],
+            hospitalityNotes: 'Coffee in the morning.',
+            awardsDescription: null,
+            additionalNotes: null,
+          },
+          outputs: { premiumUrl: null },
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<AKCScentWorkEntryForm {...baseProps} />);
+
+    expect(screen.getByText(/On the Day/i)).toBeInTheDocument();
+    expect(screen.getByText(/Coffee in the morning/i)).toBeInTheDocument();
+  });
+
   it('renders the secretary address in the header', () => {
     render(<AKCScentWorkEntryForm {...baseProps} />);
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();

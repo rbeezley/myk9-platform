@@ -1,14 +1,24 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ShowDetailsPage from '@/pages/ShowDetailsPage';
+
+const publishExperienceMock = vi.hoisted(() => vi.fn());
+const updateShowLocallyMock = vi.hoisted(() => vi.fn());
+const showEditPanelMock = vi.hoisted<{
+  impl: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) => React.ReactNode;
+}>(() => ({
+  impl: () => null,
+}));
 
 // Mock auth context
 const mockAuthContext = {
   user: { id: 'user-1' } as Record<string, unknown> | null,
   isSecretary: false,
   isAdmin: false,
+  hasRole: vi.fn(() => false),
   personId: 'person-1',
 };
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -51,7 +61,29 @@ vi.mock('@/hooks/useMyEntries', () => ({
 // Mock shows query
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsQuery: () => ({ data: mockShow ? [mockShow] : [] }),
-  useUpdateShowMutation: () => ({ mutateAsync: vi.fn() }),
+  useUpdateShowMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  showQueryKeys: {
+    detail: (showId: string) => ['shows', 'detail', showId],
+    lists: () => ['shows', 'list'],
+  },
+}));
+
+vi.mock('@/store/showStore', () => ({
+  useShowStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ updateShow: updateShowLocallyMock }),
+}));
+
+vi.mock('@/services/database/judges', () => ({
+  persistShowJudgeAssignments: vi.fn(async () => undefined),
+}));
+
+vi.mock('@/features/experience/publishExperience', () => ({
+  publishExperience: (args: unknown) => publishExperienceMock(args),
+}));
+vi.mock('@/features/heritage/landing/HeritageLandingPage', () => ({
+  HeritageLandingPage: ({ show }: { show: { style?: string | null } }) => (
+    <div data-testid="heritage-landing">{show.style}</div>
+  ),
 }));
 
 // Mock navigation performance
@@ -72,7 +104,8 @@ vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
   ShowOverviewTab: () => <div data-testid="show-overview-tab">ShowOverviewTab</div>,
 }));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
-  ShowEditPanel: () => null,
+  ShowEditPanel: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) =>
+    showEditPanelMock.impl(props),
 }));
 vi.mock('@/components/shows/ShowDetails/dialogs/DeleteShowDialog', () => ({
   default: () => null,
@@ -110,13 +143,16 @@ vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({
     name,
     primaryAction,
+    secondaryActions,
   }: {
     name: string;
     primaryAction?: { label: string; onClick: () => void };
+    secondaryActions?: React.ReactNode;
   }) => (
     <div data-testid="detail-hero">
       {name}
       {primaryAction && <button data-testid="hero-action">{primaryAction.label}</button>}
+      {secondaryActions}
     </div>
   ),
 }));
@@ -140,6 +176,51 @@ function renderPage(showId = 'show-1') {
   );
 }
 
+function makeGeneratedPremium(style: 'heritage' = 'heritage') {
+  return {
+    org: 'AKC',
+    style,
+    templateId: null,
+    show: {
+      name: 'Bluegrass Classic',
+      startDate: '2026-03-22',
+      endDate: '2026-03-23',
+      venue: 'Louisville',
+      entryOpenDate: null,
+      entryCloseDate: null,
+      preEntryFee: 25,
+      dayOfFee: 30,
+      acceptChecks: false,
+      acceptCash: false,
+    },
+    club: { name: 'Bluegrass KC', logoUrl: null },
+    secretary: { name: null, email: null, phone: null, mailingAddress: null },
+    officials: { chairman: null, steward: null },
+    trials: [
+      {
+        name: 'Trial 1',
+        date: '2026-03-22',
+        startTime: null,
+        eventNumber: '20260001',
+        type: 'Scent Work',
+        judges: [{ name: 'Stale Judge', elements: ['Exterior'] }],
+        classes: [],
+      },
+    ],
+    supplemental: {
+      vetClinic: null,
+      accommodations: [],
+      hospitalityNotes: 'Coffee provided.',
+      awardsDescription: null,
+      additionalNotes: null,
+    },
+    narratives: {
+      showHours: 'Doors open at 7:00 AM.',
+      trialInformation: 'Trial briefing at 8:00 AM.',
+    },
+  };
+}
+
 describe('ShowDetailsPage', () => {
   beforeEach(() => {
     mockShow = {
@@ -159,6 +240,15 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.user = { id: 'user-1' };
     mockAuthContext.isSecretary = false;
     mockAuthContext.isAdmin = false;
+    mockAuthContext.hasRole.mockReturnValue(false);
+    publishExperienceMock.mockReset();
+    updateShowLocallyMock.mockReset();
+    updateShowLocallyMock.mockImplementation(async (id: string, updates: Record<string, unknown>) => ({
+      ...mockShow,
+      ...updates,
+      id,
+    }));
+    showEditPanelMock.impl = () => null;
   });
 
   it('renders DetailHero with show name', () => {
@@ -247,5 +337,124 @@ describe('ShowDetailsPage', () => {
     mockUserEntries = [];
     renderPage();
     expect(screen.queryByTestId('hero-action')).not.toBeInTheDocument();
+  });
+
+  it('does not render a separate Premium List edit button for show managers', () => {
+    mockAuthContext.isSecretary = true;
+    mockShow = {
+      ...mockShow,
+      organization: 'AKC',
+    };
+
+    renderPage();
+
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
+  });
+
+  it('uses the published experience style for public landing selection', () => {
+    mockShow = {
+      ...mockShow,
+      style: 'poster',
+      experienceIsPublished: true,
+      experiencePublishedStyle: 'heritage',
+    };
+
+    renderPage();
+
+    expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
+  });
+
+  it('publishes experience after saving draft show changes when requested', async () => {
+    const user = userEvent.setup();
+    const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    const setQueryDataSpy = vi.spyOn(QueryClient.prototype, 'setQueryData');
+    mockAuthContext.isSecretary = true;
+    showEditPanelMock.impl = ({ onSave }) => (
+      <button
+        onClick={() =>
+          onSave({
+            name: 'Bluegrass Classic Renamed',
+            status: 'draft',
+            organization: 'AKC',
+            clubId: 'club-1',
+            startDate: '2026-03-22',
+            endDate: '2026-03-23',
+            location: 'Lexington, KY',
+            preEntryFee: '31.50',
+            dayOfShowFee: '41',
+            acceptCheckPayments: true,
+            acceptCashPayments: true,
+            assignedJudges: [
+              {
+                judgeId: 'judge-1',
+                judgeName: 'Fresh Judge',
+                assignedDate: '2026-01-01',
+                assignedClasses: ['Container', 'Interior'],
+              },
+            ],
+            style: 'heritage',
+            publishExperience: true,
+            generatedPremium: makeGeneratedPremium('heritage'),
+            inkSaver: false,
+          })
+        }
+      >
+        save mocked edit panel
+      </button>
+    );
+
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
+
+    expect(updateShowLocallyMock).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ name: 'Bluegrass Classic Renamed', style: 'heritage' })
+    );
+    expect(publishExperienceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showId: 'show-1',
+        inkSaver: false,
+        premium: expect.objectContaining({
+          style: 'heritage',
+          show: expect.objectContaining({
+            name: 'Bluegrass Classic Renamed',
+            venue: 'Lexington, KY',
+            preEntryFee: 31.5,
+            dayOfFee: 41,
+            acceptChecks: true,
+            acceptCash: true,
+          }),
+          trials: expect.arrayContaining([
+            expect.objectContaining({
+              judges: [
+                {
+                  name: 'Fresh Judge',
+                  elements: ['Container', 'Interior'],
+                },
+              ],
+            }),
+          ]),
+        }),
+      })
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'show-1', 'publish-info'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'show-1', 'published-experience-content'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'detail', 'show-1'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'list'],
+    });
+    expect(setQueryDataSpy).toHaveBeenCalledWith(
+      ['shows', 'detail', 'show-1'],
+      expect.objectContaining({ style: 'heritage' })
+    );
+    expect(setQueryDataSpy).toHaveBeenCalledWith(['shows', 'list'], expect.any(Function));
   });
 });

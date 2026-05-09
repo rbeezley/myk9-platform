@@ -1,6 +1,6 @@
 // Type mapping utilities for Show entity between Zustand and Supabase
 import { mapFields } from './mapperUtils';
-import type { Show, ShowInput } from '@/types/show-types';
+import type { Show, ShowExperienceSnapshot, ShowInput } from '@/types/show-types';
 import type { DbShow, DbShowInsert, DbShowUpdate } from '@/types/database-mappings';
 import { logger } from '@/services/LoggingService';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
@@ -235,6 +235,15 @@ export const mapDatabaseToShow = (
     startingArmbandNumber:
       ((dbShow as Record<string, unknown>).starting_armband_number as number | undefined) ?? 100,
     style: ((dbShow as Record<string, unknown>).style as string | null) ?? null,
+    experienceIsPublished:
+      ((dbShow as Record<string, unknown>).experience_is_published as boolean | null) ?? false,
+    experiencePublishedAt:
+      ((dbShow as Record<string, unknown>).experience_published_at as string | null) ?? null,
+    experiencePublishedStyle:
+      ((dbShow as Record<string, unknown>).experience_published_style as string | null) ?? null,
+    experiencePublishedContent:
+      (((dbShow as Record<string, unknown>)
+        .experience_published_content as ShowExperienceSnapshot | null) ?? null),
 
     // Sync metadata for Local-First architecture
     _version: 1, // Default version
@@ -512,6 +521,10 @@ export const mapReplicatedShowToDbRow = (
       cover_image_url: 'coverImageUrl',
       accent_color: 'accentColor',
       style: 'style',
+      experience_is_published: 'experienceIsPublished',
+      experience_published_at: 'experiencePublishedAt',
+      experience_published_style: 'experiencePublishedStyle',
+      experience_published_content: 'experiencePublishedContent',
     }),
     deleted_at: null,
   };

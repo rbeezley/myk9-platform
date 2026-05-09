@@ -11,6 +11,7 @@
 import { ReplicatedTable, type SyncResult } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -43,6 +44,10 @@ export interface ReplicatedShow {
   coverImageUrl?: string | undefined;
   accentColor?: string | undefined;
   style?: string | undefined;
+  experienceIsPublished?: boolean | undefined;
+  experiencePublishedAt?: string | null | undefined;
+  experiencePublishedStyle?: string | null | undefined;
+  experiencePublishedContent?: ShowExperienceSnapshot | null | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -55,6 +60,8 @@ export interface ReplicatedShow {
  * Convert database row to app Show type
  */
 function rowToShow(row: ShowRow): ReplicatedShow {
+  const publishedFields = row as Record<string, unknown>;
+
   return {
     id: String(row.id),
     name: row.name,
@@ -77,6 +84,15 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     coverImageUrl: row.cover_image_url ?? undefined,
     accentColor: row.accent_color ?? undefined,
     style: ((row as Record<string, unknown>).style as string | undefined) ?? undefined,
+    experienceIsPublished:
+      (publishedFields.experience_is_published as boolean | null | undefined) ?? undefined,
+    experiencePublishedAt:
+      (publishedFields.experience_published_at as string | null | undefined) ?? null,
+    experiencePublishedStyle:
+      (publishedFields.experience_published_style as string | null | undefined) ?? null,
+    experiencePublishedContent:
+      (publishedFields.experience_published_content as ShowExperienceSnapshot | null | undefined) ??
+      null,
   };
 }
 
@@ -145,6 +161,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       cover_image_url: show.coverImageUrl ?? null,
       accent_color: show.accentColor ?? null,
       style: show.style ?? null,
+      experience_is_published: show.experienceIsPublished ?? false,
+      experience_published_at: show.experiencePublishedAt ?? null,
+      experience_published_style: show.experiencePublishedStyle ?? null,
+      experience_published_content: show.experiencePublishedContent ?? {},
       updated_at: new Date().toISOString(),
     };
   }
@@ -359,7 +379,13 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     };
 
     await this.set(showId, updatedShow, true); // Mark as dirty
-    const mutationId = await this.queueMutation('UPDATE', showId, this.toSupabaseRow(updatedShow));
+    const updatePayload = this.toSupabaseRow(updatedShow);
+    if (!('experienceIsPublished' in updates)) delete updatePayload.experience_is_published;
+    if (!('experiencePublishedAt' in updates)) delete updatePayload.experience_published_at;
+    if (!('experiencePublishedStyle' in updates)) delete updatePayload.experience_published_style;
+    if (!('experiencePublishedContent' in updates)) delete updatePayload.experience_published_content;
+
+    const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
     return mutationId;

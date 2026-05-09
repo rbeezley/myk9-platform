@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
+import { publishExperience } from '@/features/experience/publishExperience';
 import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,7 +13,6 @@ import {
   BarChart3,
   Trash2,
   Pencil,
-  FileText,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -25,12 +25,14 @@ import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
+import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
+import type { GeneratedPremium } from '@/types/premium-types';
 import {
   useShowsQuery,
-  useUpdateShowMutation,
   showQueryKeys,
 } from '@/hooks/queries/useShowsDatabase';
+import { useShowStore } from '@/store/showStore';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
@@ -46,7 +48,6 @@ import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
-import { GeneratePremiumPanel } from '@/features/premium/GeneratePremiumPanel';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 
@@ -72,6 +73,47 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
   submitted: 'default',
   not_yet_open: 'default',
 };
+
+function parseOptionalCurrency(value: string | number | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function applyShowFormDataToPremium(
+  premium: GeneratedPremium,
+  formData: Partial<ShowInput>
+): GeneratedPremium {
+  const preEntryFee = parseOptionalCurrency(formData.preEntryFee);
+  const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
+
+  return {
+    ...premium,
+    style: (formData.style ?? premium.style) as GeneratedPremium['style'],
+    show: {
+      ...premium.show,
+      name: formData.name ?? premium.show.name,
+      startDate: formData.startDate ?? premium.show.startDate,
+      endDate: formData.endDate ?? premium.show.endDate,
+      venue: formData.location ?? premium.show.venue,
+      entryOpenDate: formData.entryOpenDate ?? premium.show.entryOpenDate,
+      entryCloseDate: formData.entryCloseDate ?? premium.show.entryCloseDate,
+      preEntryFee: preEntryFee ?? premium.show.preEntryFee,
+      dayOfFee: dayOfFee ?? premium.show.dayOfFee,
+      acceptChecks: formData.acceptCheckPayments ?? premium.show.acceptChecks,
+      acceptCash: formData.acceptCashPayments ?? premium.show.acceptCash,
+    },
+    trials: premium.trials.map(trial => ({
+      ...trial,
+      judges:
+        formData.assignedJudges?.map(judge => ({
+          name: judge.judgeName,
+          elements: judge.assignedClasses ?? [],
+        })) ?? trial.judges,
+    })),
+  };
+}
 
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -103,7 +145,7 @@ const ShowDetailsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { data: shows = [] } = useShowsQuery();
 
-  const updateShowMutation = useUpdateShowMutation();
+  const updateShowLocally = useShowStore(s => s.updateShow);
 
   // Panel state
   const [showEditPanel, setShowEditPanel] = useState(
@@ -116,7 +158,6 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [premiumPanelOpen, setPremiumPanelOpen] = useState(false);
 
   // Fallback: Find current show from database
   const actualCurrentShow = useMemo(() => {
@@ -304,17 +345,22 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
+  const publicLandingShow =
+    actualCurrentShow.experienceIsPublished && actualCurrentShow.experiencePublishedStyle
+      ? { ...actualCurrentShow, style: actualCurrentShow.experiencePublishedStyle }
+      : actualCurrentShow;
+
   // Heritage public landing — renders for any visitor who is not staff.
   // Staff (secretary / admin / club_admin) always reach the management UI.
   if (
-    getShowStyle(actualCurrentShow) === 'heritage' &&
+    getShowStyle(publicLandingShow) === 'heritage' &&
     !isSecretary &&
     !isAdmin &&
     !hasRole('club_admin')
   ) {
     return (
       <HeritageLandingPage
-        show={actualCurrentShow}
+        show={publicLandingShow}
         trial={associatedTrials[0] ?? null}
         allTrials={associatedTrials}
       />
@@ -389,13 +435,6 @@ const ShowDetailsPage: React.FC = () => {
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
-                {(actualCurrentShow.organization === 'AKC' ||
-                  actualCurrentShow.organization === 'UKC') && (
-                  <Button variant="outline" size="sm" onClick={() => setPremiumPanelOpen(true)}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Premium List
-                  </Button>
-                )}
                 <ThreeDotMenu
                   items={[
                     {
@@ -479,17 +518,40 @@ const ShowDetailsPage: React.FC = () => {
         onSave={async showData => {
           if (actualCurrentShow.id) {
             const showId = actualCurrentShow.id;
-            await updateShowMutation.mutateAsync({
-              id: showId,
-              updates: showData as Partial<ShowInput>,
-            });
+            const publishableShowData = showData as Partial<ShowInput> & {
+              publishExperience?: boolean;
+              generatedPremium?: GeneratedPremium;
+              inkSaver?: boolean;
+            };
+            const localShow = await updateShowLocally(showId, showData as Partial<ShowInput>);
+            if (!localShow) {
+              throw new Error('Show was not available in the local store.');
+            }
+            queryClient.setQueryData<Show>(showQueryKeys.detail(showId), localShow);
+            queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
+              current?.map(show => (show.id === showId ? localShow : show))
+            );
 
             // Persist judge assignments to judge_assignments table
             await persistShowJudgeAssignments(showId, showData.assignedJudges || []);
 
-            // Re-invalidate show cache after judge assignments are saved
-            queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
-            queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
+            if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
+              await publishExperience({
+                showId,
+                premium: applyShowFormDataToPremium(
+                  publishableShowData.generatedPremium,
+                  showData as Partial<ShowInput>
+                ),
+                inkSaver: Boolean(publishableShowData.inkSaver),
+              });
+              queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] });
+              queryClient.invalidateQueries({
+                queryKey: ['shows', showId, 'published-experience-content'],
+              });
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
+            }
+
           }
           setShowEditPanel(false);
         }}
@@ -503,13 +565,6 @@ const ShowDetailsPage: React.FC = () => {
           showName={actualCurrentShow.name || 'Unknown Show'}
         />
       )}
-      <GeneratePremiumPanel
-        open={premiumPanelOpen}
-        onClose={() => setPremiumPanelOpen(false)}
-        showId={actualCurrentShow.id}
-        clubId={actualCurrentShow.clubId}
-        showOrg={actualCurrentShow.organization as 'AKC' | 'UKC' | null}
-      />
     </>
   );
 };

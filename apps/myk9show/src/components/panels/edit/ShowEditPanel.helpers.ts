@@ -7,7 +7,7 @@
 
 import type { Show } from '@/types/show-types';
 import type { ShowStyle } from '@/features/registries';
-import type { ShowEditFormData } from './ShowEditPanel.types';
+import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
 
 // Convert Show to form data
 export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
@@ -33,6 +33,10 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     }),
     acceptCheckPayments: show.acceptCheckPayments ?? false,
     acceptCashPayments: show.acceptCashPayments ?? false,
+    clubName: show.clubName || '',
+    logoUrl: show.logoUrl || '',
+    trials: show.trials || [],
+    experiencePublishedContent: show.experiencePublishedContent ?? null,
     // Read show.style (migration 195) with fallback to landing_style (migration 192).
     // Map 'default' → 'monogram' so legacy rows never produce a value rejected by
     // the new shows_style_check constraint.
@@ -40,6 +44,8 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
       const raw = show.style ?? show.landing_style ?? 'monogram';
       return (raw === 'default' ? 'monogram' : raw) as ShowStyle;
     })(),
+    publishExperience: false,
+    inkSaver: false,
   };
 };
 
@@ -68,4 +74,13 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   ...(formData.entryCloseDate && { entryCloseDate: formData.entryCloseDate }),
   ...(formData.preEntryFee && { preEntryFee: formData.preEntryFee }),
   ...(formData.dayOfShowFee && { dayOfShowFee: formData.dayOfShowFee }),
+});
+
+export const formDataToShowSaveData = (formData: ShowEditFormData): ShowEditSaveData => ({
+  ...formDataToShow(formData),
+  ...(formData.publishExperience !== undefined && {
+    publishExperience: formData.publishExperience,
+  }),
+  ...(formData.generatedPremium !== undefined && { generatedPremium: formData.generatedPremium }),
+  ...(formData.inkSaver !== undefined && { inkSaver: formData.inkSaver }),
 });

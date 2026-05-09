@@ -1,6 +1,7 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import { formatDate } from '../pdfStyles';
 import type { CoverContext } from './coverContext';
+import { PdfFooter } from '../PdfFooter';
 
 // ─── Visual layout constants ─────────────────────────────────────────────────
 // Local to this cover — these are visual values only PosterCover uses.
@@ -25,6 +26,7 @@ export function renderPosterCover(ctx: CoverContext) {
 
   return (
     <Page size="LETTER" style={{ backgroundColor: t.surfaceColor, padding: 0 }}>
+      <PdfFooter style={data.style} color={t.secondaryColor} />
       <View
         wrap={false}
         style={{

@@ -3,6 +3,7 @@ import type { GeneratedPremium } from '../../../../types/premium-types';
 import { numberToRoman, type StyleTokens } from '../pdfStyles';
 import type { CoverContext } from './coverContext';
 import { firstSentence } from './EditorialCover';
+import { PdfFooter } from '../PdfFooter';
 
 // ─── Engraved (Heritage) ─────────────────────────────────────────────────────
 //
@@ -16,6 +17,7 @@ export function renderEngravedCover({ t, data, dateRange, club, venue }: CoverCo
 
   return (
     <Page size="LETTER" style={{ backgroundColor: t.surfaceColor, padding: 0 }}>
+      <PdfFooter style={data.style} color={t.secondaryColor} />
       {/* Outer frame */}
       <View
         style={{

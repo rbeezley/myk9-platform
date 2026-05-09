@@ -1,15 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AtAGlancePanel } from '../AtAGlancePanel';
 import { resolveTokens } from '../pdfStyles';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-
-vi.mock('@react-pdf/renderer', () => ({
-  View: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  StyleSheet: { create: (s: unknown) => s },
-  Font: { register: vi.fn() },
-}));
 
 const fullData: GeneratedPremium = {
   org: 'AKC',

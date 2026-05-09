@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar, Check, Palette } from 'lucide-react';
-import type { PremiumStyle } from '@/types/premium-types';
+import { PREMIUM_STYLE_LABELS, type PremiumStyle } from '@/types/premium-types';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
@@ -288,7 +288,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}>
-                      {opt.name}
+                      {PREMIUM_STYLE_LABELS[opt.key]}
                     </span>
                     {selected && <Check className="h-3.5 w-3.5 text-primary" />}
                   </div>
@@ -305,49 +305,16 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
 
 interface StyleOption {
   key: PremiumStyle;
-  name: string;
   tagline: string;
 }
 
 const STYLE_OPTIONS: StyleOption[] = [
-  {
-    key: 'monogram',
-    name: 'Monogram',
-    tagline: 'Centered TC monogram, large serif title — conservative classic.',
-  },
-  {
-    key: 'banner',
-    name: 'Banner',
-    tagline: 'Black bar across top, left-aligned title — clean and direct.',
-  },
-  {
-    key: 'headline',
-    name: 'Headline',
-    tagline: 'Stacked header with double-rule divider — quietly bold.',
-  },
-  {
-    key: 'magazine',
-    name: 'Magazine',
-    tagline: 'Editorial spread — display serif cover, pull quotes inside.',
-  },
-  {
-    key: 'poster',
-    name: 'Poster',
-    tagline: 'Bold single-page hero — tight uppercase, ink-blot accents.',
-  },
-  {
-    key: 'gazette',
-    name: 'Gazette',
-    tagline: 'Newspaper broadsheet — masthead, multi-column body.',
-  },
-  {
-    key: 'fieldGuide',
-    name: 'Field Guide',
-    tagline: 'Utility reference — §-numbered sections, dense data tables.',
-  },
-  {
-    key: 'heritage',
-    name: 'Heritage',
-    tagline: 'Traditional kennel club — ivory paper, ornamental rules.',
-  },
+  { key: 'monogram', tagline: 'Centered TC monogram, large serif title — conservative classic.' },
+  { key: 'banner', tagline: 'Black bar across top, left-aligned title — clean and direct.' },
+  { key: 'headline', tagline: 'Stacked header with double-rule divider — quietly bold.' },
+  { key: 'magazine', tagline: 'Editorial spread — display serif cover, pull quotes inside.' },
+  { key: 'poster', tagline: 'Bold single-page hero — tight uppercase, ink-blot accents.' },
+  { key: 'gazette', tagline: 'Newspaper broadsheet — masthead, multi-column body.' },
+  { key: 'fieldGuide', tagline: 'Utility reference — §-numbered sections, dense data tables.' },
+  { key: 'heritage', tagline: 'Traditional kennel club — ivory paper, ornamental rules.' },
 ];

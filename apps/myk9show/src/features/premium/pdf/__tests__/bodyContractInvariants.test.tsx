@@ -8,25 +8,11 @@
 // tree. Uses a scrambled class list to prove the sort is happening, not just
 // that the data was already sorted upstream.
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { AKCPremiumTemplate } from '../AKCPremiumTemplate';
 import { STYLE_TOKENS } from '../pdfStyles';
 import type { GeneratedPremium, PremiumStyle } from '../../../../types/premium-types';
-
-vi.mock('@react-pdf/renderer', () => ({
-  Document: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pdf-document">{children}</div>
-  ),
-  Page: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pdf-page">{children}</div>
-  ),
-  View: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Image: () => null,
-  StyleSheet: { create: (s: unknown) => s },
-  Font: { register: vi.fn() },
-}));
 
 const ALL_STYLES = Object.keys(STYLE_TOKENS) as PremiumStyle[];
 

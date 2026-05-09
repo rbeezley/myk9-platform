@@ -1,6 +1,7 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { AtAGlancePanel } from '../AtAGlancePanel';
+import { PdfFooter } from '../PdfFooter';
 import type { CoverContext } from './coverContext';
 
 // ─── Editorial (Magazine) ────────────────────────────────────────────────────
@@ -14,6 +15,7 @@ export function renderEditorialCover({ t, data, dateRange, club, venue, org }: C
 
   return (
     <Page size="LETTER" style={{ backgroundColor: t.surfaceColor, padding: 0 }}>
+      <PdfFooter style={data.style} color={t.secondaryColor} />
       <View style={{ flex: 1, paddingHorizontal: 64, paddingTop: 80, paddingBottom: 56 }}>
         <Text
           style={{

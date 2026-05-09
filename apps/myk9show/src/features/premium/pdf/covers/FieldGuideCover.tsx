@@ -1,5 +1,6 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { CoverContext } from './coverContext';
+import { PdfFooter } from '../PdfFooter';
 
 /**
  * Field-guide cover — utility/reference treatment. Mono eyebrow, sans title,
@@ -54,6 +55,7 @@ export function renderFieldGuideCover(ctx: CoverContext) {
         fontSize: t.bodyFontSize,
       }}
     >
+      <PdfFooter style={data.style} color={t.secondaryColor} />
       {/* Eyebrow */}
       <Text
         style={{

@@ -3,6 +3,7 @@ import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { buildStyles, formatDate, formatPhone, resolveTokens } from '../pdfStyles';
 import { SectionDivider } from '../SectionDivider';
+import { PdfFooter } from '../PdfFooter';
 import { compareClassesByProgression } from './classOrder';
 
 const REQUIRED = '[REQUIRED — add before submitting]';
@@ -26,6 +27,7 @@ export function StandardBody({ data, org: _org, inkSaver = false }: Props) {
 
   return (
     <Page size="LETTER" style={s.page}>
+      <PdfFooter style={data.style} color={t.secondaryColor} />
       <Text style={s.sectionTitle}>Entry Information</Text>
       <View style={s.pullQuoteRow}>
         <View style={s.pullQuoteCell}>

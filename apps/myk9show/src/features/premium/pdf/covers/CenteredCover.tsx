@@ -1,5 +1,6 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { CoverContext } from './coverContext';
+import { PdfFooter } from '../PdfFooter';
 
 export function renderCenteredCover({
   t,
@@ -12,6 +13,7 @@ export function renderCenteredCover({
 }: CoverContext) {
   return (
     <Page size="LETTER" style={{ backgroundColor: '#ffffff', padding: 0 }}>
+      <PdfFooter style={data.style} color={t.secondaryColor} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 64 }}>
         {/* Monogram — large display-serif initials, treated like a wax seal */}
         <Text

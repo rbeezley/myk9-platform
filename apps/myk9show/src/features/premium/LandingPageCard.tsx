@@ -4,17 +4,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { notifications } from '@/lib/notifications';
 import type { ShowStyle } from '@/features/registries';
+import { PREMIUM_STYLE_LABELS } from '@/types/premium-types';
 
-const STYLE_LABELS: Record<ShowStyle, string> = {
-  monogram: 'Monogram',
-  banner: 'Banner',
-  headline: 'Headline',
-  magazine: 'Magazine',
-  poster: 'Poster',
-  gazette: 'Gazette',
-  fieldGuide: 'Field Guide',
-  heritage: 'Heritage',
-};
+const STYLE_LABELS: Record<ShowStyle, string> = PREMIUM_STYLE_LABELS;
 
 interface LandingPageCardProps {
   showId: string;

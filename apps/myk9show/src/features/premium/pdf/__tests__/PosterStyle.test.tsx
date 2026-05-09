@@ -1,26 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AKCPremiumTemplate } from '../AKCPremiumTemplate';
 import { UKCPremiumTemplate } from '../UKCPremiumTemplate';
 import { buildStyles, INK_SAVER_PALETTE, STYLE_TOKENS } from '../pdfStyles';
 import { isPosterMinimumDataMet } from '../bodies/posterPredicates';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-
-// Mirror the @react-pdf mock used by the other premium template tests so the
-// templates render to plain DOM nodes the Testing Library can walk.
-vi.mock('@react-pdf/renderer', () => ({
-  Document: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pdf-document">{children}</div>
-  ),
-  Page: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pdf-page">{children}</div>
-  ),
-  View: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Image: () => null,
-  StyleSheet: { create: (s: unknown) => s },
-  Font: { register: vi.fn() },
-}));
 
 type Org = 'AKC' | 'UKC';
 

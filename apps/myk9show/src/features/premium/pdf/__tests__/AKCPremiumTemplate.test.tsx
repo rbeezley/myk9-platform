@@ -1,21 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AKCPremiumTemplate } from '../AKCPremiumTemplate';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-
-vi.mock('@react-pdf/renderer', () => ({
-  Document: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pdf-document">{children}</div>
-  ),
-  Page: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pdf-page">{children}</div>
-  ),
-  View: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Image: () => null,
-  StyleSheet: { create: (s: unknown) => s },
-  Font: { register: vi.fn() },
-}));
 
 const premium: GeneratedPremium = {
   org: 'AKC',

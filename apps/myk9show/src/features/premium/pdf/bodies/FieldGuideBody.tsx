@@ -4,6 +4,7 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { PdfFooter } from '../PdfFooter';
 import { compareClassesByProgression } from './classOrder';
 
 interface Props {
@@ -107,6 +108,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
         color: tokens.textColor,
       }}
     >
+      <PdfFooter style={data.style} color={tokens.secondaryColor} />
       {hasOverview && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§00', 'Overview')}

@@ -1,6 +1,7 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { PdfFooter } from '../PdfFooter';
 import { compareClassesByProgression } from './classOrder';
 
 interface Props {
@@ -57,6 +58,7 @@ export function PosterBody({ data, tokens }: Props) {
         color: tokens.textColor,
       }}
     >
+      <PdfFooter style={data.style} color={tokens.secondaryColor} />
       {/* Page-shift hint: ensure inner pages start on a fresh sheet, not
           interleaved with the cover hero composition. */}
       <View

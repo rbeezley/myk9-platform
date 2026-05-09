@@ -76,6 +76,18 @@ function hasScopedClubRole(
   );
 }
 
+function hasScopedShowRole(
+  userWithRoles: ReturnType<typeof useAuthContext>['userWithRoles'],
+  role: UserRole,
+  showId: string | undefined
+): boolean {
+  if (!showId) return false;
+  return (userWithRoles?.scopes ?? []).some(
+    scope =>
+      scope.scopeType === ScopeType.SHOW && scope.scopeId === showId && scope.roleId === role
+  );
+}
+
 export function useShowEntriesForUser(showId: string | undefined): UseShowEntriesForUserResult {
   const { userWithRoles, isAdmin, isSecretary, hasRole } = useAuthContext();
   const {
@@ -95,7 +107,9 @@ export function useShowEntriesForUser(showId: string | undefined): UseShowEntrie
     hasRole(UserRole.CLUB_ADMIN) &&
     hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, showClubId);
   const secretaryCanSeeShow =
-    isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, showClubId);
+    isSecretary &&
+    (hasScopedClubRole(userWithRoles, UserRole.SECRETARY, showClubId) ||
+      hasScopedShowRole(userWithRoles, UserRole.SECRETARY, showId));
   const canSeeAll = isAdmin || secretaryCanSeeShow || clubAdminCanSeeShow;
 
   return useMemo(() => {

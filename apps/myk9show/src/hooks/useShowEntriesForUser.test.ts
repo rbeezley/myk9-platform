@@ -162,6 +162,16 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries).toHaveLength(0);
   });
 
+  it('includes all show entries for secretary users scoped directly to the show', () => {
+    setMocks({
+      dogs: [makeDog({ ownerId: 'other-user' })],
+      isSecretary: true,
+      scopes: [{ scopeType: ScopeType.SHOW, scopeId: SHOW_ID, roleId: UserRole.SECRETARY }],
+    });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    expect(result.current.allEntries).toHaveLength(1);
+  });
+
   it('includes all show entries for club admins scoped to the show club', () => {
     setMocks({
       dogs: [makeDog({ ownerId: 'other-user' })],

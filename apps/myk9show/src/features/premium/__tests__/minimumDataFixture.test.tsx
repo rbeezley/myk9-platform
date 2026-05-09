@@ -1,23 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { AKCPremiumTemplate } from '../pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from '../pdf/UKCPremiumTemplate';
 import { STYLE_TOKENS } from '../pdf/pdfStyles';
 import type { GeneratedPremium, PremiumStyle } from '../../../types/premium-types';
-
-vi.mock('@react-pdf/renderer', () => ({
-  Document: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pdf-document">{children}</div>
-  ),
-  Page: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="pdf-page">{children}</div>
-  ),
-  View: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Text: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Image: () => null,
-  StyleSheet: { create: (s: unknown) => s },
-  Font: { register: vi.fn() },
-}));
 
 type Org = 'AKC' | 'UKC';
 

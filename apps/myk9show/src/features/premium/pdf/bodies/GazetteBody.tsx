@@ -7,6 +7,7 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { formatDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import { PdfFooter } from '../PdfFooter';
 import { compareClassesByProgression } from './classOrder';
 
 interface Props {
@@ -66,6 +67,7 @@ export function GazetteBody({ data, tokens }: Props) {
         fontSize: tokens.bodyFontSize,
       }}
     >
+      <PdfFooter style={data.style} color={tokens.secondaryColor} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
         {hasOfficials && (
           <View style={sectionStyle} wrap={false}>

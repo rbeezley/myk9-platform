@@ -8,6 +8,17 @@ export type PremiumStyle =
   | 'fieldGuide'
   | 'heritage';
 
+export const PREMIUM_STYLE_LABELS: Record<PremiumStyle, string> = {
+  monogram: 'Monogram',
+  banner: 'Banner',
+  headline: 'Headline',
+  magazine: 'Magazine',
+  poster: 'Poster',
+  gazette: 'Gazette',
+  fieldGuide: 'Field Guide',
+  heritage: 'Heritage',
+};
+
 export interface ClubPremiumTemplate {
   id: string;
   clubId: string;

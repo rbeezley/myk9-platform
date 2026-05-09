@@ -1,5 +1,6 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { CoverContext } from './coverContext';
+import { PdfFooter } from '../PdfFooter';
 
 export function renderTopblockCover({
   t,
@@ -15,6 +16,7 @@ export function renderTopblockCover({
   // ink-heavy fills). The upload (if any) appears as a small corner mark.
   return (
     <Page size="LETTER" style={{ backgroundColor: '#ffffff', padding: 0 }}>
+      <PdfFooter style={data.style} color={t.secondaryColor} />
       {/* Thin accent ribbon — visual identity without burning toner */}
       <View style={{ height: 6, backgroundColor: t.accentColor }} />
       <View style={{ paddingHorizontal: 44, paddingTop: 64, paddingBottom: 32 }}>

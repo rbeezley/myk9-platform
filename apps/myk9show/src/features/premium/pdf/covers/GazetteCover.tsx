@@ -8,6 +8,7 @@ import {
   extractCityState,
 } from './gazetteHelpers';
 import { compareClassesByProgression, compareLevelsByProgression } from '../bodies/classOrder';
+import { PdfFooter } from '../PdfFooter';
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 // Hoisted from inline literals so a designer can tune the masthead in one
@@ -96,6 +97,7 @@ export function renderGazetteCover(ctx: CoverContext) {
         fontSize: t.bodyFontSize,
       }}
     >
+      <PdfFooter style={data.style} color={t.secondaryColor} />
       {/* Masthead */}
       <Text
         style={{

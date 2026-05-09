@@ -19,6 +19,7 @@ import { logger } from '@/services/LoggingService';
 import {
   UserWithRoles,
   UserRole,
+  RoleScope,
   Permission,
   Scope,
   ScopeType,
@@ -33,7 +34,7 @@ import { ensureError } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 
 // Type for user role with details from RBAC service
-interface UserRoleWithDetails {
+export interface UserRoleWithDetails {
   role_id: string;
   role?: {
     name?: string;
@@ -139,6 +140,22 @@ function mapRbacRoles(roles: UserRoleWithDetails[]): UserRoleWithDetails[] {
       ...(scope_type && { scope_type }),
     };
   });
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildActiveRoleScopes(
+  roles: UserRoleWithDetails[],
+  userId: string
+): RoleScope[] {
+  return roles
+    .filter(ur => ur.is_active && ur.scope_type && ur.scope_id)
+    .map(ur => ({
+      userId,
+      roleId: ur.role?.name || ur.role_id,
+      scopeType: ur.scope_type! as ScopeType,
+      scopeId: ur.scope_id!,
+      createdAt: new Date(ur.assigned_at || Date.now()),
+    }));
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -294,15 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...auth.user,
         roles,
         permissions,
-        scopes: rbacData.userRoles
-          .filter(ur => ur.scope_type && ur.scope_id)
-          .map(ur => ({
-            userId: auth.user!.id,
-            roleId: ur.role?.name || ur.role_id,
-            scopeType: ur.scope_type! as ScopeType,
-            scopeId: ur.scope_id!,
-            createdAt: new Date(ur.assigned_at || Date.now()),
-          })),
+        scopes: buildActiveRoleScopes(rbacData.userRoles, auth.user.id),
         databaseUserId: userProfile?.id,
       } as UserWithRoles;
     }

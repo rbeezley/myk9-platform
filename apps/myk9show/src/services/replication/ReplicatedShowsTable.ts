@@ -164,7 +164,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       experience_is_published: show.experienceIsPublished ?? false,
       experience_published_at: show.experiencePublishedAt ?? null,
       experience_published_style: show.experiencePublishedStyle ?? null,
-      experience_published_content: show.experiencePublishedContent ?? null,
+      experience_published_content: show.experiencePublishedContent ?? {},
       updated_at: new Date().toISOString(),
     };
   }

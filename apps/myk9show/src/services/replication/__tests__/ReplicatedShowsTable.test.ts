@@ -746,6 +746,35 @@ describe('ReplicatedShowsTable', () => {
       expect(result._localOnly).toBe(true);
     });
 
+    it('should queue an empty published experience object for new show inserts', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      const result = await table.createShow({
+        name: 'Test Show',
+        organization: 'Obedience',
+        startDate: '2024-06-15',
+        endDate: '2024-06-16',
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'INSERT',
+        result.id,
+        expect.objectContaining({
+          experience_is_published: false,
+          experience_published_content: {},
+        })
+      );
+    });
+
     it('should create show with full metadata', async () => {
       const result = await table.createShow({
         name: 'Premium Show',

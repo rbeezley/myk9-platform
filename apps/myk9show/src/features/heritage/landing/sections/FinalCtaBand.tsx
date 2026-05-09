@@ -46,10 +46,9 @@ export function FinalCtaBand({ entryWizardUrl }: FinalCtaBandProps) {
 
         <a
           href={entryWizardUrl}
-          className="border px-10 py-4 text-sm uppercase tracking-widest transition-colors hover:bg-[var(--hl-paper)] hover:text-[var(--hl-ink)]"
+          className="border px-10 py-4 text-sm uppercase tracking-widest transition-colors text-[var(--hl-paper)] hover:bg-[var(--hl-paper)] hover:text-[var(--hl-ink)]"
           style={{
             borderColor: 'var(--hl-paper)',
-            color: 'var(--hl-paper)',
             fontFamily: "'EB Garamond', Georgia, serif",
           }}
         >

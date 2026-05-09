@@ -207,10 +207,9 @@ export function HeroBlock({
           {/* CTA */}
           <a
             href={entryWizardUrl}
-            className="mt-4 border px-8 py-3 text-sm uppercase tracking-widest transition-colors hover:bg-[var(--hl-claret)] hover:text-[var(--hl-paper)]"
+            className="mt-4 border px-8 py-3 text-sm uppercase tracking-widest transition-colors text-[var(--hl-claret)] hover:bg-[var(--hl-claret)] hover:text-[var(--hl-paper)]"
             style={{
               borderColor: 'var(--hl-claret)',
-              color: 'var(--hl-claret)',
               fontFamily: "'EB Garamond', Georgia, serif",
             }}
           >

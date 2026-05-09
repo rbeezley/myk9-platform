@@ -1,7 +1,7 @@
 import { FileText, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { supabase } from '@/services/database/supabaseClient';
 
 interface PremiumDownloadCardProps {
@@ -94,11 +94,14 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">Published {publishedLabel}</p>
       </div>
-      <Button asChild size="sm">
-        <a href={publishedUrl} target="_blank" rel="noopener noreferrer">
-          Download PDF
-        </a>
-      </Button>
+      <a
+        href={publishedUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={buttonVariants({ size: 'sm' })}
+      >
+        Download PDF
+      </a>
     </Card>
   );
 }

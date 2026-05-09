@@ -1,4 +1,6 @@
 import { ShowJudgeAssignment } from './judge-types';
+import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
+export type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 
 // Re-export types from other modules that are commonly used with shows
 export type { User } from './user-types';
@@ -109,6 +111,10 @@ export interface Show {
   landing_style?: string | null;
   // Experience style — single source of truth for all 4 touchpoints (migration 195)
   style?: string | null;
+  experienceIsPublished?: boolean;
+  experiencePublishedAt?: string | null;
+  experiencePublishedStyle?: string | null;
+  experiencePublishedContent?: ShowExperienceSnapshot | null;
 
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
@@ -152,6 +158,10 @@ export interface ShowInput {
   acceptCashPayments?: boolean | undefined;
   // Experience style — drives all 4 touchpoints (migration 195)
   style?: string | null;
+  experienceIsPublished?: boolean;
+  experiencePublishedAt?: string | null;
+  experiencePublishedStyle?: string | null;
+  experiencePublishedContent?: ShowExperienceSnapshot | null;
   // Index signature for compatibility with Record<string, unknown>
   [key: string]: unknown;
 }

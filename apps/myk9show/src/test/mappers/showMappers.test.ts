@@ -117,4 +117,33 @@ describe('mapDatabaseToShow — branding fallback', () => {
     expect(result.coverImageUrl).toBe('');
     expect(result.accentColor).toBe('');
   });
+
+  it('maps published experience columns from Supabase to Show', () => {
+    const show = mapDatabaseToShow({
+      ...baseDbShow,
+      experience_is_published: true,
+      experience_published_at: '2026-05-09T14:00:00.000Z',
+      experience_published_style: 'heritage',
+      experience_published_content: {
+        narratives: {
+          showHours: 'Doors open at 7:00 AM.',
+          trialInformation: 'Running order will be posted before judging.',
+        },
+        supplemental: {
+          vetClinic: null,
+          accommodations: [],
+          hospitalityNotes: 'Coffee in the morning.',
+          awardsDescription: null,
+          additionalNotes: null,
+        },
+        outputs: { premiumUrl: 'https://example.com/premium.pdf' },
+      },
+    } as never);
+
+    expect(show.experienceIsPublished).toBe(true);
+    expect(show.experiencePublishedStyle).toBe('heritage');
+    expect(show.experiencePublishedContent?.narratives.showHours).toBe(
+      'Doors open at 7:00 AM.'
+    );
+  });
 });

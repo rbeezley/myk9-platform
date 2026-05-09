@@ -19,15 +19,17 @@ describe('generate-premium edge function style contract', () => {
     expect(source).toMatch(/\?\?\s*'monogram'/);
   });
 
-  it('does not reference the legacy "classic" style anywhere', () => {
-    expect(source).not.toMatch(/['"]classic['"]/);
+  it('remaps legacy style identifiers instead of returning them to clients', () => {
+    expect(source).toMatch(/classic:\s*'monogram'/);
+    expect(source).toMatch(/modern:\s*'banner'/);
+    expect(source).toMatch(/minimal:\s*'headline'/);
+    expect(source).toMatch(/const resolvedStyle = LEGACY_STYLE_REMAP\[rawStyle\] \?\? rawStyle/);
   });
 
-  it('does not reference the legacy "modern" style anywhere', () => {
-    expect(source).not.toMatch(/['"]modern['"]/);
-  });
-
-  it('does not reference the legacy "minimal" style anywhere', () => {
-    expect(source).not.toMatch(/['"]minimal['"]/);
+  it('aborts slow narrative generation so premium generation can return fallback content', () => {
+    expect(source).toMatch(/const NARRATIVE_TIMEOUT_MS = \d+;/);
+    expect(source).toMatch(/new AbortController\(\)/);
+    expect(source).toMatch(/signal: controller\.signal/);
+    expect(source).toMatch(/clearTimeout\(timeoutId\)/);
   });
 });

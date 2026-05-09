@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import type { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
-import { showToFormData, formDataToShow } from './ShowEditPanel.helpers';
+import { showToFormData, formDataToShowSaveData } from './ShowEditPanel.helpers';
 import { showSchemas } from '@/lib/validation';
 import { ShowEditForm } from './ShowEditForm';
 
@@ -26,7 +26,7 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
   // Handle save
   const handleSave = useCallback(
     async (formData: ShowEditFormData) => {
-      const showData = formDataToShow(formData);
+      const showData = formDataToShowSaveData(formData);
       if (onSave) {
         await onSave(showData);
       }

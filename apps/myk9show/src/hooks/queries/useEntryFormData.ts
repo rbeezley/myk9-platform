@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
 import { groupEntriesByDog } from '@/lib/reports/entryFormUtils';
+import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -40,6 +41,10 @@ export interface UseEntryFormDataResult {
   secretary: EntryFormSecretary | null;
   trials: EntryFormTrial[];
   classes: EntryFormClass[];
+  show: {
+    experienceIsPublished?: boolean;
+    experiencePublishedContent?: ShowExperienceSnapshot | null;
+  } | null;
   isLoading: boolean;
   isError: boolean;
 }
@@ -53,7 +58,28 @@ async function fetchEntryFormData(
   secretary: EntryFormSecretary | null;
   trials: EntryFormTrial[];
   classes: EntryFormClass[];
+  show: {
+    experienceIsPublished?: boolean;
+    experiencePublishedContent?: ShowExperienceSnapshot | null;
+  } | null;
 }> {
+  const { data: showRaw } = await supabase
+    .from('shows')
+    .select('experience_is_published, experience_published_content')
+    .eq('id', showId)
+    .maybeSingle();
+
+  const show = showRaw
+    ? {
+        experienceIsPublished: Boolean(
+          (showRaw as unknown as Record<string, unknown>).experience_is_published
+        ),
+        experiencePublishedContent:
+          ((showRaw as unknown as Record<string, unknown>)
+            .experience_published_content as ShowExperienceSnapshot | null) ?? null,
+      }
+    : null;
+
   // 1. Fetch trials
   const { data: trialsRaw } = await supabase
     .from('trials')
@@ -96,7 +122,7 @@ async function fetchEntryFormData(
   const { data: entriesRaw } = await entriesQuery;
 
   if (!entriesRaw || entriesRaw.length === 0) {
-    return { dogs: [], secretary: null, trials, classes };
+    return { dogs: [], secretary: null, trials, classes, show };
   }
 
   const classMap = new Map(classes.map(c => [c.id, c]));
@@ -263,7 +289,7 @@ async function fetchEntryFormData(
     });
   }
 
-  return { dogs, secretary, trials, classes };
+  return { dogs, secretary, trials, classes, show };
 }
 
 export function useEntryFormData({
@@ -283,6 +309,7 @@ export function useEntryFormData({
     secretary: query.data?.secretary ?? null,
     trials: query.data?.trials ?? [],
     classes: query.data?.classes ?? [],
+    show: query.data?.show ?? null,
     isLoading: query.isLoading,
     isError: query.isError,
   };

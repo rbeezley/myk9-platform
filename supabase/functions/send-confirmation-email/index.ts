@@ -9,6 +9,7 @@
 // The pg_cron job (migration 193) calls this at 09:00 UTC each day.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -398,7 +399,7 @@ Deno.serve(async (req: Request) => {
       const { data: show } = await supabase
         .from('shows')
         .select(
-          'id, name, start_date, end_date, venue_name, city, state, address, organization, club_id'
+          'id, name, start_date, end_date, venue_name, city, state, address, organization, club_id, experience_is_published, experience_published_content'
         )
         .eq('id', trial.show_id)
         .single();
@@ -505,7 +506,7 @@ Deno.serve(async (req: Request) => {
           doorsTime: null,
           firstClassTime: null,
           parkingNotes: null,
-          hospitalityNotes: null,
+          hospitalityNotes: getPublishedExperienceHospitalityNotes(show),
           cratingNotes: null,
           secretaryEmail: null,
           secretaryPhone: null,

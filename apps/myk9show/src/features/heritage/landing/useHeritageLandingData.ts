@@ -8,6 +8,7 @@ import { useMemo } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
+import { getLiveExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { getRegistry, getTrialTimezone } from '@/features/registries';
 import { formatFee } from '@/utils/format';
 import type { HeritageLandingData, HeritageTrial, HeritageJourneyStep, HeritageFee } from './types';
@@ -68,6 +69,8 @@ export function useHeritageLandingData(
   const timezone = getTrialTimezone(currentTrial);
 
   return useMemo<HeritageLandingData>(() => {
+    const liveExperience = show ? getLiveExperienceSnapshot(show) : null;
+    const supplemental = liveExperience?.supplemental;
     const entryCloseDate = currentTrial?.entryCloseDate ?? show?.entryCloseDate ?? null;
     const trialStartDate = show?.startDate ?? null;
     const trialEndDate = show?.endDate ?? null;
@@ -169,9 +172,9 @@ export function useHeritageLandingData(
 
       fees,
       officers: [],
-      accommodations: [],
-      hospitalityNotes: null,
-      awardsDescription: null,
+      accommodations: supplemental?.accommodations ?? [],
+      hospitalityNotes: supplemental?.hospitalityNotes ?? null,
+      awardsDescription: supplemental?.awardsDescription ?? null,
       houseRulesNotes: null,
 
       secretaryName: null,

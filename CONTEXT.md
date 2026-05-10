@@ -51,6 +51,11 @@ for check-in and ring management.
 An ordered list of Entries that did not make the initial entry limit for a
 Class. Entries are promoted from the Wait List as space opens.
 
+**Show Registration**
+The submission workflow that turns an Exhibitor's selected Dogs and Classes
+into persisted Entries for a Show, including payment details, confirmation
+number, and Armband assignment.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under

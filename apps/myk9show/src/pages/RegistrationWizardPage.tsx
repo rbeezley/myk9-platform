@@ -26,10 +26,7 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
-import { assignArmband } from '@/services/database/armbands';
-import { submitShowEntries } from '@/services/database/entries';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { registrationToEntries } from '@/utils/registrationToEntries';
 import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
@@ -51,7 +48,8 @@ import {
 import {
   selectedDogsOwner,
   type SelectedDogsOwnerResult,
-} from './RegistrationWizardPage/selectedDogsOwner';
+} from '@/features/registration/selectedDogsOwner';
+import { submitShowRegistration } from '@/features/registration/submitShowRegistration';
 
 function RegistrationWizardContent() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
@@ -394,122 +392,38 @@ function RegistrationWizardContent() {
       const paymentDetails = paymentDetailsRef.current;
       try {
         // Update local Zustand state to reflect submission in progress
-        await submitRegistration(registrationId, paymentDetails);
-        if (!mountedRef.current) return;
-
-        // Step 1: Create or fetch the DB enrollment to get a real UUID and
-        // confirmation number. All payment methods get a confirmation number.
-        let dbRegistrationId: string | undefined;
-        const paymentMethod = registrationData.paymentMethod ?? 'credit_card';
-
-        if (paymentMethod === 'credit_card') {
-          const result = await confirmRegistration(
-            registrationId,
-            'MOCK-PAYMENT-REF',
-            paymentDetails
-          );
-          if (!mountedRef.current) return;
-          setRegistrationNumber(
-            result.confirmationNumber ?? currentRegistration.registrationNumber
-          );
-          dbRegistrationId = result.dbRegistrationId;
-        } else {
-          // Non-credit-card: create DB enrollment with full payment details.
-          // canProceed() blocks Next on multi-owner / orphan carts; reaching
-          // this branch with !ownerResolution.ok means a state inconsistency.
-          // Fail loudly rather than silently fall back to userId — that would
-          // re-introduce the wrong-attribution bug this PR fixes.
-          if (!ownerResolution.ok) {
-            throw new Error(
-              'Internal: payment submit reached with unresolved enrollment owner. ' +
-                'Selected dogs span multiple owners or have no owner set.'
-            );
-          }
-          const { createShowRegistration } =
-            await import('@/services/database/show-registrations');
-          const result = await createShowRegistration(
-            showId,
-            ownerResolution.ownerId,
-            paymentDetails?.paymentReference,
-            paymentDetails
-          );
-          if (!mountedRef.current) return;
-          if (result.data) {
-            setRegistrationNumber(result.data.confirmationNumber);
-            dbRegistrationId = result.data.id;
-          }
-        }
-
-        // Step 2: Build entry inputs from wizard data (for fee computation and
-        // armband write-back — the RPC validates fees server-side independently)
-        const showFeeInfo = {
-          preEntryFee: currentShow.preEntryFee || '0',
-          dayOfShowFee: currentShow.dayOfShowFee,
-          startDate: currentShow.startDate,
-        };
-        const entryInputs = registrationToEntries(
+        const submissionResult = await submitShowRegistration({
           showId,
+          userId,
+          registrationId,
+          currentRegistration,
+          ownerResolution,
+          paymentMethod: registrationData.paymentMethod,
+          paymentDetails,
           classSelections,
           handlerAssignments,
           classes,
-          showFeeInfo
-        );
-
-        // Step 3: Submit entries via RPC (transactional, server-side auth + fee validation)
-        if (entryInputs.length > 0 && dbRegistrationId) {
-          const submissionId = crypto.randomUUID();
-
-          const rpcEntries = entryInputs.map(e => ({
-            dogId: e.dogId,
-            classId: e.classId,
-            handlerName: e.registrationData.handler,
-            paymentMethod,
-            // entryFee from getShowEntryFee is in dollars; convert to cents for RPC
-            clientFeeCents: Math.round((e.registrationData.entryFee ?? 0) * 100),
-          }));
-
-          const rpcResult = await submitShowEntries({
-            showId,
-            registrationId: dbRegistrationId,
-            entries: rpcEntries,
-            submissionId,
-            paymentMethod,
-          });
-          if (!mountedRef.current) return;
-
-          // Step 4: Assign armbands — one per unique dog (non-blocking on failure)
-          const uniqueDogIds = [...new Set(entryInputs.map(e => e.dogId))];
-          const armbandResults = (
-            await Promise.all(
-              uniqueDogIds.map(async dogId => {
-                const { armband } = await assignArmband(showId, dogId);
-                return armband ? { dogId, armband } : null;
-              })
-            )
-          ).filter((r): r is ArmbandAssignment => r !== null);
-
-          if (armbandResults.length > 0 && mountedRef.current) {
-            setArmbandAssignments(armbandResults);
-
-            // Write armband back to each DB entry so confirmation email includes it
-            const armbandByDog = new Map(armbandResults.map(r => [r.dogId, r.armband]));
-            await Promise.all(
-              rpcResult.entries.map(({ entryId, dogId }) =>
-                armbandByDog.has(dogId)
-                  ? updateRegistration(entryId, { armband: armbandByDog.get(dogId) }, userId).catch(
-                      () => {}
-                    ) // Non-blocking — armband display still works via state
-                  : Promise.resolve()
-              )
-            );
-          }
+          showFeeInfo: {
+            preEntryFee: currentShow.preEntryFee || '0',
+            dayOfShowFee: currentShow.dayOfShowFee,
+            startDate: currentShow.startDate,
+          },
+          isActive: () => mountedRef.current,
+          deps: {
+            submitRegistration,
+            confirmRegistration,
+            updateEntryRegistration: updateRegistration,
+          },
+        });
+        if (submissionResult.aborted) return;
+        setRegistrationNumber(submissionResult.registrationNumber);
+        if (submissionResult.armbandAssignments.length > 0) {
+          setArmbandAssignments(submissionResult.armbandAssignments);
         }
-
-        if (!mountedRef.current) return;
-        // Refresh entry store so ShowDetailsPage hero reflects the new entry immediately
         triggerSync();
         markStepComplete(currentStep);
         setCurrentStep(prev => prev + 1);
+        return;
       } catch (error) {
         // Roll back local registration status so retry starts from correct state
         updateShowRegistration(registrationId, { status: previousStatus });

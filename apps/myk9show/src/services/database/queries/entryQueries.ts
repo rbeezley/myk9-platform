@@ -18,8 +18,6 @@ export {
   updateEntryDetails,
   updateEntryHandler,
   withdrawEntry,
+  updateEntryStatus,
+  updateEntryStatusWithAudit,
 } from '@/services/database/entries';
-
-// updateEntryStatus excluded from the main barrel (name conflict with secretary version);
-// re-exported here from writes.ts directly for backward compatibility.
-export { updateEntryStatus } from '@/services/database/entries/writes';

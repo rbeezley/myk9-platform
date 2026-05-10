@@ -25,7 +25,7 @@ details.
 
 ## Phase 1: Concentrate The Public Interface
 
-- Status: Started.
+- Status: Complete for the current slice.
 - Export all intended Entry read functions from `entries/index.ts`.
 - Add missing aliases needed by callers that still depend on class-query naming,
   especially `getEntriesByClassId`.
@@ -36,6 +36,8 @@ details.
     `updateEntryStatusWithAudit`.
 - Keep `services/database/queries/entryQueries.ts` as a compatibility adapter
   only.
+- Added named secretary transitions for pending-entry decisions:
+  `acceptEntry`, `rejectEntry`, `scratchEntry`, and `waitlistEntry`.
 
 ## Phase 2: Improve Locality Inside The Entry Module
 
@@ -56,16 +58,19 @@ details.
   `services/database/entries`.
 - Complete: migrated `hooks/queries/useClassesDatabase.ts` from
   `getEntriesByClassId` in class queries to the Entry module alias.
+- Complete: migrated pending-entry decision mutations from generic
+  `updateEntryStatus` calls to named Entry transitions.
 - Evaluate scoring page direct replicated-table imports one at a time:
   `ScoresheetPage.tsx`, `ScoringEntryListPage.tsx`, and
   `PaperScoresheetPage.tsx`.
 
 ## Phase 4: Testing
 
-- Status: Not started.
+- Status: Started.
 - Add or update focused Entry module tests for:
   - `getEntriesByClassId` alias behavior.
-  - secretary status update payloads.
+  - secretary status update payloads. Complete for the current slice.
+  - named secretary transition payloads. Complete for the current slice.
   - audit/user-aware status update payloads.
   - replicated read sorting and armband backfill behavior.
 - Run the focused Entry tests.

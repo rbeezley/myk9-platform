@@ -6,7 +6,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { updateEntryStatus, bulkUpdateEntryStatus } from '../../entries/secretary';
+import {
+  acceptEntry,
+  bulkUpdateEntryStatus,
+  rejectEntry,
+  scratchEntry,
+  updateEntryStatus,
+  waitlistEntry,
+} from '../../entries';
 
 const mockFrom = vi.fn();
 
@@ -97,6 +104,67 @@ describe('secretaryEntryQueries — entry_status updates', () => {
         expect.objectContaining({ entry_status: 'confirmed' })
       );
       expect(chain.in).toHaveBeenCalledWith('id', ['e1', 'e2', 'e3']);
+    });
+  });
+
+  describe('named Entry transitions', () => {
+    it('acceptEntry writes the secretary-facing confirmed status', async () => {
+      const chain = chainMock({
+        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
+      });
+      mockFrom.mockReturnValue(chain);
+
+      await acceptEntry('entry-1');
+
+      expect(chain.update).toHaveBeenCalledWith(
+        expect.objectContaining({ entry_status: 'confirmed' })
+      );
+      expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
+    });
+
+    it('rejectEntry writes withdrawn and preserves the reason', async () => {
+      const chain = chainMock({
+        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
+      });
+      mockFrom.mockReturnValue(chain);
+
+      await rejectEntry('entry-1', 'Class limit reached');
+
+      expect(chain.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entry_status: 'withdrawn',
+          withdrawal_reason: 'Class limit reached',
+        })
+      );
+    });
+
+    it('scratchEntry writes scratched and preserves the reason', async () => {
+      const chain = chainMock({
+        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
+      });
+      mockFrom.mockReturnValue(chain);
+
+      await scratchEntry('entry-1', 'Dog is absent');
+
+      expect(chain.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entry_status: 'scratched',
+          withdrawal_reason: 'Dog is absent',
+        })
+      );
+    });
+
+    it('waitlistEntry keeps current pending-entry behavior behind a named transition', async () => {
+      const chain = chainMock({
+        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
+      });
+      mockFrom.mockReturnValue(chain);
+
+      await waitlistEntry('entry-1');
+
+      expect(chain.update).toHaveBeenCalledWith(
+        expect.objectContaining({ entry_status: 'confirmed' })
+      );
     });
   });
 });

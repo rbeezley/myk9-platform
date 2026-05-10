@@ -66,7 +66,7 @@ WaitList, Secretary tasks, Visibility settings.
 
 ## Cross-entity notes
 
-`getJudgesWithQualifications` lives in `userQueries.ts` and is exported from
-`services/database/users/`. Judges are a role applied to Users; when the users
-module is split into reads.ts / writes.ts, this function should move to
-`services/database/judges/reads.ts` so judge-related reads are co-located.
+Judge roster and qualification reads live in `services/database/judges/reads.ts`
+alongside Judge assignment persistence. Judges are a role applied to Users, but
+Secretary workflows should import Judge-specific reads and writes from
+`services/database/judges/`, not from the User module or legacy query files.

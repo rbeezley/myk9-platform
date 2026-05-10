@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { getJudgesWithQualifications } from '@/services/database/users';
+import { getJudgesWithQualifications } from '@/services/database/judges';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 
 export const useJudgesWithQualifications = () => {

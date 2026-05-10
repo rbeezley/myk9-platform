@@ -2,10 +2,11 @@
 // All callers import from here — never from supabaseClient or replication
 // tables directly, and never from the legacy queries/ files below.
 //
-// Implementations live in judgeQueries.ts during migration and will
-// move into reads.ts / writes.ts in follow-up PRs.
+// Implementations live in reads.ts during migration and can split into
+// reads.ts / writes.ts once the Judge module grows further.
 
 export {
+  getJudgesWithQualifications,
   judgeQualificationQueries,
   judgeAnalyticsQueries,
   judgeAvailabilityQueries,

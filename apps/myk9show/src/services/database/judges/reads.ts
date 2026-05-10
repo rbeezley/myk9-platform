@@ -16,12 +16,46 @@ import {
   JudgeQualificationSummary,
 } from '../../../types/judge-management';
 import { untypedFrom } from '../queries/search-query-helpers';
-import { supabase } from '../supabaseClient';
+import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import type { DbJudgeAvailability } from '@/types/database-mappings';
 
 // Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
 const certificationsTable = () => untypedFrom('judge_certifications');
+const USER_ROLES_FK = 'user_roles!user_roles_user_id_fkey';
+const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
+  id, organization, qualification_level, disciplines, judge_number,
+  date_obtained, expiration_date, is_active
+)`;
+
+// Get judges with their qualifications for Secretary judge assignment UI.
+export const getJudgesWithQualifications = async () => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('people')
+      .select(`*, ${USER_ROLES_FK}!inner(role:roles!inner(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
+      .eq('user_roles.is_active', true)
+      .eq('user_roles.roles.name', 'judge')
+      .is('deleted_at', null)
+      .order('last_name', { ascending: true });
+
+    const duration = Date.now() - startTime;
+    logQuery('judge', 'select_with_qualifications', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'judge', 'select_with_qualifications');
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'judge', 'select_with_qualifications');
+    logQuery('judge', 'select_with_qualifications', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
 
 // Judge Qualification Operations
 export const judgeQualificationQueries = {

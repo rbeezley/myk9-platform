@@ -8,8 +8,7 @@ import { notifications } from '@/lib/notifications';
 import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
-import { getJudgesWithQualifications } from '@/services/database/queries/userQueries';
-import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
+import { getJudgesWithQualifications, upsertClassJudgeAssignment } from '@/services/database/judges';
 import { DISPLAY_ORDER_STEP } from '@/features/pipeline/utils/pipelineReorder';
 import type {
   Personnel,

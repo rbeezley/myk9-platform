@@ -17,7 +17,6 @@ export {
   getDeletedUsers,
   searchUsers,
   getUsersByRole,
-  getJudgesWithQualifications,
   getUsersWithDogCounts,
   getUsersStatistics,
   checkEmailExists,

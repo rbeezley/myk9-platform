@@ -19,10 +19,8 @@ vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { updateClass: vi.fn().mockResolvedValue(undefined) },
   replicatedTrialsTable: { getTrialById: vi.fn() },
 }));
-vi.mock('@/services/database/queries/userQueries', () => ({
+vi.mock('@/services/database/judges', () => ({
   getJudgesWithQualifications: vi.fn(),
-}));
-vi.mock('@/services/database/queries/judgeQueries', () => ({
   upsertClassJudgeAssignment: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/lib/notifications', () => ({
@@ -67,7 +65,7 @@ vi.mock('./mapClassToCreatedClass', () => ({
 import { useQuery } from '@tanstack/react-query';
 import { useTrialClassesWithQuery } from '@/hooks/useClassStoreCompat';
 import { replicatedClassesTable } from '@/services/replication';
-import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
+import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { logger } from '@/services/LoggingService';
 import { useRunOrderPageData } from './useRunOrderPageData';
 import type { CreatedClass } from '@/types/template.types';

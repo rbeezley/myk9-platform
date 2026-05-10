@@ -462,35 +462,6 @@ export const getUsersByRole = async (role: string) => {
   }
 };
 
-// Get judges with their qualifications (for show judge assignment UI)
-export const getJudgesWithQualifications = async () => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('people')
-      .select(`*, ${USER_ROLES_FK}!inner(role:roles!inner(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
-      .eq('user_roles.is_active', true)
-      .eq('user_roles.roles.name', 'judge')
-      .is('deleted_at', null)
-      .order('last_name', { ascending: true });
-
-    const duration = Date.now() - startTime;
-    logQuery('user', 'select_judges_with_qualifications', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'user', 'select_judges_with_qualifications');
-    }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'user', 'select_judges_with_qualifications');
-    logQuery('user', 'select_judges_with_qualifications', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
 // Get users with their dog counts
 export const getUsersWithDogCounts = async () => {
   return await getPeopleWithDogCountsFallback();

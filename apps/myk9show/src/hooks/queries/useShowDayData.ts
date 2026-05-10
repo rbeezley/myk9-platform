@@ -10,7 +10,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import type { CheckInStatus } from '@myk9/core';
+import { isCheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -91,7 +91,7 @@ async function fetchShowDayDetails(userId: string, today: string): Promise<ShowD
     .from('entries')
     .select(
       `
-      id, entry_status, armband, run_order,
+      id, check_in_status, armband, run_order,
       is_scored, result_status, is_in_ring,
       dog:dogs!inner(id, call_name),
       class:classes!inner(
@@ -214,7 +214,10 @@ export function buildShowDayClasses(
       myRunningOrder: row.run_order,
       estimatedTimeMinutes: computeEstimatedTime(row.run_order, scoredEntries, scoredTimestamps),
       ringNumber: row.class.ring_number,
-      entryStatus: row.entry_status as CheckInStatus,
+      entryStatus:
+        row.check_in_status != null && isCheckInStatus(row.check_in_status)
+          ? row.check_in_status
+          : 'no-status',
       isScored: row.is_scored,
       resultStatus: row.result_status,
       classStatus: row.class.status,

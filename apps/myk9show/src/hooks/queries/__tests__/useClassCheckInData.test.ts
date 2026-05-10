@@ -8,7 +8,7 @@ import { mapRowToClassInfo, useClassCheckInData } from '@/hooks/queries/useClass
 // Minimal raw row matching the Supabase query shape
 const baseRow = {
   id: 'entry-1',
-  entry_status: 'checked-in',
+  check_in_status: 'checked-in',
   armband: '42',
   run_order: 7,
   handler_id: 'handler-1',
@@ -99,7 +99,7 @@ describe('mapRowToClassInfo', () => {
   it('handles nullable fields with safe defaults', () => {
     const sparse = {
       ...baseRow,
-      entry_status: null,
+      check_in_status: null,
       armband: null,
       run_order: null,
       dog: { ...baseRow.dog, call_name: null, sex: null, date_of_birth: null },
@@ -178,6 +178,17 @@ describe('useClassCheckInData', () => {
     expect(result.current.data?.class.name).toBe('Container Novice A');
     expect(result.current.data?.entry.armband).toBe('42');
     expect(result.current.error).toBeNull();
+  });
+
+  it('selects check_in_status as the show-day status source', async () => {
+    mockChain.maybeSingle = vi.fn().mockResolvedValue({ data: baseRow, error: null });
+
+    const { result } = renderHook(() => useClassCheckInData('entry-1'), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const selectedColumns = String(mockChain.select.mock.calls[0]?.[0] ?? '');
+    expect(selectedColumns).toContain('check_in_status');
+    expect(selectedColumns).not.toContain('entry_status');
   });
 
   it('returns null data when entry not found', async () => {

@@ -113,7 +113,7 @@ function makeCheckRow(overrides: Partial<ShowDayCheckRow> = {}): ShowDayCheckRow
 function makeDetailRow(overrides: Partial<ShowDayDetailRow> = {}): ShowDayDetailRow {
   return {
     id: 'entry-1',
-    entry_status: 'checked-in',
+    check_in_status: 'checked-in',
     armband: '160',
     run_order: 5,
     is_scored: false,
@@ -342,6 +342,23 @@ describe('buildShowDayClasses', () => {
     expect(cls.myRunningOrder).toBe(5);
     // 5 - 3 - 1 = 1 dog ahead; 3 scored over 8 min = 4 min avg → 1 × 4 = 4
     expect(cls.estimatedTimeMinutes).toBe(4);
+  });
+
+  it('uses check_in_status for exhibitor show-day status', () => {
+    const detail = {
+      ...makeDetailRow({ check_in_status: 'no-status' }),
+      entry_status: 'checked-in',
+    } as ShowDayDetailRow & { entry_status: string };
+
+    const classes = buildShowDayClasses([detail], new Map());
+
+    expect(classes[0].entryStatus).toBe('no-status');
+  });
+
+  it('falls back to no-status when check_in_status is missing', () => {
+    const classes = buildShowDayClasses([makeDetailRow({ check_in_status: null })], new Map());
+
+    expect(classes[0].entryStatus).toBe('no-status');
   });
 
   it('falls back to class.scored_count when no progress data', () => {

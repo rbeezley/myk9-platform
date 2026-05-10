@@ -96,7 +96,7 @@ export interface ShowDayCheckRow {
 /** Raw entry row shape from the showDayDetails query */
 export interface ShowDayDetailRow {
   id: string;
-  entry_status: string;
+  check_in_status: string | null;
   armband: string | null;
   run_order: number | null;
   is_scored: boolean;

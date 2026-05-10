@@ -16,7 +16,7 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 ## North Star — Phase 2: Walk the Golden Paths
 
 - [ ] **Phase 2 re-walk** — First pass complete 2026-05-03. Do a second end-to-end walk for secretary and exhibitor paths before Phase 3 hand-off. Exit: both paths complete without a blocker.
-- [ ] **Build `/exhibitor/check-in/:entryId` page** — Route + `ClassCheckIn.tsx` UI exist but use mock data. Needs: (1) page component reading `useParams<{ entryId }>()` + Supabase fetch, (2) "Check In" CTA on `/exhibitor/show-day`. Files: `apps/myk9show/src/components/exhibitor/ClassCheckIn.tsx`, `apps/myk9show/src/pages/ShowDayPage.tsx`, `apps/myk9show/src/types/exhibitor-types.ts`.
+- [x] **Fix exhibitor check-in status column wiring** — Fixed on 2026-05-10. `/exhibitor/check-in/:entryId` and `/exhibitor/show-day` now read show-day status from `entries.check_in_status`, matching the `self_checkin_entry` RPC write path. Added focused tests for the check-in page data query and show-day class mapping.
 - [ ] **Secretary Task Timeline View** — Add Timeline toggle to Tasks tab on secretary dashboard. Plan: `docs/plans/2026-05-02-secretary-task-timeline-view-plan.md`. No migration required for v1.
 
 ## North Star — Phase 3: Real-User Testing

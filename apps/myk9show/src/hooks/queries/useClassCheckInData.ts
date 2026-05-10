@@ -8,7 +8,7 @@ import { isCheckInStatus } from '@myk9/core';
 // ring_number was added via a migration after codegen was last run.
 interface CheckInDataRow {
   id: string;
-  entry_status: string | null;
+  check_in_status: string | null;
   armband: string | null;
   run_order: number | null;
   handler_id: string;
@@ -77,8 +77,8 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       handlerId: row.handler_id,
       armband: row.armband ?? '',
       ...(row.run_order != null ? { runningOrder: row.run_order } : {}),
-      checkInStatus: row.entry_status != null && isCheckInStatus(row.entry_status)
-        ? row.entry_status
+      checkInStatus: row.check_in_status != null && isCheckInStatus(row.check_in_status)
+        ? row.check_in_status
         : 'no-status',
       dogCallName: row.dog.call_name ?? '',
       dogRegistrationNumber: '',
@@ -121,7 +121,7 @@ async function fetchCheckInData(
     .from('entries')
     .select(
       `
-      id, entry_status, armband, run_order, handler_id,
+      id, check_in_status, armband, run_order, handler_id,
       dog:dogs!inner(id, call_name, breed, sex, date_of_birth),
       class:classes!inner(
         id, name, element, level, max_entries, ring_number, start_time, judge_name,

@@ -230,8 +230,6 @@ const ShowDetailsPage: React.FC = () => {
     });
   }, [associatedTrials, trialClasses, userEntries, showEntries]);
 
-  // Derive unique judges from class-level assignments when the show-level
-  // judge assignment rows are missing names.
   const effectiveJudges = useMemo((): ShowJudgeAssignment[] => {
     return resolveOverviewJudges(actualCurrentShow?.assignedJudges, showClasses);
   }, [actualCurrentShow, showClasses]);

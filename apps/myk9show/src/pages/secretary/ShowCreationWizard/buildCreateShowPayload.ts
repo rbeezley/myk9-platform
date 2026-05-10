@@ -4,6 +4,7 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { toLocalDateOnly } from '@/utils/date-format';
+import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
 import {
   createClassDataFromWizard,
@@ -26,7 +27,7 @@ export interface ShowRpcPayload {
   day_of_show_fee: number | null;
   accept_check_payments: boolean | null;
   accept_cash_payments: boolean | null;
-  style: string;
+  style: PremiumStyle;
 }
 
 export interface TrialRpcPayload {
@@ -82,8 +83,8 @@ function mapShowStatus(status: ShowStatus): 'draft' | 'published' {
   return status === 'published' ? 'published' : 'draft';
 }
 
-function normalizeShowStyle(style: WizardShowData['style']): string {
-  return style ?? 'monogram';
+function normalizeShowStyle(style: WizardShowData['style']): PremiumStyle {
+  return resolvePremiumStyle(style);
 }
 
 /**

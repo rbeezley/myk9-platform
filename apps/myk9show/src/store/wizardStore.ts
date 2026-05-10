@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
-import type { PremiumStyle } from '@/types/premium-types';
+import {
+  DEFAULT_PREMIUM_STYLE,
+  resolvePremiumStyle,
+  type PremiumStyle,
+} from '@/types/premium-types';
 
 /** Maps show organization to a default trial type (discipline). */
 const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
@@ -123,7 +127,7 @@ const initialState: WizardState = {
     judgeIds: [],
     acceptCheckPayments: false,
     acceptCashPayments: false,
-    style: 'monogram',
+    style: DEFAULT_PREMIUM_STYLE,
   },
   trials: [],
   judgeAssignments: {},
@@ -276,18 +280,17 @@ export const useWizardStore = create<WizardState & WizardActions>()(
 );
 
 /**
- * Normalize `show.officials` to the canonical shape. Old persisted drafts
- * (pre-officials) have no `officials` at all; malformed drafts (corrupted
- * storage, manual edits, partial migrations) might have the key but with one
- * or more role arrays missing or non-array. We backfill each missing role with
- * `[]` and drop non-array values rather than trust persisted storage blindly.
+ * Backfill canonical defaults onto persisted/loaded show state. Handles
+ * `officials` (each role array missing or non-array → `[]`) and `style`
+ * (missing → DEFAULT_PREMIUM_STYLE) so older drafts and manually-edited
+ * storage still produce a well-formed wizard state.
  */
 function ensureShowDefaults<T extends { show: WizardState['show'] }>(state: T): T {
   const o = state.show.officials as Partial<WizardState['show']['officials']> | undefined;
   const secretary = Array.isArray(o?.secretary) ? o!.secretary : [];
   const chairman = Array.isArray(o?.chairman) ? o!.chairman : [];
   const steward = Array.isArray(o?.steward) ? o!.steward : [];
-  const style = state.show.style ?? 'monogram';
+  const style = resolvePremiumStyle(state.show.style);
   if (
     o &&
     o.secretary === secretary &&

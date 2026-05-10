@@ -37,21 +37,23 @@ import { createUser, updateUser } from '@/services/database/users';
 import { judgeQualificationQueries } from '@/services/database/judges';
 import { createClub } from '@/services/database/clubs';
 import type { CreateClubData } from './ShowDetailsStep.sections';
-import { PREMIUM_STYLE_LABELS, type PremiumStyle } from '@/types/premium-types';
+import {
+  getPremiumStyleOptions,
+  resolvePremiumStyle,
+  type PremiumStyle,
+} from '@/types/premium-types';
 
-const PREMIUM_STYLE_OPTIONS: Array<{ value: PremiumStyle; label: string }> = [
-  { value: 'monogram', label: `${PREMIUM_STYLE_LABELS.monogram} (default)` },
-  { value: 'banner', label: PREMIUM_STYLE_LABELS.banner },
-  { value: 'headline', label: PREMIUM_STYLE_LABELS.headline },
-  { value: 'magazine', label: PREMIUM_STYLE_LABELS.magazine },
-  { value: 'poster', label: PREMIUM_STYLE_LABELS.poster },
-  { value: 'gazette', label: PREMIUM_STYLE_LABELS.gazette },
-  { value: 'fieldGuide', label: PREMIUM_STYLE_LABELS.fieldGuide },
-  { value: 'heritage', label: PREMIUM_STYLE_LABELS.heritage },
-];
+const PREMIUM_STYLE_OPTIONS = getPremiumStyleOptions();
+const PREMIUM_STYLE_LABEL_BY_VALUE: Record<PremiumStyle, string> = PREMIUM_STYLE_OPTIONS.reduce(
+  (acc, opt) => {
+    acc[opt.value] = opt.label;
+    return acc;
+  },
+  {} as Record<PremiumStyle, string>
+);
 
 function getPremiumStyleLabel(style: PremiumStyle | undefined): string {
-  return PREMIUM_STYLE_OPTIONS.find(option => option.value === (style ?? 'monogram'))!.label;
+  return PREMIUM_STYLE_LABEL_BY_VALUE[resolvePremiumStyle(style)];
 }
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
@@ -327,7 +329,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               <div className="space-y-2">
                 <Label htmlFor="show-premium-style">Premium List Style</Label>
                 <Select
-                  value={show.style ?? 'monogram'}
+                  value={resolvePremiumStyle(show.style)}
                   onValueChange={value => updateShowData({ style: value as PremiumStyle })}
                 >
                   <SelectTrigger id="show-premium-style" className="!bg-secondary h-10">

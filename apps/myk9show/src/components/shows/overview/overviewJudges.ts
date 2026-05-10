@@ -26,7 +26,7 @@ export function buildJudgesFromClasses(
 
     const existing = judgeMap.get(judgeName);
     if (existing) {
-      existing.assignedClasses = [...(existing.assignedClasses ?? []), cls.id];
+      existing.assignedClasses!.push(cls.id);
     } else {
       judgeMap.set(judgeName, {
         judgeId: judgeName,

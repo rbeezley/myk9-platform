@@ -19,6 +19,22 @@ export const PREMIUM_STYLE_LABELS: Record<PremiumStyle, string> = {
   heritage: 'Heritage',
 };
 
+export const DEFAULT_PREMIUM_STYLE: PremiumStyle = 'monogram';
+
+export function resolvePremiumStyle(style: PremiumStyle | null | undefined): PremiumStyle {
+  return style ?? DEFAULT_PREMIUM_STYLE;
+}
+
+export function getPremiumStyleOptions(): Array<{ value: PremiumStyle; label: string }> {
+  return (Object.keys(PREMIUM_STYLE_LABELS) as PremiumStyle[]).map(value => ({
+    value,
+    label:
+      value === DEFAULT_PREMIUM_STYLE
+        ? `${PREMIUM_STYLE_LABELS[value]} (default)`
+        : PREMIUM_STYLE_LABELS[value],
+  }));
+}
+
 export interface ClubPremiumTemplate {
   id: string;
   clubId: string;

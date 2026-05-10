@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowStore } from '@/store/showStore';
 import { useMessageStore } from '@/store/messageStore';
@@ -88,7 +89,7 @@ export function SecretaryDashboardPage() {
     ...showAttentionItems,
   ];
 
-  const { classesByStage } = useMissionControlData();
+  const { classesByStage, isLoading: showsLoading } = useMissionControlData();
   const liveClassCount = classesByStage.get('in-progress')?.length ?? 0;
   const notStartedCount = classesByStage.get('not-started')?.length ?? 0;
   const closedCount = classesByStage.get('closed')?.length ?? 0;
@@ -112,7 +113,9 @@ export function SecretaryDashboardPage() {
             {greeting()}, {firstName ?? 'there'}
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Managing {shows.length} {shows.length === 1 ? 'show' : 'shows'}
+            {showsLoading && shows.length === 0
+              ? 'Loading shows...'
+              : `Managing ${shows.length} ${shows.length === 1 ? 'show' : 'shows'}`}
           </p>
         </div>
         <Button
@@ -130,14 +133,27 @@ export function SecretaryDashboardPage() {
 
       {/* Phase-grouped show sections */}
       <div className="px-5 pb-2">
-        {today.length === 0 && upcoming.length === 0 && draft.length === 0 && past.length === 0 && (
-          <div className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">No shows yet.</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Create your first show to get started.
-            </p>
+        {showsLoading && shows.length === 0 && (
+          <div className="py-12 text-center" aria-busy="true">
+            <p className="text-sm text-muted-foreground">Loading your shows...</p>
+            <div className="mx-auto mt-5 grid max-w-3xl gap-3 sm:grid-cols-2">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
           </div>
         )}
+        {!showsLoading &&
+          today.length === 0 &&
+          upcoming.length === 0 &&
+          draft.length === 0 &&
+          past.length === 0 && (
+            <div className="py-12 text-center">
+              <p className="text-sm text-muted-foreground">No shows yet.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Create your first show to get started.
+              </p>
+            </div>
+          )}
         <MyShowsSection
           phase="today"
           title="Happening today"

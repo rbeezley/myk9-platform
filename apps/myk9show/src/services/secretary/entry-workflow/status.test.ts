@@ -27,7 +27,7 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 
 describe('changeSecretaryEntryStatus', () => {
   it('maps accepted entries to the DB status and returns trigger armband patch data', async () => {
-    const updateEntryStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
+    const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
     const getEntryArmbandById = vi.fn().mockResolvedValue({
       armband: '140',
       dogId: 'dog-1',
@@ -41,10 +41,14 @@ describe('changeSecretaryEntryStatus', () => {
         newStatus: EntryStatus.ACCEPTED,
         secretaryId: 'secretary-1',
       },
-      { updateEntryStatus, getEntryArmbandById, auditLog }
+      { setEntryLifecycleStatus, getEntryArmbandById, auditLog }
     );
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed', undefined);
+    expect(setEntryLifecycleStatus).toHaveBeenCalledWith({
+      entryId: 'entry-1',
+      status: 'confirmed',
+      reason: undefined,
+    });
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'entry',
@@ -63,7 +67,7 @@ describe('changeSecretaryEntryStatus', () => {
   });
 
   it('persists withdrawal reasons and skips armband lookup for non-accepted statuses', async () => {
-    const updateEntryStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
+    const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
     const getEntryArmbandById = vi.fn();
     const auditLog = vi.fn().mockResolvedValue(undefined);
 
@@ -74,10 +78,14 @@ describe('changeSecretaryEntryStatus', () => {
         secretaryId: 'secretary-1',
         withdrawalReason: 'Handler conflict',
       },
-      { updateEntryStatus, getEntryArmbandById, auditLog }
+      { setEntryLifecycleStatus, getEntryArmbandById, auditLog }
     );
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'withdrawn', 'Handler conflict');
+    expect(setEntryLifecycleStatus).toHaveBeenCalledWith({
+      entryId: 'entry-1',
+      status: 'withdrawn',
+      reason: 'Handler conflict',
+    });
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({ withdrawalReason: 'Handler conflict' }),
@@ -89,7 +97,7 @@ describe('changeSecretaryEntryStatus', () => {
 
   it('throws when the DB update fails so callers can rollback optimistic state', async () => {
     const error = new Error('update failed');
-    const updateEntryStatus = vi.fn().mockResolvedValue({ data: null, error });
+    const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: null, error });
     const getEntryArmbandById = vi.fn();
     const auditLog = vi.fn();
 
@@ -99,7 +107,7 @@ describe('changeSecretaryEntryStatus', () => {
           entry: makeEntry(),
           newStatus: EntryStatus.ACCEPTED,
         },
-        { updateEntryStatus, getEntryArmbandById, auditLog }
+        { setEntryLifecycleStatus, getEntryArmbandById, auditLog }
       )
     ).rejects.toThrow('update failed');
 

@@ -18,6 +18,7 @@ export {
   updateEntryStatus as updateEntryStatusWithAudit,
   withdrawEntry,
 } from './writes';
+export * from './lifecycle';
 export * from './search';
 export * from './secretary';
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';

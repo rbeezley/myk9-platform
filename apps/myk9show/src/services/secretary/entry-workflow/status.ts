@@ -1,6 +1,6 @@
 import { auditService } from '@/services/AuditService';
 import { getEntryArmbandById } from '@/services/database/armbands/secretary';
-import { updateEntryStatus } from '@/services/database/entries';
+import { setEntryLifecycleStatus } from '@/services/database/entries';
 import { AuditAction } from '@/types/audit-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EntryStatus } from '@/types/show-registration-types';
@@ -24,13 +24,13 @@ export interface ChangeSecretaryEntryStatusResult {
 }
 
 interface SecretaryEntryStatusDependencies {
-  updateEntryStatus: typeof updateEntryStatus;
+  setEntryLifecycleStatus: typeof setEntryLifecycleStatus;
   getEntryArmbandById: typeof getEntryArmbandById;
   auditLog: typeof auditService.log;
 }
 
 const defaultDependencies: SecretaryEntryStatusDependencies = {
-  updateEntryStatus,
+  setEntryLifecycleStatus,
   getEntryArmbandById,
   auditLog: input => auditService.log(input),
 };
@@ -41,11 +41,11 @@ export async function changeSecretaryEntryStatus(
 ): Promise<ChangeSecretaryEntryStatusResult> {
   const { entry, newStatus, secretaryId, withdrawalReason } = params;
 
-  const { error } = await dependencies.updateEntryStatus(
-    entry.id,
-    mapStatusToDb(newStatus),
-    withdrawalReason
-  );
+  const { error } = await dependencies.setEntryLifecycleStatus({
+    entryId: entry.id,
+    status: mapStatusToDb(newStatus),
+    reason: withdrawalReason,
+  });
   if (error) throw error;
 
   await dependencies.auditLog({

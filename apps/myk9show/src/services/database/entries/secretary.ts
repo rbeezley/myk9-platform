@@ -267,20 +267,6 @@ export const updateEntryStatus = async (
   }
 };
 
-export const acceptEntry = async (entryId: string) => updateEntryStatus(entryId, 'confirmed');
-
-export const rejectEntry = async (entryId: string, reason?: string) =>
-  updateEntryStatus(entryId, 'withdrawn', reason);
-
-export const scratchEntry = async (entryId: string, reason?: string) =>
-  updateEntryStatus(entryId, 'scratched', reason);
-
-export const waitlistEntry = async (entryId: string) =>
-  // Wait List membership is represented by waitlist_entries today. Until
-  // promotion is unified, this preserves the existing pending-entry decision
-  // behavior behind a named Entry transition.
-  updateEntryStatus(entryId, 'confirmed');
-
 /**
  * Bulk update entry status
  */

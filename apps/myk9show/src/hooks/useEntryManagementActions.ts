@@ -6,7 +6,6 @@ import { AuditAction } from '@/types/audit-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
-  updateEntryStatus,
   updateCheckInStatus,
   bulkCheckIn,
   bulkUpdateEntryStatus,
@@ -17,7 +16,6 @@ import {
 import {
   autoAssignArmbands,
   getNextArmbandForShow,
-  getEntryArmbandById,
   assignArmband,
 } from '@/services/database/armbands/secretary';
 
@@ -26,6 +24,7 @@ import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
+import { changeSecretaryEntryStatus } from '@/services/secretary/entry-workflow';
 import type {
   EntryManagementEntry,
   EntryClass,
@@ -113,24 +112,6 @@ export function useEntryManagementActions({
     startNumber: '1',
   });
 
-  // After a single entry is accepted, fetch only the trigger-assigned armband
-  // and patch local state — avoids a full reload of all show entries.
-  const applyTriggerArmband = useCallback(
-    async (acceptedEntryId: string) => {
-      const result = await getEntryArmbandById(acceptedEntryId);
-      if (!result?.armband || !result.dogId || !result.showId) return;
-      const { armband, dogId, showId } = result;
-      setEntries(prev =>
-        prev.map(e =>
-          e.dogId === dogId && e.showId === showId
-            ? { ...e, armbandNumber: armband, entryNumber: armband }
-            : e
-        )
-      );
-    },
-    [setEntries]
-  );
-
   const handleStatusChange = useCallback(
     async (entryId: string, newStatus: EntryStatus, withdrawalReason?: string) => {
       const entry = entries.find(e => e.id === entryId);
@@ -153,28 +134,22 @@ export function useEntryManagementActions({
       );
 
       try {
-        const { error: dbError } = await updateEntryStatus(
-          entryId,
-          mapStatusToDb(newStatus),
-          withdrawalReason
-        );
-        if (dbError) throw dbError;
-
-        await auditService.log({
-          action: AuditAction.UPDATE,
-          entityType: 'entry',
-          entityId: entryId,
-          changes: { entryStatus: { from: oldStatus, to: newStatus } },
-          metadata: {
-            action: 'status_change',
-            secretaryId: user?.id,
-            entryNumber: entry.entryNumber,
-            ...(withdrawalReason ? { withdrawalReason } : {}),
-          },
+        const result = await changeSecretaryEntryStatus({
+          entry,
+          newStatus,
+          ...(user?.id ? { secretaryId: user.id } : {}),
+          ...(withdrawalReason !== undefined ? { withdrawalReason } : {}),
         });
 
-        if (newStatus === EntryStatus.ACCEPTED) {
-          await applyTriggerArmband(entryId);
+        if (result.armbandPatch) {
+          const { armband, dogId, showId } = result.armbandPatch;
+          setEntries(prev =>
+            prev.map(e =>
+              e.dogId === dogId && e.showId === showId
+                ? { ...e, armbandNumber: armband, entryNumber: armband }
+                : e
+            )
+          );
         }
       } catch (error) {
         logger.error('Failed to update entry status:', 'pages', {}, error as Error);
@@ -193,7 +168,7 @@ export function useEntryManagementActions({
         );
       }
     },
-    [entries, setEntries, user, applyTriggerArmband]
+    [entries, setEntries, user]
   );
 
   // Handle armband assignment

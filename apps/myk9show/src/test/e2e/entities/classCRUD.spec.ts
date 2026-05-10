@@ -15,7 +15,7 @@ test.describe('Class CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const dbResult = await page.evaluate(async () => {
-      const { getAllClasses } = await import('/src/services/database/queries/classQueries.ts');
+      const { getAllClasses } = await import('/src/services/database/classes/index.ts');
 
       const { data, error } = await getAllClasses();
 
@@ -43,9 +43,9 @@ test.describe('Class CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/queries/trialQueries.ts');
-      const { createClass, deleteClass } = await import('/src/services/database/queries/classQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
+      const { createClass, deleteClass } = await import('/src/services/database/classes/index.ts');
 
       // First create a show
       const showStartDate = new Date();
@@ -123,9 +123,9 @@ test.describe('Class CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/queries/trialQueries.ts');
-      const { createClass, updateClass, deleteClass } = await import('/src/services/database/queries/classQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
+      const { createClass, updateClass, deleteClass } = await import('/src/services/database/classes/index.ts');
 
       // Create show
       const showStartDate = new Date();
@@ -208,9 +208,9 @@ test.describe('Class CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/queries/trialQueries.ts');
-      const { createClass, deleteClass, getClassById } = await import('/src/services/database/queries/classQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
+      const { createClass, deleteClass, getClassById } = await import('/src/services/database/classes/index.ts');
 
       // Create show
       const showStartDate = new Date();
@@ -288,9 +288,9 @@ test.describe('Class CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/queries/trialQueries.ts');
-      const { createClass, deleteClass, getClassesByTrialId } = await import('/src/services/database/queries/classQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
+      const { createClass, deleteClass, getClassesByTrialId } = await import('/src/services/database/classes/index.ts');
 
       // Create show
       const showStartDate = new Date();

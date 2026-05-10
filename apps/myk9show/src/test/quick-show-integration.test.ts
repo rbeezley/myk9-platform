@@ -96,7 +96,7 @@ describe('Show Integration - Import Validation', () => {
       getShowStatistics,
       getShowsWithEntryCounts,
       getShowsByDateRange,
-    } = await import('@/services/database/queries/showQueries');
+    } = await import('@/services/database/shows');
 
     expect(getAllShows).toBeDefined();
     expect(getShowById).toBeDefined();

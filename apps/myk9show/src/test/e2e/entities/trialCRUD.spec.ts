@@ -15,7 +15,7 @@ test.describe('Trial CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const dbResult = await page.evaluate(async () => {
-      const { getAllTrials } = await import('/src/services/database/queries/trialQueries.ts');
+      const { getAllTrials } = await import('/src/services/database/trials/index.ts');
 
       const { data, error } = await getAllTrials();
 
@@ -43,8 +43,8 @@ test.describe('Trial CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
-      const { createTrial, deleteTrial } = await import('/src/services/database/queries/trialQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
 
       // First create a show (trials require a show)
       const showStartDate = new Date();
@@ -108,8 +108,8 @@ test.describe('Trial CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
-      const { createTrial, updateTrial, deleteTrial, getAllTrials } = await import('/src/services/database/queries/trialQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createTrial, updateTrial, deleteTrial, getAllTrials } = await import('/src/services/database/trials/index.ts');
 
       // First create a show
       const showStartDate = new Date();
@@ -192,8 +192,8 @@ test.describe('Trial CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
-      const { createTrial, deleteTrial, getTrialById } = await import('/src/services/database/queries/trialQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createTrial, deleteTrial, getTrialById } = await import('/src/services/database/trials/index.ts');
 
       // First create a show
       const showStartDate = new Date();
@@ -264,8 +264,8 @@ test.describe('Trial CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
-      const { createTrial, deleteTrial, getTrialsByShow } = await import('/src/services/database/queries/trialQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createTrial, deleteTrial, getTrialsByShow } = await import('/src/services/database/trials/index.ts');
 
       // Create a show
       const showStartDate = new Date();

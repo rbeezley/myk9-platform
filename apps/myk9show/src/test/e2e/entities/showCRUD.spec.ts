@@ -15,7 +15,7 @@ test.describe('Show CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const dbResult = await page.evaluate(async () => {
-      const { getAllShows } = await import('/src/services/database/queries/showQueries.ts');
+      const { getAllShows } = await import('/src/services/database/shows/index.ts');
 
       const { data, error } = await getAllShows();
 
@@ -43,7 +43,7 @@ test.describe('Show CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
+      const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
 
       // Calculate dates
       const startDate = new Date();
@@ -96,7 +96,7 @@ test.describe('Show CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, updateShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
+      const { createShow, updateShow, deleteShow } = await import('/src/services/database/shows/index.ts');
 
       // Calculate dates
       const startDate = new Date();
@@ -134,7 +134,7 @@ test.describe('Show CRUD Operations', () => {
       }
 
       // Verify the update using getAllShows (simpler query)
-      const { getAllShows } = await import('/src/services/database/queries/showQueries.ts');
+      const { getAllShows } = await import('/src/services/database/shows/index.ts');
       const { data: allShows } = await getAllShows();
       const fetchedShow = allShows.find((s: { id: string }) => s.id === createdShow.id);
 
@@ -165,7 +165,7 @@ test.describe('Show CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, deleteShow, getShowById } = await import('/src/services/database/queries/showQueries.ts');
+      const { createShow, deleteShow, getShowById } = await import('/src/services/database/shows/index.ts');
 
       // Calculate dates
       const startDate = new Date();
@@ -218,7 +218,7 @@ test.describe('Show CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { getUpcomingShows } = await import('/src/services/database/queries/showQueries.ts');
+      const { getUpcomingShows } = await import('/src/services/database/shows/index.ts');
 
       const { data, error } = await getUpcomingShows(10);
 

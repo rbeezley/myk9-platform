@@ -15,7 +15,7 @@ test.describe('People (User) CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const dbResult = await page.evaluate(async () => {
-      const { getAllUsers } = await import('/src/services/database/queries/userQueries.ts');
+      const { getAllUsers } = await import('/src/services/database/users/index.ts');
 
       const { data, error } = await getAllUsers();
 
@@ -46,7 +46,7 @@ test.describe('People (User) CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } = await import('/src/services/database/queries/userQueries.ts');
+      const { createUser, deleteUser } = await import('/src/services/database/users/index.ts');
 
       const userData = {
         first_name: 'E2E',
@@ -88,7 +88,7 @@ test.describe('People (User) CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, updateUser, deleteUser } = await import('/src/services/database/queries/userQueries.ts');
+      const { createUser, updateUser, deleteUser } = await import('/src/services/database/users/index.ts');
 
       // Create user
       const { data: createdUser, error: createError } = await createUser({
@@ -139,7 +139,7 @@ test.describe('People (User) CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser, getUserById } = await import('/src/services/database/queries/userQueries.ts');
+      const { createUser, deleteUser, getUserById } = await import('/src/services/database/users/index.ts');
 
       // Create user
       const { data: createdUser, error: createError } = await createUser({
@@ -178,7 +178,7 @@ test.describe('People (User) CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser, searchUsers } = await import('/src/services/database/queries/userQueries.ts');
+      const { createUser, deleteUser, searchUsers } = await import('/src/services/database/users/index.ts');
 
       // Create a user with a unique searchable name
       const uniqueLastName = `SearchablePerson${Date.now()}`;

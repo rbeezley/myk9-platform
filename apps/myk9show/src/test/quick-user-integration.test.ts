@@ -119,7 +119,7 @@ describe('User Integration - Import Validation', () => {
       getUsersWithDogCounts,
       getUsersStatistics,
       checkEmailExists,
-    } = await import('@/services/database/queries/userQueries');
+    } = await import('@/services/database/users');
 
     expect(getAllUsers).toBeDefined();
     expect(getUserById).toBeDefined();

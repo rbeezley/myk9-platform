@@ -13,7 +13,7 @@ vi.mock('@/services/LoggingService', () => ({
   logger: { error: vi.fn(), debug: vi.fn() },
 }));
 
-vi.mock('@/services/database/queries/showQueries', () => ({
+vi.mock('@/services/database/shows', () => ({
   getSecretaryShows: vi.fn().mockResolvedValue({ data: [], error: null }),
 }));
 

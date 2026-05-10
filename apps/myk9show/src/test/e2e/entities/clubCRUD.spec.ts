@@ -15,7 +15,7 @@ test.describe('Club CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const dbResult = await page.evaluate(async () => {
-      const { getAllClubs } = await import('/src/services/database/queries/clubQueries.ts');
+      const { getAllClubs } = await import('/src/services/database/clubs/index.ts');
 
       const { data, error } = await getAllClubs();
 
@@ -44,7 +44,7 @@ test.describe('Club CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createClub, deleteClub } = await import('/src/services/database/queries/clubQueries.ts');
+      const { createClub, deleteClub } = await import('/src/services/database/clubs/index.ts');
 
       const testClubData = {
         name: `E2E Test Club ${Date.now()}`,
@@ -87,7 +87,7 @@ test.describe('Club CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createClub, updateClub, deleteClub, getClubById } = await import('/src/services/database/queries/clubQueries.ts');
+      const { createClub, updateClub, deleteClub, getClubById } = await import('/src/services/database/clubs/index.ts');
 
       // Create a test club
       const testClubData = {
@@ -147,7 +147,7 @@ test.describe('Club CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createClub, deleteClub, getClubById } = await import('/src/services/database/queries/clubQueries.ts');
+      const { createClub, deleteClub, getClubById } = await import('/src/services/database/clubs/index.ts');
 
       // Create a test club
       const testClubData = {
@@ -195,7 +195,7 @@ test.describe('Club CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createClub, deleteClub, searchClubs } = await import('/src/services/database/queries/clubQueries.ts');
+      const { createClub, deleteClub, searchClubs } = await import('/src/services/database/clubs/index.ts');
 
       // Create a test club with a unique name
       const uniqueName = `SearchTest-${Date.now()}`;

@@ -15,7 +15,7 @@ test.describe('Dog CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const dbResult = await page.evaluate(async () => {
-      const { getAllDogs } = await import('/src/services/database/queries/dogQueries.ts');
+      const { getAllDogs } = await import('/src/services/database/dogs/index.ts');
 
       const { data, error } = await getAllDogs('test-person-id');
 
@@ -44,8 +44,8 @@ test.describe('Dog CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createUser, deleteUser } =
-        await import('/src/services/database/queries/userQueries.ts');
-      const { createDog, deleteDog } = await import('/src/services/database/queries/dogQueries.ts');
+        await import('/src/services/database/users/index.ts');
+      const { createDog, deleteDog } = await import('/src/services/database/dogs/index.ts');
 
       // First create an owner (user)
       const ownerData = {
@@ -103,9 +103,9 @@ test.describe('Dog CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createUser, deleteUser } =
-        await import('/src/services/database/queries/userQueries.ts');
+        await import('/src/services/database/users/index.ts');
       const { createDog, updateDog, deleteDog } =
-        await import('/src/services/database/queries/dogQueries.ts');
+        await import('/src/services/database/dogs/index.ts');
 
       // Create owner
       const { data: createdOwner, error: ownerError } = await createUser({
@@ -170,9 +170,9 @@ test.describe('Dog CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createUser, deleteUser } =
-        await import('/src/services/database/queries/userQueries.ts');
+        await import('/src/services/database/users/index.ts');
       const { createDog, deleteDog, getDogById } =
-        await import('/src/services/database/queries/dogQueries.ts');
+        await import('/src/services/database/dogs/index.ts');
 
       // Create owner
       const { data: createdOwner, error: ownerError } = await createUser({
@@ -228,9 +228,9 @@ test.describe('Dog CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createUser, deleteUser } =
-        await import('/src/services/database/queries/userQueries.ts');
+        await import('/src/services/database/users/index.ts');
       const { createDog, deleteDog, searchDogs } =
-        await import('/src/services/database/queries/dogQueries.ts');
+        await import('/src/services/database/dogs/index.ts');
 
       // Create owner
       const { data: createdOwner, error: ownerError } = await createUser({

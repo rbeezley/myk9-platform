@@ -5,7 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useDebounce, useSearchDeduplication, usePaginationConfig } from '@/lib/queryOptimizations';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { searchDogs, searchUsers, searchShows, searchClubs } from '@/services/database/queries';
+import { searchClubs } from '@/services/database/clubs';
+import { searchDogs } from '@/services/database/dogs';
+import { searchShows } from '@/services/database/shows';
+import { searchUsers } from '@/services/database/users';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 
 // Enhanced search configuration

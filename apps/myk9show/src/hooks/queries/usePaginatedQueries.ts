@@ -5,7 +5,9 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useMemo, useState, useCallback } from 'react';
 import { cacheStrategies } from '@/lib/queryClient';
 import { usePaginationConfig } from '@/lib/queryOptimizations';
-import { getAllDogs, getAllUsers, getAllShows } from '@/services/database/queries';
+import { getAllDogs } from '@/services/database/dogs';
+import { getAllShows } from '@/services/database/shows';
+import { getAllUsers } from '@/services/database/users';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 
 // Enhanced pagination utilities

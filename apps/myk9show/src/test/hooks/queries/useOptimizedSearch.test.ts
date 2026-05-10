@@ -31,10 +31,19 @@ const {
 }));
 
 // Mock the search functions
-vi.mock('@/services/database/queries', () => ({
+vi.mock('@/services/database/dogs', () => ({
   searchDogs: mockSearchDogs,
+}));
+
+vi.mock('@/services/database/users', () => ({
   searchUsers: mockSearchUsers,
+}));
+
+vi.mock('@/services/database/shows', () => ({
   searchShows: mockSearchShows,
+}));
+
+vi.mock('@/services/database/clubs', () => ({
   searchClubs: mockSearchClubs,
 }));
 

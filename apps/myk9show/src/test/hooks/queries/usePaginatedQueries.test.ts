@@ -32,9 +32,15 @@ const {
   },
 }));
 
-vi.mock('@/services/database/queries', () => ({
+vi.mock('@/services/database/dogs', () => ({
   getAllDogs: mockGetAllDogs,
+}));
+
+vi.mock('@/services/database/users', () => ({
   getAllUsers: mockGetAllUsers,
+}));
+
+vi.mock('@/services/database/shows', () => ({
   getAllShows: mockGetAllShows,
 }));
 

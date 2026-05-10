@@ -17,6 +17,7 @@ test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
 const SECRETARY_PASSWORD = 'testpass123';
+const QA_PREMIUM_MONOGRAM_SHOW_ID = '5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f';
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });
@@ -94,6 +95,36 @@ test.describe('Shows UI — Create wizard (secretary)', () => {
     await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();
     await expect(page.getByText('Show Dates *', { exact: true })).toBeVisible();
     await expect(page.getByText('Location *', { exact: true })).toBeVisible();
+  });
+
+  test('add-classes mode preserves existing class counts while selecting new classes', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'Runs against the local desktop Chromium QA fixture.');
+
+    await page.goto(
+      `/secretary/create-show/wizard?showId=${QA_PREMIUM_MONOGRAM_SHOW_ID}&mode=add-classes`
+    );
+
+    await expect(page.getByRole('heading', { name: 'Classes (32)' })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByRole('tab', { name: /Friday Trial 1 8/ })).toBeVisible();
+
+    await page.getByRole('checkbox', { name: 'Novice B' }).first().click();
+
+    await expect(page.getByRole('heading', { name: 'Classes (33)' })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByRole('tab', { name: /Friday Trial 1 9/ })).toBeVisible();
+    await expect(page.getByText('33 total classes configured across 4 trials')).toBeVisible();
+
+    await page.getByRole('checkbox', { name: 'Novice B' }).first().click();
+
+    await expect(page.getByRole('heading', { name: 'Classes (32)' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Friday Trial 1 8/ })).toBeVisible();
+    await expect(page.getByText('32 total classes configured across 4 trials')).toBeVisible();
   });
 });
 

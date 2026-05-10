@@ -17,6 +17,10 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { prewarmClassRulesCache } from '@/services/sportTemplateService';
+import {
+  buildWizardClassItem,
+  mergeSelectedClassesWithExisting,
+} from './ClassSelectionStep.helpers';
 
 interface ExistingClassInfo {
   trialId: string;
@@ -270,14 +274,19 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
     // Update the trial with the selected classes
     if (currentTrial) {
-      const classItems = selectedClasses.map(cls => ({
-        templateId: currentTrialState.selectedTemplate?.id || '',
-        customizations: {
-          ...cls,
-          fieldOverrides: {},
-        },
-        judgeId: judgeAssignments[cls.className], // Include judge assignment
-      }));
+      const templateId = currentTrialState.selectedTemplate?.id || '';
+      const classItems =
+        existingClassesForTrial.length > 0
+          ? mergeSelectedClassesWithExisting(
+              currentTrial.classes,
+              selectedClasses,
+              existingClassesForTrial,
+              templateId,
+              judgeAssignments
+            )
+          : selectedClasses.map(cls =>
+              buildWizardClassItem(cls, templateId, judgeAssignments[cls.className])
+            );
 
       updateTrial(currentTrial.id, { classes: classItems });
     }
@@ -292,14 +301,20 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
     // Also update the trial classes with judge assignments
     if (currentTrial && currentTrialState.selectedClasses.length > 0) {
-      const classItems = currentTrialState.selectedClasses.map(cls => ({
-        templateId: currentTrialState.selectedTemplate?.id || '',
-        customizations: {
-          ...cls,
-          fieldOverrides: {},
-        },
-        judgeId: assignments[cls.className] || judgeAssignments[cls.className],
-      }));
+      const templateId = currentTrialState.selectedTemplate?.id || '';
+      const mergedAssignments = { ...judgeAssignments, ...assignments };
+      const classItems =
+        existingClassesForTrial.length > 0
+          ? mergeSelectedClassesWithExisting(
+              currentTrial.classes,
+              currentTrialState.selectedClasses,
+              existingClassesForTrial,
+              templateId,
+              mergedAssignments
+            )
+          : currentTrialState.selectedClasses.map(cls =>
+              buildWizardClassItem(cls, templateId, mergedAssignments[cls.className])
+            );
 
       updateTrial(currentTrial.id, { classes: classItems });
     }

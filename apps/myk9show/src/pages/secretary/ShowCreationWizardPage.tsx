@@ -164,12 +164,20 @@ const ShowCreationWizardPage: React.FC = () => {
 
   // Initialize wizard with existing show data in edit mode (once per showId)
   useEffect(() => {
-    if (editMode && editModeInitializedRef.current !== editMode.showId) {
+    if (editMode) {
       const existingShow = allShows.find(s => s.id === editMode.showId);
       const showTrials = existingTrials.filter(t => t.showId === editMode.showId);
+      const showTrialIds = new Set(showTrials.map(trial => trial.id));
+      const existingClassCountForShow = existingClasses.filter(c =>
+        showTrialIds.has(c.trialId)
+      ).length;
+      const initializationKey =
+        editMode.mode === 'add-trials'
+          ? `${editMode.showId}:${editMode.mode}`
+          : `${editMode.showId}:${editMode.mode}:${existingClassCountForShow}`;
 
-      if (existingShow) {
-        editModeInitializedRef.current = editMode.showId;
+      if (existingShow && editModeInitializedRef.current !== initializationKey) {
+        editModeInitializedRef.current = initializationKey;
 
         // In add-trials mode, don't load existing trials — start fresh.
         // Existing trials should be edited via Edit Trial on the trial detail page.

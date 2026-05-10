@@ -202,7 +202,7 @@ export function showToShowInput(show: Show): ShowInput {
     startingArmbandNumber: show.startingArmbandNumber,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
-    style: resolvePremiumStyle(show.style as PremiumStyle | null | undefined),
+    style: resolvePremiumStyle(show.style),
   };
 }
 

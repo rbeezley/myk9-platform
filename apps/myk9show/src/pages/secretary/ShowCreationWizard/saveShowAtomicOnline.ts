@@ -13,7 +13,7 @@ import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
 import { buildCreateShowPayload } from './buildCreateShowPayload';
 import { buildRuleMap } from './buildRuleMap';
 import { formatClubAddress } from '@/utils/clubAddress';
-import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
+import { resolvePremiumStyle } from '@/types/premium-types';
 import type { WizardShowData, WizardTrial } from './showCreationWizardTransformers';
 
 export interface SaveShowAtomicOnlineArgs {
@@ -113,7 +113,7 @@ export async function saveShowAtomicOnline(
     startingArmbandNumber: show.startingArmbandNumber,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
-    style: resolvePremiumStyle(localEntities.show.style as PremiumStyle | undefined),
+    style: resolvePremiumStyle(localEntities.show.style),
   };
 
   const { shows, addShowLegacy } = useShowStore.getState();

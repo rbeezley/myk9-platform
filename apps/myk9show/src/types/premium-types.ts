@@ -21,8 +21,10 @@ export const PREMIUM_STYLE_LABELS: Record<PremiumStyle, string> = {
 
 export const DEFAULT_PREMIUM_STYLE: PremiumStyle = 'monogram';
 
-export function resolvePremiumStyle(style: PremiumStyle | null | undefined): PremiumStyle {
-  return style ?? DEFAULT_PREMIUM_STYLE;
+const _VALID_PREMIUM_STYLES = new Set<string>(Object.keys(PREMIUM_STYLE_LABELS));
+
+export function resolvePremiumStyle(style: string | null | undefined): PremiumStyle {
+  return _VALID_PREMIUM_STYLES.has(style ?? '') ? (style as PremiumStyle) : DEFAULT_PREMIUM_STYLE;
 }
 
 export function getPremiumStyleOptions(): Array<{ value: PremiumStyle; label: string }> {

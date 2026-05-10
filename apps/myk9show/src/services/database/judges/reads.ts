@@ -311,6 +311,23 @@ export async function upsertClassJudgeAssignment(
   await untypedFrom('classes').update({ updated_at: new Date().toISOString() }).eq('id', classId);
 }
 
+export async function reassignClassJudge(
+  showId: string,
+  classId: string,
+  fromJudgeId: string,
+  toJudgeId: string
+): Promise<void> {
+  const { error } = await assignmentsTable()
+    .update({ person_id: toJudgeId })
+    .eq('class_id', classId)
+    .eq('show_id', showId)
+    .eq('person_id', fromJudgeId);
+
+  if (error) {
+    throw createDatabaseError(error, 'judge_assignments', 'reassign_class_judge');
+  }
+}
+
 // =============================================================================
 // Judge Analytics Queries (read-only over existing tables)
 // =============================================================================

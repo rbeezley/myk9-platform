@@ -11,6 +11,7 @@ export {
   judgeAnalyticsQueries,
   judgeAvailabilityQueries,
   judgeCertificationQueries,
+  reassignClassJudge,
   upsertClassJudgeAssignment,
   persistShowJudgeAssignments,
 } from './reads';

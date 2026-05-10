@@ -2,18 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { reassignClassJudge } from '@/services/database/judges';
+import {
+  closeWaitlistForClasses,
+  promoteWaitlistEntry,
+  removeFromWaitlist,
+} from '@/services/database/waitlists';
 import { useWaitListMutations } from '../useWaitListMutations';
 
-const mockRpc = vi.hoisted(() => vi.fn());
-const mockDelete = vi.hoisted(() => vi.fn());
-const mockUpdate = vi.hoisted(() => vi.fn());
-const mockFrom = vi.hoisted(() => vi.fn());
+vi.mock('@/services/database/judges', () => ({
+  reassignClassJudge: vi.fn(),
+}));
 
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: {
-    rpc: mockRpc,
-    from: mockFrom,
-  },
+vi.mock('@/services/database/waitlists', () => ({
+  bulkPromoteWaitlistEntries: vi.fn(),
+  closeWaitlistForClasses: vi.fn(),
+  promoteWaitlistEntry: vi.fn(),
+  removeFromWaitlist: vi.fn(),
 }));
 
 vi.mock('@/lib/queryClient', () => ({
@@ -34,30 +39,14 @@ function makeWrapper() {
 describe('useWaitListMutations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Default chain for .from().delete().eq()
-    const eqDelete = vi.fn().mockResolvedValue({ error: null });
-    const deleteChain = { eq: eqDelete };
-    const eqUpdate = vi.fn().mockResolvedValue({ error: null });
-    const inUpdate = vi.fn().mockReturnValue({ eq: eqUpdate });
-    const updateChain = {
-      eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: eqUpdate }) }),
-      in: inUpdate,
-    };
-
-    mockFrom.mockReturnValue({
-      delete: () => deleteChain,
-      update: () => updateChain,
-    });
-
-    mockDelete.mockResolvedValue({ error: null });
-    mockUpdate.mockResolvedValue({ error: null });
+    vi.mocked(promoteWaitlistEntry).mockResolvedValue('new-entry-uuid');
+    vi.mocked(removeFromWaitlist).mockResolvedValue({ data: null, error: null });
+    vi.mocked(closeWaitlistForClasses).mockResolvedValue(undefined);
+    vi.mocked(reassignClassJudge).mockResolvedValue(undefined);
   });
 
   describe('promoteEntry', () => {
-    it('calls rpc with correct args', async () => {
-      mockRpc.mockResolvedValue({ data: 'new-entry-uuid', error: null });
-
+    it('calls the Wait List module with correct args', async () => {
       const { result } = renderHook(() => useWaitListMutations('show-1'), {
         wrapper: makeWrapper(),
       });
@@ -69,15 +58,10 @@ describe('useWaitListMutations', () => {
         });
       });
 
-      expect(mockRpc).toHaveBeenCalledWith('promote_waitlist_entry', {
-        p_waitlist_entry_id: 'wl-entry-1',
-        p_deadline_hours: 48,
-      });
+      expect(promoteWaitlistEntry).toHaveBeenCalledWith('wl-entry-1', 48);
     });
 
     it('uses default deadline of 24 hours when not specified', async () => {
-      mockRpc.mockResolvedValue({ data: 'new-entry-uuid', error: null });
-
       const { result } = renderHook(() => useWaitListMutations('show-1'), {
         wrapper: makeWrapper(),
       });
@@ -86,14 +70,11 @@ describe('useWaitListMutations', () => {
         await result.current.promoteEntry.mutateAsync({ waitlistEntryId: 'wl-entry-2' });
       });
 
-      expect(mockRpc).toHaveBeenCalledWith('promote_waitlist_entry', {
-        p_waitlist_entry_id: 'wl-entry-2',
-        p_deadline_hours: 24,
-      });
+      expect(promoteWaitlistEntry).toHaveBeenCalledWith('wl-entry-2', 24);
     });
 
-    it('throws when rpc returns an error', async () => {
-      mockRpc.mockResolvedValue({ data: null, error: new Error('rpc failed') });
+    it('throws when promotion fails', async () => {
+      vi.mocked(promoteWaitlistEntry).mockRejectedValue(new Error('rpc failed'));
 
       const { result } = renderHook(() => useWaitListMutations('show-1'), {
         wrapper: makeWrapper(),
@@ -108,11 +89,7 @@ describe('useWaitListMutations', () => {
   });
 
   describe('removeFromWaitList', () => {
-    it('deletes the waitlist_entries row by id', async () => {
-      const eqChain = vi.fn().mockResolvedValue({ error: null });
-      const deleteChain = { eq: eqChain };
-      mockFrom.mockReturnValue({ delete: () => deleteChain });
-
+    it('calls the Wait List module by id', async () => {
       const { result } = renderHook(() => useWaitListMutations('show-1'), {
         wrapper: makeWrapper(),
       });
@@ -121,18 +98,12 @@ describe('useWaitListMutations', () => {
         await result.current.removeFromWaitList.mutateAsync('wl-entry-99');
       });
 
-      expect(mockFrom).toHaveBeenCalledWith('waitlist_entries');
-      expect(eqChain).toHaveBeenCalledWith('id', 'wl-entry-99');
+      expect(removeFromWaitlist).toHaveBeenCalledWith('wl-entry-99');
     });
   });
 
   describe('closeWaitList', () => {
-    it('bulk-updates all waiting entries to expired for the given class ids', async () => {
-      const eqChain = vi.fn().mockResolvedValue({ error: null });
-      const inChain = vi.fn().mockReturnValue({ eq: eqChain });
-      const updateChain = { in: inChain };
-      mockFrom.mockReturnValue({ update: () => updateChain });
-
+    it('calls the Wait List module with the class ids', async () => {
       const { result } = renderHook(() => useWaitListMutations('show-1'), {
         wrapper: makeWrapper(),
       });
@@ -141,9 +112,25 @@ describe('useWaitListMutations', () => {
         await result.current.closeWaitList.mutateAsync(['class-1', 'class-2']);
       });
 
-      expect(mockFrom).toHaveBeenCalledWith('waitlist_entries');
-      expect(inChain).toHaveBeenCalledWith('class_id', ['class-1', 'class-2']);
-      expect(eqChain).toHaveBeenCalledWith('status', 'waiting');
+      expect(closeWaitlistForClasses).toHaveBeenCalledWith(['class-1', 'class-2']);
+    });
+  });
+
+  describe('reassignClass', () => {
+    it('calls the Judge module with show and judge ids', async () => {
+      const { result } = renderHook(() => useWaitListMutations('show-1'), {
+        wrapper: makeWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.reassignClass.mutateAsync({
+          classId: 'class-1',
+          fromJudgeId: 'judge-1',
+          toJudgeId: 'judge-2',
+        });
+      });
+
+      expect(reassignClassJudge).toHaveBeenCalledWith('show-1', 'class-1', 'judge-1', 'judge-2');
     });
   });
 });

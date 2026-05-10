@@ -304,6 +304,59 @@ export const removeFromWaitlist = async (waitlistEntryId: string) => {
   }
 };
 
+export const promoteWaitlistEntry = async (
+  waitlistEntryId: string,
+  deadlineHours: number = 24
+): Promise<string> => {
+  const { data, error } = await supabase.rpc('promote_waitlist_entry', {
+    p_waitlist_entry_id: waitlistEntryId,
+    p_deadline_hours: deadlineHours,
+  });
+
+  if (error) {
+    throw createDatabaseError(error, 'waitlist_entries', 'promote_waitlist_entry');
+  }
+
+  return data as string;
+};
+
+export const bulkPromoteWaitlistEntries = async (
+  waitlistEntryIds: string[],
+  deadlineHours: number = 24
+): Promise<string[]> => {
+  const settled = await Promise.allSettled(
+    waitlistEntryIds.map(id => promoteWaitlistEntry(id, deadlineHours))
+  );
+
+  const succeeded = settled
+    .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
+    .map(result => result.value);
+
+  const realFailures = settled
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .filter(result => !String(result.reason?.message).includes('not available for promotion'));
+
+  if (realFailures.length > 0) {
+    throw new Error(
+      `${realFailures.length} of ${waitlistEntryIds.length} promotion(s) failed: ${realFailures[0].reason?.message}`
+    );
+  }
+
+  return succeeded;
+};
+
+export const closeWaitlistForClasses = async (classIds: string[]): Promise<void> => {
+  const { error } = await supabase
+    .from('waitlist_entries')
+    .update({ status: 'expired' })
+    .in('class_id', classIds)
+    .eq('status', 'waiting');
+
+  if (error) {
+    throw createDatabaseError(error, 'waitlist_entries', 'close_waitlist_for_classes');
+  }
+};
+
 /**
  * Get waitlist position for a specific entry
  * Replication-first with PostgREST fallback.

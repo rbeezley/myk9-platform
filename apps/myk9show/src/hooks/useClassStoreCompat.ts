@@ -33,6 +33,7 @@ import {
   mapDatabaseToEntry,
   mapDatabaseEntriesArray,
   type DbClassWithRelations,
+  type DbEntryWithRelations,
 } from '@/services/mappers/classMappers';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import {
@@ -67,7 +68,7 @@ export const useClassStoreCompat = () => {
 
   const entries = useMemo(() => {
     if (!entriesQuery.data) return [];
-    return mapDatabaseEntriesArray(entriesQuery.data);
+    return mapDatabaseEntriesArray(entriesQuery.data as unknown as DbEntryWithRelations[]);
   }, [entriesQuery.data]);
 
   // Aggregate loading and error states
@@ -314,7 +315,7 @@ export const useClassEntriesWithQuery = (classId: string, enabled = true) => {
 
   const entries = useMemo(() => {
     if (!classEntriesQuery.data) return [];
-    return mapDatabaseEntriesArray(classEntriesQuery.data);
+    return mapDatabaseEntriesArray(classEntriesQuery.data as unknown as DbEntryWithRelations[]);
   }, [classEntriesQuery.data]);
 
   return {

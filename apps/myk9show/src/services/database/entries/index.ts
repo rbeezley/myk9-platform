@@ -20,4 +20,4 @@ export {
 } from './writes';
 export * from './search';
 export * from './secretary';
-export { hardDeleteEntry, restoreEntry, getDeletedEntries } from '../queries/classQueries.entries';
+export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';

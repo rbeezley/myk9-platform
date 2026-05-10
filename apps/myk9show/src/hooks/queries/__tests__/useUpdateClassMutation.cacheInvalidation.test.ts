@@ -33,7 +33,7 @@ vi.mock('@/services/database/classes', () => ({
   getClassStatistics: vi.fn().mockResolvedValue({ data: { total: 0 }, error: null }),
 }));
 
-vi.mock('@/services/database/queries/classQueries.entries', () => ({
+vi.mock('@/services/database/entries', () => ({
   getAllEntries: vi.fn().mockResolvedValue({ data: [], error: null }),
   getEntriesByClassId: vi.fn().mockResolvedValue({ data: [], error: null }),
   createEntry: vi.fn(),

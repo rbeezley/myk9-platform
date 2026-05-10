@@ -128,13 +128,17 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
 };
 
 // Delete entry (soft delete)
-export const deleteEntry = async (id: string) => {
+export const deleteEntry = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
 
   try {
     const { error } = await supabase
       .from('entries')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: deletedBy || null,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id);
 
     const duration = Date.now() - startTime;
@@ -144,12 +148,12 @@ export const deleteEntry = async (id: string) => {
       throw createDatabaseError(error, 'entries', 'delete');
     }
 
-    return { error: null };
+    return { data: null, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'delete');
     logQuery('entries', 'delete', duration, dbError.message);
-    return { error: dbError };
+    return { data: null, error: dbError };
   }
 };
 

@@ -15,18 +15,16 @@ import {
   searchClasses,
   getClassStatistics,
 } from '@/services/database/classes';
-import { getEntriesByClassId } from '@/services/database/entries';
-// TODO: migrate remaining entry mutations to @/services/database/entries once
-// 2-arg mutation signatures are reconciled with the canonical entry functions.
 import {
   getAllEntries,
+  getEntriesByClassId,
   createEntry,
   updateEntry,
   deleteEntry,
   hardDeleteEntry,
   restoreEntry,
   getDeletedEntries,
-} from '@/services/database/queries/classQueries.entries';
+} from '@/services/database/entries';
 import type { DbClassInsert, DbClassUpdate, DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 
 // ===== QUERY KEYS =====
@@ -300,7 +298,7 @@ export const useUpdateEntryMutation = () => {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: DbEntryUpdate }) => {
-      const { data, error } = await updateEntry(id, updates);
+      const { data, error } = await updateEntry({ id, updates });
       if (error) throw error;
       return data;
     },

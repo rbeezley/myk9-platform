@@ -6,6 +6,12 @@
  * for legacy migration and bulk operations.
  */
 import type { EntryStatus } from '@/types/entry-lifecycle';
+import { auditService } from '@/services/AuditService';
+import { getEntryArmbandById } from '@/services/database/armbands/secretary';
+import { AuditAction } from '@/types/audit-types';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { EntryStatus as SecretaryEntryStatus } from '@/types/show-registration-types';
+import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { updateEntryStatus } from './secretary';
 
 export type EntryLifecycleAction = 'accept' | 'reject' | 'scratch' | 'waitlist';
@@ -20,6 +26,29 @@ export interface SetEntryLifecycleStatusParams {
   entryId: string;
   status: EntryStatus;
   reason?: string | undefined;
+}
+
+export interface EntryLifecycleArmbandPatch {
+  dogId: string;
+  showId: string;
+  armband: string;
+}
+
+export interface ChangeSecretaryEntryStatusParams {
+  entry: EntryManagementEntry;
+  newStatus: SecretaryEntryStatus;
+  secretaryId?: string;
+  withdrawalReason?: string;
+}
+
+export interface ChangeSecretaryEntryStatusResult {
+  armbandPatch?: EntryLifecycleArmbandPatch;
+}
+
+export interface SecretaryEntryStatusDependencies {
+  setEntryLifecycleStatus: typeof setEntryLifecycleStatus;
+  getEntryArmbandById: typeof getEntryArmbandById;
+  auditLog: typeof auditService.log;
 }
 
 const ENTRY_LIFECYCLE_STATUS: Record<EntryLifecycleAction, EntryStatus> = {
@@ -52,3 +81,53 @@ export const scratchEntry = async (entryId: string, reason?: string) =>
 
 export const waitlistEntry = async (entryId: string) =>
   transitionEntryLifecycle({ entryId, action: 'waitlist' });
+
+const defaultSecretaryDependencies: SecretaryEntryStatusDependencies = {
+  setEntryLifecycleStatus,
+  getEntryArmbandById,
+  auditLog: input => auditService.log(input),
+};
+
+export async function changeSecretaryEntryStatus(
+  params: ChangeSecretaryEntryStatusParams,
+  dependencies: SecretaryEntryStatusDependencies = defaultSecretaryDependencies
+): Promise<ChangeSecretaryEntryStatusResult> {
+  const { entry, newStatus, secretaryId, withdrawalReason } = params;
+
+  const { error } = await dependencies.setEntryLifecycleStatus({
+    entryId: entry.id,
+    status: mapStatusToDb(newStatus),
+    reason: withdrawalReason,
+  });
+  if (error) throw error;
+
+  await dependencies.auditLog({
+    action: AuditAction.UPDATE,
+    entityType: 'entry',
+    entityId: entry.id,
+    changes: { entryStatus: { from: entry.entryStatus, to: newStatus } },
+    metadata: {
+      action: 'status_change',
+      secretaryId,
+      entryNumber: entry.entryNumber,
+      ...(withdrawalReason ? { withdrawalReason } : {}),
+    },
+  });
+
+  if (newStatus !== SecretaryEntryStatus.ACCEPTED) {
+    return {};
+  }
+
+  const triggerArmband = await dependencies.getEntryArmbandById(entry.id);
+  if (!triggerArmband?.armband || !triggerArmband.dogId || !triggerArmband.showId) {
+    return {};
+  }
+
+  return {
+    armbandPatch: {
+      armband: triggerArmband.armband,
+      dogId: triggerArmband.dogId,
+      showId: triggerArmband.showId,
+    },
+  };
+}

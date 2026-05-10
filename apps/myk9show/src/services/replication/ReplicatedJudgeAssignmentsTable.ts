@@ -10,6 +10,7 @@
 import { ReplicatedTable, type SyncResult } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { Database } from '@/types/supabase';
 
 type JudgeAssignmentRow = Database['public']['Tables']['judge_assignments']['Row'];
@@ -159,14 +160,16 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
         duration,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getSyncErrorMessage(error);
 
       await this.updateSyncMetadata({
         syncStatus: 'error',
         errorMessage,
       });
 
-      logger.error(`[${this.getTableName()}] Sync failed:`, error);
+      if (!isAbortSyncError(error)) {
+        logger.error(`[${this.getTableName()}] Sync failed:`, error);
+      }
 
       return {
         tableName: this.getTableName(),

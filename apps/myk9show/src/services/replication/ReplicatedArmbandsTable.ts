@@ -14,6 +14,7 @@
 import { ReplicatedTable, type SyncResult } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 
 /**
  * Database row type for armbands table
@@ -166,7 +167,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
         duration,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getSyncErrorMessage(error);
       errors.push(errorMessage);
 
       await this.updateSyncMetadata({
@@ -174,7 +175,9 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
         errorMessage,
       });
 
-      logger.error(`[${this.getTableName()}] Sync failed:`, error);
+      if (!isAbortSyncError(error)) {
+        logger.error(`[${this.getTableName()}] Sync failed:`, error);
+      }
 
       return {
         tableName: this.getTableName(),

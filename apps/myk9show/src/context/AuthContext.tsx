@@ -158,6 +158,27 @@ export function buildActiveRoleScopes(
     }));
 }
 
+const DEV_AUTH_ROLE_ALIASES: Record<string, keyof typeof MOCK_USERS> = {
+  'secretary@myk9t.com': 'secretary-user',
+  'clubadmin@myk9t.com': 'club-admin-user',
+  'admin@myk9t.com': 'site-admin-user',
+  'judge@myk9t.com': 'judge-user',
+};
+
+function buildDevUserWithMockRoles(
+  authUser: User,
+  mockUser: UserWithRoles,
+  databaseUserId?: string
+): UserWithRoles {
+  return {
+    ...authUser,
+    roles: mockUser.roles,
+    permissions: mockUser.permissions,
+    scopes: mockUser.scopes.map(scope => ({ ...scope, userId: authUser.id })),
+    ...(databaseUserId ? { databaseUserId } : {}),
+  } as UserWithRoles;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
 
@@ -282,6 +303,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Priority 0: Mock user for development testing
     if (import.meta.env.DEV && currentMockUser && MOCK_USERS[currentMockUser]) {
       return MOCK_USERS[currentMockUser];
+    }
+
+    // Priority 0.25: Known seeded local/UAT accounts should keep their intended
+    // staff role even if local RBAC is still loading or temporarily unavailable.
+    if (import.meta.env.DEV && auth.user.email) {
+      const aliasKey = DEV_AUTH_ROLE_ALIASES[auth.user.email.toLowerCase()];
+      if (aliasKey) {
+        return buildDevUserWithMockRoles(auth.user, MOCK_USERS[aliasKey], userProfile?.id);
+      }
     }
 
     // Priority 0.5: Match by email to mock users in dev

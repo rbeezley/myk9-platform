@@ -16,6 +16,18 @@ import type { User } from '@supabase/supabase-js';
  * @property {Function} updateProfile - Method to update user's profile information
  */
 
+const SIGN_IN_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise
+      .then(resolve)
+      .catch(reject)
+      .finally(() => window.clearTimeout(timeoutId));
+  });
+}
+
 /**
  * Creates people + exhibitor_profiles records for first-time OAuth users.
  * Extracted from onAuthStateChange so it runs in the background without blocking signOut.
@@ -159,20 +171,23 @@ export function useAuth() {
    * @throws {AuthError} If authentication fails
    */
   const signIn = useCallback(async (email: string, password: string) => {
-    try {
-      setLoading(true);
+    setLoading(true);
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+        }),
+        SIGN_IN_TIMEOUT_MS,
+        'Sign-in request timed out. Check your connection and try again.'
+      );
 
       if (error) {
         throw error;
       }
-    } catch (error) {
+    } finally {
       setLoading(false);
-      throw error;
     }
   }, []);
 

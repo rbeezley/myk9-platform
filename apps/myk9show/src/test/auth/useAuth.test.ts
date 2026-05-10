@@ -195,6 +195,29 @@ describe('useAuth', () => {
         expect(result.current.loading).toBe(false);
       });
     });
+
+    it('should recover when signIn request times out', async () => {
+      vi.useFakeTimers();
+      mockSupabase.auth.signInWithPassword.mockReturnValue(new Promise(() => {}));
+
+      const { result } = renderHook(() => useAuth());
+
+      let signInPromise: Promise<void>;
+      act(() => {
+        signInPromise = result.current.signIn('test@example.com', 'password');
+      });
+      const rejection = expect(signInPromise!).rejects.toThrow('Sign-in request timed out');
+
+      await act(async () => {
+        vi.advanceTimersByTime(15_000);
+      });
+
+      await rejection;
+
+      expect(result.current.loading).toBe(false);
+
+      vi.useRealTimers();
+    });
   });
 
   describe('signOut', () => {

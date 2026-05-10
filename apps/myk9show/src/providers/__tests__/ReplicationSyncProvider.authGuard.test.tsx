@@ -4,6 +4,7 @@ import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
 import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { notifications } from '@/lib/notifications';
 
 type AuthCallback = (event: AuthChangeEvent, session: Session | null) => void;
 
@@ -178,6 +179,23 @@ describe('ReplicationSyncProvider — auth guard', () => {
     for (const spy of Object.values(syncSpies)) {
       expect(spy).not.toHaveBeenCalled();
     }
+  });
+
+  it('does not show a failure toast for aborted background download syncs', async () => {
+    syncSpies.shows.mockRejectedValueOnce(
+      new Error('Supabase query failed: AbortError: signal is aborted without reason')
+    );
+
+    renderProvider();
+
+    await act(async () => {
+      authState.callback?.('INITIAL_SESSION', fakeSession());
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(notifications.error).not.toHaveBeenCalled();
   });
 
   it('unsubscribes from auth state changes on unmount', () => {

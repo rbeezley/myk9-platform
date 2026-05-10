@@ -8,6 +8,7 @@
 import { ReplicatedTable, type SyncResult } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -215,8 +216,10 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
         duration: Date.now() - startTime,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`[${this.getTableName()}] Sync failed:`, error);
+      const errorMessage = getSyncErrorMessage(error);
+      if (!isAbortSyncError(error)) {
+        logger.error(`[${this.getTableName()}] Sync failed:`, error);
+      }
 
       return {
         tableName: this.getTableName(),

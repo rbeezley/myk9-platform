@@ -244,6 +244,22 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user-roles')).toHaveTextContent('exhibitor');
     });
 
+    it('should treat seeded secretary test account as secretary in development', () => {
+      mockUseAuth.mockReturnValue({
+        ...mockAuthReturn,
+        user: { ...mockUser, email: 'secretary@myk9t.com' },
+      });
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ')}</span>;
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+
+      expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
+    });
+
     it('should switch mock user for testing', () => {
       const TestComponent = () => {
         const auth = useAuthContext();

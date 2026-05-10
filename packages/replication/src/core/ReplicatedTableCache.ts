@@ -255,9 +255,17 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    * Subscribe to changes
    */
   subscribe(callback: (data: T[]) => void): () => void {
+    let isActive = true;
     this.listeners.add(callback);
-    this.getAllData().then(callback).catch(this.logger.error);
+    this.getAllData()
+      .then(data => {
+        if (isActive) {
+          callback(data);
+        }
+      })
+      .catch(this.logger.error);
     return () => {
+      isActive = false;
       this.listeners.delete(callback);
     };
   }

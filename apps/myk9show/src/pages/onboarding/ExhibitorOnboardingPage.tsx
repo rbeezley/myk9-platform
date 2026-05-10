@@ -9,11 +9,14 @@
  * Step 5 – Welcome        (sets onboarding_completed_at, navigates to /shows)
  */
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile, CreateExhibitorProfileData } from '@/hooks/useExhibitorProfile';
+import { getDashboardRoute } from '@/hooks/roleUtils';
+import { UserRole } from '@/types/auth-types';
 import { StepProfile, ProfileData } from './steps/StepProfile';
 import { StepDogs } from './steps/StepDogs';
 import { StepAddress, AddressData } from './steps/StepAddress';
@@ -23,6 +26,12 @@ import { StepWelcome } from './steps/StepWelcome';
 const TOTAL_STEPS = 5;
 
 const STEP_LABELS = ['Profile', 'Dogs', 'Address', 'Notifications', 'Welcome'];
+const STAFF_ROLES = new Set<UserRole>([
+  UserRole.SITE_ADMIN,
+  UserRole.SECRETARY,
+  UserRole.JUDGE,
+  UserRole.CLUB_ADMIN,
+]);
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   const pct = Math.round(((current - 1) / (total - 1)) * 100);
@@ -41,7 +50,37 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 
 export default function ExhibitorOnboardingPage() {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, userWithRoles, loading: authLoading, rbacLoading } = useAuthContext();
+  const roles = useMemo(() => userWithRoles?.roles ?? [], [userWithRoles?.roles]);
+  const isStaffUser = roles.some(role => STAFF_ROLES.has(role));
+
+  useEffect(() => {
+    if (authLoading || user) return;
+    navigate('/sign-in?returnTo=/onboarding', { replace: true });
+  }, [authLoading, navigate, user]);
+
+  useEffect(() => {
+    if (authLoading || rbacLoading || !user || !isStaffUser) return;
+    navigate(getDashboardRoute(roles), { replace: true });
+  }, [authLoading, isStaffUser, navigate, rbacLoading, roles, user]);
+
+  if (!user || ((authLoading || rbacLoading) && user)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+      </div>
+    );
+  }
+
+  if (isStaffUser) {
+    return null;
+  }
+
+  return <ExhibitorOnboardingWizard user={user} />;
+}
+
+function ExhibitorOnboardingWizard({ user }: { user: User }) {
+  const navigate = useNavigate();
   const {
     profile: exhibitorProfile,
     createProfileAsync,
@@ -49,7 +88,7 @@ export default function ExhibitorOnboardingPage() {
     completeOnboarding,
     isCompletingOnboarding,
   } = useExhibitorProfile();
-  const userMeta = user?.user_metadata ?? {};
+  const userMeta = user.user_metadata ?? {};
 
   // Wizard state
   const [step, setStep] = useState(1);

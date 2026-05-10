@@ -34,6 +34,7 @@ import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTabl
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
 import { formatSyncFailureToast, formatDownloadFailureToast } from './replicationSyncFormatters';
 
@@ -232,11 +233,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       );
 
       const downloadFailures: Array<{ name: string; error: string }> = [];
-      const tableStatusUpdates: Record<string, 'success' | 'error'> = {};
+      const tableStatusUpdates: Record<string, SyncStatus['tablesStatus'][string]> = {};
 
       for (const { name, ok, error } of syncResults) {
         if (ok) {
           tableStatusUpdates[name] = 'success';
+        } else if (isAbortSyncError(error)) {
+          logger.debug('Table sync aborted', 'replication', { name, error });
+          tableStatusUpdates[name] = 'idle';
         } else {
           const errorMsg = error || 'Unknown error';
           logger.warn('Table sync failed', 'replication', { name, error: errorMsg });

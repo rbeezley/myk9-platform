@@ -16,6 +16,10 @@ Higher-level planning documents that govern how the items below should be sequen
 
 - **Editorial + Gazette cover "Levels" line sorted alphabetically when upstream data was not pre-sorted** — Fixed by adding `compareLevelsByProgression` in [`classOrder.ts`](apps/myk9show/src/features/premium/pdf/bodies/classOrder.ts) and using it for the Magazine `AtAGlancePanel` plus Gazette cover fallback panel. Added a regression test with deliberately scrambled levels in [`AtAGlancePanel.test.tsx`](apps/myk9show/src/features/premium/pdf/__tests__/AtAGlancePanel.test.tsx).
 
+## ✅ Resolved 2026-05-10 — Secretary Task Timeline View
+
+- **Secretary Task Timeline View** — The Tasks tab already had the persisted List/Timeline toggle, Timeline rendering, date helpers, grouping, and summary counts. Completed the remaining action-parity gap by adding edit/delete controls to Timeline task rows, including undated tasks in the "No due date" section. Added focused regression coverage in [`TasksTab.test.tsx`](apps/myk9show/src/pages/secretary/SecretaryDashboardPage/__tests__/TasksTab.test.tsx).
+
 ---
 
 ## ✅ Resolved 2026-05-09 — Quick wins batch
@@ -87,8 +91,6 @@ Live triage log from walking the secretary golden path on `localhost:5173`. Item
 ### Open — Phase 2 Planned Work
 
 - **Build `/exhibitor/check-in/:entryId` page** — The route exists and `ClassCheckIn.tsx` has full UI (check-in/scratch flow, late-fee logic, offline messaging), but the component only receives data via props and falls back to `createMockClassInfo()` — it never reads `entryId` from the URL or loads real entry data from Supabase. Needs: (1) a data-loading wrapper/page that reads `useParams<{ entryId }>()`, fetches the entry + class info via Supabase, and passes them to `ClassCheckIn` as props; (2) navigation entry point — a "Check In" button per entry on `/exhibitor/show-day` once the page is functional. **Files:** `apps/myk9show/src/components/exhibitor/ClassCheckIn.tsx` (component, already built), `apps/myk9show/src/pages/ShowDayPage.tsx` (add navigation CTA), `apps/myk9show/src/types/exhibitor-types.ts` (`ExhibitorClassInfo` type — verify shape matches DB).
-
-- **Secretary Task Timeline View** — Add a Timeline toggle to the Tasks tab on the secretary dashboard so secretaries can see task due dates on a date grid alongside the existing list view. Plan: [`docs/plans/2026-05-02-secretary-task-timeline-view-plan.md`](docs/plans/2026-05-02-secretary-task-timeline-view-plan.md). No migration required for v1 — derives everything from existing `due_date` column.
 
 ### ✅ Resolved 2026-05-03 — Exhibitor golden path walk (bugs 1, 6, 7, 8, 9)
 

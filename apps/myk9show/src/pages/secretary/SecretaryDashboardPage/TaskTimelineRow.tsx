@@ -1,13 +1,22 @@
 import { cn } from '@/lib/utils';
 import type { DatedTask, DateRange, UrgencyBucket } from './taskTimelineUtils';
+import { TaskTimelineTaskCell } from './TaskTimelineTaskCell';
 import type { UpdateTaskInput } from './types';
+
+interface Show {
+  id: string;
+  name: string;
+}
 
 interface TaskTimelineRowProps {
   datedTask: DatedTask;
   dateRange: DateRange;
   columnWidth: number;
+  labelWidth: number;
+  shows: Show[];
   onToggleDone: (id: string) => void;
   onUpdate: (id: string, update: UpdateTaskInput) => void;
+  onDelete: (id: string) => void;
 }
 
 const urgencyPillClass: Record<UrgencyBucket, string> = {
@@ -28,7 +37,11 @@ export function TaskTimelineRow({
   datedTask,
   dateRange,
   columnWidth,
+  labelWidth,
+  shows,
   onToggleDone,
+  onUpdate,
+  onDelete,
 }: TaskTimelineRowProps) {
   const { task, dueDate, urgency } = datedTask;
   const isDone = task.status === 'done';
@@ -44,25 +57,14 @@ export function TaskTimelineRow({
 
   return (
     <div className="flex min-h-[44px] items-center border-b border-border/30 last:border-0">
-      {/* Left: label */}
-      <div className="flex w-48 shrink-0 items-center gap-2 pr-2">
-        <input
-          type="checkbox"
-          checked={isDone}
-          onChange={() => onToggleDone(task.id)}
-          className="h-4 w-4 shrink-0 accent-primary"
-          aria-label={`Mark "${task.title}" as ${isDone ? 'todo' : 'done'}`}
-        />
-        <span
-          className={cn(
-            'truncate text-xs',
-            isDone ? 'text-muted-foreground line-through' : 'text-foreground'
-          )}
-          title={task.title}
-        >
-          {task.title}
-        </span>
-      </div>
+      <TaskTimelineTaskCell
+        task={task}
+        shows={shows}
+        labelWidth={labelWidth}
+        onToggleDone={onToggleDone}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+      />
 
       {/* Right: grid with pill */}
       <div className="relative flex flex-1 overflow-hidden">

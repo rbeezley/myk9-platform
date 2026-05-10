@@ -4,13 +4,14 @@ import { cn } from '@/lib/utils';
 interface TaskTimelineHeaderProps {
   days: Date[];
   columnWidth: number;
+  labelWidth: number;
 }
 
-export function TaskTimelineHeader({ days, columnWidth }: TaskTimelineHeaderProps) {
+export function TaskTimelineHeader({ days, columnWidth, labelWidth }: TaskTimelineHeaderProps) {
   return (
     <div className="flex border-b border-border">
       {/* Label column spacer */}
-      <div className="w-48 shrink-0" />
+      <div className="shrink-0" style={{ width: labelWidth }} />
       {/* Day columns */}
       <div className="flex flex-1 overflow-hidden">
         {days.map(day => (

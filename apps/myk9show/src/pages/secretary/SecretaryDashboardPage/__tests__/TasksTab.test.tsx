@@ -15,7 +15,7 @@ vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
   useDeleteTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
-import { useSecretaryTasks, useUpdateTask } from '@/hooks/queries/useSecretaryTasks';
+import { useSecretaryTasks, useUpdateTask, useDeleteTask } from '@/hooks/queries/useSecretaryTasks';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(
@@ -266,6 +266,133 @@ describe('TasksTab — Timeline view', () => {
         update: { status: 'done' },
       })
     );
+  });
+
+  it('edit controls update a dated timeline task', () => {
+    const mutateFn = vi.fn();
+    vi.mocked(useUpdateTask).mockReturnValue({
+      mutate: mutateFn,
+      isPending: false,
+    } as ReturnType<typeof useUpdateTask>);
+
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [
+        makeTask({
+          id: 'task-edit',
+          title: 'Old timeline title',
+          dueDate: '2026-05-12',
+          showId: 'show-1',
+        }),
+      ],
+      isLoading: false,
+    } as ReturnType<typeof useSecretaryTasks>);
+
+    render(
+      <TasksTab
+        shows={[
+          { id: 'show-1', name: 'Spring Trial' },
+          { id: 'show-2', name: 'Summer Trial' },
+        ]}
+        clubId="club-1"
+      />,
+      { wrapper }
+    );
+
+    fireEvent.click(screen.getByLabelText('Edit "Old timeline title"'));
+    fireEvent.change(screen.getByDisplayValue('Old timeline title'), {
+      target: { value: 'Updated timeline title' },
+    });
+    fireEvent.change(screen.getByDisplayValue('2026-05-12'), {
+      target: { value: '2026-05-20' },
+    });
+    fireEvent.change(screen.getByDisplayValue('Spring Trial'), {
+      target: { value: 'show-2' },
+    });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(mutateFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'task-edit',
+        update: {
+          title: 'Updated timeline title',
+          dueDate: '2026-05-20',
+          showId: 'show-2',
+        },
+      }),
+      expect.any(Object)
+    );
+  });
+
+  it('delete controls delete a dated timeline task', () => {
+    const mutateFn = vi.fn();
+    vi.mocked(useDeleteTask).mockReturnValue({
+      mutate: mutateFn,
+      isPending: false,
+    } as ReturnType<typeof useDeleteTask>);
+
+    const today = new Date().toISOString().slice(0, 10);
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [makeTask({ id: 'task-delete', title: 'Delete timeline task', dueDate: today })],
+      isLoading: false,
+    } as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
+      wrapper,
+    });
+
+    fireEvent.click(screen.getByLabelText('Delete "Delete timeline task"'));
+
+    expect(mutateFn).toHaveBeenCalledWith('task-delete', expect.any(Object));
+  });
+
+  it('undated timeline tasks expose edit and delete controls', () => {
+    const updateMutate = vi.fn();
+    const deleteMutate = vi.fn();
+    vi.mocked(useUpdateTask).mockReturnValue({
+      mutate: updateMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateTask>);
+    vi.mocked(useDeleteTask).mockReturnValue({
+      mutate: deleteMutate,
+      isPending: false,
+    } as ReturnType<typeof useDeleteTask>);
+
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [
+        makeTask({
+          id: 'task-undated-actions',
+          title: 'Undated timeline task',
+          dueDate: undefined,
+          showId: null,
+        }),
+      ],
+      isLoading: false,
+    } as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
+      wrapper,
+    });
+
+    fireEvent.click(screen.getByLabelText('Edit "Undated timeline task"'));
+    fireEvent.change(screen.getByDisplayValue('Undated timeline task'), {
+      target: { value: 'Scheduled timeline task' },
+    });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'task-undated-actions',
+        update: {
+          title: 'Scheduled timeline task',
+          dueDate: null,
+          showId: null,
+        },
+      }),
+      expect.any(Object)
+    );
+
+    fireEvent.click(screen.getByLabelText('Delete "Undated timeline task"'));
+    expect(deleteMutate).toHaveBeenCalledWith('task-undated-actions', expect.any(Object));
   });
 
   it('hides completed tasks until "Show completed" is toggled', () => {

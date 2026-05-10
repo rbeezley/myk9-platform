@@ -1,9 +1,9 @@
 import type { SecretaryTask, UpdateTaskInput } from './types';
 import { TaskTimelineHeader } from './TaskTimelineHeader';
 import { TaskTimelineRow } from './TaskTimelineRow';
+import { TaskTimelineTaskCell } from './TaskTimelineTaskCell';
 import { calcDateRange, groupByShow, calcSummary, splitDatedUndated } from './taskTimelineUtils';
 import { TaskTimelineSummary } from './TaskTimelineSummary';
-import { cn } from '@/lib/utils';
 
 interface Show {
   id: string;
@@ -17,9 +17,11 @@ interface TaskTimelineViewProps {
   showCompleted: boolean;
   onToggleDone: (id: string) => void;
   onUpdate: (id: string, update: UpdateTaskInput) => void;
+  onDelete: (id: string) => void;
 }
 
 const COLUMN_WIDTH = 40; // px per day column
+const LABEL_WIDTH = 256;
 
 export function TaskTimelineView({
   tasks,
@@ -28,6 +30,7 @@ export function TaskTimelineView({
   showCompleted,
   onToggleDone,
   onUpdate,
+  onDelete,
 }: TaskTimelineViewProps) {
   const showNameMap = Object.fromEntries(shows.map(s => [s.id, s.name]));
 
@@ -55,8 +58,12 @@ export function TaskTimelineView({
       <TaskTimelineSummary summary={summary} />
 
       <div className="overflow-x-auto rounded-lg border border-border">
-        <div style={{ minWidth: 192 + dateRange.days.length * COLUMN_WIDTH }}>
-          <TaskTimelineHeader days={dateRange.days} columnWidth={COLUMN_WIDTH} />
+        <div style={{ minWidth: LABEL_WIDTH + dateRange.days.length * COLUMN_WIDTH }}>
+          <TaskTimelineHeader
+            days={dateRange.days}
+            columnWidth={COLUMN_WIDTH}
+            labelWidth={LABEL_WIDTH}
+          />
 
           {groups.map(group => (
             <div key={group.showId ?? 'general'}>
@@ -76,8 +83,11 @@ export function TaskTimelineView({
                   datedTask={datedTask}
                   dateRange={dateRange}
                   columnWidth={COLUMN_WIDTH}
+                  labelWidth={LABEL_WIDTH}
+                  shows={shows}
                   onToggleDone={onToggleDone}
                   onUpdate={onUpdate}
+                  onDelete={onDelete}
                 />
               ))}
 
@@ -85,7 +95,10 @@ export function TaskTimelineView({
               {group.undatedTasks.length > 0 && (
                 <div>
                   <div className="flex border-b border-border/30 bg-muted/10">
-                    <div className="w-48 shrink-0 px-3 py-1 text-xs text-muted-foreground italic">
+                    <div
+                      className="shrink-0 px-3 py-1 text-xs text-muted-foreground italic"
+                      style={{ width: LABEL_WIDTH }}
+                    >
                       No due date
                     </div>
                     <div className="flex-1" />
@@ -95,26 +108,14 @@ export function TaskTimelineView({
                       key={task.id}
                       className="flex min-h-[44px] items-center border-b border-border/30 last:border-0"
                     >
-                      <div className="flex w-48 shrink-0 items-center gap-2 pr-2">
-                        <input
-                          type="checkbox"
-                          checked={task.status === 'done'}
-                          onChange={() => onToggleDone(task.id)}
-                          className="h-4 w-4 shrink-0 accent-primary"
-                          aria-label={`Mark "${task.title}" as ${task.status === 'done' ? 'todo' : 'done'}`}
-                        />
-                        <span
-                          className={cn(
-                            'truncate text-xs',
-                            task.status === 'done'
-                              ? 'text-muted-foreground line-through'
-                              : 'text-foreground'
-                          )}
-                          title={task.title}
-                        >
-                          {task.title}
-                        </span>
-                      </div>
+                      <TaskTimelineTaskCell
+                        task={task}
+                        shows={shows}
+                        labelWidth={LABEL_WIDTH}
+                        onToggleDone={onToggleDone}
+                        onUpdate={onUpdate}
+                        onDelete={onDelete}
+                      />
                       <div className="flex-1" />
                     </div>
                   ))}

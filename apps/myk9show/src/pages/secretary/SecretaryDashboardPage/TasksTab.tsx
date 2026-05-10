@@ -122,6 +122,7 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
           showCompleted={showCompleted}
           onToggleDone={handleToggleDone}
           onUpdate={handleUpdate}
+          onDelete={handleDelete}
         />
       ) : (
         <div className="flex flex-col gap-2">

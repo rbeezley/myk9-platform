@@ -21,6 +21,7 @@ const baseShow: WizardShowData = {
   judgeIds: ['judge-uuid-a', 'judge-uuid-b'],
   acceptCheckPayments: true,
   acceptCashPayments: false,
+  style: 'monogram',
 };
 
 const baseTrial: WizardTrial = {
@@ -65,6 +66,31 @@ describe('buildCreateShowPayload', () => {
   it('passes judgeIds straight through to p_judge_ids', () => {
     const { rpcInput } = buildCreateShowPayload(baseShow, [], {}, new Map(), 'unpublished');
     expect(rpcInput.p_judge_ids).toEqual(['judge-uuid-a', 'judge-uuid-b']);
+  });
+
+  it('passes selected premium list style to the show RPC payload and local show', () => {
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      { ...baseShow, style: 'heritage' },
+      [],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    expect(rpcInput.p_show.style).toBe('heritage');
+    expect(localEntities.show.style).toBe('heritage');
+  });
+
+  it('defaults premium list style to monogram when the wizard value is unset', () => {
+    const { style: _style, ...showWithoutStyle } = baseShow;
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      showWithoutStyle,
+      [],
+      {},
+      new Map(),
+      'unpublished'
+    );
+    expect(rpcInput.p_show.style).toBe('monogram');
+    expect(localEntities.show.style).toBe('monogram');
   });
 
   it('generates a UUID for each trial and maps wizard IDs in trialIdMap', () => {

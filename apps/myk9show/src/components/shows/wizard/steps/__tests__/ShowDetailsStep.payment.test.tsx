@@ -21,6 +21,7 @@ vi.mock('@/store/wizardStore', () => ({
       judgeIds: [],
       acceptCheckPayments: false,
       acceptCashPayments: false,
+      style: 'monogram',
     },
     updateShowData: mockUpdateShowData,
     addJudgeToShow: vi.fn(),
@@ -96,5 +97,13 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     render(<ShowDetailsStep />);
     await user.click(screen.getByRole('checkbox', { name: /cash \(pay at show\)/i }));
     expect(mockUpdateShowData).toHaveBeenCalledWith({ acceptCashPayments: true });
+  });
+
+  it('renders the Premium List Style selector with the default style', () => {
+    render(<ShowDetailsStep />);
+    expect(screen.getByText('Premium List Style')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /premium list style/i })).toHaveTextContent(
+      /monogram \(default\)/i
+    );
   });
 });

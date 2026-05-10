@@ -37,6 +37,22 @@ import { createUser, updateUser } from '@/services/database/users';
 import { judgeQualificationQueries } from '@/services/database/judges';
 import { createClub } from '@/services/database/clubs';
 import type { CreateClubData } from './ShowDetailsStep.sections';
+import { PREMIUM_STYLE_LABELS, type PremiumStyle } from '@/types/premium-types';
+
+const PREMIUM_STYLE_OPTIONS: Array<{ value: PremiumStyle; label: string }> = [
+  { value: 'monogram', label: `${PREMIUM_STYLE_LABELS.monogram} (default)` },
+  { value: 'banner', label: PREMIUM_STYLE_LABELS.banner },
+  { value: 'headline', label: PREMIUM_STYLE_LABELS.headline },
+  { value: 'magazine', label: PREMIUM_STYLE_LABELS.magazine },
+  { value: 'poster', label: PREMIUM_STYLE_LABELS.poster },
+  { value: 'gazette', label: PREMIUM_STYLE_LABELS.gazette },
+  { value: 'fieldGuide', label: PREMIUM_STYLE_LABELS.fieldGuide },
+  { value: 'heritage', label: PREMIUM_STYLE_LABELS.heritage },
+];
+
+function getPremiumStyleLabel(style: PremiumStyle | undefined): string {
+  return PREMIUM_STYLE_OPTIONS.find(option => option.value === (style ?? 'monogram'))!.label;
+}
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
@@ -307,6 +323,27 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   if (v !== undefined) updateShowData({ dayOfShowFee: v });
                 }}
               />
+
+              <div className="space-y-2">
+                <Label htmlFor="show-premium-style">Premium List Style</Label>
+                <Select
+                  value={show.style ?? 'monogram'}
+                  onValueChange={value => updateShowData({ style: value as PremiumStyle })}
+                >
+                  <SelectTrigger id="show-premium-style" className="!bg-secondary h-10">
+                    <SelectValue placeholder="Select style">
+                      {getPremiumStyleLabel(show.style)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PREMIUM_STYLE_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="show-starting-armband" className="flex items-center gap-1.5">

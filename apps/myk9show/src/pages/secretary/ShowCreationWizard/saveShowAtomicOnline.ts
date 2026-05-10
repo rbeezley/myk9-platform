@@ -112,6 +112,7 @@ export async function saveShowAtomicOnline(
     startingArmbandNumber: show.startingArmbandNumber,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
+    style: localEntities.show.style ?? 'monogram',
   };
 
   const { shows, addShowLegacy } = useShowStore.getState();

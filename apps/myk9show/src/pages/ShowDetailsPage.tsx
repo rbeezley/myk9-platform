@@ -23,6 +23,7 @@ import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
+import { resolveOverviewJudges } from '@/components/shows/overview/overviewJudges';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
@@ -229,28 +230,10 @@ const ShowDetailsPage: React.FC = () => {
     });
   }, [associatedTrials, trialClasses, userEntries, showEntries]);
 
-  // Derive unique judges from class-level assignments as fallback when
-  // the judge_assignments table has no rows for this show
+  // Derive unique judges from class-level assignments when the show-level
+  // judge assignment rows are missing names.
   const effectiveJudges = useMemo((): ShowJudgeAssignment[] => {
-    if (actualCurrentShow?.assignedJudges && actualCurrentShow.assignedJudges.length > 0) {
-      return actualCurrentShow.assignedJudges;
-    }
-    const judgeMap = new Map<string, ShowJudgeAssignment>();
-    for (const cls of showClasses) {
-      if (!cls.judgeName) continue;
-      const existing = judgeMap.get(cls.judgeName);
-      if (existing) {
-        existing.assignedClasses = [...(existing.assignedClasses ?? []), cls.id];
-      } else {
-        judgeMap.set(cls.judgeName, {
-          judgeId: cls.judgeName,
-          judgeName: cls.judgeName,
-          assignedDate: '',
-          assignedClasses: [cls.id],
-        });
-      }
-    }
-    return Array.from(judgeMap.values());
+    return resolveOverviewJudges(actualCurrentShow?.assignedJudges, showClasses);
   }, [actualCurrentShow, showClasses]);
 
   // Trial statistics for card display (class counts, entry counts, scoring progress)

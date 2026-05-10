@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
+import type { PremiumStyle } from '@/types/premium-types';
 
 /** Maps show organization to a default trial type (discipline). */
 const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
@@ -37,6 +38,7 @@ interface WizardState {
     judgeIds: string[]; // Judges assigned to the show
     acceptCheckPayments: boolean;
     acceptCashPayments: boolean;
+    style?: PremiumStyle | undefined;
   };
 
   // Trials data
@@ -121,6 +123,7 @@ const initialState: WizardState = {
     judgeIds: [],
     acceptCheckPayments: false,
     acceptCashPayments: false,
+    style: 'monogram',
   },
   trials: [],
   judgeAssignments: {},
@@ -241,7 +244,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       loadDraft: draft =>
         set(state => {
           const merged = { ...state, ...draft, isDirty: false };
-          return ensureOfficialsDefault(merged);
+          return ensureShowDefaults(merged);
         }),
     }),
     {
@@ -257,7 +260,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         judgeDetails: state.judgeDetails,
       }),
       merge: (persisted, current) => {
-        const state = ensureOfficialsDefault({
+        const state = ensureShowDefaults({
           ...current,
           ...(persisted as Partial<WizardState>),
         });
@@ -279,12 +282,19 @@ export const useWizardStore = create<WizardState & WizardActions>()(
  * or more role arrays missing or non-array. We backfill each missing role with
  * `[]` and drop non-array values rather than trust persisted storage blindly.
  */
-function ensureOfficialsDefault<T extends { show: WizardState['show'] }>(state: T): T {
+function ensureShowDefaults<T extends { show: WizardState['show'] }>(state: T): T {
   const o = state.show.officials as Partial<WizardState['show']['officials']> | undefined;
   const secretary = Array.isArray(o?.secretary) ? o!.secretary : [];
   const chairman = Array.isArray(o?.chairman) ? o!.chairman : [];
   const steward = Array.isArray(o?.steward) ? o!.steward : [];
-  if (o && o.secretary === secretary && o.chairman === chairman && o.steward === steward) {
+  const style = state.show.style ?? 'monogram';
+  if (
+    o &&
+    o.secretary === secretary &&
+    o.chairman === chairman &&
+    o.steward === steward &&
+    state.show.style === style
+  ) {
     return state;
   }
   return {
@@ -292,6 +302,7 @@ function ensureOfficialsDefault<T extends { show: WizardState['show'] }>(state: 
     show: {
       ...state.show,
       officials: { secretary, chairman, steward },
+      style,
     },
   };
 }

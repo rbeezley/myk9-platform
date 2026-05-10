@@ -102,9 +102,9 @@ describe('Submission Loading State Wiring', () => {
   });
 
   it('should set isSubmitting true before async payment submission', () => {
-    // setIsSubmitting(true) must appear before the submitRegistration call
+    // setIsSubmitting(true) must appear before the async registration submission
     const setTruePos = wizardPageContent.indexOf('setIsSubmitting(true)');
-    const submitPos = wizardPageContent.indexOf('await submitRegistration(');
+    const submitPos = wizardPageContent.indexOf('await submitShowRegistration(');
     expect(setTruePos).toBeGreaterThan(0);
     expect(submitPos).toBeGreaterThan(setTruePos);
   });

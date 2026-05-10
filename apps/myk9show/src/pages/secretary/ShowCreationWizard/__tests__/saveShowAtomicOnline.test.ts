@@ -72,6 +72,7 @@ const baseShow: WizardShowData = {
   judgeIds: [],
   acceptCheckPayments: true,
   acceptCashPayments: false,
+  style: 'monogram',
 };
 
 const baseTrials: WizardTrial[] = [];
@@ -114,11 +115,33 @@ describe('saveShowAtomicOnline', () => {
           name: 'Test Show',
           club_id: baseShow.clubId,
           status: 'draft',
+          style: 'monogram',
         }),
         p_trials: [],
         p_classes: [],
         p_judge_ids: [],
       })
+    );
+  });
+
+  it('returns and caches the selected premium list style on the saved show', async () => {
+    rpcMock.mockResolvedValue({ error: null });
+    const queryClient = makeQueryClient();
+
+    const result = await saveShowAtomicOnline({
+      show: { ...baseShow, style: 'heritage' },
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient,
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.savedShow.style).toBe('heritage');
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ style: 'heritage' })
     );
   });
 

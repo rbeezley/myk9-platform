@@ -40,8 +40,19 @@ export async function fetchSportTemplateByCode(
 // saves and pre-warm calls don't each pay a Supabase round-trip.
 const _classRulesCache = new Map<string, SportClassRuleRow[]>();
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isDbSportTemplateId(templateId: string): boolean {
+  return UUID_PATTERN.test(templateId);
+}
+
 export async function fetchClassRulesForTemplate(templateId: string): Promise<SportClassRuleRow[]> {
   if (_classRulesCache.has(templateId)) return _classRulesCache.get(templateId)!;
+  if (!isDbSportTemplateId(templateId)) {
+    _classRulesCache.set(templateId, []);
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('sport_class_rules')
     .select('*')
@@ -60,7 +71,7 @@ export async function fetchClassRulesForTemplate(templateId: string): Promise<Sp
  */
 export function prewarmClassRulesCache(templateIds: string[]): void {
   for (const id of templateIds) {
-    if (!_classRulesCache.has(id)) {
+    if (isDbSportTemplateId(id) && !_classRulesCache.has(id)) {
       fetchClassRulesForTemplate(id).catch(() => {
         // non-critical — save path handles fetch errors gracefully
       });

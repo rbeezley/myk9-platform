@@ -26,6 +26,7 @@ export interface ShowRpcPayload {
   day_of_show_fee: number | null;
   accept_check_payments: boolean | null;
   accept_cash_payments: boolean | null;
+  style: string;
 }
 
 export interface TrialRpcPayload {
@@ -81,6 +82,10 @@ function mapShowStatus(status: ShowStatus): 'draft' | 'published' {
   return status === 'published' ? 'published' : 'draft';
 }
 
+function normalizeShowStyle(style: WizardShowData['style']): string {
+  return style ?? 'monogram';
+}
+
 /**
  * Pure function: transform wizard state into the payload for the
  * create_show_with_children RPC plus the local IndexedDB entities to write
@@ -98,6 +103,7 @@ export function buildCreateShowPayload(
 ): CreateShowPayloadResult {
   const showId = crypto.randomUUID();
   const dbStatus = mapShowStatus(status);
+  const showStyle = normalizeShowStyle(show.style);
 
   const trialIdMap: Record<string, string> = {};
   const trialPayloads: TrialRpcPayload[] = trials.map((wizardTrial, index) => {
@@ -170,6 +176,7 @@ export function buildCreateShowPayload(
     dayOfShowFee: show.dayOfShowFee ?? undefined,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
+    style: showStyle,
     _version: 1,
     _lastModified: new Date(),
     _syncStatus: 'synced',
@@ -234,6 +241,7 @@ export function buildCreateShowPayload(
         day_of_show_fee: show.dayOfShowFee ?? null,
         accept_check_payments: show.acceptCheckPayments,
         accept_cash_payments: show.acceptCashPayments,
+        style: showStyle,
       },
       p_trials: trialPayloads,
       p_classes: classPayloads,

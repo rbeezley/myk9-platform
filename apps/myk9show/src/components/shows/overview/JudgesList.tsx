@@ -1,13 +1,15 @@
 import { Card } from '@/components/ui/card';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
+import { getDisplayableJudges } from './overviewJudges';
 
 interface JudgesListProps {
   judges?: ShowJudgeAssignment[];
 }
 
 export function JudgesList({ judges }: JudgesListProps) {
-  const hasJudges = judges && judges.length > 0;
+  const displayableJudges = getDisplayableJudges(judges);
+  const hasJudges = displayableJudges.length > 0;
 
   return (
     <Card>
@@ -16,7 +18,7 @@ export function JudgesList({ judges }: JudgesListProps) {
       </div>
       {hasJudges ? (
         <div className="divide-y divide-border/30">
-          {judges.map(judge => {
+          {displayableJudges.map(judge => {
             const classCount = judge.assignedClasses?.length || 0;
             return (
               <div key={judge.judgeId || judge.judgeName} className="flex items-center gap-3 p-4">

@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import type { Show } from '@/types/show-types';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
+import type { PremiumStyle } from '@/types/premium-types';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
 
 export interface WizardShowData {
@@ -28,6 +29,7 @@ export interface WizardShowData {
   judgeIds: string[];
   acceptCheckPayments: boolean;
   acceptCashPayments: boolean;
+  style?: PremiumStyle | undefined;
 }
 
 export interface WizardTrial {
@@ -200,6 +202,7 @@ export function showToShowInput(show: Show): ShowInput {
     startingArmbandNumber: show.startingArmbandNumber,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
+    style: show.style ?? 'monogram',
   };
 }
 
@@ -284,5 +287,6 @@ export function transformWizardDataToShow(
     startingArmbandNumber: show.startingArmbandNumber ?? 100,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
+    style: show.style ?? 'monogram',
   };
 }

@@ -58,16 +58,20 @@ describe('RunOrderDialog', () => {
   });
 
   it('shows Applying... text and disables buttons while applying', async () => {
-    defaultProps.onApply.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 200)));
+    let resolveApply: () => void = () => {};
+    defaultProps.onApply.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          resolveApply = resolve;
+        })
+    );
     const { user } = render(<RunOrderDialog {...defaultProps} />);
     await user.click(screen.getByText('Armband Low to High'));
-    user.click(screen.getByRole('button', { name: 'Apply' }));
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Applying...' })).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
-    // Drain the pending timer before the test ends to prevent leaking state into the next test
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled(), {
-      timeout: 500,
-    });
+    resolveApply();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled());
   });
 
   it('stays open and re-enables Apply when onApply throws', async () => {

@@ -6,7 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PrimaryTabs, PrimaryTabsContent } from '@/components/common/PrimaryTabs';
 import type { PrimaryTabDef } from '@/components/common/PrimaryTabs';
-import { Plus } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import type {
   VaccinationRecord,
   VetVisitRecord,
@@ -29,6 +29,10 @@ interface TraditionalViewProps {
   now: Date;
   thirtyDaysFromNow: Date;
   onAddItem: (type: HealthItemType) => void;
+  onEditVaccination: (record: VaccinationRecord) => void;
+  onEditMedication: (record: MedicationRecord) => void;
+  onEditAllergy: (record: AllergyRecord) => void;
+  onEditVetVisit: (record: VetVisitRecord) => void;
 }
 
 export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
@@ -42,6 +46,10 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
   now,
   thirtyDaysFromNow,
   onAddItem,
+  onEditVaccination,
+  onEditMedication,
+  onEditAllergy,
+  onEditVetVisit,
 }) => {
   const [activeTab, setActiveTab] = useState('vetVisits');
 
@@ -87,6 +95,15 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                 {visit.cost != null && visit.cost > 0 && (
                   <span className="text-sm font-medium">${visit.cost}</span>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEditVetVisit(visit)}
+                  aria-label={`Edit ${visit.reason}`}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
               </div>
             </div>
           ))}
@@ -134,6 +151,15 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   <span className="text-xs text-muted-foreground">
                     {vacc.vet_name || 'Unknown'}
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEditVaccination(vacc)}
+                    aria-label={`Edit ${vacc.vaccine_name}`}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
                 </div>
               </div>
             );
@@ -170,6 +196,15 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     Active
                   </span>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEditMedication(med)}
+                  aria-label={`Edit ${med.medication_name}`}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
               </div>
             </div>
           ))}
@@ -212,6 +247,15 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                     {allergy.severity.replace('_', ' ')}
                   </span>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEditAllergy(allergy)}
+                  aria-label={`Edit ${allergy.allergen}`}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
               </div>
             </div>
           ))}

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { FormField } from '@/components/common/FormField';
-import type { VetVisitRecord } from './AddVetVisitDialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import DatePickerField from '@/components/common/DatePickerField';
+import type { VetVisitRecord } from '@/types/health';
 
 interface EditVetVisitDialogProps {
   open: boolean;
@@ -13,61 +13,95 @@ interface EditVetVisitDialogProps {
   onSave: (record: VetVisitRecord) => void;
 }
 
-const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({ open, record, onClose, onSave }) => {
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState<string>("");
-  const [notes, setNotes] = useState('');
-  const [vetName, setVetName] = useState('');
-  const [clinicName, setClinicName] = useState('');
-
-  // Sync form state with record prop - using render-time state update pattern
-  const recordId = record?.id || '';
-  const [lastRecordId, setLastRecordId] = useState(recordId);
-  if (recordId !== lastRecordId && record) {
-    setLastRecordId(recordId);
-    setTitle(record.title);
-    setDate(record.date || "");
-    setNotes(record.notes);
-    setVetName(record.vetName || '');
-    setClinicName(record.clinicName || '');
-  }
+const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
+  open,
+  record,
+  onClose,
+  onSave,
+}) => {
+  const [reason, setReason] = useState(record?.reason || '');
+  const [visitDate, setVisitDate] = useState(record?.visit_date || '');
+  const [notes, setNotes] = useState(record?.notes || '');
+  const [vetName, setVetName] = useState(record?.vet_name || '');
+  const [clinicName, setClinicName] = useState(record?.clinic_name || '');
+  const [diagnosis, setDiagnosis] = useState(record?.diagnosis || '');
+  const [treatment, setTreatment] = useState(record?.treatment || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
-    onSave({ ...record, title, date, notes, vetName, clinicName });
+    onSave({
+      ...record,
+      visit_date: visitDate,
+      reason,
+      diagnosis: diagnosis || undefined,
+      treatment: treatment || undefined,
+      vet_name: vetName || undefined,
+      clinic_name: clinicName || undefined,
+      notes: notes || undefined,
+    });
   };
 
   return (
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() => document.getElementById('edit-vet-visit-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+      onSave={() =>
+        document
+          .getElementById('edit-vet-visit-form')
+          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+      }
       title="Edit Vet Visit"
       description="All fields are required."
       formId="edit-vet-visit-form"
       saveLabel="Save"
     >
       <form id="edit-vet-visit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label="Title" fieldId="editVetVisitTitle" required>
-          <Input id="editVetVisitTitle" type="text" value={""} onChange={e => setTitle(e.target.value)} required />
-        </FormField>
-        <div>
-          <DatePickerField
-            label="Date"
-            value={""}
-            onChange={setDate}
+        <FormField label="Reason" fieldId="editVetVisitReason" required>
+          <Input
+            id="editVetVisitReason"
+            type="text"
+            value={reason}
+            onChange={e => setReason(e.target.value)}
             required
           />
+        </FormField>
+        <div>
+          <DatePickerField label="Date" value={visitDate} onChange={setVisitDate} required />
         </div>
         <FormField label="Vet Name" fieldId="editVetVisitVetName" required>
-          <Input id="editVetVisitVetName" type="text" value={""} onChange={e => setVetName(e.target.value)} required />
+          <Input
+            id="editVetVisitVetName"
+            type="text"
+            value={vetName}
+            onChange={e => setVetName(e.target.value)}
+            required
+          />
         </FormField>
-        <FormField label="Clinic Name" fieldId="editVetVisitClinicName" required>
-          <Input id="editVetVisitClinicName" type="text" value={""} onChange={e => setClinicName(e.target.value)} required />
+        <FormField label="Clinic Name" fieldId="editVetVisitClinicName">
+          <Input
+            id="editVetVisitClinicName"
+            type="text"
+            value={clinicName}
+            onChange={e => setClinicName(e.target.value)}
+          />
         </FormField>
-        <FormField label="Notes" fieldId="editVetVisitNotes" required>
-          <Textarea id="editVetVisitNotes" value={""} onChange={e => setNotes(e.target.value)} required />
+        <FormField label="Diagnosis" fieldId="editVetVisitDiagnosis">
+          <Textarea
+            id="editVetVisitDiagnosis"
+            value={diagnosis}
+            onChange={e => setDiagnosis(e.target.value)}
+          />
+        </FormField>
+        <FormField label="Treatment" fieldId="editVetVisitTreatment">
+          <Textarea
+            id="editVetVisitTreatment"
+            value={treatment}
+            onChange={e => setTreatment(e.target.value)}
+          />
+        </FormField>
+        <FormField label="Notes" fieldId="editVetVisitNotes">
+          <Textarea id="editVetVisitNotes" value={notes} onChange={e => setNotes(e.target.value)} />
         </FormField>
       </form>
     </StandardDialog>

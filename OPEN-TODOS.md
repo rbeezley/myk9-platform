@@ -26,7 +26,6 @@ Active work items only. Resolved items and full context live in TO-DOS.md.
 ## Health Records
 
 - [ ] **Import Records button** — "Import Records" button on the Health Timeline has no onClick handler. Plan and implement: define supported import formats (CSV? PDF from vet portals?), build import flow. File: `HealthTimeline.tsx` line 272.
-- [ ] **Wire up edit for all health record types** — Edit dialogs exist for VetVisit, Vaccination, Medication, and Allergy but are not reachable from the UI. Requires: (1) fix field name mismatches between the edit dialogs (built against mock types) and the live DB types (`reason` vs `title`, `visit_date` vs `date`, `vet_name` vs `vetName`, etc.), (2) import and call the existing `useUpdate*Mutation` hooks from `useHealthDatabase.ts` in `HealthRecordsSection.tsx`, (3) add `onEditItem` callback through `TraditionalViewProps` → row-level Edit button in `HealthRecordsTraditionalView.tsx`. OFA Screenings and Genetic Tests have no edit dialogs at all — decide whether to build or defer. Files: `HealthRecordsSection.tsx`, `HealthRecordsTraditionalView.tsx`, `VetVisits/EditVetVisitDialog.tsx`, `Vaccinations/EditVaccinationDialog.tsx`, `Medications/EditMedicationDialog.tsx`, `Allergies/EditAllergyDialog.tsx`.
 
 ## Training Journal
 

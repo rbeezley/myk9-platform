@@ -20,6 +20,10 @@ Higher-level planning documents that govern how the items below should be sequen
 
 - **Secretary Task Timeline View** — The Tasks tab already had the persisted List/Timeline toggle, Timeline rendering, date helpers, grouping, and summary counts. Completed the remaining action-parity gap by adding edit/delete controls to Timeline task rows, including undated tasks in the "No due date" section. Added focused regression coverage in [`TasksTab.test.tsx`](apps/myk9show/src/pages/secretary/SecretaryDashboardPage/__tests__/TasksTab.test.tsx).
 
+## ✅ Resolved 2026-05-10 — Health record edit wiring
+
+- **Wire up edit for vaccinations, medications, allergies, and vet visits** — Traditional Health Records rows now expose Edit actions and save through the existing update mutation hooks. The edit dialogs now use the live `@/types/health` field names (`vaccine_name`, `medication_name`, `allergen`, `visit_date`, etc.) instead of the older mock dialog shapes. Added regression coverage in [`EditHealthDialogs.test.tsx`](apps/myk9show/src/components/dogs/DogDetails/HealthRecords/EditHealthDialogs.test.tsx). OFA and genetic test edit dialogs remain deferred because no edit dialogs exist for those record types yet.
+
 ---
 
 ## ✅ Resolved 2026-05-09 — Quick wins batch

@@ -12,12 +12,26 @@ import {
   useCreateVetVisitMutation,
   useCreateOFAScreeningMutation,
   useCreateGeneticScreeningMutation,
+  useUpdateVaccinationMutation,
+  useUpdateMedicationMutation,
+  useUpdateAllergyMutation,
+  useUpdateVetVisitMutation,
 } from '@/hooks/queries/useHealthDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { HealthRecordsSectionProps } from './HealthRecordsSection.types';
 import { dispatchHealthItem } from './HealthRecordsSection.types';
 import { convertToTimelineEvents, getVaccinationAlerts } from './HealthRecordsSection.helpers';
 import { HealthRecordsTraditionalView } from './HealthRecordsTraditionalView';
+import EditVaccinationDialog from './Vaccinations/EditVaccinationDialog';
+import EditMedicationDialog from './Medications/EditMedicationDialog';
+import EditAllergyDialog from './Allergies/EditAllergyDialog';
+import EditVetVisitDialog from './VetVisits/EditVetVisitDialog';
+import type {
+  AllergyRecord,
+  MedicationRecord,
+  VaccinationRecord,
+  VetVisitRecord,
+} from '@/types/health';
 
 const AddHealthItemDialog = lazy(() => import('./AddHealthItemDialog'));
 
@@ -28,6 +42,10 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<'timeline' | 'traditional'>('timeline');
   const [addDialogType, setAddDialogType] = useState<HealthItemType | null>(null);
+  const [editingVaccination, setEditingVaccination] = useState<VaccinationRecord | null>(null);
+  const [editingMedication, setEditingMedication] = useState<MedicationRecord | null>(null);
+  const [editingAllergy, setEditingAllergy] = useState<AllergyRecord | null>(null);
+  const [editingVetVisit, setEditingVetVisit] = useState<VetVisitRecord | null>(null);
   const { user: authUser } = useAuthContext();
 
   const {
@@ -56,6 +74,10 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   const createVetVisit = useCreateVetVisitMutation();
   const createOFAScreening = useCreateOFAScreeningMutation();
   const createGeneticScreening = useCreateGeneticScreeningMutation();
+  const updateVaccination = useUpdateVaccinationMutation();
+  const updateMedication = useUpdateMedicationMutation();
+  const updateAllergy = useUpdateAllergyMutation();
+  const updateVetVisit = useUpdateVetVisitMutation();
 
   const vaccinationsData = useMemo(
     () => (vaccinationsOnly ? vaccinationsOnlyQuery.data : vaccinations.data) || [],
@@ -126,6 +148,46 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
       dispatchHealthItem(type, data, mutations, authUser?.id);
     },
     [mutations, authUser?.id]
+  );
+
+  const handleSaveVaccination = useCallback(
+    (record: VaccinationRecord) => {
+      updateVaccination.mutate(
+        { id: record.id, updates: record },
+        { onSuccess: () => setEditingVaccination(null) }
+      );
+    },
+    [updateVaccination]
+  );
+
+  const handleSaveMedication = useCallback(
+    (record: MedicationRecord) => {
+      updateMedication.mutate(
+        { id: record.id, updates: record },
+        { onSuccess: () => setEditingMedication(null) }
+      );
+    },
+    [updateMedication]
+  );
+
+  const handleSaveAllergy = useCallback(
+    (record: AllergyRecord) => {
+      updateAllergy.mutate(
+        { id: record.id, updates: record },
+        { onSuccess: () => setEditingAllergy(null) }
+      );
+    },
+    [updateAllergy]
+  );
+
+  const handleSaveVetVisit = useCallback(
+    (record: VetVisitRecord) => {
+      updateVetVisit.mutate(
+        { id: record.id, updates: record },
+        { onSuccess: () => setEditingVetVisit(null) }
+      );
+    },
+    [updateVetVisit]
   );
 
   if (!user.isPremium && !vaccinationsOnly) {
@@ -248,6 +310,10 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           now={now}
           thirtyDaysFromNow={thirtyDaysFromNow}
           onAddItem={setAddDialogType}
+          onEditVaccination={setEditingVaccination}
+          onEditMedication={setEditingMedication}
+          onEditAllergy={setEditingAllergy}
+          onEditVetVisit={setEditingVetVisit}
         />
       )}
 
@@ -261,6 +327,43 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
             onAdd={handleAddItem}
           />
         </Suspense>
+      )}
+
+      {editingVaccination && (
+        <EditVaccinationDialog
+          key={editingVaccination.id}
+          open
+          record={editingVaccination}
+          onClose={() => setEditingVaccination(null)}
+          onSave={handleSaveVaccination}
+        />
+      )}
+      {editingMedication && (
+        <EditMedicationDialog
+          key={editingMedication.id}
+          open
+          record={editingMedication}
+          onClose={() => setEditingMedication(null)}
+          onSave={handleSaveMedication}
+        />
+      )}
+      {editingAllergy && (
+        <EditAllergyDialog
+          key={editingAllergy.id}
+          open
+          record={editingAllergy}
+          onClose={() => setEditingAllergy(null)}
+          onSave={handleSaveAllergy}
+        />
+      )}
+      {editingVetVisit && (
+        <EditVetVisitDialog
+          key={editingVetVisit.id}
+          open
+          record={editingVetVisit}
+          onClose={() => setEditingVetVisit(null)}
+          onSave={handleSaveVetVisit}
+        />
       )}
     </div>
   );

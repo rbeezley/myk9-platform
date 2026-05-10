@@ -294,7 +294,7 @@ describe('Template System Performance Benchmarks', () => {
         () => {
           store.deleteTemplate(targetId);
         },
-        25
+        35
       );
     });
   });

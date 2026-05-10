@@ -12,7 +12,12 @@
  * - Tests TTL expiration and cache invalidation
  */
 
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
@@ -72,150 +77,49 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
    * Now: 1 batch transaction for all entries (N entries = 1 transaction)
    */
   async sync(licenseKey: string): Promise<SyncResult> {
-    const startTime = Date.now();
-    let rowsSynced = 0;
-    let conflictsResolved = 0;
+    const adapter: SyncReplicatedTableAdapter<Entry, Entry> = {
+      fetchRemoteRows: async ({ since, scope }) => {
+        const fetchPromise = supabase
+          .from('view_myk9q_entries')
+          .select('*')
+          .eq('license_key', scope.value ?? '')
+          .gt('updated_at', new Date(since).toISOString())
+          .order('updated_at', { ascending: true });
 
-    try {
-      // Step 1: Get last sync timestamp (single read transaction)
-      // NOTE: Removed updateSyncMetadata('syncing') at start to reduce transaction count
-      const metadata = await this.getSyncMetadata();
-
-      // Check if cache is empty FOR THIS SHOW - need to know for lastSync calculation
-      // CRITICAL: Pass licenseKey to filter by current show (multi-tenant isolation)
-      // Without this, cache from other shows would cause incremental sync to miss data
-      const allCachedEntries = await this.getAll(licenseKey);
-      const isCacheEmpty = allCachedEntries.length === 0;
-
-      // If cache is empty but we have a lastSync timestamp, it means the cache was cleared
-      // Reset to epoch (0) to fetch all data
-      //
-      // CROSS-TAB SYNC FIX: Add a 5-second buffer to lastSync to prevent race conditions.
-      // Problem: When Tab A updates entries and triggers sync, Tab B may receive the
-      // real-time notification and start its own sync. If Tab B's lastIncrementalSyncAt
-      // is very recent (close to or after Tab A's update timestamp), Tab B's query
-      // `updated_at > lastSync` can miss the updates.
-      //
-      // Solution: Query for entries updated in the last 5 seconds PLUS anything newer.
-      // This ensures we don't miss updates due to clock skew or timing race conditions.
-      const SYNC_BUFFER_MS = 5000; // 5 seconds buffer for cross-tab sync
-      const rawLastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
-      const lastSync = rawLastSync > SYNC_BUFFER_MS ? rawLastSync - SYNC_BUFFER_MS : 0;
-
-      // Step 2: Fetch changes from server since last sync via platform view
-      const fetchPromise = supabase
-        .from('view_myk9q_entries')
-        .select('*')
-        .eq('license_key', licenseKey)
-        .gt('updated_at', new Date(lastSync).toISOString())
-        .order('updated_at', { ascending: true });
-
-      // Add 30 second timeout to prevent infinite hanging
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Entries fetch timed out after 30 seconds')), 30000);
-      });
-
-      const result = await Promise.race([fetchPromise, timeoutPromise]);
-
-      const { data: remoteEntries, error: fetchError } = result as {
-        data: Entry[] | null;
-        error: unknown;
-      };
-
-      if (fetchError) {
-        logger.error(`[${this.tableName}] Fetch error:`, fetchError);
-        throw fetchError;
-      }
-
-      // Step 3: OPTIMIZED - Batch process remote entries to minimize transactions
-      // Instead of individual get+set per entry (2N transactions), collect all and batch (1 transaction)
-      if (remoteEntries && remoteEntries.length > 0) {
-        // Build a map of local entries for conflict resolution (1 transaction to read all)
-        const localEntriesMap = new Map<string, Entry>();
-        for (const entry of allCachedEntries) {
-          localEntriesMap.set(String(entry.id), entry);
-        }
-
-        // Process all remote entries and collect for batch write
-        const entriesToCache: Entry[] = [];
-
-        for (const rawEntry of remoteEntries) {
-          // view_myk9q_entries returns flat rows — no nested objects to strip
-          const remoteEntry = rawEntry as Entry;
-
-          // Convert ID to string for consistent IndexedDB key format
-          const entryId = String(remoteEntry.id);
-          const localEntry = localEntriesMap.get(entryId);
-
-          if (localEntry) {
-            // Conflict: both local and remote have data
-            const resolved = this.resolveConflict(localEntry, { ...remoteEntry, id: entryId });
-            entriesToCache.push(resolved);
-            conflictsResolved++;
-          } else {
-            // No conflict: just cache the remote entry
-            entriesToCache.push({ ...remoteEntry, id: entryId });
-          }
-
-          rowsSynced++;
-        }
-
-        // Single batch write for all entries (1 transaction instead of N*2)
-        if (entriesToCache.length > 0) {
-          await this.batchSet(entriesToCache);
-        }
-      }
-
-      // Step 4: Upload pending mutations (Phase 2 - SyncEngine)
-      // For now, just log that we would upload here
-      logger.log(`[${this.tableName}] Would upload pending mutations here (Phase 2)`);
-
-      // Step 5: Update sync metadata (single write transaction at the end)
-      await this.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now(),
-        syncStatus: 'idle',
-        errorMessage: undefined,
-        conflictCount: conflictsResolved,
-      });
-
-      const duration = Date.now() - startTime;
-      logger.log(
-        `[${this.tableName}] Sync complete: ${rowsSynced} rows, ${conflictsResolved} conflicts, ${duration}ms`
-      );
-
-      return {
-        tableName: this.tableName,
-        success: true,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration,
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // Update sync metadata with error (best effort - don't re-throw if this fails)
-      try {
-        await this.updateSyncMetadata({
-          syncStatus: 'error',
-          errorMessage,
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Entries fetch timed out after 30 seconds')), 30000);
         });
-      } catch (metadataError) {
-        logger.error(`[${this.tableName}] Failed to update error metadata:`, metadataError);
-      }
 
-      logger.error(`[${this.tableName}] Sync failed:`, error);
+        const result = (await Promise.race([fetchPromise, timeoutPromise])) as {
+          data: Entry[] | null;
+          error: unknown;
+        };
 
-      return {
-        tableName: this.tableName,
-        success: false,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-        error: errorMessage,
-      };
-    }
+        if (result.error) {
+          logger.error(`[${this.tableName}] Fetch error:`, result.error);
+          throw result.error;
+        }
+
+        return result.data ?? [];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: remote => ({
+        ...remote,
+        id: String(remote.id),
+        is_in_ring: remote.entry_status === 'in-ring',
+      }),
+      resolveConflict: (local, remote) => this.resolveConflict(local, remote),
+      mergeDirtyRow: (local, remote) => ({
+        ...local,
+        is_scored: remote.is_scored || local.is_scored,
+        result_status: remote.result_status ?? local.result_status,
+        final_placement: remote.final_placement ?? local.final_placement,
+        search_time_seconds: remote.search_time_seconds ?? local.search_time_seconds,
+        total_faults: remote.total_faults ?? local.total_faults,
+      }),
+    };
+
+    return syncReplicatedTable(this, adapter, { value: licenseKey }, { incrementalBufferMs: 5000 });
   }
 
   /**

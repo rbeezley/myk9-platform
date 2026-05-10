@@ -69,6 +69,13 @@ Trial, Dog, Show, Armband.
 PostgREST-only entities (online reads): Club, Handler, Exhibitor, Volunteer,
 WaitList, Secretary tasks, Visibility settings.
 
+**Replicated Table Sync**
+The package-owned workflow that keeps a replicated entity's IndexedDB cache,
+pending mutations, conflict policy, and Supabase rows in agreement. The
+workflow preserves dirty local rows by default so ringside work is never
+overwritten by a stale server snapshot. Table adapters may opt into field-level
+merge for server-authoritative fields such as scoring and placement.
+
 ## Cross-entity notes
 
 Judge roster and qualification reads live in `services/database/judges/reads.ts`

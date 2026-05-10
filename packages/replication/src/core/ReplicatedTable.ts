@@ -187,6 +187,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * Get single row by ID
    */
   async get(id: string): Promise<T | null> {
+    const row = await this.getReplicatedRow(id);
+    if (!row) return null;
+    return row.data;
+  }
+
+  /**
+   * Get the replicated row wrapper for an ID.
+   * Used by package-level sync workflows that need cache metadata such as
+   * dirty state without relying on app-specific fields.
+   */
+  async getReplicatedRow(id: string): Promise<ReplicatedRow<T> | null> {
     const db = await this.init();
     const normalizedId = String(id);
     const key = [this.tableName, normalizedId];
@@ -211,7 +222,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     row.accessCount = (row.accessCount || 0) + 1;
     await db.put(REPLICATION_STORES.REPLICATED_TABLES, row);
 
-    return row.data;
+    return row;
   }
 
   /**

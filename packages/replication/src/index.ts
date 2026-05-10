@@ -123,6 +123,13 @@ export {
 export { ReplicatedTableCacheManager } from './core/ReplicatedTableCache';
 export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
+export { syncReplicatedTable } from './syncReplicatedTable';
+export type {
+  RemoteFetchContext,
+  SyncReplicatedTableAdapter,
+  SyncReplicatedTableOptions,
+  SyncScope,
+} from './syncReplicatedTable';
 
 // Mutation utilities
 export {

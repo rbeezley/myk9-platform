@@ -122,12 +122,12 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ### F30 — third-dog selection blocker (confirmed in 2 walks)
 
-- [ ] **Registration wizard step 1 dog picker reliably caps at 2 dogs** — Reproducer: search "Ace" → select; search "Bravo" → select; search "Charlie" → click row → 0 of 3 selected and the count holds at 2. Confirmed in two consecutive registration flows (Heritage and Headline). Workarounds attempted: clicking the row's nested checkbox, calling `onCheckedChange` via fiber, using the "Bulk Select" mode and clicking "Select All Visible" / "Select All Eligible". None added the third dog. This may be specific to the audit's fiber-based clicks, but worth a manual reproduction with a human pointer. Files: `DogSelectionStepEnhanced`, `DogSearchInterface`, the dog-list bulk-select logic.
+- [x] **Registration wizard step 1 dog picker reliably caps at 2 dogs** — Fixed on 2026-05-11. Dog selection now keeps previously selected dogs when adding one dog from a later search result, and visible bulk-select actions add/remove only the visible eligible dogs instead of replacing or clearing the full selected-dog cart.
 
 ### Security / cosmetic
 
 - [ ] **myK9Q access codes are deterministically derived from the show UUID** — The success screen at the end of show creation displays four codes: Admin / Judge / Steward / Exhibitor. Inspecting Heritage's: show UUID `3b91e282-6e45-4a89-9446-f6ebeb0bf62c` produced codes `a6e45 / j4a89 / s9446 / ef6eb`. Each is `<role-letter> + 4 chars from the corresponding UUID segment`. If these codes are meant to be access secrets (Steward + Judge especially) anyone who can read the show URL can compute them. Either make them random per-role and stored in a row, or make them not be a secret at all (publish them and rely on role gates).
-- [ ] **F30 — dog selection state desyncs across search filters** — In the registration wizard step 1, switching the search input from "Ace" to "Bella" to "Bravo" reliably reaches 2 dogs selected but never 3. Each new search seems to deselect a previously-selected dog under some condition (probably the "Bulk Select" header checkbox being mis-classified as a row checkbox by my eval; behavior may be different in normal human use, but worth verifying). Files: registration wizard dog selection step.
+- [x] **F30 — dog selection state desyncs across search filters** — Fixed on 2026-05-11 with the dog-selection cart helper used by `DogSelectionStepEnhanced`; selections now merge across filtered search results and visible bulk actions no longer discard hidden selected dogs.
 - [x] **F17 still observable on the new club path: host club briefly shows `Unknown Club` after `Add Club`** — Fixed on 2026-05-11 as part of Batch 1. Duplicate tracking entry resolved with the host-club picker label/cache fix above.
 
 ### Process / tooling debt found while running this skill

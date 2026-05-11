@@ -37,6 +37,12 @@ import { AddDogPanel } from '@/components/panels/edit';
 import { QuickCreateFlow } from './QuickCreateFlow';
 import { FixedSizeList as List } from 'react-window';
 import { logger } from '@/services/LoggingService';
+import {
+  addDogSelection,
+  addVisibleDogSelections,
+  removeDogSelection,
+  removeVisibleDogSelections,
+} from './DogSelectionStepEnhanced.helpers';
 
 type SortColumn = 'callName' | 'breed' | 'owner' | 'regNumber';
 
@@ -385,9 +391,9 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const handleDogToggle = (dogId: string) => {
     const maxDogs = getMaxDogsPerRegistration();
     if (selectedDogs.includes(dogId)) {
-      onSelectionChange(selectedDogs.filter(id => id !== dogId));
-    } else if (selectedDogs.length < maxDogs) {
-      onSelectionChange([...selectedDogs, dogId]);
+      onSelectionChange(removeDogSelection(selectedDogs, dogId));
+    } else {
+      onSelectionChange(addDogSelection(selectedDogs, dogId, maxDogs));
     }
   };
 
@@ -398,9 +404,8 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         const maxDogs = getMaxDogsPerRegistration();
         const eligibleIds = visibleDogs
           .filter(dog => getDogEligibilityStatus(dog).eligible)
-          .slice(0, maxDogs)
           .map(dog => dog.id);
-        onSelectionChange(eligibleIds);
+        onSelectionChange(addVisibleDogSelections(selectedDogs, eligibleIds, maxDogs));
         break;
       }
       case 'none':
@@ -409,9 +414,10 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
       case 'eligible': {
         const eligibleOnly = visibleDogs
           .filter(dog => getDogEligibilityStatus(dog).eligible)
-          .slice(0, getMaxDogsPerRegistration())
           .map(dog => dog.id);
-        onSelectionChange(eligibleOnly);
+        onSelectionChange(
+          addVisibleDogSelections(selectedDogs, eligibleOnly, getMaxDogsPerRegistration())
+        );
         break;
       }
     }
@@ -420,11 +426,12 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const handleSelectAllToggle = () => {
     const eligible = visibleDogs.filter(d => getDogEligibilityStatus(d).eligible);
     const allSelected = eligible.length > 0 && eligible.every(d => selectedDogs.includes(d.id));
+    const eligibleIds = eligible.map(d => d.id);
     if (allSelected) {
-      onSelectionChange([]);
+      onSelectionChange(removeVisibleDogSelections(selectedDogs, eligibleIds));
     } else {
       const maxDogs = getMaxDogsPerRegistration();
-      onSelectionChange(eligible.slice(0, maxDogs).map(d => d.id));
+      onSelectionChange(addVisibleDogSelections(selectedDogs, eligibleIds, maxDogs));
     }
   };
 

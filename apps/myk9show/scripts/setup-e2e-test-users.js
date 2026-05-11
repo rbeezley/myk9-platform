@@ -4,6 +4,10 @@
  * Creates test users for each role needed in E2E testing.
  * All users share a simple password: Test1234!
  *
+ * Roles are stored in user_roles, not people.roles. The people row stores the
+ * auth/profile link, and secretary/club_admin role rows are scoped to a club_id
+ * to match current RBAC/RLS rules.
+ *
  * Prerequisites:
  *   - VITE_SUPABASE_URL in .env or .env.local
  *   - SUPABASE_SERVICE_ROLE_KEY in .env or .env.local (get from Supabase dashboard)

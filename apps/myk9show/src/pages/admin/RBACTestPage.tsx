@@ -63,6 +63,7 @@ export const RBACTestPage: React.FC = () => {
   // Database connectivity test
   const [dbStatus, setDbStatus] = useState<'testing' | 'connected' | 'error'>('testing');
   const [dbError, setDbError] = useState<string | null>(null);
+  const uniqueEffectivePermissions = Array.from(new Set(effectivePermissions));
 
   // Declare testDatabaseConnection before the useEffect that uses it
   const testDatabaseConnection = useCallback(async () => {
@@ -339,14 +340,14 @@ export const RBACTestPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {effectivePermissions.slice(0, 20).map((permission, index) => (
-                    <Badge key={`${permission}-${index}`} variant="outline" className="text-xs">
+                  {uniqueEffectivePermissions.slice(0, 20).map(permission => (
+                    <Badge key={permission} variant="outline" className="text-xs">
                       {permission}
                     </Badge>
                   ))}
-                  {effectivePermissions.length > 20 && (
+                  {uniqueEffectivePermissions.length > 20 && (
                     <Badge variant="secondary" className="text-xs">
-                      +{effectivePermissions.length - 20} more
+                      +{uniqueEffectivePermissions.length - 20} more
                     </Badge>
                   )}
                 </div>

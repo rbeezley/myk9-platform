@@ -10,6 +10,7 @@ interface PopoverTriggerProps extends React.ComponentPropsWithoutRef<
   typeof PopoverPrimitive.Trigger
 > {
   asChild?: boolean;
+  nativeButton?: boolean;
 }
 
 const PopoverTrigger = React.forwardRef<HTMLButtonElement, PopoverTriggerProps>(

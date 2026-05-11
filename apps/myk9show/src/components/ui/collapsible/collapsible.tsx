@@ -9,6 +9,7 @@ interface CollapsibleTriggerProps extends React.ComponentPropsWithoutRef<
   typeof CollapsiblePrimitive.Trigger
 > {
   asChild?: boolean;
+  nativeButton?: boolean;
 }
 
 const CollapsibleTrigger = React.forwardRef<HTMLButtonElement, CollapsibleTriggerProps>(

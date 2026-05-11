@@ -11,6 +11,7 @@ interface AlertDialogTriggerProps extends React.ComponentPropsWithoutRef<
   typeof AlertDialogPrimitive.Trigger
 > {
   asChild?: boolean;
+  nativeButton?: boolean;
 }
 
 const AlertDialogTrigger = React.forwardRef<HTMLButtonElement, AlertDialogTriggerProps>(

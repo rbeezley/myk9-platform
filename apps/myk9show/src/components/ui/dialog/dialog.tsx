@@ -11,6 +11,7 @@ interface DialogTriggerProps extends React.ComponentPropsWithoutRef<
   typeof DialogPrimitive.Trigger
 > {
   asChild?: boolean;
+  nativeButton?: boolean;
 }
 
 const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerProps>(
@@ -38,6 +39,7 @@ const DialogPortal = DialogPrimitive.Portal;
 
 interface DialogCloseProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Close> {
   asChild?: boolean;
+  nativeButton?: boolean;
 }
 
 const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(

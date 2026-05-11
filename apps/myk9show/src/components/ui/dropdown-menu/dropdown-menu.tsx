@@ -11,6 +11,7 @@ interface DropdownMenuTriggerProps extends React.ComponentPropsWithoutRef<
   typeof MenuPrimitive.Trigger
 > {
   asChild?: boolean;
+  nativeButton?: boolean;
 }
 
 const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTriggerProps>(

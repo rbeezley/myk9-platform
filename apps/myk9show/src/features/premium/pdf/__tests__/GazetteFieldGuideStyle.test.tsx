@@ -46,6 +46,7 @@ function makePremium(org: Org, style: PremiumStyle): GeneratedPremium {
     supplemental: {
       vetClinic: { name: 'Animal ER', address: '789 Vet Blvd', phone: '918-999-0000' },
       accommodations: [{ name: 'La Quinta', address: '100 Hotel Rd', phone: '918-111-2222' }],
+      coverImageUrl: null,
       hospitalityNotes: 'Lunch on Saturday.',
       awardsDescription: 'Ribbons 1st through 4th.',
       additionalNotes: 'Parking is free.',
@@ -120,5 +121,19 @@ describe('Gazette masthead — org-conditional license line', () => {
     const premium = makePremium('UKC', 'gazette');
     renderTemplate('UKC', premium);
     expect(screen.queryByText(/LICENSE NO\./)).toBeNull();
+  });
+
+  it('renders uploaded cover art instead of the At a Glance fallback', () => {
+    const premium: GeneratedPremium = {
+      ...makePremium('AKC', 'gazette'),
+      supplemental: {
+        ...makePremium('AKC', 'gazette').supplemental,
+        coverImageUrl: 'data:image/png;base64,abc123',
+      },
+    };
+
+    renderTemplate('AKC', premium);
+
+    expect(screen.queryByText('At a Glance')).toBeNull();
   });
 });

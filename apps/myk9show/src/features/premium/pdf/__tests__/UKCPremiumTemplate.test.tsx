@@ -41,6 +41,7 @@ const premium: GeneratedPremium = {
   supplemental: {
     vetClinic: { name: 'City Animal Hospital', address: '500 Vet Lane', phone: '918-777-0000' },
     accommodations: [],
+    coverImageUrl: null,
     hospitalityNotes: null,
     awardsDescription: 'Placements 1st–4th.',
     additionalNotes: null,

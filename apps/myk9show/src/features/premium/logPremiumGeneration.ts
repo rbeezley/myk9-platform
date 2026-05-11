@@ -51,6 +51,12 @@ export function computePremiumDiff(
       finalValue: finalSupplemental.accommodations,
     };
   }
+  if (finalSupplemental.coverImageUrl !== original.supplemental.coverImageUrl) {
+    fieldOverrides['cover_image_url'] = {
+      templateValue: original.supplemental.coverImageUrl,
+      finalValue: finalSupplemental.coverImageUrl,
+    };
+  }
   if (finalSupplemental.hospitalityNotes !== original.supplemental.hospitalityNotes) {
     fieldOverrides['hospitality_notes'] = {
       templateValue: original.supplemental.hospitalityNotes,

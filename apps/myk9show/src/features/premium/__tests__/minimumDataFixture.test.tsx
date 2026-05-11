@@ -43,6 +43,7 @@ function makeMinimalPremium(org: Org, style: PremiumStyle): GeneratedPremium {
     supplemental: {
       vetClinic: null,
       accommodations: [],
+      coverImageUrl: null,
       hospitalityNotes: null,
       awardsDescription: null,
       additionalNotes: null,

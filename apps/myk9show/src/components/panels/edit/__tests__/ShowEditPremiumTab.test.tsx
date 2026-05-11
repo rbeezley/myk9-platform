@@ -163,6 +163,7 @@ describe('ShowEditPremiumTab', () => {
             supplemental: {
               vetClinic: { name: 'Vet', address: '1 Main', phone: '555-0100' },
               accommodations: [],
+              coverImageUrl: null,
               hospitalityNotes: 'Coffee.',
               awardsDescription: null,
               additionalNotes: null,
@@ -216,6 +217,7 @@ describe('ShowEditPremiumTab', () => {
       supplemental: {
         vetClinic: null,
         accommodations: [],
+        coverImageUrl: null,
         hospitalityNotes: null,
         awardsDescription: null,
         additionalNotes: 'Bring water.',

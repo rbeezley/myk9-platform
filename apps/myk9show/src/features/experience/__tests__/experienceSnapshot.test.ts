@@ -13,6 +13,7 @@ describe('experienceSnapshot', () => {
         supplemental: {
           vetClinic: null,
           accommodations: [],
+          coverImageUrl: null,
           hospitalityNotes: 'Coffee provided.',
           awardsDescription: null,
           additionalNotes: null,
@@ -35,6 +36,7 @@ describe('experienceSnapshot', () => {
       supplemental: {
         vetClinic: null,
         accommodations: [],
+        coverImageUrl: null,
         hospitalityNotes: null,
         awardsDescription: null,
         additionalNotes: null,

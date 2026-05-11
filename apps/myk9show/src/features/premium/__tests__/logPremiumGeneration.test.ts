@@ -5,6 +5,7 @@ import type { GeneratedPremium, PremiumSupplemental } from '../../../types/premi
 const makeSupplemental = (overrides: Partial<PremiumSupplemental> = {}): PremiumSupplemental => ({
   vetClinic: { name: 'Riverside Vet', address: '123 Main St', phone: '555-0100' },
   accommodations: [],
+  coverImageUrl: null,
   hospitalityNotes: null,
   awardsDescription: null,
   additionalNotes: null,
@@ -82,6 +83,21 @@ describe('computePremiumDiff', () => {
     expect(diff.fieldOverrides['hospitality_notes']).toEqual({
       templateValue: null,
       finalValue: 'Lunch provided',
+    });
+  });
+
+  it('records cover image override when coverImageUrl changes', () => {
+    const original = makeOriginal();
+    const finalSupplemental = makeSupplemental({ coverImageUrl: 'https://example.com/cover.webp' });
+    const diff = computePremiumDiff(
+      original,
+      finalSupplemental,
+      original.narratives,
+      original.style
+    );
+    expect(diff.fieldOverrides['cover_image_url']).toEqual({
+      templateValue: null,
+      finalValue: 'https://example.com/cover.webp',
     });
   });
 

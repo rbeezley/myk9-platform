@@ -37,6 +37,7 @@ const FIELD_LABELS: Record<string, string> = {
   hospitality_notes: 'Hospitality',
   awards_description: 'Awards',
   additional_notes: 'Additional Notes',
+  coverImageUrl: 'Cover Image',
   style: 'Style',
 };
 
@@ -64,6 +65,7 @@ export function PremiumTemplatesTab({ clubId, onClose }: Props) {
     vetClinicAddress: null,
     vetClinicPhone: null,
     accommodations: [],
+    coverImageUrl: null,
     hospitalityNotes: null,
     awardsDescription: null,
     additionalNotes: null,
@@ -87,6 +89,7 @@ export function PremiumTemplatesTab({ clubId, onClose }: Props) {
       vetClinicAddress: t.vetClinicAddress,
       vetClinicPhone: t.vetClinicPhone,
       accommodations: t.accommodations,
+      coverImageUrl: t.coverImageUrl,
       hospitalityNotes: t.hospitalityNotes,
       awardsDescription: t.awardsDescription,
       additionalNotes: t.additionalNotes,

@@ -1,4 +1,4 @@
-import { Page, Text, View } from '@react-pdf/renderer';
+import { Image, Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { AtAGlancePanel } from '../AtAGlancePanel';
 import { PdfFooter } from '../PdfFooter';
@@ -12,6 +12,7 @@ import type { CoverContext } from './coverContext';
 export function renderEditorialCover({ t, data, dateRange, club, venue, org }: CoverContext) {
   const fallback = composeTagline(dateRange, venue);
   const tagline = pickWelcome(readWelcome(data), fallback);
+  const coverImageUrl = data.supplemental.coverImageUrl?.trim() || null;
 
   return (
     <Page size="LETTER" style={{ backgroundColor: t.surfaceColor, padding: 0 }}>
@@ -67,7 +68,23 @@ export function renderEditorialCover({ t, data, dateRange, club, venue, org }: C
         >
           {tagline}
         </Text>
-        <AtAGlancePanel data={data} tokens={t} />
+        {coverImageUrl ? (
+          <View
+            style={{
+              marginTop: 32,
+              height: 280,
+              borderWidth: 1,
+              borderColor: t.secondaryColor,
+            }}
+          >
+            <Image
+              src={coverImageUrl}
+              style={{ height: '100%', width: '100%', objectFit: 'cover' }}
+            />
+          </View>
+        ) : (
+          <AtAGlancePanel data={data} tokens={t} />
+        )}
       </View>
     </Page>
   );

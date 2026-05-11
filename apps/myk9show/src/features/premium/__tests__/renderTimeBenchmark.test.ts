@@ -63,6 +63,7 @@ function makePremium(style: PremiumStyle): GeneratedPremium {
     supplemental: {
       vetClinic: { name: 'Vet', address: '2 Vet St', phone: '555-0200' },
       accommodations: [],
+      coverImageUrl: null,
       hospitalityNotes: null,
       awardsDescription: null,
       additionalNotes: null,

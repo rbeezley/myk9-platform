@@ -139,6 +139,7 @@ describe('AKCScentWorkEntryForm', () => {
           supplemental: {
             vetClinic: null,
             accommodations: [],
+            coverImageUrl: null,
             hospitalityNotes: 'Coffee in the morning.',
             awardsDescription: null,
             additionalNotes: null,

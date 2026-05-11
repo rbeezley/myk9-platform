@@ -32,6 +32,7 @@ function rowToTemplate(row: Record<string, unknown>): ClubPremiumTemplate {
     vetClinicAddress: row.vet_clinic_address as string | null,
     vetClinicPhone: row.vet_clinic_phone as string | null,
     accommodations: (row.accommodations as ClubPremiumTemplate['accommodations']) ?? [],
+    coverImageUrl: (row.cover_image_url as string | null) ?? null,
     hospitalityNotes: row.hospitality_notes as string | null,
     awardsDescription: row.awards_description as string | null,
     additionalNotes: row.additional_notes as string | null,
@@ -51,6 +52,7 @@ function templateToRow(t: Partial<ClubPremiumTemplate>): Record<string, unknown>
   if (t.vetClinicAddress !== undefined) row.vet_clinic_address = t.vetClinicAddress;
   if (t.vetClinicPhone !== undefined) row.vet_clinic_phone = t.vetClinicPhone;
   if (t.accommodations !== undefined) row.accommodations = t.accommodations;
+  if (t.coverImageUrl !== undefined) row.cover_image_url = t.coverImageUrl;
   if (t.hospitalityNotes !== undefined) row.hospitality_notes = t.hospitalityNotes;
   if (t.awardsDescription !== undefined) row.awards_description = t.awardsDescription;
   if (t.additionalNotes !== undefined) row.additional_notes = t.additionalNotes;

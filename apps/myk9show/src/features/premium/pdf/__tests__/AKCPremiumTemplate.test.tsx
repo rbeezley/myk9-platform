@@ -41,6 +41,7 @@ const premium: GeneratedPremium = {
   supplemental: {
     vetClinic: { name: 'Animal ER', address: '789 Vet Blvd', phone: '918-999-0000' },
     accommodations: [{ name: 'La Quinta', address: '100 Hotel Rd', phone: '918-111-2222' }],
+    coverImageUrl: null,
     hospitalityNotes: 'Lunch on Saturday.',
     awardsDescription: 'Ribbons 1st–4th.',
     additionalNotes: null,

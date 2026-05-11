@@ -130,12 +130,13 @@ describe('TrialsTab', () => {
   });
 
   it('displays trial type and start time', () => {
-    const trials = [makeTrial({ id: 't1', trialType: 'Scent Work', plannedStartTime: '8:00 AM' })];
+    const trials = [makeTrial({ id: 't1', trialType: 'scent_work', plannedStartTime: '8:00 AM' })];
     const stats = { t1: { classCount: 0, entryCount: 0, completedClasses: 0 } };
 
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
     expect(screen.getByText(/Scent Work/)).toBeInTheDocument();
+    expect(screen.queryByText(/scent_work/)).not.toBeInTheDocument();
     expect(screen.getByText(/8:00 AM/)).toBeInTheDocument();
   });
 

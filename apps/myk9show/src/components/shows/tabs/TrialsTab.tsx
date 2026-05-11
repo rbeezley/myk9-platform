@@ -18,6 +18,7 @@ import {
 } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
+import { formatTrialTypeLabel } from '@/types/template.types';
 
 export interface TrialStats {
   classCount: number;
@@ -134,7 +135,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         trialDate: trial.trialDate,
         name: trial.name || `Trial ${trial.trialNumber}`,
         trialNumber: trial.trialNumber,
-        trialType: trial.trialType,
+        trialType: trial.trialType ? formatTrialTypeLabel(trial.trialType) : undefined,
         plannedStartTime: trial.plannedStartTime,
         status: trial.status,
         ...(trialStats[trial.id] || EMPTY_STATS),
@@ -195,7 +196,10 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
             const showScored = stats.completedClasses > 0;
 
             // Build type/time line
-            const detailParts = [trial.trialType, trial.plannedStartTime].filter(Boolean);
+            const detailParts = [
+              trial.trialType ? formatTrialTypeLabel(trial.trialType) : undefined,
+              trial.plannedStartTime,
+            ].filter(Boolean);
             const detailLine = detailParts.join(' \u00B7 ');
 
             return (

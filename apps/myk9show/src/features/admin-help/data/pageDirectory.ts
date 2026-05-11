@@ -214,10 +214,10 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
-    linksTo: ['/shows/:id', '/secretary/classes'],
+    linksTo: ['/shows/:id', '/secretary/create-show/wizard'],
   },
   {
-    path: '/secretary/classes',
+    path: '/secretary/create-show/wizard',
     title: 'Show Creation Wizard',
     description: 'Multi-step wizard for creating a show with trials, classes, and officials.',
     roles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],

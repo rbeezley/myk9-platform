@@ -233,3 +233,17 @@ Verification:
 
 Shared-system work completed:
 - Pushed and verified `supabase/migrations/20260511100000_grant_club_admin_to_club_creator.sql` against linked Supabase project `sojmvhhwsjxmfistvzbe`.
+
+### 2026-05-11 — Batch 2 focused repair wave
+
+Completed:
+- Batch 2 partial: hardened `DateRangePicker` so empty calendar emissions do not wipe selected dates, cross-month ranges preserve both endpoints, and the calendar opens from a stable default month.
+- Batch 2 partial: expanded wizard trial-type options so organization mappings remain the base list even when templates are sparse, and formatted raw trial-type enum values on Trials tab cards and table rows.
+- Batch 2 partial: replaced the stale `/secretary/classes` show-creation registry/admin-help entry with `/secretary/create-show/wizard` and removed the unused `CreateShowPage` redirect page.
+- Batch 2 partial: added accessible names/titles to collapsed sidebar icon links.
+- Batch 4 carryover: filtered pending-entry attention items through the same managed-show set used by the secretary dashboard count.
+
+Verification:
+- `npx vitest run src/components/shows/wizard/steps/TrialConfigurationStep.test.ts src/components/ui/__tests__/date-range-picker.test.tsx src/test/components/shows/TrialsTab.test.tsx src/components/shows/tabs/__tests__/TrialsTab.table.test.tsx src/pages/secretary/SecretaryDashboardPage/__tests__/SecretaryDashboardPage.test.tsx`
+- `pnpm typecheck`
+- `pnpm lint`

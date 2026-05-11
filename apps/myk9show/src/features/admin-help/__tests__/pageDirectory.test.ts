@@ -15,6 +15,12 @@ describe('pageDirectory (invariant)', () => {
     expect(paths.length).toBe(unique.size);
   });
 
+  it('uses the canonical show creation wizard route', () => {
+    const paths = pageDirectory.map(e => e.path);
+    expect(paths).toContain('/secretary/create-show/wizard');
+    expect(paths).not.toContain('/secretary/classes');
+  });
+
   it('every entry has a non-empty title and description', () => {
     const invalid = pageDirectory.filter(e => !e.title.trim() || !e.description.trim());
     expect(invalid).toEqual([]);

@@ -16,11 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
-import {
-  TrialType,
-  formatTrialTypeLabel,
-  getTrialTypesForOrganization,
-} from '@/types/template.types';
+import { formatTrialTypeLabel } from '@/types/template.types';
+import { resolveTrialTypeOptions } from './TrialConfigurationStep.helpers';
 
 /** Parse a date string safely — handles both YYYY-MM-DD and ISO datetime */
 function safeParseDateString(str: string | undefined): Date | undefined {
@@ -47,22 +44,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
   const { templates } = useTemplates();
 
-  // Derive trial types from active templates for this org.
-  // Falls back to the static mapping if no templates exist yet.
+  // Derive trial types from the org mapping, plus active templates for custom/local additions.
   const trialTypeOptions = useMemo(() => {
-    const fromTemplates = Array.from(
-      new Set(
-        templates
-          .filter(t => t.isActive && t.organization === show.organization)
-          .map(t => t.trialType as TrialType)
-      )
-    );
-    if (fromTemplates.length > 0) {
-      return fromTemplates.includes(TrialType.OTHER)
-        ? fromTemplates
-        : [...fromTemplates, TrialType.OTHER];
-    }
-    return getTrialTypesForOrganization(show.organization);
+    return resolveTrialTypeOptions(show.organization, templates);
   }, [show.organization, templates]);
 
   // Derive errors using useMemo instead of useState + effect

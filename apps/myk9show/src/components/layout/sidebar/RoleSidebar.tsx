@@ -93,6 +93,8 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                       key={item.href}
                       to={item.href}
                       onClick={onCloseMobile}
+                      aria-label={isCollapsed ? item.title : undefined}
+                      title={isCollapsed ? item.title : undefined}
                       className={cn(
                         'group flex items-center gap-3 rounded-lg text-sm transition-all duration-200',
                         isCollapsed ? 'justify-center p-3' : 'px-3 py-2.5',

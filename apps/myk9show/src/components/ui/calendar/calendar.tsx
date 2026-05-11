@@ -150,7 +150,17 @@ function YearMonthCaption(props: YearMonthCaptionProps) {
 }
 
 function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
-  const [month, setMonth] = React.useState(() => props.month ?? new Date());
+  const incomingMonth = props.month ?? props.defaultMonth;
+  const [month, setMonth] = React.useState(() => incomingMonth ?? new Date());
+  const incomingMonthKey = incomingMonth?.getTime() ?? null;
+  const prevIncomingMonthKey = React.useRef(incomingMonthKey);
+
+  React.useEffect(() => {
+    if (!incomingMonth || incomingMonthKey === prevIncomingMonthKey.current) return;
+    prevIncomingMonthKey.current = incomingMonthKey;
+    setMonth(incomingMonth);
+  }, [incomingMonth, incomingMonthKey]);
+
   const handleMonthChange = (newMonth: Date) => {
     setMonth(newMonth);
     if (props.onMonthChange && typeof props.onMonthChange === 'function') {

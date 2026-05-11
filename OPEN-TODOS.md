@@ -30,17 +30,17 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ### Show creation wizard route
 
-- [ ] **`/secretary/classes` is the registered route for the show creation wizard, but `/secretary/create-show/wizard` is what the "New Show" button actually navigates to** — `apps/myk9show/src/routes/routeRegistry.ts:99` maps `/secretary/classes` to `ShowCreationWizardPage`, which is misleading on two counts: (1) the URL `/classes` doesn't reflect a show-creation purpose, and (2) the actual UX path the dashboard "New Show" button triggers ends at `/secretary/create-show/wizard`. Verify which route is canonical, redirect or remove the dead one, and ensure the registered name matches the page's purpose. Files: `apps/myk9show/src/routes/routeRegistry.ts`, `apps/myk9show/src/routes/secretaryRoutes.tsx`.
-- [ ] **Two show-creation pages coexist (`ShowCreationWizardPage.tsx` + `CreateShowPage.tsx`)** — Possible legacy file. Verify which one is wired into the live route, delete the other, and update any imports. Files: `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx`, `apps/myk9show/src/pages/secretary/CreateShowPage.tsx`.
+- [x] **`/secretary/classes` is the registered route for the show creation wizard, but `/secretary/create-show/wizard` is what the "New Show" button actually navigates to** — Fixed on 2026-05-11. The route registry, preload pattern, and admin-help directory now use the canonical `/secretary/create-show/wizard` path.
+- [x] **Two show-creation pages coexist (`ShowCreationWizardPage.tsx` + `CreateShowPage.tsx`)** — Fixed on 2026-05-11. The unused legacy redirect page was removed after verifying live routes use `ShowCreationWizardPage`.
 
 ### Secretary dashboard data inconsistency
 
-- [ ] **Dashboard says "Managing 0 shows" + empty state, while "Needs Attention" lists shows with pending entries** — On `/secretary/dashboard` the heading reads `Managing 0 shows`, the body reads `No shows yet. Create your first show to get started.`, but the `NEEDS ATTENTION` panel above lists three shows by name with pending-entry counts (e.g. "3 entries pending review · QA Walk Show 1777260779"). Empty state and attention panel disagree — the same secretary cannot be the responsible party for the attention items if they manage 0 shows. Either the empty-state count uses a different filter than the attention query, or one is using the wrong user-id. Files: `apps/myk9show/src/pages/secretary/SecretaryDashboardPage/`, in particular `MyShowsSection.tsx` and the attention-query.
+- [x] **Dashboard says "Managing 0 shows" + empty state, while "Needs Attention" lists shows with pending entries** — Fixed on 2026-05-11. Pending-entry attention items now filter through the same managed-show set used by the dashboard count, so entries for unrelated shows no longer make a 0-show dashboard look contradictory.
 
 ### Accessibility / structural HTML
 
 - [x] **Show cards on `/shows` are `<div>` with onClick instead of `<a href>`** — Fixed on 2026-05-11. `ShowCardHorizontal` now exposes a named React Router link to the show detail route while preserving selection checkbox behavior.
-- [ ] **Sidebar nav links lack accessible names** — Roughly 11 sidebar `<a>` elements on `/secretary/dashboard` render with no text content and no `aria-label`. Likely icon-only links missing `aria-label`/`title`. Audit `apps/myk9show/src/components/layout/sidebar/` (or equivalent) and add accessible names to every icon-only link.
+- [x] **Sidebar nav links lack accessible names** — Fixed on 2026-05-11. Collapsed `RoleSidebar` icon-only links now get their nav item title as both `aria-label` and `title`.
 - [x] **Raw UUID leaks into Tasks panel UI** — Fixed on 2026-05-11. Task list/timeline show a calm `Unknown show` fallback when a task references a show that is not available locally.
 
 ### Show detail / delete-show UX
@@ -51,8 +51,8 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ### Wizard step 1 — date / range pickers
 
-- [ ] **Show Dates field can be silently wiped by interactions with adjacent date pickers** — During the walk, the Show Dates field had been correctly populated with `Jun 12 → Jun 14`. After opening and closing the Entry Period date picker (which is a separate but visually similar range picker), the Show Dates field reverted to its empty placeholder `Select show start and end dates`. The form value tied to the field was lost, requiring the user to re-pick. Reproducer: open Show Dates picker → pick Jun 12 + Jun 14 → close → open Entry Period picker → pick any start date → close → observe Show Dates is now empty. Likely a shared form-state slice that the entry-period popover writes back to as a side effect, or an over-eager onOpenChange resetting the wrong key. Files: the show-creation wizard step 1 component and any shared range-picker form-state hook.
-- [ ] **Entry Period multi-month range fails to persist — only end date is kept** — Selecting `May 11, 2026` (start) and `Jun 5, 2026` (end) in the Entry Period range picker resulted in the field storing only `Jun 5, 2026 at 8:00 AM → Jun 5, 2026 at 11:59 PM` — i.e. a single-day range collapsed to the end date. Same flow inside Show Dates (Jun 12 → Jun 14, both within one month) worked correctly. The reproducer specifically requires the two endpoints to span different months. Likely the picker's range-state machine treats a click in a different month panel as a reset rather than as the end of an in-progress range. Try also: testing reverse order (click Jun 5 first, then May 11). Files: same range-picker component used by the Entry Period field.
+- [x] **Show Dates field can be silently wiped by interactions with adjacent date pickers** — Fixed on 2026-05-11. `DateRangePicker` now keeps a local draft range per instance, ignores empty calendar emissions unless the explicit clear button is used, and opens from a stable month.
+- [x] **Entry Period multi-month range fails to persist — only end date is kept** — Fixed on 2026-05-11. Cross-month range selection now preserves both endpoints and applies the correct default open/close times.
 
 ### Wizard step 1 — host club inline creation
 
@@ -74,7 +74,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 ### Wizard step 2 — trial form
 
 - [x] **Trial Type dropdown displays the raw enum value (`scent_work`) instead of the human label (`Scent Work`)** — Fixed on 2026-05-11. Added `formatTrialTypeLabel()` and use it in the trial type dropdown/review surfaces.
-- [ ] **Trial Type dropdown only offers `Scent Work` and `Other` for AKC shows** — With Organization set to `AKC (American Kennel Club)`, the Trial Type dropdown shows only two options. AKC sanctions Obedience, Rally, Agility, Conformation, Tracking, Scent Work, and more. Either the dropdown should expand for AKC, or it should be marked clearly as "(Scent Work shows only — coming soon: …)" so users aren't confused. Today the gap between selected organization and available trial types is silent. Files: trial-type select options source, organization-to-trial-type compatibility map.
+- [x] **Trial Type dropdown only offers `Scent Work` and `Other` for AKC shows** — Fixed on 2026-05-11. The wizard now uses the organization compatibility map as the base list and lets active templates add options, so AKC shows keep the broader AKC discipline set even when only Scent Work templates are loaded.
 - [x] **Trial date picker doesn't auto-navigate to the show's date range** — Fixed on 2026-05-11. The trial date picker opens to the show start month when no trial date has been selected yet.
 - [x] **`Event Number*` is required but not visually emphasized in the trial form** — Fixed on 2026-05-11. AKC event numbers now use required input semantics and clearer required placeholder copy.
 
@@ -99,7 +99,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 ### Post-create — display / sync bugs
 
 - [x] **Class tab header reads "Classes (0)" while viewing "All Classes (40)"** — Fixed on 2026-05-11. Class filters now use explicit `all` sentinel values instead of empty-string select values, so the all-classes count does not collapse to zero.
-- [ ] **Trial summary cards display `scent_work` raw enum (F19 re-confirmed in second context)** — The Trials tab summary cards render trial type as `scent_work · 8:00 AM` instead of `Scent Work · 8:00 AM`. Same bug as the trial-form trigger button. The label-to-value formatter is missing in both render paths.
+- [x] **Trial summary cards display `scent_work` raw enum (F19 re-confirmed in second context)** — Fixed on 2026-05-11. Trials tab cards and table rows now use the shared trial-type formatter, so raw enum values render as calm user-facing labels.
 - [ ] **No success toast after registration complete, show edit save, or other completions** — Pattern: most successful mutations land with no toast and no banner. Heritage was edited from "Heritage" to "Heritage (Edited)" and back with zero visual acknowledgement; registration wizard's Complete Registration dropped me at the show overview with no "80 entries added" confirmation. Add `toast.success(...)` after each successful mutation. Files: show edit save handler, registration wizard onComplete, others.
 
 ### Post-create — premium PDF (Heritage)

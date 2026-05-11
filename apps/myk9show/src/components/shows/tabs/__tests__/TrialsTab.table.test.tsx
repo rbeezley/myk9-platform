@@ -11,7 +11,7 @@ const mockTrials: Trial[] = [
     trialNumber: '1',
     status: 'upcoming',
     name: 'Saturday Trial 1',
-    trialType: 'Scent Work',
+    trialType: 'scent_work',
     plannedStartTime: '8:00 AM',
   },
   {
@@ -51,6 +51,8 @@ describe('TrialsTab table view', () => {
     await renderInTableView();
     expect(screen.getByText('Saturday Trial 1')).toBeInTheDocument();
     expect(screen.getByText('Saturday Trial 2')).toBeInTheDocument();
+    expect(screen.getAllByText('Scent Work').length).toBeGreaterThan(0);
+    expect(screen.queryByText('scent_work')).not.toBeInTheDocument();
   });
 
   it('renders search input', async () => {

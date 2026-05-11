@@ -6,6 +6,15 @@ import { ScopeType } from '@/types/auth-types';
 
 const mockUseMissionControlData = vi.fn();
 const mockUseShowStore = vi.fn();
+let mockPendingEntries: Array<{
+  id: string;
+  showId: string;
+  showName: string;
+  className: string;
+  handlerName: string;
+  dogName: string;
+  submittedAt: string;
+}> = [];
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -34,7 +43,7 @@ vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
 }));
 
 vi.mock('@/hooks/queries/usePendingEntries', () => ({
-  usePendingEntries: () => ({ data: [] }),
+  usePendingEntries: () => ({ data: mockPendingEntries }),
 }));
 
 vi.mock('@/features/pipeline/hooks/useMissionControlData', () => ({
@@ -51,6 +60,7 @@ function renderPage() {
 
 describe('SecretaryDashboardPage', () => {
   beforeEach(() => {
+    mockPendingEntries = [];
     mockUseShowStore.mockReturnValue({ shows: [] });
     mockUseMissionControlData.mockReturnValue({
       isLoading: false,
@@ -74,5 +84,48 @@ describe('SecretaryDashboardPage', () => {
     renderPage();
 
     expect(screen.getByText('No shows yet.')).toBeInTheDocument();
+  });
+
+  it('only surfaces pending-entry attention for shows the secretary manages', () => {
+    mockUseShowStore.mockReturnValue({
+      shows: [
+        {
+          id: 'managed-show',
+          name: 'Managed Show',
+          clubId: 'club-1',
+          startDate: '2026-06-12',
+          endDate: '2026-06-14',
+          entryCloseDate: '2026-06-05',
+          status: 'published',
+        },
+      ],
+    });
+    mockPendingEntries = [
+      {
+        id: 'entry-1',
+        showId: 'managed-show',
+        showName: 'Managed Show',
+        className: 'Container Novice A',
+        handlerName: 'Ada Handler',
+        dogName: 'Ace',
+        submittedAt: '2026-05-11T12:00:00Z',
+      },
+      {
+        id: 'entry-2',
+        showId: 'other-show',
+        showName: 'Other Club Show',
+        className: 'Interior Novice A',
+        handlerName: 'Bea Handler',
+        dogName: 'Bravo',
+        submittedAt: '2026-05-11T12:01:00Z',
+      },
+    ];
+
+    renderPage();
+
+    expect(screen.getByText('Managing 1 show')).toBeInTheDocument();
+    expect(screen.getByText('1 entry pending review')).toBeInTheDocument();
+    expect(screen.getAllByText('Managed Show').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Other Club Show')).not.toBeInTheDocument();
   });
 });

@@ -67,7 +67,9 @@ export function SecretaryDashboardPage() {
 
   const pendingByShow = useMemo(() => {
     const map = new Map<string, { showName: string; count: number }>();
+    const managedShowIds = new Set(shows.map(show => show.id));
     for (const entry of pendingEntries) {
+      if (!managedShowIds.has(entry.showId)) continue;
       const existing = map.get(entry.showId);
       if (existing) {
         existing.count++;
@@ -76,7 +78,7 @@ export function SecretaryDashboardPage() {
       }
     }
     return map;
-  }, [pendingEntries]);
+  }, [pendingEntries, shows]);
 
   const attentionNeeded = [
     ...[...pendingByShow.entries()].map(([showId, { showName, count }]) => ({

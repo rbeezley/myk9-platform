@@ -96,7 +96,7 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for secretary routes - would be populated by actual secretary routes
   '/secretary/dashboard': () => import('@/features/pipeline/components/PipelineDashboard'),
   '/shows': () => import('@/pages/BrowseShowsPage'),
-  '/secretary/classes': () => import('@/pages/secretary/ShowCreationWizardPage'),
+  '/secretary/create-show/wizard': () => import('@/pages/secretary/ShowCreationWizardPage'),
   '/secretary/results-control': () => import('@/pages/secretary/ResultsControlPage'),
   '/secretary/run-order': () =>
     import('@/pages/secretary/RunOrderPage').then(m => ({ default: m.RunOrderPage })),
@@ -156,7 +156,7 @@ export const navigationPatterns = {
   showDetails: ['/shows/:showId/trials/:trialId', '/shows'],
 
   // Secretary workflow patterns
-  secretaryDashboard: ['/shows', '/secretary/classes'],
+  secretaryDashboard: ['/shows', '/secretary/create-show/wizard'],
 
   // Judge workflow patterns
   judgeDashboard: ['/judge/assignments'],

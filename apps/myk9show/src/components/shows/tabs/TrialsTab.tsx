@@ -18,6 +18,7 @@ import {
 } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
+import { formatTrialTypeLabel } from '@/types/template.types';
 
 export interface TrialStats {
   classCount: number;
@@ -62,6 +63,7 @@ interface TrialRow {
   name: string;
   trialNumber: string;
   trialType: string | undefined;
+  trialTypeLabel: string | undefined;
   plannedStartTime: string | undefined;
   status: ClassStatusValue;
   classCount: number;
@@ -79,7 +81,7 @@ const trialColumns: ColumnDef<TrialRow, unknown>[] = [
     },
   },
   { accessorKey: 'name', header: 'Trial Name' },
-  { accessorKey: 'trialType', header: 'Type', meta: { responsiveHide: 'md' as const } },
+  { accessorKey: 'trialTypeLabel', header: 'Type', meta: { responsiveHide: 'md' as const } },
   { accessorKey: 'plannedStartTime', header: 'Time', meta: { responsiveHide: 'md' as const } },
   { accessorKey: 'classCount', header: 'Classes' },
   { accessorKey: 'entryCount', header: 'Entries' },
@@ -135,6 +137,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         name: trial.name || `Trial ${trial.trialNumber}`,
         trialNumber: trial.trialNumber,
         trialType: trial.trialType,
+        trialTypeLabel: trial.trialType ? formatTrialTypeLabel(trial.trialType) : undefined,
         plannedStartTime: trial.plannedStartTime,
         status: trial.status,
         ...(trialStats[trial.id] || EMPTY_STATS),
@@ -195,7 +198,10 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
             const showScored = stats.completedClasses > 0;
 
             // Build type/time line
-            const detailParts = [trial.trialType, trial.plannedStartTime].filter(Boolean);
+            const detailParts = [
+              trial.trialType ? formatTrialTypeLabel(trial.trialType) : undefined,
+              trial.plannedStartTime,
+            ].filter(Boolean);
             const detailLine = detailParts.join(' \u00B7 ');
 
             return (

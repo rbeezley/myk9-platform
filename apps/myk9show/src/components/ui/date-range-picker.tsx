@@ -72,6 +72,10 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     startDate ? format(startDate, 'h:mm a') : startDefaultTime
   );
   const [endTime, setEndTime] = useState(endDate ? format(endDate, 'h:mm a') : endDefaultTime);
+  const [draftRange, setDraftRange] = useState<DateRange | undefined>({
+    from: startDate,
+    to: endDate,
+  });
 
   // Sync time displays when props change
   const startKey = startDate?.getTime() || 0;
@@ -81,24 +85,29 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   if (startKey !== prevStartKey) {
     setPrevStartKey(startKey);
     if (startDate) setStartTime(format(startDate, 'h:mm a'));
+    setDraftRange(current => ({ from: startDate, to: current?.to }));
   }
   if (endKey !== prevEndKey) {
     setPrevEndKey(endKey);
     if (endDate) setEndTime(format(endDate, 'h:mm a'));
+    setDraftRange(current => ({ from: current?.from, to: endDate }));
   }
 
   const handleRangeSelect = useCallback(
     (range: DateRange | undefined) => {
       if (!range) {
-        onStartDateChange(undefined);
-        onEndDateChange(undefined);
         return;
       }
+      const nextRange: DateRange = {
+        from: range.from ? applyTime(range.from, startTime) : undefined,
+        to: range.to ? applyTime(range.to, endTime) : undefined,
+      };
+      setDraftRange(nextRange);
       if (range.from) {
-        onStartDateChange(applyTime(range.from, startTime));
+        onStartDateChange(nextRange.from);
       }
       if (range.to) {
-        onEndDateChange(applyTime(range.to, endTime));
+        onEndDateChange(nextRange.to);
       } else if (range.from && !range.to) {
         onEndDateChange(undefined);
       }
@@ -138,6 +147,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   };
 
   const displayText = formatDisplay();
+  const calendarDefaultMonth = draftRange?.from ?? startDate ?? minDate;
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -145,6 +155,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     onEndDateChange(undefined);
     setStartTime(startDefaultTime);
     setEndTime(endDefaultTime);
+    setDraftRange(undefined);
   };
 
   return (
@@ -202,8 +213,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
             <Calendar
               mode="range"
-              selected={{ from: startDate, to: endDate }}
-              defaultMonth={startDate as Date}
+              selected={draftRange}
+              {...(calendarDefaultMonth ? { defaultMonth: calendarDefaultMonth } : {})}
               onSelect={handleRangeSelect}
               disabled={date => (minDate && date < minDate) || false}
               numberOfMonths={2}

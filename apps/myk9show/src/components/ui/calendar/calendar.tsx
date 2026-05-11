@@ -153,12 +153,13 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
   const incomingMonth = props.month ?? props.defaultMonth;
   const [month, setMonth] = React.useState(() => incomingMonth ?? new Date());
   const incomingMonthKey = incomingMonth?.getTime() ?? null;
-  const [prevIncomingMonthKey, setPrevIncomingMonthKey] = React.useState(incomingMonthKey);
+  const prevIncomingMonthKey = React.useRef(incomingMonthKey);
 
-  if (incomingMonth && incomingMonthKey !== prevIncomingMonthKey) {
-    setPrevIncomingMonthKey(incomingMonthKey);
+  React.useEffect(() => {
+    if (!incomingMonth || incomingMonthKey === prevIncomingMonthKey.current) return;
+    prevIncomingMonthKey.current = incomingMonthKey;
     setMonth(incomingMonth);
-  }
+  }, [incomingMonth, incomingMonthKey]);
 
   const handleMonthChange = (newMonth: Date) => {
     setMonth(newMonth);

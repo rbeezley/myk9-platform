@@ -49,6 +49,7 @@ import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
+import { notifications } from '@/lib/notifications';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -536,6 +537,7 @@ const ShowDetailsPage: React.FC = () => {
               queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
             }
           }
+          notifications.success('Show changes saved');
           setShowEditPanel(false);
         }}
       />

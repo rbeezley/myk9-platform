@@ -130,11 +130,6 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 - [x] **F30 — dog selection state desyncs across search filters** — Fixed on 2026-05-11 with the dog-selection cart helper used by `DogSelectionStepEnhanced`; selections now merge across filtered search results and visible bulk actions no longer discard hidden selected dogs.
 - [x] **F17 still observable on the new club path: host club briefly shows `Unknown Club` after `Add Club`** — Fixed on 2026-05-11 as part of Batch 1. Duplicate tracking entry resolved with the host-club picker label/cache fix above.
 
-### Process / tooling debt found while running this skill
-
-- [ ] **Worktree was missing `node_modules`** — When this audit started, `pnpm dev:show` failed with `vite: command not found` in the worktree. The `PostToolUse` hook documented in CLAUDE.md (`scripts/bootstrap-worktree.sh`) had not run. Either the EnterWorktree hook isn't firing for worktrees created outside the documented entry path, or the bootstrap script silently fails. Track this: any `/qa-feature` run starting in a fresh worktree may hit it. Mitigation: skill should detect missing `apps/myk9show/node_modules/.bin/vite` and run bootstrap up front.
-- [ ] **MCP `playwright-test` driver fails from monorepo root** — Root `playwright.config.ts` requires `@playwright/test` and `dotenv`, but neither is installed at root `node_modules` (they only exist under `apps/myk9show/node_modules/`). Manual symlinks let the config load, then a "two playwright versions" runtime error appears because the MCP server's bundled npx playwright differs from the project's `1.58.0`. The `/qa-feature` skill is documented around `playwright-cli` but no such tool is in the current MCP toolset; the Playwright MCP server can't drive this repo without intervention. Two paths: (a) add `@playwright/test` + `dotenv` as workspace-root devDependencies so MCP can load the config cleanly; (b) update `/qa-feature` skill docs to use `Claude_Preview` (which works) as the primary driver. Until fixed, audits that need a real spec emitted at the end will need manual setup.
-
 ## North Star — Phase 2: Walk the Golden Paths
 
 - [ ] **Phase 2 re-walk** — First pass complete 2026-05-03. Do a second end-to-end walk for secretary and exhibitor paths before Phase 3 hand-off. Exit: both paths complete without a blocker.

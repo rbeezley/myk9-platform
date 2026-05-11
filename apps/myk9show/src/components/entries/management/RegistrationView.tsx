@@ -64,6 +64,7 @@ interface RegistrationViewProps {
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onOpenCompDialog: (entry: EntryManagementEntry) => void;
   onUncompEntry: (entryId: string) => void;
+  onRemoveEntry: (entryId: string) => void;
   /** Show ID for move-ups / scratches tabs */
   showId: string;
   /** Reload entries callback */
@@ -100,6 +101,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   onOpenArmbandDialog,
   onOpenCompDialog,
   onUncompEntry,
+  onRemoveEntry,
   showId,
   onRefresh,
   enrollmentGroups,
@@ -216,6 +218,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                     if (entry) onOpenCompDialog(entry);
                   }}
                   onUncompEntry={onUncompEntry}
+                  onRemoveEntry={onRemoveEntry}
                   onBulkStatusChange={onBulkStatusChange}
                   onBulkCheckIn={onBulkCheckIn}
                   onPaymentStatusChange={onPaymentStatusChange}

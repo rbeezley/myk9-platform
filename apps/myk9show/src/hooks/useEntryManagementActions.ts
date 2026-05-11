@@ -9,6 +9,7 @@ import {
   updateCheckInStatus,
   bulkCheckIn,
   bulkUpdateEntryStatus,
+  deleteEntry,
   getEntriesForExport,
   compEntry,
   uncompEntry,
@@ -79,6 +80,7 @@ interface UseEntryManagementActionsReturn {
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
+  handleRemoveEntry: (entryId: string) => Promise<void>;
   handleSendDecisionEmail: (
     registrationId: string,
     message?: string,
@@ -588,6 +590,33 @@ export function useEntryManagementActions({
     [setEntries, setError, user]
   );
 
+  const handleRemoveEntry = useCallback(
+    async (entryId: string) => {
+      const snapshot = entries;
+      const entry = entries.find(e => e.id === entryId);
+      if (!entry) return;
+
+      setEntries(prev => prev.filter(e => e.id !== entryId));
+
+      try {
+        const { error: dbError } = await deleteEntry(entryId, user?.id);
+
+        if (dbError) {
+          setEntries(snapshot);
+          setError(dbError.message || 'Failed to remove entry');
+          return;
+        }
+
+        toast.success(`Removed ${entry.dogName} from ${entry.classes[0]?.name ?? 'the class'}`);
+      } catch (err) {
+        setEntries(snapshot);
+        setError('Failed to remove entry');
+        logger.error('Error removing entry:', 'secretary', {}, err as Error);
+      }
+    },
+    [entries, setEntries, setError, user?.id]
+  );
+
   const statusToDecision = (
     s: EntryStatus
   ):
@@ -681,6 +710,7 @@ export function useEntryManagementActions({
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,
+    handleRemoveEntry,
     handleSendDecisionEmail,
   };
 }

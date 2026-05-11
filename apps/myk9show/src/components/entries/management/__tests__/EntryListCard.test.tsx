@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { EntryListCard } from '../EntryListCard';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
@@ -50,12 +51,10 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 
 const defaultProps = {
   entries: [makeEntry()],
-  selectedEntries: new Set<string>(),
-  onSelectEntry: vi.fn(),
-  onSelectAll: vi.fn(),
   onStatusChange: vi.fn(),
-  onOpenCheckInDialog: vi.fn(),
+  onCheckInStatusChange: vi.fn(),
   onOpenArmbandDialog: vi.fn(),
+  onRemoveEntry: vi.fn(),
 };
 
 describe('EntryListCard - check-in button affordance', () => {
@@ -90,5 +89,19 @@ describe('EntryListCard - check-in button affordance', () => {
       const button = indicator.closest('button');
       expect(button).toHaveClass('cursor-pointer');
     });
+  });
+
+  it('confirms before removing an entry from a class', async () => {
+    const user = userEvent.setup();
+    const onRemoveEntry = vi.fn();
+    render(<EntryListCard {...defaultProps} onRemoveEntry={onRemoveEntry} />);
+
+    await user.click(screen.getByRole('button', { name: /remove entry for fido/i }));
+
+    expect(screen.getByRole('alertdialog', { name: /remove entry/i })).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /^remove entry$/i }));
+
+    expect(onRemoveEntry).toHaveBeenCalledWith('entry-1');
   });
 });

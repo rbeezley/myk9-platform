@@ -135,6 +135,7 @@ const EntryManagementPage: React.FC = () => {
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,
+    handleRemoveEntry,
     handleSendDecisionEmail,
   } = useEntryManagementActions({
     entries,
@@ -400,6 +401,7 @@ const EntryManagementPage: React.FC = () => {
                     })
                   }
                   onUncompEntry={handleUncompEntry}
+                  onRemoveEntry={handleRemoveEntry}
                   showId={selectedShowId}
                   onRefresh={() => loadEntries(selectedShowId)}
                   enrollmentGroups={enrollmentGroups}

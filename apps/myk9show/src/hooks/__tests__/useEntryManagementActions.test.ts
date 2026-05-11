@@ -4,6 +4,7 @@ import { useEntryManagementActions } from '../useEntryManagementActions';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { assignArmband } from '@/services/database/armbands/secretary';
+import { deleteEntry } from '@/services/database/entries';
 
 const mocks = vi.hoisted(() => ({
   assignArmband: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock('@/services/database/entries', () => ({
   getEntriesForExport: vi.fn(),
   compEntry: vi.fn(),
   uncompEntry: vi.fn(),
+  deleteEntry: vi.fn(),
 }));
 
 vi.mock('@/services/notifications/ccSecretary', () => ({
@@ -119,5 +121,35 @@ describe('useEntryManagementActions', () => {
         entryNumber: '89742',
       },
     ]);
+  });
+
+  it('soft-deletes a removed entry with the secretary user id and removes it from local state', async () => {
+    vi.mocked(deleteEntry).mockResolvedValue({ data: null, error: null });
+    const entry = makeEntry();
+    const setEntries = vi.fn();
+    const setError = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [entry],
+        setEntries,
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError,
+        user: { id: 'secretary-1', email: 'secretary@example.test' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleRemoveEntry('entry-1');
+    });
+
+    expect(deleteEntry).toHaveBeenCalledWith('entry-1', 'secretary-1');
+    expect(setError).not.toHaveBeenCalled();
+
+    const updater = setEntries.mock.calls[0]?.[0];
+    expect(typeof updater).toBe('function');
+    expect(updater([entry])).toEqual([]);
   });
 });

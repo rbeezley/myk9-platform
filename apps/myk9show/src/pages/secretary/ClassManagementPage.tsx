@@ -62,8 +62,8 @@ export const ClassManagementPage: React.FC = () => {
   const deleteClassMutation = useDeleteClassMutation();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [elementFilter, setElementFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [elementFilter, setElementFilter] = useState<string>('all');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
 
   const allClasses = useMemo(() => (rawClasses as DbClassRow[]) ?? [], [rawClasses]);
@@ -75,8 +75,8 @@ export const ClassManagementPage: React.FC = () => {
           [cls.name ?? '', cls.element ?? '', cls.level ?? ''],
           searchTerm
         );
-        const matchesStatus = !statusFilter || cls.status === statusFilter;
-        const matchesElement = !elementFilter || cls.element === elementFilter;
+        const matchesStatus = statusFilter === 'all' || cls.status === statusFilter;
+        const matchesElement = elementFilter === 'all' || cls.element === elementFilter;
         return matchesSearch && matchesStatus && matchesElement;
       }),
     [allClasses, searchTerm, statusFilter, elementFilter]
@@ -254,7 +254,7 @@ export const ClassManagementPage: React.FC = () => {
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 {statuses.map(status => (
                   <SelectItem key={status} value={status}>
                     {status}
@@ -268,7 +268,7 @@ export const ClassManagementPage: React.FC = () => {
                 <SelectValue placeholder="All Elements" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Elements</SelectItem>
+                <SelectItem value="all">All Elements</SelectItem>
                 {elements.map(element => (
                   <SelectItem key={element} value={element}>
                     {element}

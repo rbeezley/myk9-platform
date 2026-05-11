@@ -134,7 +134,7 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <FormField label="Judge" fieldId="judgeId" required error={judgeError}>
+            <FormField label="Judge" fieldId="judgeId" error={judgeError}>
               <Select value={data.judgeId} onValueChange={handleSelectChange('judgeId')}>
                 <SelectTrigger
                   id="judgeId"
@@ -171,7 +171,7 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 </SelectContent>
               </Select>
             </FormField>
-            <FormField label="Start Time" fieldId="startTime" required error={startTimeError}>
+            <FormField label="Start Time" fieldId="startTime" error={startTimeError}>
               <Input
                 id="startTime"
                 type="datetime-local"

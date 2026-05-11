@@ -7,6 +7,7 @@ import {
   calcDateRange,
   groupByShow,
   calcSummary,
+  resolveTaskShowName,
 } from '../taskTimelineUtils';
 import type { SecretaryTask } from '../types';
 
@@ -195,6 +196,21 @@ describe('groupByShow', () => {
     const groups = groupByShow(tasks, showNameMap, 'general');
     expect(groups).toHaveLength(1);
     expect(groups[0].showName).toBe('General');
+  });
+
+  it('uses a calm fallback instead of raw show IDs when a show name is missing', () => {
+    const groups = groupByShow([makeTask({ showId: 'missing-show-id' })], showNameMap, 'all');
+    expect(groups[0].showName).toBe('Unknown show');
+  });
+});
+
+describe('resolveTaskShowName', () => {
+  it('returns General when task has no show', () => {
+    expect(resolveTaskShowName(null, {})).toBe('General');
+  });
+
+  it('returns Unknown show instead of leaking an unresolved ID', () => {
+    expect(resolveTaskShowName('550e8400-e29b-41d4-a716-446655440000', {})).toBe('Unknown show');
   });
 });
 

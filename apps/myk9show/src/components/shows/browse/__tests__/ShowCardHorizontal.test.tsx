@@ -1,14 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { ShowCardHorizontal, ShowCardHorizontalSkeleton } from '../ShowCardHorizontal';
 import type { Show } from '@/types/show-types';
-
-// Mock react-router-dom
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-}));
 
 // Helper to create a minimal Show for testing
 function createMockShow(overrides: Partial<Show> = {}): Show {
@@ -48,13 +43,13 @@ function createMockShow(overrides: Partial<Show> = {}): Show {
   };
 }
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+function renderCard(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 describe('ShowCardHorizontal', () => {
   it('renders show title, club name, and location', () => {
-    render(<ShowCardHorizontal show={createMockShow()} />);
+    renderCard(<ShowCardHorizontal show={createMockShow()} />);
 
     expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument();
     expect(screen.getByText('Rocky Mountain Agility Club')).toBeInTheDocument();
@@ -62,14 +57,14 @@ describe('ShowCardHorizontal', () => {
   });
 
   it('renders DateCircle with correct dates', () => {
-    render(<ShowCardHorizontal show={createMockShow()} />);
+    renderCard(<ShowCardHorizontal show={createMockShow()} />);
 
     expect(screen.getByText('APR')).toBeInTheDocument();
     expect(screen.getByText('15')).toBeInTheDocument();
   });
 
   it('renders discipline tags from show.events via getTypeBadge', () => {
-    render(
+    renderCard(
       <ShowCardHorizontal show={createMockShow({ events: ['Agility', 'Rally', 'Obedience'] })} />
     );
 
@@ -79,13 +74,13 @@ describe('ShowCardHorizontal', () => {
   });
 
   it('renders organization badge', () => {
-    render(<ShowCardHorizontal show={createMockShow({ organization: 'Agility' })} />);
+    renderCard(<ShowCardHorizontal show={createMockShow({ organization: 'Agility' })} />);
 
     expect(screen.getByText('AGILITY')).toBeInTheDocument();
   });
 
   it('renders entry status badge', () => {
-    render(
+    renderCard(
       <ShowCardHorizontal
         show={createMockShow({ entryOpenDate: '2026-01-01', entryCloseDate: '2027-12-31' })}
       />
@@ -94,16 +89,17 @@ describe('ShowCardHorizontal', () => {
     expect(screen.getByText('Accepting Entries')).toBeInTheDocument();
   });
 
-  it('click navigates to /shows/{id}', () => {
-    render(<ShowCardHorizontal show={createMockShow({ id: 'show-abc' })} />);
+  it('renders the card as a named show details link', () => {
+    renderCard(<ShowCardHorizontal show={createMockShow({ id: 'show-abc' })} />);
 
-    const card = screen.getByTestId('show-card');
-    fireEvent.click(card);
-    expect(mockNavigate).toHaveBeenCalledWith('/shows/show-abc');
+    expect(screen.getByRole('link', { name: /view spring agility trial/i })).toHaveAttribute(
+      'href',
+      '/shows/show-abc'
+    );
   });
 
   it('shows checkbox when onToggleSelect provided', () => {
-    render(<ShowCardHorizontal show={createMockShow()} onToggleSelect={vi.fn()} />);
+    renderCard(<ShowCardHorizontal show={createMockShow()} onToggleSelect={vi.fn()} />);
 
     expect(
       screen.getByRole('checkbox', { name: /select spring agility trial/i })
@@ -111,13 +107,13 @@ describe('ShowCardHorizontal', () => {
   });
 
   it('does not show checkbox when onToggleSelect is not provided', () => {
-    render(<ShowCardHorizontal show={createMockShow()} />);
+    renderCard(<ShowCardHorizontal show={createMockShow()} />);
 
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('applies ring-2 when isSelected is true', () => {
-    render(
+    renderCard(
       <ShowCardHorizontal show={createMockShow()} isSelected={true} onToggleSelect={vi.fn()} />
     );
 
@@ -125,14 +121,14 @@ describe('ShowCardHorizontal', () => {
   });
 
   it('does not apply selection ring when isSelected is false', () => {
-    render(<ShowCardHorizontal show={createMockShow()} isSelected={false} />);
+    renderCard(<ShowCardHorizontal show={createMockShow()} isSelected={false} />);
 
     expect(screen.getByTestId('show-card').className).not.toContain('ring-primary/50');
   });
 
   it('handles show with empty events array (no crash)', () => {
     expect(() => {
-      render(<ShowCardHorizontal show={createMockShow({ events: [] })} />);
+      renderCard(<ShowCardHorizontal show={createMockShow({ events: [] })} />);
     }).not.toThrow();
 
     expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument();
@@ -140,19 +136,19 @@ describe('ShowCardHorizontal', () => {
 
   it('handles show with 0 trials', () => {
     expect(() => {
-      render(<ShowCardHorizontal show={createMockShow({ trials: [] })} />);
+      renderCard(<ShowCardHorizontal show={createMockShow({ trials: [] })} />);
     }).not.toThrow();
 
     expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument();
   });
 
   it('renders entry fee with currency formatting', () => {
-    render(<ShowCardHorizontal show={createMockShow({ preEntryFee: '30' })} />);
+    renderCard(<ShowCardHorizontal show={createMockShow({ preEntryFee: '30' })} />);
     expect(screen.getByText('$30.00')).toBeInTheDocument();
   });
 
   it('does not render fee when preEntryFee is empty', () => {
-    render(<ShowCardHorizontal show={createMockShow({ preEntryFee: '' })} />);
+    renderCard(<ShowCardHorizontal show={createMockShow({ preEntryFee: '' })} />);
     expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
   });
 });

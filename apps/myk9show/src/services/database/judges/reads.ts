@@ -271,10 +271,13 @@ export async function persistShowJudgeAssignments(
   options?: { skipDelete?: boolean }
 ): Promise<void> {
   if (!options?.skipDelete) {
-    await assignmentsTable().delete().eq('show_id', showId).is('class_id', null);
+    const { error } = await assignmentsTable().delete().eq('show_id', showId).is('class_id', null);
+    if (error) {
+      throw createDatabaseError(error, 'judge_assignments', 'delete_show_assignments');
+    }
   }
   if (judges.length > 0) {
-    await assignmentsTable().insert(
+    const { error } = await assignmentsTable().insert(
       judges.map(j => ({
         person_id: j.judgeId,
         show_id: showId,
@@ -282,6 +285,9 @@ export async function persistShowJudgeAssignments(
         confirmed_at: new Date().toISOString(),
       }))
     );
+    if (error) {
+      throw createDatabaseError(error, 'judge_assignments', 'insert_show_assignments');
+    }
   }
 }
 

@@ -15,6 +15,14 @@ export interface TimelineGroup {
   undatedTasks: SecretaryTask[];
 }
 
+export function resolveTaskShowName(
+  showId: string | null | undefined,
+  showNameMap: Record<string, string>
+): string {
+  if (!showId) return 'General';
+  return showNameMap[showId] ?? 'Unknown show';
+}
+
 /**
  * Parse a date-only string (YYYY-MM-DD) without timezone shift.
  * new Date('2024-03-15') is treated as UTC midnight, which can shift
@@ -127,7 +135,7 @@ export function groupByShow(
   if (showIdFilter !== 'all') {
     const { dated, undated } = splitDatedUndated(tasks);
     const showName =
-      showIdFilter === 'general' ? 'General' : (showNameMap[showIdFilter] ?? showIdFilter);
+      showIdFilter === 'general' ? 'General' : resolveTaskShowName(showIdFilter, showNameMap);
     return [
       {
         showId: showIdFilter === 'general' ? null : showIdFilter,
@@ -149,7 +157,7 @@ export function groupByShow(
   const result: TimelineGroup[] = [];
   for (const [showId, groupTasks] of groups) {
     const { dated, undated } = splitDatedUndated(groupTasks);
-    const showName = showId ? (showNameMap[showId] ?? showId) : 'General';
+    const showName = resolveTaskShowName(showId, showNameMap);
     result.push({
       showId,
       showName,

@@ -86,6 +86,32 @@ export function getTrialTypesForOrganization(organization: string): TrialType[] 
   return [...types, TrialType.OTHER];
 }
 
+const TRIAL_TYPE_LABEL_BY_KEY: Record<string, TrialType> = Object.fromEntries(
+  Object.entries(TrialType).map(([key, value]) => [key, value])
+) as Record<string, TrialType>;
+
+const titleCaseTrialType = (value: string): string =>
+  value
+    .split(/[\s_]+/)
+    .filter(Boolean)
+    .map(part => {
+      const lower = part.toLowerCase();
+      if (lower === 'akc' || lower === 'ukc') return lower.toUpperCase();
+      return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
+    })
+    .join(' ');
+
+export function formatTrialTypeLabel(trialType: string | null | undefined): string {
+  if (!trialType) return 'Other';
+  if (Object.values(TrialType).includes(trialType as TrialType)) return trialType;
+
+  const normalizedKey = trialType
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+  return TRIAL_TYPE_LABEL_BY_KEY[normalizedKey] ?? titleCaseTrialType(trialType);
+}
+
 // Class status tracking - aligned with @myk9/core CLASS_STATUS constants
 // Includes 'Upcoming' as a valid alias for 'Scheduled' for backward compatibility
 export type ClassStatus = 'Scheduled' | 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';

@@ -43,7 +43,11 @@ interface EnhancedTrainingJournalProps {
   onAddEntry?: (entry: Omit<TrainingEntry, 'id'>) => void;
   onUpdateEntry?: (id: string, entry: Partial<TrainingEntry>) => void;
   onDeleteEntry?: (id: string) => void;
-  onCreateGoal?: (goal: { title: string; target_date: string | null; sport_tag: string | null }) => void;
+  onCreateGoal?: (goal: {
+    title: string;
+    target_date: string | null;
+    sport_tag: string | null;
+  }) => Promise<void> | void;
   onToggleGoal?: (goal: TrainingGoal) => void;
 }
 

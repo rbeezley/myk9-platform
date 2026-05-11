@@ -15,6 +15,12 @@ export interface HealthImportResult {
   errors: string[];
 }
 
+export interface HealthImportOutcome {
+  succeeded: number;
+  failed: number;
+  errors: string[];
+}
+
 const typeAliases: Record<string, ImportableHealthItemType> = {
   vaccination: 'vaccination',
   vaccine: 'vaccination',
@@ -54,14 +60,36 @@ const parseCsvLine = (line: string): string[] => {
   return values;
 };
 
+const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+
 const toIsoDate = (value: string | undefined): string | null => {
   if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().split('T')[0];
+  if (!isoDatePattern.test(value)) return null;
+
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  const isExactDate =
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day;
+
+  return isExactDate ? value : null;
 };
 
 const getValue = (row: Record<string, string>, keys: string[]) =>
   keys.map(key => row[normalizeKey(key)]).find(Boolean);
+
+const getOptionalDate = (
+  row: Record<string, string>,
+  keys: string[],
+  label: string
+): string | null | string => {
+  const rawValue = getValue(row, keys);
+  if (!rawValue) return null;
+
+  const parsed = toIsoDate(rawValue);
+  return parsed || `${label} must use YYYY-MM-DD`;
+};
 
 const toHealthData = (
   type: ImportableHealthItemType,
@@ -69,7 +97,8 @@ const toHealthData = (
   dogId: string
 ): Record<string, unknown> | string => {
   const title = getValue(row, ['title', 'name']);
-  const date = toIsoDate(getValue(row, ['date', 'date given', 'visit date', 'start date']));
+  const rawDate = getValue(row, ['date', 'date given', 'visit date', 'start date']);
+  const date = toIsoDate(rawDate);
   const notes = getValue(row, ['notes', 'description']);
   const vetName = getValue(row, ['veterinarian', 'vet name', 'vet']);
   const clinic = getValue(row, ['clinic', 'clinic name']);
@@ -77,12 +106,19 @@ const toHealthData = (
   if (!title) return 'missing title';
 
   if (type === 'vaccination') {
-    if (!date) return 'missing a valid date';
+    if (!date) return 'date must use YYYY-MM-DD';
+    const expirationDate = getOptionalDate(
+      row,
+      ['expiration date', 'expiration'],
+      'expiration date'
+    );
+    if (expirationDate && !isoDatePattern.test(expirationDate)) return expirationDate;
+
     return {
       dog_id: dogId,
       vaccine_name: title,
       date_given: date,
-      expiration_date: toIsoDate(getValue(row, ['expiration date', 'expiration'])),
+      expiration_date: expirationDate,
       vet_name: vetName,
       clinic_name: clinic,
       lot_number: getValue(row, ['lot number', 'lot']),
@@ -91,7 +127,7 @@ const toHealthData = (
   }
 
   if (type === 'vet_visit') {
-    if (!date) return 'missing a valid date';
+    if (!date) return 'date must use YYYY-MM-DD';
     return {
       dog_id: dogId,
       visit_date: date,
@@ -106,15 +142,22 @@ const toHealthData = (
   }
 
   if (type === 'medication') {
+    if (rawDate && !date) return 'date must use YYYY-MM-DD';
+    const endDate = getOptionalDate(row, ['end date'], 'end date');
+    if (endDate && !isoDatePattern.test(endDate)) return endDate;
+
     return {
       dog_id: dogId,
       medication_name: title,
       start_date: date || undefined,
+      end_date: endDate || undefined,
       dosage: getValue(row, ['dosage']),
       frequency: getValue(row, ['frequency']),
       notes,
     };
   }
+
+  if (rawDate && !date) return 'date must use YYYY-MM-DD';
 
   return {
     dog_id: dogId,

@@ -19,10 +19,10 @@ import {
 } from '@/hooks/queries/useHealthDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { HealthRecordsSectionProps } from './HealthRecordsSection.types';
-import { dispatchHealthItem } from './HealthRecordsSection.types';
+import { dispatchHealthItem, importHealthRecords } from './HealthRecordsSection.types';
 import { convertToTimelineEvents, getVaccinationAlerts } from './HealthRecordsSection.helpers';
 import { HealthRecordsTraditionalView } from './HealthRecordsTraditionalView';
-import type { ParsedHealthImportRow } from './healthImport';
+import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import EditVaccinationDialog from './Vaccinations/EditVaccinationDialog';
 import EditMedicationDialog from './Medications/EditMedicationDialog';
 import EditAllergyDialog from './Allergies/EditAllergyDialog';
@@ -152,10 +152,8 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   );
 
   const handleImportRecords = useCallback(
-    (records: ParsedHealthImportRow[]) => {
-      records.forEach(record => {
-        dispatchHealthItem(record.type, record.data, mutations, authUser?.id);
-      });
+    async (records: ParsedHealthImportRow[]): Promise<HealthImportOutcome> => {
+      return importHealthRecords(records, mutations, authUser?.id);
     },
     [mutations, authUser?.id]
   );

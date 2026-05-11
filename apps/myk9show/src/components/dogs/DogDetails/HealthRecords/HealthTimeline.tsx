@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { downloadFile, exportToCSV } from '@/lib/export';
-import type { ParsedHealthImportRow } from './healthImport';
+import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import { HealthImportDialog } from './HealthImportDialog';
 
 export interface HealthEvent {
@@ -55,7 +55,9 @@ interface HealthTimelineProps {
   events: HealthEvent[];
   onEventClick?: (event: HealthEvent) => void;
   onAddEvent?: () => void;
-  onImportRecords?: (records: ParsedHealthImportRow[]) => void;
+  onImportRecords?:
+    | ((records: ParsedHealthImportRow[]) => Promise<HealthImportOutcome>)
+    | undefined;
   vaccinationsOnly?: boolean;
 }
 
@@ -176,23 +178,22 @@ export function HealthTimeline({
       return;
     }
 
-    const exportRows =
-      events
-        .slice()
-        .sort((a, b) => b.date.getTime() - a.date.getTime())
-        .map(event => ({
-          Date: event.date,
-          Type: eventTypeConfig[event.type].label,
-          Title: event.title,
-          Status: event.status.charAt(0).toUpperCase() + event.status.slice(1),
-          Description: event.description || '',
-          Veterinarian: event.vetName || '',
-          Clinic: event.clinic || '',
-          Cost: event.cost ?? '',
-          'Expiration Date': event.expiration || '',
-          Notes: event.notes || '',
-          Attachments: event.attachments?.map(attachment => attachment.name).join('; ') || '',
-        }));
+    const exportRows = events
+      .slice()
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .map(event => ({
+        Date: event.date,
+        Type: eventTypeConfig[event.type].label,
+        Title: event.title,
+        Status: event.status.charAt(0).toUpperCase() + event.status.slice(1),
+        Description: event.description || '',
+        Veterinarian: event.vetName || '',
+        Clinic: event.clinic || '',
+        Cost: event.cost ?? '',
+        'Expiration Date': event.expiration || '',
+        Notes: event.notes || '',
+        Attachments: event.attachments?.map(attachment => attachment.name).join('; ') || '',
+      }));
 
     exportToCSV(exportRows, filename, { dateFormat: 'YYYY-MM-DD' });
   };

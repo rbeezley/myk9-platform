@@ -221,6 +221,7 @@ export const useUpdateTrainingGoalMutation = () => {
     },
     onSuccess: data => {
       if (data) {
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.goals() });
         queryClient.invalidateQueries({ queryKey: trainingQueryKeys.dogGoals(data.dog_id) });
       }
     },

@@ -10,7 +10,11 @@ interface TrainingGoalsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   goals: TrainingGoal[];
-  onCreateGoal: (goal: { title: string; target_date: string | null; sport_tag: string | null }) => void;
+  onCreateGoal: (goal: {
+    title: string;
+    target_date: string | null;
+    sport_tag: string | null;
+  }) => Promise<void> | void;
   onToggleGoal: (goal: TrainingGoal) => void;
 }
 
@@ -24,17 +28,23 @@ export function TrainingGoalsDialog({
   const [title, setTitle] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [sportTag, setSportTag] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const activeGoals = goals.filter(goal => !goal.completed_at);
   const completedGoals = goals.filter(goal => goal.completed_at);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title.trim()) return;
-    onCreateGoal({
-      title: title.trim(),
-      target_date: targetDate || null,
-      sport_tag: sportTag.trim() || null,
-    });
+    setIsCreating(true);
+    try {
+      await onCreateGoal({
+        title: title.trim(),
+        target_date: targetDate || null,
+        sport_tag: sportTag.trim() || null,
+      });
+    } finally {
+      setIsCreating(false);
+    }
     setTitle('');
     setTargetDate('');
     setSportTag('');
@@ -63,8 +73,8 @@ export function TrainingGoalsDialog({
               onChange={event => setSportTag(event.target.value)}
               placeholder="Scent Work"
             />
-            <Button onClick={handleCreate} disabled={!title.trim()}>
-              Add
+            <Button onClick={handleCreate} disabled={!title.trim() || isCreating}>
+              {isCreating ? 'Adding...' : 'Add'}
             </Button>
           </div>
 
@@ -74,12 +84,17 @@ export function TrainingGoalsDialog({
               <p className="text-sm text-muted-foreground">No active goals yet.</p>
             ) : (
               activeGoals.map(goal => (
-                <div key={goal.id} className="flex items-center justify-between rounded-md border p-3">
+                <div
+                  key={goal.id}
+                  className="flex items-center justify-between rounded-md border p-3"
+                >
                   <div>
                     <p className="font-medium">{goal.title}</p>
                     <div className="mt-1 flex gap-2">
                       {goal.sport_tag && <Badge variant="outline">{goal.sport_tag}</Badge>}
-                      {goal.target_date && <Badge variant="secondary">Due {goal.target_date}</Badge>}
+                      {goal.target_date && (
+                        <Badge variant="secondary">Due {goal.target_date}</Badge>
+                      )}
                     </div>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => onToggleGoal(goal)}>
@@ -95,7 +110,10 @@ export function TrainingGoalsDialog({
             <section className="space-y-2">
               <h3 className="font-semibold">Completed</h3>
               {completedGoals.map(goal => (
-                <div key={goal.id} className="flex items-center justify-between rounded-md border p-3">
+                <div
+                  key={goal.id}
+                  className="flex items-center justify-between rounded-md border p-3"
+                >
                   <p className="font-medium">{goal.title}</p>
                   <Button variant="ghost" size="sm" onClick={() => onToggleGoal(goal)}>
                     Reopen

@@ -390,12 +390,17 @@ Completed:
 - Wired Health Timeline CSV import with preview validation for vaccination, vet visit, medication, and allergy rows.
 - Added a Training Journal progress report with sessions by skill, assessment distribution, and monthly training-time trends.
 - Added persistent training goals via `training_goals`, plus create, complete, and reopen behavior.
+- Hardened CSV imports with strict ISO date validation, blocked-import feedback, and import success/failure reporting.
+- Added training goal cache invalidation and RLS hardening follow-up migration.
 
 Verification:
 
 - `pnpm exec vitest run src/components/dogs/DogDetails/HealthRecords/healthImport.test.ts src/components/dogs/DogDetails/HealthRecords/HealthTimeline.test.tsx src/components/dogs/DogDetails/TrainingJournal/trainingInsights.test.ts src/components/dogs/DogDetails/TrainingJournal/EnhancedTrainingJournal.test.tsx`
+- `pnpm exec vitest run src/components/dogs/DogDetails/HealthRecords/healthImport.test.ts src/components/dogs/DogDetails/HealthRecords/HealthRecordsSection.types.test.ts src/components/dogs/DogDetails/HealthRecords/HealthTimeline.test.tsx src/components/dogs/DogDetails/TrainingJournal/EnhancedTrainingJournal.test.tsx src/components/dogs/DogDetails/TrainingJournal/trainingInsights.test.ts`
 - `pnpm typecheck`
+- `pnpm lint`
 
 Shared-system work:
 
-- Added migration `supabase/migrations/20260511153000_create_training_goals.sql`; not pushed to Supabase.
+- Pushed migration `supabase/migrations/20260511153000_create_training_goals.sql` to Supabase.
+- Added follow-up migration `supabase/migrations/20260511170000_harden_training_goals.sql`; pending Supabase push confirmation.

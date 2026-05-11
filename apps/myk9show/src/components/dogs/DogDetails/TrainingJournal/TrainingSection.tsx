@@ -119,13 +119,13 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
     });
   };
 
-  const handleCreateGoal = (goal: {
+  const handleCreateGoal = async (goal: {
     title: string;
     target_date: string | null;
     sport_tag: string | null;
-  }) => {
+  }): Promise<void> => {
     if (!user) return;
-    createGoalMutation.mutate({
+    await createGoalMutation.mutateAsync({
       dog_id: dogId,
       owner_id: user.id,
       title: goal.title,

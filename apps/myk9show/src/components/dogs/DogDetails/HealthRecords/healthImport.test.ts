@@ -52,4 +52,14 @@ describe('parseHealthRecordsCsv', () => {
       'Row 2: type must be vaccination, vet visit, medication, or allergy.',
     ]);
   });
+
+  it('requires ISO dates so imports do not shift dates by timezone', () => {
+    const result = parseHealthRecordsCsv(
+      'Type,Title,Date\nVaccination,Rabies,02/14/2026',
+      'dog-123'
+    );
+
+    expect(result.records).toEqual([]);
+    expect(result.errors).toEqual(['Row 2: date must use YYYY-MM-DD.']);
+  });
 });

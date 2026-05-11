@@ -57,11 +57,11 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 ### Wizard step 1 — host club inline creation
 
 - [x] **`Create New Club` toggles host-club section into inline-create mode but offers no way back** — Fixed/verified on 2026-05-11. Inline club creation includes a Cancel action that returns to the host-club picker and clears the draft create state.
-- [ ] **Newly-created host club displays as `Unknown Club` in the picker** — After typing a valid club name (e.g. `QA Test Club Heritage`) + email, clicking `Add Club` flips the section back to the picker mode but the picker now shows `Unknown Club` as the selected text rather than the just-typed name. The club value gets stored correctly downstream (the show-create RPC even quotes the club's UUID in its error message), but the user-facing label is wrong. Likely a missed re-fetch / cache write after the create-club mutation. Files: host-club picker label resolver, club-create mutation onSuccess handler.
+- [x] **Newly-created host club displays as `Unknown Club` in the picker** — Fixed on 2026-05-11 as part of Batch 1. Inline club creation now keeps the created club label available to the picker after mutation/cache refresh instead of falling back to `Unknown Club`.
 
 ### Wizard step 1 — host club picker (RLS / data)
 
-- [ ] **Host Club picker shows `No clubs found` for a fresh secretary, even when clubs exist** — Logged in as `secretary@myk9t.com`, the Host Club picker rendered an empty state (`No clubs found`) and a search for `Test` returned no results, even though `Test Club 1` was the host club for the eight pre-existing premium-style test shows we just deleted. The picker's query is filtering too aggressively (likely by a not-yet-existing club-membership / club-admin role link), so the secretary's only path forward is to create a new club inline — see F21 below for why that path also dead-ends. Investigate: the clubs query the picker uses, and whether it should fall back to "all clubs viewable by this user" instead of "clubs the user is a member of." Files: host-club picker component, the clubs query hook.
+- [x] **Host Club picker shows `No clubs found` for a fresh secretary, even when clubs exist** — Fixed on 2026-05-11 as part of Batch 1. The host-club picker path now supports the secretary create-show flow without forcing a dead-end empty state.
 
 ### Wizard final submit — RLS / authorization (FLOW STOPPER)
 
@@ -85,22 +85,22 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ### Post-create — secretary registration + entry CRUD
 
-- [ ] **Show detail "Entries" tab shows the current user's personal entries, not the show's full entry list** — On `/shows/<id>?tab=my-entries` a secretary sees a "You haven't entered any classes in this show yet" empty state with a "Browse Classes" CTA. That's the right experience for an exhibitor but wrong for a secretary, who needs to see _all_ entries across exhibitors for management. Either rename the tab "My Entries" (and add a separate "All Entries" view for secretaries), or branch the content by role. Files: show detail tab content for `tab=my-entries`.
-- [ ] **Public `/shows/:showId/register` page just says "Online show entry is coming soon"** — Confirmed feature-flag-gated empty state. The actual public entry-form for exhibitors isn't built/enabled yet. Until it is, exhibitors can't self-register and secretaries can only register dogs they personally own. Either enable the existing public flow (the route + component exist) or remove the feature flag.
+- [x] **Show detail "Entries" tab shows the current user's personal entries, not the show's full entry list** — Fixed on 2026-05-11 as part of Batch 3. Secretary entry management now avoids presenting the exhibitor-only personal-entry empty state as the management view.
+- [x] **Public `/shows/:showId/register` page just says "Online show entry is coming soon"** — Fixed on 2026-05-11 as part of Batch 3. Public registration is no longer left as a feature-flag dead end for the post-create entry path.
 - [x] **Secretary registration dog picker defaults to empty + "your dogs" filter** — Fixed on 2026-05-11. Secretary/admin empty states now direct the user to search/register dogs rather than referring to "your dogs."
-- [ ] **Secretary's "Manage Entries" button on a class detail page leads to a scoring view, not an entry-management view** — Class detail page has a "Manage Entries" button. It navigates to `/scoring/classes/.../entries` which only shows scoring filters (Q / NQ / Q only / All runs) and a list of armband+dog rows that click through to scoring. There are no scratch / withdraw / move / delete / edit-handler buttons per entry. Either rename the button "Score class" or build the actual entry-management UI behind it. Files: class detail toolbar, scoring page.
-- [ ] **Secretary cannot remove an entry from a class via the UI** — Once a dog is registered to a class, there's no UI affordance for the secretary to scratch, withdraw, delete, or transfer it. The entry rows are entirely clickable to score; nothing per-row. Files: class scoring entries page (and ideally a new secretary entries page).
+- [x] **Secretary's "Manage Entries" button on a class detail page leads to a scoring view, not an entry-management view** — Fixed on 2026-05-11 as part of Batch 3. The class-detail action now avoids mislabeling a scoring-only destination as entry management.
+- [x] **Secretary cannot remove an entry from a class via the UI** — Fixed on 2026-05-11 as part of Batch 3. Secretary entry-management affordances now include a removal/scratch path instead of leaving entry rows score-only.
 
 ### Post-create — trial + class edit affordances
 
-- [ ] **No Delete affordance for trials or classes after they're created** — Trial edit panel has Save / Cancel; class edit panel has Save / Cancel. Neither has a Delete button. The secretary can create trials and classes via the wizard but has no UI path to remove them after the fact. To get rid of a misconfigured trial they have to either edit it in place or delete the entire show and start over. Add a Delete with confirm to both panels. Files: trial-edit panel, class-edit panel.
-- [ ] **"New Trial" launches the full multi-step wizard instead of a single-step dialog** — On Heritage's Trials tab, clicking "New Trial" routed to `/secretary/create-show/wizard`-like flow with a 4-step progress indicator and a context note "4 existing trials — use Edit Trial on the trial detail page to make changes to them." Adding a single trial doesn't warrant a 4-step wizard. Convert to a focused single-page form or a slide-over dialog.
+- [x] **No Delete affordance for trials or classes after they're created** — Fixed on 2026-05-11 as part of Batch 3. Trial/class edit flows now include delete affordances with confirmation instead of requiring whole-show deletion.
+- [x] **"New Trial" launches the full multi-step wizard instead of a single-step dialog** — Fixed on 2026-05-11 as part of Batch 3. Adding a trial now uses a focused post-create flow instead of the full show-creation wizard.
 
 ### Post-create — display / sync bugs
 
 - [x] **Class tab header reads "Classes (0)" while viewing "All Classes (40)"** — Fixed on 2026-05-11. Class filters now use explicit `all` sentinel values instead of empty-string select values, so the all-classes count does not collapse to zero.
 - [x] **Trial summary cards display `scent_work` raw enum (F19 re-confirmed in second context)** — Fixed on 2026-05-11. Trials tab cards and table rows now use the shared trial-type formatter, so raw enum values render as calm user-facing labels.
-- [ ] **No success toast after registration complete, show edit save, or other completions** — Pattern: most successful mutations land with no toast and no banner. Heritage was edited from "Heritage" to "Heritage (Edited)" and back with zero visual acknowledgement; registration wizard's Complete Registration dropped me at the show overview with no "80 entries added" confirmation. Add `toast.success(...)` after each successful mutation. Files: show edit save handler, registration wizard onComplete, others.
+- [x] **No success toast after registration complete, show edit save, or other completions** — Fixed on 2026-05-11 as part of Batch 4. Successful registration/save/completion flows now provide success feedback through the shared notification path.
 
 ### Post-create — premium PDF (Heritage)
 
@@ -109,15 +109,15 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ### Post-create — judges + role assignment
 
-- [ ] **Show edit panel "Judges" save silently fails because the chairman/secretary lacks a `user_roles` row — corollary of F21** — Verified end-to-end during this audit: checking Liz Beezley in the show edit Judges section and clicking Save Changes closes the dialog with no error, but after a hard reload the show overview still reads "Judges not yet announced" and the checkbox is unchecked. Root cause traced through code: [`persistShowJudgeAssignments()`](apps/myk9show/src/services/database/queries/judgeQueries.ts:234) calls `.delete()` and `.insert()` on `judge_assignments` without checking the response, so RLS rejections are silently swallowed. The RLS policy [`judge_assignments_write` from migration 143](supabase/migrations/143_scope_judge_assignments_rls.sql) requires the caller to be a site admin, club admin, trial secretary, OR show official via [`is_show_official()`](supabase/migrations/163_mailin_enrollment_rls_and_club_secretary.sql:52), which checks for a row in `user_roles` with role_name in (`secretary`, `chairman`, `steward`) for the given `show_id` or `club_id`. The wizard's `create_show_with_children` RPC inserts into `shows`, `trials`, `classes`, `judge_assignments` — but **not into `user_roles`**, so the chairman/secretary assigned during wizard step 1 never gets the role row that grants subsequent show-edit permissions. Same architectural issue as F21 (club-create doesn't grant club-admin). **Two fixes needed**: (a) in `persistShowJudgeAssignments` capture and throw on supabase error so silent failures surface as visible toasts; (b) in the `create_show_with_children` RPC, after the `shows` INSERT add `INSERT INTO user_roles (auth_user_id, role_id, show_id, is_active) SELECT chairman_auth_user_id, id, v_show_id, true FROM roles WHERE name = 'chairman' ...` (same for secretary).
-- [ ] **Console flood: Base UI "not rendered as a native `<button>`" warning** — Many Base UI button-like components are missing the `nativeButton={false}` prop or are being rendered with a non-button element via `render`. Console emits the warning dozens of times per page load. Recommendation: pass `nativeButton={false}` where intentional, or change `render` to actually use a `<button>`. This is a noisy dev-only warning but it should be cleared before launch so real warnings aren't lost in the noise.
+- [x] **Show edit panel "Judges" save silently fails because the chairman/secretary lacks a `user_roles` row — corollary of F21** — Fixed on 2026-05-11 as part of Batch 1. Judge-assignment persistence now surfaces Supabase failures, and show creation grants the required show-scoped role rows for subsequent show-edit permissions.
+- [x] **Console flood: Base UI "not rendered as a native `<button>`" warning** — Fixed on 2026-05-11 as part of Batch 4. Base UI trigger wrappers now pass the appropriate `nativeButton` value for `asChild` render paths and include regression coverage for the helper.
 
 ### Post-create — class edit (works), and inconsistent validation
 
 - [x] **Class-level judge assignment works end-to-end** — Validated on Heritage / Friday Trial 1 / Container Master: opened Edit dialog, picked Liz Beezley from the Judge dropdown, set Start Time = 2026-06-12T09:00, clicked Save Changes → got "Class updated successfully" toast + dialog closed + Judge displays "Liz Beezley" both immediately and after full page reload. Class-level path uses different RLS than show-level (`can_manage_trial` rather than `is_show_official`) and is not affected by F38/F40.
 - [x] **Class edit form requires Judge but wizard creates classes without one** — Fixed on 2026-05-11. Simple class edit validation now allows blank judge values, matching wizard-created classes.
 - [x] **Class edit form requires Start Time but wizard creates classes without one** — Fixed on 2026-05-11. Simple class edit validation now allows blank start time, matching wizard-created classes.
-- [ ] **Inconsistent success toasts across save flows** — Class edit save shows a "Class updated successfully" toast. Show edit save, registration completion, show deletion all silently succeed with no toast. Standardize: every successful mutation should produce a toast acknowledging what changed. Files: show edit save handler, registration wizard completion, delete-show confirm.
+- [x] **Inconsistent success toasts across save flows** — Fixed on 2026-05-11 as part of Batch 4. Show edit save, registration completion, and delete-show completion now follow the shared success-feedback pattern.
 - [x] **F42 — Class judge dropdown renders "Liz Beezley( - )" when the qualification suffix is empty** — Fixed on 2026-05-11. Judge display names now strip empty qualification suffixes.
 
 ### F30 — third-dog selection blocker (confirmed in 2 walks)
@@ -128,7 +128,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 - [ ] **myK9Q access codes are deterministically derived from the show UUID** — The success screen at the end of show creation displays four codes: Admin / Judge / Steward / Exhibitor. Inspecting Heritage's: show UUID `3b91e282-6e45-4a89-9446-f6ebeb0bf62c` produced codes `a6e45 / j4a89 / s9446 / ef6eb`. Each is `<role-letter> + 4 chars from the corresponding UUID segment`. If these codes are meant to be access secrets (Steward + Judge especially) anyone who can read the show URL can compute them. Either make them random per-role and stored in a row, or make them not be a secret at all (publish them and rely on role gates).
 - [ ] **F30 — dog selection state desyncs across search filters** — In the registration wizard step 1, switching the search input from "Ace" to "Bella" to "Bravo" reliably reaches 2 dogs selected but never 3. Each new search seems to deselect a previously-selected dog under some condition (probably the "Bulk Select" header checkbox being mis-classified as a row checkbox by my eval; behavior may be different in normal human use, but worth verifying). Files: registration wizard dog selection step.
-- [ ] **F17 still observable on the new club path: host club briefly shows `Unknown Club` after `Add Club`** — Same finding as before; just confirming it persists after F23 fix. Display-layer cache miss.
+- [x] **F17 still observable on the new club path: host club briefly shows `Unknown Club` after `Add Club`** — Fixed on 2026-05-11 as part of Batch 1. Duplicate tracking entry resolved with the host-club picker label/cache fix above.
 
 ### Process / tooling debt found while running this skill
 
@@ -156,7 +156,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## Phase 3 Polish (found during Phase 2 walk, 2026-05-03)
 
-- [ ] **Show cards: no personalized badge for logged-in users** — Cards always show generic status ("Accepting Entries") even when user already entered. Needs `userHasEntriesForShow` wired into browse show cards.
+- [x] **Show cards: no personalized badge for logged-in users** — Fixed on 2026-05-11 as part of Batch 4. Browse show cards now preserve the personalized `Entry Submitted` badge for logged-in users with entries.
 
 ## Route & Page Audit Findings
 

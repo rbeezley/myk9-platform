@@ -6,11 +6,22 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Users, Hash, MessageSquare, Gift, ChevronDown } from 'lucide-react';
+import { Users, Hash, MessageSquare, Gift, ChevronDown, Trash2 } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
 import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
@@ -31,6 +42,7 @@ interface EntryListCardProps {
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onCompEntry?: ((entryId: string) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;
+  onRemoveEntry: (entryId: string) => void;
   emailStatusMap?: Record<string, EmailLogEntry> | undefined;
   onResendEmail?: ((registrationId: string) => void) | undefined;
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
@@ -46,6 +58,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   onOpenArmbandDialog,
   onCompEntry,
   onUncompEntry,
+  onRemoveEntry,
   emailStatusMap,
   onResendEmail,
   isResendDisabled,
@@ -56,6 +69,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
     open: boolean;
     entryId: string | null;
   }>({ open: false, entryId: null });
+  const [removeDialog, setRemoveDialog] = useState<{
+    open: boolean;
+    entry: EntryManagementEntry | null;
+  }>({ open: false, entry: null });
 
   const openWithdrawalDialog = (entryId: string) => {
     setWithdrawalDialog({ open: true, entryId });
@@ -66,6 +83,13 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
       onStatusChange(withdrawalDialog.entryId, EntryStatus.CANCELLED, reason);
     }
     setWithdrawalDialog({ open: false, entryId: null });
+  };
+
+  const confirmRemoveEntry = () => {
+    if (removeDialog.entry) {
+      onRemoveEntry(removeDialog.entry.id);
+    }
+    setRemoveDialog({ open: false, entry: null });
   };
 
   const entryList = (
@@ -95,6 +119,16 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 Assign
               </button>
             )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="ml-auto h-8 px-2 text-muted-foreground hover:text-destructive"
+              aria-label={`Remove entry for ${entry.dogName}`}
+              onClick={() => setRemoveDialog({ open: true, entry })}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-2">
@@ -217,6 +251,14 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         >
                           Scratched
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setRemoveDialog({ open: true, entry })}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Remove Entry
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     {entry.entryStatus === EntryStatus.CANCELLED && entry.withdrawalReason && (
@@ -285,6 +327,30 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
         }
         onConfirm={confirmWithdrawal}
       />
+      <AlertDialog
+        open={removeDialog.open}
+        onOpenChange={open => !open && setRemoveDialog({ open: false, entry: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes {removeDialog.entry?.dogName ?? 'this dog'} from{' '}
+              {removeDialog.entry?.classes[0]?.name ?? 'this class'}. Use this for mistaken or
+              duplicate entries; use Scratched or Withdrawn when the entry should stay in records.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmRemoveEntry}
+            >
+              Remove Entry
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 };

@@ -11,7 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronDown, ChevronUp, Receipt, MoreHorizontal, Mail, Loader2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Receipt,
+  MoreHorizontal,
+  Mail,
+  Loader2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
@@ -47,6 +54,7 @@ interface EnrollmentCardProps {
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onCompEntry?: (entryId: string) => void;
   onUncompEntry?: (entryId: string) => void;
+  onRemoveEntry: (entryId: string) => void;
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onBulkCheckIn: (entryIds: string[]) => void;
   onPaymentStatusChange: (
@@ -116,6 +124,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onOpenArmbandDialog,
   onCompEntry,
   onUncompEntry,
+  onRemoveEntry,
   onBulkStatusChange,
   onBulkCheckIn,
   onPaymentStatusChange,
@@ -391,6 +400,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             onOpenArmbandDialog={onOpenArmbandDialog}
             onCompEntry={onCompEntry}
             onUncompEntry={onUncompEntry}
+            onRemoveEntry={onRemoveEntry}
             hidePaymentBadge={true}
             hideHeader={true}
             emailStatusMap={emailStatusMap}

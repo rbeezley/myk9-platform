@@ -67,11 +67,12 @@ function makeGroup(overrides: Partial<EnrollmentGroup> = {}): EnrollmentGroup {
 const defaultProps = {
   group: makeGroup(),
   onStatusChange: vi.fn(),
-  onOpenCheckInDialog: vi.fn(),
+  onCheckInStatusChange: vi.fn(),
   onOpenArmbandDialog: vi.fn(),
-  selectedEntries: new Set<string>(),
-  onSelectEntry: vi.fn(),
-  onSelectAll: vi.fn(),
+  onRemoveEntry: vi.fn(),
+  onBulkStatusChange: vi.fn(),
+  onBulkCheckIn: vi.fn(),
+  onPaymentStatusChange: vi.fn(),
 };
 
 describe('EnrollmentCard', () => {

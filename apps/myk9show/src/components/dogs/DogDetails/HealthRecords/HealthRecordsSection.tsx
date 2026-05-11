@@ -19,9 +19,10 @@ import {
 } from '@/hooks/queries/useHealthDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { HealthRecordsSectionProps } from './HealthRecordsSection.types';
-import { dispatchHealthItem } from './HealthRecordsSection.types';
+import { dispatchHealthItem, importHealthRecords } from './HealthRecordsSection.types';
 import { convertToTimelineEvents, getVaccinationAlerts } from './HealthRecordsSection.helpers';
 import { HealthRecordsTraditionalView } from './HealthRecordsTraditionalView';
+import type { HealthImportOutcome, ParsedHealthImportRow } from './healthImport';
 import EditVaccinationDialog from './Vaccinations/EditVaccinationDialog';
 import EditMedicationDialog from './Medications/EditMedicationDialog';
 import EditAllergyDialog from './Allergies/EditAllergyDialog';
@@ -146,6 +147,13 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   const handleAddItem = useCallback(
     (type: HealthItemType, data: Record<string, unknown>) => {
       dispatchHealthItem(type, data, mutations, authUser?.id);
+    },
+    [mutations, authUser?.id]
+  );
+
+  const handleImportRecords = useCallback(
+    async (records: ParsedHealthImportRow[]): Promise<HealthImportOutcome> => {
+      return importHealthRecords(records, mutations, authUser?.id);
     },
     [mutations, authUser?.id]
   );
@@ -296,6 +304,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           events={timelineEvents}
           onEventClick={() => {}}
           onAddEvent={() => setAddDialogType('vaccination')}
+          onImportRecords={handleImportRecords}
           vaccinationsOnly={vaccinationsOnly}
         />
       ) : (

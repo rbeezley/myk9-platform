@@ -6,11 +6,15 @@ import type {
   DbTrainingMilestone,
   DbTrainingMilestoneInsert,
   DbTrainingMilestoneUpdate,
+  DbTrainingGoal,
+  DbTrainingGoalInsert,
+  DbTrainingGoalUpdate,
 } from '@/types/database-mappings';
 import type {
   TrainingJournalEntry,
   TrainingAssessment,
   TrainingMilestone,
+  TrainingGoal,
   MilestoneSource,
   TrainingStatistics,
 } from '@/types/training';
@@ -91,6 +95,49 @@ export const mapAppTrainingEntryToDbUpdate = (
   if (appEntry.notes !== undefined) update.notes = appEntry.notes;
   if (appEntry.goals !== undefined)
     update.goals = appEntry.goals.length > 0 ? appEntry.goals : null;
+
+  return update;
+};
+
+// ========================================
+// TRAINING GOAL MAPPERS
+// ========================================
+
+export const mapDbTrainingGoalToApp = (dbGoal: DbTrainingGoal): TrainingGoal => ({
+  id: dbGoal.id,
+  dog_id: dbGoal.dog_id,
+  owner_id: dbGoal.owner_id,
+  title: dbGoal.title,
+  target_date: dbGoal.target_date,
+  sport_tag: dbGoal.sport_tag,
+  notes: dbGoal.notes,
+  completed_at: dbGoal.completed_at,
+  created_at: dbGoal.created_at,
+  updated_at: dbGoal.updated_at,
+});
+
+export const mapAppTrainingGoalToDbInsert = (
+  appGoal: Omit<TrainingGoal, 'id' | 'created_at' | 'updated_at'>
+): DbTrainingGoalInsert => ({
+  dog_id: appGoal.dog_id,
+  owner_id: appGoal.owner_id,
+  title: appGoal.title,
+  target_date: appGoal.target_date,
+  sport_tag: appGoal.sport_tag,
+  notes: appGoal.notes,
+  completed_at: appGoal.completed_at,
+});
+
+export const mapAppTrainingGoalToDbUpdate = (
+  appGoal: Partial<TrainingGoal>
+): DbTrainingGoalUpdate => {
+  const update: DbTrainingGoalUpdate = {};
+
+  if (appGoal.title !== undefined) update.title = appGoal.title;
+  if (appGoal.target_date !== undefined) update.target_date = appGoal.target_date;
+  if (appGoal.sport_tag !== undefined) update.sport_tag = appGoal.sport_tag;
+  if (appGoal.notes !== undefined) update.notes = appGoal.notes;
+  if (appGoal.completed_at !== undefined) update.completed_at = appGoal.completed_at;
 
   return update;
 };

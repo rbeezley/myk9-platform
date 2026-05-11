@@ -5555,6 +5555,53 @@ export type Database = {
         }
         Relationships: []
       }
+      training_goals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          dog_id: string
+          id: string
+          notes: string | null
+          owner_id: string
+          sport_tag: string | null
+          target_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          dog_id: string
+          id?: string
+          notes?: string | null
+          owner_id: string
+          sport_tag?: string | null
+          target_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          dog_id?: string
+          id?: string
+          notes?: string | null
+          owner_id?: string
+          sport_tag?: string | null
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_goals_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_journal_entries: {
         Row: {
           assessment: string | null

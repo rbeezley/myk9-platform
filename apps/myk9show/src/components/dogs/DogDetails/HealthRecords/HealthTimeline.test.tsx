@@ -3,10 +3,18 @@ import { fireEvent, screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HealthTimeline, type HealthEvent } from './HealthTimeline';
 import { downloadFile, exportToCSV } from '@/lib/export';
+import { toast } from 'sonner';
 
 vi.mock('@/lib/export', () => ({
   downloadFile: vi.fn(),
   exportToCSV: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
 }));
 
 vi.mock('framer-motion', () => ({
@@ -20,6 +28,7 @@ vi.mock('framer-motion', () => ({
 
 const exportToCSVMock = vi.mocked(exportToCSV);
 const downloadFileMock = vi.mocked(downloadFile);
+const toastErrorMock = vi.mocked(toast.error);
 
 describe('HealthTimeline export', () => {
   beforeEach(() => {
@@ -94,5 +103,56 @@ describe('HealthTimeline export', () => {
       'text/csv'
     );
     expect(exportToCSVMock).not.toHaveBeenCalled();
+  });
+
+  it('imports valid pasted CSV records', () => {
+    const onImportRecords = vi.fn().mockResolvedValue({ succeeded: 1, failed: 0, errors: [] });
+
+    render(<HealthTimeline dogId="dog-123" events={[]} onImportRecords={onImportRecords} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /import records/i }));
+    fireEvent.change(screen.getByPlaceholderText(/type,title,date/i), {
+      target: {
+        value: 'Type,Title,Date,Description\nVaccination,Rabies,2026-02-14,Three-year vaccine',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^preview$/i }));
+
+    expect(screen.getByText(/1 ready to import/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }));
+
+    expect(onImportRecords).toHaveBeenCalledWith([
+      {
+        type: 'vaccination',
+        data: expect.objectContaining({
+          dog_id: 'dog-123',
+          vaccine_name: 'Rabies',
+          date_given: '2026-02-14',
+        }),
+      },
+    ]);
+  });
+
+  it('blocks import and shows feedback when pasted CSV has errors', () => {
+    const onImportRecords = vi.fn();
+
+    render(<HealthTimeline dogId="dog-123" events={[]} onImportRecords={onImportRecords} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /import records/i }));
+    fireEvent.change(screen.getByPlaceholderText(/type,title,date/i), {
+      target: {
+        value: 'Type,Title,Date\nVaccination,Rabies,02/14/2026',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^preview$/i }));
+
+    expect(screen.getByText(/1 errors must be fixed first/i)).toBeInTheDocument();
+    expect(screen.getByText(/date must use yyyy-mm-dd/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }));
+
+    expect(onImportRecords).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith('Fix CSV errors before importing.');
   });
 });

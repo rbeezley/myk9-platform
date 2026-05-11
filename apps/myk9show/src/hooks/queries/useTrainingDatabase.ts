@@ -6,6 +6,9 @@ import {
   createTrainingEntry,
   updateTrainingEntry,
   deleteTrainingEntry,
+  getAllTrainingGoals,
+  createTrainingGoal,
+  updateTrainingGoal,
   getAllMilestones,
   createMilestone,
   updateMilestone,
@@ -15,12 +18,15 @@ import {
   mapDbTrainingEntryToApp,
   mapAppTrainingEntryToDbInsert,
   mapAppTrainingEntryToDbUpdate,
+  mapDbTrainingGoalToApp,
+  mapAppTrainingGoalToDbInsert,
+  mapAppTrainingGoalToDbUpdate,
   mapDbMilestoneToApp,
   mapAppMilestoneToDbInsert,
   mapAppMilestoneToDbUpdate,
   calculateTrainingStatistics,
 } from '@/services/mappers/trainingMappers';
-import type { TrainingJournalEntry, TrainingMilestone } from '@/types/training';
+import type { TrainingJournalEntry, TrainingMilestone, TrainingGoal } from '@/types/training';
 
 // Query key factory
 export const trainingQueryKeys = {
@@ -30,6 +36,10 @@ export const trainingQueryKeys = {
   entries: () => [...trainingQueryKeys.all, 'entries'] as const,
   entry: (id: string) => [...trainingQueryKeys.entries(), id] as const,
   dogEntries: (dogId: string) => [...trainingQueryKeys.entries(), 'dog', dogId] as const,
+
+  // Milestones
+  goals: () => [...trainingQueryKeys.all, 'goals'] as const,
+  dogGoals: (dogId: string) => [...trainingQueryKeys.goals(), 'dog', dogId] as const,
 
   // Milestones
   milestones: () => [...trainingQueryKeys.all, 'milestones'] as const,
@@ -70,6 +80,22 @@ export const useTrainingEntryQuery = (id: string, enabled = true) => {
       return data ? mapDbTrainingEntryToApp(data) : null;
     },
     enabled: !!id && enabled,
+    ...cacheStrategies.moderate,
+  });
+};
+
+// ========================================
+// GOAL HOOKS
+// ========================================
+
+export const useTrainingGoalsQuery = (dogId?: string) => {
+  return useQuery({
+    queryKey: dogId ? trainingQueryKeys.dogGoals(dogId) : trainingQueryKeys.goals(),
+    queryFn: async () => {
+      const { data, error } = await getAllTrainingGoals(dogId);
+      if (error) throw error;
+      return data?.map(mapDbTrainingGoalToApp) || [];
+    },
     ...cacheStrategies.moderate,
   });
 };
@@ -160,6 +186,44 @@ export const useDeleteTrainingEntryMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trainingQueryKeys.all });
+    },
+  });
+};
+
+export const useCreateTrainingGoalMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (goal: Omit<TrainingGoal, 'id' | 'created_at' | 'updated_at'>) => {
+      const dbInsert = mapAppTrainingGoalToDbInsert(goal);
+      const { data, error } = await createTrainingGoal(dbInsert);
+      if (error) throw error;
+      return data ? mapDbTrainingGoalToApp(data) : null;
+    },
+    onSuccess: data => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.goals() });
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.dogGoals(data.dog_id) });
+      }
+    },
+  });
+};
+
+export const useUpdateTrainingGoalMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<TrainingGoal> }) => {
+      const dbUpdate = mapAppTrainingGoalToDbUpdate(updates);
+      const { data, error } = await updateTrainingGoal(id, dbUpdate);
+      if (error) throw error;
+      return data ? mapDbTrainingGoalToApp(data) : null;
+    },
+    onSuccess: data => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.goals() });
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.dogGoals(data.dog_id) });
+      }
     },
   });
 };

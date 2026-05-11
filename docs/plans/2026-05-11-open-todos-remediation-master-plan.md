@@ -190,18 +190,60 @@ Testing:
 - PDF preview smoke test.
 - User-approved DB push for migration.
 
-## Batch 6 — Health, Training, Payments, and Pre-Launch Work
+## Batch 6 — Health & Training
 
-Goal: schedule larger feature work after the show-creation and management path is stable.
+Goal: complete the remaining dog-care and training journal feature surfaces with focused, testable plans before implementation.
 
 Todos covered:
 
 - Import Records button.
-- Wire up edit for all health record types.
 - View Progress Report.
 - Set Training Goals.
+
+Likely work:
+
+- Create a short implementation plan for health-record import before coding.
+- Define supported import formats and validation behavior.
+- Add the Training Journal progress report with session-by-skill/sport, assessment distribution, and training-time trends.
+- Add training-goal create/list/update completion tracking, including a migration if goals need persistence.
+
+Testing:
+
+- Unit tests for import parsing/validation helpers.
+- Component tests for import success/failure states.
+- Component tests for progress-report metrics and empty states.
+- Unit/component tests for training-goal CRUD and completion behavior.
+
+## Batch 7 — Payments
+
+Goal: implement the money path in the right order: Stripe platform/account setup first, exhibitor payment history second.
+
+Todos covered:
+
 - Stripe Integration.
 - Exhibitor Payments page.
+
+Likely work:
+
+- Create a Stripe implementation plan before coding.
+- Add club Stripe onboarding and connected-account storage.
+- Add entry-fee checkout/payment intent flow with platform convenience fee support.
+- Add webhook handling for payment lifecycle updates.
+- Build `/exhibitor/payments` as a receipt/history surface after payment records exist.
+
+Testing:
+
+- Unit tests for fee calculation and Stripe payload construction.
+- Integration tests for webhook handling with representative Stripe event fixtures.
+- Component tests for exhibitor payment list states.
+- Manual sandbox checkout smoke test before considering the batch complete.
+
+## Batch 8 — Pre-Launch Work
+
+Goal: harden deployment, merge discipline, E2E policy, and launch data before Phase 3 exit.
+
+Todos covered:
+
 - CI-gated Vercel deploys.
 - Require PRs to merge into main.
 - Make E2E CI jobs blocking.
@@ -209,14 +251,18 @@ Todos covered:
 
 Likely work:
 
-- Create separate implementation plans for each feature-sized item before coding.
-- Do Stripe before Exhibitor Payments.
+- Confirm the desired GitHub branch-protection and Vercel deployment model before mutating shared settings.
+- Move production deploys behind GitHub Actions after required checks pass.
+- Enable branch protection on `main` with required status checks.
 - Do E2E stability before making E2E blocking.
 - Treat judge directory import as a data-ingestion project with source verification.
 
 Testing:
 
-- Each feature plan must include unit tests, integration tests where applicable, and one manual smoke path.
+- Dry-run CI/Vercel workflow changes where possible.
+- Verify required status checks and branch protection after user-approved GitHub mutation.
+- Run and stabilize E2E suites before making them blocking.
+- Validate judge-directory import against sampled AKC/UKC source records.
 - CI/branch-protection changes require user approval before external GitHub/Vercel mutation.
 
 ## Autonomous Execution Loop
@@ -335,3 +381,26 @@ Review follow-up:
 - Normalized the premium generation audit key to `cover_image_url`.
 - Added a visible warning when a saved cover URL cannot be resolved for PDF rendering.
 - Sanitized narrative-generation error detail before returning it from the edge function.
+
+### 2026-05-11 — Batch 6 completed
+
+Completed:
+
+- Added `docs/plans/2026-05-11-health-training-batch-6-plan.md`.
+- Wired Health Timeline CSV import with preview validation for vaccination, vet visit, medication, and allergy rows.
+- Added a Training Journal progress report with sessions by skill, assessment distribution, and monthly training-time trends.
+- Added persistent training goals via `training_goals`, plus create, complete, and reopen behavior.
+- Hardened CSV imports with strict ISO date validation, blocked-import feedback, and import success/failure reporting.
+- Added training goal cache invalidation and RLS hardening follow-up migration.
+
+Verification:
+
+- `pnpm exec vitest run src/components/dogs/DogDetails/HealthRecords/healthImport.test.ts src/components/dogs/DogDetails/HealthRecords/HealthTimeline.test.tsx src/components/dogs/DogDetails/TrainingJournal/trainingInsights.test.ts src/components/dogs/DogDetails/TrainingJournal/EnhancedTrainingJournal.test.tsx`
+- `pnpm exec vitest run src/components/dogs/DogDetails/HealthRecords/healthImport.test.ts src/components/dogs/DogDetails/HealthRecords/HealthRecordsSection.types.test.ts src/components/dogs/DogDetails/HealthRecords/HealthTimeline.test.tsx src/components/dogs/DogDetails/TrainingJournal/EnhancedTrainingJournal.test.tsx src/components/dogs/DogDetails/TrainingJournal/trainingInsights.test.ts`
+- `pnpm typecheck`
+- `pnpm lint`
+
+Shared-system work:
+
+- Pushed migration `supabase/migrations/20260511153000_create_training_goals.sql` to Supabase.
+- Added follow-up migration `supabase/migrations/20260511170000_harden_training_goals.sql`; pending Supabase push confirmation.

@@ -126,7 +126,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             <div className="flex items-center gap-3">
               {/* Role Management */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger asChild nativeButton>
                   <Button
                     variant="outline"
                     size="sm"
@@ -151,7 +151,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
 
               {/* Status Management */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger asChild nativeButton>
                   <Button
                     variant="outline"
                     size="sm"

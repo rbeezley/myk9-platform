@@ -75,7 +75,10 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
   const handleUpdate = useCallback(
     (update: LiveUpdate) => {
       setUpdates(prev => {
-        const newUpdates = [update, ...prev].slice(0, 50); // Keep last 50 updates
+        const newUpdates = [update, ...prev.filter(existing => existing.id !== update.id)].slice(
+          0,
+          50
+        ); // Keep last 50 unique updates
         return newUpdates;
       });
 
@@ -143,8 +146,7 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
     return 'low';
   };
 
-  const renderUpdate = (update: LiveUpdate, index: number) => {
-    void index; // Suppress unused variable warning
+  const renderUpdate = (update: LiveUpdate) => {
     const EntityIcon = entityIcons[update.entityType] || Activity;
     const ActionIcon = actionIcons[update.action] || Edit;
     const priority = getUpdatePriority(update);
@@ -238,9 +240,7 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
               <ScrollArea className="h-80">
                 {updates.length > 0 ? (
                   <div className="divide-y">
-                    {updates
-                      .slice(0, maxVisible)
-                      .map((update, index) => renderUpdate(update, index))}
+                    {updates.slice(0, maxVisible).map(update => renderUpdate(update))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8 text-center">

@@ -155,7 +155,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## Route & Page Audit Findings
 
-- [ ] **Admin / judge / club-admin interior audit** — Routes under `/admin/*`, `/judge/*`, `/club-admin/*` not walked end-to-end. Need a pass as SITE_ADMIN (and JUDGE for `/judge/*`) to surface 400s, broken UI, or missing data.
+- [x] **Admin / judge / club-admin interior audit** — Completed on 2026-05-11. Repaired the E2E admin and club-admin accounts, walked the admin, judge, and club-admin route sets, and fixed the UI warnings surfaced by the audit.
 
 ## People & Clubs CRUD
 

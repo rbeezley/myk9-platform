@@ -31,7 +31,7 @@ export const RowActions: React.FC<RowActionsProps> = ({
 }) => {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild nativeButton>
         <Button variant="ghost" size="sm" className="myk9-table-actions-trigger">
           <MoreHorizontal className="h-4 w-4" />
         </Button>

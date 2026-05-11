@@ -113,7 +113,7 @@ export const TemplateActions: React.FC = () => {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger asChild nativeButton>
           <Button variant="outline" size="sm">
             <MoreHorizontal className="h-4 w-4 mr-2" />
             Actions

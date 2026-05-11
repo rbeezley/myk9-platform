@@ -95,6 +95,18 @@ function getEmptyStateMessage(
   advancedSearch: boolean
 ): string {
   if (searchQuery.trim()) return 'No dogs match your search. Try a different name or breed.';
+  if (advancedSearch) {
+    switch (activeQuickFilter) {
+      case 'registered':
+        return 'No registered dogs match this filter. Clear the filter or search by name, breed, or registration number.';
+      case 'unregistered':
+        return 'No unregistered dogs match this filter. Clear the filter or search by name, breed, or registration number.';
+      case 'recent':
+        return 'No recently active dogs match this filter. Clear the filter or search by name, breed, or registration number.';
+      default:
+        return 'Search by name, breed, or registration number to find a dog to register.';
+    }
+  }
   switch (activeQuickFilter) {
     case 'registered':
       return 'None of your dogs are entered in this show yet. Clear the filter to see all your dogs.';
@@ -438,13 +450,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         <div className="mb-4">
           <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            You don&apos;t have any dogs available for registration.
+            No dogs are available for registration yet.
           </p>
         </div>
         <div className="text-center py-8 space-y-4">
           <p className="text-muted-foreground">No dogs found.</p>
           <p className="text-sm text-muted-foreground">
-            Make sure you have dogs added and they have up-to-date information.
+            Search for an existing dog or create a new exhibitor and dog.
           </p>
           {canCreateNew && (
             <div className="space-y-3">

@@ -51,6 +51,7 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
       } else {
         // Soft delete (cascading)
         await deleteShowCascading(showId);
+        toast.success('Show deleted');
       }
 
       onDelete();

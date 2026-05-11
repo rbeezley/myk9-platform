@@ -16,7 +16,11 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
-import { TrialType, getTrialTypesForOrganization } from '@/types/template.types';
+import {
+  TrialType,
+  formatTrialTypeLabel,
+  getTrialTypesForOrganization,
+} from '@/types/template.types';
 
 /** Parse a date string safely — handles both YYYY-MM-DD and ISO datetime */
 function safeParseDateString(str: string | undefined): Date | undefined {
@@ -256,7 +260,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                         <SelectContent>
                           {trialTypeOptions.map(type => (
                             <SelectItem key={type} value={type}>
-                              {type}
+                              {formatTrialTypeLabel(type)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -294,8 +298,13 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                         id={`trial-${trial.id}-eventNumber`}
                         value={trial.eventNumber}
                         onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
-                        placeholder={show.organization === 'AKC' ? 'e.g. 2026123456' : 'Optional'}
+                        placeholder={
+                          show.organization === 'AKC'
+                            ? 'Required: AKC event number'
+                            : 'Optional event number'
+                        }
                         className="h-10"
+                        required={show.organization === 'AKC'}
                       />
                       {errors[`trial-${index}-eventNumber`] && (
                         <p className="text-sm text-destructive">
@@ -321,6 +330,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                           ? startOfDay(safeParseDateString(show.endDate) || new Date())
                           : undefined
                       }
+                      defaultMonth={safeParseDateString(show.startDate)}
                       showTime={true}
                       timeFormat="12h"
                     />

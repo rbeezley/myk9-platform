@@ -1,16 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { addDays, format, subDays } from 'date-fns';
 import { useMyShows } from './useMyShows';
 import { showFactory } from '@/test/utils/factories';
 import type { Show } from '@/types/show-types';
 
 const makeShow = (overrides: Partial<Show> = {}) => showFactory.build(overrides);
+const toDateOnly = (date: Date) => format(date, 'yyyy-MM-dd');
 
-const TODAY = new Date().toISOString().split('T')[0];
-const FUTURE_14 = new Date(Date.now() + 14 * 86_400_000).toISOString().split('T')[0];
-const FUTURE_30 = new Date(Date.now() + 30 * 86_400_000).toISOString().split('T')[0];
-const FUTURE_7 = new Date(Date.now() + 7 * 86_400_000).toISOString().split('T')[0];
-const PAST_30 = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
+const TODAY = toDateOnly(new Date());
+const FUTURE_14 = toDateOnly(addDays(new Date(), 14));
+const FUTURE_30 = toDateOnly(addDays(new Date(), 30));
+const FUTURE_7 = toDateOnly(addDays(new Date(), 7));
+const PAST_30 = toDateOnly(subDays(new Date(), 30));
 
 describe('useMyShows', () => {
   it('returns empty buckets for empty input', () => {
@@ -94,7 +96,7 @@ describe('useMyShows', () => {
   });
 
   it('sorts past shows descending by startDate', () => {
-    const PAST_7 = new Date(Date.now() - 7 * 86_400_000).toISOString().split('T')[0];
+    const PAST_7 = toDateOnly(subDays(new Date(), 7));
     const shows = [
       makeShow({ id: 'older', startDate: PAST_30, status: 'completed' }),
       makeShow({ id: 'recent', startDate: PAST_7, status: 'completed' }),
@@ -135,7 +137,7 @@ describe('useMyShows', () => {
   });
 
   it('generates an info attention item when entry close date is within 8–14 days', () => {
-    const FUTURE_10 = new Date(Date.now() + 10 * 86_400_000).toISOString().split('T')[0];
+    const FUTURE_10 = toDateOnly(addDays(new Date(), 10));
     const show = makeShow({
       id: 'soon',
       startDate: FUTURE_30,
@@ -163,7 +165,7 @@ describe('useMyShows', () => {
   });
 
   it('omits attention item when entry close date is > 14 days away', () => {
-    const FUTURE_20 = new Date(Date.now() + 20 * 86_400_000).toISOString().split('T')[0];
+    const FUTURE_20 = toDateOnly(addDays(new Date(), 20));
     const show = makeShow({
       id: 'fine',
       startDate: FUTURE_30,

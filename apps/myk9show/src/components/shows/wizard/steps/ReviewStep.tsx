@@ -21,6 +21,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import { format } from 'date-fns';
 import { formatFee } from '@/utils/format';
+import { formatTrialTypeLabel } from '@/types/template.types';
 
 interface ReviewStepProps {
   className?: string;
@@ -315,7 +316,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     </div>
 
                     {/* Trial Details */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
                       <div>
                         <div className="text-sm text-muted-foreground">Date & Time</div>
                         <div className="text-foreground font-medium">
@@ -323,8 +324,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                         </div>
                       </div>
                       <div>
+                        <div className="text-sm text-muted-foreground">Trial Type</div>
+                        <div className="text-foreground font-medium">
+                          {formatTrialTypeLabel(trial.trialType)}
+                        </div>
+                      </div>
+                      <div>
                         <div className="text-sm text-muted-foreground">Event Number</div>
-                        <div className="text-foreground font-medium">#{trial.eventNumber}</div>
+                        <div className="text-foreground font-medium">
+                          {trial.eventNumber ? `#${trial.eventNumber}` : 'Not set'}
+                        </div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Classes</div>

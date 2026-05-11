@@ -305,16 +305,25 @@
 }
 
 .myk9-class-element-select-all {
+  background: transparent;
+  border: 0;
   font-size: 14px;
   font-weight: 500;
   color: var(--muted-foreground);
   cursor: pointer;
+  font-family: inherit;
+  padding: 0;
   user-select: none;
   transition: color 0.2s ease;
 }
 
 .myk9-class-element-select-all:hover {
   color: var(--foreground);
+}
+
+.myk9-class-element-select-all:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* Class Cards Grid - Responsive based on container width */

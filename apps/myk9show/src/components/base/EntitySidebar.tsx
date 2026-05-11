@@ -66,19 +66,24 @@ export function EntitySidebar<T extends EntitySidebarItem>({
     ({ index, style }: { index: number; style: React.CSSProperties }) => {
       const item = filteredItems[index];
       const isSelected = item.id === selectedId;
+      const accessibleName = [item.primaryText, item.secondaryText].filter(Boolean).join(', ');
 
       return (
-        <div
+        <button
+          type="button"
           style={style}
           onClick={() => onSelectItem(item)}
+          aria-current={isSelected ? 'page' : undefined}
+          aria-label={accessibleName}
           className={cn(
-            'px-3 py-2 cursor-pointer transition-colors',
+            'w-full px-3 py-2 text-left cursor-pointer transition-colors',
             'hover:bg-gray-100 dark:hover:bg-gray-800',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
             isSelected && 'bg-blue-50 dark:bg-blue-900/20'
           )}
         >
           {renderItem(item, isSelected, isCollapsed)}
-        </div>
+        </button>
       );
     },
     [filteredItems, selectedId, onSelectItem, renderItem, isCollapsed]

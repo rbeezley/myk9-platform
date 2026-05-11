@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select';
 import { logger } from '@/services/LoggingService';
 import { Search, CheckSquare, Square, Filter, User } from 'lucide-react';
+import { formatJudgeName } from './SimpleClassSelector.helpers';
 import '@/styles/myk9-class-selection.css';
 
 interface SimpleClassSelectorProps {
@@ -35,6 +36,11 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   const [filterElement, setFilterElement] = useState<string>('all');
   const [filterLevel, setFilterLevel] = useState<string>('all');
   const [elementJudges, setElementJudges] = useState<Record<string, string>>({});
+  const selectedClassesRef = React.useRef(selectedClasses);
+
+  useEffect(() => {
+    selectedClassesRef.current = selectedClasses;
+  }, [selectedClasses]);
 
   const classes = useMemo(() => template.classDefinitions || [], [template.classDefinitions]);
 
@@ -122,6 +128,21 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
     );
   };
 
+  const isRefClassSelected = (classDefinition: ClassDefinition) => {
+    return selectedClassesRef.current.some(
+      selected =>
+        selected.className === classDefinition.className &&
+        selected.element === classDefinition.element &&
+        selected.level === classDefinition.level &&
+        selected.section === classDefinition.section
+    );
+  };
+
+  const emitSelectionChange = (classes: ClassDefinition[]) => {
+    selectedClassesRef.current = classes;
+    onSelectionChange(classes);
+  };
+
   // Check if a class already exists in the trial.
   // Prefer className match (reliable), fall back to element+level+section.
   const isClassExisting = (classDefinition: ClassDefinition) => {
@@ -141,8 +162,8 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
       return;
     }
 
-    if (isClassSelected(classDefinition)) {
-      const updated = selectedClasses.filter(
+    if (isRefClassSelected(classDefinition)) {
+      const updated = selectedClassesRef.current.filter(
         selected =>
           !(
             selected.className === classDefinition.className &&
@@ -151,9 +172,9 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
             selected.section === classDefinition.section
           )
       );
-      onSelectionChange(updated);
+      emitSelectionChange(updated);
     } else {
-      onSelectionChange([...selectedClasses, classDefinition]);
+      emitSelectionChange([...selectedClassesRef.current, classDefinition]);
     }
   };
 
@@ -161,11 +182,11 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   const selectAll = () => {
     // Only select classes that don't already exist
     const selectableClasses = filteredClasses.filter(cls => !isClassExisting(cls));
-    onSelectionChange([...selectableClasses]);
+    emitSelectionChange([...selectableClasses]);
   };
 
   const clearAll = () => {
-    onSelectionChange([]);
+    emitSelectionChange([]);
   };
 
   // Count only selectable classes for bulk action state
@@ -222,7 +243,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   const getJudgeDisplayName = (judgeId: string | undefined) => {
     if (!judgeId || judgeId === 'no-judge') return 'No Judge';
     const judge = availableJudges.find(j => j.judgeId === judgeId);
-    return judge?.judgeName || 'Unknown Judge';
+    return formatJudgeName(judge?.judgeName);
   };
 
   return (
@@ -289,6 +310,9 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
               type="button"
               onClick={allSelected ? clearAll : selectAll}
               className="myk9-class-bulk-button"
+              aria-label={
+                allSelected ? 'Clear all filtered classes' : 'Select all filtered classes'
+              }
             >
               {allSelected ? (
                 <>
@@ -322,7 +346,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
             const toggleAllElementClasses = () => {
               if (allElementClassesSelected) {
                 // Deselect all classes in this element
-                const updatedSelected = selectedClasses.filter(
+                const updatedSelected = selectedClassesRef.current.filter(
                   selected =>
                     !elementClasses.some(
                       elementClass =>
@@ -332,13 +356,13 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                         selected.section === elementClass.section
                     )
                 );
-                onSelectionChange(updatedSelected);
+                emitSelectionChange(updatedSelected);
               } else {
                 // Select all selectable classes in this element (exclude existing ones)
                 const elementClassesToAdd = elementClasses.filter(
-                  cls => !isClassSelected(cls) && !isClassExisting(cls)
+                  cls => !isRefClassSelected(cls) && !isClassExisting(cls)
                 );
-                onSelectionChange([...selectedClasses, ...elementClassesToAdd]);
+                emitSelectionChange([...selectedClassesRef.current, ...elementClassesToAdd]);
               }
             };
 
@@ -362,7 +386,14 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                       }`}
                       onClick={handleElementCheckboxClick}
                       role="checkbox"
-                      aria-checked={allElementClassesSelected}
+                      aria-checked={
+                        allElementClassesSelected
+                          ? true
+                          : someElementClassesSelected
+                            ? 'mixed'
+                            : false
+                      }
+                      aria-label={`${allElementClassesSelected ? 'Clear' : 'Select'} all ${element} classes`}
                       tabIndex={0}
                       onKeyDown={e => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -391,7 +422,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                             <SelectItem value="no-judge">No Judge</SelectItem>
                             {availableJudges.map(judge => (
                               <SelectItem key={judge.judgeId} value={judge.judgeId}>
-                                {judge.judgeName}
+                                {formatJudgeName(judge.judgeName)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -400,9 +431,14 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                     )}
                   </div>
 
-                  <span className="myk9-class-element-select-all" onClick={toggleAllElementClasses}>
+                  <button
+                    type="button"
+                    className="myk9-class-element-select-all"
+                    onClick={toggleAllElementClasses}
+                    aria-label={`${allElementClassesSelected ? 'Clear' : 'Select'} all ${element} classes`}
+                  >
                     Select All {element}
-                  </span>
+                  </button>
                 </div>
 
                 {/* Classes Grid - Use fewer columns when judges are being assigned */}
@@ -434,6 +470,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                         role="checkbox"
                         aria-checked={isSelected}
                         aria-disabled={isExisting}
+                        aria-label={`${isSelected ? 'Deselect' : 'Select'} ${classDefinition.className}`}
                         tabIndex={isExisting ? -1 : 0}
                         onKeyDown={e => {
                           if (!isExisting && (e.key === 'Enter' || e.key === ' ')) {
@@ -466,8 +503,9 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                             <div className="mt-1 text-[9px] text-muted-foreground flex items-center gap-1">
                               <User className="h-2.5 w-2.5" />
                               <span className="truncate">
-                                {getJudgeForClass(classDefinition.className)?.judgeName ||
-                                  'Unknown Judge'}
+                                {formatJudgeName(
+                                  getJudgeForClass(classDefinition.className)?.judgeName
+                                )}
                               </span>
                             </div>
                           )}
@@ -492,7 +530,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                                   <SelectItem value="no-judge">No Judge</SelectItem>
                                   {availableJudges.map(judge => (
                                     <SelectItem key={judge.judgeId} value={judge.judgeId}>
-                                      {judge.judgeName}
+                                      {formatJudgeName(judge.judgeName)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>

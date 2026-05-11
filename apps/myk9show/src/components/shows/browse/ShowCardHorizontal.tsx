@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MapPin } from 'lucide-react';
@@ -29,8 +29,6 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
   isSelected = false,
   onToggleSelect,
 }) => {
-  const navigate = useNavigate();
-
   const entryStatus = getEntryStatus(show, userHasEntries);
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
 
@@ -44,13 +42,22 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
         entryStatus.status === 'closing_soon' && 'ring-2 ring-orange-400/50',
         isSelected && 'ring-2 ring-primary/50'
       )}
-      onClick={() => navigate(`/shows/${show.id}`)}
     >
+      <Link
+        to={`/shows/${show.id}`}
+        className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label={`View ${show.name}`}
+      />
       <div className="flex flex-col md:flex-row md:items-center gap-3 p-4">
         {/* Left: checkbox + DateCircle */}
         <div className="flex items-center gap-3 flex-shrink-0">
           {onToggleSelect && (
-            <div onClick={e => e.stopPropagation()}>
+            <div
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => e.stopPropagation()}
+              className="relative z-20"
+              role="presentation"
+            >
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={() => onToggleSelect()}

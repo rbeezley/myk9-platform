@@ -153,7 +153,7 @@ export function CascadingDeleteDialog({
                           key={trial.id}
                           className="text-xs text-blue-600 dark:text-blue-400 leading-none m-0"
                         >
-                          • {trial.name} - {format(parseISO(trial.date), 'MM/dd/yyyy h:mm a')}
+                          • {trial.name} - {format(parseISO(trial.date), 'MM/dd/yyyy')}
                         </div>
                       ))}
                   </div>

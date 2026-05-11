@@ -13,6 +13,7 @@ import { FilterChips } from './FilterChips';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { TaskTimelineView } from './TaskTimelineView';
 import { useTaskViewPreference, TASK_VIEW_MODES } from './useTaskViewPreference';
+import { resolveTaskShowName } from './taskTimelineUtils';
 import type { SecretaryTask } from './types';
 
 interface Show {
@@ -42,7 +43,8 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
 
   const filterOptions = ['all', ...shows.map(s => s.id), 'general'].map(v => ({
     value: v,
-    label: v === 'all' ? 'All Shows' : v === 'general' ? 'General' : (showNameMap[v] ?? v),
+    label:
+      v === 'all' ? 'All Shows' : v === 'general' ? 'General' : resolveTaskShowName(v, showNameMap),
   }));
 
   const now = new Date();
@@ -135,7 +137,7 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
               <TaskRow
                 key={task.id}
                 task={task}
-                showName={task.showId ? (showNameMap[task.showId] ?? task.showId) : 'General'}
+                showName={resolveTaskShowName(task.showId, showNameMap)}
                 shows={shows}
                 onToggleDone={handleToggleDone}
                 onUpdate={handleUpdate}

@@ -159,6 +159,18 @@ describe('TasksTab', () => {
     expect(items[1]).toBeChecked();
   });
 
+  it('does not show raw show IDs for tasks whose show is unavailable', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [makeTask({ showId: '550e8400-e29b-41d4-a716-446655440000' })],
+      isLoading: false,
+    } as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
+
+    expect(screen.getByText('Unknown show')).toBeInTheDocument();
+    expect(screen.queryByText('550e8400-e29b-41d4-a716-446655440000')).not.toBeInTheDocument();
+  });
+
   it('renders the List/Timeline view toggle', () => {
     render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
     expect(screen.getByLabelText('List view')).toBeInTheDocument();

@@ -57,7 +57,6 @@ import { DetailHero } from '@/components/common/DetailHero';
 import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
-import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { formatDateRange } from '@/utils/date-format';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
@@ -421,16 +420,15 @@ const ShowDetailsPage: React.FC = () => {
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
-                <ThreeDotMenu
-                  items={[
-                    {
-                      label: 'Delete Show',
-                      icon: <Trash2 className="h-4 w-4" />,
-                      onClick: () => setShowDeleteDialog(true),
-                      className: 'text-destructive',
-                    },
-                  ]}
-                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
               </div>
             )
           }

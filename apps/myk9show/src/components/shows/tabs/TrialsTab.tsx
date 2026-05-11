@@ -63,6 +63,7 @@ interface TrialRow {
   name: string;
   trialNumber: string;
   trialType: string | undefined;
+  trialTypeLabel: string | undefined;
   plannedStartTime: string | undefined;
   status: ClassStatusValue;
   classCount: number;
@@ -80,7 +81,7 @@ const trialColumns: ColumnDef<TrialRow, unknown>[] = [
     },
   },
   { accessorKey: 'name', header: 'Trial Name' },
-  { accessorKey: 'trialType', header: 'Type', meta: { responsiveHide: 'md' as const } },
+  { accessorKey: 'trialTypeLabel', header: 'Type', meta: { responsiveHide: 'md' as const } },
   { accessorKey: 'plannedStartTime', header: 'Time', meta: { responsiveHide: 'md' as const } },
   { accessorKey: 'classCount', header: 'Classes' },
   { accessorKey: 'entryCount', header: 'Entries' },
@@ -135,7 +136,8 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         trialDate: trial.trialDate,
         name: trial.name || `Trial ${trial.trialNumber}`,
         trialNumber: trial.trialNumber,
-        trialType: trial.trialType ? formatTrialTypeLabel(trial.trialType) : undefined,
+        trialType: trial.trialType,
+        trialTypeLabel: trial.trialType ? formatTrialTypeLabel(trial.trialType) : undefined,
         plannedStartTime: trial.plannedStartTime,
         status: trial.status,
         ...(trialStats[trial.id] || EMPTY_STATS),

@@ -211,26 +211,15 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               <X className="h-4 w-4" />
             </button>
 
-            {calendarDefaultMonth ? (
-              <Calendar
-                mode="range"
-                selected={draftRange}
-                defaultMonth={calendarDefaultMonth}
-                onSelect={handleRangeSelect}
-                disabled={date => (minDate && date < minDate) || false}
-                numberOfMonths={2}
-                initialFocus
-              />
-            ) : (
-              <Calendar
-                mode="range"
-                selected={draftRange}
-                onSelect={handleRangeSelect}
-                disabled={date => (minDate && date < minDate) || false}
-                numberOfMonths={2}
-                initialFocus
-              />
-            )}
+            <Calendar
+              mode="range"
+              selected={draftRange}
+              {...(calendarDefaultMonth ? { defaultMonth: calendarDefaultMonth } : {})}
+              onSelect={handleRangeSelect}
+              disabled={date => (minDate && date < minDate) || false}
+              numberOfMonths={2}
+              initialFocus
+            />
 
             {showTime && (
               <div className="border-t mt-3 pt-3 grid grid-cols-2 gap-4">

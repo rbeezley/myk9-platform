@@ -244,7 +244,7 @@ const AppHeader: React.FC = () => {
 
                 {/* Profile Dropdown */}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger asChild nativeButton>
                     <Button
                       variant="ghost"
                       className={`${buildClasses.button.ghost} flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg hover:bg-muted/50`}

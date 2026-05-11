@@ -5,8 +5,8 @@
  * All users share a simple password: Test1234!
  *
  * Prerequisites:
- *   - VITE_SUPABASE_URL in .env.local
- *   - SUPABASE_SERVICE_ROLE_KEY in .env.local (get from Supabase dashboard)
+ *   - VITE_SUPABASE_URL in .env or .env.local
+ *   - SUPABASE_SERVICE_ROLE_KEY in .env or .env.local (get from Supabase dashboard)
  *
  * Usage:
  *   node scripts/setup-e2e-test-users.js
@@ -15,7 +15,8 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 
-// Load environment variables from .env.local
+// Load environment variables from the same files used during local development.
+dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -85,6 +86,7 @@ const TEST_USERS = [
 
 // Cache for role IDs
 let roleIdCache = {};
+let scopedClubId = null;
 
 async function getRoleId(roleName) {
   if (roleIdCache[roleName]) {
@@ -104,6 +106,41 @@ async function getRoleId(roleName) {
 
   roleIdCache[roleName] = data.id;
   return data.id;
+}
+
+async function getScopedClubId() {
+  if (scopedClubId) {
+    return scopedClubId;
+  }
+
+  const { data, error } = await supabase
+    .from('clubs')
+    .select('id, name')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Could not find a club for scoped test roles: ${error?.message || 'none found'}`);
+  }
+
+  scopedClubId = data.id;
+  console.log(`Using club scope for secretary/club_admin roles: ${data.name || data.id}`);
+  return scopedClubId;
+}
+
+async function getRoleScope(roleName) {
+  if (roleName === 'secretary' || roleName === 'club_admin') {
+    return { club_id: await getScopedClubId(), show_id: null };
+  }
+
+  return { club_id: null, show_id: null };
+}
+
+function applyRoleScopeFilters(query, scope) {
+  return Object.entries(scope).reduce((scopedQuery, [column, value]) => {
+    return value === null ? scopedQuery.is(column, null) : scopedQuery.eq(column, value);
+  }, query);
 }
 
 async function createTestUser(user) {
@@ -142,26 +179,25 @@ async function createTestUser(user) {
     }
 
     // Check/create people profile
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from('people')
-      .select('id, auth_user_id, roles')
+      .select('id, auth_user_id')
       .eq('auth_user_id', userId)
-      .single();
+      .maybeSingle();
 
     let peopleId;
 
     if (profile) {
       peopleId = profile.id;
-      // Update roles in people table
       const { error: updateError } = await supabase
         .from('people')
-        .update({ roles })
+        .update({ first_name: firstName, last_name: lastName, email })
         .eq('auth_user_id', userId);
 
       if (updateError) {
-        console.warn(`  Could not update people roles: ${updateError.message}`);
+        console.warn(`  Could not update people profile: ${updateError.message}`);
       } else {
-        console.log(`  People roles updated: ${roles.join(', ')}`);
+        console.log('  People profile updated');
       }
     } else {
       // Create profile in people table
@@ -171,8 +207,7 @@ async function createTestUser(user) {
           auth_user_id: userId,
           first_name: firstName,
           last_name: lastName,
-          email,
-          roles
+          email
         })
         .select('id')
         .single();
@@ -181,7 +216,7 @@ async function createTestUser(user) {
         console.warn(`  Could not create people profile: ${insertError.message}`);
       } else {
         peopleId = newProfile?.id;
-        console.log(`  People profile created with roles: ${roles.join(', ')}`);
+        console.log('  People profile created');
       }
     }
 
@@ -197,13 +232,17 @@ async function createTestUser(user) {
           continue;
         }
 
+        const scope = await getRoleScope(roleName);
+
         // Check if role assignment exists
-        const { data: existingRole } = await supabase
+        const existingRoleQuery = supabase
           .from('user_roles')
           .select('id')
           .eq('user_id', peopleId)
           .eq('role_id', roleId)
-          .single();
+          .eq('is_active', true);
+
+        const { data: existingRole } = await applyRoleScopeFilters(existingRoleQuery, scope).maybeSingle();
 
         if (existingRole) {
           console.log(`  Role '${roleName}' already assigned`);
@@ -214,6 +253,8 @@ async function createTestUser(user) {
             .insert({
               user_id: peopleId,
               role_id: roleId,
+              auth_user_id: userId,
+              ...scope,
               granted_at: new Date().toISOString()
             });
 

@@ -81,9 +81,9 @@ export function StatsCards({ performanceData, recentViolationCount }: StatsCards
         <div className="relative flex items-start justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Monitoring Status</p>
-            <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
+            <div className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
               <Badge className="bg-success-green/10 text-success-green border-success-green/20">Active</Badge>
-            </p>
+            </div>
           </div>
           <div className="p-2 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-xl
                            shadow-sm group-hover:shadow-xl group-hover:scale-110

@@ -339,8 +339,8 @@ export const RBACTestPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {effectivePermissions.slice(0, 20).map(permission => (
-                    <Badge key={permission} variant="outline" className="text-xs">
+                  {effectivePermissions.slice(0, 20).map((permission, index) => (
+                    <Badge key={`${permission}-${index}`} variant="outline" className="text-xs">
                       {permission}
                     </Badge>
                   ))}

@@ -144,14 +144,13 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
   };
 
   const renderUpdate = (update: LiveUpdate, index: number) => {
-    void index; // Suppress unused variable warning
     const EntityIcon = entityIcons[update.entityType] || Activity;
     const ActionIcon = actionIcons[update.action] || Edit;
     const priority = getUpdatePriority(update);
 
     return (
       <div
-        key={update.id}
+        key={`${update.id}-${index}`}
         className={cn(
           'flex items-start gap-3 p-3 border-l-2 hover:bg-muted/50 transition-colors',
           priorityColors[priority]

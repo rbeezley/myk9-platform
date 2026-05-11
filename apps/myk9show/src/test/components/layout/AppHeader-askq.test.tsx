@@ -60,6 +60,14 @@ describe('AppHeader AskQ integration', () => {
     expect(screen.getByLabelText('AskQ Assistant')).toBeInTheDocument();
   });
 
+  it('does not emit the Base UI native button warning for the account menu trigger', () => {
+    render(<AppHeader />);
+
+    expect(console.error).not.toHaveBeenCalledWith(
+      expect.stringContaining('A component that acts as a button was rendered as a native <button>')
+    );
+  });
+
   it('opens the panel when the AskQ button is clicked', async () => {
     const { user } = render(<AppHeader />);
 

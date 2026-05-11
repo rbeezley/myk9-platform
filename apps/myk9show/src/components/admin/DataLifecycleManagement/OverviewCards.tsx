@@ -41,7 +41,7 @@ export function OverviewCards({
             <Clock className="h-8 w-8 text-orange-600 mr-3" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Scheduler Status</p>
-              <p className="text-2xl font-bold">
+              <div className="text-2xl font-bold">
                 {schedulerStatus?.isRunning ? (
                   <Badge variant="default" className="bg-teal-100 text-teal-800">
                     Running
@@ -49,7 +49,7 @@ export function OverviewCards({
                 ) : (
                   <Badge variant="secondary">Stopped</Badge>
                 )}
-              </p>
+              </div>
             </div>
           </CardContent>
         </Card>

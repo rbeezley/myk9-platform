@@ -146,7 +146,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
                 </div>
               </div>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger asChild nativeButton>
                   <Button variant="ghost" size="sm" className="myk9-action-menu myk9-menu-button">
                     <MoreVertical className="h-4 w-4" />
                   </Button>

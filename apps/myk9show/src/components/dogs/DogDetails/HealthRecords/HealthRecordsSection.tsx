@@ -22,6 +22,7 @@ import type { HealthRecordsSectionProps } from './HealthRecordsSection.types';
 import { dispatchHealthItem } from './HealthRecordsSection.types';
 import { convertToTimelineEvents, getVaccinationAlerts } from './HealthRecordsSection.helpers';
 import { HealthRecordsTraditionalView } from './HealthRecordsTraditionalView';
+import type { ParsedHealthImportRow } from './healthImport';
 import EditVaccinationDialog from './Vaccinations/EditVaccinationDialog';
 import EditMedicationDialog from './Medications/EditMedicationDialog';
 import EditAllergyDialog from './Allergies/EditAllergyDialog';
@@ -146,6 +147,15 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   const handleAddItem = useCallback(
     (type: HealthItemType, data: Record<string, unknown>) => {
       dispatchHealthItem(type, data, mutations, authUser?.id);
+    },
+    [mutations, authUser?.id]
+  );
+
+  const handleImportRecords = useCallback(
+    (records: ParsedHealthImportRow[]) => {
+      records.forEach(record => {
+        dispatchHealthItem(record.type, record.data, mutations, authUser?.id);
+      });
     },
     [mutations, authUser?.id]
   );
@@ -296,6 +306,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
           events={timelineEvents}
           onEventClick={() => {}}
           onAddEvent={() => setAddDialogType('vaccination')}
+          onImportRecords={handleImportRecords}
           vaccinationsOnly={vaccinationsOnly}
         />
       ) : (

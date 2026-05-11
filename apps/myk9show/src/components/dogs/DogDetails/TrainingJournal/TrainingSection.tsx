@@ -7,8 +7,11 @@ import {
   useCreateTrainingEntryMutation,
   useUpdateTrainingEntryMutation,
   useDeleteTrainingEntryMutation,
+  useTrainingGoalsQuery,
+  useCreateTrainingGoalMutation,
+  useUpdateTrainingGoalMutation,
 } from '@/hooks/queries/useTrainingDatabase';
-import type { TrainingJournalEntry, TrainingAssessment } from '@/types/training';
+import type { TrainingJournalEntry, TrainingAssessment, TrainingGoal } from '@/types/training';
 
 // Map DB assessment to UI progress labels
 const assessmentToProgress: Record<TrainingAssessment, string> = {
@@ -64,9 +67,12 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
   const { user } = useAuth();
 
   const { data: entries = [], isLoading, isError, error } = useTrainingEntriesQuery(dogId);
+  const { data: goals = [] } = useTrainingGoalsQuery(dogId);
   const createMutation = useCreateTrainingEntryMutation();
   const updateMutation = useUpdateTrainingEntryMutation();
   const deleteMutation = useDeleteTrainingEntryMutation();
+  const createGoalMutation = useCreateTrainingGoalMutation();
+  const updateGoalMutation = useUpdateTrainingGoalMutation();
 
   const enhancedEntries = useMemo(() => entries.map(dbToEnhanced), [entries]);
 
@@ -113,6 +119,32 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
     });
   };
 
+  const handleCreateGoal = (goal: {
+    title: string;
+    target_date: string | null;
+    sport_tag: string | null;
+  }) => {
+    if (!user) return;
+    createGoalMutation.mutate({
+      dog_id: dogId,
+      owner_id: user.id,
+      title: goal.title,
+      target_date: goal.target_date,
+      sport_tag: goal.sport_tag,
+      notes: null,
+      completed_at: null,
+    });
+  };
+
+  const handleToggleGoal = (goal: TrainingGoal) => {
+    updateGoalMutation.mutate({
+      id: goal.id,
+      updates: {
+        completed_at: goal.completed_at ? null : new Date().toISOString(),
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -141,9 +173,12 @@ export default function TrainingSection({ dogId }: TrainingSectionProps) {
   return (
     <EnhancedTrainingJournal
       entries={enhancedEntries}
+      goals={goals}
       onAddEntry={handleAddEntry}
       onUpdateEntry={handleUpdateEntry}
       onDeleteEntry={id => deleteMutation.mutate(id)}
+      onCreateGoal={handleCreateGoal}
+      onToggleGoal={handleToggleGoal}
     />
   );
 }

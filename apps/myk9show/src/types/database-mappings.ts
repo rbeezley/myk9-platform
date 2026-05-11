@@ -135,6 +135,10 @@ export type DbTrainingJournalEntry = Tables['training_journal_entries']['Row'];
 export type DbTrainingJournalEntryInsert = Tables['training_journal_entries']['Insert'];
 export type DbTrainingJournalEntryUpdate = Tables['training_journal_entries']['Update'];
 
+export type DbTrainingGoal = Tables['training_goals']['Row'];
+export type DbTrainingGoalInsert = Tables['training_goals']['Insert'];
+export type DbTrainingGoalUpdate = Tables['training_goals']['Update'];
+
 export type DbTrainingMilestone = Tables['training_milestones']['Row'];
 export type DbTrainingMilestoneInsert = Tables['training_milestones']['Insert'];
 export type DbTrainingMilestoneUpdate = Tables['training_milestones']['Update'];

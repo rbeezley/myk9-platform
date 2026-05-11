@@ -147,12 +147,12 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## Health Records
 
-- [ ] **Import Records button** — "Import Records" button on the Health Timeline has no onClick handler. Plan and implement: define supported import formats (CSV? PDF from vet portals?), build import flow. File: `HealthTimeline.tsx` line 272.
+- [x] **Import Records button** — Fixed on 2026-05-11 as part of Batch 6. Health Timeline now supports pasted CSV import for vaccination, vet visit, medication, and allergy rows, with preview validation before creating records.
 
 ## Training Journal
 
-- [ ] **View Progress Report** — Plan and implement the "View Progress Report" button in the Training Journal Quick Actions card. Should show a breakdown of sessions by skill/sport tag, assessment distribution (breakthrough/solid/needs_work/regression), and training time trends over time. Files: `apps/myk9show/src/components/dogs/DogDetails/TrainingJournal/EnhancedTrainingJournal.tsx`.
-- [ ] **Set Training Goals** — Plan and implement the "Set Training Goals" button in the Training Journal Quick Actions card. Should allow users to define and track specific training goals (e.g., "earn NW1 by September"). Files: same as above; may require a new `training_goals` table (migration needed).
+- [x] **View Progress Report** — Fixed on 2026-05-11 as part of Batch 6. Quick action now opens a progress report with sessions by skill, assessment distribution, and monthly training-time trends.
+- [x] **Set Training Goals** — Fixed on 2026-05-11 as part of Batch 6. Quick action now opens a goal tracker backed by the new `training_goals` table, with create, complete, and reopen behavior.
 
 ## Phase 3 Polish (found during Phase 2 walk, 2026-05-03)
 

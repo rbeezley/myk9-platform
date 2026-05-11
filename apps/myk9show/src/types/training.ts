@@ -20,6 +20,19 @@ export interface TrainingJournalEntry {
   updated_at: string;
 }
 
+export interface TrainingGoal {
+  id: string;
+  dog_id: string;
+  owner_id: string;
+  title: string;
+  target_date: string | null;
+  sport_tag: string | null;
+  notes: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type MilestoneSource = 'manual' | 'auto';
 
 export interface TrainingMilestone {

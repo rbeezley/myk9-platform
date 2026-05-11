@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { downloadFile, exportToCSV } from '@/lib/export';
+import type { ParsedHealthImportRow } from './healthImport';
+import { HealthImportDialog } from './HealthImportDialog';
 
 export interface HealthEvent {
   id: string;
@@ -53,6 +55,7 @@ interface HealthTimelineProps {
   events: HealthEvent[];
   onEventClick?: (event: HealthEvent) => void;
   onAddEvent?: () => void;
+  onImportRecords?: (records: ParsedHealthImportRow[]) => void;
   vaccinationsOnly?: boolean;
 }
 
@@ -108,12 +111,14 @@ export function HealthTimeline({
   events,
   onEventClick,
   onAddEvent,
+  onImportRecords,
   vaccinationsOnly = false,
 }: HealthTimelineProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>(vaccinationsOnly ? 'vaccination' : 'all');
   const [viewMode, setViewMode] = useState<'timeline' | 'grid'>('timeline');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const filteredEvents = useMemo(() => {
     let filtered = events;
@@ -325,7 +330,7 @@ export function HealthTimeline({
 
         {!vaccinationsOnly && (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setIsImportOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Import Records
             </Button>
@@ -460,6 +465,13 @@ export function HealthTimeline({
           </CardContent>
         </Card>
       )}
+
+      <HealthImportDialog
+        open={isImportOpen}
+        dogId={dogId}
+        onOpenChange={setIsImportOpen}
+        onImportRecords={onImportRecords}
+      />
     </div>
   );
 }

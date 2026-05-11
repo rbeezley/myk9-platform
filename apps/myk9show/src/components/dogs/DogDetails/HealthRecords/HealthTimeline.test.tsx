@@ -95,4 +95,33 @@ describe('HealthTimeline export', () => {
     );
     expect(exportToCSVMock).not.toHaveBeenCalled();
   });
+
+  it('imports valid pasted CSV records', () => {
+    const onImportRecords = vi.fn();
+
+    render(<HealthTimeline dogId="dog-123" events={[]} onImportRecords={onImportRecords} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /import records/i }));
+    fireEvent.change(screen.getByPlaceholderText(/type,title,date/i), {
+      target: {
+        value: 'Type,Title,Date,Description\nVaccination,Rabies,2026-02-14,Three-year vaccine',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^preview$/i }));
+
+    expect(screen.getByText(/1 ready to import/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }));
+
+    expect(onImportRecords).toHaveBeenCalledWith([
+      {
+        type: 'vaccination',
+        data: expect.objectContaining({
+          dog_id: 'dog-123',
+          vaccine_name: 'Rabies',
+          date_given: '2026-02-14',
+        }),
+      },
+    ]);
+  });
 });

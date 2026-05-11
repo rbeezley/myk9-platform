@@ -19,8 +19,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { SafeHTML } from '@/utils/sanitization';
+import { TrainingProgressReportDialog } from './TrainingProgressReportDialog';
+import { TrainingGoalsDialog } from './TrainingGoalsDialog';
+import type { TrainingGoal } from '@/types/training';
 
-interface TrainingEntry {
+export interface TrainingEntry {
   id: string;
   title: string;
   content: string;
@@ -36,9 +39,12 @@ interface TrainingEntry {
 
 interface EnhancedTrainingJournalProps {
   entries: TrainingEntry[];
+  goals?: TrainingGoal[];
   onAddEntry?: (entry: Omit<TrainingEntry, 'id'>) => void;
   onUpdateEntry?: (id: string, entry: Partial<TrainingEntry>) => void;
   onDeleteEntry?: (id: string) => void;
+  onCreateGoal?: (goal: { title: string; target_date: string | null; sport_tag: string | null }) => void;
+  onToggleGoal?: (goal: TrainingGoal) => void;
 }
 
 const progressColors = {
@@ -57,13 +63,18 @@ const progressLabels = {
 
 export function EnhancedTrainingJournal({
   entries,
+  goals = [],
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
+  onCreateGoal,
+  onToggleGoal,
 }: EnhancedTrainingJournalProps) {
   const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TrainingEntry | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isProgressOpen, setIsProgressOpen] = useState(false);
+  const [isGoalsOpen, setIsGoalsOpen] = useState(false);
 
   const filteredEntries = entries
     .filter(
@@ -231,11 +242,11 @@ export function EnhancedTrainingJournal({
               <Plus className="h-4 w-4 mr-2" />
               New Training Session
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={() => setIsProgressOpen(true)}>
               <TrendingUp className="h-4 w-4 mr-2" />
               View Progress Report
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={() => setIsGoalsOpen(true)}>
               <Award className="h-4 w-4 mr-2" />
               Set Training Goals
             </Button>
@@ -407,6 +418,20 @@ export function EnhancedTrainingJournal({
           )}
         </DialogContent>
       </Dialog>
+
+      <TrainingProgressReportDialog
+        open={isProgressOpen}
+        onOpenChange={setIsProgressOpen}
+        entries={entries}
+      />
+
+      <TrainingGoalsDialog
+        open={isGoalsOpen}
+        onOpenChange={setIsGoalsOpen}
+        goals={goals}
+        onCreateGoal={goal => onCreateGoal?.(goal)}
+        onToggleGoal={goal => onToggleGoal?.(goal)}
+      />
     </div>
   );
 }

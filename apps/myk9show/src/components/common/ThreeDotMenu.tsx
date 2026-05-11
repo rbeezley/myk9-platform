@@ -36,7 +36,7 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   hideEdit = false,
 }) => (
   <DropdownMenu>
-    <DropdownMenuTrigger asChild>
+    <DropdownMenuTrigger asChild nativeButton>
       <Button variant="ghost" size="icon" className="h-10 w-10 p-0" aria-label="More actions">
         <MoreVertical className="h-5 w-5" />
       </Button>

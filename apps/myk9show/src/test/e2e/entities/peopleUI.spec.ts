@@ -277,7 +277,7 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     // reliably here because Owner is now pre-filled with the person name and
     // Base UI's combobox descendant text picks up extra placeholder fragments.
     await page.getByRole('combobox').first().click();
-    const femaleOption = page.getByRole('option', { name: /Female/ });
+    const femaleOption = page.getByRole('option', { name: /Female/ }).filter({ visible: true });
     await femaleOption.waitFor({ state: 'visible' });
     await femaleOption.click();
 
@@ -295,7 +295,7 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     expect(resp.ok()).toBe(true);
 
     // Person profile updates to show 1 registered dog (right-sidebar counter).
-    await expect(page.getByText(/1 registered dog/)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/1 registered dog/).first()).toBeVisible({ timeout: 10000 });
     // The full associated-dogs list lives in the main content tabs; it's
     // backed by the offline-first dog store and may take a beat to refresh
     // after the AddDogPanel closes. Reload to force a fresh read so the test

@@ -30,6 +30,13 @@ describe('DogSelectionStepEnhanced selection helpers', () => {
     ]);
   });
 
+  it('silently drops overflow visible bulk selections past the max selection count', () => {
+    expect(addVisibleDogSelections(['dog-ace'], ['dog-bravo', 'dog-charlie'], 2)).toEqual([
+      'dog-ace',
+      'dog-bravo',
+    ]);
+  });
+
   it('removes only the visible selections when toggling visible dogs off', () => {
     expect(
       removeVisibleDogSelections(['dog-ace', 'dog-bravo', 'dog-charlie'], ['dog-bravo'])

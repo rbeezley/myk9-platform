@@ -12,6 +12,10 @@ export function removeDogSelection(selectedDogIds: string[], dogId: string): str
   return selectedDogIds.filter(id => id !== dogId);
 }
 
+/**
+ * Merge visible dog ids into the existing selected-dog cart.
+ * If the merged list exceeds maxSelections, later visible ids are silently dropped.
+ */
 export function addVisibleDogSelections(
   selectedDogIds: string[],
   visibleDogIds: string[],

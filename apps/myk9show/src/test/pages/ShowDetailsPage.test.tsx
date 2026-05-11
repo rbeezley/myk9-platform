@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -7,6 +7,7 @@ import ShowDetailsPage from '@/pages/ShowDetailsPage';
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
+const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const showEditPanelMock = vi.hoisted<{
   impl: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) => React.ReactNode;
 }>(() => ({
@@ -79,6 +80,12 @@ vi.mock('@/services/database/judges', () => ({
 
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: (args: unknown) => publishExperienceMock(args),
+}));
+vi.mock('@/lib/notifications', () => ({
+  notifications: {
+    error: vi.fn(),
+    success: notificationsSuccessMock,
+  },
 }));
 vi.mock('@/features/heritage/landing/HeritageLandingPage', () => ({
   HeritageLandingPage: ({ show }: { show: { style?: string | null } }) => (
@@ -248,6 +255,7 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
     updateShowLocallyMock.mockReset();
+    notificationsSuccessMock.mockReset();
     updateShowLocallyMock.mockImplementation(
       async (id: string, updates: Record<string, unknown>) => ({
         ...mockShow,
@@ -381,6 +389,36 @@ describe('ShowDetailsPage', () => {
     renderPage();
 
     expect(screen.getByTestId('headline-landing')).toHaveTextContent('headline');
+  });
+
+  it('shows success feedback after saving show edits', async () => {
+    const user = userEvent.setup();
+    mockAuthContext.isSecretary = true;
+    showEditPanelMock.impl = ({ onSave }) => (
+      <button
+        onClick={() =>
+          onSave({
+            name: 'Bluegrass Classic Renamed',
+            status: 'upcoming',
+            organization: 'AKC',
+            clubId: 'club-1',
+            startDate: '2026-03-22',
+            endDate: '2026-03-23',
+            assignedJudges: [],
+          })
+        }
+      >
+        save mocked edit panel
+      </button>
+    );
+
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
+
+    await waitFor(() => {
+      expect(notificationsSuccessMock).toHaveBeenCalledWith('Show changes saved');
+    });
   });
 
   it('publishes experience after saving draft show changes when requested', async () => {

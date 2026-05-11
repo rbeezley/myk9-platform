@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 
 import { cn } from '@/lib/utils';
+import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
 
 const Popover = PopoverPrimitive.Root;
 
@@ -9,12 +10,19 @@ interface PopoverTriggerProps extends React.ComponentPropsWithoutRef<
   typeof PopoverPrimitive.Trigger
 > {
   asChild?: boolean;
+  nativeButton?: boolean;
 }
 
 const PopoverTrigger = React.forwardRef<HTMLButtonElement, PopoverTriggerProps>(
-  ({ asChild, children, ...props }, ref) => {
+  ({ asChild, children, nativeButton, ...props }, ref) => {
     if (asChild && React.isValidElement(children)) {
-      return <PopoverPrimitive.Trigger render={children} {...props} />;
+      return (
+        <PopoverPrimitive.Trigger
+          render={children}
+          nativeButton={getNativeButtonProp(children, nativeButton)}
+          {...props}
+        />
+      );
     }
     return (
       <PopoverPrimitive.Trigger ref={ref} {...props}>

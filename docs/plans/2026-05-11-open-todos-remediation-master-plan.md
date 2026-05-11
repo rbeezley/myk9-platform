@@ -247,3 +247,14 @@ Verification:
 - `npx vitest run src/components/shows/wizard/steps/TrialConfigurationStep.test.ts src/components/ui/__tests__/date-range-picker.test.tsx src/test/components/shows/TrialsTab.test.tsx src/components/shows/tabs/__tests__/TrialsTab.table.test.tsx src/pages/secretary/SecretaryDashboardPage/__tests__/SecretaryDashboardPage.test.tsx`
 - `pnpm typecheck`
 - `pnpm lint`
+
+### 2026-05-11 — Batch 4 focused polish wave
+
+Completed:
+- Batch 4 carryover: added show-edit save success feedback, preserved browse show-card personalized entry badges with a regression test, and quieted Base UI native-button warnings for `asChild` trigger wrappers that render non-button elements.
+- Verified already-landed Batch 4 fixes for dashboard Needs Attention consistency and collapsed sidebar accessible names with focused tests.
+
+Verification:
+- `npx vitest run src/components/shows/browse/__tests__/ShowCardHorizontal.test.tsx`
+- `npx vitest run src/components/layout/sidebar/__tests__/RoleSidebar.test.tsx src/pages/secretary/SecretaryDashboardPage/__tests__/SecretaryDashboardPage.test.tsx`
+- `pnpm typecheck`

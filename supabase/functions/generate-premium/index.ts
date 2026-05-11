@@ -162,11 +162,13 @@ Deno.serve(async (req: Request) => {
       showHours: '',
       trialInformation: '',
     };
+    let narrativeGenerationError: string | null = null;
 
     try {
       narratives = await generateNarratives(showSummary, anthropicKey);
     } catch (err) {
       console.error('Claude narrative generation failed:', err);
+      narrativeGenerationError = describeNarrativeGenerationFailure(err);
       narratives = {
         showHours: 'Show hours to be announced.',
         trialInformation: 'Trial information to be announced.',
@@ -283,6 +285,8 @@ Deno.serve(async (req: Request) => {
       supplemental: {
         vetClinic,
         accommodations: (template as Record<string, unknown> | null)?.accommodations ?? [],
+        coverImageUrl:
+          ((template as Record<string, unknown> | null)?.cover_image_url as string | null) ?? null,
         hospitalityNotes:
           ((template as Record<string, unknown> | null)?.hospitality_notes as string | null) ??
           null,
@@ -292,6 +296,7 @@ Deno.serve(async (req: Request) => {
         additionalNotes:
           ((template as Record<string, unknown> | null)?.additional_notes as string | null) ?? null,
       },
+      narrativeGenerationError,
       narratives,
     };
 
@@ -319,6 +324,20 @@ function formatDateForPrompt(value: unknown): string {
     month: 'long',
     day: 'numeric',
   });
+}
+
+function describeNarrativeGenerationFailure(err: unknown): string {
+  const message = err instanceof Error ? err.message.toLowerCase() : '';
+  if (message.includes('timeout') || message.includes('timed out')) {
+    return 'The AI service timed out. Please try again.';
+  }
+  if (message.includes('rate') || message.includes('429')) {
+    return 'The AI service is busy. Please try again in a moment.';
+  }
+  if (message.includes('network') || message.includes('fetch')) {
+    return 'The AI service could not be reached. Please try again.';
+  }
+  return 'Narrative generation is temporarily unavailable. Please try again.';
 }
 
 function buildShowSummary(show: Record<string, unknown>): string {

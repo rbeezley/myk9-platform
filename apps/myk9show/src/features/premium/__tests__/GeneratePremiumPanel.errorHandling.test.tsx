@@ -66,6 +66,7 @@ const fakePremium: GeneratedPremium = {
   supplemental: {
     vetClinic: { name: 'V', address: 'A', phone: 'P' },
     accommodations: [],
+    coverImageUrl: null,
     hospitalityNotes: null,
     awardsDescription: null,
     additionalNotes: null,

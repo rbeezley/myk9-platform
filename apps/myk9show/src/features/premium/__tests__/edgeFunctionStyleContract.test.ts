@@ -32,4 +32,9 @@ describe('generate-premium edge function style contract', () => {
     expect(source).toMatch(/signal: controller\.signal/);
     expect(source).toMatch(/clearTimeout\(timeoutId\)/);
   });
+
+  it('returns sanitized narrative-generation errors instead of raw exception messages', () => {
+    expect(source).toMatch(/describeNarrativeGenerationFailure/);
+    expect(source).not.toMatch(/narrativeGenerationError = err instanceof Error \? err\.message/);
+  });
 });

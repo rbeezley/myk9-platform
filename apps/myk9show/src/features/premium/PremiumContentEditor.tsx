@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
-import { AlertTriangle, Download, Eye, Loader2 } from 'lucide-react';
+import { AlertTriangle, Download, Eye, ImageIcon, Loader2, Upload, X } from 'lucide-react';
+import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,10 @@ import { AKCPremiumTemplate } from './pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from './pdf/UKCPremiumTemplate';
 import { useGeneratePremium } from './useGeneratePremium';
 import { useLogPremiumGeneration } from '../../hooks/queries/usePremiumGenerations';
+import { useUpdatePremiumTemplate } from '../../hooks/queries/usePremiumTemplates';
+import { uploadShowCover } from '../../services/imageUploadService';
 import { computePremiumDiff } from './logPremiumGeneration';
+import { fileToDataUrl, resolvePdfCoverImageSrc } from './coverImageDataUrl';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
 const GENERATION_TIMEOUT_MS = 20_000;
@@ -61,9 +65,7 @@ function withGenerationTimeout<T>(promise: Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       reject(
-        new Error(
-          'We could not finish generating this content. Please try again in a moment.'
-        )
+        new Error('We could not finish generating this content. Please try again in a moment.')
       );
     }, GENERATION_TIMEOUT_MS);
 
@@ -93,6 +95,7 @@ export function PremiumContentEditor({
 }: PremiumContentEditorProps) {
   const { generate, isLoading, error, reset } = useGeneratePremium();
   const logMutation = useLogPremiumGeneration(clubId);
+  const updateTemplateMutation = useUpdatePremiumTemplate(clubId);
   const [original, setOriginal] = useState<GeneratedPremium | null>(() => initialPremium ?? null);
   const [supplemental, setSupplemental] = useState<GeneratedPremium['supplemental'] | null>(
     () => initialPremium?.supplemental ?? null
@@ -103,9 +106,13 @@ export function PremiumContentEditor({
   const [hasNarrativeError, setHasNarrativeError] = useState(false);
   const [inkSaver, setInkSaver] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfCoverImageSrc, setPdfCoverImageSrc] = useState<string | null>(null);
+  const [pdfCoverImageRemoteUrl, setPdfCoverImageRemoteUrl] = useState<string | null>(null);
+  const [coverImageResolveFailed, setCoverImageResolveFailed] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [autoGenerateAttemptedFor, setAutoGenerateAttemptedFor] = useState<string | null>(null);
   const onPremiumChangeRef = useRef(onPremiumChange);
   const onInkSaverChangeRef = useRef(onInkSaverChange);
@@ -146,7 +153,9 @@ export function PremiumContentEditor({
           result.narratives.trialInformation === 'Trial information to be announced.'
       );
     } catch (err) {
-      setGenerationError(err instanceof Error ? err.message : 'We could not generate that content.');
+      setGenerationError(
+        err instanceof Error ? err.message : 'We could not generate that content.'
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -195,6 +204,9 @@ export function PremiumContentEditor({
     setHasNarrativeError(false);
     setInkSaver(false);
     setPdfUrl(null);
+    setPdfCoverImageSrc(null);
+    setPdfCoverImageRemoteUrl(null);
+    setCoverImageResolveFailed(false);
     setPreviewOpen(false);
     setGenerationError(null);
     setIsGenerating(false);
@@ -205,13 +217,104 @@ export function PremiumContentEditor({
 
   function buildFinalPremium(): GeneratedPremium | null {
     if (!original || !supplemental || !narratives) return null;
+    const finalSupplemental = {
+      ...supplemental,
+      coverImageUrl: pdfCoverImageSrc ?? supplemental.coverImageUrl,
+    };
     return {
       ...original,
       style: style ?? original.style,
-      supplemental,
+      supplemental: finalSupplemental,
       narratives,
     };
   }
+
+  const handleCoverUpload = useCallback(
+    async (file: File | null) => {
+      if (!file || !supplemental) return;
+      setIsUploadingCover(true);
+      try {
+        const [dataUrl, result] = await Promise.all([
+          fileToDataUrl(file),
+          uploadShowCover(showId, file),
+        ]);
+        if (!result.success || !result.url) {
+          notifications.error('Cover image upload failed', {
+            description: result.error ?? 'Please try another JPEG, PNG, or WebP image.',
+          });
+          return;
+        }
+        const uploadedUrl = result.url;
+
+        if (original?.templateId) {
+          await updateTemplateMutation.mutateAsync({
+            id: original.templateId,
+            updates: { coverImageUrl: uploadedUrl },
+          });
+        }
+
+        setPdfCoverImageSrc(dataUrl);
+        setPdfCoverImageRemoteUrl(uploadedUrl);
+        setCoverImageResolveFailed(false);
+        setSupplemental(s => (s ? { ...s, coverImageUrl: uploadedUrl } : s));
+        notifications.success(
+          original?.templateId ? 'Cover image saved' : 'Cover image ready for this premium'
+        );
+      } catch (err) {
+        notifications.error('Cover image upload failed', { description: getErrorMessage(err) });
+      } finally {
+        setIsUploadingCover(false);
+      }
+    },
+    [original?.templateId, showId, supplemental, updateTemplateMutation]
+  );
+
+  const handleCoverRemove = useCallback(async () => {
+    if (!supplemental?.coverImageUrl) return;
+    setIsUploadingCover(true);
+    try {
+      if (original?.templateId) {
+        await updateTemplateMutation.mutateAsync({
+          id: original.templateId,
+          updates: { coverImageUrl: null },
+        });
+      }
+      setPdfCoverImageSrc(null);
+      setPdfCoverImageRemoteUrl(null);
+      setCoverImageResolveFailed(false);
+      setSupplemental(s => (s ? { ...s, coverImageUrl: null } : s));
+      notifications.success('Cover image removed');
+    } catch (err) {
+      notifications.error('Cover image remove failed', { description: getErrorMessage(err) });
+    } finally {
+      setIsUploadingCover(false);
+    }
+  }, [original?.templateId, supplemental?.coverImageUrl, updateTemplateMutation]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const coverImageUrl = supplemental?.coverImageUrl ?? null;
+    if (!coverImageUrl) {
+      setPdfCoverImageSrc(null);
+      setPdfCoverImageRemoteUrl(null);
+      setCoverImageResolveFailed(false);
+      return;
+    }
+    if (coverImageUrl === pdfCoverImageRemoteUrl && pdfCoverImageSrc?.startsWith('data:')) {
+      setCoverImageResolveFailed(false);
+      return;
+    }
+    setCoverImageResolveFailed(false);
+    void resolvePdfCoverImageSrc(coverImageUrl).then(src => {
+      if (cancelled) return;
+      setPdfCoverImageSrc(src);
+      setPdfCoverImageRemoteUrl(src ? coverImageUrl : null);
+      setCoverImageResolveFailed(!src);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfCoverImageRemoteUrl, pdfCoverImageSrc, supplemental?.coverImageUrl]);
 
   async function handleDownloaded() {
     if (!original || !supplemental || !narratives) return;
@@ -279,9 +382,27 @@ export function PremiumContentEditor({
             {hasNarrativeError && (
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  Couldn&apos;t generate narrative sections - edit the fields below before
-                  downloading.
+                <AlertDescription className="space-y-3">
+                  <p>
+                    Narrative generation returned fallback copy
+                    {original.narrativeGenerationError
+                      ? `: ${original.narrativeGenerationError}`
+                      : '. You can retry or edit the fields below before downloading.'}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setOriginal(null);
+                      setSupplemental(null);
+                      setNarratives(null);
+                      setPdfUrl(null);
+                      void handleGenerate();
+                    }}
+                  >
+                    Retry narrative generation
+                  </Button>
                 </AlertDescription>
               </Alert>
             )}
@@ -297,6 +418,59 @@ export function PremiumContentEditor({
 
             <div className="space-y-3">
               <Label className="text-sm font-medium">Supplemental Fields</Label>
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2">
+                    <ImageIcon className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Cover Image</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Used on Gazette and Magazine covers.
+                      </p>
+                    </div>
+                  </div>
+                  {supplemental.coverImageUrl && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={isUploadingCover}
+                      onClick={() => void handleCoverRemove()}
+                    >
+                      <X className="mr-1 h-3.5 w-3.5" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                {supplemental.coverImageUrl && (
+                  <img
+                    src={supplemental.coverImageUrl}
+                    alt="Premium cover"
+                    className="h-24 w-full rounded-md object-cover"
+                  />
+                )}
+                {supplemental.coverImageUrl && coverImageResolveFailed && (
+                  <p className="text-xs text-destructive">
+                    Saved cover image could not be loaded for the PDF. The cover will use the At a
+                    Glance panel until the image is replaced.
+                  </p>
+                )}
+                <Label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">
+                  <Upload className="h-4 w-4" />
+                  {isUploadingCover ? 'Uploading...' : 'Upload cover image'}
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={isUploadingCover}
+                    onChange={e => {
+                      const file = e.target.files?.[0] ?? null;
+                      void handleCoverUpload(file);
+                      e.target.value = '';
+                    }}
+                  />
+                </Label>
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Vet Clinic Name</Label>
                 <Input
@@ -455,6 +629,9 @@ export function PremiumContentEditor({
                   setSupplemental(null);
                   setNarratives(null);
                   setPdfUrl(null);
+                  setPdfCoverImageSrc(null);
+                  setPdfCoverImageRemoteUrl(null);
+                  setCoverImageResolveFailed(false);
                   void handleGenerate();
                 }}
               >

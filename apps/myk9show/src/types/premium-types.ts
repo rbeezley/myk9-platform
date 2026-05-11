@@ -48,6 +48,7 @@ export interface ClubPremiumTemplate {
   vetClinicAddress: string | null;
   vetClinicPhone: string | null;
   accommodations: Array<{ name: string; address: string; phone: string }>;
+  coverImageUrl: string | null;
   hospitalityNotes: string | null;
   awardsDescription: string | null;
   additionalNotes: string | null;
@@ -58,6 +59,7 @@ export interface ClubPremiumTemplate {
 export interface PremiumSupplemental {
   vetClinic: { name: string; address: string; phone: string } | null;
   accommodations: Array<{ name: string; address: string; phone: string }>;
+  coverImageUrl: string | null;
   hospitalityNotes: string | null;
   awardsDescription: string | null;
   additionalNotes: string | null;
@@ -97,6 +99,7 @@ export interface GeneratedPremium {
     classes: Array<{ element: string; level: string; section: string | null }>;
   }>;
   supplemental: PremiumSupplemental;
+  narrativeGenerationError?: string | null;
   narratives: {
     showHours: string;
     trialInformation: string;

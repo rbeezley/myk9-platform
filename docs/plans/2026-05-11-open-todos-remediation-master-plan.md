@@ -18,12 +18,14 @@ Purpose: turn the open todo backlog into a sequence of autonomous, testable repa
 Goal: make the backlog reliable before coding.
 
 Tasks:
+
 - Merge the QA-walk worktree into `main`.
 - Confirm `OPEN-TODOS.md` contains the full QA-walk section.
 - Remove or keep already-completed items consistently, especially `Secretary Task Timeline View` if it is already fixed on `main`.
 - Add stable finding IDs to QA-walk todos where helpful (`F14`, `F17`, etc.) so references do not drift when numbering changes.
 
 Testing:
+
 - No app tests required.
 - Verify `rg "QA Walk — Shows as Secretary" OPEN-TODOS.md`.
 
@@ -32,6 +34,7 @@ Testing:
 Goal: make a fresh secretary able to create a show end to end.
 
 Todos covered:
+
 - Host Club picker shows `No clubs found`.
 - New club briefly displays `Unknown Club`.
 - Create New Club has no way back.
@@ -39,6 +42,7 @@ Todos covered:
 - Show edit Judges save silently fails because role rows are missing.
 
 Likely work:
+
 - Inventory `roles`, `permissions`, `role_permissions`, club membership/admin tables, `user_roles`, and relevant RLS policies before writing migrations.
 - Fix club-create flow so the creator receives the required club-admin/member permission.
 - Fix `create_show_with_children` so chairman/secretary user roles are created for the show.
@@ -47,6 +51,7 @@ Likely work:
 - Add a "Use existing club instead" action.
 
 Testing:
+
 - Assertion-first unit tests for the exact RPC payloads / mutation responses where possible.
 - Focused component tests for host-club inline create and cache label.
 - Migration/RLS validation locally if available.
@@ -57,6 +62,7 @@ Testing:
 Goal: stop users from losing entered data or seeing raw schema values.
 
 Todos covered:
+
 - Premium-style wizard dropdown lists 8 options but type declares 6.
 - Show Dates can be silently wiped by adjacent date picker.
 - Entry Period multi-month range fails to persist.
@@ -68,6 +74,7 @@ Todos covered:
 - Class-card rapid clicks can drop selections.
 
 Likely work:
+
 - Align premium style option source with `PremiumStyle` or deliberately restore missing styles with renderers.
 - Isolate show-date and entry-period picker state.
 - Fix cross-month range selection.
@@ -78,6 +85,7 @@ Likely work:
 - Stabilize class selection state updates.
 
 Testing:
+
 - Unit tests for premium-style options and trial-type formatting.
 - Component tests for date-range picker behavior, including cross-month ranges.
 - Component/a11y tests for element select-all labels.
@@ -88,6 +96,7 @@ Testing:
 Goal: after creation, secretaries can manage the show without dead ends.
 
 Todos covered:
+
 - Entries tab shows personal entries instead of all show entries.
 - Public registration says online entry is coming soon.
 - Secretary registration dog picker defaults to empty + "your dogs".
@@ -100,6 +109,7 @@ Todos covered:
 - Trial summary cards display `scent_work`.
 
 Likely work:
+
 - Separate exhibitor "My Entries" from secretary "All Entries".
 - Decide whether to enable public registration or make the disabled state explicit and non-blocking.
 - Improve secretary dog search defaults/copy.
@@ -111,6 +121,7 @@ Likely work:
 - Reuse centralized trial-type label formatter.
 
 Testing:
+
 - Component tests for role-specific entries tab behavior.
 - Mutation tests for entry remove/scratch/withdraw where implemented.
 - Component tests for delete confirm flows.
@@ -121,6 +132,7 @@ Testing:
 Goal: make successful actions visible and common controls accessible.
 
 Todos covered:
+
 - Dashboard says "Managing 0 shows" while Needs Attention lists shows.
 - Show cards use clickable `<div>` instead of links.
 - Sidebar nav links lack accessible names.
@@ -134,6 +146,7 @@ Todos covered:
 - Show cards lack personalized badge.
 
 Likely work:
+
 - Align secretary dashboard queries/counts.
 - Convert show cards to real anchors.
 - Add labels to icon-only nav links.
@@ -146,6 +159,7 @@ Likely work:
 - Wire user entry status into browse cards.
 
 Testing:
+
 - Component tests for dashboard counts and task display.
 - A11y assertions for nav link names and show-card anchors.
 - Toast tests for successful mutations.
@@ -156,10 +170,12 @@ Testing:
 Goal: complete Gazette/Magazine cover-image upload without regressing PDF rendering.
 
 Todos covered:
+
 - Cover-image upload for Gazette + Magazine.
 - Premium narrative generation can fail silently.
 
 Likely work:
+
 - Add `coverImageUrl` to `PremiumSupplemental` and `club_premium_templates`.
 - Add Supabase Storage upload UI in `GeneratePremiumPanel`.
 - Render uploaded cover image in Gazette and Editorial covers, with stat-panel fallback.
@@ -167,6 +183,7 @@ Likely work:
 - Add actionable narrative-generation error details and Retry.
 
 Testing:
+
 - Type tests / component tests for supplemental data shape.
 - Unit tests for image fallback behavior.
 - Component tests for upload success/failure states.
@@ -178,6 +195,7 @@ Testing:
 Goal: schedule larger feature work after the show-creation and management path is stable.
 
 Todos covered:
+
 - Import Records button.
 - Wire up edit for all health record types.
 - View Progress Report.
@@ -190,12 +208,14 @@ Todos covered:
 - Pre-load AKC & UKC Judge Directory.
 
 Likely work:
+
 - Create separate implementation plans for each feature-sized item before coding.
 - Do Stripe before Exhibitor Payments.
 - Do E2E stability before making E2E blocking.
 - Treat judge directory import as a data-ingestion project with source verification.
 
 Testing:
+
 - Each feature plan must include unit tests, integration tests where applicable, and one manual smoke path.
 - CI/branch-protection changes require user approval before external GitHub/Vercel mutation.
 
@@ -221,6 +241,7 @@ After the worktree merge, start with Batch 0, then Batch 1. Batch 1 removes the 
 ### 2026-05-11 — First parallel repair wave
 
 Completed:
+
 - Batch 0 source-of-truth check: merged `OPEN-TODOS.md` contains the full QA-walk section.
 - Batch 1 partial: added a migration that grants the creator an active `club_admin` role scoped to newly-created clubs; made show-level judge assignment persistence throw on delete/insert errors instead of swallowing RLS failures.
 - Batch 2 partial: fixed trial type label formatting, trial date picker default month, clearer AKC event-number requirement, class selector accessibility labels/mixed state, and rapid class selection state.
@@ -228,15 +249,18 @@ Completed:
 - Batch 4 partial: converted browse show cards to links, removed raw show IDs from Tasks UI, inlined single Delete Show action, added delete success toast, removed default midnight times from delete confirmation, and stripped empty judge qualification suffixes.
 
 Verification:
+
 - `npx vitest run src/types/__tests__/template.types.test.ts src/lib/validation.class.test.ts src/components/shows/browse/__tests__/ShowCardHorizontal.test.tsx src/pages/secretary/SecretaryDashboardPage/__tests__/TasksTab.test.tsx src/pages/secretary/SecretaryDashboardPage/__tests__/taskTimelineUtils.test.ts src/components/templates/secretary/SimpleClassSelector.test.ts src/services/database/judges/reads.test.ts`
 - `pnpm typecheck`
 
 Shared-system work completed:
+
 - Pushed and verified `supabase/migrations/20260511100000_grant_club_admin_to_club_creator.sql` against linked Supabase project `sojmvhhwsjxmfistvzbe`.
 
 ### 2026-05-11 — Batch 2 focused repair wave
 
 Completed:
+
 - Batch 2 partial: hardened `DateRangePicker` so empty calendar emissions do not wipe selected dates, cross-month ranges preserve both endpoints, and the calendar opens from a stable default month.
 - Batch 2 partial: expanded wizard trial-type options so organization mappings remain the base list even when templates are sparse, and formatted raw trial-type enum values on Trials tab cards and table rows.
 - Batch 2 partial: replaced the stale `/secretary/classes` show-creation registry/admin-help entry with `/secretary/create-show/wizard` and removed the unused `CreateShowPage` redirect page.
@@ -244,6 +268,7 @@ Completed:
 - Batch 4 carryover: filtered pending-entry attention items through the same managed-show set used by the secretary dashboard count.
 
 Verification:
+
 - `npx vitest run src/components/shows/wizard/steps/TrialConfigurationStep.test.ts src/components/ui/__tests__/date-range-picker.test.tsx src/test/components/shows/TrialsTab.test.tsx src/components/shows/tabs/__tests__/TrialsTab.table.test.tsx src/pages/secretary/SecretaryDashboardPage/__tests__/SecretaryDashboardPage.test.tsx`
 - `pnpm typecheck`
 - `pnpm lint`
@@ -251,10 +276,62 @@ Verification:
 ### 2026-05-11 — Batch 4 focused polish wave
 
 Completed:
+
 - Batch 4 carryover: added show-edit save success feedback, preserved browse show-card personalized entry badges with a regression test, and quieted Base UI native-button warnings for `asChild` trigger wrappers that render non-button elements.
 - Verified already-landed Batch 4 fixes for dashboard Needs Attention consistency and collapsed sidebar accessible names with focused tests.
 
 Verification:
+
 - `npx vitest run src/components/shows/browse/__tests__/ShowCardHorizontal.test.tsx`
 - `npx vitest run src/components/layout/sidebar/__tests__/RoleSidebar.test.tsx src/pages/secretary/SecretaryDashboardPage/__tests__/SecretaryDashboardPage.test.tsx`
 - `pnpm typecheck`
+
+### 2026-05-11 — Batch 5 execution plan
+
+Scope:
+
+- Complete the Batch 5 premium-PDF work only: Gazette/Magazine cover-image upload and clearer narrative-generation recovery.
+- Avoid Batch 3 secretary entry-management surfaces, class entry removal, trial/class delete flows, and public registration routing.
+
+Implementation:
+
+- Add `coverImageUrl` to the premium template/supplemental data contract and database table with an idempotent migration.
+- Extend premium template query mappers so the cover image URL round-trips through `club_premium_templates`.
+- Add a calm cover image upload/remove control to `PremiumContentEditor`/`GeneratePremiumPanel`, using existing Supabase Storage image-upload patterns and updating the generated premium draft immediately after upload.
+- Render uploaded cover images in Gazette and Magazine covers with the existing At-a-Glance panels preserved as the null/empty fallback.
+- Improve narrative-generation fallback messaging to show actionable detail and a Retry action when generated narratives fall back to placeholder copy.
+
+Testing:
+
+- Add focused mapper/unit tests for the new `coverImageUrl` field and migration contract.
+- Add component tests for upload success/failure and Retry behavior in the premium panel/editor.
+- Add PDF rendering tests proving Gazette/Magazine use an uploaded cover image and still render the At-a-Glance fallback without one.
+- Run the targeted premium tests, then `pnpm typecheck`; run lint if touched files raise style risk.
+
+### 2026-05-11 — Batch 5 completed
+
+Completed:
+
+- Added `coverImageUrl` to the premium supplemental/template contract and an idempotent migration for `club_premium_templates.cover_image_url`.
+- Wired premium template mappers, template create/edit defaults, and the `generate-premium` edge response to carry the cover image URL.
+- Added upload/remove controls to the premium editor using existing Supabase Storage image upload patterns.
+- Pre-resolved cover image URLs to data URLs for PDF rendering and rendered cover art in Gazette/Magazine while preserving the At-a-Glance fallback when no image exists.
+- Added narrative fallback error detail plus a Retry narrative generation action.
+
+Verification:
+
+- `pnpm test -- src/features/premium/__tests__/PremiumContentEditor.test.tsx src/features/premium/__tests__/logPremiumGeneration.test.ts src/features/premium/__tests__/migrationCoverImage.test.ts src/features/premium/pdf/__tests__/GazetteFieldGuideStyle.test.tsx src/features/premium/pdf/__tests__/magazineHeritage.test.tsx`
+- `pnpm typecheck`
+- `pnpm lint`
+
+Shared-system work:
+
+- Migration and edge-function changes are committed for review but were not pushed/deployed to Supabase in this batch.
+
+Review follow-up:
+
+- Removed physical storage deletion from cover removal because premium cover URLs are template-scoped and can be reused across shows.
+- Skipped redundant post-upload cover refetches by tracking the remote URL that produced the active PDF data URL.
+- Normalized the premium generation audit key to `cover_image_url`.
+- Added a visible warning when a saved cover URL cannot be resolved for PDF rendering.
+- Sanitized narrative-generation error detail before returning it from the edge function.

@@ -1,4 +1,4 @@
-import { Page, Text, View } from '@react-pdf/renderer';
+import { Image, Page, Text, View } from '@react-pdf/renderer';
 import type { CoverContext } from './coverContext';
 import { formatDate } from '../pdfStyles';
 import {
@@ -28,6 +28,7 @@ const LETTER_SPACE_WIDE = 2;
  */
 export function renderGazetteCover(ctx: CoverContext) {
   const { t, data, dateRange, club, venue, org } = ctx;
+  const coverImageUrl = data.supplemental.coverImageUrl?.trim() || null;
 
   // The data shape doesn't carry a dedicated AKC license field. The first
   // trial's eventNumber is the closest analogue (e.g., "AKC-2026-001"); show
@@ -177,48 +178,61 @@ export function renderGazetteCover(ctx: CoverContext) {
         {article}
       </Text>
 
-      {/* "At a Glance" fallback panel — replaces the empty photo box when no
-          cover image is uploaded. TODO: when cover-image upload ships, render
-          an <Image src={…}/> here instead of (or above) this fallback. */}
-      <View
-        style={{
-          borderWidth: 1,
-          borderColor: t.accentColor,
-          borderStyle: 'solid',
-          padding: 16,
-          marginVertical: 24,
-          backgroundColor: t.surfaceColor,
-        }}
-      >
-        <Text
+      {coverImageUrl ? (
+        <View
           style={{
-            fontFamily: t.displayFont,
-            fontSize: 9,
-            color: t.accentColor,
-            textTransform: 'uppercase',
-            letterSpacing: LETTER_SPACE_WIDE,
-            marginBottom: 8,
+            marginVertical: 24,
+            borderWidth: 1,
+            borderColor: t.accentColor,
+            height: 176,
           }}
         >
-          At a Glance
-        </Text>
-        {atAGlanceLines.map((line, i) => (
-          <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
-            <Text
-              style={{
-                width: 90,
-                fontSize: 8,
-                color: t.secondaryColor,
-                textTransform: 'uppercase',
-                letterSpacing: LETTER_SPACE_TIGHT,
-              }}
-            >
-              {line.label}
-            </Text>
-            <Text style={{ flex: 1, fontSize: 10, color: t.textColor }}>{line.value}</Text>
-          </View>
-        ))}
-      </View>
+          <Image
+            src={coverImageUrl}
+            style={{ height: '100%', width: '100%', objectFit: 'cover' }}
+          />
+        </View>
+      ) : (
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: t.accentColor,
+            borderStyle: 'solid',
+            padding: 16,
+            marginVertical: 24,
+            backgroundColor: t.surfaceColor,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: t.displayFont,
+              fontSize: 9,
+              color: t.accentColor,
+              textTransform: 'uppercase',
+              letterSpacing: LETTER_SPACE_WIDE,
+              marginBottom: 8,
+            }}
+          >
+            At a Glance
+          </Text>
+          {atAGlanceLines.map((line, i) => (
+            <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
+              <Text
+                style={{
+                  width: 90,
+                  fontSize: 8,
+                  color: t.secondaryColor,
+                  textTransform: 'uppercase',
+                  letterSpacing: LETTER_SPACE_TIGHT,
+                }}
+              >
+                {line.label}
+              </Text>
+              <Text style={{ flex: 1, fontSize: 10, color: t.textColor }}>{line.value}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Judges strip */}
       {judgeStrip.length > 0 && (

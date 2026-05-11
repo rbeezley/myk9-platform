@@ -27,6 +27,7 @@ const generatedPremium: GeneratedPremium = {
   supplemental: {
     vetClinic: null,
     accommodations: [],
+    coverImageUrl: null,
     hospitalityNotes: null,
     awardsDescription: null,
     additionalNotes: null,

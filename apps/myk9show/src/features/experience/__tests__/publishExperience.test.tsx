@@ -45,6 +45,7 @@ describe('publishExperience', () => {
         supplemental: {
           vetClinic: null,
           accommodations: [],
+          coverImageUrl: null,
           hospitalityNotes: 'Coffee provided.',
           awardsDescription: null,
           additionalNotes: null,

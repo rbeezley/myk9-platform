@@ -18,7 +18,6 @@ import {
   MoreHorizontal,
   Mail,
   Loader2,
-  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/format';
@@ -350,18 +349,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 <DropdownMenuItem onClick={() => onBulkCheckIn(group.entries.map(e => e.id))}>
                   Check In All
                 </DropdownMenuItem>
-                {group.entries.length === 1 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => onRemoveEntry(group.entries[0].id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Remove Entry
-                    </DropdownMenuItem>
-                  </>
-                )}
               </DropdownMenuContent>
             </DropdownMenu>
 

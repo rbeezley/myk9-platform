@@ -146,7 +146,7 @@ describe('useEntryManagementActions', () => {
     });
 
     expect(deleteEntry).toHaveBeenCalledWith('entry-1', 'secretary-1');
-    expect(setError).not.toHaveBeenCalled();
+    expect(setError).toHaveBeenCalledWith(null);
 
     const updater = setEntries.mock.calls[0]?.[0];
     expect(typeof updater).toBe('function');

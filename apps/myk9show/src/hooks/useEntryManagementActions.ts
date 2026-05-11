@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { auditService } from '@/services/AuditService';
@@ -102,6 +102,11 @@ export function useEntryManagementActions({
   user,
 }: UseEntryManagementActionsProps): UseEntryManagementActionsReturn {
   const [isProcessing, setIsProcessing] = useState(false);
+  const entriesRef = useRef(entries);
+
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
 
   // Dialog states
   const [armbandDialog, setArmbandDialog] = useState<ArmbandDialogState>({
@@ -592,8 +597,8 @@ export function useEntryManagementActions({
 
   const handleRemoveEntry = useCallback(
     async (entryId: string) => {
-      const snapshot = entries;
-      const entry = entries.find(e => e.id === entryId);
+      const snapshot = entriesRef.current;
+      const entry = snapshot.find(e => e.id === entryId);
       if (!entry) return;
 
       setEntries(prev => prev.filter(e => e.id !== entryId));
@@ -607,6 +612,7 @@ export function useEntryManagementActions({
           return;
         }
 
+        setError(null);
         toast.success(`Removed ${entry.dogName} from ${entry.classes[0]?.name ?? 'the class'}`);
       } catch (err) {
         setEntries(snapshot);
@@ -614,7 +620,7 @@ export function useEntryManagementActions({
         logger.error('Error removing entry:', 'secretary', {}, err as Error);
       }
     },
-    [entries, setEntries, setError, user?.id]
+    [setEntries, setError, user?.id]
   );
 
   const statusToDecision = (

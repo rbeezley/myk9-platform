@@ -89,6 +89,18 @@ describe('ShowCardHorizontal', () => {
     expect(screen.getByText('Accepting Entries')).toBeInTheDocument();
   });
 
+  it('renders a personalized submitted badge for logged-in users with open entries', () => {
+    renderCard(
+      <ShowCardHorizontal
+        show={createMockShow({ entryOpenDate: '2026-01-01', entryCloseDate: '2027-12-31' })}
+        userHasEntries
+      />
+    );
+
+    expect(screen.getByText('Entry Submitted')).toBeInTheDocument();
+    expect(screen.queryByText('Accepting Entries')).not.toBeInTheDocument();
+  });
+
   it('renders the card as a named show details link', () => {
     renderCard(<ShowCardHorizontal show={createMockShow({ id: 'show-abc' })} />);
 

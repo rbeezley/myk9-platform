@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
+import { getSignInReturnTo } from './SignInPage.helpers';
 
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -36,8 +37,7 @@ const SignIn: React.FC = () => {
 
     try {
       await signIn(email, password);
-      const returnTo = searchParams.get('returnTo');
-      navigate(returnTo || '/');
+      navigate(getSignInReturnTo(searchParams));
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {

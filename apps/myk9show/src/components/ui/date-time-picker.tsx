@@ -127,7 +127,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger asChild nativeButton>
         <Button
           {...(id !== undefined && { id })}
           variant="outline"

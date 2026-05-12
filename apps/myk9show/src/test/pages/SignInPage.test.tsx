@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SignInPage from '@/pages/SignInPage';
+import { getSignInReturnTo } from '@/pages/SignInPage.helpers';
 
 const mockSignInWithGoogle = vi.fn();
 
@@ -68,5 +69,15 @@ describe('SignInPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Popup closed')).toBeInTheDocument();
     });
+  });
+
+  it('preserves nested query strings in the returnTo parameter', () => {
+    const params = new URLSearchParams({
+      returnTo: '/secretary/create-show/wizard?showId=show-1&mode=add-trials',
+    });
+
+    expect(getSignInReturnTo(params)).toBe(
+      '/secretary/create-show/wizard?showId=show-1&mode=add-trials'
+    );
   });
 });

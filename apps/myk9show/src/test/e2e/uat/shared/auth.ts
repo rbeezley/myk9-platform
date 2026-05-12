@@ -5,8 +5,9 @@ export const SECRETARY_USER = {
   password: 'testpass123',
 };
 
-export async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
+export async function signIn(page: Page, email: string, password: string, returnTo = '/') {
+  const params = new URLSearchParams({ returnTo });
+  await page.goto(`/sign-in?${params.toString()}`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('email-input')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('email-input').fill(email);
   await page.getByTestId('password-input').fill(password);
@@ -16,6 +17,6 @@ export async function signIn(page: Page, email: string, password: string) {
   await expect(page).not.toHaveURL(/\/sign-in/);
 }
 
-export async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_USER.email, SECRETARY_USER.password);
+export async function signInAsSecretary(page: Page, returnTo = '/') {
+  await signIn(page, SECRETARY_USER.email, SECRETARY_USER.password, returnTo);
 }

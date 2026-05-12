@@ -5,14 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useShowStore } from '@/store/showStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
 import { useMyShows } from '@/hooks/useMyShows';
 import type { SecretaryTask } from './types';
-import { ScopeType } from '@/types/auth-types';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
 import { MyShowsSection } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
@@ -29,32 +27,10 @@ function greeting(): string {
 
 export function SecretaryDashboardPage() {
   const navigate = useNavigate();
-  const { firstName, userWithRoles, isAdmin } = useAuthContext();
+  const { firstName } = useAuthContext();
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
-  const { shows: rawShows } = useShowStore();
-
-  // Filter shows to only those the secretary manages (same logic as useMissionControlData)
-  const clubScopeKey = useMemo(
-    () =>
-      (userWithRoles?.scopes ?? [])
-        .filter(s => s.scopeType === ScopeType.CLUB)
-        .map(s => s.scopeId)
-        .sort()
-        .join(','),
-    [userWithRoles?.scopes]
-  );
-
-  const shows = useMemo(() => {
-    const clubIdSet = new Set(clubScopeKey ? clubScopeKey.split(',') : []);
-    const skipFilter = isAdmin;
-    const seen = new Set<string>();
-    return rawShows.filter(s => {
-      if (seen.has(s.id)) return false;
-      seen.add(s.id);
-      return skipFilter || clubIdSet.has(s.clubId);
-    });
-  }, [rawShows, isAdmin, clubScopeKey]);
+  const { shows, classesByStage, isLoading: showsLoading } = useMissionControlData();
 
   const { today, upcoming, draft, past, attentionNeeded: showAttentionItems } = useMyShows(shows);
 
@@ -91,7 +67,6 @@ export function SecretaryDashboardPage() {
     ...showAttentionItems,
   ];
 
-  const { classesByStage, isLoading: showsLoading } = useMissionControlData();
   const liveClassCount = classesByStage.get('in-progress')?.length ?? 0;
   const notStartedCount = classesByStage.get('not-started')?.length ?? 0;
   const closedCount = classesByStage.get('closed')?.length ?? 0;

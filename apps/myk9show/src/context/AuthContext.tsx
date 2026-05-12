@@ -158,6 +158,19 @@ export function buildActiveRoleScopes(
     }));
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function getUniqueActiveRoleNames(roles: UserRoleWithDetails[]): UserRole[] {
+  const validRoleNames = new Set(Object.values(UserRole));
+  return Array.from(
+    new Set(
+      roles
+        .filter(ur => ur.is_active)
+        .map(ur => ur.role?.name)
+        .filter((name): name is UserRole => !!name && validRoleNames.has(name as UserRole))
+    )
+  );
+}
+
 const DEV_AUTH_ROLE_ALIASES: Record<string, keyof typeof MOCK_USERS> = {
   'secretary@myk9t.com': 'secretary-user',
   'clubadmin@myk9t.com': 'club-admin-user',
@@ -177,6 +190,18 @@ function buildDevUserWithMockRoles(
     scopes: mockUser.scopes.map(scope => ({ ...scope, userId: authUser.id })),
     ...(databaseUserId ? { databaseUserId } : {}),
   } as UserWithRoles;
+}
+
+function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (error instanceof Error) {
+    return error.name === 'AbortError' || /AbortError|signal is aborted/i.test(error.message);
+  }
+  return false;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, ms));
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -262,7 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let stale = false;
     const userId = auth.user.id;
 
-    const loadRbacData = async () => {
+    const loadRbacData = async (attempt = 0) => {
       try {
         setRbacData(prev => ({ ...prev, isLoading: true, error: null }));
         const data = await rbacService.getUserPermissions(userId);
@@ -277,6 +302,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } catch (error) {
         if (stale) return;
+        if (isAbortError(error) && attempt < 3) {
+          await delay(250 * (attempt + 1));
+          if (!stale) await loadRbacData(attempt + 1);
+          return;
+        }
         logger.error('Failed to load RBAC data:', 'app', {}, ensureError(error));
         setRbacData(prev => ({
           ...prev,
@@ -305,30 +335,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return MOCK_USERS[currentMockUser];
     }
 
-    // Priority 0.25: Known seeded local/UAT accounts should keep their intended
-    // staff role even if local RBAC is still loading or temporarily unavailable.
-    if (import.meta.env.DEV && auth.user.email) {
-      const aliasKey = DEV_AUTH_ROLE_ALIASES[auth.user.email.toLowerCase()];
-      if (aliasKey) {
-        return buildDevUserWithMockRoles(auth.user, MOCK_USERS[aliasKey], userProfile?.id);
-      }
-    }
-
-    // Priority 0.5: Match by email to mock users in dev
-    if (import.meta.env.DEV) {
-      const mockUser = Object.values(MOCK_USERS).find(u => u.email === auth.user?.email);
-      if (mockUser) {
-        return mockUser;
-      }
-    }
-
     // Priority 1: Database RBAC (from rbacService) — only use once loaded
-    if (rbacData.loaded) {
-      const validRoleNames = new Set(Object.values(UserRole));
-      const activeRoles = rbacData.userRoles
-        .filter(ur => ur.is_active)
-        .map(ur => ur.role?.name)
-        .filter((name): name is UserRole => !!name && validRoleNames.has(name as UserRole));
+    if (rbacData.loaded && !rbacData.error) {
+      const activeRoles = getUniqueActiveRoleNames(rbacData.userRoles);
 
       // If RBAC loaded but user has no valid roles, grant exhibitor as default
       const roles = activeRoles.length > 0 ? activeRoles : [UserRole.EXHIBITOR];
@@ -344,6 +353,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         scopes: buildActiveRoleScopes(rbacData.userRoles, auth.user.id),
         databaseUserId: userProfile?.id,
       } as UserWithRoles;
+    }
+
+    // Priority 2: Known seeded local/UAT accounts should keep their intended
+    // staff role only while local RBAC is still loading or temporarily unavailable.
+    // Once DB RBAC loads, its real scopes must win so secretary dashboards filter
+    // by the clubs actually assigned in the database instead of mock "club-1".
+    if (import.meta.env.DEV && auth.user.email) {
+      const aliasKey = DEV_AUTH_ROLE_ALIASES[auth.user.email.toLowerCase()];
+      if (aliasKey) {
+        return buildDevUserWithMockRoles(auth.user, MOCK_USERS[aliasKey], userProfile?.id);
+      }
+    }
+
+    // Priority 3: Match by email to mock users in dev
+    if (import.meta.env.DEV) {
+      const mockUser = Object.values(MOCK_USERS).find(u => u.email === auth.user?.email);
+      if (mockUser) {
+        return mockUser;
+      }
     }
 
     // RBAC not yet loaded (or failed) — return null to keep loading state
@@ -434,11 +462,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const getUserRoles = useCallback((): UserRole[] => {
     if (rbacData.userRoles.length > 0) {
-      const validRoleNames = new Set(Object.values(UserRole));
-      return rbacData.userRoles
-        .filter(ur => ur.is_active)
-        .map(ur => ur.role?.name)
-        .filter((name): name is UserRole => !!name && validRoleNames.has(name as UserRole));
+      return getUniqueActiveRoleNames(rbacData.userRoles);
     }
     return userWithRoles?.roles || [];
   }, [rbacData.userRoles, userWithRoles]);
@@ -544,7 +568,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       ...auth,
       userWithRoles,
-      loading: auth.loading || rbacData.isLoading,
+      loading: auth.loading || (rbacData.isLoading && !userWithRoles),
 
       // RBAC methods
       hasRole,

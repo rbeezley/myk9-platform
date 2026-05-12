@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { ScopeType } from '@/types/auth-types';
 
 // --- Mutable mock state ---
@@ -12,13 +12,24 @@ const mockShows = [
 ];
 
 let mockIsAdmin = false;
+let mockAuthLoading = false;
+let mockAuthUser: { id: string } | null = { id: 'user-1' };
 let mockScopes: Array<{ scopeType: ScopeType; scopeId: string }> = [];
+let mockUserWithRoles:
+  | { scopes: Array<{ scopeType: ScopeType; scopeId: string }> }
+  | null
+  | undefined;
 let mockShowsOverride: typeof mockShows | null = null;
+let mockShowsLoading = false;
+let mockTablesStatus: Record<string, 'idle' | 'syncing' | 'success' | 'error'> = {};
+const mockTriggerSync = vi.fn();
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    userWithRoles: { scopes: mockScopes },
+    user: mockAuthUser,
+    userWithRoles: mockUserWithRoles === undefined ? { scopes: mockScopes } : mockUserWithRoles,
     isAdmin: mockIsAdmin,
+    loading: mockAuthLoading,
   }),
 }));
 
@@ -28,7 +39,7 @@ vi.mock('@/store/showStore', () => ({
   useShowStore: (selector?: (s: Record<string, unknown>) => unknown) => {
     const state = {
       shows: mockShowsOverride ?? mockShows,
-      isLoading: false,
+      isLoading: mockShowsLoading,
       selectShow: mockSelectShow,
     };
     return selector ? selector(state) : state;
@@ -46,7 +57,10 @@ vi.mock('../../utils/classStageMapping', () => ({
 }));
 
 vi.mock('@/hooks/useReplicationSync', () => ({
-  useReplicationSync: () => ({ status: { tablesStatus: {} } }),
+  useReplicationSync: () => ({
+    status: { tablesStatus: mockTablesStatus },
+    triggerSync: mockTriggerSync,
+  }),
 }));
 
 // Import after mocks are set up (vi.mock is hoisted)
@@ -55,8 +69,15 @@ import { useMissionControlData } from '../useMissionControlData';
 describe('useMissionControlData - show scoping', () => {
   beforeEach(() => {
     mockIsAdmin = false;
+    mockAuthLoading = false;
+    mockAuthUser = { id: 'user-1' };
+    mockUserWithRoles = undefined;
     mockScopes = [];
     mockShowsOverride = null;
+    mockShowsLoading = false;
+    mockTablesStatus = {};
+    mockTriggerSync.mockReset();
+    mockTriggerSync.mockResolvedValue(undefined);
   });
 
   it('admin sees all shows', () => {
@@ -93,11 +114,11 @@ describe('useMissionControlData - show scoping', () => {
     expect(result.current.shows).toHaveLength(0);
   });
 
-  it('show-scoped roles are ignored for club filtering', () => {
+  it('secretary scoped directly to a show sees that show', () => {
     mockScopes = [{ scopeType: ScopeType.SHOW, scopeId: 'show-2' }];
     const { result } = renderHook(() => useMissionControlData());
-    // No club scopes, no admin — sees zero shows (show-scoped roles don't grant club access)
-    expect(result.current.shows).toHaveLength(0);
+    expect(result.current.shows).toHaveLength(1);
+    expect(result.current.shows[0]?.id).toBe('show-2');
   });
 
   it('deduplicates shows', () => {
@@ -105,6 +126,37 @@ describe('useMissionControlData - show scoping', () => {
     mockIsAdmin = true;
     const { result } = renderHook(() => useMissionControlData());
     expect(result.current.shows).toHaveLength(4);
+  });
+
+  it('stays loading while a signed-in user is waiting for RBAC roles', () => {
+    mockAuthUser = { id: 'user-1' };
+    mockUserWithRoles = null;
+
+    const { result } = renderHook(() => useMissionControlData());
+
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it('requests a sync while signed-in show sync is idle and the store is empty', async () => {
+    mockUserWithRoles = { scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a' }] };
+    mockShowsOverride = [];
+    mockTablesStatus = { shows: 'idle' };
+    mockTriggerSync.mockImplementation(() => new Promise(() => undefined));
+
+    const { result } = renderHook(() => useMissionControlData());
+
+    await waitFor(() => expect(mockTriggerSync).toHaveBeenCalledTimes(1));
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it('stays loading while signed-in show sync is running and the store is empty', () => {
+    mockUserWithRoles = { scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a' }] };
+    mockShowsOverride = [];
+    mockTablesStatus = { shows: 'syncing' };
+
+    const { result } = renderHook(() => useMissionControlData());
+
+    expect(result.current.isLoading).toBe(true);
   });
 
   it('selects first visible show by default', () => {

@@ -5,7 +5,6 @@ import { SecretaryDashboardPage } from '../index';
 import { ScopeType } from '@/types/auth-types';
 
 const mockUseMissionControlData = vi.fn();
-const mockUseShowStore = vi.fn();
 let mockPendingEntries: Array<{
   id: string;
   showId: string;
@@ -27,7 +26,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 vi.mock('@/store/showStore', () => ({
-  useShowStore: () => mockUseShowStore(),
+  useShowStore: () => ({ shows: [] }),
 }));
 
 vi.mock('@/store/messageStore', () => ({
@@ -61,8 +60,8 @@ function renderPage() {
 describe('SecretaryDashboardPage', () => {
   beforeEach(() => {
     mockPendingEntries = [];
-    mockUseShowStore.mockReturnValue({ shows: [] });
     mockUseMissionControlData.mockReturnValue({
+      shows: [],
       isLoading: false,
       classesByStage: new Map(),
     });
@@ -70,6 +69,7 @@ describe('SecretaryDashboardPage', () => {
 
   it('does not show the empty state while post-login show sync is still loading', () => {
     mockUseMissionControlData.mockReturnValue({
+      shows: [],
       isLoading: true,
       classesByStage: new Map(),
     });
@@ -87,7 +87,7 @@ describe('SecretaryDashboardPage', () => {
   });
 
   it('only surfaces pending-entry attention for shows the secretary manages', () => {
-    mockUseShowStore.mockReturnValue({
+    mockUseMissionControlData.mockReturnValue({
       shows: [
         {
           id: 'managed-show',
@@ -99,6 +99,8 @@ describe('SecretaryDashboardPage', () => {
           status: 'published',
         },
       ],
+      isLoading: false,
+      classesByStage: new Map(),
     });
     mockPendingEntries = [
       {

@@ -7,7 +7,7 @@
  * newly created data appears immediately (even before Supabase sync).
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -19,8 +19,9 @@ import type { ClassPipelineItem, ContextStats } from '../mission-control-types';
 
 export function useMissionControlData() {
   const { shows: rawShows, isLoading: showsLoading } = useShowStore();
-  const { userWithRoles, isAdmin, loading: authLoading } = useAuthContext();
-  const { status: syncStatus } = useReplicationSync();
+  const { user, userWithRoles, isAdmin, loading: authLoading, rbacLoading } = useAuthContext();
+  const { status: syncStatus, triggerSync } = useReplicationSync();
+  const hasRequestedInitialShowSyncRef = useRef(false);
 
   // Stable key for club scope IDs (avoids recomputation when AuthContext rebuilds the scopes array)
   const clubScopeKey = useMemo(
@@ -33,22 +34,33 @@ export function useMissionControlData() {
     [userWithRoles?.scopes]
   );
 
+  const showScopeKey = useMemo(
+    () =>
+      (userWithRoles?.scopes ?? [])
+        .filter(s => s.scopeType === ScopeType.SHOW)
+        .map(s => s.scopeId)
+        .sort()
+        .join(','),
+    [userWithRoles?.scopes]
+  );
+
   const shows = useMemo(() => {
     const clubIdSet = new Set(clubScopeKey ? clubScopeKey.split(',') : []);
+    const showIdSet = new Set(showScopeKey ? showScopeKey.split(',') : []);
     // INTENT: Only platform admins bypass the club filter. Non-admin users with no
-    // club scopes assigned yet see zero shows — the empty state is handled in the UI.
-    // Do NOT fall back to "show all" for unskoped users; that leaks cross-club data.
+    // club/show scopes assigned yet see zero shows — the empty state is handled in the UI.
+    // Do NOT fall back to "show all" for unscoped users; that leaks cross-club data.
     const skipFilter = isAdmin;
     const seen = new Set<string>();
 
     const filtered = rawShows.filter(s => {
       if (seen.has(s.id)) return false;
       seen.add(s.id);
-      return skipFilter || clubIdSet.has(s.clubId);
+      return skipFilter || clubIdSet.has(s.clubId) || showIdSet.has(s.id);
     });
 
     return filtered;
-  }, [rawShows, isAdmin, clubScopeKey]);
+  }, [rawShows, isAdmin, clubScopeKey, showScopeKey]);
   const allTrials = useTrialStore(s => s.trials);
   const allTrialClasses = useTrialStore(s => s.trialClasses);
 
@@ -176,12 +188,34 @@ export function useMissionControlData() {
   // Determine if any class is actively being scored
   const hasLiveClasses = pipelineClasses.some(c => c.stage === 'in-progress');
 
+  const showSyncStatus = syncStatus.tablesStatus['shows'];
+  const shouldRequestInitialShowSync =
+    !!userWithRoles && rawShows.length === 0 && showSyncStatus === 'idle';
+
+  useEffect(() => {
+    if (rawShows.length > 0 || showSyncStatus === 'success' || showSyncStatus === 'error') {
+      hasRequestedInitialShowSyncRef.current = false;
+      return;
+    }
+
+    if (!shouldRequestInitialShowSync || hasRequestedInitialShowSyncRef.current) return;
+
+    hasRequestedInitialShowSyncRef.current = true;
+    void triggerSync();
+  }, [rawShows.length, shouldRequestInitialShowSync, showSyncStatus, triggerSync]);
+
   // True while:
   // - showStore is reading from IndexedDB, OR
-  // - auth RBAC hasn't loaded yet (isAdmin would be wrong), OR
+  // - auth RBAC hasn't loaded yet (isAdmin/scopes would be wrong), OR
   // - first-time sync is in progress and shows haven't arrived yet
-  const showsSyncing = syncStatus.tablesStatus['shows'] === 'syncing';
-  const isLoading = showsLoading || authLoading || (showsSyncing && rawShows.length === 0);
+  const showsSyncing = !!userWithRoles && rawShows.length === 0 && showSyncStatus === 'syncing';
+  const isLoading =
+    showsLoading ||
+    authLoading ||
+    rbacLoading ||
+    (!!user && !userWithRoles) ||
+    showsSyncing ||
+    shouldRequestInitialShowSync;
 
   return {
     // Loading

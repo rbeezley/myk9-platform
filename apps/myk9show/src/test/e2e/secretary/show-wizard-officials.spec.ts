@@ -50,7 +50,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
 
     // The secretary is auto-filled with the logged-in user — the "You" badge should appear
     // next to the secretary picker when the selection matches the current user.
-    await expect(page.getByText('You')).toBeVisible();
+    await expect(page.getByText('You', { exact: true })).toBeVisible();
   });
 
   test('"Add new judge" footer expands the new-person form', async ({ page }) => {

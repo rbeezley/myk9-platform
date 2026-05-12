@@ -18,11 +18,9 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     const health = createBrowserHealth();
     healthByTest.set(testInfo.testId, health);
     watchBrowserHealth(page, health);
-    await signInAsSecretary(page);
   });
 
-  test.afterEach(async (fixtures, testInfo) => {
-    void fixtures;
+  test.afterEach(async ({}, testInfo) => {
     const health = healthByTest.get(testInfo.testId) ?? createBrowserHealth();
     const details = summarizeHealth(health);
     const status = testInfo.status === testInfo.expectedStatus ? 'passed' : 'failed';
@@ -30,10 +28,14 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     healthByTest.delete(testInfo.testId);
   });
 
-  test('dashboard shows secretary command center and show creation affordance', async ({ page }) => {
-    await page.goto('/secretary/dashboard', { waitUntil: 'networkidle' });
+  test('dashboard shows secretary command center and show creation affordance', async ({
+    page,
+  }) => {
+    await signInAsSecretary(page, '/secretary/dashboard');
 
-    await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })
+    ).toBeVisible({
       timeout: 15000,
     });
     await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
@@ -44,7 +46,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   test('show creation wizard starts with clear required fields and disabled next state', async ({
     page,
   }) => {
-    await page.goto('/secretary/create-show/wizard', { waitUntil: 'networkidle' });
+    await signInAsSecretary(page, '/secretary/create-show/wizard');
 
     await expect(page.getByRole('heading', { name: 'Create New Show', level: 2 })).toBeVisible({
       timeout: 15000,
@@ -57,8 +59,10 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();
   });
 
-  test('mail-in registration can find a non-owned dog and reach class selection', async ({ page }) => {
-    await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });
+  test('mail-in registration can find a non-owned dog and reach class selection', async ({
+    page,
+  }) => {
+    await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
     await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
       timeout: 15000,
@@ -83,8 +87,10 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     });
   });
 
-  test('entry management exposes review, waitlist, armband, and export controls', async ({ page }) => {
-    await page.goto(`/secretary/entries/${SHOW_ID}`, { waitUntil: 'networkidle' });
+  test('entry management exposes review, waitlist, armband, and export controls', async ({
+    page,
+  }) => {
+    await signInAsSecretary(page, `/secretary/entries/${SHOW_ID}`);
 
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
@@ -115,7 +121,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   });
 
   test('reports page exposes financial and statistics report choices', async ({ page }) => {
-    await page.goto('/secretary/reports', { waitUntil: 'networkidle' });
+    await signInAsSecretary(page, '/secretary/reports');
 
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 15000 });
     const picker = page.locator('label:has-text("Report")').locator('..').getByRole('combobox');

@@ -4,6 +4,43 @@ Items to address in future sessions.
 
 ---
 
+## Nightly E2E Repair Queue — 2026-05-12
+
+Goal: repair quarantined Playwright specs one at a time, then promote each passing spec back into `docs/qa/e2e-suite-map.md` Nightly command only after it passes alone and with the current stable smoke command.
+
+Promotion rule for every item below:
+
+1. Run the spec alone with `cd apps/myk9show && pnpm test:e2e:clean <spec> --project=chromium --workers=1`.
+2. Fix stale assumptions, app bugs, or test setup bugs at the root cause.
+3. Re-run the spec alone.
+4. Re-run the stable smoke command from `docs/qa/e2e-suite-map.md`.
+5. Update `docs/qa/e2e-suite-map.md` if the spec is stable enough for tonight's Nightly run; otherwise keep it quarantined and log durable findings in `docs/qa/findings.md`.
+
+- [x] **Repair `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`** — Wave 1 fixed 2026-05-12. Now asserts user-critical route/auth/navigation affordances and passes in the promoted Nightly command.
+- [x] **Repair `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`** — Wave 1 fixed 2026-05-12. Replaced hard-coded port assumptions with config-relative public browse/detail navigation and promoted to Nightly.
+- [x] **Repair `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`** — Wave 1 fixed 2026-05-12. Secretary sign-in now asserts the secretary dashboard landing and avoids a flaky `networkidle` wait.
+- [ ] **Repair `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`** — Dry-run failure: broad multi-role suite failed rapidly across entry lifecycle, realtime, search, notifications, offline, accessibility, and error handling. Split into smaller role/workflow specs or mark subflows `manual-debug` until their setup data and routes are current.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`** — Dry-run failure: all core entry API/workflow checks failed rapidly. Confirm whether this belongs in Playwright or should be converted to Vitest/service tests; fix setup and current data model assumptions before Nightly promotion.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/errorHandlingAndRecovery.spec.ts`** — Dry-run failure: all error/recovery scenarios failed rapidly. Verify current error boundary, search failure, payment failure, offline, retry, conflict, and logging expectations against the current registration UI.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts`** — Wave 1 narrowed this to document the current “Online show entry is coming soon” placeholder. Do not promote as a Nightly gate until it covers a real exhibitor registration journey again.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/index.spec.ts`** — Dry-run failure: integration/index checks failed rapidly. Decide whether this remains a real browser suite or becomes an inventory/meta-test; avoid duplicating better feature specs.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/performanceAndCaching.spec.ts`** — Dry-run failure: all performance/cache scenarios failed rapidly. Keep only maintained thresholds and current instrumentation; move synthetic/cache-only checks out of Nightly if they are not browser-critical.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/phase3-2-multi-class-entries.spec.ts`** — Dry-run failure: multi-class entry scenarios failed rapidly. Verify current class selection, discounts, waitlist, and cross-entry rule behavior with current fixtures.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts`** — Dry-run failure: entry limit/waitlist scenarios failed. Refresh seeded capacity/waitlist setup and promote only stable user-critical checks.
+- [x] **Repair `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`** — Wave 1 fixed 2026-05-12 and promoted as a narrow existing-user secretary registration guard.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`** — Wave 1 narrowed this to current account/permission behavior. Do not promote until the secretary account exposes a real new-exhibitor/new-dog creation path.
+- [ ] **Repair `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`** — Wave 1 got this passing as a route/payment-state check with extended timeout, but do not promote as a full golden path until the AKC agreement checkbox enables the final Next/submit flow reliably.
+- [ ] **Repair `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`** — Dry-run failure: scoring workflow scenarios failed rapidly. Verify whether myK9Show scoring routes are still current or whether ringside coverage belongs in myK9Q E2E first.
+- [x] **Repair `apps/myk9show/src/test/e2e/secretary/classCreation.spec.ts`** — Wave 1 fixed 2026-05-12 and promoted as a narrow route/template-selection smoke, not full class-creation workflow coverage.
+- [x] **Repair `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`** — Wave 1 fixed 2026-05-12. Current wizard Step 1/add-trials assertions pass and are promoted to Nightly.
+- [ ] **Repair `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts`** — Wave 1 fixed only the strict `You` badge locator. Chairman/judges picker selectors remain stale; refresh before promotion.
+- [ ] **Repair `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`** — Not reached in the dry run before stop, but belongs to the secretary Nightly candidate set. Run alone, refresh entry-management setup, and promote only if stable.
+- [ ] **Repair `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`** — Wave 1 fixed the browser-side `logger is not defined` setup bug, but the old show-management workflows still time out. Split or rewrite before promotion.
+- [x] **Repair `apps/myk9show/src/test/e2e/uat/secretary/critical-path.spec.ts`** — Wave 1 fixed 2026-05-12. Hook signature and target-route sign-in repairs pass in the promoted Nightly command.
+- [x] **Repair `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`** — Wave 1 fixed 2026-05-12. Hook signature repair passes in the promoted Nightly command.
+- [x] **Repair `apps/myk9show/src/test/e2e/uat/secretary/evidence.spec.ts`** — Wave 1 fixed 2026-05-12. Target-route sign-in repair passes in the promoted Nightly command.
+- [ ] **Repair `apps/myk9show/src/test/e2e/unified-shows-workflows.spec.ts`** — Not reached in the dry run before stop, but classified as Nightly. Run alone and split/promote stable role-specific workflows only.
+
 ## Dogs CRUD Audit — 2026-05-12 07:58
 
 - **Test full CRUD for Dogs** - Mirror the People (PR #170, #171) and Clubs (PR #172) CRUD audits for the Dogs entity. **Problem:** People and Clubs CRUD have just been audited end-to-end with regression coverage and RLS hardening; Dogs is the remaining core entity without an equivalent audit. We need confidence that create, read, update, and delete all work across roles (exhibitor, secretary, admin), that RLS scopes correctly, and that the UI exposes a usable affordance for each operation. **Files:** `apps/myk9show/src/pages/dogs/`, `apps/myk9show/src/components/dogs/DogDetails/`, `apps/myk9show/src/features/dogs/` (queries/mutations), `apps/myk9show/src/types/dog*.ts`, plus matching E2E specs under `apps/myk9show/tests/` and unit tests under `__tests__/`. **Solution:** Follow the same playbook as the clubs/people audits — (1) inventory existing routes and components for Dogs, (2) walk each CRUD operation in the live app for each role, (3) confirm RLS policies on `dogs` and any join tables (ownership, co-ownership, handler links), (4) add or extend Playwright E2E + Vitest unit coverage for each path, (5) file follow-up bugs for anything broken and fix root causes before closing.

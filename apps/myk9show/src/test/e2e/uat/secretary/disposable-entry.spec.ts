@@ -31,8 +31,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await signInAsSecretary(page);
   });
 
-  test.afterEach(async (fixtures, testInfo) => {
-    void fixtures;
+  test.afterEach(async ({}, testInfo) => {
     const seed = seedByTest.get(testInfo.testId) ?? null;
     await cleanupSecretaryEntry(testInfo, seed);
 
@@ -67,13 +66,19 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(armbandDialog).not.toBeVisible({ timeout: 10000 });
     await expect(page.getByText(seed.armband).first()).toBeVisible();
 
-    await page.getByRole('button', { name: /Pending/ }).first().click();
+    await page
+      .getByRole('button', { name: /Pending/ })
+      .first()
+      .click();
     await page.getByRole('menuitem', { name: 'Accepted', exact: true }).click();
     await expect(page.getByRole('button', { name: /Accepted/ }).first()).toBeVisible({
       timeout: 10000,
     });
 
-    await page.getByRole('button', { name: /Not Checked In|No Status/ }).first().click();
+    await page
+      .getByRole('button', { name: /Not Checked In|No Status/ })
+      .first()
+      .click();
     await page.getByRole('menuitem', { name: 'Checked-in' }).click();
     await expect(page.getByRole('button', { name: /Checked-in|Checked In/ }).first()).toBeVisible({
       timeout: 10000,

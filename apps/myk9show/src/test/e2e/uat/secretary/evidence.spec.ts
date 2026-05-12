@@ -20,11 +20,9 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     const health = createBrowserHealth();
     healthByTest.set(testInfo.testId, health);
     watchBrowserHealth(page, health);
-    await signInAsSecretary(page);
   });
 
-  test.afterEach(async (fixtures, testInfo) => {
-    void fixtures;
+  test.afterEach(async ({}, testInfo) => {
     const health = healthByTest.get(testInfo.testId) ?? createBrowserHealth();
     const details = summarizeHealth(health);
     const status = testInfo.status === testInfo.expectedStatus ? 'passed' : 'failed';
@@ -33,6 +31,8 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
   });
 
   test('captures visible Secretary journey evidence', async ({ page }, testInfo) => {
+    await signInAsSecretary(page, '/secretary/dashboard');
+
     await captureSecretaryPage(
       page,
       testInfo,

@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
 
 /**
  * UI-driven e2e tests for the People section — secretary role.
@@ -9,7 +10,7 @@ import { test, expect, Page } from '@playwright/test';
  *   - Person A keeps a dog at the end (asserts delete-gating).
  *   - Person B is created and deleted within the suite.
  *
- * Auth: secretary@myk9t.com / testpass123 (matches clubsUI / dogsUI specs).
+ * Auth: secretary fixture plus E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD for site admin.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -21,10 +22,15 @@ const PERSON_A_EMAIL = `e2e.alpha.${RUN_ID}@example.com`;
 const PERSON_B_FIRST = 'E2E';
 const PERSON_B_LAST = `Personbeta ${RUN_ID}`;
 const PERSON_B_EMAIL = `e2e.beta.${RUN_ID}@example.com`;
+const ADMIN_PERSON_FIRST = 'E2E';
+const ADMIN_PERSON_LAST = `Adminperson ${RUN_ID}`;
+const ADMIN_PERSON_EMAIL = `e2e.admin.${RUN_ID}@example.com`;
 const DOG_NAME = `E2E PeopleDog ${RUN_ID}`;
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
+const ADMIN_EMAIL = TEST_USERS.SITE_ADMIN.email;
+const ADMIN_PASSWORD = TEST_USERS.SITE_ADMIN.password;
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });
@@ -37,6 +43,10 @@ async function signIn(page: Page, email: string, password: string) {
 
 async function signInAsSecretary(page: Page) {
   await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
+}
+
+async function signInAsAdmin(page: Page) {
+  await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 }
 
 async function gotoPeopleBrowse(page: Page) {
@@ -374,5 +384,93 @@ test.describe('People UI — Delete (secretary)', () => {
 
     await page.waitForURL(/\/people/, { timeout: 10000 });
     await expect(page.getByText(new RegExp(PERSON_B_LAST))).not.toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Admin lifecycle coverage
+// ---------------------------------------------------------------------------
+
+test.describe('People UI — Admin CRUD lifecycle', () => {
+  test.skip(
+    !ADMIN_EMAIL || !ADMIN_PASSWORD,
+    'E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD not set — skipping admin People CRUD coverage'
+  );
+
+  test.beforeEach(async ({ page }) => {
+    await signInAsAdmin(page);
+  });
+
+  test('site admin can create, read, edit, cancel delete, and delete a person', async ({ page }) => {
+    await gotoPeopleBrowse(page);
+    await page.getByRole('button', { name: 'New Person' }).click();
+    await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
+
+    await page.getByRole('textbox', { name: /First Name/ }).fill(ADMIN_PERSON_FIRST);
+    await page.getByRole('textbox', { name: /Last Name/ }).fill(ADMIN_PERSON_LAST);
+    await page.getByRole('textbox', { name: /Email Address/ }).fill(ADMIN_PERSON_EMAIL);
+
+    const [createResponse] = await Promise.all([
+      page.waitForResponse(
+        resp =>
+          resp.url().includes('/rest/v1/people') &&
+          resp.request().method() === 'POST' &&
+          resp.status() < 300
+      ),
+      page.getByRole('button', { name: 'Save Changes' }).click(),
+    ]);
+    expect(createResponse.ok()).toBe(true);
+
+    await page.waitForURL(/\/users\/[^/]+/, { timeout: 10000 });
+    await expect(
+      page.getByRole('heading', {
+        name: `${ADMIN_PERSON_FIRST} ${ADMIN_PERSON_LAST}`,
+        level: 1,
+      })
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: ADMIN_PERSON_EMAIL })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
+    await page.getByRole('tab', { name: 'Contact' }).click();
+    await page.getByRole('textbox', { name: 'Phone Number' }).fill('555-4567');
+
+    const [updateResponse] = await Promise.all([
+      page.waitForResponse(
+        resp =>
+          resp.url().includes('/rest/v1/people') &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() < 300
+      ),
+      page.getByRole('button', { name: 'Save Changes' }).click(),
+    ]);
+    expect(updateResponse.ok()).toBe(true);
+    await expect(page.getByText('555-4567')).toBeVisible();
+
+    await page.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    await expect(page.getByRole('dialog', { name: 'Delete Person' })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('dialog', { name: 'Delete Person' })).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: /Adminperson/, level: 1 })).toBeVisible();
+
+    await page.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    await expect(page.getByRole('dialog', { name: 'Delete Person' })).toBeVisible();
+
+    const [deleteResponse] = await Promise.all([
+      page.waitForResponse(
+        resp =>
+          resp.url().includes('/rest/v1/people') &&
+          (resp.request().method() === 'PATCH' || resp.request().method() === 'DELETE') &&
+          resp.status() < 300
+      ),
+      page.getByRole('button', { name: 'Delete' }).last().click(),
+    ]);
+    expect(deleteResponse.ok()).toBe(true);
+
+    await page.waitForURL(/\/people/, { timeout: 10000 });
+    await page.getByPlaceholder('Search people by name or email...').fill(ADMIN_PERSON_EMAIL);
+    await expect(page.getByText(ADMIN_PERSON_EMAIL)).not.toBeVisible();
   });
 });

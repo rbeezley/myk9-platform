@@ -90,10 +90,6 @@ export function useProfileForm() {
     const e: ProfileFormErrors = {};
     if (!values.firstName.trim()) e.firstName = 'First name is required';
     if (!values.lastName.trim()) e.lastName = 'Last name is required';
-    if (!values.streetAddress.trim()) e.streetAddress = 'Street address is required';
-    if (!values.city.trim()) e.city = 'City is required';
-    if (!values.state.trim()) e.state = 'State is required';
-    if (!values.zipCode.trim()) e.zipCode = 'Zip code is required';
     return e;
   }, [values]);
 
@@ -114,7 +110,11 @@ export function useProfileForm() {
   }, [values, person]);
 
   const save = async () => {
-    if (!person || !isValid) return;
+    if (!person) return;
+    if (!isValid) {
+      notifications.error(Object.values(errors)[0] ?? 'Please check your profile details.');
+      return;
+    }
     setSaving(true);
     try {
       await updatePerson.mutateAsync({

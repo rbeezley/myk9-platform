@@ -110,17 +110,13 @@ describe('useProfileForm', () => {
     expect(result.current.values.zipCode).toBe('62701');
   });
 
-  it('validates required fields (firstName, lastName, streetAddress, city, state, zipCode)', () => {
+  it('validates required name fields', () => {
     mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
 
     const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
     expect(result.current.errors.firstName).toBe('First name is required');
     expect(result.current.errors.lastName).toBe('Last name is required');
-    expect(result.current.errors.streetAddress).toBe('Street address is required');
-    expect(result.current.errors.city).toBe('City is required');
-    expect(result.current.errors.state).toBe('State is required');
-    expect(result.current.errors.zipCode).toBe('Zip code is required');
   });
 
   it('phone is optional — no validation error when empty', async () => {
@@ -202,6 +198,58 @@ describe('useProfileForm', () => {
         zipCode: '62701',
       })
     );
+  });
+
+  it('save() allows profile changes when address fields are blank', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        ...dbPersonData,
+        street_address: '',
+        city: '',
+        state: '',
+        zip_code: '',
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
+
+    await waitForFormLoaded(result);
+
+    act(() => {
+      result.current.setValue('phone', '555-9999');
+    });
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: '555-9999',
+        streetAddress: '',
+        city: '',
+        state: '',
+        zipCode: '',
+      })
+    );
+  });
+
+  it('save() shows a validation message when required names are missing', async () => {
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
+
+    await waitForFormLoaded(result);
+
+    act(() => {
+      result.current.setValue('firstName', '');
+    });
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(mockMutateAsync).not.toHaveBeenCalled();
+    expect(notifications.error).toHaveBeenCalledWith('First name is required');
   });
 
   it('save() shows success notification on success', async () => {

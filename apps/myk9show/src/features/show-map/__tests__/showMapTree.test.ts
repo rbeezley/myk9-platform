@@ -1,0 +1,93 @@
+import { describe, expect, it } from 'vitest';
+import { buildShowMapTree } from '../showMapTree';
+import type { Show } from '@/types/show-types';
+import type { SyncableTrial } from '@/store/trial-store-types';
+import type { ShowMapClassInput } from '../showMapTypes';
+
+const show = {
+  id: 'show-1',
+  name: 'Spring Trial',
+  clubName: 'Calm Canine Club',
+} as Show;
+
+const trial = {
+  id: 'trial-1',
+  showId: 'show-1',
+  showName: 'Spring Trial',
+  trialDate: '2026-05-11',
+  trialNumber: '1',
+  status: 'In Progress',
+  _version: 1,
+  _lastModified: new Date(),
+  _lastModifiedBy: 'test',
+  _syncStatus: 'synced',
+} as SyncableTrial;
+
+const classes: ShowMapClassInput[] = [
+  {
+    id: 'class-1',
+    trialId: 'trial-1',
+    name: 'Interior Novice A',
+    element: 'Interior',
+    level: 'Novice',
+    section: 'A',
+    status: 'In Progress',
+  },
+];
+
+describe('buildShowMapTree', () => {
+  it('creates show to trial to class to entry hierarchy with counts', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-1',
+          armband: '12',
+          entry_status: 'accepted',
+          check_in_status: 'checked-in',
+          dog: { call_name: 'Bella' },
+        },
+      ],
+    });
+
+    expect(tree.root.label).toBe('Spring Trial');
+    expect(tree.childIdsByParentId[tree.root.id]).toEqual(['trial:trial-1']);
+    expect(tree.childIdsByParentId['trial:trial-1']).toEqual(['class:class-1']);
+    expect(tree.childIdsByParentId['class:class-1']).toEqual(['entry:entry-1']);
+    expect(tree.nodesById['entry:entry-1']?.label).toBe('#12 Bella');
+  });
+
+  it('keeps empty shows as a root-only tree', () => {
+    const tree = buildShowMapTree({ show, trials: [], classes: [], entries: [] });
+
+    expect(tree.root.childrenCount).toBe(0);
+    expect(tree.childIdsByParentId[tree.root.id]).toEqual([]);
+  });
+
+  it('adds a deterministic marker when entries are capped', () => {
+    const entries = Array.from({ length: 3 }, (_, index) => ({
+      id: `entry-${index}`,
+      class_id: 'class-1',
+      run_order: index,
+      dog: { call_name: `Dog ${index}` },
+    }));
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries,
+      entryPreviewLimit: 2,
+    });
+
+    expect(tree.childIdsByParentId['class:class-1']).toEqual([
+      'entry:entry-0',
+      'entry:entry-1',
+      'more:class-1',
+    ]);
+    expect(tree.nodesById['more:class-1']?.label).toBe('1 more entries');
+  });
+});

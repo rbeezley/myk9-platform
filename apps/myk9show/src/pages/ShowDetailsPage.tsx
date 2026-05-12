@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
@@ -14,6 +14,7 @@ import {
   BarChart3,
   Trash2,
   Pencil,
+  Map,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { notifications } from '@/lib/notifications';
+import { features } from '@/config/features';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -61,6 +63,8 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { formatDateRange } from '@/utils/date-format';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
+
+const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
 const ENTRY_STATUS_HERO_VARIANT: Record<
   EntryStatus,
@@ -194,12 +198,21 @@ const ShowDetailsPage: React.FC = () => {
 
   // Tab state — URL-synced with dynamic allowed tabs
   const isAuthenticated = !!user;
+  const canShowMap = features.showMap && canManageShow;
   const allowedTabs = useMemo(
     () =>
       isAuthenticated
-        ? ['overview', 'trials', 'classes', 'my-entries', 'my-stats', 'results']
+        ? [
+            'overview',
+            'trials',
+            'classes',
+            'my-entries',
+            'my-stats',
+            'results',
+            ...(canShowMap ? ['map'] : []),
+          ]
         : ['overview', 'trials', 'classes', 'results'],
-    [isAuthenticated]
+    [isAuthenticated, canShowMap]
   );
   const [activeTab, setTab] = useUrlTab(allowedTabs, 'overview');
 
@@ -293,8 +306,9 @@ const ShowDetailsPage: React.FC = () => {
           ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
+      ...(canShowMap ? [{ id: 'map', label: 'Map', icon: Map }] : []),
     ],
-    [isAuthenticated, associatedTrials.length, showClasses.length, userEntries.length]
+    [isAuthenticated, canShowMap, associatedTrials.length, showClasses.length, userEntries.length]
   );
 
   // Loading state
@@ -490,6 +504,20 @@ const ShowDetailsPage: React.FC = () => {
           <TabsContent value="results">
             <ShowResultsTab showId={actualCurrentShow.id} />
           </TabsContent>
+
+          {canShowMap && (
+            <TabsContent value="map">
+              <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+                <ShowMapTab
+                  show={actualCurrentShow}
+                  trials={associatedTrials}
+                  classes={showClasses}
+                  entries={showEntries}
+                  canManageShow={canManageShow}
+                />
+              </Suspense>
+            </TabsContent>
+          )}
         </PrimaryTabs>
       </PageShell>
 

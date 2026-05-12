@@ -9,6 +9,13 @@ Use when the user wants a real-browser audit of an existing feature — "QA the 
 
 This is the engine for **Phase 2 — Walk the Golden Paths** (see `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`). Every role-journey audit should run through this skill so the pattern stays consistent and the artifacts compound.
 
+Before starting, read:
+
+- `docs/INTENT.md` for the target role feeling.
+- `docs/qa/assets.md` for current QA assets and suite commands.
+- `docs/qa/e2e-suite-map.md` before adding or choosing Playwright specs.
+- `docs/qa/findings.md` so confirmed findings use the shared template.
+
 ## Trigger Phrases
 
 - "QA <area>", "audit <area>", "walk <role>'s journey through <area>"
@@ -112,7 +119,21 @@ For each unexpected behavior, decide before continuing:
 | UI shows the wrong state after a save                  | App bug — missing invalidation / stale cache | Fix in source                        |
 | Console error on page load                             | App bug                                      | Fix in source                        |
 
+Use the finding patterns from `docs/qa/findings.md` when logging app bugs. Every confirmed app bug needs a finding entry unless it is fixed immediately and fully covered by a focused test in the same change.
+
 Don't queue app bugs for later — fixing mid-walk is the whole point. Each fix gets a real commit; don't mash them into one.
+
+### Silent action checklist
+
+For every visible save, submit, delete, assign, invite, upload, import, or checkout action:
+
+1. Confirm the click reaches the intended handler.
+2. Trace every early `return` before the mutation or navigation.
+3. Confirm each blocked path shows visible validation, disabled-state explanation, or user feedback.
+4. Confirm loading, success, and failure states are visible and calm.
+5. Confirm React Query/Zustand invalidation or local state update makes the saved result visible without reload.
+6. Check console and network output for swallowed errors, 4xx/5xx responses, and RLS/UI mismatches.
+7. Log durable issues in `docs/qa/findings.md` with the reusable template.
 
 ### Step 4 — Fix root causes, not symptoms
 
@@ -128,6 +149,9 @@ For permission logic that lives in a hook: extract a pure helper (e.g. `computeX
 
 Target file: `apps/myk9show/src/test/e2e/entities/<area>UI.spec.ts`. Conventions (match the pattern from `clubsUI.spec.ts` shipped in PR #88):
 
+- Check `docs/qa/e2e-suite-map.md` first. If a relevant spec exists, extend it instead of creating a duplicate.
+- Any new or changed Playwright spec must have a suite category: `pr-smoke`, `nightly`, `feature-audit`, `manual-debug`, or `candidate-delete`.
+- Most feature-walk specs should be `feature-audit` until proven fast and stable enough for `pr-smoke`.
 - Define local `signIn(page, email, password)` plus thin `signInAs<Role>(page)` wrappers near the top of the spec, importing credentials (`SECRETARY_EMAIL`, `ADMIN_EMAIL`, etc.) from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`. Do **not** invent a `TestSetup.signIn(role)` — no such helper exists today.
 - Sign in inside each `test()` (or in a `test.beforeEach`), not `test.beforeAll`. Playwright's parallel workers each get a fresh page; `beforeAll` doesn't share auth across them. The clubs spec sign-ins per test for this reason.
 - One `describe` per UI surface (Browse, Create, Detail, Edit, Delete)
@@ -171,7 +195,9 @@ A successful run produces:
 2. Zero or more sibling `*.test.ts` for extracted pure helpers
 3. Zero or more source-code fixes for app bugs found during the walk (each its own commit when feasible)
 4. Zero or one new RLS migration (if a real policy gap was found)
-5. A PR description that lists: bugs found, files touched, migration number (if any), and a checkbox for the user to apply the migration to staging
+5. Finding entries in `docs/qa/findings.md` for confirmed durable issues, with proof commands filled in before closing
+6. An updated `docs/qa/e2e-suite-map.md` entry for any new, renamed, or reclassified spec
+7. A PR description that lists: bugs found, files touched, migration number (if any), suite category, and a checkbox for the user to apply the migration to staging
 
 ## Rules
 

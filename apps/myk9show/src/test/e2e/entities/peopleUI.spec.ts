@@ -277,8 +277,7 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     // reliably here because Owner is now pre-filled with the person name and
     // Base UI's combobox descendant text picks up extra placeholder fragments.
     await page.getByRole('combobox').first().click();
-    const femaleOption = page.getByRole('option', { name: /Female/ }).filter({ visible: true });
-    await femaleOption.waitFor({ state: 'visible' });
+    const femaleOption = page.locator('[role="option"]:visible').filter({ hasText: /Female/ });
     await femaleOption.click();
 
     // Date of Birth
@@ -294,7 +293,9 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     ]);
     expect(resp.ok()).toBe(true);
 
-    // Person profile updates to show 1 registered dog (right-sidebar counter).
+    // Person profile updates to show 1 registered dog. The phrase appears in
+    // both the sidebar association card and main tab content, so assert that
+    // at least one visible count updated instead of requiring unique text.
     await expect(page.getByText(/1 registered dog/).first()).toBeVisible({ timeout: 10000 });
     // The full associated-dogs list lives in the main content tabs; it's
     // backed by the offline-first dog store and may take a beat to refresh

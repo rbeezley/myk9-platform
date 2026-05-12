@@ -159,6 +159,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## People & Clubs CRUD
 
+- [ ] **Automate admin People CRUD coverage** — Secretary People CRUD has focused E2E coverage, and the site-admin lifecycle was verified manually on 2026-05-11. Add an automated admin-role People CRUD pass once a non-personal site-admin test credential can be stored in the E2E fixture/secrets path.
 - [ ] **Clubs full CRUD audit** — Walk create, read, update, delete, list, detail as site admin; capture console/network errors. Files: `apps/myk9show/src/pages/clubs/`. Full context in TO-DOS.md § "Clubs Full CRUD Audit and Fix — 2026-04-25".
 
 ## Payments & Email

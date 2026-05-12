@@ -31,7 +31,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await signInAsSecretary(page);
   });
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async (_, testInfo) => {
     const seed = seedByTest.get(testInfo.testId) ?? null;
     await cleanupSecretaryEntry(testInfo, seed);
 

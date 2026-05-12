@@ -1,16 +1,14 @@
 import React, { lazy, Suspense, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
-import { DogEditPanelSkeleton, DeleteDialogSkeleton, PhotoDialogSkeleton } from './Skeletons';
+import { DogEditPanelSkeleton, PhotoDialogSkeleton } from './Skeletons';
+import { DeleteDogDialog } from '@/components/dogs/common/DeleteDogDialog';
 import { convertDogToDogInput, CELEBRATION_DURATION_MS, CELEBRATION_FADE_DELAY_MS } from './utils';
 import type { DogDialogsProps } from './types';
 
 // Lazy load heavy components
 const DogEditPanel = lazy(() =>
   import('@/components/panels/edit/DogEditPanel').then(m => ({ default: m.DogEditPanel }))
-);
-const DeleteDogDialog = lazy(() =>
-  import('@/components/dogs/common/DeleteDogDialog').then(m => ({ default: m.DeleteDogDialog }))
 );
 const PhotoDialog = lazy(() => import('@/components/common/PhotoDialog'));
 
@@ -127,18 +125,16 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
       </Suspense>
 
       {isDeleteDialogOpen && (
-        <Suspense fallback={<DeleteDialogSkeleton />}>
-          <DeleteDogDialog
-            open={isDeleteDialogOpen}
-            onClose={onDeleteDialogClose}
-            onDelete={async () => {
-              await onDelete?.();
-              onDeleteDialogClose();
-            }}
-            dog={dog}
-            isSubmitting={isDeleting ?? false}
-          />
-        </Suspense>
+        <DeleteDogDialog
+          open={isDeleteDialogOpen}
+          onClose={onDeleteDialogClose}
+          onDelete={async () => {
+            await onDelete?.();
+            onDeleteDialogClose();
+          }}
+          dog={dog}
+          isSubmitting={isDeleting ?? false}
+        />
       )}
 
       {/* Edit Photo Dialog with Personal Touch */}

@@ -33,7 +33,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   onUpdate,
   isDeleting,
 }) => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const people = useUserStore(state => state.people);
   const { getUserRoles } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
@@ -41,6 +41,15 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const { isPremium } = useSubscriptionGate();
 
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
+
+  const openAddRegistration = () => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', 'registrations');
+      return next;
+    });
+    setAutoOpenAddRegistration(true);
+  };
 
   useEffect(() => {
     const shouldAddRegistration = searchParams.get('addRegistration') === 'true';
@@ -197,7 +206,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
       <RegistrationsCard
         dog={updatedDog}
         registrationsCount={liveRegistrationsCount}
-        onAddRegistration={() => setAutoOpenAddRegistration(true)}
+        registrations={dbRegistrations}
+        onAddRegistration={openAddRegistration}
       />
     </>
   ) : (
@@ -212,7 +222,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
       <RegistrationsCard
         dog={updatedDog}
         registrationsCount={liveRegistrationsCount}
-        onAddRegistration={() => setAutoOpenAddRegistration(true)}
+        registrations={dbRegistrations}
+        onAddRegistration={openAddRegistration}
       />
     </>
   );
@@ -238,6 +249,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
           <DogDetailsTabs
             dog={updatedDog}
             autoOpenAddRegistration={autoOpenAddRegistration}
+            registrationsCount={liveRegistrationsCount}
             role={isSecretary ? 'secretary' : 'exhibitor'}
           />
         }

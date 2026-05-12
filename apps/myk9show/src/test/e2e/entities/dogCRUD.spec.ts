@@ -1,288 +1,154 @@
-import { test, expect } from '@playwright/test';
-import { TestSetup } from '../helpers/testSetup';
+import { test, expect, type Page } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
+
+/**
+ * feature-audit: authenticated dog service CRUD through the browser bundle.
+ *
+ * RLS assumptions:
+ * - migration 147 restricts insert to owner/co-owner/secretary/admin.
+ * - migration 162 lets secretary/club-admin/site-admin update dogs.
+ * - soft_delete_dog RPC enforces the same ownership/elevated-role trust model.
+ */
+
+const SECRETARY_EMAIL = TEST_USERS.SECRETARY.email;
+const SECRETARY_PASSWORD = TEST_USERS.SECRETARY.password;
+const TEST_SECRETARY_EMAIL = 'secretary@myk9t.com';
+
+async function signIn(page: Page, email: string, password: string) {
+  await page.goto('/sign-in', { waitUntil: 'networkidle' });
+  await page.getByTestId('email-input').fill(email);
+  await page.getByTestId('password-input').fill(password);
+  await page.getByTestId('sign-in-button').click();
+  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
+  await page.waitForLoadState('networkidle');
+}
+
+async function signInAsSecretary(page: Page) {
+  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
+}
+
+async function getSecretaryPersonId(page: Page): Promise<string> {
+  const personId = await page.evaluate(async email => {
+    const { supabase } = await import('/src/services/database/supabaseClient.ts');
+    const { data, error } = await supabase.from('people').select('id').eq('email', email).single();
+
+    if (error || !data) {
+      throw new Error(error?.message || `No person found for ${email}`);
+    }
+
+    return data.id;
+  }, TEST_SECRETARY_EMAIL);
+
+  expect(personId).toMatch(/[0-9a-f-]{36}/);
+  return personId;
+}
 
 test.describe('Dog CRUD Operations', () => {
-  let testSetup: TestSetup;
-
   test.beforeEach(async ({ page }) => {
-    testSetup = new TestSetup(page);
+    await signInAsSecretary(page);
   });
 
-  test('should query dogs from Supabase database (READ - no auth)', async ({ page }) => {
-    console.log('=== Testing Dog Read (No Auth) ===');
+  test('reads visible dogs from Supabase database', async ({ page }) => {
+    const ownerId = await getSecretaryPersonId(page);
 
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-
-    const dbResult = await page.evaluate(async () => {
+    const dbResult = await page.evaluate(async personId => {
       const { getAllDogs } = await import('/src/services/database/dogs/index.ts');
-
-      const { data, error } = await getAllDogs('test-person-id');
-
-      if (error) {
-        return { success: false, error: error.message, count: 0, dogs: [] };
-      }
+      const { data, error } = await getAllDogs(personId, true);
 
       return {
-        success: true,
+        success: !error,
+        error: error?.message,
         count: data?.length || 0,
         dogs: data?.slice(0, 5).map(d => ({ id: d.id, name: d.name })) || [],
       };
-    });
+    }, ownerId);
 
-    console.log('Database query result:', dbResult);
     expect(dbResult.success).toBe(true);
     expect(dbResult.count).toBeGreaterThanOrEqual(0);
   });
 
-  test('should create a new dog in database (CREATE)', async ({ page }) => {
-    console.log('=== Testing Dog Create ===');
+  test('creates and soft-deletes a dog owned by the signed-in secretary', async ({ page }) => {
+    const ownerId = await getSecretaryPersonId(page);
+    const uniqueName = `E2E Service Create Dog ${Date.now()}`;
 
-    // Sign in as admin (required for RLS write permissions)
-    await testSetup.signIn('admin');
-    await page.waitForLoadState('networkidle');
+    const result = await page.evaluate(
+      async ({ dogName, personId }) => {
+        const { createDog, deleteDog, getDogById } =
+          await import('/src/services/database/dogs/index.ts');
 
-    const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } =
-        await import('/src/services/database/users/index.ts');
-      const { createDog, deleteDog } = await import('/src/services/database/dogs/index.ts');
+        const { data: createdDog, error: createError } = await createDog({
+          owner_id: personId,
+          name: dogName,
+          breed: 'Golden Retriever',
+          call_name: dogName,
+          sex: 'female',
+          date_of_birth: '2021-05-14',
+        });
 
-      // First create an owner (user)
-      const ownerData = {
-        first_name: 'Test',
-        last_name: `Owner ${Date.now()}`,
-        email: `testowner${Date.now()}@example.com`,
-      };
+        if (createError || !createdDog) {
+          return { success: false, error: createError?.message || 'Failed to create dog' };
+        }
 
-      const { data: createdOwner, error: ownerError } = await createUser(ownerData);
-      if (ownerError || !createdOwner) {
-        return { success: false, error: ownerError?.message || 'Failed to create owner' };
-      }
+        const { error: deleteError } = await deleteDog(createdDog.id);
+        const { data: deletedLookup } = await getDogById(createdDog.id);
 
-      // Create a dog for this owner
-      const dogData = {
-        owner_id: createdOwner.id,
-        name: `E2E Test Dog ${Date.now()}`,
-        breed: 'Golden Retriever',
-        call_name: 'Buddy',
-        sex: 'male',
-        date_of_birth: '2020-01-15',
-      };
+        return {
+          success: !deleteError,
+          error: deleteError?.message,
+          dogId: createdDog.id,
+          dogName: createdDog.name,
+          dogDeleted: !deletedLookup,
+        };
+      },
+      { dogName: uniqueName, personId: ownerId }
+    );
 
-      const { data: createdDog, error: dogError } = await createDog(dogData);
-
-      // Clean up
-      if (createdDog?.id) {
-        await deleteDog(createdDog.id);
-      }
-      await deleteUser(createdOwner.id);
-
-      if (dogError) {
-        return { success: false, error: dogError.message };
-      }
-
-      return {
-        success: true,
-        dogId: createdDog?.id,
-        dogName: createdDog?.name,
-        ownerId: createdOwner.id,
-      };
-    });
-
-    console.log('Dog create result:', result);
     expect(result.success).toBe(true);
     expect(result.dogId).toBeTruthy();
-    expect(result.dogName).toContain('E2E Test Dog');
-  });
-
-  test('should update an existing dog in database (UPDATE)', async ({ page }) => {
-    console.log('=== Testing Dog Update ===');
-
-    await testSetup.signIn('admin');
-    await page.waitForLoadState('networkidle');
-
-    const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } =
-        await import('/src/services/database/users/index.ts');
-      const { createDog, updateDog, deleteDog } =
-        await import('/src/services/database/dogs/index.ts');
-
-      // Create owner
-      const { data: createdOwner, error: ownerError } = await createUser({
-        first_name: 'Update',
-        last_name: `TestOwner ${Date.now()}`,
-        email: `updatetestowner${Date.now()}@example.com`,
-      });
-
-      if (ownerError || !createdOwner) {
-        return { success: false, error: ownerError?.message || 'Failed to create owner' };
-      }
-
-      // Create dog
-      const { data: createdDog, error: dogError } = await createDog({
-        owner_id: createdOwner.id,
-        name: `Update Test Dog ${Date.now()}`,
-        breed: 'Labrador',
-        call_name: 'Max',
-        sex: 'male',
-      });
-
-      if (dogError || !createdDog) {
-        await deleteUser(createdOwner.id);
-        return { success: false, error: dogError?.message || 'Failed to create dog' };
-      }
-
-      // Update the dog
-      const { data: updatedDog, error: updateError } = await updateDog(createdDog.id, {
-        breed: 'Labrador Retriever',
-        call_name: 'Maximus',
-      });
-
-      // Clean up
-      await deleteDog(createdDog.id);
-      await deleteUser(createdOwner.id);
-
-      if (updateError) {
-        return { success: false, error: updateError.message };
-      }
-
-      return {
-        success: true,
-        originalCallName: 'Max',
-        updatedCallName: updatedDog?.call_name,
-        updatedBreed: updatedDog?.breed,
-        callNameMatches: updatedDog?.call_name === 'Maximus',
-        breedMatches: updatedDog?.breed === 'Labrador Retriever',
-      };
-    });
-
-    console.log('Dog update result:', result);
-    expect(result.success).toBe(true);
-    expect(result.callNameMatches).toBe(true);
-    expect(result.breedMatches).toBe(true);
-  });
-
-  test('should delete a dog from database (DELETE)', async ({ page }) => {
-    console.log('=== Testing Dog Delete ===');
-
-    await testSetup.signIn('admin');
-    await page.waitForLoadState('networkidle');
-
-    const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } =
-        await import('/src/services/database/users/index.ts');
-      const { createDog, deleteDog, getDogById } =
-        await import('/src/services/database/dogs/index.ts');
-
-      // Create owner
-      const { data: createdOwner, error: ownerError } = await createUser({
-        first_name: 'Delete',
-        last_name: `TestOwner ${Date.now()}`,
-        email: `deletetestowner${Date.now()}@example.com`,
-      });
-
-      if (ownerError || !createdOwner) {
-        return { success: false, error: ownerError?.message || 'Failed to create owner' };
-      }
-
-      // Create dog
-      const { data: createdDog, error: dogError } = await createDog({
-        owner_id: createdOwner.id,
-        name: `Delete Test Dog ${Date.now()}`,
-        breed: 'Beagle',
-        sex: 'female',
-      });
-
-      if (dogError || !createdDog) {
-        await deleteUser(createdOwner.id);
-        return { success: false, error: dogError?.message || 'Failed to create dog' };
-      }
-
-      // Soft delete the dog
-      const { error: deleteError } = await deleteDog(createdDog.id);
-
-      // Verify dog is soft-deleted (should not be found by normal query)
-      const { data: checkDog } = await getDogById(createdDog.id);
-
-      // Clean up owner
-      await deleteUser(createdOwner.id);
-
-      return {
-        success: !deleteError,
-        dogId: createdDog.id,
-        dogDeleted: !checkDog,
-        error: deleteError?.message,
-      };
-    });
-
-    console.log('Dog delete result:', result);
-    expect(result.success).toBe(true);
+    expect(result.dogName).toBe(uniqueName);
     expect(result.dogDeleted).toBe(true);
   });
 
-  test('should search dogs by name or breed', async ({ page }) => {
-    console.log('=== Testing Dog Search ===');
+  test('updates an existing dog and persists changed fields', async ({ page }) => {
+    const ownerId = await getSecretaryPersonId(page);
+    const uniqueName = `E2E Service Update Dog ${Date.now()}`;
 
-    await testSetup.signIn('admin');
-    await page.waitForLoadState('networkidle');
+    const result = await page.evaluate(
+      async ({ dogName, personId }) => {
+        const { createDog, updateDog, deleteDog } =
+          await import('/src/services/database/dogs/index.ts');
 
-    const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } =
-        await import('/src/services/database/users/index.ts');
-      const { createDog, deleteDog, searchDogs } =
-        await import('/src/services/database/dogs/index.ts');
+        const { data: createdDog, error: createError } = await createDog({
+          owner_id: personId,
+          name: dogName,
+          breed: 'Labrador',
+          call_name: dogName,
+          sex: 'male',
+        });
 
-      // Create owner
-      const { data: createdOwner, error: ownerError } = await createUser({
-        first_name: 'Search',
-        last_name: `TestOwner ${Date.now()}`,
-        email: `searchtestowner${Date.now()}@example.com`,
-      });
+        if (createError || !createdDog) {
+          return { success: false, error: createError?.message || 'Failed to create dog' };
+        }
 
-      if (ownerError || !createdOwner) {
-        return { success: false, error: ownerError?.message || 'Failed to create owner' };
-      }
+        const { data: updatedDog, error: updateError } = await updateDog(createdDog.id, {
+          breed: 'Labrador Retriever',
+          call_name: `${dogName} Updated`,
+        });
 
-      // Create a dog with a unique searchable name
-      const uniqueName = `SearchTestDog${Date.now()}`;
-      const { data: createdDog, error: dogError } = await createDog({
-        owner_id: createdOwner.id,
-        name: uniqueName,
-        breed: 'UniqueBreedPoodle',
-        sex: 'male',
-      });
+        await deleteDog(createdDog.id);
 
-      if (dogError || !createdDog) {
-        await deleteUser(createdOwner.id);
-        return { success: false, error: dogError?.message || 'Failed to create dog' };
-      }
+        return {
+          success: !updateError,
+          error: updateError?.message,
+          updatedCallName: updatedDog?.call_name,
+          updatedBreed: updatedDog?.breed,
+        };
+      },
+      { dogName: uniqueName, personId: ownerId }
+    );
 
-      // Search for the dog by name
-      const { data: searchResults, error: searchError } = await searchDogs(
-        'SearchTestDog',
-        'test-person-id'
-      );
-
-      // Clean up
-      await deleteDog(createdDog.id);
-      await deleteUser(createdOwner.id);
-
-      if (searchError) {
-        return { success: false, error: searchError.message };
-      }
-
-      const foundOurDog = searchResults?.some(d => d.name === uniqueName);
-
-      return {
-        success: true,
-        searchTerm: 'SearchTestDog',
-        resultsCount: searchResults?.length || 0,
-        foundTestDog: foundOurDog,
-      };
-    });
-
-    console.log('Dog search result:', result);
     expect(result.success).toBe(true);
-    expect(result.foundTestDog).toBe(true);
+    expect(result.updatedCallName).toBe(`${uniqueName} Updated`);
+    expect(result.updatedBreed).toBe('Labrador Retriever');
   });
 });

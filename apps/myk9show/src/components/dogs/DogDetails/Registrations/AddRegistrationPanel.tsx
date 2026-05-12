@@ -92,32 +92,30 @@ function RegistrationFormFields() {
             required
             error={form.getError('organization')}
           >
-            <Select value={formData.organization} onValueChange={handleOrganizationChange}>
-              <SelectTrigger id="organization" {...form.getFieldProps('organization')}>
-                <SelectValue placeholder="Select organization" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AKC (American Kennel Club)">
-                  AKC (American Kennel Club)
-                </SelectItem>
-                <SelectItem value="UKC (United Kennel Club)">UKC (United Kennel Club)</SelectItem>
-                <SelectItem value="CKC (Canadian Kennel Club)">
-                  CKC (Canadian Kennel Club)
-                </SelectItem>
-                <SelectItem value="FCI (Fédération Cynologique Internationale)">
-                  FCI (Fédération Cynologique Internationale)
-                </SelectItem>
-                <SelectItem value="KC (The Kennel Club UK)">KC (The Kennel Club UK)</SelectItem>
-                <SelectItem value="ILP (Indefinite Listing Privilege)">
-                  ILP (Indefinite Listing Privilege)
-                </SelectItem>
-                <SelectItem value="PAL (Purebred Alternative Listing)">
-                  PAL (Purebred Alternative Listing)
-                </SelectItem>
-                <SelectItem value="Mixed Breed">Mixed Breed</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              id="organization"
+              value={formData.organization}
+              onChange={e => handleOrganizationChange(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-[var(--dialog-input-bg)] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              {...form.getFieldProps('organization')}
+            >
+              <option value="">Select organization</option>
+              <option value="AKC (American Kennel Club)">AKC (American Kennel Club)</option>
+              <option value="UKC (United Kennel Club)">UKC (United Kennel Club)</option>
+              <option value="CKC (Canadian Kennel Club)">CKC (Canadian Kennel Club)</option>
+              <option value="FCI (Fédération Cynologique Internationale)">
+                FCI (Fédération Cynologique Internationale)
+              </option>
+              <option value="KC (The Kennel Club UK)">KC (The Kennel Club UK)</option>
+              <option value="ILP (Indefinite Listing Privilege)">
+                ILP (Indefinite Listing Privilege)
+              </option>
+              <option value="PAL (Purebred Alternative Listing)">
+                PAL (Purebred Alternative Listing)
+              </option>
+              <option value="Mixed Breed">Mixed Breed</option>
+              <option value="Other">Other</option>
+            </select>
           </FormField>
 
           {/* Registered Name */}
@@ -140,26 +138,23 @@ function RegistrationFormFields() {
           {/* Breed and Variety */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Breed" fieldId="breed" required error={form.getError('breed')}>
-              <Select
+              <select
+                id="breed"
                 value={formData.breed}
-                onValueChange={handleBreedChange}
+                onChange={e => handleBreedChange(e.target.value)}
                 disabled={!formData.organization}
+                className="flex h-9 w-full rounded-md border border-input bg-[var(--dialog-input-bg)] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                {...form.getFieldProps('breed')}
               >
-                <SelectTrigger id="breed" {...form.getFieldProps('breed')}>
-                  <SelectValue
-                    placeholder={
-                      formData.organization ? 'Select breed' : 'Select organization first'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {availableBreeds.map(breed => (
-                    <SelectItem key={breed} value={breed}>
-                      {breed}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">
+                  {formData.organization ? 'Select breed' : 'Select organization first'}
+                </option>
+                {availableBreeds.map(breed => (
+                  <option key={breed} value={breed}>
+                    {breed}
+                  </option>
+                ))}
+              </select>
             </FormField>
 
             <FormField label="Variety" fieldId="variety">
@@ -212,23 +207,21 @@ function RegistrationFormFields() {
             </FormField>
 
             <FormField label="Status" fieldId="status" required error={form.getError('status')}>
-              <Select
+              <select
+                id="status"
                 value={formData.status}
-                onValueChange={value => {
-                  form.setValue('status', value);
+                onChange={e => {
+                  form.setValue('status', e.target.value);
                   form.touchField('status');
                 }}
+                className="flex h-9 w-full rounded-md border border-input bg-[var(--dialog-input-bg)] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                {...form.getFieldProps('status')}
               >
-                <SelectTrigger id="status" {...form.getFieldProps('status')}>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Expired">Expired</SelectItem>
-                  <SelectItem value="Under review">Under review</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Expired">Expired</option>
+                <option value="Under review">Under review</option>
+              </select>
             </FormField>
           </div>
 

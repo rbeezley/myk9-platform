@@ -13,7 +13,6 @@ import {
   getDogStatistics,
 } from '@/services/database/dogs';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { invalidateQueries } from '@/services/database/queryClient';
 import { mapDatabaseToDog, mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
@@ -148,8 +147,8 @@ export const useCreateDogMutation = () => {
       }
     },
     onSuccess: (_data, variables) => {
-      // Invalidate and refetch
-      invalidateQueries.all('dogs');
+      // Invalidate and refetch all dog list variants, including role-scoped keys.
+      queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
 
       // If dog has owner, invalidate owner's dogs
       if (variables.owner_id) {
@@ -211,7 +210,7 @@ export const useUpdateDogMutation = () => {
       }
 
       // Invalidate dogs list to ensure consistency
-      invalidateQueries.all('dogs');
+      queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
 
       // If owner changed, invalidate both old and new owner dogs
       if (data?.owner_id) {
@@ -238,30 +237,31 @@ export const useDeleteDogMutation = () => {
       await queryClient.cancelQueries({ queryKey: queryKeys.dogs });
 
       // Snapshot the previous value
-      const previousDogs = queryClient.getQueryData(queryKeys.dogs);
+      const previousDogs = queryClient.getQueriesData({ queryKey: queryKeys.dogs });
 
-      // Optimistically update by removing the dog
-      if (previousDogs) {
-        queryClient.setQueryData(queryKeys.dogs, (old: unknown) => {
+      // Optimistically update all role-scoped dog lists by removing the dog.
+      queryClient.setQueriesData({ queryKey: queryKeys.dogs }, (old: unknown) => {
+        if (Array.isArray(old)) {
           const dogs = old as Array<{ id: string }>;
           return dogs.filter(dog => dog.id !== deletedId);
-        });
-      }
+        }
+        return old;
+      });
 
       return { previousDogs };
     },
     onError: (_err, _variables, context) => {
       // If the mutation fails, use the context to roll back
-      if (context?.previousDogs) {
-        queryClient.setQueryData(queryKeys.dogs, context.previousDogs);
-      }
+      context?.previousDogs?.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
     },
     onSuccess: (_data, { id: deletedId }) => {
       // Remove from cache completely
       queryClient.removeQueries({ queryKey: queryKeys.dog(deletedId) });
 
       // Invalidate dogs list
-      invalidateQueries.all('dogs');
+      queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
 
       // Invalidate statistics since count changed
       queryClient.invalidateQueries({ queryKey: ['dogs', 'statistics'] });

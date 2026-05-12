@@ -66,19 +66,6 @@ export const formDataToDog = (formData: DogFormData): Partial<DogType> => {
       registrations = registrations.map((reg, index) =>
         index === 0 ? { ...reg, registeredName: formData.registeredName } : reg
       );
-    } else {
-      // Create a new registration if none exist but user entered a registered name
-      // Use a temporary ID - the database will generate the real one on save
-      registrations = [
-        {
-          id: `temp-${Date.now()}`,
-          organization: 'AKC', // Default organization
-          registeredName: formData.registeredName,
-          registrationNumber: '',
-          breed: '',
-          status: 'pending',
-        },
-      ];
     }
   }
 

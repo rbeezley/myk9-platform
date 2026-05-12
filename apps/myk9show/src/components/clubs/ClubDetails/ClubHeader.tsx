@@ -32,6 +32,7 @@ interface ClubHeaderProps {
   onCoverUpload?: (file: File) => void;
   onCoverRemove?: () => void;
   isUploadingCover?: boolean;
+  canEditClub?: boolean;
   canEditBranding?: boolean;
   canDeleteClub?: boolean;
 }
@@ -44,6 +45,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   onCoverUpload,
   onCoverRemove,
   isUploadingCover = false,
+  canEditClub = false,
   canEditBranding = false,
   canDeleteClub = false,
 }) => {
@@ -71,16 +73,18 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     <div className="mb-10 bg-card border border-border rounded-2xl relative overflow-hidden">
       {/* Actions positioned absolutely in top-right corner (above cover) */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="bg-black/30 hover:bg-black/50 text-white"
-          onClick={onEditClub}
-        >
-          Edit
-        </Button>
+        {canEditClub && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-black/30 hover:bg-black/50 text-white"
+            onClick={onEditClub}
+          >
+            Edit
+          </Button>
+        )}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild nativeButton>
             <Button
               variant="ghost"
               size="icon"
@@ -91,11 +95,15 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEditPhoto}>
-              <Camera className="mr-2 h-4 w-4" />
-              Change Photo
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {canEditBranding && (
+              <>
+                <DropdownMenuItem onClick={onEditPhoto}>
+                  <Camera className="mr-2 h-4 w-4" />
+                  Change Photo
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem onClick={() => window.open(`mailto:${club.email}`, '_self')}>
               <Mail className="mr-2 h-4 w-4" />
               Email Club
@@ -175,16 +183,20 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
             <img
               src={club.logo}
               alt={club.name}
-              className="w-16 h-16 rounded-xl border-[3px] border-card object-cover shadow-lg cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={onEditPhoto}
-              title="Click to edit club logo"
+              className={`w-16 h-16 rounded-xl border-[3px] border-card object-cover shadow-lg transition-opacity ${
+                canEditBranding ? 'cursor-pointer hover:opacity-80' : ''
+              }`}
+              onClick={canEditBranding ? onEditPhoto : undefined}
+              title={canEditBranding ? 'Click to edit club logo' : undefined}
             />
           ) : (
             <div
-              className="w-16 h-16 rounded-xl border-[3px] border-card shadow-lg flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+              className={`w-16 h-16 rounded-xl border-[3px] border-card shadow-lg flex items-center justify-center transition-opacity ${
+                canEditBranding ? 'cursor-pointer hover:opacity-80' : ''
+              }`}
               style={{ backgroundColor: palette?.primaryDark ?? '#1e293b' }}
-              onClick={onEditPhoto}
-              title="Click to add club logo"
+              onClick={canEditBranding ? onEditPhoto : undefined}
+              title={canEditBranding ? 'Click to add club logo' : undefined}
             >
               <span
                 className="text-lg font-bold"

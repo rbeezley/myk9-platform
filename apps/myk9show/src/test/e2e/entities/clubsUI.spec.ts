@@ -13,8 +13,8 @@ import { test, expect, Page } from '@playwright/test';
  *   - Delete only Club C at the end — Club A and Club B remain in the DB
  *     to provide ongoing test data.
  *
- * Auth: secretary@myk9t.com / testpass123
- * RLS: relies on migration 160_clubs_insert_allow_secretary_and_club_admin.
+ * Auth: site admin via E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD.
+ * RLS: create/delete coverage expects a user with the site_admin role.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -24,12 +24,12 @@ const CLUB_A_NAME = `E2E Club A ${RUN_ID}`;
 const CLUB_B_NAME = `E2E Club B ${RUN_ID}`;
 const CLUB_C_NAME = `E2E Club C ${RUN_ID}`;
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
 // Admin credentials come from env (.env / .env.local) so they're not committed.
 // Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD to a user with the site_admin role.
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@myk9t.com';
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
+const EXHIBITOR_EMAIL = 'exhibitor1@myk9t.com';
+const EXHIBITOR_PASSWORD = 'TestPass1234!';
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });
@@ -40,12 +40,19 @@ async function signIn(page: Page, email: string, password: string) {
   await page.waitForLoadState('networkidle');
 }
 
-async function signInAsSecretary(page: Page) {
-  await signIn(page, SECRETARY_EMAIL, SECRETARY_PASSWORD);
-}
-
 async function signInAsAdmin(page: Page) {
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+}
+
+async function signInAsExhibitor(page: Page) {
+  await signIn(page, EXHIBITOR_EMAIL, EXHIBITOR_PASSWORD);
+}
+
+function skipWithoutAdminCredentials() {
+  test.skip(
+    !ADMIN_EMAIL || !ADMIN_PASSWORD,
+    'E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD not set - skipping site-admin Clubs CRUD coverage'
+  );
 }
 
 async function gotoClubsBrowse(page: Page) {
@@ -145,7 +152,8 @@ async function submitCreateClub(page: Page, expectedName: string) {
 
 test.describe('Clubs UI — Browse Page', () => {
   test.beforeEach(async ({ page }) => {
-    await signInAsSecretary(page);
+    skipWithoutAdminCredentials();
+    await signInAsAdmin(page);
   });
 
   test('loads club list with header and toolbar', async ({ page }) => {
@@ -178,7 +186,8 @@ test.describe('Clubs UI — Browse Page', () => {
 
 test.describe('Clubs UI — Create', () => {
   test.beforeEach(async ({ page }) => {
-    await signInAsSecretary(page);
+    skipWithoutAdminCredentials();
+    await signInAsAdmin(page);
   });
 
   test('creates Club A with full Basic Info + Contact', async ({ page }) => {
@@ -271,7 +280,8 @@ test.describe('Clubs UI — Create', () => {
 
 test.describe('Clubs UI — Detail Page (Club A)', () => {
   test.beforeEach(async ({ page }) => {
-    await signInAsSecretary(page);
+    skipWithoutAdminCredentials();
+    await signInAsAdmin(page);
   });
 
   async function openClubA(page: Page) {
@@ -296,21 +306,51 @@ test.describe('Clubs UI — Detail Page (Club A)', () => {
     await page.getByRole('tab', { name: /About/i }).click();
     await expect(page.getByRole('link', { name: 'club-a@e2etest.com' })).toBeVisible();
   });
+
+  test('site admin can edit club description and persist it', async ({ page }) => {
+    await openClubA(page);
+    await page.getByRole('button', { name: 'Edit' }).click();
+    await page
+      .getByRole('textbox', { name: 'Description' })
+      .fill('Club A - updated by site-admin UI audit');
+
+    const updateResponsePromise = page.waitForResponse(
+      response =>
+        response.url().includes('/rest/v1/clubs') &&
+        response.request().method() === 'PATCH' &&
+        response.status() < 400,
+      { timeout: 15000 }
+    );
+
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await updateResponsePromise;
+    await expect(page.getByText('Club updated successfully')).toBeVisible();
+
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('tab', { name: /About/i }).click();
+    await expect(page.getByText('Club A - updated by site-admin UI audit')).toBeVisible();
+  });
 });
 
-test.describe('Clubs UI — Delete permissions (secretary)', () => {
+test.describe('Clubs UI — Non-admin permissions', () => {
   test.beforeEach(async ({ page }) => {
-    await signInAsSecretary(page);
+    skipWithoutAdminCredentials();
+    await signInAsExhibitor(page);
   });
 
-  test('secretary does NOT see Delete Club option (RLS blocks delete)', async ({ page }) => {
-    await gotoClubsBrowse(page);
+  test('exhibitor cannot create, edit branding, or delete clubs', async ({ page }) => {
+    await page.goto('/clubs', { waitUntil: 'networkidle' });
+    await expect(page.getByRole('button', { name: 'Add Club' })).not.toBeVisible();
+
     await page
       .getByRole('link', { name: new RegExp(CLUB_C_NAME) })
       .first()
       .click();
     await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/);
+    await expect(page.getByRole('button', { name: 'Edit' })).not.toBeVisible();
+
     await page.getByRole('button', { name: 'Club options' }).click();
+    await expect(page.getByRole('menuitem', { name: /Change Photo/i })).not.toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Delete Club/i })).not.toBeVisible();
   });
 });
@@ -319,10 +359,7 @@ test.describe('Clubs UI — Delete (only Club C, as platform admin)', () => {
   // Override beforeEach: site admin is the only role allowed to delete clubs
   // (matches the clubs_delete RLS policy at supabase/migrations/016).
   test.beforeEach(async ({ page }) => {
-    test.skip(
-      !ADMIN_EMAIL || !ADMIN_PASSWORD,
-      'E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD not set — skipping admin-only delete tests'
-    );
+    skipWithoutAdminCredentials();
     await signInAsAdmin(page);
   });
 

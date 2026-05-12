@@ -10,6 +10,7 @@ describe('computeClubPermissions', () => {
         hasManageMembersPermission: false,
       })
     ).toEqual({
+      canEditClub: true,
       canManageMembers: false,
       canEditBranding: true,
       canDeleteClub: true,
@@ -24,6 +25,7 @@ describe('computeClubPermissions', () => {
         hasManageMembersPermission: false,
       })
     ).toEqual({
+      canEditClub: true,
       canManageMembers: true,
       canEditBranding: true,
       canDeleteClub: false,
@@ -38,6 +40,7 @@ describe('computeClubPermissions', () => {
         hasManageMembersPermission: true,
       })
     ).toEqual({
+      canEditClub: false,
       canManageMembers: true,
       canEditBranding: false,
       canDeleteClub: false,
@@ -52,6 +55,7 @@ describe('computeClubPermissions', () => {
         hasManageMembersPermission: false,
       })
     ).toEqual({
+      canEditClub: false,
       canManageMembers: false,
       canEditBranding: false,
       canDeleteClub: false,

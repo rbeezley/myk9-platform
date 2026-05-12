@@ -373,10 +373,14 @@ export class MutationManager {
         this.notifyUserOfSyncFailure(failedMutations);
       }
 
-      // Fire-and-forget so upload completion isn't blocked by the debounced backup.
-      this.backupMutationsToLocalStorage().catch(err => {
+      // Persist the post-upload queue immediately. A debounced backup here can
+      // leave localStorage holding already-uploaded mutations if the page
+      // navigates before the timer fires, causing duplicate replays on restore.
+      try {
+        await this.writeCurrentMutationsBackup();
+      } catch (err) {
         this.logger.warn('[MutationManager] Post-upload backup failed:', err);
-      });
+      }
 
       // Self-schedule a retry pass so backoff-skipped mutations don't sit idle
       // when no other activity triggers the upload debounce timer.
@@ -642,6 +646,25 @@ export class MutationManager {
         }
       }, BACKUP_DEBOUNCE_MS);
     });
+  }
+
+  /**
+   * Write the current IndexedDB mutation queue to localStorage immediately.
+   * Used after uploads, where stale backups are more dangerous than write
+   * coalescing.
+   */
+  private async writeCurrentMutationsBackup(): Promise<void> {
+    if (typeof window === 'undefined') return;
+
+    const db = await databaseManager.getDatabase('MutationManager');
+    const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+
+    if (pending.length > 0) {
+      localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(pending));
+      this.logger.log(`[MutationManager] Backed up ${pending.length} mutations to localStorage`);
+    } else {
+      localStorage.removeItem(BACKUP_STORAGE_KEY);
+    }
   }
 
   /**

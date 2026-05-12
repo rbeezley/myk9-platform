@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { Button } from '../button';
 import { getNativeButtonProp, isNativeButtonElement } from '../base-ui-native-button';
 
 function CustomButton() {
@@ -20,6 +21,13 @@ describe('base-ui-native-button helpers', () => {
 
     expect(isNativeButtonElement(wrappedButton)).toBe(false);
     expect(getNativeButtonProp(wrappedButton, undefined)).toBe(false);
+  });
+
+  it('detects the shared Button component as a native button wrapper', () => {
+    const button = <Button type="button">Save</Button>;
+
+    expect(isNativeButtonElement(button)).toBe(true);
+    expect(getNativeButtonProp(button, undefined)).toBe(true);
   });
 
   it('preserves an explicit native button override', () => {

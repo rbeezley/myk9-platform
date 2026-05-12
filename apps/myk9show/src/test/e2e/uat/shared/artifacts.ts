@@ -21,7 +21,9 @@ export function createBrowserHealth(): BrowserHealth {
 export function watchBrowserHealth(page: Page, health: BrowserHealth) {
   page.on('console', msg => {
     if (msg.type() === 'error') {
-      health.consoleErrors.push(msg.text());
+      const location = msg.location();
+      const source = location.url ? ` (${location.url}:${location.lineNumber})` : '';
+      health.consoleErrors.push(`${msg.text()}${source}`);
     }
   });
 

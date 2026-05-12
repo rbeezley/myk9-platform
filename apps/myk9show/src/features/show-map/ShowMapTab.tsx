@@ -82,7 +82,7 @@ export default function ShowMapTab({
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
 
   if (!canManageShow) {
-    return <ErrorState message="We couldn't load this map." />;
+    return <ErrorState message="Map is only available to show staff." />;
   }
 
   if (trials.length === 0) {
@@ -133,6 +133,7 @@ export default function ShowMapTab({
         onZoomOut={() => controls?.zoomOut()}
         onCollapseAll={collapseAll}
         onExpandTrials={expandTrials}
+        graphControlsReady={controls !== null}
       />
       <div className="flex justify-end border-b p-3">
         <Button type="button" variant="outline" size="sm" onClick={() => setShowList(v => !v)}>

@@ -29,6 +29,26 @@ describe('showMapStatus', () => {
     expect(hasEntryAttention(entry)).toBe(true);
   });
 
+  it.each([
+    [
+      'conflict beats scored completion',
+      { entry_status: 'accepted', check_in_status: 'conflict', is_scored: true },
+      'Needs attention',
+    ],
+    [
+      'scratch beats scored completion',
+      { entry_status: 'scratch', check_in_status: 'completed', is_scored: true },
+      'Scratch',
+    ],
+    [
+      'completed beats in-ring timing',
+      { entry_status: 'accepted', check_in_status: 'in-ring', is_scored: true },
+      'Complete',
+    ],
+  ])('applies precedence: %s', (_name, entry, expectedLabel) => {
+    expect(classifyEntryRunStatus(entry)?.label).toBe(expectedLabel);
+  });
+
   it('maps backed check-in gate states', () => {
     expect(classifyEntryCheckInStatus({ check_in_status: 'come-to-gate' })?.label).toBe(
       'Called to gate'

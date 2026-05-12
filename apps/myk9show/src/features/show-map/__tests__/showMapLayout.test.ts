@@ -49,4 +49,40 @@ describe('showMapLayout', () => {
 
     expect(first.nodes.map(node => node.position)).toEqual(second.nodes.map(node => node.position));
   });
+
+  it('keeps matching descendants with their parent context when filtering', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        { id: 'class-1', trialId: 'trial-1', name: 'Interior Novice', status: 'Scheduled' },
+        { id: 'class-2', trialId: 'trial-1', name: 'Exterior Novice', status: 'Scheduled' },
+      ],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-1',
+          entry_status: 'accepted',
+          check_in_status: 'conflict',
+          dog: { call_name: 'Bella' },
+        },
+      ],
+    });
+
+    const expanded = getInitialExpandedNodeIds(tree);
+    expanded.add('class:class-1');
+    const layout = buildShowMapLayout(tree, expanded, {
+      filter: 'needs-attention',
+      onToggle: vi.fn(),
+    });
+
+    expect(layout.nodes.map(node => node.id)).toEqual([
+      'show:show-1',
+      'trial:trial-1',
+      'class:class-1',
+      'entry:entry-1',
+    ]);
+    expect(layout.nodes.some(node => node.id === 'class:class-2')).toBe(false);
+    expect(layout.nodes.find(node => node.id === 'entry:entry-1')?.data.isFilteredOut).toBe(false);
+  });
 });

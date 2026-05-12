@@ -94,6 +94,6 @@ describe('ShowMapTab', () => {
     );
 
     expect(screen.queryByTestId('map-canvas')).not.toBeInTheDocument();
-    expect(screen.getByText(/we couldn't load this map/i)).toBeInTheDocument();
+    expect(screen.getByText(/map is only available to show staff/i)).toBeInTheDocument();
   });
 });

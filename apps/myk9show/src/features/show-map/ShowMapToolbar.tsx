@@ -16,6 +16,7 @@ interface ShowMapToolbarProps {
   onZoomOut: () => void;
   onCollapseAll: () => void;
   onExpandTrials: () => void;
+  graphControlsReady: boolean;
 }
 
 const filters: Array<{ value: ShowMapFilter; label: string }> = [
@@ -29,10 +30,12 @@ function IconButton({
   label,
   children,
   onClick,
+  disabled,
 }: {
   label: string;
   children: React.ReactNode;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Tooltip>
@@ -44,6 +47,7 @@ function IconButton({
           className="h-11 w-11"
           aria-label={label}
           onClick={onClick}
+          disabled={disabled}
         >
           {children}
         </Button>
@@ -61,6 +65,7 @@ export function ShowMapToolbar({
   onZoomOut,
   onCollapseAll,
   onExpandTrials,
+  graphControlsReady,
 }: ShowMapToolbarProps) {
   return (
     <TooltipProvider>
@@ -81,13 +86,13 @@ export function ShowMapToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <IconButton label="Fit view" onClick={onFitView}>
+          <IconButton label="Fit view" onClick={onFitView} disabled={!graphControlsReady}>
             <Maximize2 className="h-4 w-4" />
           </IconButton>
-          <IconButton label="Zoom in" onClick={onZoomIn}>
+          <IconButton label="Zoom in" onClick={onZoomIn} disabled={!graphControlsReady}>
             <Plus className="h-4 w-4" />
           </IconButton>
-          <IconButton label="Zoom out" onClick={onZoomOut}>
+          <IconButton label="Zoom out" onClick={onZoomOut} disabled={!graphControlsReady}>
             <Minus className="h-4 w-4" />
           </IconButton>
           <IconButton label="Collapse all" onClick={onCollapseAll}>

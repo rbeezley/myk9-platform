@@ -71,9 +71,11 @@ function ShowMapNodeComponent({ data }: NodeProps) {
           type="button"
           disabled={!node.href}
           onClick={() => node.href && onNavigate?.(node.href)}
+          title={node.href ? undefined : 'No detail page available'}
           className={cn(
             'min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none',
-            'focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default'
+            'focus-visible:ring-2 focus-visible:ring-ring',
+            node.href ? 'cursor-pointer' : 'cursor-default'
           )}
         >
           <span className="block truncate text-sm font-semibold leading-5">{node.label}</span>

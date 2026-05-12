@@ -47,14 +47,18 @@ function ShowMapCanvasInner({
       }),
     [tree, expandedNodeIds, filter, onToggle, onNavigate]
   );
-
-  useEffect(() => {
-    onControlsReady({
+  const controls = useMemo(
+    () => ({
       fitView: () => flow.fitView({ padding: 0.18, duration: 120 }),
       zoomIn: () => flow.zoomIn({ duration: 120 }),
       zoomOut: () => flow.zoomOut({ duration: 120 }),
-    });
-  }, [flow, onControlsReady]);
+    }),
+    [flow]
+  );
+
+  useEffect(() => {
+    onControlsReady(controls);
+  }, [controls, onControlsReady]);
 
   return (
     <div className="h-[620px] min-h-[420px] w-full touch-pan-y bg-muted/20">

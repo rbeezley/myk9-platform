@@ -19,6 +19,7 @@ function nodeMatchesFilter(node: ShowMapNode, filter: ShowMapFilter): boolean {
 }
 
 function descendantsMatch(tree: ShowMapTree, nodeId: string, filter: ShowMapFilter): boolean {
+  // buildShowMapTree creates a parent-child hierarchy with no cross-links.
   const childIds = tree.childIdsByParentId[nodeId] ?? [];
   return childIds.some(childId => {
     const child = tree.nodesById[childId];

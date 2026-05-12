@@ -4,6 +4,12 @@ Items to address in future sessions.
 
 ---
 
+## Dogs CRUD Audit — 2026-05-12 07:58
+
+- **Test full CRUD for Dogs** - Mirror the People (PR #170, #171) and Clubs (PR #172) CRUD audits for the Dogs entity. **Problem:** People and Clubs CRUD have just been audited end-to-end with regression coverage and RLS hardening; Dogs is the remaining core entity without an equivalent audit. We need confidence that create, read, update, and delete all work across roles (exhibitor, secretary, admin), that RLS scopes correctly, and that the UI exposes a usable affordance for each operation. **Files:** `apps/myk9show/src/pages/dogs/`, `apps/myk9show/src/components/dogs/DogDetails/`, `apps/myk9show/src/features/dogs/` (queries/mutations), `apps/myk9show/src/types/dog*.ts`, plus matching E2E specs under `apps/myk9show/tests/` and unit tests under `__tests__/`. **Solution:** Follow the same playbook as the clubs/people audits — (1) inventory existing routes and components for Dogs, (2) walk each CRUD operation in the live app for each role, (3) confirm RLS policies on `dogs` and any join tables (ownership, co-ownership, handler links), (4) add or extend Playwright E2E + Vitest unit coverage for each path, (5) file follow-up bugs for anything broken and fix root causes before closing.
+
+---
+
 ## Strategic Plans
 
 Higher-level planning documents that govern how the items below should be sequenced. Read these before picking up individual TODOs so the work lands in the right order.

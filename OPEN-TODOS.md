@@ -167,6 +167,8 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## People & Clubs CRUD
 
+- [ ] **Test full CRUD for Dogs** — Walk the dogs entity end-to-end (create, read, update, delete) the same way we did for clubs and people. Verify RLS, list/detail views, edit dialogs, delete affordances, and add E2E coverage. Full context in TO-DOS.md § "Dogs CRUD Audit — 2026-05-12 07:58".
+
 ## Payments & Email
 
 - [ ] **Stripe Integration** — No Stripe integration exists. Entry fees need Stripe Connect (club's connected account + platform convenience fee via `application_fee_amount`). Includes club Stripe onboarding flow + webhook. Full context in TO-DOS.md § "Stripe Integration + Exhibitor Payments Page — 2026-04-30".

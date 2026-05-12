@@ -138,7 +138,7 @@ export function FilterBar({
       {/* Add filter button */}
       {availableToAdd.length > 0 && (
         <Popover open={addFilterOpen} onOpenChange={setAddFilterOpen}>
-          <PopoverTrigger asChild>
+          <PopoverTrigger asChild nativeButton>
             <Button
               variant="ghost"
               size="sm"

@@ -286,6 +286,7 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     // before Owner in DOM order). hasText filtering can't disambiguate
     // reliably here because Owner is now pre-filled with the person name and
     // Base UI's combobox descendant text picks up extra placeholder fragments.
+    // Base UI keeps portal options mounted, so target the visible option.
     await page.getByRole('combobox').first().click();
     const femaleOption = page.locator('[role="option"]:visible').filter({ hasText: /Female/ });
     await femaleOption.click();
@@ -339,7 +340,8 @@ test.describe('People UI — Delete (secretary)', () => {
     // button reads "Close".
     await expect(page.getByRole('dialog', { name: 'Cannot delete person' })).toBeVisible();
     await expect(page.getByText(/owns 1 dog/)).toBeVisible();
-    const deleteBtn = page.getByRole('button', { name: 'Delete' }).last();
+    const blockedDeleteDialog = page.getByRole('dialog', { name: 'Cannot delete person' });
+    const deleteBtn = blockedDeleteDialog.getByRole('button', { name: 'Delete' });
     await expect(deleteBtn).toBeDisabled();
 
     // Close the dialog without deleting — Person A and its dog stay around.
@@ -355,9 +357,10 @@ test.describe('People UI — Delete (secretary)', () => {
     await page.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();
 
-    await expect(page.getByRole('dialog', { name: 'Delete Person' })).toBeVisible();
-    await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByRole('dialog', { name: 'Delete Person' })).not.toBeVisible();
+    const cancelDeleteDialog = page.getByRole('dialog', { name: 'Delete Person' });
+    await expect(cancelDeleteDialog).toBeVisible();
+    await cancelDeleteDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(cancelDeleteDialog).not.toBeVisible();
     // Still on the same person's detail page.
     await expect(page).toHaveURL(/\/users\/[^/]+/);
   });
@@ -369,7 +372,8 @@ test.describe('People UI — Delete (secretary)', () => {
 
     await page.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();
-    await expect(page.getByRole('dialog', { name: 'Delete Person' })).toBeVisible();
+    const deleteDialog = page.getByRole('dialog', { name: 'Delete Person' });
+    await expect(deleteDialog).toBeVisible();
 
     const [resp] = await Promise.all([
       page.waitForResponse(
@@ -378,7 +382,7 @@ test.describe('People UI — Delete (secretary)', () => {
           (r.request().method() === 'PATCH' || r.request().method() === 'DELETE') &&
           r.status() < 300
       ),
-      page.getByRole('button', { name: 'Delete' }).last().click(),
+      deleteDialog.getByRole('button', { name: 'Delete' }).click(),
     ]);
     expect(resp.ok()).toBe(true);
 
@@ -449,14 +453,16 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
 
     await page.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();
-    await expect(page.getByRole('dialog', { name: 'Delete Person' })).toBeVisible();
-    await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByRole('dialog', { name: 'Delete Person' })).not.toBeVisible();
+    const cancelDeleteDialog = page.getByRole('dialog', { name: 'Delete Person' });
+    await expect(cancelDeleteDialog).toBeVisible();
+    await cancelDeleteDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(cancelDeleteDialog).not.toBeVisible();
     await expect(page.getByRole('heading', { name: /Adminperson/, level: 1 })).toBeVisible();
 
     await page.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();
-    await expect(page.getByRole('dialog', { name: 'Delete Person' })).toBeVisible();
+    const deleteDialog = page.getByRole('dialog', { name: 'Delete Person' });
+    await expect(deleteDialog).toBeVisible();
 
     const [deleteResponse] = await Promise.all([
       page.waitForResponse(
@@ -465,12 +471,13 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
           (resp.request().method() === 'PATCH' || resp.request().method() === 'DELETE') &&
           resp.status() < 300
       ),
-      page.getByRole('button', { name: 'Delete' }).last().click(),
+      deleteDialog.getByRole('button', { name: 'Delete' }).click(),
     ]);
     expect(deleteResponse.ok()).toBe(true);
 
     await page.waitForURL(/\/people/, { timeout: 10000 });
     await page.getByPlaceholder('Search people by name or email...').fill(ADMIN_PERSON_EMAIL);
+    await expect(page.getByText('No people match your filters')).toBeVisible();
     await expect(page.getByText(ADMIN_PERSON_EMAIL)).not.toBeVisible();
   });
 });

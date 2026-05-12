@@ -1,0 +1,11 @@
+export function getShowMapShowHref(showId: string): string {
+  return `/shows/${showId}`;
+}
+
+export function getShowMapTrialHref(showId: string, trialId: string): string {
+  return `/shows/${showId}/trials/${trialId}`;
+}
+
+export function getShowMapClassHref(showId: string, trialId: string, classId: string): string {
+  return `/shows/${showId}/trials/${trialId}/classes/${classId}`;
+}

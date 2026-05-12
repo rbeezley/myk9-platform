@@ -28,6 +28,7 @@ export const features = {
   calendar: false,
   showDay: false,
   analytics: false,
+  showMap: true,
 } as const;
 
 export type Features = typeof features;

@@ -274,8 +274,17 @@ Phase 0 must complete this section before implementation. Current verified start
 - `ShowDetailsPage.tsx` currently passes `actualCurrentShow`, `associatedTrials`, `showClasses`, `showEntries`, and `canManageShow`.
 - `showClasses` currently includes class `id`, `trialId`, `name`, `element`, `level`, `section`, `status`, `entryCount`, `scoredCount`, and trial display fields.
 - The existing show entries table documents `getEntriesByShow` rows with `id`, `entry_status`, `handler`, `armband`, `payment_status`, `dog`, and `class`.
-- Check-in/gate fields still need to be verified from the actual `getEntriesByShow` row shape or adjacent entry-management data before showing check-in badges.
-- Entry click-through remains unresolved until Phase 0 confirms the canonical entry route.
+- [PHASE 0 VERIFIED] Trial fields come from `SyncableTrial` / `Trial`: `id`, `showId`, `name`, `trialDate`, `trialNumber`, `status`, `order`, `trialType`, `plannedStartTime`.
+- [PHASE 0 VERIFIED] Class fields used by the map come from the local `showClasses` derivation and `SyncableTrialClass`: `id`, `trialId`, `name`, `element`, `level`, `section`, `status`, `entryCount`, `scoredCount`, `completedEntries`.
+- [PHASE 0 VERIFIED] `useEntriesByShowQuery` returns DB-row-shaped `Record<string, unknown>[]` from `getEntriesByShow`; replicated reads are mapped through `mapReplicatedEntryToDbRow`.
+- [PHASE 0 VERIFIED] Entry attachment field: `class_id`.
+- [PHASE 0 VERIFIED] Entry label fields: `armband` first, then joined `dog.call_name`, then joined `dog.name`, then entry id suffix. `run_order` is available for deterministic ordering.
+- [PHASE 0 VERIFIED] Entry run/scoring fields available from the mapped row: `entry_status`, `result_status`, `is_scored`, `ring_entry_time`, `ring_exit_time`.
+- [PHASE 0 VERIFIED] Check-in/gate field available from the mapped row: `check_in_status`. Values are backed by `@myk9/core` `CheckInStatus`: `no-status`, `checked-in`, `at-gate`, `come-to-gate`, `conflict`, `pulled`, `in-ring`, `completed`.
+- [PHASE 0 VERIFIED] Class status helpers available from `@myk9/core`: `getClassStatusDisplay`, `normalizeClassStatus`, `CLASS_STATUS`, `getClassDisplayStatus`.
+- [PHASE 0 VERIFIED] Check-in helpers available from `@myk9/core`: `getCheckinStatusConfig`, `isCheckInStatus`.
+- [PHASE 0 VERIFIED] Canonical trial route: `/shows/:showId/trials/:trialId`. Canonical class route: `/shows/:showId/trials/:trialId/classes/:classId`.
+- [PHASE 0 VERIFIED] No canonical staff entry detail route was found for a single entry. V1 entry nodes are therefore non-navigable.
 
 ## Implementation Phases
 
@@ -323,6 +332,13 @@ Acceptance criteria:
 - no permanent prototype route or placeholder UI remains
 - TypeScript compiles after dependency install
 - rollback path is documented before the dependency is used in production UI
+
+[PHASE 1 IMPLEMENTED] Dependency decision:
+
+- Added `@xyflow/react` to `apps/myk9show/package.json`. It supports the existing React 19 app install and TypeScript compiles with the dependency.
+- The map implementation is loaded through `React.lazy(() => import('@/features/show-map/ShowMapTab'))` from `ShowDetailsPage.tsx`, so React Flow is not imported for users who do not open the staff-only Map tab.
+- Rollback path: set `features.showMap` to `false` in `apps/myk9show/src/config/features.ts`; both the tab definition and tab content are guarded by `features.showMap && canManageShow`.
+- Bundle budget note: the production individual gzip chunk budget is 100 KB in `apps/myk9show/src/config/performance-budget.ts`. The dependency is isolated in the lazy map chunk; a full bundle-size measurement should be captured before enabling beyond staff rollout.
 
 ### Phase 2: Tree View Model
 

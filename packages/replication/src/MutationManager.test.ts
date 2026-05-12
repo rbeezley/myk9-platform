@@ -349,6 +349,22 @@ describe('MutationManager', () => {
       expect(remaining).toHaveLength(0);
     });
 
+    it('removes stale localStorage backup immediately after successful upload', async () => {
+      const mutation = makeMutation({
+        id: 'mut-stale-backup',
+        tableName: 'clubs',
+        operation: 'INSERT',
+      });
+      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+      localStorageMock['replication_mutation_backup'] = JSON.stringify([mutation]);
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.success).toBe(true);
+      expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
+    });
+
     it('should dispatch upload-complete event with affected table names', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,

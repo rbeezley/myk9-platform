@@ -37,6 +37,8 @@ function processPhotoFile(file: File, onResult: (dataUrl: string) => void): void
 const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as const;
 
 export interface ClubPermissions {
+  /** Mirrors clubs_update RLS — site_admin or club_admin for this club. */
+  canEditClub: boolean;
   canManageMembers: boolean;
   canEditBranding: boolean;
   /** Mirrors the clubs_delete RLS policy — only site_admin can delete clubs. */
@@ -55,6 +57,7 @@ export function computeClubPermissions(args: {
 }): ClubPermissions {
   const { isClubAdmin, isSiteAdmin, hasManageMembersPermission } = args;
   return {
+    canEditClub: isSiteAdmin || isClubAdmin,
     canManageMembers: isClubAdmin || hasManageMembersPermission,
     canEditBranding: isSiteAdmin || isClubAdmin,
     canDeleteClub: isSiteAdmin,
@@ -92,9 +95,14 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const { userWithRoles, hasPermission } = useAuthContext();
 
   // RBAC permission checks — see computeClubPermissions for the rules.
-  const { canManageMembers, canEditBranding, canDeleteClub } = useMemo(() => {
+  const { canEditClub, canManageMembers, canEditBranding, canDeleteClub } = useMemo(() => {
     if (!userWithRoles || !selectedClub || !userWithRoles.databaseUserId) {
-      return { canManageMembers: false, canEditBranding: false, canDeleteClub: false };
+      return {
+        canEditClub: false,
+        canManageMembers: false,
+        canEditBranding: false,
+        canDeleteClub: false,
+      };
     }
     return computeClubPermissions({
       isClubAdmin: ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id),
@@ -424,6 +432,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // Stats
     stats,
     // Permissions
+    canEditClub,
     canManageMembers,
     canEditBranding,
     canDeleteClub,

@@ -15,12 +15,10 @@ export interface TestUser {
 
 export const TEST_USERS: Record<string, TestUser> = {
   SITE_ADMIN: {
-    // Owner's personal account — use only for manual walks, not CI.
-    // For automated tests prefer SECRETARY (dedicated test account).
-    email: 'beezley@cox.net',
-    password: '',
+    email: process.env.E2E_ADMIN_EMAIL ?? 'admin@myk9t.com',
+    password: process.env.E2E_ADMIN_PASSWORD ?? '',
     role: 'site_admin',
-    description: 'Site administrator (owner account — password not in source control)',
+    description: 'Site administrator — set E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD in E2E secrets',
   },
 
   SECRETARY: {

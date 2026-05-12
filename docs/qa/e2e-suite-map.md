@@ -12,6 +12,14 @@ This map classifies current Playwright specs into operational suites for the pro
 
 ## Recommended Commands
 
+### Suite Map Drift
+
+Run after adding, deleting, moving, or reclassifying E2E specs:
+
+```bash
+pnpm qa:e2e-map:check
+```
+
 ### PR Smoke
 
 ```bash
@@ -83,12 +91,29 @@ pnpm test:e2e:clean src/test/e2e/<spec>.spec.ts --project=chromium --headed --wo
 | `apps/myk9q/tests/e2e/auth.spec.ts`                                    | myK9Q authentication smoke; run for ringside changes. |
 | `apps/myk9q/tests/e2e/core-features.spec.ts`                           | myK9Q core ringside smoke; run for ringside changes.  |
 
-## Nightly
+## Nightly Active
+
+These specs are in the current scheduled Nightly Playwright command. Do not add to this table until the promotion rule passes: run the spec alone, run the full active Nightly command, then update this map.
+
+| Spec                                                                     | Why                                                |
+| ------------------------------------------------------------------------ | -------------------------------------------------- |
+| `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`             | Public registration route/auth/navigation smoke.   |
+| `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`             | Public browse-to-detail navigation.                |
+| `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts` | Stable secretary existing-user registration guard. |
+| `apps/myk9show/src/test/e2e/secretary/classCreation.spec.ts`             | Narrow class-creation route/template smoke.        |
+| `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`      | Stable secretary show wizard smoke.                |
+| `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`                 | App boots and secretary sign-in works.             |
+| `apps/myk9show/src/test/e2e/uat/secretary/critical-path.spec.ts`         | Stable secretary UAT critical path.                |
+| `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`      | Stable secretary disposable entry management.      |
+| `apps/myk9show/src/test/e2e/uat/secretary/evidence.spec.ts`              | Stable secretary evidence pass.                    |
+| `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts`   | Strict secretary regression proof.                 |
+
+## Nightly Candidates / Repair Queue
+
+These specs may become Nightly coverage, but they are not in the scheduled command yet. Keep the reason current so the queue stays repairable instead of becoming a graveyard.
 
 | Spec                                                                              | Why                                                |
 | --------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`                      | Public registration route/auth/navigation smoke.   |
-| `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`                      | Public browse-to-detail navigation.                |
 | `apps/myk9show/src/test/e2e/admin/templateManagement.spec.ts`                     | Admin workflow coverage.                           |
 | `apps/myk9show/src/test/e2e/auth/signUpUI.spec.ts`                                | Auth UI validation and happy path.                 |
 | `apps/myk9show/src/test/e2e/authentication-validation.spec.ts`                    | Broader auth validation.                           |
@@ -111,18 +136,12 @@ pnpm test:e2e:clean src/test/e2e/<spec>.spec.ts --project=chromium --headed --wo
 | `apps/myk9show/src/test/e2e/registration/performanceAndCaching.spec.ts`           | Registration performance/cache checks.             |
 | `apps/myk9show/src/test/e2e/registration/phase3-2-multi-class-entries.spec.ts`    | Multi-class entry coverage.                        |
 | `apps/myk9show/src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts` | Entry limit and waitlist coverage.                 |
-| `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`          | Stable secretary existing-user registration guard. |
 | `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`               | Secretary registration for new users/dogs.         |
 | `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`            | Focused registration path, still data-dependent.   |
 | `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                      | Judge/ringside scoring workflow.                   |
-| `apps/myk9show/src/test/e2e/secretary/classCreation.spec.ts`                      | Narrow class-creation route/template smoke.        |
-| `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`               | Stable secretary show wizard smoke.                |
 | `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts`              | Officials/judges picker proof.                     |
 | `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`                         | Secretary entry walk.                              |
 | `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                          | Show management workflow.                          |
-| `apps/myk9show/src/test/e2e/uat/secretary/critical-path.spec.ts`                  | Stable secretary UAT critical path.                |
-| `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`               | Stable secretary disposable entry management.      |
-| `apps/myk9show/src/test/e2e/uat/secretary/evidence.spec.ts`                       | Stable secretary evidence pass.                    |
 | `apps/myk9show/src/test/e2e/unified-shows-workflows.spec.ts`                      | Unified show workflows across roles.               |
 
 ## Feature Audit
@@ -177,12 +196,14 @@ pnpm test:e2e:clean src/test/e2e/<spec>.spec.ts --project=chromium --headed --wo
 
 ## Candidate Delete
 
-| Spec                                                                              | Review Question                                                                                                          |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `apps/myk9show/src/test/e2e/__snapshots__/secretary/show-creation-wizard.spec.ts` | This appears under `__snapshots__` with a spec suffix; confirm whether it is generated artifact or accidental test file. |
-| `apps/myk9show/src/test/e2e/phase2-quick-test.spec.ts`                            | Superseded by maintained secretary/show wizard and entity UI specs?                                                      |
-| `apps/myk9show/src/test/e2e/phase2-show-management-workflow.spec.ts`              | Superseded by current show wizard, shows UI, and secretary UAT specs?                                                    |
-| `apps/myk9show/src/test/e2e/phase2-validation-smoke.spec.ts`                      | Superseded by focused validation/unit tests and current wizard specs?                                                    |
-| `apps/myk9show/src/test/e2e/show-details-issue.spec.ts`                           | If issue is fixed, move any assertion into show details/navigation specs.                                                |
-| `apps/myk9show/src/test/e2e/show-details-performance.spec.ts`                     | Keep only if it has a maintained performance threshold.                                                                  |
-| `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`                  | Likely duplicated by `src/test/e2e/cross-browser/*`; preserve unique assertions first.                                   |
+| Spec                                                                               | Review Question                                                                                                           |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Path Or Spec                                                                       | Review Question                                                                                                           |
+| ---------------------------------------------------------------------------------  | ------------------------------------------------------------------------------------------------------------------------  |
+| `apps/myk9show/src/test/e2e/__snapshots__/secretary/show-creation-wizard.spec.ts/` | Snapshot artifact directory, not a spec file. Confirm whether the generated images are still useful, then delete or keep. |
+| `apps/myk9show/src/test/e2e/phase2-quick-test.spec.ts`                             | Superseded by maintained secretary/show wizard and entity UI specs?                                                       |
+| `apps/myk9show/src/test/e2e/phase2-show-management-workflow.spec.ts`               | Superseded by current show wizard, shows UI, and secretary UAT specs?                                                     |
+| `apps/myk9show/src/test/e2e/phase2-validation-smoke.spec.ts`                       | Superseded by focused validation/unit tests and current wizard specs?                                                     |
+| `apps/myk9show/src/test/e2e/show-details-issue.spec.ts`                            | If issue is fixed, move any assertion into show details/navigation specs.                                                 |
+| `apps/myk9show/src/test/e2e/show-details-performance.spec.ts`                      | Keep only if it has a maintained performance threshold.                                                                   |
+| `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`                   | Likely duplicated by `src/test/e2e/cross-browser/*`; preserve unique assertions first.                                    |

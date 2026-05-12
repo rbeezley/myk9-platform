@@ -7,8 +7,29 @@ This inventory supports Phase 0 of the proactive quality system. It organizes th
 - Preserve the myK9 intent: calm, obvious workflows where users are never left wondering whether an action worked.
 - Log reusable proactive findings in `docs/qa/findings.md`.
 - Classify Playwright specs with `docs/qa/e2e-suite-map.md` before adding or moving tests.
+- Run `pnpm qa:e2e-map:check` after adding, deleting, moving, or reclassifying Playwright specs.
 - Prefer focused commands over broad suites while the suite is being stabilized.
 - Do not run shared-system mutations from QA work without explicit confirmation.
+
+## Automatic Fix Boundary
+
+During proactive QA, automatic fixes are limited to changes that are clearly local, reversible, and provable in the same run.
+
+Allowed without additional confirmation:
+
+- Stale Playwright selectors, role names, route paths, and test waits when the current UI behavior is already clear.
+- Documentation and suite-map updates.
+- Test-only helper fixes that do not alter production behavior.
+- Dead imports, unused variables, formatting, typo fixes, and obvious copy corrections.
+- Defensive null/empty-state guards that preserve existing behavior and have a focused proof.
+
+Do not auto-fix; log a finding instead:
+
+- Database migrations, RLS/role-policy changes, shared seed data, or Supabase function behavior.
+- Payment, auth, offline/replication, or cross-app behavior.
+- Broad production refactors or changes touching shared providers/data flows.
+- Any change that requires guessing product intent, schema meaning, or business rules.
+- Any shared-system mutation, including DB pushes, deploys, GitHub comments/PRs, Slack/email, or git push.
 
 ## Skills
 
@@ -25,6 +46,7 @@ This inventory supports Phase 0 of the proactive quality system. It organizes th
 
 | Asset                         | Use When                                           | Command Or Invocation                                                                                                           | Output                                           | Cadence                                    | Known Limitations                                                                         |
 | ----------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| E2E suite map drift check     | Preventing unclassified specs                      | `pnpm qa:e2e-map:check`                                                                                                         | Fails if any E2E spec is unmapped or stale       | Every spec add/delete/move and pre-commit  | Checks classification coverage, not whether the category choice is correct                |
 | myK9Show Playwright config    | Local E2E against Vite dev server                  | `cd apps/myk9show && pnpm test:e2e:clean <spec> --project=chromium --workers=1`                                                 | Playwright report, traces/screenshots on failure | Feature replay, smoke, nightly             | Default `pnpm test:e2e` runs every project/browser and can be too broad for PR confidence |
 | myK9Show CI Playwright config | Built preview, Chromium-only                       | `cd apps/myk9show && pnpm test:e2e:ci`                                                                                          | CI-style Playwright report                       | CI/nightly candidate                       | Runs the whole test directory today; use cautiously until suites are tagged or split      |
 | myK9Q E2E config              | Ringside scoring/auth smoke                        | `cd apps/myk9q && pnpm test:e2e -- --project=chromium`                                                                          | Playwright report                                | PR smoke or nightly for ringside changes   | Uses app-local port 5173; coordinate with myK9Show dev server                             |
@@ -71,7 +93,7 @@ pnpm exec prettier --check docs/qa/assets.md docs/qa/e2e-suite-map.md docs/qa/fi
 Confirm every current Playwright spec appears in the suite map:
 
 ```bash
-node -e "const fs=require('fs'); const map=fs.readFileSync('docs/qa/e2e-suite-map.md','utf8'); const {execSync}=require('child_process'); const files=execSync(\"find apps -path '*e2e*' -name '*.spec.ts' | sort\",{encoding:'utf8'}).trim().split(/\\n/).filter(Boolean); const missing=files.filter(f=>!map.includes(f)); console.log('specs',files.length); console.log('missing',missing.length); if(missing.length) console.log(missing.join('\\n')); process.exit(missing.length ? 1 : 0);"
+pnpm qa:e2e-map:check
 ```
 
 ### PR Smoke
@@ -98,15 +120,22 @@ pnpm test:e2e -- --project=chromium
 
 Nightly has two phases.
 
-Phase 1 runs stable Playwright smoke. The broad workflow specs are still inventoried in `docs/qa/e2e-suite-map.md`, but the 2026-05-12 dry run showed they are too noisy for the scheduled gate until repaired.
+Phase 1 runs the active Wave 1 Nightly command. Candidate specs are still inventoried in `docs/qa/e2e-suite-map.md`, but they are not in the scheduled gate until repaired and promoted.
 
 ```bash
 cd apps/myk9show
 pnpm test:e2e:clean \
   src/test/e2e/simple-connectivity.spec.ts \
+  src/test/e2e/basic/registrationSmoke.spec.ts \
+  src/test/e2e/browse-shows-to-details.spec.ts \
   src/test/e2e/uat/secretary/qa-regression-proof.spec.ts \
-  --grep "load home page without authentication|Secretary QA regression proof" \
-  --project=chromium --workers=1
+  src/test/e2e/uat/secretary/critical-path.spec.ts \
+  src/test/e2e/uat/secretary/disposable-entry.spec.ts \
+  src/test/e2e/uat/secretary/evidence.spec.ts \
+  src/test/e2e/secretary/show-creation-wizard.spec.ts \
+  src/test/e2e/secretary/classCreation.spec.ts \
+  src/test/e2e/registration/secretaryExistingUsers.spec.ts \
+  --project=chromium --workers=1 --timeout=90000 --retries=0
 ```
 
 Phase 2 is an agent/browser route-health sweep, not a terminal-only command:

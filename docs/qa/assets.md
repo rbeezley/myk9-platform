@@ -78,10 +78,6 @@ Do not auto-fix; log a finding instead:
 | Secretary golden path checklist | Manual secretary journey reference     | Read `docs/testing/secretary-golden-path-checklist.md`           | Manual checklist        | Secretary journey QA      | Needs pairing with automated proof where possible |
 | Secretary walk seed             | Seed-data reference for secretary walk | Read `docs/testing/secretary-walk-seed.md`                       | Data setup notes        | Secretary journey QA      | Depends on current local/dev DB state             |
 
-## Suite Category Commands
-
-These are the recommended commands for the current first sprint. See `docs/qa/e2e-suite-map.md` for file membership.
-
 ## Phase 0 Verification
 
 For documentation-only Phase 0 changes, verify the inventory and formatting before closing the sprint:

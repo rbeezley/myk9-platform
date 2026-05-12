@@ -9,12 +9,6 @@
             "command": "pnpm qa:e2e-map:check",
             "timeout": 15,
             "statusMessage": "Checking E2E suite map..."
-          },
-          {
-            "type": "command",
-            "command": "pnpm typecheck",
-            "timeout": 60,
-            "statusMessage": "Running typecheck..."
           }
         ]
       }

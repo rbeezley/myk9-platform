@@ -70,7 +70,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   const navigate = useNavigate();
   const { hasPermission } = useRBAC();
   const [viewMode, setViewMode] = useViewPreference('classes', 'table');
-  const [isMine, setIsMine] = useState(userHasEntries);
+  const [isMine, setIsMine] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 

@@ -114,7 +114,8 @@ vi.mock('@/components/common/MineToggle', () => ({
     mineLabel: string;
   }) => (
     <div data-testid="mine-toggle">
-      <button onClick={onToggle}>{isMine ? mineLabel : allLabel}</button>
+      <button onClick={() => isMine && onToggle()}>{allLabel}</button>
+      <button onClick={() => !isMine && onToggle()}>{mineLabel}</button>
     </div>
   ),
 }));
@@ -137,18 +138,19 @@ describe('ClassesTab', () => {
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
   });
 
-  it('defaults to showing only user classes when user has entries', () => {
+  it('defaults to showing all classes when user has entries', () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
     expect(screen.getByText('Containers')).toBeInTheDocument();
     expect(screen.getByText('Interior')).toBeInTheDocument();
-    expect(screen.queryByText('Exterior')).toBeNull();
+    expect(screen.getByText('Exterior')).toBeInTheDocument();
   });
 
-  it('shows all classes when toggled', () => {
+  it('shows only user classes when toggled to My Classes', () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
-    // Click the toggle (which shows "My Classes" text when isMine=true, clicking switches)
     fireEvent.click(screen.getByText('My Classes'));
-    expect(screen.getByText('Exterior')).toBeInTheDocument();
+    expect(screen.getByText('Containers')).toBeInTheDocument();
+    expect(screen.getByText('Interior')).toBeInTheDocument();
+    expect(screen.queryByText('Exterior')).toBeNull();
   });
 
   it('shows empty state when no classes', () => {
@@ -177,10 +179,8 @@ describe('ClassesTab', () => {
   it('MineToggle filters in card view', () => {
     mockViewMode = 'cards';
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
-    // Default: isMine=true when userHasEntries, so only 2 cards
-    expect(screen.getAllByTestId('class-card')).toHaveLength(2);
-    // Toggle to all
-    fireEvent.click(screen.getByText('My Classes'));
     expect(screen.getAllByTestId('class-card')).toHaveLength(3);
+    fireEvent.click(screen.getByText('My Classes'));
+    expect(screen.getAllByTestId('class-card')).toHaveLength(2);
   });
 });

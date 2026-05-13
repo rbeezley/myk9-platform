@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, LayoutPanelLeft, List } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Loader2, AlertCircle, LayoutPanelLeft, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
@@ -16,7 +16,7 @@ import { SequentialView } from './components/SequentialView';
 import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from './types';
-import type { PaperResult } from './paper-scoring-types';
+import type { PaperResult, PaperScoringMode } from './paper-scoring-types';
 
 /** Fetch all entries for a class with their dog data, parallelising dog lookups. */
 async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
@@ -27,11 +27,30 @@ async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
   return rawEntries.map((e, i) => toScoringEntry(e, dogsMap.get(e.dogId ?? '') ?? null, i));
 }
 
+function getClassDetailsHref({
+  showId,
+  trialId,
+  classId,
+}: {
+  showId?: string | undefined;
+  trialId?: string | undefined;
+  classId?: string | undefined;
+}): string | null {
+  if (!classId) return null;
+  if (showId && trialId) return `/shows/${showId}/trials/${trialId}/classes/${classId}`;
+  return `/classes/${classId}`;
+}
+
 export function PaperScoresheetPage() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthContext();
   const breadcrumb = useScoringBreadcrumb(classId);
+  const requestedEntryId = searchParams.get('entryId');
+  const requestedMode = searchParams.get('mode');
+  const appliedRequestRef = useRef<string | null>(null);
+  const autoSelectedClassRef = useRef<string | null>(null);
 
   const [entries, setEntries] = useState<ScoringEntry[]>([]);
   const [className, setClassName] = useState<string | null>(null);
@@ -63,6 +82,33 @@ export function PaperScoresheetPage() {
 
   const userId = user?.id ?? 'anonymous';
   const scoring = usePaperScoring(entries, userId);
+  const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);
+  const sequentialIndex = Math.max(
+    0,
+    sortedEntries.findIndex(entry => entry.entryId === scoring.selectedEntryId)
+  );
+
+  useEffect(() => {
+    if (requestedMode !== 'split' && requestedMode !== 'sequential') return;
+    if (scoring.mode === requestedMode) return;
+    scoring.setMode(requestedMode);
+  }, [requestedMode, scoring]);
+
+  useEffect(() => {
+    if (!requestedEntryId || appliedRequestRef.current === requestedEntryId) return;
+    if (!entries.some(entry => entry.entryId === requestedEntryId)) return;
+    scoring.selectEntry(requestedEntryId);
+    appliedRequestRef.current = requestedEntryId;
+  }, [entries, requestedEntryId, scoring]);
+
+  useEffect(() => {
+    if (!classId || requestedEntryId || entries.length === 0) return;
+    if (autoSelectedClassRef.current === classId) return;
+    const firstEditableEntry = sortedEntries.find(entry => !entry.isScored) ?? sortedEntries[0];
+    if (!firstEditableEntry) return;
+    scoring.selectEntry(firstEditableEntry.entryId);
+    autoSelectedClassRef.current = classId;
+  }, [classId, entries.length, requestedEntryId, scoring, sortedEntries]);
 
   const reloadEntries = async (): Promise<ScoringEntry[]> => {
     if (!classId) return entries;
@@ -86,7 +132,12 @@ export function PaperScoresheetPage() {
     scoring.selectEntry(next?.entryId ?? null);
   };
 
-  const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);
+  const handleModeChange = (mode: PaperScoringMode) => {
+    scoring.setMode(mode);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('mode', mode);
+    setSearchParams(nextParams, { replace: true });
+  };
 
   if (isLoading) {
     return (
@@ -110,6 +161,7 @@ export function PaperScoresheetPage() {
 
   const scoredCount = entries.filter(e => e.isScored).length;
   const allScored = entries.length > 0 && scoredCount === entries.length;
+  const classDetailsHref = getClassDetailsHref(breadcrumb);
 
   return (
     <div className="flex flex-col h-full">
@@ -136,23 +188,38 @@ export function PaperScoresheetPage() {
             {scoredCount} of {entries.length} scored
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border p-1">
+        <div className="flex items-center gap-2">
           <Button
-            variant={scoring.mode === 'split' ? 'secondary' : 'ghost'}
+            variant="outline"
             size="sm"
-            onClick={() => scoring.setMode('split')}
-            title="Split panel"
+            onClick={() => {
+              if (classDetailsHref) navigate(classDetailsHref);
+              else navigate(-1);
+            }}
+            className="gap-2"
           >
-            <LayoutPanelLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Back to Class</span>
+            <span className="sm:hidden">Class</span>
           </Button>
-          <Button
-            variant={scoring.mode === 'sequential' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => scoring.setMode('sequential')}
-            title="Sequential"
-          >
-            <List className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1 rounded-lg border p-1">
+            <Button
+              variant={scoring.mode === 'split' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => handleModeChange('split')}
+              title="Split panel"
+            >
+              <LayoutPanelLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={scoring.mode === 'sequential' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => handleModeChange('sequential')}
+              title="Sequential"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -188,7 +255,7 @@ export function PaperScoresheetPage() {
           ) : (
             <SequentialView
               entries={entries}
-              currentIndex={Math.max(0, scoring.currentIndex)}
+              currentIndex={sequentialIndex}
               settings={scoring.sessionSettings}
               onNavigate={index => {
                 if (sortedEntries[index]) scoring.selectEntry(sortedEntries[index].entryId);

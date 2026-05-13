@@ -357,6 +357,8 @@ const ClassDetailsPage: React.FC = () => {
           dbRawEntries={dbRawEntries}
           userId={user?.id ?? ''}
           myEntryIds={myEntryIds}
+          dogs={dogs}
+          organization={parentShow?.organization ?? null}
         />
       ) : (
         <ClassDetailsMain

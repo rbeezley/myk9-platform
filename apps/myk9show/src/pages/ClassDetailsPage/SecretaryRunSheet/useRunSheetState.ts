@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { CheckInStatus } from '@myk9/core';
 import { useEntryStore } from '@/store/entryStore';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
+import type { Dog } from '@/types/dog-types';
 import { buildRunSheetEntries } from './buildRunSheetEntries';
 import type { SortMode, RunSheetEntry } from './types';
 
@@ -10,59 +12,53 @@ interface UseRunSheetStateProps {
   rawEntries: RawEntryRow[];
   classId: string;
   userId: string;
+  dogs: Dog[];
+  organization?: string | null | undefined;
 }
 
 interface UseRunSheetStateReturn {
   sortMode: SortMode;
   onSort: (mode: SortMode) => void;
   sortedEntries: RunSheetEntry[];
-  onCheckIn: (entryId: string, checked: boolean) => Promise<void>;
-  onScratch: (entryId: string, scratched: boolean) => Promise<void>;
+  onCheckInStatus: (entryId: string, status: CheckInStatus) => Promise<void>;
 }
 
 export function useRunSheetState({
   rawEntries,
   classId,
   userId,
+  dogs,
+  organization,
 }: UseRunSheetStateProps): UseRunSheetStateReturn {
   const queryClient = useQueryClient();
   const [sortMode, setSortMode] = useState<SortMode>('runOrder');
   const [randomSnapshot, setRandomSnapshot] = useState<RunSheetEntry[]>([]);
+  const dogLookup = useMemo(() => new Map(dogs.map(dog => [dog.id, dog])), [dogs]);
 
   const sortedEntries = useMemo(() => {
     if (sortMode === 'random') return randomSnapshot;
-    return buildRunSheetEntries(rawEntries, sortMode);
-  }, [rawEntries, sortMode, randomSnapshot]);
+    return buildRunSheetEntries(rawEntries, sortMode, dogLookup, organization);
+  }, [rawEntries, sortMode, randomSnapshot, dogLookup, organization]);
 
   const onSort = (mode: SortMode) => {
-    if (mode === 'random') setRandomSnapshot(buildRunSheetEntries(rawEntries, 'random'));
+    if (mode === 'random')
+      setRandomSnapshot(buildRunSheetEntries(rawEntries, 'random', dogLookup, organization));
     setSortMode(mode);
   };
 
-  const setCheckInStatus = async (
-    entryId: string,
-    status: 'checked-in' | 'no-status' | 'pulled',
-    errorMsg: string
-  ) => {
+  const onCheckInStatus = async (entryId: string, status: CheckInStatus) => {
     try {
       await useEntryStore.getState().updateCheckInStatus(entryId, status, userId);
       await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
     } catch {
-      toast.error(errorMsg);
+      toast.error('Failed to update check-in status');
     }
   };
-
-  const onCheckIn = (entryId: string, checked: boolean) =>
-    setCheckInStatus(entryId, checked ? 'checked-in' : 'no-status', 'Failed to update check-in');
-
-  const onScratch = (entryId: string, scratched: boolean) =>
-    setCheckInStatus(entryId, scratched ? 'pulled' : 'no-status', 'Failed to update pull status');
 
   return {
     sortMode,
     onSort,
     sortedEntries,
-    onCheckIn,
-    onScratch,
+    onCheckInStatus,
   };
 }

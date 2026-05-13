@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   CheckCircle2,
-  ClipboardCheck,
   ClipboardList,
   MessageSquare,
   MoreVertical,
@@ -50,7 +49,6 @@ import { SecretaryRunSheet } from './SecretaryRunSheet';
 import { useMyEntriesInClass } from './useMyEntriesInClass';
 import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
-import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -236,16 +234,6 @@ const ClassDetailsPage: React.FC = () => {
 
     return (
       <div className="flex items-center gap-2">
-        {(isSecretary || isAdmin) && (
-          <Button
-            size="sm"
-            onClick={() => classId && navigate(getPaperScoringClassHref(classId))}
-            disabled={!classId}
-          >
-            <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
-            Score Class
-          </Button>
-        )}
         {(isSecretary || isAdmin) && parentShow?.id && (
           <Button variant="outline" size="sm" onClick={() => setShowMessageModal(true)}>
             <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
@@ -258,7 +246,7 @@ const ClassDetailsPage: React.FC = () => {
             size="sm"
             onClick={() =>
               navigate(
-                `/secretary/entries/${parentShow.id}?trial=${trialId || currentClass?.trialId}${classId ? `&class=${classId}` : ''}`
+                `/secretary/entries/${parentShow.id}?trial=${trialId || currentClass?.trialId}`
               )
             }
           >
@@ -312,7 +300,6 @@ const ClassDetailsPage: React.FC = () => {
     trialId,
     currentClass?.trialId,
     currentClass?.status,
-    classId,
     handleStartClass,
     handleCloseClass,
     navigate,

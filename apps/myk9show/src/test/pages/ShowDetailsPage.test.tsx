@@ -60,8 +60,14 @@ vi.mock('@/hooks/useMyEntries', () => ({
   }),
 }));
 
-let mockShowEntries: Array<{ id: string; show_id?: string; dog_id?: string; class_id?: string }> =
-  [];
+let mockShowEntries: Array<{
+  id: string;
+  show_id?: string;
+  dog_id?: string;
+  class_id?: string;
+  entry_status?: string;
+  check_in_status?: string;
+}> = [];
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: mockShowEntries }),
 }));
@@ -352,6 +358,49 @@ describe('ShowDetailsPage', () => {
       'trial-1': [
         { id: 'class-1', element: 'Container', level: 'Novice', status: 'scheduled' },
         { id: 'class-2', element: 'Interior', level: 'Advanced', status: 'scheduled' },
+      ],
+    };
+
+    renderPage('show-1', '?tab=classes');
+
+    const classesTab = screen.getByTestId('classes-tab');
+    expect(classesTab).toHaveAttribute('data-mine-count', '1');
+    expect(classesTab).toHaveAttribute('data-user-has-entries', 'true');
+  });
+
+  it('does not mark pulled entries as my classes', () => {
+    mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
+    mockShowEntries = [
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        class_id: 'class-1',
+        check_in_status: 'pulled',
+      },
+      {
+        id: 'entry-2',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        class_id: 'class-2',
+        entry_status: 'scratched',
+      },
+      { id: 'entry-3', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-3' },
+    ];
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [
+        { id: 'class-1', element: 'Container', level: 'Novice A', status: 'scheduled' },
+        { id: 'class-2', element: 'Container', level: 'Novice B', status: 'scheduled' },
+        { id: 'class-3', element: 'Interior', level: 'Advanced', status: 'scheduled' },
       ],
     };
 

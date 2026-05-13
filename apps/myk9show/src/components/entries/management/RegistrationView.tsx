@@ -171,7 +171,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             </TabsTrigger>
             <TabsTrigger value="scratches">
               <XCircle className="h-4 w-4 mr-1" />
-              Scratches
+              Pulled
             </TabsTrigger>
             <TabsTrigger value="issues">Issues ({tabCounts.issues})</TabsTrigger>
           </TabsList>
@@ -242,7 +242,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           </Card>
         </TabsContent>
 
-        {/* Scratches Tab Content */}
+        {/* Pulled Tab Content */}
         <TabsContent value="scratches" className="mt-6">
           <Card>
             <CardContent className="pt-6">

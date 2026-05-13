@@ -290,7 +290,7 @@ export function EntryReceipt({
   };
 
   const activeClasses = entry.classes.filter(c => c.status !== 'scratched');
-  const scratchedClasses = entry.classes.filter(c => c.status === 'scratched');
+  const pulledClasses = entry.classes.filter(c => c.status === 'scratched');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -401,12 +401,12 @@ export function EntryReceipt({
                     <td className="py-3 text-right font-mono">{formatCurrency(cls.fee)}</td>
                   </tr>
                 ))}
-                {scratchedClasses.map(cls => (
+                {pulledClasses.map(cls => (
                   <tr key={cls.id} className="border-b text-muted-foreground line-through">
                     <td className="py-3">
                       {cls.name}
                       {cls.number && <span> #{cls.number}</span>}
-                      <span className="ml-2 text-xs">(Scratched)</span>
+                      <span className="ml-2 text-xs">(Pulled)</span>
                     </td>
                     <td className="py-3">{cls.jumpHeight || '-'}</td>
                     <td className="py-3 text-right font-mono">{formatCurrency(cls.fee)}</td>

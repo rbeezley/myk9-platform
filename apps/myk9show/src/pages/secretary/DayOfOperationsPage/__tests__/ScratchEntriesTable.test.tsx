@@ -53,14 +53,14 @@ describe('ScratchEntriesTable', () => {
   it('calls onScratch after inline two-tap confirmation', async () => {
     const onScratch = vi.fn();
     const { user } = render(<ScratchEntriesTable entries={mockEntries} onScratch={onScratch} />);
-    const scratchButtons = screen.getAllByRole('button', { name: /^scratch$/i });
+    const scratchButtons = screen.getAllByRole('button', { name: /^pull$/i });
     await user.click(scratchButtons[0]);
-    await user.click(screen.getByRole('button', { name: /confirm scratch/i }));
+    await user.click(screen.getByRole('button', { name: /confirm pull/i }));
     expect(onScratch).toHaveBeenCalledWith(mockEntries[0]);
   });
 
   it('renders empty state when no entries', () => {
     render(<ScratchEntriesTable entries={[]} onScratch={vi.fn()} />);
-    expect(screen.getByText(/no entries available to scratch/i)).toBeInTheDocument();
+    expect(screen.getByText(/no entries available to pull/i)).toBeInTheDocument();
   });
 });

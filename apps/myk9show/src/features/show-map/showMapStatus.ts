@@ -62,7 +62,7 @@ export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplay
     (entryStatus && SCRATCH_ENTRY_STATUSES.has(entryStatus)) ||
     checkInStatus === 'pulled'
   ) {
-    return { value: entryStatus ?? 'pulled', label: 'Scratch', kind: 'muted' };
+    return { value: entryStatus ?? 'pulled', label: 'Pulled', kind: 'muted' };
   }
 
   if (

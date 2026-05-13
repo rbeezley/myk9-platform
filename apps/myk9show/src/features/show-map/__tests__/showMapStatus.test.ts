@@ -38,7 +38,7 @@ describe('showMapStatus', () => {
     [
       'scratch beats scored completion',
       { entry_status: 'scratch', check_in_status: 'completed', is_scored: true },
-      'Scratch',
+      'Pulled',
     ],
     [
       'completed beats in-ring timing',

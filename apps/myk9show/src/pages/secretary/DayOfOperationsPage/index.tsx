@@ -4,7 +4,7 @@
  * Secretary page for managing day-of-show operations:
  * - Day-of entries (walk-in registrations)
  * - Move-ups
- * - Scratches
+ * - Pulled entries
  */
 
 import { useMemo, useState } from 'react';
@@ -27,7 +27,7 @@ const DAY_OF_OPS_TABS: PrimaryTabDef[] = [
   { id: 'pipeline', label: 'Pipeline', icon: GitBranch },
   { id: 'entries', label: 'Day of Show Entries', icon: UserPlus },
   { id: 'moveups', label: 'Move-Ups', icon: ArrowUpCircle },
-  { id: 'scratches', label: 'Scratches', icon: XCircle },
+  { id: 'scratches', label: 'Pulled', icon: XCircle },
   { id: 'check-in', label: 'Check-In', icon: UserCheck },
 ];
 import { PipelineTab } from './PipelineTab';
@@ -86,7 +86,7 @@ export default function DayOfOperationsPage() {
       if (error) {
         toast.error(getUserFriendlyError(error));
       } else {
-        toast.success('Entry scratched');
+        toast.success('Entry pulled');
         loadData();
       }
     } finally {
@@ -114,7 +114,7 @@ export default function DayOfOperationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Day of Show</h1>
-          <p className="text-muted-foreground">Manage walk-in entries, move-ups, and scratches</p>
+          <p className="text-muted-foreground">Manage walk-in entries, move-ups, and pulled entries</p>
         </div>
         <Button onClick={loadData} variant="outline" disabled={isLoading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />

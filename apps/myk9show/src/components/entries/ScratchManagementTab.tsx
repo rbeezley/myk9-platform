@@ -84,7 +84,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
         ]);
 
         if (pendingResult.error) {
-          setError('Failed to load scratch requests');
+          setError('Failed to load pull requests');
         } else {
           setPendingRequests(pendingResult.data as ScratchRequest[]);
         }
@@ -115,7 +115,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
       ]);
 
       if (pendingResult.error) {
-        setError('Failed to load scratch requests');
+        setError('Failed to load pull requests');
       } else {
         setPendingRequests(pendingResult.data as ScratchRequest[]);
       }
@@ -143,13 +143,9 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
       );
 
       if (error) {
-        toast.error('Failed to approve scratch request');
+        toast.error('Failed to approve pull request');
       } else {
-        toast.success(
-          processRefund
-            ? 'Scratch approved with refund'
-            : 'Scratch approved'
-        );
+        toast.success(processRefund ? 'Pull approved with refund' : 'Pull approved');
         await loadData();
         onRefresh?.();
       }
@@ -170,9 +166,9 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
       const { error } = await denyScratchRequest(selectedRequest.id, denyReason);
 
       if (error) {
-        toast.error('Failed to deny scratch request');
+        toast.error('Failed to deny pull request');
       } else {
-        toast.success('Scratch request denied');
+        toast.success('Pull request denied');
         await loadData();
         onRefresh?.();
       }
@@ -300,11 +296,9 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <XCircle className="h-5 w-5" />
-            Scratch Management
+            Pull Management
           </h3>
-          <p className="text-sm text-muted-foreground">
-            Review scratch requests and process refunds
-          </p>
+          <p className="text-sm text-muted-foreground">Review pull requests and process refunds</p>
         </div>
         <Button variant="outline" size="sm" onClick={loadData}>
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -348,11 +342,11 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
             <Card>
               <CardContent className="py-12 text-center">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Pending Scratch Requests</p>
+                <p className="text-lg font-medium">No Pending Pull Requests</p>
                 <p className="text-sm text-muted-foreground">
                   {searchTerm
                     ? 'No requests match your search'
-                    : 'There are no pending scratch requests'}
+                    : 'There are no pending pull requests'}
                 </p>
               </CardContent>
             </Card>
@@ -435,17 +429,17 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
           )}
         </TabsContent>
 
-        {/* Processed Scratches */}
+        {/* Processed Pulls */}
         <TabsContent value="processed" className="mt-4">
           {filteredProcessed.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Processed Scratches</p>
+                <p className="text-lg font-medium">No Processed Pulls</p>
                 <p className="text-sm text-muted-foreground">
                   {searchTerm
-                    ? 'No scratches match your search'
-                    : 'There are no processed scratches for this show'}
+                    ? 'No pulls match your search'
+                    : 'There are no processed pulls for this show'}
                 </p>
               </CardContent>
             </Card>
@@ -491,7 +485,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
                         </div>
 
                         <div className="text-sm text-muted-foreground">
-                          Scratched: {formatDate(scratch.scratched_at ?? scratch.updated_at)}
+                          Pulled: {formatDate(scratch.scratched_at ?? scratch.updated_at)}
                         </div>
 
                         {scratch.refund_status === 'eligible' && scratch.stripe_payment_intent_id && (
@@ -518,9 +512,9 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
       <Dialog open={dialogAction === 'approve'} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve Scratch Request</DialogTitle>
+            <DialogTitle>Approve Pull Request</DialogTitle>
             <DialogDescription>
-              Approve the scratch request for {selectedRequest?.dog?.name} in{' '}
+              Approve the pull request for {selectedRequest?.dog?.name} in{' '}
               {selectedRequest?.class?.name}.
             </DialogDescription>
           </DialogHeader>
@@ -570,7 +564,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
               ) : (
                 <>
                   <Check className="h-4 w-4 mr-2" />
-                  Approve Scratch
+                  Approve Pull
                 </>
               )}
             </Button>
@@ -582,9 +576,9 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
       <Dialog open={dialogAction === 'deny'} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Deny Scratch Request</DialogTitle>
+            <DialogTitle>Deny Pull Request</DialogTitle>
             <DialogDescription>
-              Deny the scratch request for {selectedRequest?.dog?.name}.
+              Deny the pull request for {selectedRequest?.dog?.name}.
               The exhibitor will be notified.
             </DialogDescription>
           </DialogHeader>
@@ -629,7 +623,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
           <DialogHeader>
             <DialogTitle>Process Refund</DialogTitle>
             <DialogDescription>
-              Process a refund for the scratched entry. This will initiate a refund via Stripe.
+              Process a refund for the pulled entry. This will initiate a refund via Stripe.
             </DialogDescription>
           </DialogHeader>
 

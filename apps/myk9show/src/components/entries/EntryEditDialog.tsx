@@ -306,7 +306,7 @@ export function EntryEditDialog({
                           </div>
                         </div>
                         {isScratched ? (
-                          <Badge variant="secondary">Scratched</Badge>
+                          <Badge variant="secondary">Pulled</Badge>
                         ) : (
                           <Button
                             variant="ghost"
@@ -317,7 +317,7 @@ export function EntryEditDialog({
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <X className="h-4 w-4 mr-1" />
-                            Scratch
+                            Pull
                           </Button>
                         )}
                       </div>
@@ -386,7 +386,7 @@ export function EntryEditDialog({
         </SheetContent>
       </Sheet>
 
-      {/* Scratch Confirmation Dialog */}
+      {/* Pull Confirmation Dialog */}
       <AlertDialog
         open={scratchDialog.open}
         onOpenChange={(open) =>
@@ -395,7 +395,7 @@ export function EntryEditDialog({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Scratch from class?</AlertDialogTitle>
+            <AlertDialogTitle>Pull from class?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to withdraw from{' '}
               <strong>{scratchDialog.className}</strong>? This action cannot be
@@ -412,10 +412,10 @@ export function EntryEditDialog({
               {isSaving ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Scratching...
+                  Pulling...
                 </>
               ) : (
-                'Scratch Entry'
+                'Pull Entry'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

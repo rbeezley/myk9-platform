@@ -312,7 +312,7 @@ export class OfflineEntryCreator {
       }
 
       if (entry.status === 'scratched' || entry.status === 'withdrawn') {
-        return { success: false, error: 'Entry is already scratched or withdrawn' };
+        return { success: false, error: 'Entry is already pulled or withdrawn' };
       }
 
       await this.entryStore.updateStatus(entryId, 'scratched', userId, reason);
@@ -324,7 +324,7 @@ export class OfflineEntryCreator {
 
       return { success: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to scratch entry';
+      const message = error instanceof Error ? error.message : 'Failed to pull entry';
       return { success: false, error: message };
     }
   }

@@ -80,19 +80,19 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
                 <SelectItem value="checked-in">Checked In</SelectItem>
                 <SelectItem value="at-gate">At Gate</SelectItem>
                 <SelectItem value="come-to-gate">Come to Gate</SelectItem>
-                <SelectItem value="pulled">Scratch</SelectItem>
+                <SelectItem value="pulled">Pulled</SelectItem>
               </SelectContent>
             </Select>
           </FormField>
 
           {/* Additional Fields */}
           {formState.checkInStatus === 'pulled' && (
-            <FormField label="Scratch Reason" fieldId="scratch-reason">
+            <FormField label="Pull Reason" fieldId="scratch-reason">
               <Textarea
                 id="scratch-reason"
                 value={formState.scratchReason}
                 onChange={e => onFormStateChange({ scratchReason: e.target.value })}
-                placeholder="Reason for scratching..."
+                placeholder="Reason for pulling..."
               />
             </FormField>
           )}

@@ -59,12 +59,12 @@ function ScratchCell({
           }}
         >
           <XCircle className="mr-2 h-4 w-4" />
-          Confirm Scratch
+          Confirm Pull
         </Button>
         <Button
           size="default"
           variant="outline"
-          aria-label="Cancel scratch"
+          aria-label="Cancel pull"
           onClick={() => setPendingId(null)}
         >
           <X className="h-4 w-4" />
@@ -77,7 +77,7 @@ function ScratchCell({
     <div className="text-right">
       <Button size="default" variant="destructive" onClick={() => setPendingId(entry.id)}>
         <XCircle className="mr-2 h-4 w-4" />
-        Scratch
+        Pull
       </Button>
     </div>
   );
@@ -165,9 +165,9 @@ export function ScratchEntriesTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Scratch Management</CardTitle>
+        <CardTitle>Pull Management</CardTitle>
         <CardDescription>
-          Mark entries as scratched (no refund for day-of scratches)
+          Mark entries as pulled (no refund for day-of pulls)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -175,7 +175,7 @@ export function ScratchEntriesTable({
           tableId="scratchEntries"
           columns={columns}
           data={entries}
-          emptyState="No entries available to scratch"
+          emptyState="No entries available to pull"
         />
       </CardContent>
     </Card>

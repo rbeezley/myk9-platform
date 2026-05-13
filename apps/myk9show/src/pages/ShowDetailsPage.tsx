@@ -78,6 +78,19 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
   not_yet_open: 'default',
 };
 
+function isActiveEntryForMineFilter(entry: Record<string, unknown>): boolean {
+  const entryStatus = typeof entry.entry_status === 'string' ? entry.entry_status : '';
+  const checkInStatus = typeof entry.check_in_status === 'string' ? entry.check_in_status : '';
+  const deletedAt = entry.deleted_at;
+
+  return (
+    !deletedAt &&
+    entryStatus !== 'scratched' &&
+    entryStatus !== 'withdrawn' &&
+    checkInStatus !== 'pulled'
+  );
+}
+
 function parseOptionalCurrency(value: string | number | undefined): number | undefined {
   if (value === undefined) return undefined;
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
@@ -213,6 +226,7 @@ const ShowDetailsPage: React.FC = () => {
   const userEntryClassIds = useMemo(() => {
     const classIds = new Set<string>();
     for (const entry of showEntries) {
+      if (!isActiveEntryForMineFilter(entry)) continue;
       const dogId = typeof entry.dog_id === 'string' ? entry.dog_id : undefined;
       const classId = typeof entry.class_id === 'string' ? entry.class_id : undefined;
       if (dogId && classId && userDogIds.has(dogId)) {

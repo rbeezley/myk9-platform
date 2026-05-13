@@ -22,7 +22,7 @@ export const scratchEntry = async (entryId: string, reason?: string) => {
       .from('entries')
       .update({
         entry_status: 'scratched',
-        special_requests: reason || 'Scratched day-of',
+        special_requests: reason || 'Pulled day-of',
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
@@ -346,7 +346,7 @@ export const denyScratchRequest = async (entryId: string, reason?: string) => {
       .from('entries')
       .update({
         entry_status: 'confirmed',
-        special_requests: reason ? `Scratch denied: ${reason}` : 'Scratch request denied',
+        special_requests: reason ? `Pull denied: ${reason}` : 'Pull request denied',
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)

@@ -24,7 +24,7 @@ describe('DayOfOperationsPage tab consolidation', () => {
     expect(screen.getByRole('tab', { name: /day of show entries/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /check-in/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /move-ups/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /scratches/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /pulled/i })).toBeInTheDocument();
   });
 
   it('shows Check-In content when ?tab=check-in', () => {

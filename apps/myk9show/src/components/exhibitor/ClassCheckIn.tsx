@@ -398,7 +398,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                   disabled={isSubmitting}
                 >
                   <XCircle className="h-8 w-8" />
-                  <span>Scratch</span>
+                  <span>Pull</span>
                 </Button>
               </div>
             </div>
@@ -515,13 +515,13 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Scratch Warning Dialog */}
+      {/* Pull Warning Dialog */}
       <Dialog open={showScratchWarning} onOpenChange={setShowScratchWarning}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Scratch</DialogTitle>
+            <DialogTitle>Confirm Pull</DialogTitle>
             <DialogDescription>
-              Are you sure you want to scratch from {showClass.name}?
+              Are you sure you want to pull from {showClass.name}?
             </DialogDescription>
           </DialogHeader>
 
@@ -531,7 +531,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
               <p className="font-medium mb-1">Important:</p>
               <ul className="text-sm space-y-1">
                 <li>• Entry fees are non-refundable</li>
-                <li>• You cannot un-scratch once confirmed</li>
+                <li>• You cannot restore the entry once confirmed</li>
                 <li>• This may affect title progression</li>
               </ul>
             </AlertDescription>
@@ -556,7 +556,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
               }}
               disabled={isSubmitting}
             >
-              Confirm Scratch
+              Confirm Pull
             </Button>
           </DialogFooter>
         </DialogContent>

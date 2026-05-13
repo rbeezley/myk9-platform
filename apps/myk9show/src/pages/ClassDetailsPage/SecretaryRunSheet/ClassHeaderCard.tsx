@@ -91,7 +91,7 @@ export function ClassHeaderCard({
             </Chip>
             {scratched > 0 && (
               <Chip color="red" size="sm">
-                {scratched} scratched
+                {scratched} pulled
               </Chip>
             )}
           </div>

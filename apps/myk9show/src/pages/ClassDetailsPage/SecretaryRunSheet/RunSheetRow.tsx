@@ -113,7 +113,7 @@ export function RunSheetRow({
           )}
           {isScratched && (
             <Chip color="red" size="sm">
-              Scratched
+              Pulled
             </Chip>
           )}
           {!isScored && !isScratched && (
@@ -160,8 +160,8 @@ export function RunSheetRow({
           )}
           <button
             onClick={() => onScratch(!isScratched)}
-            title={isScratched ? 'Unscratch' : 'Scratch entry'}
-            aria-label={isScratched ? 'Unscratch entry' : 'Scratch entry'}
+            title={isScratched ? 'Restore entry' : 'Pull entry'}
+            aria-label={isScratched ? 'Restore entry' : 'Pull entry'}
             className="w-9 h-9 rounded-lg border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
           >
             {isScratched ? <RotateCcw size={15} /> : <X size={15} />}

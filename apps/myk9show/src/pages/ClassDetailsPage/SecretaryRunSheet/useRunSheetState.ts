@@ -73,7 +73,7 @@ export function useRunSheetState({
     setCheckInStatus(entryId, checked ? 'checked-in' : 'no-status', 'Failed to update check-in');
 
   const onScratch = (entryId: string, scratched: boolean) =>
-    setCheckInStatus(entryId, scratched ? 'pulled' : 'no-status', 'Failed to scratch entry');
+    setCheckInStatus(entryId, scratched ? 'pulled' : 'no-status', 'Failed to update pull status');
 
   const onSaveResult = async (entryId: string, result: RunSheetResult) => {
     const { recordResult } = useEntryStore.getState();

@@ -45,7 +45,7 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
         return;
       }
 
-      toast.success('Entry scratched successfully');
+      toast.success('Entry pulled successfully');
       onOpenChange(false);
       setReason('');
       onSuccess();
@@ -67,10 +67,10 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-destructive" />
-            Confirm Scratch
+            Confirm Pull
           </DialogTitle>
           <DialogDescription>
-            This will scratch the entry from the class. Day-of scratches are not eligible for
+            This will pull the entry from the class. Day-of pulls are not eligible for
             refunds.
           </DialogDescription>
         </DialogHeader>
@@ -92,7 +92,7 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
             <div className="space-y-2">
               <Label>Reason (optional)</Label>
               <Textarea
-                placeholder="Enter reason for scratch..."
+                placeholder="Enter reason for pulling..."
                 value={reason}
                 onChange={e => setReason(e.target.value)}
               />
@@ -105,7 +105,7 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
             Cancel
           </Button>
           <Button variant="destructive" onClick={handleScratch} disabled={isScratching}>
-            {isScratching ? 'Scratching...' : 'Confirm Scratch'}
+            {isScratching ? 'Pulling...' : 'Confirm Pull'}
           </Button>
         </DialogFooter>
       </DialogContent>

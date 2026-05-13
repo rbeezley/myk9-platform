@@ -81,7 +81,7 @@ describe('ShowMapStructureTable', () => {
     expect(screen.queryByText('#14 Scout')).not.toBeInTheDocument();
   });
 
-  it('collapses class rows while keeping the class available to open', async () => {
+  it('collapses class rows while keeping class-level scoring available', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');
 
@@ -112,6 +112,7 @@ describe('ShowMapStructureTable', () => {
 
     expect(screen.queryByText('#12 Bella')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /open/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
 

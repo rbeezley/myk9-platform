@@ -57,7 +57,11 @@ describe('buildShowMapTree', () => {
     expect(tree.childIdsByParentId[tree.root.id]).toEqual(['trial:trial-1']);
     expect(tree.childIdsByParentId['trial:trial-1']).toEqual(['class:class-1']);
     expect(tree.childIdsByParentId['class:class-1']).toEqual(['entry:entry-1']);
+    expect(tree.nodesById['class:class-1']?.scoreHref).toBe(
+      '/scoring/classes/class-1/entries?mode=split'
+    );
     expect(tree.nodesById['entry:entry-1']?.label).toBe('#12 Bella');
+    expect(tree.nodesById['entry:entry-1']?.scoreHref).toBeUndefined();
   });
 
   it('keeps empty shows as a root-only tree', () => {

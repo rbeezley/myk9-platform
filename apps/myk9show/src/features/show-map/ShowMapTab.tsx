@@ -38,9 +38,9 @@ function useExpandedNodes(tree: ShowMapTree) {
 
 function SummaryItem({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-[120px] rounded-md border bg-card px-4 py-3">
-      <div className="text-2xl font-bold leading-none text-foreground">{value}</div>
-      <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="min-w-[112px] rounded-md border bg-card/70 px-3 py-2.5">
+      <div className="text-xl font-bold leading-none text-foreground">{value}</div>
+      <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
     </div>
@@ -96,6 +96,12 @@ export default function ShowMapTab({
   return (
     <div className="mt-4 overflow-hidden rounded-md border bg-background">
       <div className="border-b bg-muted/20 p-4">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-foreground">Show List</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Scan the show by trial and class, then open the class you need.
+          </p>
+        </div>
         <div className="flex flex-wrap gap-3">
           <SummaryItem label="Trials" value={trials.length} />
           <SummaryItem label="Classes" value={classes.length} />

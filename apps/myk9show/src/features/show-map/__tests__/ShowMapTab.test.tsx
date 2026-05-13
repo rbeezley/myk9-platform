@@ -57,7 +57,7 @@ describe('ShowMapTab', () => {
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
 
     expect(screen.getByText('2 more entries')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /score class/i })).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /score entry/i })).not.toBeInTheDocument();
   });
 

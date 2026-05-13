@@ -30,6 +30,7 @@ export interface ShowMapNode {
   progress?: ShowMapProgress | undefined;
   attentionCount?: number | undefined;
   href?: string | undefined;
+  scoreHref?: string | undefined;
   parentId?: string | undefined;
   childrenCount: number;
   isSynthetic?: boolean | undefined;

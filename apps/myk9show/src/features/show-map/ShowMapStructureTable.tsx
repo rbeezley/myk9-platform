@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, ClipboardCheck, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -89,9 +89,9 @@ export function ShowMapStructureTable({
       <li key={nodeId}>
         <div
           className={cn(
-            'grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(160px,0.8fr)_minmax(180px,0.9fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2',
-            depth > 0 && 'bg-muted/20',
-            node.type === 'entry' && 'bg-background'
+            'grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(180px,auto)] items-center gap-3 border-b px-3 py-2',
+            node.type === 'trial' && 'bg-muted/25',
+            node.type === 'entry' && 'bg-background/60'
           )}
         >
           <div
@@ -146,7 +146,7 @@ export function ShowMapStructureTable({
           <StatusCell node={node} />
           <ProgressCell node={node} />
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             {node.href && (
               <Button
                 type="button"
@@ -156,6 +156,12 @@ export function ShowMapStructureTable({
               >
                 <ExternalLink className="h-4 w-4" />
                 Open
+              </Button>
+            )}
+            {node.type === 'class' && node.scoreHref && (
+              <Button type="button" size="sm" onClick={() => onNavigate?.(node.scoreHref!)}>
+                <ClipboardCheck className="h-4 w-4" />
+                Score Class
               </Button>
             )}
           </div>
@@ -169,14 +175,8 @@ export function ShowMapStructureTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-md border bg-card">
-      <div className="grid min-w-[900px] grid-cols-[minmax(260px,1.5fr)_minmax(160px,0.8fr)_minmax(180px,0.9fr)_minmax(160px,auto)] gap-3 border-b bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <div>Show List</div>
-        <div>Status</div>
-        <div>Progress</div>
-        <div className="text-right">Actions</div>
-      </div>
-      <ul className="min-w-[900px]">{renderNode(tree.root.id, 0)}</ul>
+    <div className="overflow-x-auto rounded-md bg-card">
+      <ul className="min-w-[900px] border-t">{renderNode(tree.root.id, 0)}</ul>
     </div>
   );
 }

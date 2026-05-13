@@ -9,6 +9,7 @@ import {
 } from './showMapStatus';
 import {
   getShowMapClassHref,
+  getShowMapClassScoringHref,
   getShowMapShowHref,
   getShowMapTrialHref,
 } from './showMapRoutes';
@@ -151,6 +152,7 @@ export function buildShowMapTree({
         progress: buildClassProgress(cls, classEntries),
         attentionCount: attentionCountForClass,
         href: getShowMapClassHref(show.id, trial.id, cls.id),
+        scoreHref: getShowMapClassScoringHref(cls.id),
         parentId: trialNode.id,
         childrenCount: classEntries.length,
       };

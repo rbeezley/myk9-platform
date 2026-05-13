@@ -134,7 +134,11 @@ export const getShowById = async (id: string) => {
       async () => {
         const show = await replicatedShowsTable.getShowById(id);
         if (!show) {
-          return await postgrestGetShowById(id);
+          const remote = await postgrestGetShowById(id);
+          return {
+            data: Array.isArray(remote.data) ? null : remote.data,
+            error: remote.error,
+          };
         }
 
         const [club, trials, judgeAssignments] = await Promise.all([

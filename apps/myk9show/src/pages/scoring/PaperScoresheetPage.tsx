@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, AlertCircle, LayoutPanelLeft, List } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle, List, PanelTop } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
@@ -82,6 +83,8 @@ export function PaperScoresheetPage() {
 
   const userId = user?.id ?? 'anonymous';
   const scoring = usePaperScoring(entries, userId);
+  const scoringMode = scoring.mode;
+  const setScoringMode = scoring.setMode;
   const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const sequentialIndex = Math.max(
     0,
@@ -90,9 +93,9 @@ export function PaperScoresheetPage() {
 
   useEffect(() => {
     if (requestedMode !== 'split' && requestedMode !== 'sequential') return;
-    if (scoring.mode === requestedMode) return;
-    scoring.setMode(requestedMode);
-  }, [requestedMode, scoring]);
+    if (scoringMode === requestedMode) return;
+    setScoringMode(requestedMode);
+  }, [requestedMode, scoringMode, setScoringMode]);
 
   useEffect(() => {
     if (!requestedEntryId || appliedRequestRef.current === requestedEntryId) return;
@@ -117,19 +120,35 @@ export function PaperScoresheetPage() {
     return fresh;
   };
 
-  const handleSave = async (result: PaperResult, timeDigits: string, faults: number) => {
+  const handleSave = async (
+    result: PaperResult,
+    timeDigits: string,
+    faults: number,
+    reason?: string
+  ) => {
     if (!scoring.selectedEntryId) return;
-    await scoring.saveEntry(scoring.selectedEntryId, result, timeDigits, faults);
+    await scoring.saveEntry(scoring.selectedEntryId, result, timeDigits, faults, reason);
     await reloadEntries();
   };
 
-  const handleSaveAndNext = async (result: PaperResult, timeDigits: string, faults: number) => {
+  const handleSaveAndNext = async (
+    result: PaperResult,
+    timeDigits: string,
+    faults: number,
+    reason?: string
+  ) => {
     if (!scoring.selectedEntryId) return;
     const currentEntryId = scoring.selectedEntryId;
-    await scoring.saveEntry(currentEntryId, result, timeDigits, faults);
+    await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
     const fresh = await reloadEntries();
     const next = sortByExhibitorOrder(fresh).find(e => !e.isScored && e.entryId !== currentEntryId);
     scoring.selectEntry(next?.entryId ?? null);
+  };
+
+  const handleClearResult = async () => {
+    if (!scoring.selectedEntryId) return;
+    await scoring.clearEntry(scoring.selectedEntryId);
+    await reloadEntries();
   };
 
   const handleModeChange = (mode: PaperScoringMode) => {
@@ -160,7 +179,6 @@ export function PaperScoresheetPage() {
   }
 
   const scoredCount = entries.filter(e => e.isScored).length;
-  const allScored = entries.length > 0 && scoredCount === entries.length;
   const classDetailsHref = getClassDetailsHref(breadcrumb);
 
   return (
@@ -202,73 +220,105 @@ export function PaperScoresheetPage() {
             <span className="hidden sm:inline">Back to Class</span>
             <span className="sm:hidden">Class</span>
           </Button>
-          <div className="flex items-center gap-1 rounded-lg border p-1">
-            <Button
-              variant={scoring.mode === 'split' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => handleModeChange('split')}
-              title="Split panel"
-            >
-              <LayoutPanelLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={scoring.mode === 'sequential' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => handleModeChange('sequential')}
-              title="Sequential"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
+          <ViewModeToggle mode={scoring.mode} onChange={handleModeChange} />
         </div>
       </div>
 
       <SessionToolbar settings={scoring.sessionSettings} onChange={scoring.setSessionSettings} />
 
-      {allScored && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center p-8">
-          <p className="text-2xl font-bold">All dogs scored!</p>
-          <p className="text-muted-foreground">{entries.length} entries complete.</p>
-          <Button variant="outline" onClick={() => navigate(-1)}>
-            Back to Class
-          </Button>
-        </div>
-      )}
-
-      {!allScored && (
-        <div
-          className={cn(
-            'flex-1 overflow-hidden p-4',
-            scoring.mode === 'sequential' && 'overflow-y-auto'
-          )}
-        >
-          {scoring.mode === 'split' ? (
-            <SplitPanelView
-              entries={entries}
-              settings={scoring.sessionSettings}
-              selectedEntryId={scoring.selectedEntryId}
-              onSelectEntry={scoring.selectEntry}
-              onSave={handleSave}
-              onSaveAndNext={handleSaveAndNext}
-              isSaving={scoring.isSaving}
-            />
-          ) : (
-            <SequentialView
-              entries={entries}
-              currentIndex={sequentialIndex}
-              settings={scoring.sessionSettings}
-              onNavigate={index => {
-                if (sortedEntries[index]) scoring.selectEntry(sortedEntries[index].entryId);
-              }}
-              onSave={handleSave}
-              onSaveAndNext={handleSaveAndNext}
-              isSaving={scoring.isSaving}
-            />
-          )}
-        </div>
-      )}
+      <div
+        className={cn(
+          'flex-1 overflow-hidden p-4',
+          scoring.mode === 'sequential' && 'overflow-y-auto'
+        )}
+      >
+        {scoring.mode === 'split' ? (
+          <SplitPanelView
+            entries={entries}
+            settings={scoring.sessionSettings}
+            selectedEntryId={scoring.selectedEntryId}
+            onSelectEntry={scoring.selectEntry}
+            onSave={handleSave}
+            onSaveAndNext={handleSaveAndNext}
+            onClearResult={handleClearResult}
+            isSaving={scoring.isSaving}
+          />
+        ) : (
+          <SequentialView
+            entries={entries}
+            currentIndex={sequentialIndex}
+            settings={scoring.sessionSettings}
+            onNavigate={index => {
+              if (sortedEntries[index]) scoring.selectEntry(sortedEntries[index].entryId);
+            }}
+            onSave={handleSave}
+            onSaveAndNext={handleSaveAndNext}
+            onClearResult={handleClearResult}
+            isSaving={scoring.isSaving}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
 export default PaperScoresheetPage;
+
+function ViewModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: PaperScoringMode;
+  onChange: (mode: PaperScoringMode) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Scoring view"
+      className="flex items-center gap-1 rounded-lg border bg-background p-1"
+    >
+      <ViewModeButton
+        active={mode === 'split'}
+        icon={<List className="h-4 w-4" />}
+        label="List"
+        onClick={() => onChange('split')}
+      />
+      <ViewModeButton
+        active={mode === 'sequential'}
+        icon={<PanelTop className="h-4 w-4" />}
+        label="Card"
+        onClick={() => onChange('sequential')}
+      />
+    </div>
+  );
+}
+
+function ViewModeButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        'flex h-9 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors',
+        active
+          ? 'bg-accent text-foreground shadow-sm'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+      )}
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}

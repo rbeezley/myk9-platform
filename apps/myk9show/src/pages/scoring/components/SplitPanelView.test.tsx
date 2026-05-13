@@ -90,4 +90,64 @@ describe('SplitPanelView', () => {
     await userEvent.click(screen.getAllByRole('button')[0]);
     expect(onSelectEntry).toHaveBeenCalledWith('e1');
   });
+
+  it('shows Q time, faults, and placement when all entries are scored', () => {
+    render(
+      <SplitPanelView
+        entries={[
+          makeEntry('e1', 1, {
+            isScored: true,
+            status: 'scored',
+            placement: 1,
+            result: { qualification: 'Qualified', time: 83450, faults: 2 },
+          }),
+          makeEntry('e2', 2, {
+            isScored: true,
+            status: 'scored',
+            result: {
+              qualification: 'Not Qualified',
+              time: 0,
+              faults: 0,
+              reason: 'Incorrect Call',
+            },
+          }),
+        ]}
+        settings={DEFAULT_SESSION_SETTINGS}
+        selectedEntryId={null}
+        onSelectEntry={vi.fn()}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        isSaving={false}
+      />
+    );
+
+    expect(screen.getByText('1st')).toBeInTheDocument();
+    expect(screen.getByText('1:23.45 · 2 faults')).toBeInTheDocument();
+    expect(screen.getByText('Incorrect Call')).toBeInTheDocument();
+  });
+
+  it('does not show placement until all entries are scored', () => {
+    render(
+      <SplitPanelView
+        entries={[
+          makeEntry('e1', 1, {
+            isScored: true,
+            status: 'scored',
+            placement: 1,
+            result: { qualification: 'Qualified', time: 83450, faults: 0 },
+          }),
+          makeEntry('e2', 2),
+        ]}
+        settings={DEFAULT_SESSION_SETTINGS}
+        selectedEntryId={null}
+        onSelectEntry={vi.fn()}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        isSaving={false}
+      />
+    );
+
+    expect(screen.queryByText('1st')).not.toBeInTheDocument();
+    expect(screen.getByText('1:23.45 · 0 faults')).toBeInTheDocument();
+  });
 });

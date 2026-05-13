@@ -58,6 +58,7 @@ export interface ScoringResult {
   placement?: number;
   points?: number;
   notes?: string;
+  reason?: string;
 }
 
 /**
@@ -96,6 +97,7 @@ export function toScoringEntry(
         time: (entry.search_time_seconds || entry.searchTimeSeconds || 0) * 1000,
         faults: entry.total_faults ?? entry.totalFaults ?? 0,
         qualification: mapResultStatusToQualification(resultStatus),
+        ...(entry.disqualification_reason ? { reason: entry.disqualification_reason } : {}),
       }
     : undefined;
 

@@ -4,13 +4,19 @@ import { TimeInput } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from '../types';
-import type { PaperResult, SessionSettings } from '../paper-scoring-types';
+import {
+  getReasonOptions,
+  resultRequiresReason,
+  type PaperResult,
+  type SessionSettings,
+} from '../paper-scoring-types';
 
 interface EntryPanelProps {
   entry: ScoringEntry;
   settings: SessionSettings;
-  onSave: (result: PaperResult, timeDigits: string, faults: number) => void;
-  onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number) => void;
+  onSave: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
+  onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
+  onClearResult?: (() => void) | undefined;
   onClose: () => void;
   isSaving: boolean;
 }
@@ -22,9 +28,34 @@ const RESULT_BUTTONS: { code: PaperResult; label: string; description: string }[
   { code: 'EX', label: 'EX', description: 'Excused' },
 ];
 
+const RESULT_TO_PAPER_RESULT: Record<string, PaperResult> = {
+  Qualified: 'Q',
+  'Not Qualified': 'NQ',
+  Absent: 'ABS',
+  Excused: 'EX',
+  Withdrawn: 'EX',
+};
+
+function secondsToTimeValue(milliseconds: number | undefined): string {
+  if (!milliseconds || milliseconds <= 0) return '';
+  const totalSeconds = milliseconds / 1000;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  const hundredths = Math.round((totalSeconds % 1) * 100);
+  return `${minutes}:${String(seconds).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
+}
+
+function initialResultForEntry(entry: ScoringEntry, settings: SessionSettings): PaperResult | null {
+  const savedResult = entry.result?.qualification
+    ? RESULT_TO_PAPER_RESULT[entry.result.qualification]
+    : undefined;
+  if (savedResult) return savedResult;
+  return settings.preFill === 'none' ? null : settings.preFill;
+}
+
 /** True when selecting this result should immediately auto-save (no time needed) */
 function shouldAutoSave(result: PaperResult, settings: SessionSettings): boolean {
-  return result !== 'Q' && settings.timeRecordMode === 'q-only' && settings.preFill === 'none';
+  return result === 'ABS' && settings.timeRecordMode === 'q-only' && settings.preFill === 'none';
 }
 
 /** True when the time field should be shown given a selected result */
@@ -39,16 +70,19 @@ export function EntryPanel({
   settings,
   onSave,
   onSaveAndNext,
+  onClearResult,
   onClose,
   isSaving,
 }: EntryPanelProps) {
-  const initialResult: PaperResult | null = settings.preFill === 'none' ? null : settings.preFill;
-
-  const [selectedResult, setSelectedResult] = useState<PaperResult | null>(initialResult);
-  const [timeDigits, setTimeDigits] = useState('');
-  const [faults, setFaults] = useState(0);
+  const [selectedResult, setSelectedResult] = useState<PaperResult | null>(() =>
+    initialResultForEntry(entry, settings)
+  );
+  const [timeDigits, setTimeDigits] = useState(() => secondsToTimeValue(entry.result?.time));
+  const [faults, setFaults] = useState(() => entry.result?.faults ?? 0);
+  const [reason, setReason] = useState(() => entry.result?.reason ?? '');
 
   const handleResultClick = (result: PaperResult) => {
+    if (result !== selectedResult) setReason('');
     setSelectedResult(result);
     if (shouldAutoSave(result, settings)) {
       onSave(result, '', 0);
@@ -58,9 +92,24 @@ export function EntryPanel({
   const isPreFilled = (result: PaperResult) =>
     settings.preFill !== 'none' && result === settings.preFill;
 
-  const showSaveButtons = selectedResult !== null && !shouldAutoSave(selectedResult, settings);
+  const showSaveButtons = selectedResult !== null;
 
   const displayTimeField = showTimeField(selectedResult, settings);
+  const reasonOptions = getReasonOptions(selectedResult);
+  const needsReason = resultRequiresReason(selectedResult);
+  const canSave = !needsReason || reason.trim().length > 0;
+  const normalizedReason = needsReason ? reason.trim() : undefined;
+  const canClearResult = !!onClearResult && (entry.isScored || entry.result);
+
+  const handleClearResult = () => {
+    const confirmed = window.confirm(`Clear the saved result for ${entry.callName}?`);
+    if (!confirmed) return;
+    setSelectedResult(settings.preFill === 'none' ? null : settings.preFill);
+    setTimeDigits('');
+    setFaults(0);
+    setReason('');
+    onClearResult?.();
+  };
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full">
@@ -86,6 +135,7 @@ export function EntryPanel({
                 key={code}
                 aria-label={label}
                 onClick={() => handleResultClick(code)}
+                data-selected={isSelected ? 'true' : undefined}
                 data-prefilled={isPrefilled ? 'true' : undefined}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-lg border-2 text-left transition-colors font-semibold',
@@ -152,27 +202,62 @@ export function EntryPanel({
         </div>
       )}
 
+      {needsReason && (
+        <div className="space-y-1">
+          <label
+            className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+            htmlFor="reason-select"
+          >
+            Reason
+          </label>
+          <select
+            id="reason-select"
+            value={reason}
+            onChange={event => setReason(event.target.value)}
+            className="h-11 w-full rounded-lg border-2 border-border bg-background px-3 text-sm font-medium focus:border-primary focus:outline-none"
+          >
+            <option value="">Select reason...</option>
+            {reasonOptions.map(option => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {showSaveButtons && (
         <div className="flex gap-2 mt-auto pt-2">
           <Button
             variant="secondary"
             className="flex-1"
-            onClick={() => onSave(selectedResult!, timeDigits, faults)}
-            disabled={isSaving}
+            onClick={() => onSave(selectedResult!, timeDigits, faults, normalizedReason)}
+            disabled={isSaving || !canSave}
           >
             Save
           </Button>
           <Button
             className="flex-1"
-            onClick={() => onSaveAndNext(selectedResult!, timeDigits, faults)}
-            disabled={isSaving}
+            onClick={() => onSaveAndNext(selectedResult!, timeDigits, faults, normalizedReason)}
+            disabled={isSaving || !canSave}
           >
             {isSaving ? 'Saving...' : 'Save & Next'}
           </Button>
         </div>
       )}
 
-      {/* Close / cancel */}
+      {canClearResult && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleClearResult}
+          disabled={isSaving}
+          className="border-destructive/40 text-destructive hover:bg-destructive/10"
+        >
+          Clear result
+        </Button>
+      )}
+
       <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground">
         Cancel
       </Button>

@@ -332,7 +332,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Priority 0: Mock user for development testing
     if (import.meta.env.DEV && currentMockUser && MOCK_USERS[currentMockUser]) {
-      return MOCK_USERS[currentMockUser];
+      return buildDevUserWithMockRoles(auth.user, MOCK_USERS[currentMockUser], userProfile?.id);
     }
 
     // Priority 1: Database RBAC (from rbacService) — only use once loaded

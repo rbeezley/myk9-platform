@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
+import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 
 // Mock the useAuth hook
 const mockUseAuth = vi.fn();
@@ -18,6 +19,11 @@ vi.mock('@/hooks/useAuth', () => ({
 // Mock RBACService to avoid async loading
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
+    getUserPermissions: vi.fn().mockResolvedValue({
+      roles: [],
+      effectivePermissions: [],
+      permissions: [],
+    }),
     getUserRoles: vi.fn().mockResolvedValue([]),
     getUserRolesByEmail: vi.fn().mockResolvedValue([]),
     hasPermission: vi.fn().mockResolvedValue(false),
@@ -61,6 +67,7 @@ describe('AuthContext', () => {
   };
 
   beforeEach(() => {
+    localStorage.clear();
     mockUseAuth.mockReturnValue(mockAuthReturn);
     mockNavigate.mockClear();
     vi.clearAllMocks();
@@ -84,7 +91,7 @@ describe('AuthContext', () => {
   };
 
   describe('AuthProvider', () => {
-    it('should provide authentication context', () => {
+    it('should provide authentication context', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         return (
@@ -98,10 +105,10 @@ describe('AuthContext', () => {
       renderWithAuthProvider(<TestComponent />);
 
       expect(screen.getByTestId('user-email')).toHaveTextContent('test@example.com');
-      expect(screen.getByTestId('loading')).toHaveTextContent('false');
+      await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
     });
 
-    it('should create userWithRoles from authenticated user', () => {
+    it('should create userWithRoles from authenticated user', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         return (
@@ -119,8 +126,10 @@ describe('AuthContext', () => {
       renderWithAuthProvider(<TestComponent />);
 
       // Should default to exhibitor role for unknown users
-      expect(screen.getByTestId('user-roles')).toHaveTextContent('exhibitor');
-      expect(screen.getByTestId('user-permissions')).not.toHaveTextContent('0');
+      await waitFor(() => {
+        expect(screen.getByTestId('user-roles')).toHaveTextContent('exhibitor');
+        expect(screen.getByTestId('user-permissions')).not.toHaveTextContent('0');
+      });
     });
 
     it('should use mock user when email matches', () => {
@@ -194,7 +203,7 @@ describe('AuthContext', () => {
   });
 
   describe('RBAC Methods', () => {
-    it('should check if user has role', () => {
+    it('should check if user has role', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         return (
@@ -207,11 +216,13 @@ describe('AuthContext', () => {
 
       renderWithAuthProvider(<TestComponent />);
 
-      expect(screen.getByTestId('has-exhibitor')).toHaveTextContent('true');
-      expect(screen.getByTestId('has-admin')).toHaveTextContent('false');
+      await waitFor(() => {
+        expect(screen.getByTestId('has-exhibitor')).toHaveTextContent('true');
+        expect(screen.getByTestId('has-admin')).toHaveTextContent('false');
+      });
     });
 
-    it('should check if user has permission', () => {
+    it('should check if user has permission', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         return (
@@ -228,11 +239,13 @@ describe('AuthContext', () => {
 
       renderWithAuthProvider(<TestComponent />);
 
-      expect(screen.getByTestId('can-create-dog')).toHaveTextContent('true');
-      expect(screen.getByTestId('can-manage-users')).toHaveTextContent('false');
+      await waitFor(() => {
+        expect(screen.getByTestId('can-create-dog')).toHaveTextContent('true');
+        expect(screen.getByTestId('can-manage-users')).toHaveTextContent('false');
+      });
     });
 
-    it('should get user roles', () => {
+    it('should get user roles', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         const roles = auth.getUserRoles();
@@ -241,7 +254,7 @@ describe('AuthContext', () => {
 
       renderWithAuthProvider(<TestComponent />);
 
-      expect(screen.getByTestId('user-roles')).toHaveTextContent('exhibitor');
+      await waitFor(() => expect(screen.getByTestId('user-roles')).toHaveTextContent('exhibitor'));
     });
 
     it('should treat seeded secretary test account as secretary in development', () => {
@@ -284,6 +297,42 @@ describe('AuthContext', () => {
       // Should eventually show admin role after switch
       waitFor(() => {
         expect(screen.getByTestId('user-roles')).toHaveTextContent('admin');
+      });
+    });
+
+    it('adds the database person id to a selected dev mock user', async () => {
+      localStorage.setItem('dev-current-mock-user', 'test-secretary-user');
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          return createChainableQuery({
+            data: {
+              id: 'person-test-secretary',
+              first_name: 'Test',
+              last_name: 'Secretary',
+              email: 'testsecretary@example.com',
+              status: 'active',
+            },
+            error: null,
+          });
+        }
+        return createChainableQuery();
+      });
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return (
+          <div>
+            <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ')}</span>
+            <span data-testid="database-user-id">{auth.userWithRoles?.databaseUserId ?? ''}</span>
+          </div>
+        );
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
+        expect(screen.getByTestId('database-user-id')).toHaveTextContent('person-test-secretary');
       });
     });
   });
@@ -370,17 +419,17 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('navigate')).toHaveTextContent('Redirecting to /custom-login');
     });
 
-    it('should show content when user is authenticated', () => {
+    it('should show content when user is authenticated', async () => {
       renderWithAuthProvider(
         <ProtectedRoute>
           <TestPage />
         </ProtectedRoute>
       );
 
-      expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      expect(await screen.findByTestId('protected-content')).toBeInTheDocument();
     });
 
-    it('should check required role', () => {
+    it('should check required role', async () => {
       renderWithAuthProvider(
         <ProtectedRoute requiredRole={UserRole.SITE_ADMIN}>
           <TestPage />
@@ -388,21 +437,21 @@ describe('AuthContext', () => {
       );
 
       // Should show fallback since user doesn't have site_admin role
-      expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+      expect(await screen.findByText(/You don't have permission/)).toBeInTheDocument();
       expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
     });
 
-    it('should allow access with correct role', () => {
+    it('should allow access with correct role', async () => {
       renderWithAuthProvider(
         <ProtectedRoute requiredRole={UserRole.EXHIBITOR}>
           <TestPage />
         </ProtectedRoute>
       );
 
-      expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      expect(await screen.findByTestId('protected-content')).toBeInTheDocument();
     });
 
-    it('should check required permission', () => {
+    it('should check required permission', async () => {
       renderWithAuthProvider(
         <ProtectedRoute requiredPermission={PERMISSIONS.ADMIN_MANAGE_USERS}>
           <TestPage />
@@ -410,21 +459,21 @@ describe('AuthContext', () => {
       );
 
       // Should show fallback since user doesn't have manage users permission
-      expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+      expect(await screen.findByText(/You don't have permission/)).toBeInTheDocument();
       expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
     });
 
-    it('should allow access with correct permission', () => {
+    it('should allow access with correct permission', async () => {
       renderWithAuthProvider(
         <ProtectedRoute requiredPermission={PERMISSIONS.DOG_CREATE}>
           <TestPage />
         </ProtectedRoute>
       );
 
-      expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      expect(await screen.findByTestId('protected-content')).toBeInTheDocument();
     });
 
-    it('should show custom fallback', () => {
+    it('should show custom fallback', async () => {
       const CustomFallback = () => <div data-testid="custom-fallback">Custom Fallback</div>;
 
       renderWithAuthProvider(
@@ -433,11 +482,11 @@ describe('AuthContext', () => {
         </ProtectedRoute>
       );
 
-      expect(screen.getByTestId('custom-fallback')).toBeInTheDocument();
+      expect(await screen.findByTestId('custom-fallback')).toBeInTheDocument();
       expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
     });
 
-    it('should handle scoped permissions', () => {
+    it('should handle scoped permissions', async () => {
       const scope = { type: 'club' as const, id: 'club-123' };
 
       renderWithAuthProvider(
@@ -447,7 +496,7 @@ describe('AuthContext', () => {
       );
 
       // Should show fallback since user doesn't have scoped permission
-      expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+      expect(await screen.findByText(/You don't have permission/)).toBeInTheDocument();
     });
   });
 

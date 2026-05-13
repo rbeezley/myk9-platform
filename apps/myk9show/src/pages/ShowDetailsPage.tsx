@@ -14,7 +14,7 @@ import {
   BarChart3,
   Trash2,
   Pencil,
-  Map,
+  ListTree,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -346,7 +346,7 @@ const ShowDetailsPage: React.FC = () => {
           ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
-      ...(canShowMap ? [{ id: 'map', label: 'Map', icon: Map }] : []),
+      ...(canShowMap ? [{ id: 'map', label: 'Structure', icon: ListTree }] : []),
     ],
     [isAuthenticated, canShowMap, associatedTrials.length, showClasses.length, userEntries.length]
   );

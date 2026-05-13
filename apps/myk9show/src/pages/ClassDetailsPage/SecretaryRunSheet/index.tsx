@@ -1,7 +1,7 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
-import type { ClassInput } from '@/store/classStore.types';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
-import { ClassHeaderCard } from './ClassHeaderCard';
+import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
+import { useNavigate } from 'react-router-dom';
 import { RunOrderBar } from './RunOrderBar';
 import { RunSheetRow } from './RunSheetRow';
 import { useRunSheetState } from './useRunSheetState';
@@ -9,46 +9,25 @@ import { useRunSheetState } from './useRunSheetState';
 interface SecretaryRunSheetProps {
   currentClass: ClassData;
   dbRawEntries: RawEntryRow[];
-  updateClass: (id: string, updates: Partial<ClassInput>) => Promise<unknown>;
   userId: string;
+  myEntryIds?: Set<string>;
 }
 
 export function SecretaryRunSheet({
   currentClass,
   dbRawEntries,
-  updateClass,
   userId,
+  myEntryIds = new Set(),
 }: SecretaryRunSheetProps) {
-  const {
-    sortMode,
-    onSort,
-    expandedId,
-    onToggleExpand,
-    classPhase,
-    sortedEntries,
-    onCheckIn,
-    onScratch,
-    onSaveResult,
-    onStartClass,
-    onCloseClass,
-  } = useRunSheetState({ rawEntries: dbRawEntries, currentClass, updateClass, userId });
-
-  const timeLimit = currentClass.timeLimit1 ?? '–';
+  const navigate = useNavigate();
+  const { sortMode, onSort, sortedEntries, onCheckIn, onScratch } = useRunSheetState({
+    rawEntries: dbRawEntries,
+    classId: currentClass.id,
+    userId,
+  });
 
   return (
-    <>
-      <ClassHeaderCard
-        element={currentClass.element ?? 'Container'}
-        level={currentClass.level ?? ''}
-        judge={currentClass.judge}
-        startTime={currentClass.startTime ?? '–'}
-        timeLimit={timeLimit}
-        entries={sortedEntries}
-        classPhase={classPhase}
-        onStartClass={onStartClass}
-        onCloseClass={onCloseClass}
-      />
-
+    <div className="mt-6">
       <RunOrderBar sortMode={sortMode} onSort={onSort} />
 
       <div className="space-y-2.5">
@@ -57,12 +36,10 @@ export function SecretaryRunSheet({
             key={entry.id}
             entry={entry}
             position={idx + 1}
-            expanded={expandedId === entry.id}
-            timeLimit={timeLimit}
-            onToggleExpand={() => onToggleExpand(entry.id)}
+            onScoreEntry={() => navigate(getPaperScoringEntryHref(currentClass.id, entry.id))}
             onCheckIn={checked => onCheckIn(entry.id, checked)}
             onScratch={scratched => onScratch(entry.id, scratched)}
-            onSaveResult={result => onSaveResult(entry.id, result)}
+            isMine={myEntryIds.has(entry.id)}
           />
         ))}
         {sortedEntries.length === 0 && (
@@ -71,6 +48,6 @@ export function SecretaryRunSheet({
           </p>
         )}
       </div>
-    </>
+    </div>
   );
 }

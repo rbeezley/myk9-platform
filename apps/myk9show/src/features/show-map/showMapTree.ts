@@ -9,6 +9,8 @@ import {
 } from './showMapStatus';
 import {
   getShowMapClassHref,
+  getShowMapClassScoringHref,
+  getShowMapEntryScoringHref,
   getShowMapShowHref,
   getShowMapTrialHref,
 } from './showMapRoutes';
@@ -38,7 +40,10 @@ function entryClassId(entry: ShowMapEntryInput): string | undefined {
 function entryDogName(entry: ShowMapEntryInput): string | undefined {
   const dog = entry.dog;
   if (!dog || typeof dog !== 'object') return undefined;
-  return readString(dog as Record<string, unknown>, 'call_name') ?? readString(dog as Record<string, unknown>, 'name');
+  return (
+    readString(dog as Record<string, unknown>, 'call_name') ??
+    readString(dog as Record<string, unknown>, 'name')
+  );
 }
 
 function entryLabel(entry: ShowMapEntryInput): string {
@@ -114,7 +119,9 @@ export function buildShowMapTree({
       return (a.level ?? '').localeCompare(b.level ?? '');
     });
     const trialEntries = trialClasses.flatMap(cls => entriesByClassId.get(cls.id) ?? []);
-    const completedClasses = trialClasses.filter(cls => classifyClassStatus(cls.status)?.kind === 'complete').length;
+    const completedClasses = trialClasses.filter(
+      cls => classifyClassStatus(cls.status)?.kind === 'complete'
+    ).length;
     const attentionCount = trialEntries.filter(hasEntryAttention).length;
     const trialNode: ShowMapNode = {
       id: `trial:${trial.id}`,
@@ -146,6 +153,7 @@ export function buildShowMapTree({
         progress: buildClassProgress(cls, classEntries),
         attentionCount: attentionCountForClass,
         href: getShowMapClassHref(show.id, trial.id, cls.id),
+        scoreHref: getShowMapClassScoringHref(cls.id),
         parentId: trialNode.id,
         childrenCount: classEntries.length,
       };
@@ -161,6 +169,7 @@ export function buildShowMapTree({
           label: entryLabel(entry),
           status: classifyEntryRunStatus(entry),
           checkInStatus: classifyEntryCheckInStatus(entry),
+          scoreHref: getShowMapEntryScoringHref(cls.id, entryId),
           parentId: classNode.id,
           childrenCount: 0,
         });
@@ -187,4 +196,8 @@ export function buildShowMapTree({
   tree.root.attentionCount = entries.filter(hasEntryAttention).length;
 
   return tree;
+}
+
+export function getDefaultExpandedNodeIds(tree: ShowMapTree): Set<string> {
+  return new Set([tree.root.id, ...(tree.childIdsByParentId[tree.root.id] ?? [])]);
 }

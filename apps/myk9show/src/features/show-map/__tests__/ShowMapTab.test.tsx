@@ -1,31 +1,9 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import ShowMapTab from '../ShowMapTab';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
-import type { ShowMapTree } from '../showMapTypes';
-
-vi.mock('../ShowMapCanvas', () => ({
-  ShowMapCanvas: ({
-    tree,
-    expandedNodeIds,
-    onToggle,
-  }: {
-    tree: ShowMapTree;
-    expandedNodeIds: Set<string>;
-    onToggle: (nodeId: string) => void;
-  }) => (
-    <div data-testid="map-canvas">
-      {Object.values(tree.nodesById).map(node => (
-        <button key={node.id} type="button" onClick={() => onToggle(node.id)}>
-          {expandedNodeIds.has(node.id) ? 'expanded ' : 'collapsed '}
-          {node.label}
-        </button>
-      ))}
-    </div>
-  ),
-}));
 
 const show = { id: 'show-1', name: 'Spring Trial', clubName: 'Calm Canine Club' } as Show;
 const trial = {
@@ -42,7 +20,7 @@ const trial = {
 } as SyncableTrial;
 
 describe('ShowMapTab', () => {
-  it('renders the show map with root, trial, class, and capped entries', async () => {
+  it('renders the structure table with root, trial, class, capped entries, and score actions', async () => {
     const entries = Array.from({ length: 27 }, (_, index) => ({
       id: `entry-${index}`,
       class_id: 'class-1',
@@ -68,21 +46,19 @@ describe('ShowMapTab', () => {
       />
     );
 
-    expect(screen.getByTestId('map-canvas')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /expanded spring trial/i })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /collapsed interior novice a/i }));
-    expect(screen.getByRole('button', { name: /2 more entries/i })).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /show list/i }));
-
+    expect(screen.getByText('Structure')).toBeInTheDocument();
+    expect(screen.getByText('Spring Trial')).toBeInTheDocument();
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
+
     expect(screen.getByText('2 more entries')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /score entry/i })).toHaveLength(25);
   });
 
   it('renders a calm empty state for shows without trials', () => {
-    render(
-      <ShowMapTab show={show} trials={[]} classes={[]} entries={[]} canManageShow />
-    );
+    render(<ShowMapTab show={show} trials={[]} classes={[]} entries={[]} canManageShow />);
 
     expect(screen.getByText('No trials yet')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /new trial/i })).toBeInTheDocument();
@@ -93,7 +69,7 @@ describe('ShowMapTab', () => {
       <ShowMapTab show={show} trials={[trial]} classes={[]} entries={[]} canManageShow={false} />
     );
 
-    expect(screen.queryByTestId('map-canvas')).not.toBeInTheDocument();
-    expect(screen.getByText(/map is only available to show staff/i)).toBeInTheDocument();
+    expect(screen.queryByText('Structure')).not.toBeInTheDocument();
+    expect(screen.getByText(/structure is only available to show staff/i)).toBeInTheDocument();
   });
 });

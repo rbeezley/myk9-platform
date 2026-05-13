@@ -11,8 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { cn } from '@/lib/utils';
-import { ResultEntryForm } from './ResultEntryForm';
-import type { RunSheetEntry, RunSheetResult } from './types';
+import type { RunSheetEntry } from './types';
 
 const PLACEMENT_LABELS = ['1st', '2nd', '3rd', '4th'];
 const PLACEMENT_COLORS = ['#f59e0b', '#9ca3af', '#d97706', '#6366f1'];
@@ -20,23 +19,19 @@ const PLACEMENT_COLORS = ['#f59e0b', '#9ca3af', '#d97706', '#6366f1'];
 interface RunSheetRowProps {
   entry: RunSheetEntry;
   position: number;
-  expanded: boolean;
-  timeLimit: string;
-  onToggleExpand: () => void;
+  onScoreEntry: () => void;
   onCheckIn: (checked: boolean) => void;
   onScratch: (scratched: boolean) => void;
-  onSaveResult: (result: RunSheetResult) => void;
+  isMine?: boolean;
 }
 
 export function RunSheetRow({
   entry,
   position,
-  expanded,
-  timeLimit,
-  onToggleExpand,
+  onScoreEntry,
   onCheckIn,
   onScratch,
-  onSaveResult,
+  isMine = false,
 }: RunSheetRowProps) {
   const { isScored, isScratched, isCheckedIn, result } = entry;
 
@@ -46,7 +41,7 @@ export function RunSheetRow({
         'rounded-2xl border bg-card overflow-hidden transition-opacity',
         isScored && 'border-green-200',
         isScratched && 'border-red-200 opacity-60',
-        !isScored && !isScratched && 'border-border'
+        !isScored && !isScratched && (isMine ? 'border-primary/50' : 'border-border')
       )}
     >
       <div
@@ -74,6 +69,11 @@ export function RunSheetRow({
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-base font-bold text-foreground">{entry.dogName}</span>
             {entry.breed && <span className="text-xs text-muted-foreground">{entry.breed}</span>}
+            {isMine && (
+              <Chip color="purple" size="sm">
+                Your dog
+              </Chip>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
             <span className="font-mono font-semibold">#{entry.armband}</span>
@@ -144,7 +144,7 @@ export function RunSheetRow({
             <Button
               size="sm"
               variant={isScored ? 'outline' : 'default'}
-              onClick={onToggleExpand}
+              onClick={onScoreEntry}
               className="gap-1.5"
             >
               {isScored ? (
@@ -168,19 +168,6 @@ export function RunSheetRow({
           </button>
         </div>
       </div>
-
-      {expanded && !isScratched && (
-        <ResultEntryForm
-          dogName={entry.dogName}
-          timeLimit={timeLimit}
-          initial={entry.result}
-          onCancel={onToggleExpand}
-          onSave={r => {
-            onSaveResult(r);
-            onToggleExpand();
-          }}
-        />
-      )}
     </div>
   );
 }

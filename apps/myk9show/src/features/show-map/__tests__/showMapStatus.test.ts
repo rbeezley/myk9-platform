@@ -54,7 +54,7 @@ describe('showMapStatus', () => {
       'Called to gate'
     );
     expect(classifyEntryCheckInStatus({ check_in_status: 'at-gate' })?.label).toBe('At gate');
-    expect(classifyEntryCheckInStatus({ check_in_status: 'pulled' })?.label).toBe('No-show');
+    expect(classifyEntryCheckInStatus({ check_in_status: 'pulled' })?.label).toBe('Pulled');
   });
 
   it('hides unknown statuses instead of guessing', () => {

@@ -4,10 +4,20 @@
  * Displays class information, entries, and results
  */
 
-import { startTransition, useMemo, useState } from 'react';
+import { startTransition, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Pencil, MoreVertical, Trash2, ClipboardList, MessageSquare } from 'lucide-react';
+import {
+  CheckCircle2,
+  ClipboardCheck,
+  ClipboardList,
+  MessageSquare,
+  MoreVertical,
+  Pencil,
+  Play,
+  Printer,
+  Trash2,
+} from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { replicatedClassesTable } from '@/services/replication';
@@ -38,8 +48,10 @@ import { EditEntryDialog } from './EditEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { SecretaryRunSheet } from './SecretaryRunSheet';
+import { useMyEntriesInClass } from './useMyEntriesInClass';
 import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
+import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -71,6 +83,8 @@ const ClassDetailsPage: React.FC = () => {
   const [requirementsPanelOpen, setRequirementsPanelOpen] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const { sendTargetedMessage } = useMessageMutations();
+  const { myEntries } = useMyEntriesInClass(classId);
+  const myEntryIds = useMemo(() => new Set(myEntries.map(entry => entry.entryId)), [myEntries]);
 
   // Handlers
   const handleConfirmDeleteClass = async () => {
@@ -177,6 +191,24 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.closeEditEntryDialog();
   };
 
+  const handleStartClass = useCallback(async () => {
+    if (!currentClass?.id) return;
+    try {
+      await updateClass(currentClass.id, { status: 'In Progress' });
+    } catch {
+      toast.error('Failed to start class');
+    }
+  }, [currentClass, updateClass]);
+
+  const handleCloseClass = useCallback(async () => {
+    if (!currentClass?.id) return;
+    try {
+      await updateClass(currentClass.id, { status: 'Completed' });
+    } catch {
+      toast.error('Failed to close class');
+    }
+  }, [currentClass, updateClass]);
+
   // Breadcrumbs
   const breadcrumbs = useMemo(() => {
     const crumbs = [{ label: 'Shows', href: '/shows' }];
@@ -192,14 +224,47 @@ const ClassDetailsPage: React.FC = () => {
     return crumbs;
   }, [parentShow, parentTrial, currentClass, classId]);
 
-  // INTENT: Enter Scores button deliberately moved from page header to results
-  // table header so it sits next to the data it acts on. Both secretaries and
-  // exhibitors benefit from less clutter in the page header.
+  // INTENT: Secretary scoring has one canonical path: the paper-scoring split panel.
+  // Keep class management and run-order work on this page, but route result entry
+  // through the dedicated scoring flow so secretaries do not choose between tools.
 
   // Action buttons for the compact header
-  const headerActions = useMemo(
-    () => (
+  const headerActions = useMemo(() => {
+    const canStartClass =
+      currentClass?.status !== 'In Progress' &&
+      currentClass?.status !== 'Completed' &&
+      currentClass?.status !== 'Cancelled';
+
+    return (
       <div className="flex items-center gap-2">
+        {(isSecretary || isAdmin) && (
+          <Button
+            size="sm"
+            onClick={() => classId && navigate(getPaperScoringClassHref(classId))}
+            disabled={!classId}
+          >
+            <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
+            Score Class
+          </Button>
+        )}
+        {(isSecretary || isAdmin) && canStartClass && (
+          <Button variant="outline" size="sm" onClick={handleStartClass}>
+            <Play className="mr-1.5 h-3.5 w-3.5" />
+            Start
+          </Button>
+        )}
+        {(isSecretary || isAdmin) && currentClass?.status === 'In Progress' && (
+          <Button variant="outline" size="sm" onClick={handleCloseClass}>
+            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+            Close
+          </Button>
+        )}
+        {(isSecretary || isAdmin) && (
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer className="mr-1.5 h-3.5 w-3.5" />
+            Print
+          </Button>
+        )}
         {(isSecretary || isAdmin) && parentShow?.id && (
           <Button variant="outline" size="sm" onClick={() => setShowMessageModal(true)}>
             <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
@@ -242,21 +307,23 @@ const ClassDetailsPage: React.FC = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    ),
-    [
-      dialogs.openEditClassPanel,
-      dialogs.openDeleteDialog,
-      setRequirementsPanelOpen,
-      setShowMessageModal,
-      isSecretary,
-      isAdmin,
-      parentShow,
-      trialId,
-      currentClass?.trialId,
-      classId,
-      navigate,
-    ]
-  );
+    );
+  }, [
+    dialogs.openEditClassPanel,
+    dialogs.openDeleteDialog,
+    setRequirementsPanelOpen,
+    setShowMessageModal,
+    isSecretary,
+    isAdmin,
+    parentShow,
+    trialId,
+    currentClass?.trialId,
+    currentClass?.status,
+    classId,
+    handleStartClass,
+    handleCloseClass,
+    navigate,
+  ]);
 
   // Early returns for different states
   if (classId && !currentClass && trialClasses.length > 0) {
@@ -282,14 +349,14 @@ const ClassDetailsPage: React.FC = () => {
         actions={headerActions}
       />
 
-      <ExhibitorClassCallout classId={classId} />
+      {!isSecretary && !isAdmin && <ExhibitorClassCallout classId={classId} />}
 
       {isSecretary || isAdmin ? (
         <SecretaryRunSheet
           currentClass={currentClass}
           dbRawEntries={dbRawEntries}
-          updateClass={updateClass}
           userId={user?.id ?? ''}
+          myEntryIds={myEntryIds}
         />
       ) : (
         <ClassDetailsMain

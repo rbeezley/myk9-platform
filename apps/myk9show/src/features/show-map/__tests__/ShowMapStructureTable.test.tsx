@@ -52,6 +52,8 @@ describe('ShowMapStructureTable', () => {
         {
           id: 'entry-attention',
           class_id: 'class-attention',
+          dog_id: 'dog-12',
+          handler_id: 'person-12',
           armband: '12',
           handler: 'Jane Handler',
           dog: {
@@ -88,6 +90,45 @@ describe('ShowMapStructureTable', () => {
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
     expect(screen.queryByText('Exterior Advanced B')).not.toBeInTheDocument();
     expect(screen.queryByText('Scout')).not.toBeInTheDocument();
+  });
+
+  it('links expanded entry dog and handler names to their detail pages', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          dog_id: 'dog-12',
+          handler_id: 'person-12',
+          armband: '12',
+          handler: 'Jane Handler',
+          dog: { id: 'dog-12', call_name: 'Bella', breed: 'Labrador Retriever' },
+        },
+      ],
+    });
+    const onNavigate = vi.fn();
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+        onNavigate={onNavigate}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Bella' }));
+    expect(onNavigate).toHaveBeenCalledWith('/dogs/dog-12');
+
+    await user.click(screen.getByRole('button', { name: 'Jane Handler' }));
+    expect(onNavigate).toHaveBeenCalledWith('/people/person-12');
   });
 
   it('collapses class rows while keeping class-level scoring available', async () => {

@@ -47,8 +47,20 @@ function entryDogName(entry: ShowMapEntryInput): string | undefined {
   );
 }
 
+function entryDogId(entry: ShowMapEntryInput): string | undefined {
+  const dog = entry.dog;
+  if (dog && typeof dog === 'object') {
+    return readString(dog as Record<string, unknown>, 'id') ?? readString(entry, 'dog_id');
+  }
+  return readString(entry, 'dog_id');
+}
+
 function entryHandlerName(entry: ShowMapEntryInput): string | undefined {
   return readString(entry, 'handler') ?? readString(entry, 'handler_name');
+}
+
+function entryHandlerId(entry: ShowMapEntryInput): string | undefined {
+  return readString(entry, 'handler_id');
 }
 
 function entryRegisteredBreed(entry: ShowMapEntryInput, organization?: string): string | undefined {
@@ -70,11 +82,15 @@ function entryRegisteredBreed(entry: ShowMapEntryInput, organization?: string): 
 }
 
 function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapEntryDisplay {
+  const dogId = entryDogId(entry);
+  const handlerId = entryHandlerId(entry);
   return {
     armband: readString(entry, 'armband') ?? readString(entry, 'armband_number'),
     dogName: entryDogName(entry) ?? 'Unknown',
     breed: entryRegisteredBreed(entry, organization),
     handler: entryHandlerName(entry),
+    dogHref: dogId ? `/dogs/${dogId}` : undefined,
+    handlerHref: handlerId ? `/people/${handlerId}` : undefined,
   };
 }
 

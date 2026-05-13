@@ -46,6 +46,8 @@ describe('buildShowMapTree', () => {
         {
           id: 'entry-1',
           class_id: 'class-1',
+          dog_id: 'dog-1',
+          handler_id: 'person-1',
           armband: '12',
           entry_status: 'accepted',
           check_in_status: 'checked-in',
@@ -75,6 +77,8 @@ describe('buildShowMapTree', () => {
       dogName: 'Bella',
       breed: 'Labrador Retriever',
       handler: 'Jane Handler',
+      dogHref: '/dogs/dog-1',
+      handlerHref: '/people/person-1',
     });
     expect(tree.nodesById['entry:entry-1']?.scoreHref).toBeUndefined();
   });

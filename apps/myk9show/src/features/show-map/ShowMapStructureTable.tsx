@@ -66,7 +66,13 @@ function StatusCell({ node }: { node: ShowMapNode }) {
   );
 }
 
-function EntryIdentity({ node }: { node: ShowMapNode }) {
+function EntryIdentity({
+  node,
+  onNavigate,
+}: {
+  node: ShowMapNode;
+  onNavigate?: ((href: string) => void) | undefined;
+}) {
   const display = node.entryDisplay;
   if (!display) {
     return <span className="block truncate text-sm font-semibold">{node.label}</span>;
@@ -76,11 +82,30 @@ function EntryIdentity({ node }: { node: ShowMapNode }) {
     <div className="flex min-w-0 items-center gap-3">
       <ArmbandBadge armband={display.armband} className="size-12 rounded-[10px] text-base" />
       <div className="min-w-0">
-        <div className="truncate text-sm font-semibold">{display.dogName}</div>
+        {display.dogHref ? (
+          <button
+            type="button"
+            onClick={() => onNavigate?.(display.dogHref!)}
+            className="block max-w-full truncate rounded-sm text-left text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {display.dogName}
+          </button>
+        ) : (
+          <div className="truncate text-sm font-semibold">{display.dogName}</div>
+        )}
         {display.breed && (
           <div className="truncate text-sm text-muted-foreground">{display.breed}</div>
         )}
-        {display.handler && (
+        {display.handler && display.handlerHref && (
+          <button
+            type="button"
+            onClick={() => onNavigate?.(display.handlerHref!)}
+            className="block max-w-full truncate rounded-sm text-left text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {display.handler}
+          </button>
+        )}
+        {display.handler && !display.handlerHref && (
           <div className="truncate text-xs text-muted-foreground">{display.handler}</div>
         )}
       </div>
@@ -111,7 +136,7 @@ export function ShowMapStructureTable({
       return (
         <li key={nodeId}>
           <div className="grid min-h-[72px] grid-cols-[minmax(300px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-background/60 px-3 py-2 pl-16 hover:bg-muted/20">
-            <EntryIdentity node={node} />
+            <EntryIdentity node={node} onNavigate={onNavigate} />
             <StatusCell node={node} />
             <ProgressCell node={node} />
             <div />

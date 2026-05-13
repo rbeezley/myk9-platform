@@ -18,6 +18,8 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { ClassDetailsRedirect } from './ClassDetailsRedirect';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
+import BrowseDogsPage from '@/pages/BrowseDogsPage';
+import DogDetailPage from '@/pages/DogDetailPage';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
   return enabled ? (
@@ -30,8 +32,6 @@ function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPagePr
 }
 
 // Public page lazy imports
-const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
-const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
 const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));

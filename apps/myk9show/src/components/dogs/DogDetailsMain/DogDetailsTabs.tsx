@@ -54,6 +54,7 @@ const TAB_IDS = [
 const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   dog,
   autoOpenAddRegistration,
+  registrationsCount,
   role = 'exhibitor',
 }) => {
   const { isPremium, isLoading } = useSubscriptionGate();
@@ -69,7 +70,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
         id: 'registrations',
         label: 'Registrations',
         icon: FileText,
-        count: dog.registrations?.length ?? 0,
+        count: registrationsCount ?? dog.registrations?.length ?? 0,
       },
     ];
 
@@ -98,7 +99,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
     );
 
     return tabs;
-  }, [dog.registrations, isSecretary, isPremium, isLoading]);
+  }, [dog.registrations, registrationsCount, isSecretary, isPremium, isLoading]);
 
   return (
     <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>

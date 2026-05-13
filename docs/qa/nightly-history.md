@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-13
+
+- **Playwright command:** fail
+- **Route sweep:** partial
+- **Active specs:** 24/25
+- **Failures:** `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`, finding `QA-TEST-FLAKE-001`
+- **Fixes made:** Playwright collection fix in the three secretary UAT specs: `critical-path.spec.ts`, `disposable-entry.spec.ts`, and `evidence.spec.ts`
+- **Demotions/promotions:** none
+- **Notes:** Full Nightly rerun proceeded after the collection fix and took 34.2m. Route sweep covered public, secretary, exhibitor, and judge routes at desktop plus 375px mobile with no console errors or owned 4xx/5xx responses. Club-admin sign-in failed with the documented unverified credential; admin sweep skipped because no local admin password is configured. Later repair proof passed the focused disposable-entry spec and the full active Nightly command (`25 passed`, 1.1m); `QA-TEST-FLAKE-001` is closed.
+
 ### 2026-05-12
 
 - **Playwright command:** pass

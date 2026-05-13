@@ -43,6 +43,7 @@ export interface DogSummaryCardProps {
 export interface DogDetailsTabsProps {
   dog: Dog;
   autoOpenAddRegistration: boolean;
+  registrationsCount?: number;
   role?: 'exhibitor' | 'secretary';
 }
 

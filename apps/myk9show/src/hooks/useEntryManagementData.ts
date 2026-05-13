@@ -2,11 +2,8 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
-import { getSecretaryShows } from '@/services/database/shows';
-import {
-  getEntriesForShow,
-  SecretaryEntry,
-} from '@/services/database/entries';
+import { getSecretaryShows, getShowById } from '@/services/database/shows';
+import { getEntriesForShow, SecretaryEntry } from '@/services/database/entries';
 import type { CheckInStatus } from '@myk9/core';
 import type {
   EntryManagementEntry,
@@ -61,6 +58,13 @@ interface UseEntryManagementDataReturn {
 }
 
 const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
+
+interface EntryManagementShowRow {
+  id: string;
+  name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+}
 
 /**
  * Custom hook for managing entry data loading
@@ -184,16 +188,54 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     loadShows();
   }, [loadShows]);
 
-  // Apply initial show once shows have loaded: URL param > localStorage > none.
-  // Deferred so the Select component has items to resolve the display name.
+  // Apply initial show: URL param > localStorage > none.
+  // URL deep links must work even when the local replicated show cache is stale.
   useEffect(() => {
-    if (didApplyInitial || shows.length === 0) return;
+    if (didApplyInitial) return;
     const candidate = initialShowId || localStorage.getItem(LAST_SHOW_KEY) || '';
-    if (candidate && shows.some(s => s.id === candidate)) {
-      setSelectedShowId(candidate);
+
+    if (!candidate) {
+      if (!isLoadingShows) setDidApplyInitial(true);
+      return;
     }
-    setDidApplyInitial(true);
-  }, [didApplyInitial, initialShowId, shows]);
+
+    if (shows.some(s => s.id === candidate)) {
+      setSelectedShowId(candidate);
+      setDidApplyInitial(true);
+      return;
+    }
+
+    if (!initialShowId) {
+      if (!isLoadingShows) setDidApplyInitial(true);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const { data } = await getShowById(initialShowId);
+      if (cancelled) return;
+
+      if (data?.id) {
+        const row = data as EntryManagementShowRow;
+        const linkedShow: EntryManagementShow = {
+          id: row.id,
+          name: row.name,
+          start_date: row.start_date,
+          end_date: row.end_date,
+        };
+        setShows(prev =>
+          prev.some(show => show.id === linkedShow.id) ? prev : [linkedShow, ...prev]
+        );
+        setSelectedShowId(initialShowId);
+      }
+
+      setDidApplyInitial(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [didApplyInitial, initialShowId, isLoadingShows, shows]);
 
   // Persist selection to localStorage so sidebar navigation remembers it
   useEffect(() => {

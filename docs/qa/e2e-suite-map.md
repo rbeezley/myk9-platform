@@ -84,6 +84,8 @@ pnpm test:e2e:clean src/test/e2e/<spec>.spec.ts --project=chromium --headed --wo
 
 ## PR Smoke
 
+PR smoke is intentionally small. Its purpose is to confirm the app boots, auth still works, and the current strict secretary regression proof still has signal; it is not intended to catch every workflow regression.
+
 | Spec                                                                   | Why                                                   |
 | ---------------------------------------------------------------------- | ----------------------------------------------------- |
 | `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`               | App boots and basic page load works.                  |
@@ -196,14 +198,19 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 
 ## Candidate Delete
 
-| Spec                                                                               | Review Question                                                                                                           |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Path Or Spec                                                                       | Review Question                                                                                                           |
-| ---------------------------------------------------------------------------------  | ------------------------------------------------------------------------------------------------------------------------  |
-| `apps/myk9show/src/test/e2e/__snapshots__/secretary/show-creation-wizard.spec.ts/` | Snapshot artifact directory, not a spec file. Confirm whether the generated images are still useful, then delete or keep. |
-| `apps/myk9show/src/test/e2e/phase2-quick-test.spec.ts`                             | Superseded by maintained secretary/show wizard and entity UI specs?                                                       |
-| `apps/myk9show/src/test/e2e/phase2-show-management-workflow.spec.ts`               | Superseded by current show wizard, shows UI, and secretary UAT specs?                                                     |
-| `apps/myk9show/src/test/e2e/phase2-validation-smoke.spec.ts`                       | Superseded by focused validation/unit tests and current wizard specs?                                                     |
-| `apps/myk9show/src/test/e2e/show-details-issue.spec.ts`                            | If issue is fixed, move any assertion into show details/navigation specs.                                                 |
-| `apps/myk9show/src/test/e2e/show-details-performance.spec.ts`                      | Keep only if it has a maintained performance threshold.                                                                   |
-| `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`                   | Likely duplicated by `src/test/e2e/cross-browser/*`; preserve unique assertions first.                                    |
+| Spec                                                                 | Review Question                                                                        |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `apps/myk9show/src/test/e2e/phase2-quick-test.spec.ts`               | Superseded by maintained secretary/show wizard and entity UI specs?                    |
+| `apps/myk9show/src/test/e2e/phase2-show-management-workflow.spec.ts` | Superseded by current show wizard, shows UI, and secretary UAT specs?                  |
+| `apps/myk9show/src/test/e2e/phase2-validation-smoke.spec.ts`         | Superseded by focused validation/unit tests and current wizard specs?                  |
+| `apps/myk9show/src/test/e2e/show-details-issue.spec.ts`              | If issue is fixed, move any assertion into show details/navigation specs.              |
+| `apps/myk9show/src/test/e2e/show-details-performance.spec.ts`        | Keep only if it has a maintained performance threshold.                                |
+| `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`     | Likely duplicated by `src/test/e2e/cross-browser/*`; preserve unique assertions first. |
+
+## Visual Snapshot Artifacts
+
+These are tracked Playwright snapshot assets, not executable specs. They are intentionally excluded from suite-map drift detection.
+
+| Path                                                                               | Status                                                                                           |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `apps/myk9show/src/test/e2e/__snapshots__/secretary/show-creation-wizard.spec.ts/` | Keep while visual snapshot coverage for the show wizard is still useful; remove with that suite. |

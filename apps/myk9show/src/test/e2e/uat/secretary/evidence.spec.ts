@@ -22,7 +22,8 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     watchBrowserHealth(page, health);
   });
 
-  test.afterEach(async ({}, testInfo) => {
+  test.afterEach(async ({ page }, testInfo) => {
+    void page;
     const health = healthByTest.get(testInfo.testId) ?? createBrowserHealth();
     const details = summarizeHealth(health);
     const status = testInfo.status === testInfo.expectedStatus ? 'passed' : 'failed';

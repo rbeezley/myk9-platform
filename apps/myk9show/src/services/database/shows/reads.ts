@@ -128,7 +128,7 @@ export const getShowById = async (id: string) => {
       async () => {
         const show = await replicatedShowsTable.getShowById(id);
         if (!show) {
-          return { data: null, error: null };
+          return await postgrestGetShowById(id);
         }
 
         const [club, trials, judgeAssignments] = await Promise.all([
@@ -317,6 +317,10 @@ export const getSecretaryShows = async (_userId: string) => {
     return await withReplicationFallback(
       async () => {
         const allShows = await replicatedShowsTable.getAllShows();
+        if (allShows.length === 0) {
+          return await postgrestGetSecretaryShows();
+        }
+
         // Sort descending by start_date (matching original PostgREST behavior)
         const sorted = [...allShows].sort(
           (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()

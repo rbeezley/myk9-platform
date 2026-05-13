@@ -15,7 +15,6 @@ import {
   MoreVertical,
   Pencil,
   Play,
-  Printer,
   Trash2,
 } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
@@ -247,24 +246,6 @@ const ClassDetailsPage: React.FC = () => {
             Score Class
           </Button>
         )}
-        {(isSecretary || isAdmin) && canStartClass && (
-          <Button variant="outline" size="sm" onClick={handleStartClass}>
-            <Play className="mr-1.5 h-3.5 w-3.5" />
-            Start
-          </Button>
-        )}
-        {(isSecretary || isAdmin) && currentClass?.status === 'In Progress' && (
-          <Button variant="outline" size="sm" onClick={handleCloseClass}>
-            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-            Close
-          </Button>
-        )}
-        {(isSecretary || isAdmin) && (
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="mr-1.5 h-3.5 w-3.5" />
-            Print
-          </Button>
-        )}
         {(isSecretary || isAdmin) && parentShow?.id && (
           <Button variant="outline" size="sm" onClick={() => setShowMessageModal(true)}>
             <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
@@ -296,6 +277,18 @@ const ClassDetailsPage: React.FC = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {(isSecretary || isAdmin) && canStartClass && (
+              <DropdownMenuItem onClick={handleStartClass}>
+                <Play className="mr-2 h-4 w-4" />
+                Mark In Progress
+              </DropdownMenuItem>
+            )}
+            {(isSecretary || isAdmin) && currentClass?.status === 'In Progress' && (
+              <DropdownMenuItem onClick={handleCloseClass}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Mark Completed
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => setRequirementsPanelOpen(true)}>
               <ClipboardList className="mr-2 h-4 w-4" />
               Requirements

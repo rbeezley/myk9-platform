@@ -63,7 +63,6 @@ import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
-import { formatDateRange } from '@/utils/date-format';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
@@ -429,11 +428,6 @@ const ShowDetailsPage: React.FC = () => {
         />
 
         <DetailHero
-          eyebrow={
-            actualCurrentShow.startDate && actualCurrentShow.endDate
-              ? formatDateRange(actualCurrentShow.startDate, actualCurrentShow.endDate, 'short')
-              : undefined
-          }
           cover={
             actualCurrentShow.startDate ? (
               <ShowDateBlock

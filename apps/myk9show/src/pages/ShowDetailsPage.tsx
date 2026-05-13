@@ -24,7 +24,7 @@ import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
-import { resolveOverviewJudges } from '@/components/shows/overview/overviewJudges';
+import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
@@ -42,6 +42,7 @@ import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
+import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
@@ -199,6 +200,7 @@ const ShowDetailsPage: React.FC = () => {
 
   // Get associated trials for secretary view
   const showId_ = actualCurrentShow?.id;
+  const { data: showJudgeRoster = [] } = useShowJudges(showId_);
   const associatedTrials = useMemo(
     () =>
       showId_
@@ -284,8 +286,12 @@ const ShowDetailsPage: React.FC = () => {
   }, [associatedTrials, trialClasses, userEntryClassIds, showEntries]);
 
   const effectiveJudges = useMemo((): ShowJudgeAssignment[] => {
-    return resolveOverviewJudges(actualCurrentShow?.assignedJudges, showClasses);
-  }, [actualCurrentShow, showClasses]);
+    return resolveOverviewJudgesWithRoster(
+      actualCurrentShow?.assignedJudges,
+      showJudgeRoster,
+      showClasses
+    );
+  }, [actualCurrentShow, showJudgeRoster, showClasses]);
 
   // Trial statistics for card display (class counts, entry counts, scoring progress)
   const trialStats = useMemo(() => {

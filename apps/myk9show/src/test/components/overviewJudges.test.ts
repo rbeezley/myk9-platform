@@ -3,6 +3,7 @@ import {
   buildJudgesFromClasses,
   getDisplayableJudges,
   resolveOverviewJudges,
+  resolveOverviewJudgesWithRoster,
 } from '@/components/shows/overview/overviewJudges';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 
@@ -54,6 +55,19 @@ describe('overview judge resolution', () => {
         ]
       )
     ).toEqual([]);
+  });
+
+  it('uses the assigned judge roster when show assignments have unresolved names', () => {
+    const result = resolveOverviewJudgesWithRoster(
+      [{ judgeId: 'judge-1', judgeName: '', assignedDate: '2026-06-12' }],
+      [
+        { id: 'judge-1', name: 'Richard Beezley' },
+        { id: 'judge-2', name: 'Liz Beezley' },
+      ],
+      []
+    );
+
+    expect(result.map(judge => judge.judgeName)).toEqual(['Richard Beezley', 'Liz Beezley']);
   });
 
   it('deduplicates class-derived judges and skips unresolved class values', () => {

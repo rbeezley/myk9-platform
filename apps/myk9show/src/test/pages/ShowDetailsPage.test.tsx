@@ -106,7 +106,7 @@ vi.mock('@/hooks/useNavigationPerformance', () => ({
 // Mock trial store
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: (selector: (s: Record<string, unknown>) => unknown) => {
-    const state = { trials: [], trialClasses: {} };
+    const state = { trials: [], trialClasses: {}, loadTrials: vi.fn(), loadTrialClasses: vi.fn() };
     return selector(state);
   },
 }));

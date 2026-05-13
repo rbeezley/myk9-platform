@@ -126,6 +126,8 @@ const ShowDetailsPage: React.FC = () => {
   const { user, isSecretary, isAdmin, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
+  const loadTrials = useTrialStore(s => s.loadTrials);
+  const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
   const { data: showEntries = [] } = useEntriesByShowQuery(id || '', !!id);
 
   // Use fast show details loading with cache optimization
@@ -173,6 +175,12 @@ const ShowDetailsPage: React.FC = () => {
 
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = isSecretary || isAdmin;
+
+  useEffect(() => {
+    if (!id) return;
+    void loadTrials();
+    void loadTrialClasses();
+  }, [id, loadTrials, loadTrialClasses]);
 
   // Get associated trials for secretary view
   const showId_ = actualCurrentShow?.id;

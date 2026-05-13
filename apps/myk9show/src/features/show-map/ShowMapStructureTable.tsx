@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, ClipboardCheck, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -64,12 +64,6 @@ function StatusCell({ node }: { node: ShowMapNode }) {
       )}
     </div>
   );
-}
-
-function scoreLabel(node: ShowMapNode): string {
-  if (node.type === 'entry') return 'Score entry';
-  if (node.type === 'class') return 'Score class';
-  return 'Score';
 }
 
 export function ShowMapStructureTable({
@@ -152,7 +146,7 @@ export function ShowMapStructureTable({
           <StatusCell node={node} />
           <ProgressCell node={node} />
 
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex justify-end">
             {node.href && (
               <Button
                 type="button"
@@ -162,12 +156,6 @@ export function ShowMapStructureTable({
               >
                 <ExternalLink className="h-4 w-4" />
                 Open
-              </Button>
-            )}
-            {node.scoreHref && (
-              <Button type="button" size="sm" onClick={() => onNavigate?.(node.scoreHref!)}>
-                <ClipboardCheck className="h-4 w-4" />
-                {scoreLabel(node)}
               </Button>
             )}
           </div>

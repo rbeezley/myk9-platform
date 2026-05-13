@@ -20,7 +20,7 @@ const trial = {
 } as SyncableTrial;
 
 describe('ShowMapTab', () => {
-  it('renders the structure table with root, trial, class, capped entries, and score actions', async () => {
+  it('renders a show-list hub with counts, hierarchy, and capped entries', async () => {
     const entries = Array.from({ length: 27 }, (_, index) => ({
       id: `entry-${index}`,
       class_id: 'class-1',
@@ -47,14 +47,18 @@ describe('ShowMapTab', () => {
     );
 
     expect(screen.getByText('Show List')).toBeInTheDocument();
+    expect(screen.getByText('Trials')).toBeInTheDocument();
+    expect(screen.getByText('Classes')).toBeInTheDocument();
+    expect(screen.getByText('Entries')).toBeInTheDocument();
+    expect(screen.getByText('Need Attention')).toBeInTheDocument();
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
 
     expect(screen.getByText('2 more entries')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /score entry/i })).toHaveLength(25);
+    expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /score entry/i })).not.toBeInTheDocument();
   });
 
   it('renders a calm empty state for shows without trials', () => {

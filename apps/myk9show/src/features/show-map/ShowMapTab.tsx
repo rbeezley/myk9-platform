@@ -36,6 +36,17 @@ function useExpandedNodes(tree: ShowMapTree) {
   return { expandedNodeIds, toggleNode, collapseAll, expandTrials };
 }
 
+function SummaryItem({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-[120px] rounded-md border bg-card px-4 py-3">
+      <div className="text-2xl font-bold leading-none text-foreground">{value}</div>
+      <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+    </div>
+  );
+}
+
 export default function ShowMapTab({
   show,
   trials,
@@ -51,6 +62,7 @@ export default function ShowMapTab({
   );
   const { expandedNodeIds, toggleNode, collapseAll, expandTrials } = useExpandedNodes(tree);
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
+  const attentionCount = tree.root.attentionCount ?? 0;
 
   if (!canManageShow) {
     return <ErrorState message="Show List is only available to show staff." />;
@@ -83,6 +95,14 @@ export default function ShowMapTab({
 
   return (
     <div className="mt-4 overflow-hidden rounded-md border bg-background">
+      <div className="border-b bg-muted/20 p-4">
+        <div className="flex flex-wrap gap-3">
+          <SummaryItem label="Trials" value={trials.length} />
+          <SummaryItem label="Classes" value={classes.length} />
+          <SummaryItem label="Entries" value={entries.length} />
+          <SummaryItem label="Need Attention" value={attentionCount} />
+        </div>
+      </div>
       <ShowMapToolbar
         filter={filter}
         onFilterChange={setFilter}

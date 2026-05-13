@@ -42,6 +42,7 @@ describe('buildRunSheetEntries', () => {
     expect(e.dogName).toBe('Rex');
     expect(e.armband).toBe('10');
     expect(e.breed).toBe('Belgian Malinois');
+    expect(e.handlerName).toBe('Jane Smith');
     expect(e.ownerName).toBe('Jane Smith');
     expect(e.checkInStatus).toBe('no-status');
     expect(e.isCheckedIn).toBe(false);
@@ -230,6 +231,47 @@ describe('buildRunSheetEntries', () => {
       'runOrder'
     );
     expect(e.ownerName).toBe('John Doe');
+  });
+
+  it('uses entry handler name for the visible handler', () => {
+    const [e] = buildRunSheetEntries(
+      [
+        makeRow({
+          handler: 'Liz Beezley',
+          dog: {
+            id: 'd1',
+            name: 'Ziva',
+            call_name: null,
+            breed: null,
+            registrations: null,
+            owner: { id: 'o1', first_name: 'Richard', last_name: 'Beezley' },
+          },
+        }),
+      ],
+      'runOrder'
+    );
+    expect(e.handlerName).toBe('Liz Beezley');
+    expect(e.ownerName).toBe('Richard Beezley');
+  });
+
+  it('falls back to owner name when entry handler is blank', () => {
+    const [e] = buildRunSheetEntries(
+      [
+        makeRow({
+          handler: '  ',
+          dog: {
+            id: 'd1',
+            name: 'Ziva',
+            call_name: null,
+            breed: null,
+            registrations: null,
+            owner: { id: 'o1', first_name: 'Liz', last_name: 'Beezley' },
+          },
+        }),
+      ],
+      'runOrder'
+    );
+    expect(e.handlerName).toBe('Liz Beezley');
   });
 
   it('returns empty ownerName when owner is null', () => {

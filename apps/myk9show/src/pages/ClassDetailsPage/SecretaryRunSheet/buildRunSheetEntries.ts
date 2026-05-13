@@ -41,6 +41,7 @@ function rawToEntry(
   const dogName = dog?.call_name ?? dog?.name ?? 'Unknown Dog';
   const owner = dog?.owner;
   const ownerName = owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '';
+  const handlerName = row.handler?.trim() || ownerName;
 
   const checkInStatus = readCheckInStatus(row.check_in_status);
   const isCheckedIn = checkInStatus === 'checked-in';
@@ -64,6 +65,7 @@ function rawToEntry(
     dogName,
     armband: row.armband ?? '',
     breed: registeredBreedForOrganization(row, dogLookup, organization),
+    handlerName,
     ownerName,
     checkInStatus,
     isCheckedIn,

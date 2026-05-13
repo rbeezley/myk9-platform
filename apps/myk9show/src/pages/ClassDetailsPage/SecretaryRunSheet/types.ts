@@ -17,6 +17,7 @@ export interface RunSheetEntry {
   dogName: string;
   armband: string;
   breed: string | null;
+  handlerName: string;
   ownerName: string;
   checkInStatus: CheckInStatus;
   isCheckedIn: boolean;

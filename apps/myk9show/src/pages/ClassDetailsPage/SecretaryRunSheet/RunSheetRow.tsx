@@ -146,12 +146,9 @@ export function RunSheetRow({
               <p className="truncate text-sm text-muted-foreground">
                 {entry.breed ?? 'Unknown breed'}
               </p>
-              {entry.ownerName && (
-                <p className="truncate text-sm text-muted-foreground">{entry.ownerName}</p>
+              {entry.handlerName && (
+                <p className="truncate text-sm text-muted-foreground">{entry.handlerName}</p>
               )}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground/70">
-              Run {entry.runOrder || position}
             </div>
           </div>
 

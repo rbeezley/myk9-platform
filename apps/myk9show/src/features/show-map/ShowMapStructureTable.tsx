@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, ClipboardCheck, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -85,86 +85,94 @@ export function ShowMapStructureTable({
     const isExpanded = expandedNodeIds.has(nodeId);
     const hasChildren = visibleChildIds.length > 0;
 
+    const rowContent = (
+      <>
+        <div
+          className="flex min-w-0 items-center gap-2"
+          style={{ paddingLeft: node.type === 'entry' || node.type === 'more' ? 36 : 0 }}
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={!hasChildren}
+            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${node.label}`}
+            className="h-10 w-10 shrink-0"
+            onClick={() => onToggle(nodeId)}
+          >
+            {hasChildren ? (
+              isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )
+            ) : (
+              <span className="h-4 w-4" />
+            )}
+          </Button>
+
+          {node.href ? (
+            <button
+              type="button"
+              onClick={() => onNavigate?.(node.href!)}
+              className="min-w-0 cursor-pointer rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="block truncate text-sm font-semibold">{node.label}</span>
+              {node.subtitle && (
+                <span className="block truncate text-xs text-muted-foreground">
+                  {node.subtitle}
+                </span>
+              )}
+            </button>
+          ) : (
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold">{node.label}</span>
+              {node.subtitle && (
+                <span className="block truncate text-xs text-muted-foreground">
+                  {node.subtitle}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <StatusCell node={node} />
+        <ProgressCell node={node} />
+
+        <div className="flex flex-wrap justify-end gap-2">
+          {node.type === 'class' && node.scoreHref && (
+            <Button type="button" size="sm" onClick={() => onNavigate?.(node.scoreHref!)}>
+              <ClipboardCheck className="h-4 w-4" />
+              Score Class
+            </Button>
+          )}
+        </div>
+      </>
+    );
+
+    if (node.type === 'trial') {
+      return (
+        <li key={nodeId} className="overflow-hidden rounded-md border bg-card">
+          <div className="grid min-h-16 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-muted/25 px-3 py-3">
+            {rowContent}
+          </div>
+
+          {isExpanded && hasChildren && (
+            <ul>{visibleChildIds.map(id => renderNode(id, depth + 1))}</ul>
+          )}
+        </li>
+      );
+    }
+
     return (
       <li key={nodeId}>
         <div
           className={cn(
-            'grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(180px,auto)] items-center gap-3 border-b px-3 py-2',
-            node.type === 'trial' && 'bg-muted/25',
+            'grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20',
             node.type === 'entry' && 'bg-background/60'
           )}
         >
-          <div
-            className="flex min-w-0 items-center gap-2"
-            style={{ paddingLeft: `${depth * 22}px` }}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={!hasChildren}
-              aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${node.label}`}
-              className="h-10 w-10 shrink-0"
-              onClick={() => onToggle(nodeId)}
-            >
-              {hasChildren ? (
-                isExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )
-              ) : (
-                <span className="h-4 w-4" />
-              )}
-            </Button>
-
-            {node.href ? (
-              <button
-                type="button"
-                onClick={() => onNavigate?.(node.href!)}
-                className="min-w-0 cursor-pointer rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="block truncate text-sm font-semibold">{node.label}</span>
-                {node.subtitle && (
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {node.subtitle}
-                  </span>
-                )}
-              </button>
-            ) : (
-              <div className="min-w-0">
-                <span className="block truncate text-sm font-semibold">{node.label}</span>
-                {node.subtitle && (
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {node.subtitle}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <StatusCell node={node} />
-          <ProgressCell node={node} />
-
-          <div className="flex flex-wrap justify-end gap-2">
-            {node.href && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onNavigate?.(node.href!)}
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open
-              </Button>
-            )}
-            {node.type === 'class' && node.scoreHref && (
-              <Button type="button" size="sm" onClick={() => onNavigate?.(node.scoreHref!)}>
-                <ClipboardCheck className="h-4 w-4" />
-                Score Class
-              </Button>
-            )}
-          </div>
+          {rowContent}
         </div>
 
         {isExpanded && hasChildren && (
@@ -175,8 +183,10 @@ export function ShowMapStructureTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-md bg-card">
-      <ul className="min-w-[900px] border-t">{renderNode(tree.root.id, 0)}</ul>
+    <div className="overflow-x-auto">
+      <ul className="min-w-[900px] space-y-3">
+        {(tree.childIdsByParentId[tree.root.id] ?? []).map(id => renderNode(id, 0))}
+      </ul>
     </div>
   );
 }

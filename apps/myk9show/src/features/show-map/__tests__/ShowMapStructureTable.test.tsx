@@ -74,7 +74,7 @@ describe('ShowMapStructureTable', () => {
       />
     );
 
-    expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
     expect(screen.getByText('#12 Bella')).toBeInTheDocument();
     expect(screen.queryByText('Exterior Advanced B')).not.toBeInTheDocument();
@@ -100,6 +100,7 @@ describe('ShowMapStructureTable', () => {
     });
     const expandedNodeIds = getDefaultExpandedNodeIds(tree);
     const onToggle = vi.fn();
+    const onNavigate = vi.fn();
 
     const { user } = render(
       <ShowMapStructureTable
@@ -107,12 +108,16 @@ describe('ShowMapStructureTable', () => {
         expandedNodeIds={expandedNodeIds}
         filter="all"
         onToggle={onToggle}
+        onNavigate={onNavigate}
       />
     );
 
     expect(screen.queryByText('#12 Bella')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /open/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /open/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /score class/i }));
+    expect(onNavigate).toHaveBeenCalledWith('/scoring/classes/class-attention/entries?mode=split');
 
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
 

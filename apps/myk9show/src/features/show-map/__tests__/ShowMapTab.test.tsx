@@ -51,7 +51,7 @@ describe('ShowMapTab', () => {
     expect(screen.getByText('Classes')).toBeInTheDocument();
     expect(screen.getByText('Entries')).toBeInTheDocument();
     expect(screen.getByText('Need Attention')).toBeInTheDocument();
-    expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));

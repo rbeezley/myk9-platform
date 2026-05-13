@@ -31,9 +31,17 @@ export interface ShowMapNode {
   attentionCount?: number | undefined;
   href?: string | undefined;
   scoreHref?: string | undefined;
+  entryDisplay?: ShowMapEntryDisplay | undefined;
   parentId?: string | undefined;
   childrenCount: number;
   isSynthetic?: boolean | undefined;
+}
+
+export interface ShowMapEntryDisplay {
+  armband?: string | undefined;
+  dogName: string;
+  breed?: string | undefined;
+  handler?: string | undefined;
 }
 
 export interface ShowMapTree {

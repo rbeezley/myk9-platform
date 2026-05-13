@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import type { ReactNode } from 'react';
 import type { ShowMapFilter, ShowMapNode, ShowMapTree } from './showMapTypes';
 
@@ -66,6 +66,28 @@ function StatusCell({ node }: { node: ShowMapNode }) {
   );
 }
 
+function EntryIdentity({ node }: { node: ShowMapNode }) {
+  const display = node.entryDisplay;
+  if (!display) {
+    return <span className="block truncate text-sm font-semibold">{node.label}</span>;
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <ArmbandBadge armband={display.armband} className="size-12 rounded-[10px] text-base" />
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold">{display.dogName}</div>
+        {display.breed && (
+          <div className="truncate text-sm text-muted-foreground">{display.breed}</div>
+        )}
+        {display.handler && (
+          <div className="truncate text-xs text-muted-foreground">{display.handler}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ShowMapStructureTable({
   tree,
   expandedNodeIds,
@@ -85,11 +107,24 @@ export function ShowMapStructureTable({
     const isExpanded = expandedNodeIds.has(nodeId);
     const hasChildren = visibleChildIds.length > 0;
 
+    if (node.type === 'entry') {
+      return (
+        <li key={nodeId}>
+          <div className="grid min-h-[72px] grid-cols-[minmax(300px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-background/60 px-3 py-2 pl-16 hover:bg-muted/20">
+            <EntryIdentity node={node} />
+            <StatusCell node={node} />
+            <ProgressCell node={node} />
+            <div />
+          </div>
+        </li>
+      );
+    }
+
     const rowContent = (
       <>
         <div
           className="flex min-w-0 items-center gap-2"
-          style={{ paddingLeft: node.type === 'entry' || node.type === 'more' ? 36 : 0 }}
+          style={{ paddingLeft: node.type === 'more' ? 36 : 0 }}
         >
           <Button
             type="button"
@@ -166,12 +201,7 @@ export function ShowMapStructureTable({
 
     return (
       <li key={nodeId}>
-        <div
-          className={cn(
-            'grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20',
-            node.type === 'entry' && 'bg-background/60'
-          )}
-        >
+        <div className="grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20">
           {rowContent}
         </div>
 

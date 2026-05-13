@@ -8,6 +8,7 @@ const show = {
   id: 'show-1',
   name: 'Spring Trial',
   clubName: 'Calm Canine Club',
+  organization: 'AKC',
 } as Show;
 
 const trial = {
@@ -48,7 +49,15 @@ describe('buildShowMapTree', () => {
           armband: '12',
           entry_status: 'accepted',
           check_in_status: 'checked-in',
-          dog: { call_name: 'Bella' },
+          handler: 'Jane Handler',
+          dog: {
+            call_name: 'Bella',
+            breed: 'Mixed Breed',
+            registrations: [
+              { organization: 'UKC', breed: 'All American Dog' },
+              { organization: 'AKC', breed: 'Labrador Retriever' },
+            ],
+          },
         },
       ],
     });
@@ -61,6 +70,12 @@ describe('buildShowMapTree', () => {
       '/scoring/classes/class-1/entries?mode=split'
     );
     expect(tree.nodesById['entry:entry-1']?.label).toBe('#12 Bella');
+    expect(tree.nodesById['entry:entry-1']?.entryDisplay).toEqual({
+      armband: '12',
+      dogName: 'Bella',
+      breed: 'Labrador Retriever',
+      handler: 'Jane Handler',
+    });
     expect(tree.nodesById['entry:entry-1']?.scoreHref).toBeUndefined();
   });
 

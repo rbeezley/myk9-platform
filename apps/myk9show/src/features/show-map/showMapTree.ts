@@ -13,8 +13,10 @@ import {
   getShowMapShowHref,
   getShowMapTrialHref,
 } from './showMapRoutes';
+import { getRegisteredBreedForOrganization } from '@/lib/dogRegistrationBreed';
 import type {
   BuildShowMapTreeInput,
+  ShowMapEntryDisplay,
   ShowMapEntryInput,
   ShowMapNode,
   ShowMapTree,
@@ -43,6 +45,37 @@ function entryDogName(entry: ShowMapEntryInput): string | undefined {
     readString(dog as Record<string, unknown>, 'call_name') ??
     readString(dog as Record<string, unknown>, 'name')
   );
+}
+
+function entryHandlerName(entry: ShowMapEntryInput): string | undefined {
+  return readString(entry, 'handler') ?? readString(entry, 'handler_name');
+}
+
+function entryRegisteredBreed(entry: ShowMapEntryInput, organization?: string): string | undefined {
+  const dog = entry.dog;
+  if (!dog || typeof dog !== 'object') return undefined;
+  const dogRecord = dog as Record<string, unknown>;
+  const registrations = dogRecord.registrations;
+  if (organization && Array.isArray(registrations)) {
+    const registrationBreed = getRegisteredBreedForOrganization(
+      registrations.filter(registration => registration && typeof registration === 'object') as {
+        organization?: string | null | undefined;
+        breed?: string | null | undefined;
+      }[],
+      organization
+    );
+    if (registrationBreed) return registrationBreed;
+  }
+  return readString(dogRecord, 'breed') ?? readString(entry, 'dog_breed');
+}
+
+function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapEntryDisplay {
+  return {
+    armband: readString(entry, 'armband') ?? readString(entry, 'armband_number'),
+    dogName: entryDogName(entry) ?? 'Unknown',
+    breed: entryRegisteredBreed(entry, organization),
+    handler: entryHandlerName(entry),
+  };
 }
 
 function entryLabel(entry: ShowMapEntryInput): string {
@@ -166,6 +199,7 @@ export function buildShowMapTree({
           id: `entry:${entryId}`,
           type: 'entry',
           label: entryLabel(entry),
+          entryDisplay: entryDisplay(entry, show.organization),
           status: classifyEntryRunStatus(entry),
           checkInStatus: classifyEntryCheckInStatus(entry),
           parentId: classNode.id,

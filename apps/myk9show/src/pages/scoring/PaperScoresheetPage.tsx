@@ -8,6 +8,10 @@ import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { supabase } from '@/services/database/supabaseClient';
+import { organizationMatches } from '@/lib/dogRegistrationBreed';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { toScoringEntry, calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
@@ -25,7 +29,49 @@ async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
   const uniqueDogIds = [...new Set(rawEntries.map(e => e.dogId).filter(Boolean))] as string[];
   const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
   const dogsMap = new Map(uniqueDogIds.map((id, i) => [id, dogs[i] ?? null]));
-  return rawEntries.map((e, i) => toScoringEntry(e, dogsMap.get(e.dogId ?? '') ?? null, i));
+  const organization = await loadShowOrganizationForClass(classId);
+  const registeredBreedByDogId = await loadRegisteredBreedsByDogId(uniqueDogIds, organization);
+  return rawEntries.map((e, i) =>
+    toScoringEntry(
+      e,
+      dogsMap.get(e.dogId ?? '') ?? null,
+      i,
+      e.dogId ? registeredBreedByDogId.get(e.dogId) : undefined
+    )
+  );
+}
+
+async function loadShowOrganizationForClass(classId: string): Promise<string | undefined> {
+  const cls = await replicatedClassesTable.getClassById(classId);
+  if (!cls?.trialId) return undefined;
+  const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
+  if (!trial?.showId) return undefined;
+  const show = await replicatedShowsTable.get(trial.showId);
+  return show?.organization || undefined;
+}
+
+async function loadRegisteredBreedsByDogId(
+  dogIds: string[],
+  organization: string | undefined
+): Promise<Map<string, string>> {
+  if (!organization || dogIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('dog_registrations')
+    .select('dog_id, organization, breed')
+    .in('dog_id', dogIds);
+
+  if (error || !data) return new Map();
+
+  const breeds = new Map<string, string>();
+  for (const registration of data) {
+    if (!registration.dog_id || !registration.breed || !registration.organization) continue;
+    if (breeds.has(registration.dog_id)) continue;
+    if (organizationMatches(registration.organization, organization)) {
+      breeds.set(registration.dog_id, registration.breed);
+    }
+  }
+  return breeds;
 }
 
 function getClassDetailsHref({

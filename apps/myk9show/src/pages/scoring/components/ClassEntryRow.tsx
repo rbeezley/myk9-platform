@@ -79,6 +79,7 @@ export function ClassEntryRow({
       <ArmbandBadge armband={entry.armband} />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium truncate">{entry.callName}</div>
+        <div className="text-xs text-muted-foreground truncate">{entry.breed}</div>
         <div className="text-xs text-muted-foreground truncate">{entry.handler}</div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">

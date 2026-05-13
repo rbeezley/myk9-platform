@@ -11,6 +11,7 @@ const show = {
   id: 'show-1',
   name: 'Spring Trial',
   clubName: 'Calm Canine Club',
+  organization: 'AKC',
 } as Show;
 
 const trial = {
@@ -52,7 +53,12 @@ describe('ShowMapStructureTable', () => {
           id: 'entry-attention',
           class_id: 'class-attention',
           armband: '12',
-          dog: { call_name: 'Bella' },
+          handler: 'Jane Handler',
+          dog: {
+            call_name: 'Bella',
+            breed: 'Mixed Breed',
+            registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }],
+          },
           check_in_status: 'conflict',
         },
         {
@@ -76,9 +82,12 @@ describe('ShowMapStructureTable', () => {
 
     expect(screen.getByText('Trial 1')).toBeInTheDocument();
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
-    expect(screen.getByText('#12 Bella')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('Bella')).toBeInTheDocument();
+    expect(screen.getByText('Labrador Retriever')).toBeInTheDocument();
+    expect(screen.getByText('Jane Handler')).toBeInTheDocument();
     expect(screen.queryByText('Exterior Advanced B')).not.toBeInTheDocument();
-    expect(screen.queryByText('#14 Scout')).not.toBeInTheDocument();
+    expect(screen.queryByText('Scout')).not.toBeInTheDocument();
   });
 
   it('collapses class rows while keeping class-level scoring available', async () => {
@@ -112,7 +121,7 @@ describe('ShowMapStructureTable', () => {
       />
     );
 
-    expect(screen.queryByText('#12 Bella')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bella')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /open/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
 

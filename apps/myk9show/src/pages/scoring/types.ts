@@ -80,7 +80,8 @@ export interface ClassInfo {
 export function toScoringEntry(
   entry: ReplicatedEntry,
   dog: ReplicatedDog | null,
-  index: number
+  index: number,
+  breedOverride?: string | undefined
 ): ScoringEntry {
   const armband = parseInt(entry.armband || '0', 10) || 0;
   const status = mapEntryStatus(entry.status);
@@ -113,7 +114,7 @@ export function toScoringEntry(
     // Display fields
     callName: dog?.callName || dog?.name || 'Unknown',
     handler: entry.handler || 'Unknown Handler',
-    breed: dog?.breed || 'Unknown Breed',
+    breed: breedOverride || entry.dogBreed || entry.dog_breed || dog?.breed || 'Unknown Breed',
     armband,
 
     // Status

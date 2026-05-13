@@ -133,7 +133,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/cross-browser/performance.spec.ts`                    | Performance checks belong outside PR smoke.        |
 | `apps/myk9show/src/test/e2e/cross-browser/quirks.spec.ts`                         | Browser-specific behavior checks.                  |
 | `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`                  | Legacy all-in-one browser/device matrix.           |
-| `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                         | Multi-role workflows, valuable but broad.          |
+| `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                         | Broad stale suite; split/rewrite focused workflows. |
 | `apps/myk9show/src/test/e2e/database-record-validation.spec.ts`                   | DB state validation.                               |
 | `apps/myk9show/src/test/e2e/payment/paymentFlow.spec.ts`                          | Payment smoke.                                     |
 | `apps/myk9show/src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts`       | Broad payment suite.                               |
@@ -141,14 +141,14 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/phase5-simple-integration.spec.ts`                    | Integration coverage.                              |
 | `apps/myk9show/src/test/e2e/registration/errorHandlingAndRecovery.spec.ts`        | Stale synthetic fake-route harness; rewrite/delete. |
 | `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts`       | Exhibitor registration journey.                    |
-| `apps/myk9show/src/test/e2e/registration/performanceAndCaching.spec.ts`           | Registration performance/cache checks.             |
-| `apps/myk9show/src/test/e2e/registration/phase3-2-multi-class-entries.spec.ts`    | Multi-class entry coverage.                        |
-| `apps/myk9show/src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts` | Entry limit and waitlist coverage.                 |
+| `apps/myk9show/src/test/e2e/registration/performanceAndCaching.spec.ts`           | Stale synthetic fake-route harness; rewrite/delete. |
+| `apps/myk9show/src/test/e2e/registration/phase3-2-multi-class-entries.spec.ts`    | Convert store scenarios to Vitest; not Nightly E2E. |
+| `apps/myk9show/src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts` | Convert service scenarios to Vitest; not Nightly E2E. |
 | `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`               | Secretary registration for new users/dogs.         |
-| `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                      | Judge/ringside scoring workflow.                   |
+| `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                      | Obsolete myK9Show scoring UI; rewrite myK9Q-first. |
 | `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`                         | Secretary entry walk.                              |
-| `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                          | Show management workflow.                          |
-| `apps/myk9show/src/test/e2e/unified-shows-workflows.spec.ts`                      | Unified show workflows across roles.               |
+| `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                          | Obsolete all-in-one show workflow; split/rewrite.  |
+| `apps/myk9show/src/test/e2e/unified-shows-workflows.spec.ts`                      | Broad stale suite; split/rewrite role/tab coverage. |
 
 ## Feature Audit
 

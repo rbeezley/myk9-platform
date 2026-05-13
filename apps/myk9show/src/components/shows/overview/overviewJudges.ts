@@ -49,3 +49,28 @@ export function resolveOverviewJudges(
     ? displayableAssignedJudges
     : buildJudgesFromClasses(classes);
 }
+
+export function resolveOverviewJudgesWithRoster(
+  assignedJudges: readonly ShowJudgeAssignment[] | null | undefined,
+  rosterJudges: readonly { id: string; name: string }[] | null | undefined,
+  classes: readonly { id: string; judgeName?: string | null }[]
+): ShowJudgeAssignment[] {
+  const rosterNameById = new Map((rosterJudges ?? []).map(judge => [judge.id, judge.name]));
+  const assignedById = new Set((assignedJudges ?? []).map(judge => judge.judgeId));
+  const enrichedAssignments = (assignedJudges ?? []).map(judge => ({
+    ...judge,
+    judgeName: hasDisplayableJudgeName(judge.judgeName)
+      ? judge.judgeName
+      : (rosterNameById.get(judge.judgeId) ?? judge.judgeName),
+  }));
+  const rosterAssignments: ShowJudgeAssignment[] = (rosterJudges ?? [])
+    .filter(judge => !assignedById.has(judge.id))
+    .map(judge => ({
+      judgeId: judge.id,
+      judgeName: judge.name,
+      assignedDate: '',
+      assignedClasses: [],
+    }));
+
+  return resolveOverviewJudges([...enrichedAssignments, ...rosterAssignments], classes);
+}

@@ -44,6 +44,36 @@ const baseDbShow: DbShow = {
 };
 
 describe('mapDatabaseToShow — branding fallback', () => {
+  it('maps show-level judge assignment names from the people join shape', () => {
+    const result = mapDatabaseToShow({
+      ...baseDbShow,
+      judge_assignments: [
+        {
+          id: 'assignment-1',
+          person_id: 'person-1',
+          show_id: 'show-1',
+          class_id: null,
+          confirmed_at: '2026-05-01T12:00:00Z',
+          people: {
+            id: 'person-1',
+            first_name: 'Liz',
+            last_name: 'Beezley',
+            email: 'liz@example.com',
+          },
+        },
+      ],
+    } as never);
+
+    expect(result.assignedJudges).toEqual([
+      {
+        judgeId: 'person-1',
+        judgeName: 'Liz Beezley',
+        assignedDate: '2026-05-01',
+        assignedClasses: [],
+      },
+    ]);
+  });
+
   it('falls back to club branding when show branding is null', () => {
     const result = mapDatabaseToShow({
       ...baseDbShow,
@@ -142,9 +172,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
 
     expect(show.experienceIsPublished).toBe(true);
     expect(show.experiencePublishedStyle).toBe('heritage');
-    expect(show.experiencePublishedContent?.narratives.showHours).toBe(
-      'Doors open at 7:00 AM.'
-    );
+    expect(show.experiencePublishedContent?.narratives.showHours).toBe('Doors open at 7:00 AM.');
   });
 
   it('preserves published experience fields when mapping replicated shows to DB rows', () => {

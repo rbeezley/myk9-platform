@@ -87,6 +87,16 @@ export const mapDatabaseToShow = (
     judge_assignments?: unknown[];
   }
 ): Show => {
+  const resolveJudgePerson = (
+    row: Record<string, unknown>
+  ): Record<string, unknown> | undefined => {
+    const person = row.judge || row.people;
+    if (Array.isArray(person)) {
+      return person[0] as Record<string, unknown> | undefined;
+    }
+    return person as Record<string, unknown> | undefined;
+  };
+
   // Map trials from database format (if available)
   // Supabase returns the key matching the table name ("trials", plural) or the alias ("trial", singular)
   const rawTrials = dbShow.trials || dbShow.trial || [];
@@ -150,8 +160,9 @@ export const mapDatabaseToShow = (
   }
   const assignedJudges = Array.from(judgesByPerson.entries()).map(([personId, rows]) => {
     const firstRow = rows[0];
-    // The join uses alias "judge:people(...)" so data is under "judge" key
-    const person = (firstRow.judge || firstRow.people) as Record<string, unknown> | undefined;
+    // The show query aliases the people join as "judge"; older call sites and
+    // tests may still provide it as "people". Keep both shapes displayable.
+    const person = resolveJudgePerson(firstRow);
 
     return {
       judgeId: personId,
@@ -242,8 +253,8 @@ export const mapDatabaseToShow = (
     experiencePublishedStyle:
       ((dbShow as Record<string, unknown>).experience_published_style as string | null) ?? null,
     experiencePublishedContent:
-      (((dbShow as Record<string, unknown>)
-        .experience_published_content as ShowExperienceSnapshot | null) ?? null),
+      ((dbShow as Record<string, unknown>)
+        .experience_published_content as ShowExperienceSnapshot | null) ?? null,
 
     // Sync metadata for Local-First architecture
     _version: 1, // Default version

@@ -1,18 +1,44 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { mockShowsTable, mockPostgrestGetSecretaryShows, mockPostgrestGetShowById } = vi.hoisted(
-  () => ({
-    mockShowsTable: {
-      getAllShows: vi.fn(),
-      getShowById: vi.fn(),
-    },
-    mockPostgrestGetSecretaryShows: vi.fn(),
-    mockPostgrestGetShowById: vi.fn(),
-  })
-);
+const {
+  mockShowsTable,
+  mockClubsTable,
+  mockTrialsTable,
+  mockJudgeAssignmentsTable,
+  mockPostgrestGetSecretaryShows,
+  mockPostgrestGetShowById,
+} = vi.hoisted(() => ({
+  mockShowsTable: {
+    getAllShows: vi.fn(),
+    getShowById: vi.fn(),
+  },
+  mockClubsTable: {
+    getClubById: vi.fn(),
+  },
+  mockTrialsTable: {
+    getTrialsByShow: vi.fn(),
+  },
+  mockJudgeAssignmentsTable: {
+    getByShowId: vi.fn(),
+  },
+  mockPostgrestGetSecretaryShows: vi.fn(),
+  mockPostgrestGetShowById: vi.fn(),
+}));
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
   replicatedShowsTable: mockShowsTable,
+}));
+
+vi.mock('@/services/replication/ReplicatedClubsTable', () => ({
+  replicatedClubsTable: mockClubsTable,
+}));
+
+vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
+  replicatedTrialsTable: mockTrialsTable,
+}));
+
+vi.mock('@/services/replication/ReplicatedJudgeAssignmentsTable', () => ({
+  replicatedJudgeAssignmentsTable: mockJudgeAssignmentsTable,
 }));
 
 vi.mock('./reads.postgrest', async importOriginal => {
@@ -29,6 +55,9 @@ import { getSecretaryShows, getShowById } from './reads';
 describe('getSecretaryShows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockClubsTable.getClubById.mockResolvedValue(null);
+    mockTrialsTable.getTrialsByShow.mockResolvedValue([]);
+    mockJudgeAssignmentsTable.getByShowId.mockResolvedValue([]);
   });
 
   it('falls back to PostgREST when the replicated show cache is empty', async () => {
@@ -76,5 +105,48 @@ describe('getSecretaryShows', () => {
     expect(mockPostgrestGetShowById).toHaveBeenCalledWith('show-from-server');
     expect(result.data).toMatchObject({ id: 'show-from-server' });
     expect(result.error).toBeNull();
+  });
+
+  it('merges remote judge assignments into cached show details', async () => {
+    mockShowsTable.getShowById.mockResolvedValue({
+      id: 'show-1',
+      name: 'Cached Show',
+      organization: 'AKC',
+      startDate: '2026-06-01',
+      endDate: '2026-06-02',
+      location: 'Olathe, KS',
+      status: 'upcoming',
+    });
+    mockPostgrestGetShowById.mockResolvedValue({
+      data: {
+        id: 'show-1',
+        judge_assignments: [
+          {
+            id: 'assignment-1',
+            person_id: 'person-1',
+            show_id: 'show-1',
+            class_id: null,
+            people: { first_name: 'Liz', last_name: 'Beezley' },
+          },
+        ],
+      },
+      error: null,
+    });
+
+    const result = await getShowById('show-1');
+
+    expect(result.data).toMatchObject({
+      id: 'show-1',
+      name: 'Cached Show',
+      judge_assignments: [
+        {
+          id: 'assignment-1',
+          person_id: 'person-1',
+          show_id: 'show-1',
+          class_id: null,
+          people: { first_name: 'Liz', last_name: 'Beezley' },
+        },
+      ],
+    });
   });
 });

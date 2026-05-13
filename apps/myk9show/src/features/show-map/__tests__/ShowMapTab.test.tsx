@@ -46,7 +46,7 @@ describe('ShowMapTab', () => {
       />
     );
 
-    expect(screen.getByText('Structure')).toBeInTheDocument();
+    expect(screen.getByText('Show List')).toBeInTheDocument();
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
 
@@ -69,7 +69,7 @@ describe('ShowMapTab', () => {
       <ShowMapTab show={show} trials={[trial]} classes={[]} entries={[]} canManageShow={false} />
     );
 
-    expect(screen.queryByText('Structure')).not.toBeInTheDocument();
-    expect(screen.getByText(/structure is only available to show staff/i)).toBeInTheDocument();
+    expect(screen.queryByText('Show List')).not.toBeInTheDocument();
+    expect(screen.getByText(/show list is only available to show staff/i)).toBeInTheDocument();
   });
 });

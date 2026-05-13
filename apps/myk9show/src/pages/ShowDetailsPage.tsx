@@ -342,6 +342,7 @@ const ShowDetailsPage: React.FC = () => {
   const tabDefs: PrimaryTabDef[] = useMemo(
     () => [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+      ...(canShowMap ? [{ id: 'map', label: 'Show List', icon: ListTree }] : []),
       { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
       { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
       ...(isAuthenticated
@@ -351,7 +352,6 @@ const ShowDetailsPage: React.FC = () => {
           ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
-      ...(canShowMap ? [{ id: 'map', label: 'Structure', icon: ListTree }] : []),
     ],
     [isAuthenticated, canShowMap, associatedTrials.length, showClasses.length, userEntries.length]
   );

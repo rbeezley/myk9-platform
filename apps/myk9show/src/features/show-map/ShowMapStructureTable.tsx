@@ -183,7 +183,7 @@ export function ShowMapStructureTable({
   return (
     <div className="overflow-x-auto rounded-md border bg-card">
       <div className="grid min-w-[900px] grid-cols-[minmax(260px,1.5fr)_minmax(160px,0.8fr)_minmax(180px,0.9fr)_minmax(160px,auto)] gap-3 border-b bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <div>Structure</div>
+        <div>Show List</div>
         <div>Status</div>
         <div>Progress</div>
         <div className="text-right">Actions</div>

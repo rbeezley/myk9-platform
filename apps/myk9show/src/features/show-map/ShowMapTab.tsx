@@ -53,7 +53,7 @@ export default function ShowMapTab({
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
 
   if (!canManageShow) {
-    return <ErrorState message="Structure is only available to show staff." />;
+    return <ErrorState message="Show List is only available to show staff." />;
   }
 
   if (trials.length === 0) {
@@ -64,7 +64,7 @@ export default function ShowMapTab({
           <div>
             <h3 className="text-base font-semibold">No trials yet</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Add trials to start building this show's structure.
+              Add trials to start building this show's list.
             </p>
             <Button
               type="button"

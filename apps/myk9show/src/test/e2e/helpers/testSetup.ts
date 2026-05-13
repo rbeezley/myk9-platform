@@ -1,5 +1,15 @@
 import { Page, expect } from '@playwright/test';
 import { logger } from '@/services/LoggingService';
+import { TEST_USERS, type TestUser } from './testUsers';
+
+type TestRole = 'admin' | 'secretary' | 'user' | 'judge';
+
+const ROLE_USERS: Record<TestRole, TestUser> = {
+  admin: TEST_USERS.SITE_ADMIN,
+  secretary: TEST_USERS.SECRETARY,
+  user: TEST_USERS.EXHIBITOR,
+  judge: TEST_USERS.JUDGE,
+};
 
 export class TestSetup {
   constructor(protected page: Page) {}
@@ -7,83 +17,44 @@ export class TestSetup {
   /**
    * Sign in as a test user
    */
-  async signIn(role: 'admin' | 'secretary' | 'user' | 'judge' = 'admin') {
+  async signIn(role: TestRole = 'admin', returnTo = '/') {
     logger.debug(`Signing in as ${role}...`, 'app', {});
 
-    // Navigate to sign-in page and wait for it to load
-    await this.page.goto('/sign-in', {
-      waitUntil: 'networkidle',
+    const params = new URLSearchParams({ returnTo });
+    await this.page.goto(`/sign-in?${params.toString()}`, {
+      waitUntil: 'domcontentloaded',
       timeout: 15000,
     });
 
-    // Use actual test credentials from testUsers.ts
-    const credentials = {
-      admin: { email: 'testadmin@example.com', password: 'Test123!' },
-      secretary: { email: 'testsecretary@example.com', password: 'Test123!' },
-      user: { email: 'testexhibitor@example.com', password: 'Test123!' },
-      judge: { email: 'testjudge@example.com', password: 'Test123!' },
-    };
+    const creds = ROLE_USERS[role];
+    if (!creds.password) {
+      throw new Error(`Missing password for ${role} test user ${creds.email}`);
+    }
 
-    const creds = credentials[role];
     logger.debug(`Using credentials: ${creds.email}`, 'app', {});
 
-    // Wait for the email input to be visible before filling
-    await this.page.waitForSelector('[data-testid="email-input"]', {
-      state: 'visible',
-      timeout: 10000,
-    });
-
-    await this.page.fill('[data-testid="email-input"]', creds.email);
-    await this.page.fill('[data-testid="password-input"]', creds.password);
+    await expect(this.page.getByTestId('email-input')).toBeVisible({ timeout: 15000 });
+    await this.page.getByTestId('email-input').fill(creds.email);
+    await this.page.getByTestId('password-input').fill(creds.password);
 
     logger.debug('Clicking sign in button...', 'app', {});
-    await this.page.click('[data-testid="sign-in-button"]');
-
-    logger.debug('Waiting for navigation to home page...', 'app', {});
-
-    try {
-      // First try to wait for URL change with longer timeout
-      await this.page.waitForURL('/', { timeout: 30000 });
-      logger.debug('URL changed to home page', 'app', {});
-    } catch {
-      logger.debug('URL wait failed, checking if we navigated elsewhere...', 'app', {});
-      const currentUrl = this.page.url();
-      logger.debug(`Current URL: ${currentUrl}`, 'app', {});
-
-      // If we're not on sign-in page, we might have been redirected to a role-specific page
-      if (!currentUrl.includes('/sign-in')) {
-        logger.debug('Navigation successful to:', 'test', { data: currentUrl });
-      } else {
-        throw new Error(
-          `Authentication failed - timeout waiting for navigation. Current URL: ${currentUrl}`
-        );
-      }
-    }
-
-    // Wait for the page to fully load after authentication
-    await this.page.waitForLoadState('networkidle', { timeout: 15000 });
+    await this.page.getByTestId('sign-in-button').click();
+    await this.page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
+    await this.page.waitForLoadState('domcontentloaded');
 
     // Wait for any loading spinners to disappear
-    try {
-      await this.page.waitForSelector('[data-testid="loading-spinner"]', {
+    await this.page
+      .waitForSelector('[data-testid="loading-spinner"]', {
         state: 'hidden',
         timeout: 5000,
+      })
+      .catch(() => {
+        logger.debug('No loading spinner detected', 'app', {});
       });
-      logger.debug('Loading spinner hidden', 'app', {});
-    } catch {
-      // No spinner found, continue
-      logger.debug('No loading spinner detected', 'app', {});
-    }
 
-    // Wait for any authentication-related loading to complete
-    await this.page.waitForTimeout(2000);
+    await expect(this.page).not.toHaveURL(/\/sign-in/);
 
-    // Verify authentication was successful
     const finalUrl = this.page.url();
-    if (finalUrl.includes('/sign-in')) {
-      throw new Error('Authentication failed - still on sign-in page');
-    }
-
     logger.debug(`Successfully signed in! Final URL: ${finalUrl}`, 'app', {});
   }
 
@@ -92,7 +63,7 @@ export class TestSetup {
    */
   async goToTemplateManagement() {
     await this.page.goto('/admin/templates');
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   /**
@@ -100,7 +71,7 @@ export class TestSetup {
    */
   async goToClassCreation(trialId: string = 'trial-123') {
     await this.page.goto(`/trials/${trialId}/classes/create`);
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   /**
@@ -197,18 +168,6 @@ export class TestSetup {
    * Mock API responses for testing
    */
   async mockApiResponses() {
-    // Mock successful authentication
-    await this.page.route('**/auth/**', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          user: { id: '1', email: 'test@example.com', role: 'admin' },
-          token: 'mock-token',
-        }),
-      });
-    });
-
     // Mock dog search API
     await this.page.route('**/api/dogs/search**', async route => {
       const url = new URL(route.request().url());

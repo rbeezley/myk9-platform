@@ -51,7 +51,7 @@ export async function postgrestGetAllShows() {
         confirmed_at,
         fee,
         notes,
-        judge:people(
+        judge:people!judge_assignments_person_id_fkey(
           id,
           first_name,
           last_name,
@@ -280,7 +280,7 @@ export async function postgrestGetShowById(id: string) {
         confirmed_at,
         fee,
         notes,
-        judge:people(
+        judge:people!judge_assignments_person_id_fkey(
           id,
           first_name,
           last_name,
@@ -293,6 +293,7 @@ export async function postgrestGetShowById(id: string) {
     .is('deleted_at', null)
     .single();
 
+  if (error?.code === 'PGRST116') return { data: null, error: null };
   if (error) throw createDatabaseError(error, 'show', 'select_by_id');
-  return { data, error: null };
+  return { data: Array.isArray(data) ? null : data, error: null };
 }

@@ -184,7 +184,7 @@ describe('Show Queries', () => {
       expect(duration).toBeLessThan(200);
     });
 
-    it('should handle show not found', async () => {
+    it('should return null data without an error when show is not found', async () => {
       const showId = 'non-existent';
       const mockError = { message: 'Row not found', code: 'PGRST116' };
 
@@ -193,8 +193,7 @@ describe('Show Queries', () => {
       const result = await getShowById(showId);
 
       expect(result.data).toBeNull();
-      expect(result.error).toBeDefined();
-      expect(result.error.code).toBe('PGRST116');
+      expect(result.error).toBeNull();
     });
   });
 

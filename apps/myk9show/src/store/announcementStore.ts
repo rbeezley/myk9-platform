@@ -9,13 +9,13 @@ import type {
   AnnouncementAuthorRole,
 } from '@/types/announcement-types';
 import {
-  fetchShowAnnouncements,
+  getAnnouncementsByShow,
   createAnnouncement as createAnnouncementQuery,
   updateAnnouncement as updateAnnouncementQuery,
   deleteAnnouncement as deleteAnnouncementQuery,
   markAnnouncementRead,
   markAllAnnouncementsRead,
-} from '@/services/database/queries/announcementQueries';
+} from '@/services/database/announcements';
 import { useToastStore } from '@/store/toastStore';
 import { logger } from '@/services/LoggingService';
 
@@ -73,7 +73,7 @@ export const useAnnouncementStore = create<AnnouncementState>()((set, get) => ({
 
     try {
       // Fetch announcements for all shows
-      const results = await Promise.all(showIds.map(fetchShowAnnouncements));
+      const results = await Promise.all(showIds.map(getAnnouncementsByShow));
       const all = results
         .flat()
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

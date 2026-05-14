@@ -70,6 +70,15 @@ optional usage limit, optional expiry, and a running usage count. Applied at
 checkout during Show Registration to reduce entry fees. Trial-scoped codes
 take priority over show-scoped codes when both match.
 
+**Announcement**
+A timed message posted by a Secretary or Club staff to the attendees of a
+Show. Has a title, body, priority, optional expiry, and an `is_active` flag;
+visible to Exhibitors and Handlers attending the Show. Per-user read state
+lives in a sibling `show_announcement_reads` table so the unread badge is
+per-viewer, not per-announcement. Announcements are show-scoped today; the
+single-word entity name reserves room for the table to grow other scopes
+without a rename.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under
@@ -81,7 +90,8 @@ Replicated entities (cached in IndexedDB for offline reads): Entry, Class,
 Trial, Dog, Show, Armband.
 
 PostgREST-only entities (online reads): Club, Handler, Exhibitor, Volunteer,
-WaitList, Secretary tasks, Visibility settings, Achievement, Promo Code.
+WaitList, Secretary tasks, Visibility settings, Achievement, Promo Code,
+Announcement.
 
 **Replicated Table Sync**
 The package-owned workflow that keeps a replicated entity's IndexedDB cache,

@@ -1,51 +1,13 @@
+// Write-side operations for Show Announcements and per-user read tracking.
+
 import { supabase } from '../supabaseClient';
 import type {
   DbShowAnnouncement,
-  ShowAnnouncement,
   CreateAnnouncementInput,
   UpdateAnnouncementInput,
   AnnouncementAuthorRole,
 } from '@/types/announcement-types';
 
-/**
- * Fetch active announcements for a show, with read status for current user.
- * Two queries joined client-side (avoids Supabase filtered LEFT JOIN limitation).
- */
-export async function fetchShowAnnouncements(showId: string): Promise<ShowAnnouncement[]> {
-  const now = new Date().toISOString();
-
-  // Query 1: active, non-expired announcements
-  const { data: announcements, error: annError } = await supabase
-    .from('show_announcements')
-    .select('*')
-    .eq('show_id', showId)
-    .eq('is_active', true)
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
-    .order('created_at', { ascending: false });
-
-  if (annError) throw annError;
-  if (!announcements) return [];
-
-  // Query 2: read IDs for current user
-  const announcementIds = (announcements as DbShowAnnouncement[]).map(a => a.id);
-  if (announcementIds.length === 0) return [];
-
-  const { data: reads } = await supabase
-    .from('show_announcement_reads')
-    .select('announcement_id')
-    .in('announcement_id', announcementIds);
-
-  const readSet = new Set((reads ?? []).map(r => r.announcement_id));
-
-  return (announcements as DbShowAnnouncement[]).map(a => ({
-    ...a,
-    is_read: readSet.has(a.id),
-  }));
-}
-
-/**
- * Create an announcement. Returns the created row.
- */
 export async function createAnnouncement(
   input: CreateAnnouncementInput,
   authorId: string,
@@ -71,9 +33,6 @@ export async function createAnnouncement(
   return data as DbShowAnnouncement;
 }
 
-/**
- * Update an announcement. Returns the updated row.
- */
 export async function updateAnnouncement(
   id: string,
   updates: UpdateAnnouncementInput
@@ -89,18 +48,13 @@ export async function updateAnnouncement(
   return data as DbShowAnnouncement;
 }
 
-/**
- * Delete an announcement (hard delete).
- */
 export async function deleteAnnouncement(id: string): Promise<void> {
   const { error } = await supabase.from('show_announcements').delete().eq('id', id);
 
   if (error) throw error;
 }
 
-/**
- * Mark a single announcement as read for the current user.
- */
+/** Mark a single announcement as read for the current user. */
 export async function markAnnouncementRead(announcementId: string, userId: string): Promise<void> {
   const { error } = await supabase
     .from('show_announcement_reads')
@@ -112,9 +66,7 @@ export async function markAnnouncementRead(announcementId: string, userId: strin
   if (error) throw error;
 }
 
-/**
- * Mark all unread announcements in a show as read for the current user.
- */
+/** Mark all listed announcements as read for the current user. */
 export async function markAllAnnouncementsRead(
   announcementIds: string[],
   userId: string

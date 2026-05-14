@@ -13,7 +13,7 @@ import {
   useMutation,
   useQueryClient,
   UseQueryOptions,
-  UseMutationOptions
+  UseMutationOptions,
 } from '@tanstack/react-query';
 import {
   Achievement,
@@ -22,7 +22,14 @@ import {
   AchievementFilters,
   AchievementSummary,
 } from '../../types/achievement';
-import { achievementQueries } from '@/services/database/achievements';
+import {
+  createAchievement,
+  getAchievementById,
+  getAchievementsByDogId,
+  updateAchievement,
+  deleteAchievement,
+  getAchievementSummary,
+} from '@/services/database/achievements';
 import { achievementMappers } from '../../services/mappers/achievementMappers';
 
 // Query Keys
@@ -35,7 +42,7 @@ export const achievementKeys = {
   byDog: (dogId: string) => [...achievementKeys.all, 'byDog', dogId] as const,
   byDogFiltered: (dogId: string, filters: AchievementFilters) =>
     [...achievementKeys.byDog(dogId), filters] as const,
-  summary: (dogId: string) => [...achievementKeys.all, 'summary', dogId] as const
+  summary: (dogId: string) => [...achievementKeys.all, 'summary', dogId] as const,
 };
 
 // Achievement Hooks
@@ -45,12 +52,12 @@ export function useAchievements(
   options?: Omit<UseQueryOptions<Achievement[]>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
-    queryKey: filters ?
-      achievementKeys.byDogFiltered(dogId, filters) :
-      achievementKeys.byDog(dogId),
-    queryFn: () => achievementQueries.getByDogId(dogId, filters),
+    queryKey: filters
+      ? achievementKeys.byDogFiltered(dogId, filters)
+      : achievementKeys.byDog(dogId),
+    queryFn: () => getAchievementsByDogId(dogId, filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    ...options
+    ...options,
   });
 }
 
@@ -60,10 +67,10 @@ export function useAchievement(
 ) {
   return useQuery({
     queryKey: achievementKeys.detail(id),
-    queryFn: () => achievementQueries.getById(id),
+    queryFn: () => getAchievementById(id),
     staleTime: 5 * 60 * 1000,
     enabled: !!id,
-    ...options
+    ...options,
   });
 }
 
@@ -73,10 +80,10 @@ export function useAchievementSummary(
 ) {
   return useQuery({
     queryKey: achievementKeys.summary(dogId),
-    queryFn: () => achievementQueries.getSummary(dogId),
+    queryFn: () => getAchievementSummary(dogId),
     staleTime: 5 * 60 * 1000,
     enabled: !!dogId,
-    ...options
+    ...options,
   });
 }
 
@@ -91,9 +98,9 @@ export function useCreateAchievement(
       if (errors.length > 0) {
         throw new Error(`Validation failed: ${errors.join(', ')}`);
       }
-      return achievementQueries.create(data);
+      return createAchievement(data);
     },
-    onSuccess: (achievement) => {
+    onSuccess: achievement => {
       // Invalidate and refetch related queries
       queryClient.invalidateQueries({ queryKey: achievementKeys.byDog(achievement.dog_id) });
       queryClient.invalidateQueries({ queryKey: achievementKeys.summary(achievement.dog_id) });
@@ -101,7 +108,7 @@ export function useCreateAchievement(
       // Update the cache with the new achievement
       queryClient.setQueryData(achievementKeys.detail(achievement.id), achievement);
     },
-    ...options
+    ...options,
   });
 }
 
@@ -118,15 +125,15 @@ export function useUpdateAchievement(
       if (errors.length > 0) {
         throw new Error(`Validation failed: ${errors.join(', ')}`);
       }
-      return achievementQueries.update(data);
+      return updateAchievement(data);
     },
-    onSuccess: (achievement) => {
+    onSuccess: achievement => {
       // Update the cache
       queryClient.setQueryData(achievementKeys.detail(achievement.id), achievement);
       queryClient.invalidateQueries({ queryKey: achievementKeys.byDog(achievement.dog_id) });
       queryClient.invalidateQueries({ queryKey: achievementKeys.summary(achievement.dog_id) });
     },
-    ...options
+    ...options,
   });
 }
 
@@ -136,14 +143,14 @@ export function useDeleteAchievement(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id }: { id: string; dogId: string }) => achievementQueries.delete(id),
+    mutationFn: ({ id }: { id: string; dogId: string }) => deleteAchievement(id),
     onSuccess: (_, { id, dogId }) => {
       // Remove from cache
       queryClient.removeQueries({ queryKey: achievementKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: achievementKeys.byDog(dogId) });
       queryClient.invalidateQueries({ queryKey: achievementKeys.summary(dogId) });
     },
-    ...options
+    ...options,
   });
 }
 
@@ -162,8 +169,8 @@ export function usePrefetchAchievementData(dogId: string) {
   return () => {
     queryClient.prefetchQuery({
       queryKey: achievementKeys.byDog(dogId),
-      queryFn: () => achievementQueries.getByDogId(dogId),
-      staleTime: 5 * 60 * 1000
+      queryFn: () => getAchievementsByDogId(dogId),
+      staleTime: 5 * 60 * 1000,
     });
   };
 }

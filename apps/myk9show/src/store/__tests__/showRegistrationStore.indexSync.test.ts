@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { emptyRegistrationIndexes } from '@/store/buildRegistrationIndexes';
 
-vi.mock('@/services/database/queries/showRegistrationQueries', () => ({
+vi.mock('@/services/database/show-registrations', () => ({
   getRegistrationByShowAndHandler: vi.fn(),
   createShowRegistration: vi.fn(),
 }));

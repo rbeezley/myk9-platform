@@ -20,7 +20,7 @@ import type { PaymentDetails } from '../types/show-registration-types';
 import {
   createShowRegistration,
   getRegistrationByShowAndHandler,
-} from '../services/database/queries/showRegistrationQueries';
+} from '../services/database/show-registrations';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@myk9/core';
 import {

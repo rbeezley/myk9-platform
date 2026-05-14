@@ -1,6 +1,6 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { ClassAvailabilityTable } from '../ClassAvailabilityTable';
-import type { ClassWithCapacity } from '@/services/database/queries/dayOfOperationsQueries';
+import type { ClassWithCapacity } from '@/services/database/day-of-operations';
 
 const mockClasses: ClassWithCapacity[] = [
   {

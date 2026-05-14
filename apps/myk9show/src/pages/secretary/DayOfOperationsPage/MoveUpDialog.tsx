@@ -26,10 +26,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { ArrowUpCircle } from 'lucide-react';
-import {
-  processMoveUp,
-  ClassWithCapacity,
-} from '@/services/database/queries/dayOfOperationsQueries';
+import { processMoveUp, ClassWithCapacity } from '@/services/database/day-of-operations';
 import type { DayOfOperationEntry } from './types';
 
 interface MoveUpDialogProps {

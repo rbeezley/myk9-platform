@@ -45,17 +45,14 @@ import {
   denyScratchRequest as denyPullRequest,
   updateRefundStatus,
   ScratchRequest as PullRequest,
-} from '@/services/database/queries/dayOfOperationsQueries';
+} from '@/services/database/day-of-operations';
 
 interface PullManagementTabProps {
   showId: string;
   onRefresh?: () => void;
 }
 
-export const PullManagementTab: React.FC<PullManagementTabProps> = ({
-  showId,
-  onRefresh,
-}) => {
+export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, onRefresh }) => {
   const [pendingRequests, setPendingRequests] = useState<PullRequest[]>([]);
   const [processedPulls, setProcessedPulls] = useState<PullRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -188,11 +185,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
     try {
       // In production, this would call a Stripe refund Edge Function
       // For now, just update the status
-      const { error } = await updateRefundStatus(
-        selectedRequest.id,
-        'processed',
-        refundAmount
-      );
+      const { error } = await updateRefundStatus(selectedRequest.id, 'processed', refundAmount);
 
       if (error) {
         toast.error('Failed to process refund');
@@ -241,7 +234,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
     if (!searchTerm) return items;
     const search = searchTerm.toLowerCase();
     return items.filter(
-      (request) =>
+      request =>
         request.dog?.name?.toLowerCase().includes(search) ||
         request.dog?.call_name?.toLowerCase().includes(search) ||
         request.handler?.toLowerCase().includes(search) ||
@@ -269,15 +262,35 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
   const getRefundStatusBadge = (status: string | null) => {
     switch (status) {
       case 'eligible':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Refund Eligible</Badge>;
+        return (
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
+            Refund Eligible
+          </Badge>
+        );
       case 'processed':
-        return <Badge variant="outline" className="bg-green-50 text-green-700">Refunded</Badge>;
+        return (
+          <Badge variant="outline" className="bg-green-50 text-green-700">
+            Refunded
+          </Badge>
+        );
       case 'denied':
-        return <Badge variant="outline" className="bg-red-50 text-red-700">No Refund</Badge>;
+        return (
+          <Badge variant="outline" className="bg-red-50 text-red-700">
+            No Refund
+          </Badge>
+        );
       case 'pending':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700">Pending</Badge>;
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+            Pending
+          </Badge>
+        );
       default:
-        return <Badge variant="outline" className="bg-gray-50 text-gray-500">N/A</Badge>;
+        return (
+          <Badge variant="outline" className="bg-gray-50 text-gray-500">
+            N/A
+          </Badge>
+        );
     }
   };
 
@@ -320,7 +333,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
         <Input
           placeholder="Search by dog, handler, or class..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={e => setSearchTerm(e.target.value)}
           className="pl-9"
         />
       </div>
@@ -328,12 +341,8 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="pending">
-            Pending ({filteredPending.length})
-          </TabsTrigger>
-          <TabsTrigger value="processed">
-            Processed ({filteredProcessed.length})
-          </TabsTrigger>
+          <TabsTrigger value="pending">Pending ({filteredPending.length})</TabsTrigger>
+          <TabsTrigger value="processed">Processed ({filteredProcessed.length})</TabsTrigger>
         </TabsList>
 
         {/* Pending Requests */}
@@ -352,7 +361,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredPending.map((request) => (
+              {filteredPending.map(request => (
                 <Card key={request.id} className="hover:bg-muted/50 transition-colors">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -370,9 +379,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
                                 ({request.dog.call_name})
                               </span>
                             )}
-                            {request.armband && (
-                              <Badge variant="outline">#{request.armband}</Badge>
-                            )}
+                            {request.armband && <Badge variant="outline">#{request.armband}</Badge>}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             Handler: {request.handler || 'Not specified'}
@@ -445,7 +452,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredProcessed.map((pull) => (
+              {filteredProcessed.map(pull => (
                 <Card key={pull.id} className="hover:bg-muted/50 transition-colors">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -455,12 +462,8 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {pull.dog?.name || 'Unknown Dog'}
-                            </span>
-                            {pull.armband && (
-                              <Badge variant="outline">#{pull.armband}</Badge>
-                            )}
+                            <span className="font-medium">{pull.dog?.name || 'Unknown Dog'}</span>
+                            {pull.armband && <Badge variant="outline">#{pull.armband}</Badge>}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {pull.class?.class_number && `#${pull.class.class_number} - `}
@@ -509,7 +512,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
       </Tabs>
 
       {/* Approve Dialog */}
-      <Dialog open={dialogAction === 'approve'} onOpenChange={(open) => !open && closeDialog()}>
+      <Dialog open={dialogAction === 'approve'} onOpenChange={open => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Approve Pull Request</DialogTitle>
@@ -524,7 +527,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
               <Checkbox
                 id="processRefund"
                 checked={processRefund}
-                onCheckedChange={(checked) => setProcessRefund(checked as boolean)}
+                onCheckedChange={checked => setProcessRefund(checked as boolean)}
               />
               <Label htmlFor="processRefund" className="cursor-pointer">
                 Process refund for this entry
@@ -540,7 +543,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
                     id="refundAmount"
                     type="number"
                     value={(refundAmount / 100).toFixed(2)}
-                    onChange={(e) => setRefundAmount(Math.round(parseFloat(e.target.value) * 100))}
+                    onChange={e => setRefundAmount(Math.round(parseFloat(e.target.value) * 100))}
                     className="max-w-[150px]"
                   />
                 </div>
@@ -573,13 +576,13 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
       </Dialog>
 
       {/* Deny Dialog */}
-      <Dialog open={dialogAction === 'deny'} onOpenChange={(open) => !open && closeDialog()}>
+      <Dialog open={dialogAction === 'deny'} onOpenChange={open => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Deny Pull Request</DialogTitle>
             <DialogDescription>
-              Deny the pull request for {selectedRequest?.dog?.name}.
-              The exhibitor will be notified.
+              Deny the pull request for {selectedRequest?.dog?.name}. The exhibitor will be
+              notified.
             </DialogDescription>
           </DialogHeader>
 
@@ -590,7 +593,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
                 id="denyReason"
                 placeholder="Enter a reason for denying this request..."
                 value={denyReason}
-                onChange={(e) => setDenyReason(e.target.value)}
+                onChange={e => setDenyReason(e.target.value)}
                 rows={3}
               />
             </div>
@@ -618,7 +621,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
       </Dialog>
 
       {/* Process Refund Dialog */}
-      <Dialog open={dialogAction === 'refund'} onOpenChange={(open) => !open && closeDialog()}>
+      <Dialog open={dialogAction === 'refund'} onOpenChange={open => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Process Refund</DialogTitle>
@@ -645,7 +648,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
                   id="refundAmountProcess"
                   type="number"
                   value={(refundAmount / 100).toFixed(2)}
-                  onChange={(e) => setRefundAmount(Math.round(parseFloat(e.target.value) * 100))}
+                  onChange={e => setRefundAmount(Math.round(parseFloat(e.target.value) * 100))}
                   className="max-w-[150px]"
                 />
               </div>

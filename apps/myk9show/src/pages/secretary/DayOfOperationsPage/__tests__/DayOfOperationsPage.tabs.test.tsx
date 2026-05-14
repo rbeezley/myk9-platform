@@ -15,7 +15,7 @@ vi.mock('../useDayOfOperationsData', () => ({
     loadData: vi.fn(),
   }),
 }));
-vi.mock('@/services/database/queries/dayOfOperationsQueries', () => ({ scratchEntry: vi.fn() }));
+vi.mock('@/services/database/day-of-operations', () => ({ scratchEntry: vi.fn() }));
 vi.mock('../../CheckInReportPage', () => ({ default: () => <div>Check-In Content</div> }));
 
 describe('DayOfOperationsPage tab consolidation', () => {

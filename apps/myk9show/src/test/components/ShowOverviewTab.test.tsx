@@ -64,6 +64,11 @@ describe('ShowOverviewTab', () => {
     expect(screen.getByTestId('judges-list')).toBeInTheDocument();
   });
 
+  it('passes show assigned judges to JudgesList when no override is provided', () => {
+    render(<ShowOverviewTab show={fullShow} />);
+    expect(screen.getByTestId('judges-list')).toHaveTextContent('1 judges');
+  });
+
   it('renders VenueMap when location exists', () => {
     render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('venue-map')).toBeInTheDocument();

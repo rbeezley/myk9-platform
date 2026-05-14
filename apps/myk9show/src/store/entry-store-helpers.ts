@@ -16,12 +16,19 @@ export const generateEntryId = () =>
  * Convert ReplicatedEntry from replicated table to SyncableShowEntry for store
  */
 export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntry {
+  const status = (replicated.entryStatus as EntryStatus) || 'draft';
+  const timestamp =
+    replicated.submittedAt ||
+    replicated.updated_at ||
+    replicated._lastModified?.toISOString() ||
+    new Date().toISOString();
+
   return {
     id: replicated.id,
     showId: replicated.showId || '',
     classId: replicated.classId || '',
     dogId: replicated.dogId || '',
-    status: (replicated.entryStatus as EntryStatus) || 'draft',
+    status,
     registrationData: {
       submittedAt: replicated.submittedAt || new Date().toISOString(),
       handler: replicated.handler || '',
@@ -35,7 +42,14 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
       preferredJudge: replicated.preferredJudge,
       moveUpRequested: replicated.moveUpRequested,
     },
-    statusHistory: [],
+    statusHistory: [
+      {
+        status,
+        timestamp,
+        userId: replicated._lastModifiedBy || 'system',
+        reason: 'Entry loaded from replicated state',
+      },
+    ],
     createdAt: replicated.submittedAt || new Date().toISOString(),
     updatedAt: replicated._lastModified?.toISOString() || new Date().toISOString(),
     _version: replicated._version || 1,

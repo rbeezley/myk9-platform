@@ -64,6 +64,12 @@ async function loadJudgeAssignmentsByShowMap(): Promise<Map<string, ReplicatedJu
   return map;
 }
 
+function getJoinedJudgeAssignments(row: unknown): unknown[] {
+  if (!row || typeof row !== 'object') return [];
+  const assignments = (row as Record<string, unknown>).judge_assignments;
+  return Array.isArray(assignments) ? assignments : [];
+}
+
 /**
  * Map an array of ReplicatedShow to DB-row-shaped objects using pre-loaded
  * lookup maps. Set `clubDetail` to true for the detailed club sub-object.
@@ -128,7 +134,11 @@ export const getShowById = async (id: string) => {
       async () => {
         const show = await replicatedShowsTable.getShowById(id);
         if (!show) {
-          return await postgrestGetShowById(id);
+          const remote = await postgrestGetShowById(id);
+          return {
+            data: Array.isArray(remote.data) ? null : remote.data,
+            error: remote.error,
+          };
         }
 
         const [club, trials, judgeAssignments] = await Promise.all([
@@ -143,6 +153,15 @@ export const getShowById = async (id: string) => {
           judgeAssignments,
           clubDetail: true,
         });
+
+        try {
+          const remote = await postgrestGetShowById(id);
+          const remoteJudgeAssignments = getJoinedJudgeAssignments(remote.data);
+          data.judge_assignments = remoteJudgeAssignments;
+        } catch {
+          // Offline/failed network: keep the replicated detail row.
+        }
+
         return { data, error: null };
       },
       () => postgrestGetShowById(id),

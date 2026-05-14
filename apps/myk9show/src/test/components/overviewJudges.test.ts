@@ -57,17 +57,33 @@ describe('overview judge resolution', () => {
     ).toEqual([]);
   });
 
-  it('uses the assigned judge roster when show assignments have unresolved names', () => {
+  it('uses roster names when show-level assignments only have judge IDs', () => {
     const result = resolveOverviewJudgesWithRoster(
-      [{ judgeId: 'judge-1', judgeName: '', assignedDate: '2026-06-12' }],
+      [{ judgeId: 'person-1', judgeName: '', assignedDate: '2026-05-13' }],
+      [{ id: 'person-1', name: 'Liz Beezley' }],
+      []
+    );
+
+    expect(result).toEqual([
+      {
+        judgeId: 'person-1',
+        judgeName: 'Liz Beezley',
+        assignedDate: '2026-05-13',
+      },
+    ]);
+  });
+
+  it('uses roster-only show judges when cached assignments are stale or empty', () => {
+    const result = resolveOverviewJudgesWithRoster(
+      [],
       [
-        { id: 'judge-1', name: 'Richard Beezley' },
-        { id: 'judge-2', name: 'Liz Beezley' },
+        { id: 'person-1', name: 'Liz Beezley' },
+        { id: 'person-2', name: 'Test Judge' },
       ],
       []
     );
 
-    expect(result.map(judge => judge.judgeName)).toEqual(['Richard Beezley', 'Liz Beezley']);
+    expect(result.map(judge => judge.judgeName)).toEqual(['Liz Beezley', 'Test Judge']);
   });
 
   it('deduplicates class-derived judges and skips unresolved class values', () => {

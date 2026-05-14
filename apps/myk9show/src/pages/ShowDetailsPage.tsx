@@ -580,13 +580,12 @@ const ShowDetailsPage: React.FC = () => {
             if (!localShow) {
               throw new Error('Show was not available in the local store.');
             }
+            // Persist judge assignments to judge_assignments table
+            await persistShowJudgeAssignments(showId, showData.assignedJudges || []);
             queryClient.setQueryData<Show>(showQueryKeys.detail(showId), localShow);
             queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
               current?.map(show => (show.id === showId ? localShow : show))
             );
-
-            // Persist judge assignments to judge_assignments table
-            await persistShowJudgeAssignments(showId, showData.assignedJudges || []);
 
             if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
               await publishExperience({

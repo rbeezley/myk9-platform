@@ -16,18 +16,19 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+const { mockRbacService } = vi.hoisted(() => ({
+  mockRbacService: {
+    getUserPermissions: vi.fn(),
+    getUserRoles: vi.fn(),
+    getUserRolesByEmail: vi.fn(),
+    hasPermission: vi.fn(),
+    checkPermission: vi.fn(),
+  },
+}));
+
 // Mock RBACService to avoid async loading
 vi.mock('@/services/rbac/RBACService', () => ({
-  rbacService: {
-    getUserPermissions: vi.fn().mockResolvedValue({
-      roles: [],
-      effectivePermissions: [],
-      permissions: [],
-    }),
-    getUserRoles: vi.fn().mockResolvedValue([]),
-    getUserRolesByEmail: vi.fn().mockResolvedValue([]),
-    hasPermission: vi.fn().mockResolvedValue(false),
-  },
+  rbacService: mockRbacService,
 }));
 
 // Mock Supabase types
@@ -69,6 +70,15 @@ describe('AuthContext', () => {
   beforeEach(() => {
     localStorage.clear();
     mockUseAuth.mockReturnValue(mockAuthReturn);
+    mockRbacService.getUserPermissions.mockResolvedValue({
+      roles: [],
+      permissions: [],
+      effectivePermissions: [],
+    });
+    mockRbacService.getUserRoles.mockResolvedValue([]);
+    mockRbacService.getUserRolesByEmail.mockResolvedValue([]);
+    mockRbacService.hasPermission.mockResolvedValue(false);
+    mockRbacService.checkPermission.mockResolvedValue(false);
     mockNavigate.mockClear();
     vi.clearAllMocks();
   });
@@ -105,7 +115,9 @@ describe('AuthContext', () => {
       renderWithAuthProvider(<TestComponent />);
 
       expect(screen.getByTestId('user-email')).toHaveTextContent('test@example.com');
-      await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('false');
+      });
     });
 
     it('should create userWithRoles from authenticated user', async () => {
@@ -254,7 +266,9 @@ describe('AuthContext', () => {
 
       renderWithAuthProvider(<TestComponent />);
 
-      await waitFor(() => expect(screen.getByTestId('user-roles')).toHaveTextContent('exhibitor'));
+      await waitFor(() => {
+        expect(screen.getByTestId('user-roles')).toHaveTextContent('exhibitor');
+      });
     });
 
     it('should treat seeded secretary test account as secretary in development', () => {
@@ -273,7 +287,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
     });
 
-    it('should switch mock user for testing', () => {
+    it('should switch mock user for testing', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
 
@@ -295,7 +309,7 @@ describe('AuthContext', () => {
       renderWithAuthProvider(<TestComponent />);
 
       // Should eventually show admin role after switch
-      waitFor(() => {
+      await waitFor(() => {
         expect(screen.getByTestId('user-roles')).toHaveTextContent('admin');
       });
     });
@@ -426,7 +440,9 @@ describe('AuthContext', () => {
         </ProtectedRoute>
       );
 
-      expect(await screen.findByTestId('protected-content')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      });
     });
 
     it('should check required role', async () => {
@@ -437,8 +453,10 @@ describe('AuthContext', () => {
       );
 
       // Should show fallback since user doesn't have site_admin role
-      expect(await screen.findByText(/You don't have permission/)).toBeInTheDocument();
-      expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+        expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+      });
     });
 
     it('should allow access with correct role', async () => {
@@ -448,7 +466,9 @@ describe('AuthContext', () => {
         </ProtectedRoute>
       );
 
-      expect(await screen.findByTestId('protected-content')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      });
     });
 
     it('should check required permission', async () => {
@@ -459,8 +479,10 @@ describe('AuthContext', () => {
       );
 
       // Should show fallback since user doesn't have manage users permission
-      expect(await screen.findByText(/You don't have permission/)).toBeInTheDocument();
-      expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+        expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+      });
     });
 
     it('should allow access with correct permission', async () => {
@@ -470,7 +492,9 @@ describe('AuthContext', () => {
         </ProtectedRoute>
       );
 
-      expect(await screen.findByTestId('protected-content')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      });
     });
 
     it('should show custom fallback', async () => {
@@ -482,8 +506,10 @@ describe('AuthContext', () => {
         </ProtectedRoute>
       );
 
-      expect(await screen.findByTestId('custom-fallback')).toBeInTheDocument();
-      expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('custom-fallback')).toBeInTheDocument();
+        expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+      });
     });
 
     it('should handle scoped permissions', async () => {
@@ -496,7 +522,9 @@ describe('AuthContext', () => {
       );
 
       // Should show fallback since user doesn't have scoped permission
-      expect(await screen.findByText(/You don't have permission/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+      });
     });
   });
 

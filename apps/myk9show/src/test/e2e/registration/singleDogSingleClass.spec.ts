@@ -6,15 +6,14 @@ const SECRETARY_EMAIL = 'secretary@myk9t.com';
 const SECRETARY_PASSWORD = 'testpass123';
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const DOG_SEARCH = 'Bravo';
-const SUPABASE_REST = /\/rest\/v1\//;
 
 async function signInAsSecretary(page: Page) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
+  await page.goto('/sign-in?returnTo=/secretary/dashboard', { waitUntil: 'domcontentloaded' });
   await page.getByTestId('email-input').fill(SECRETARY_EMAIL);
   await page.getByTestId('password-input').fill(SECRETARY_PASSWORD);
   await page.getByTestId('sign-in-button').click();
   await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 async function preventSharedWrites(page: Page) {
@@ -80,7 +79,7 @@ async function preventSharedWrites(page: Page) {
 }
 
 async function gotoSecretaryRegistration(page: Page) {
-  await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });
+  await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
     timeout: 15000,
   });
@@ -91,16 +90,10 @@ async function searchAndSelectDog(page: Page) {
   await expect(search).toBeVisible();
   await search.fill(DOG_SEARCH);
 
-  await page.waitForResponse(
-    response =>
-      SUPABASE_REST.test(response.url()) &&
-      response.url().includes('/dogs') &&
-      response.url().toLowerCase().includes(DOG_SEARCH.toLowerCase()),
-    { timeout: 10000 }
-  );
-
-  await page.getByText(DOG_SEARCH, { exact: true }).last().click();
-  await expect(page.getByText(/1 selected/)).toBeVisible({ timeout: 5000 });
+  const dogRow = page.locator('.grid.items-center.gap-x-3').filter({ hasText: DOG_SEARCH }).last();
+  await expect(dogRow).toBeVisible({ timeout: 10000 });
+  await dogRow.getByRole('checkbox').click({ force: true });
+  await expect(page.getByText(/1(?: dog)? selected/).first()).toBeVisible({ timeout: 5000 });
 }
 
 async function selectFirstInteriorClass(page: Page) {
@@ -137,11 +130,9 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
   await expect(page.getByText(/Bravo/).first()).toBeVisible();
   await expect(page.getByText(/Interior Novice A/)).toBeVisible();
 
-  // Blocker for tonight's full promotion: the agreement checkbox currently
-  // renders, but clicking its label/control does not enable Next in the live app.
   const exhibitorAgreement = page.getByText(/The exhibitor has read and agrees/i);
   if (await exhibitorAgreement.isVisible().catch(() => false)) {
     await exhibitorAgreement.click({ force: true });
-    await expect(page.getByRole('button', { name: /^Next/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled();
   }
 });

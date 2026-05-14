@@ -42,7 +42,7 @@ pnpm test:e2e -- --project=chromium
 
 Nightly has two phases: stable Playwright smoke, then an agent/browser route-health sweep.
 
-Wave 1 repairs on 2026-05-12 promoted the following stable Chromium checks. This command was verified with retries disabled: `25 passed (1.1m)`.
+Wave 1 repairs on 2026-05-12 and follow-up repairs on 2026-05-13 promoted the following stable Chromium checks. This command was verified with retries disabled: `37 passed (2.3m)`.
 
 ```bash
 cd apps/myk9show
@@ -57,6 +57,10 @@ pnpm test:e2e:clean \
   src/test/e2e/secretary/show-creation-wizard.spec.ts \
   src/test/e2e/secretary/classCreation.spec.ts \
   src/test/e2e/registration/secretaryExistingUsers.spec.ts \
+  src/test/e2e/registration/index.spec.ts \
+  src/test/e2e/registration/singleDogSingleClass.spec.ts \
+  src/test/e2e/secretary/show-wizard-officials.spec.ts \
+  src/test/e2e/registration/entryCreationCore.spec.ts \
   --project=chromium --workers=1 --timeout=90000 --retries=0
 ```
 
@@ -101,9 +105,13 @@ These specs are in the current scheduled Nightly Playwright command. Do not add 
 | ------------------------------------------------------------------------ | -------------------------------------------------- |
 | `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`             | Public registration route/auth/navigation smoke.   |
 | `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`             | Public browse-to-detail navigation.                |
+| `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`      | Core entry store workflow and audit trail.         |
+| `apps/myk9show/src/test/e2e/registration/index.spec.ts`                  | Maintained registration spec inventory guard.      |
 | `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts` | Stable secretary existing-user registration guard. |
+| `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`   | Focused one-dog, one-class registration path.      |
 | `apps/myk9show/src/test/e2e/secretary/classCreation.spec.ts`             | Narrow class-creation route/template smoke.        |
 | `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`      | Stable secretary show wizard smoke.                |
+| `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts`     | Officials and judges picker smoke.                 |
 | `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`                 | App boots and secretary sign-in works.             |
 | `apps/myk9show/src/test/e2e/uat/secretary/critical-path.spec.ts`         | Stable secretary UAT critical path.                |
 | `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`      | Stable secretary disposable entry management.      |
@@ -125,26 +133,22 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/cross-browser/performance.spec.ts`                    | Performance checks belong outside PR smoke.        |
 | `apps/myk9show/src/test/e2e/cross-browser/quirks.spec.ts`                         | Browser-specific behavior checks.                  |
 | `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`                  | Legacy all-in-one browser/device matrix.           |
-| `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                         | Multi-role workflows, valuable but broad.          |
+| `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                         | Broad stale suite; split/rewrite focused workflows. |
 | `apps/myk9show/src/test/e2e/database-record-validation.spec.ts`                   | DB state validation.                               |
 | `apps/myk9show/src/test/e2e/payment/paymentFlow.spec.ts`                          | Payment smoke.                                     |
 | `apps/myk9show/src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts`       | Broad payment suite.                               |
 | `apps/myk9show/src/test/e2e/phase5-complete-integration.spec.ts`                  | Broad historical integration suite.                |
 | `apps/myk9show/src/test/e2e/phase5-simple-integration.spec.ts`                    | Integration coverage.                              |
-| `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`               | Registration core workflow.                        |
-| `apps/myk9show/src/test/e2e/registration/errorHandlingAndRecovery.spec.ts`        | Registration failure/recovery coverage.            |
+| `apps/myk9show/src/test/e2e/registration/errorHandlingAndRecovery.spec.ts`        | Stale synthetic fake-route harness; rewrite/delete. |
 | `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts`       | Exhibitor registration journey.                    |
-| `apps/myk9show/src/test/e2e/registration/index.spec.ts`                           | Registration integration index.                    |
-| `apps/myk9show/src/test/e2e/registration/performanceAndCaching.spec.ts`           | Registration performance/cache checks.             |
-| `apps/myk9show/src/test/e2e/registration/phase3-2-multi-class-entries.spec.ts`    | Multi-class entry coverage.                        |
-| `apps/myk9show/src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts` | Entry limit and waitlist coverage.                 |
+| `apps/myk9show/src/test/e2e/registration/performanceAndCaching.spec.ts`           | Stale synthetic fake-route harness; rewrite/delete. |
+| `apps/myk9show/src/test/e2e/registration/phase3-2-multi-class-entries.spec.ts`    | Convert store scenarios to Vitest; not Nightly E2E. |
+| `apps/myk9show/src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts` | Convert service scenarios to Vitest; not Nightly E2E. |
 | `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`               | Secretary registration for new users/dogs.         |
-| `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`            | Focused registration path, still data-dependent.   |
-| `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                      | Judge/ringside scoring workflow.                   |
-| `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts`              | Officials/judges picker proof.                     |
+| `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                      | Obsolete myK9Show scoring UI; rewrite myK9Q-first. |
 | `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`                         | Secretary entry walk.                              |
-| `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                          | Show management workflow.                          |
-| `apps/myk9show/src/test/e2e/unified-shows-workflows.spec.ts`                      | Unified show workflows across roles.               |
+| `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                          | Obsolete all-in-one show workflow; split/rewrite.  |
+| `apps/myk9show/src/test/e2e/unified-shows-workflows.spec.ts`                      | Broad stale suite; split/rewrite role/tab coverage. |
 
 ## Feature Audit
 

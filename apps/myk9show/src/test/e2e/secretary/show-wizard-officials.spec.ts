@@ -27,7 +27,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     await expect(page.locator('text=Basic Show Information')).toBeVisible();
 
     // Find the Show Chairman picker trigger and open it
-    const chairmanTrigger = page.getByRole('button', { name: /Select Show Chairman/i });
+    const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
     await chairmanTrigger.click();
 
     // The popover should appear — it should have at least one of the two group headers:
@@ -58,7 +58,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     await expect(page.locator('text=Basic Show Information')).toBeVisible();
 
     // Open the judges search popover
-    const judgesTrigger = page.getByRole('button', { name: /Search and add judges/i });
+    const judgesTrigger = page.getByRole('button', { name: /Show Judges/i });
     await judgesTrigger.click();
 
     // Click "Add new judge" in the popover footer

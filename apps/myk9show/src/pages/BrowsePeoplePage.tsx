@@ -123,7 +123,7 @@ const BrowsePeoplePage: React.FC = () => {
       queryClient.setQueryData(queryKeys.users.detail(newUser.id), newUser);
       // Background revalidation — fire-and-forget.
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      navigate(`/users/${newUser.id}`, { replace: true });
+      navigate(`/people/${newUser.id}`, { replace: true });
     },
     [addUser, navigate, queryClient]
   );

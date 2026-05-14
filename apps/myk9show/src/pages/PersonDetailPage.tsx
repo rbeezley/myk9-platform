@@ -4,7 +4,7 @@ import { useRoleBasedPeople, useCanAccessPerson } from '@/hooks/useRoleBasedData
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 
 /**
- * PersonDetailPage is a thin wrapper around UserDetailsView for the /users/:id route.
+ * PersonDetailPage is a thin wrapper around UserDetailsView for the /people/:id route.
  * Loads the person from role-based data, checks access, and renders UserDetailsView.
  */
 const PersonDetailPage: React.FC = () => {
@@ -19,7 +19,7 @@ const PersonDetailPage: React.FC = () => {
     return people.find(p => p.id === id) || null;
   }, [people, id]);
 
-  // Redirect to /users if person not found or no access after loading
+  // Redirect to the people browse page if person is not found or access is denied.
   useEffect(() => {
     if (!isLoading && people.length > 0 && id) {
       if (!canAccessPerson || !people.find(p => p.id === id)) {

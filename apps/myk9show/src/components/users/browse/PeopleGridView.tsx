@@ -27,7 +27,7 @@ export const PeopleGridView: React.FC<PeopleGridViewProps> = ({ people }) => {
         return (
           <BrowseCard
             key={person.id}
-            href={`/users/${person.id}`}
+            href={`/people/${person.id}`}
             actionLabel="View Person"
             name={fullName}
             avatar={

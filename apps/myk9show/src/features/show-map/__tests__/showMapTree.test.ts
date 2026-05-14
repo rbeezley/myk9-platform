@@ -78,7 +78,7 @@ describe('buildShowMapTree', () => {
       breed: 'Labrador Retriever',
       handler: 'Jane Handler',
       dogHref: '/dogs/dog-1',
-      handlerHref: '/users/person-1',
+      handlerHref: '/people/person-1',
     });
     expect(tree.nodesById['entry:entry-1']?.scoreHref).toBeUndefined();
   });

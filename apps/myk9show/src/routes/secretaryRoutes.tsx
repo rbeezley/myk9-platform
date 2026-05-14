@@ -75,9 +75,9 @@ const ShowEditRedirect = () => {
   return null;
 };
 
-const PeopleDetailRedirect = () => {
+const UserDetailRedirect = () => {
   const { id } = useParams<{ id: string }>();
-  return <Navigate to={id ? `/users/${id}` : '/people'} replace />;
+  return <Navigate to={id ? `/people/${id}` : '/people'} replace />;
 };
 
 /** All secretary routes — rendered inside UnifiedAppLayout */
@@ -320,9 +320,8 @@ export const SecretaryRoutes = () => (
       }
     />
     <Route path="/users" element={<Navigate to="/people" replace />} />
-    <Route path="/people/:id" element={<PeopleDetailRedirect />} />
     <Route
-      path="/users/:id"
+      path="/people/:id"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
@@ -333,6 +332,7 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
+    <Route path="/users/:id" element={<UserDetailRedirect />} />
 
     {/* Scoring — entry list and individual scoresheet */}
     <Route

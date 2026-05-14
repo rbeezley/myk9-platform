@@ -128,7 +128,7 @@ describe('ShowMapStructureTable', () => {
     expect(onNavigate).toHaveBeenCalledWith('/dogs/dog-12');
 
     await user.click(screen.getByRole('button', { name: 'Jane Handler' }));
-    expect(onNavigate).toHaveBeenCalledWith('/users/person-12');
+    expect(onNavigate).toHaveBeenCalledWith('/people/person-12');
   });
 
   it('collapses class rows while keeping class-level scoring available', async () => {

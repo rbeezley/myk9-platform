@@ -53,7 +53,7 @@ npx vitest run \
   src/hooks/useInfiniteScroll.performanceCaching.test.ts
 ```
 
-Phase 2 runs stable Chromium checks. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus exhibitor online-entry repairs on 2026-05-14 promoted the following stable checks. This command was verified with retries disabled: `45 passed (2.6m)`.
+Phase 2 runs stable Chromium checks. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus online-entry repairs on 2026-05-14 promoted the following stable checks. This command was verified with retries disabled: `46 passed (2.7m)`.
 
 ```bash
 cd apps/myk9show
@@ -69,6 +69,7 @@ pnpm test:e2e:clean \
   src/test/e2e/secretary/show-creation-wizard.spec.ts \
   src/test/e2e/secretary/classCreation.spec.ts \
   src/test/e2e/registration/secretaryExistingUsers.spec.ts \
+  src/test/e2e/registration/secretaryNewUsers.spec.ts \
   src/test/e2e/registration/index.spec.ts \
   src/test/e2e/registration/singleDogSingleClass.spec.ts \
   src/test/e2e/registration/exhibitorSelfRegistration.spec.ts \
@@ -137,6 +138,7 @@ These specs are in the current scheduled Nightly routine. Do not add to this tab
 | `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts` | Exhibitor online-entry journey through receipt.              |
 | `apps/myk9show/src/test/e2e/registration/index.spec.ts`                     | Maintained registration spec inventory guard.                |
 | `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`    | Stable secretary existing-user registration guard.           |
+| `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`         | Secretary mail-in person, dog, and dog-registration path.    |
 | `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`      | Focused one-dog, one-class registration path.                |
 | `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`                   | Stable secretary entry wizard confirmation walk.             |
 | `apps/myk9show/src/test/e2e/secretary/classCreation.spec.ts`                | Narrow class-creation route/template smoke.                  |
@@ -168,7 +170,6 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts` | Broad payment suite.                               |
 | `apps/myk9show/src/test/e2e/phase5-complete-integration.spec.ts`            | Broad historical integration suite.                |
 | `apps/myk9show/src/test/e2e/phase5-simple-integration.spec.ts`              | Integration coverage.                              |
-| `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`         | Secretary registration for new users/dogs.         |
 | `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                | Obsolete myK9Show scoring UI; rewrite myK9Q-first. |
 | `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                    | Obsolete all-in-one show workflow; split/rewrite.  |
 

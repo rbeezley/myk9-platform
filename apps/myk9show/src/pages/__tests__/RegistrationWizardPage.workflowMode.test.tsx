@@ -165,7 +165,7 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     expect(capturedWorkflowConfig?.features.advancedSearch).toBe(false);
   });
 
-  it('uses secretary_existing config when user is a secretary without create-exhibitor permission', async () => {
+  it('uses secretary_new config for secretary mail-in entry work', async () => {
     mockPermissions.isSecretary = true;
     mockPermissions.canCreateExhibitor = false;
 
@@ -173,8 +173,8 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
 
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
-    // secretary_existing has advancedSearch: true
     expect(capturedWorkflowConfig?.features.advancedSearch).toBe(true);
+    expect(capturedWorkflowConfig?.features.createNew).toBe(true);
   });
 
   it('uses secretary_new config when user is a secretary with create-exhibitor permission', async () => {

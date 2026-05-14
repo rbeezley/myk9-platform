@@ -100,7 +100,11 @@ export function useInfiniteScroll<T extends { id: string }>(
   }, [debug]);
 
   // Load a specific page
-  const loadPageData = useCallback(async (pageNumber: number, isRetry = false) => {
+  const loadPageData = useCallback(async (
+    pageNumber: number,
+    isRetry = false,
+    isBackground = false
+  ) => {
     if (loadingRef.current && !isRetry) return null;
 
     // Check cache first
@@ -117,12 +121,14 @@ export function useInfiniteScroll<T extends { id: string }>(
     }
     abortControllerRef.current = new AbortController();
 
-    setState(prev => ({ 
-      ...prev, 
-      loading: true, 
-      error: null,
-      retryCount: isRetry ? prev.retryCount + 1 : 0
-    }));
+    if (!isBackground) {
+      setState(prev => ({
+        ...prev,
+        loading: true,
+        error: null,
+        retryCount: isRetry ? prev.retryCount + 1 : 0
+      }));
+    }
 
     try {
       log('Loading page:', pageNumber, 'pageSize:', pageSize);
@@ -162,16 +168,18 @@ export function useInfiniteScroll<T extends { id: string }>(
       if (autoRetry && state.retryCount < maxRetries) {
         log('Retrying page load:', pageNumber, 'attempt:', state.retryCount + 1);
         setTimeout(() => {
-          loadPageData(pageNumber, true);
+          loadPageData(pageNumber, true, isBackground);
         }, Math.pow(2, state.retryCount) * 1000); // Exponential backoff
         return null;
       }
 
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: errorMessage || `Failed to load page ${pageNumber}`
-      }));
+      if (!isBackground) {
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: errorMessage || `Failed to load page ${pageNumber}`
+        }));
+      }
       
       return null;
     } finally {
@@ -210,7 +218,7 @@ export function useInfiniteScroll<T extends { id: string }>(
         }
         
         prefetchTimeoutRef.current = setTimeout(() => {
-          loadPageData(nextPage + 1);
+          loadPageData(nextPage + 1, false, true);
         }, 500);
       }
     }

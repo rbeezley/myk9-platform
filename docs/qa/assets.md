@@ -114,9 +114,20 @@ pnpm test:e2e -- --project=chromium
 
 ### Nightly
 
-Nightly has two phases.
+Nightly has three phases.
 
-Phase 1 runs the active Wave 1 Nightly command. Candidate specs are still inventoried in `docs/qa/e2e-suite-map.md`, but they are not in the scheduled gate until repaired and promoted.
+Phase 1 runs promoted Vitest registration service/store checks:
+
+```bash
+cd apps/myk9show
+npx vitest run \
+  src/test/unit/entryStore.multiClass.test.ts \
+  src/test/services/entries/entryLimitChecker.waitlists.test.ts \
+  src/test/services/APIErrorInterceptor.registrationRecovery.test.ts \
+  src/hooks/useInfiniteScroll.performanceCaching.test.ts
+```
+
+Phase 2 runs the active Nightly Playwright command. Candidate specs are still inventoried in `docs/qa/e2e-suite-map.md`, but they are not in the scheduled gate until repaired and promoted.
 
 ```bash
 cd apps/myk9show
@@ -131,10 +142,16 @@ pnpm test:e2e:clean \
   src/test/e2e/secretary/show-creation-wizard.spec.ts \
   src/test/e2e/secretary/classCreation.spec.ts \
   src/test/e2e/registration/secretaryExistingUsers.spec.ts \
+  src/test/e2e/registration/index.spec.ts \
+  src/test/e2e/registration/singleDogSingleClass.spec.ts \
+  src/test/e2e/secretary-entry-walk.spec.ts \
+  src/test/e2e/secretary/show-wizard-officials.spec.ts \
+  src/test/e2e/registration/entryCreationCore.spec.ts \
+  src/test/e2e/public-shows-responsive.spec.ts \
   --project=chromium --workers=1 --timeout=90000 --retries=0
 ```
 
-Phase 2 is an agent/browser route-health sweep, not a terminal-only command:
+Phase 3 is an agent/browser route-health sweep, not a terminal-only command:
 
 ```text
 /audit-pages full

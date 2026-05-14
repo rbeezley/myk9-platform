@@ -106,11 +106,11 @@ pnpm test:e2e:clean \
 Owner scope:
 
 - `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`
-- `apps/myk9show/src/test/e2e/registration/errorHandlingAndRecovery.spec.ts`
+- `apps/myk9show/src/test/services/APIErrorInterceptor.registrationRecovery.test.ts` (converted from stale E2E; promoted to the Nightly Vitest phase)
 - `apps/myk9show/src/test/e2e/registration/index.spec.ts`
-- `apps/myk9show/src/test/e2e/registration/performanceAndCaching.spec.ts`
-- `apps/myk9show/src/test/e2e/registration/phase3-2-multi-class-entries.spec.ts`
-- `apps/myk9show/src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts`
+- `apps/myk9show/src/hooks/useInfiniteScroll.performanceCaching.test.ts` (converted from stale E2E; promoted to the Nightly Vitest phase)
+- `apps/myk9show/src/test/unit/entryStore.multiClass.test.ts` (converted from E2E; promoted to the Nightly Vitest phase)
+- `apps/myk9show/src/test/services/entries/entryLimitChecker.waitlists.test.ts` (converted from E2E; promoted to the Nightly Vitest phase)
 
 Known failures:
 
@@ -119,20 +119,22 @@ Known failures:
 
 Promotion target:
 
-- Keep out of tonight's Nightly unless a spec becomes small, deterministic, and user-critical.
-- Convert or split tests that are not true browser journeys.
+- Keep unrepaired Playwright specs out of tonight's Nightly unless a spec becomes small, deterministic, and user-critical.
+- Converted service/store checks can run in the Nightly Vitest phase instead of the browser command.
 
 Testing:
 
 ```bash
 cd apps/myk9show
+npx vitest run \
+  src/test/unit/entryStore.multiClass.test.ts \
+  src/test/services/entries/entryLimitChecker.waitlists.test.ts \
+  src/test/services/APIErrorInterceptor.registrationRecovery.test.ts \
+  src/hooks/useInfiniteScroll.performanceCaching.test.ts
+
 pnpm test:e2e:clean \
   src/test/e2e/registration/entryCreationCore.spec.ts \
-  src/test/e2e/registration/errorHandlingAndRecovery.spec.ts \
   src/test/e2e/registration/index.spec.ts \
-  src/test/e2e/registration/performanceAndCaching.spec.ts \
-  src/test/e2e/registration/phase3-2-multi-class-entries.spec.ts \
-  src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts \
   --project=chromium --workers=1
 ```
 
@@ -204,18 +206,19 @@ Owner scope:
 
 - `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`
 - `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`
-- `apps/myk9show/src/test/e2e/unified-shows-workflows.spec.ts`
+- `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts` (extracted from stale unified suite; promoted to the Nightly Playwright phase)
 
 Known failures:
 
 - `scoringWorkflow` failed rapidly in the broad dry run.
 - `cross-role-workflows` failed rapidly across many unrelated subflows.
-- `unified-shows-workflows` was not reached before the dry run was stopped.
+- `unified-shows-workflows` was retired after extracting the two useful public responsive checks.
 
 Promotion target:
 
 - Split broad suites before promoting.
 - Prefer a small scoring smoke over the full scoring workflow if tonight's goal is meaningful signal.
+- The extracted public responsive smoke can run in the Nightly Playwright phase instead of the broad unified suite.
 
 Testing:
 
@@ -224,7 +227,7 @@ cd apps/myk9show
 pnpm test:e2e:clean \
   src/test/e2e/scoring/scoringWorkflow.spec.ts \
   src/test/e2e/cross-role-workflows.spec.ts \
-  src/test/e2e/unified-shows-workflows.spec.ts \
+  src/test/e2e/public-shows-responsive.spec.ts \
   --project=chromium --workers=1
 ```
 
@@ -253,6 +256,7 @@ Still queued:
 - `singleDogSingleClass` reaches payment but is not a full golden path because the AKC agreement/Next path remains suspect.
 - `exhibitorSelfRegistration` and `secretaryNewUsers` document current placeholders/permissions, but are not useful Nightly gates yet.
 - `show-wizard-officials` still has stale picker selectors around chairman/judges.
+- `secretary-entry-walk` was repaired and promoted on 2026-05-14 after the duplicate-entry and email-CORS noise was made idempotent/mocked.
 - `showManagement` moved past the `logger is not defined` helper bug but still times out in old workflows.
 
 Verification:
@@ -270,6 +274,7 @@ pnpm test:e2e:clean \
   src/test/e2e/secretary/show-creation-wizard.spec.ts \
   src/test/e2e/secretary/classCreation.spec.ts \
   src/test/e2e/registration/secretaryExistingUsers.spec.ts \
+  src/test/e2e/secretary-entry-walk.spec.ts \
   --project=chromium --workers=1 --timeout=90000 --retries=0
 ```
 

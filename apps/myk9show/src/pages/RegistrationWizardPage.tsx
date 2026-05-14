@@ -59,8 +59,7 @@ function RegistrationWizardContent() {
   const isInsideSidebar = !!useMatch('/secretary/*');
 
   // Auth and permissions
-  const { canCreateExhibitor, isSecretary, isClubAdmin, isSiteAdmin } =
-    useRegistrationPermissions();
+  const { isSecretary, isClubAdmin, isSiteAdmin } = useRegistrationPermissions();
   const { user } = useAuthContext();
   const { triggerSync } = useReplicationSync();
 
@@ -99,10 +98,9 @@ function RegistrationWizardContent() {
   const currentWorkflowMode: WorkflowMode = useMemo(() => {
     if (isSiteAdmin) return 'site_admin';
     if (isClubAdmin) return 'club_admin';
-    if (isSecretary && canCreateExhibitor) return 'secretary_new';
-    if (isSecretary) return 'secretary_existing';
+    if (isSecretary) return 'secretary_new';
     return 'exhibitor';
-  }, [isSiteAdmin, isClubAdmin, isSecretary, canCreateExhibitor]);
+  }, [isSiteAdmin, isClubAdmin, isSecretary]);
 
   const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
 

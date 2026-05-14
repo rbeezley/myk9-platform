@@ -24,6 +24,30 @@ export const REGISTRATION_PERMISSIONS = {
   ASSIGN_HANDLERS: 'registration:assign_handlers' as Permission,
 } as const;
 
+const MAIL_IN_ENTRY_ROLES = new Set<UserRole>([
+  UserRole.SECRETARY,
+  UserRole.CLUB_ADMIN,
+  UserRole.SITE_ADMIN,
+]);
+
+const MAIL_IN_ENTRY_PERMISSIONS = new Set<Permission>([
+  PERMISSIONS.DOG_CREATE,
+  PERMISSIONS.DOG_READ,
+  PERMISSIONS.DOG_READ_ALL,
+  PERMISSIONS.DOG_UPDATE,
+  PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS,
+  PERMISSIONS.REGISTRATION_REGISTER_ANY,
+  PERMISSIONS.REGISTRATION_CREATE_EXHIBITOR,
+  PERMISSIONS.REGISTRATION_ASSIGN_ARMBANDS,
+  PERMISSIONS.REGISTRATION_MANAGE_STATUS,
+  PERMISSIONS.REGISTRATION_BULK_OPERATIONS,
+  PERMISSIONS.REGISTRATION_MARK_PAYMENT,
+  PERMISSIONS.REGISTRATION_MANAGE_PAYMENTS,
+]);
+
+const hasMailInEntryRole = (roles: UserRole[]): boolean =>
+  roles.some(role => MAIL_IN_ENTRY_ROLES.has(role));
+
 /**
  * Hook for checking registration-specific permissions
  */
@@ -36,8 +60,13 @@ export function useRegistrationPermissions() {
   const can = (permission: Permission, scope?: Scope): boolean => {
     if (!userWithRoles) return false;
 
-    // Check if user has the permission
-    if (!userWithRoles.permissions.includes(permission)) {
+    const hasPermission =
+      userWithRoles.permissions.includes(permission) ||
+      (hasMailInEntryRole(userWithRoles.roles) && MAIL_IN_ENTRY_PERMISSIONS.has(permission));
+
+    // Check if user has the permission. The role fallback keeps the mail-in
+    // flow usable while older RBAC rows are being backfilled by migration.
+    if (!hasPermission) {
       return false;
     }
 
@@ -61,6 +90,8 @@ export function useRegistrationPermissions() {
     return userWithRoles?.roles.includes(role) || false;
   };
 
+  const canProcessMailInEntry = hasMailInEntryRole(userWithRoles?.roles || []);
+
   /**
    * Check if user has scope access to a specific entity
    */
@@ -82,17 +113,17 @@ export function useRegistrationPermissions() {
   /**
    * Check if user can view all dogs (not just their own)
    */
-  const canViewAllDogs = can(REGISTRATION_PERMISSIONS.VIEW_ALL_DOGS);
+  const canViewAllDogs = can(REGISTRATION_PERMISSIONS.VIEW_ALL_DOGS) || canProcessMailInEntry;
 
   /**
    * Check if user can register dogs for any user
    */
-  const canRegisterAnyDog = can(REGISTRATION_PERMISSIONS.REGISTER_ANY_DOG);
+  const canRegisterAnyDog = can(REGISTRATION_PERMISSIONS.REGISTER_ANY_DOG) || canProcessMailInEntry;
 
   /**
    * Check if user can create new exhibitors
    */
-  const canCreateExhibitor = can(REGISTRATION_PERMISSIONS.CREATE_EXHIBITOR);
+  const canCreateExhibitor = can(REGISTRATION_PERMISSIONS.CREATE_EXHIBITOR) || canProcessMailInEntry;
 
   /**
    * Check if user can override fees
@@ -102,22 +133,22 @@ export function useRegistrationPermissions() {
   /**
    * Check if user can assign armbands
    */
-  const canAssignArmbands = can(REGISTRATION_PERMISSIONS.ASSIGN_ARMBANDS);
+  const canAssignArmbands = can(REGISTRATION_PERMISSIONS.ASSIGN_ARMBANDS) || canProcessMailInEntry;
 
   /**
    * Check if user can manage entry status
    */
-  const canManageStatus = can(REGISTRATION_PERMISSIONS.MANAGE_STATUS);
+  const canManageStatus = can(REGISTRATION_PERMISSIONS.MANAGE_STATUS) || canProcessMailInEntry;
 
   /**
    * Check if user can perform bulk operations
    */
-  const canBulkOperations = can(REGISTRATION_PERMISSIONS.BULK_OPERATIONS);
+  const canBulkOperations = can(REGISTRATION_PERMISSIONS.BULK_OPERATIONS) || canProcessMailInEntry;
 
   /**
    * Check if user can manage payments
    */
-  const canManagePayments = can(REGISTRATION_PERMISSIONS.MANAGE_PAYMENTS);
+  const canManagePayments = can(REGISTRATION_PERMISSIONS.MANAGE_PAYMENTS) || canProcessMailInEntry;
 
   /**
    * Check if user can assign handlers to dogs

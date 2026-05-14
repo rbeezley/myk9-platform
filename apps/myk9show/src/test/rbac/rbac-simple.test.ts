@@ -61,8 +61,8 @@ describe('RBAC Types and Constants', () => {
       // Secretaries should have more permissions than exhibitors
       expect(secretaryPerms).toContain(PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS);
       expect(secretaryPerms).toContain(PERMISSIONS.REGISTRATION_REGISTER_ANY);
+      expect(secretaryPerms).toContain(PERMISSIONS.REGISTRATION_CREATE_EXHIBITOR);
       expect(secretaryPerms).toContain(PERMISSIONS.REGISTRATION_BULK_OPERATIONS);
-      expect(secretaryPerms).not.toContain(PERMISSIONS.REGISTRATION_CREATE_EXHIBITOR);
 
       // Club admins should have more permissions than secretaries
       expect(clubAdminPerms).toContain(PERMISSIONS.REGISTRATION_CREATE_EXHIBITOR);

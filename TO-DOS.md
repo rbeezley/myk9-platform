@@ -416,6 +416,7 @@ Non-North-Star items needed before real users hit the production URL. These are 
 
 ### Production Readiness (when real users are on production URL)
 
+- [ ] **Temporary GitHub Actions billing pause through 2026-06-01** — GitHub Actions jobs are blocked until the billing/spending-limit reset on June 1, 2026. Until then, merge PRs without relying on Actions when the failure annotation says the job did not start because of account payments or spending limit. Use focused local verification, Vercel previews where available, and explicit merge judgment instead.
 - [ ] **CI-gated Vercel deploys** — Disable Vercel auto-deploy for production branch. Add a deploy step at the end of the GitHub Actions CI workflow that only runs after all tests pass (`vercel deploy --prod`). Keep auto-deploy for PR preview URLs. Requires `VERCEL_TOKEN` secret and Vercel CLI in CI.
 - [ ] **Require PRs to merge into main** — Enable branch protection on `main` with CI as a required status check. No direct pushes to main in production.
 

@@ -10,6 +10,7 @@ This inventory supports Phase 0 of the proactive quality system. It organizes th
 - Run `pnpm qa:e2e-map:check` after adding, deleting, moving, or reclassifying Playwright specs.
 - Prefer focused commands over broad suites while the suite is being stabilized.
 - Do not run shared-system mutations from QA work without explicit confirmation.
+- Temporary note, 2026-05-14: GitHub Actions is unavailable until the billing/spending-limit reset on 2026-06-01. Until then, do not wait on Actions for PR or nightly QA decisions when the job fails before starting with the billing annotation; use focused local verification and Vercel previews where available, then merge by explicit judgment.
 
 ## Automatic Fix Boundary
 

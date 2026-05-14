@@ -195,6 +195,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## Pre-Launch Housekeeping
 
+- [ ] **Temporary GitHub Actions billing pause through 2026-06-01** — GitHub Actions jobs are not usable until the billing/spending-limit reset on June 1, 2026. Until then, PR merge decisions should rely on focused local verification plus Vercel preview status where available; if a GitHub Actions `Test`/`Build` job fails before starting with the billing annotation, treat it as an infrastructure blocker rather than a code failure.
 - [ ] **CI-gated Vercel deploys** — Disable Vercel auto-deploy for production branch; add deploy step to GitHub Actions after all tests pass. Requires `VERCEL_TOKEN` secret.
 - [ ] **Require PRs to merge into main** — Enable branch protection on `main` with CI as required status check. No direct pushes to main in production.
 - [ ] **Make E2E CI jobs blocking** — Skipped historically due to billing issues + unstable test suite. Revisit once tests are stable.

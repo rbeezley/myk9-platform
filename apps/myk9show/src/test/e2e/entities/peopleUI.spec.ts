@@ -155,7 +155,7 @@ test.describe('People UI — Create (secretary)', () => {
     // invalidation BEFORE navigating, so the new person is in cache and
     // PersonDetailPage doesn't redirect back to /people. If this URL match
     // fails, the cache-invalidation regression has reappeared.
-    await page.waitForURL(/\/users\/[^/]+/, { timeout: 10000 });
+    await page.waitForURL(/\/people\/[^/]+/, { timeout: 10000 });
     await expect(
       page.getByRole('heading', {
         name: `${PERSON_A_FIRST} ${PERSON_A_LAST}`,
@@ -180,7 +180,7 @@ test.describe('People UI — Create (secretary)', () => {
       page.getByRole('button', { name: 'Save Changes' }).click(),
     ]);
     expect(resp.ok()).toBe(true);
-    await page.waitForURL(/\/users\/[^/]+/);
+    await page.waitForURL(/\/people\/[^/]+/);
   });
 
   test('Create rejects submission when required fields are empty', async ({ page }) => {
@@ -217,7 +217,7 @@ test.describe('People UI — Detail + Edit (secretary)', () => {
   test('detail page renders Person A with contact + dogs association', async ({ page }) => {
     await page.goto('/people');
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
-    await page.waitForURL(/\/users\/[^/]+/);
+    await page.waitForURL(/\/people\/[^/]+/);
     await expect(
       page.getByRole('heading', {
         name: `${PERSON_A_FIRST} ${PERSON_A_LAST}`,
@@ -235,7 +235,7 @@ test.describe('People UI — Detail + Edit (secretary)', () => {
   test('edit Person A — saves phone via Contact tab', async ({ page }) => {
     await page.goto('/people');
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
-    await page.waitForURL(/\/users\/[^/]+/);
+    await page.waitForURL(/\/people\/[^/]+/);
 
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();
@@ -268,7 +268,7 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
   test('Add New Dog from Person A profile — Owner pre-fills with that person', async ({ page }) => {
     await page.goto('/people');
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
-    await page.waitForURL(/\/users\/[^/]+/);
+    await page.waitForURL(/\/people\/[^/]+/);
 
     await page.getByRole('button', { name: 'Add New Dog' }).click();
     await expect(page.getByRole('dialog', { name: 'Add New Dog' })).toBeVisible();
@@ -329,7 +329,7 @@ test.describe('People UI — Delete (secretary)', () => {
   test('Delete Person A — blocked because they own a dog', async ({ page }) => {
     await page.goto('/people');
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
-    await page.waitForURL(/\/users\/[^/]+/);
+    await page.waitForURL(/\/people\/[^/]+/);
 
     await page.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();
@@ -352,7 +352,7 @@ test.describe('People UI — Delete (secretary)', () => {
   test('Delete Person B — confirmation cancel keeps the person', async ({ page }) => {
     await page.goto('/people');
     await page.getByRole('link', { name: new RegExp(PERSON_B_LAST) }).click();
-    await page.waitForURL(/\/users\/[^/]+/);
+    await page.waitForURL(/\/people\/[^/]+/);
 
     await page.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();
@@ -362,13 +362,13 @@ test.describe('People UI — Delete (secretary)', () => {
     await cancelDeleteDialog.getByRole('button', { name: 'Cancel' }).click();
     await expect(cancelDeleteDialog).not.toBeVisible();
     // Still on the same person's detail page.
-    await expect(page).toHaveURL(/\/users\/[^/]+/);
+    await expect(page).toHaveURL(/\/people\/[^/]+/);
   });
 
   test('Delete Person B — confirm removes the person from the list', async ({ page }) => {
     await page.goto('/people');
     await page.getByRole('link', { name: new RegExp(PERSON_B_LAST) }).click();
-    await page.waitForURL(/\/users\/[^/]+/);
+    await page.waitForURL(/\/people\/[^/]+/);
 
     await page.getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete' }).click();
@@ -425,7 +425,7 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     ]);
     expect(createResponse.ok()).toBe(true);
 
-    await page.waitForURL(/\/users\/[^/]+/, { timeout: 10000 });
+    await page.waitForURL(/\/people\/[^/]+/, { timeout: 10000 });
     await expect(
       page.getByRole('heading', {
         name: `${ADMIN_PERSON_FIRST} ${ADMIN_PERSON_LAST}`,

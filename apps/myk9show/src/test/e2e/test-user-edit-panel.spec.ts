@@ -12,7 +12,7 @@ test.describe('UserEditPanel Tests', () => {
     console.log('Landing page screenshot saved');
     
     // Look for navigation or user links
-    const usersLink = page.locator('a[href*="/users"], a:has-text("Users"), a:has-text("People")');
+    const usersLink = page.locator('a[href*="/people"], a:has-text("Users"), a:has-text("People")');
     if (await usersLink.count() > 0) {
       await usersLink.first().click();
       await page.waitForLoadState('networkidle');
@@ -106,7 +106,7 @@ test.describe('UserEditPanel Tests', () => {
       console.log('No users/people link found, checking for direct user navigation');
       
       // Try navigating directly to a user page if users link not found
-      await page.goto('http://127.0.0.1:5174/users');
+      await page.goto('http://127.0.0.1:5174/people');
       await page.waitForLoadState('networkidle');
       await page.screenshot({ path: 'screenshots/debug-direct-users.png', fullPage: true });
     }

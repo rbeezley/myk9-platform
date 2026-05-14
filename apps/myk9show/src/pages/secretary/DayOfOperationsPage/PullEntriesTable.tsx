@@ -1,12 +1,12 @@
 /**
- * Scratch Entries Table
+ * Pull Entries Table
  *
- * Shows entries that can be scratched from classes.
+ * Shows entries that can be pulled from classes.
  *
- * INTENT: Secretary should feel calm one-tap operations. Scratch uses an inline
+ * INTENT: Secretary should feel calm one-tap operations. Pull uses an inline
  * two-tap confirmation (tap → "Confirm?" appears inline, tap again → done) so
- * the secretary never leaves the table. The full ScratchDialog (with reason field)
- * is still available via onScratch for cases needing a reason.
+ * the secretary never leaves the table. The full PullDialog (with reason field)
+ * is still available via onPull for cases needing a reason.
  */
 
 import { useState, useMemo } from 'react';
@@ -15,32 +15,32 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { XCircle, X } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
-import type { ScratchableEntry } from './types';
+import type { PullableEntry } from './types';
 
-interface ScratchEntriesTableProps {
-  entries: ScratchableEntry[];
-  /** Called when secretary wants to scratch with a reason (opens full dialog). */
-  onScratch: (entry: ScratchableEntry) => void;
-  /** Called for a direct no-reason scratch confirmed inline. */
-  onScratchDirect?: (entry: ScratchableEntry) => void;
+interface PullEntriesTableProps {
+  entries: PullableEntry[];
+  /** Called when secretary wants to pull with a reason (opens full dialog). */
+  onPull: (entry: PullableEntry) => void;
+  /** Called for a direct no-reason pull confirmed inline. */
+  onPullDirect?: (entry: PullableEntry) => void;
 }
 
-interface ScratchCellProps {
-  entry: ScratchableEntry;
-  onScratch: (entry: ScratchableEntry) => void;
-  onScratchDirect?: ((entry: ScratchableEntry) => void) | undefined;
+interface PullCellProps {
+  entry: PullableEntry;
+  onPull: (entry: PullableEntry) => void;
+  onPullDirect?: ((entry: PullableEntry) => void) | undefined;
   pendingId: string | null;
   setPendingId: (id: string | null) => void;
 }
 
-/** Inline two-tap scratch cell: first tap arms the confirm state, second tap fires. */
-function ScratchCell({
+/** Inline two-tap pull cell: first tap arms the confirm state, second tap fires. */
+function PullCell({
   entry,
-  onScratch,
-  onScratchDirect,
+  onPull,
+  onPullDirect,
   pendingId,
   setPendingId,
-}: ScratchCellProps) {
+}: PullCellProps) {
   const isPending = pendingId === entry.id;
 
   if (isPending) {
@@ -51,20 +51,20 @@ function ScratchCell({
           variant="destructive"
           onClick={() => {
             setPendingId(null);
-            if (onScratchDirect) {
-              onScratchDirect(entry);
+            if (onPullDirect) {
+              onPullDirect(entry);
             } else {
-              onScratch(entry);
+              onPull(entry);
             }
           }}
         >
           <XCircle className="mr-2 h-4 w-4" />
-          Confirm Scratch
+          Confirm Pull
         </Button>
         <Button
           size="default"
           variant="outline"
-          aria-label="Cancel scratch"
+          aria-label="Cancel pull"
           onClick={() => setPendingId(null)}
         >
           <X className="h-4 w-4" />
@@ -77,21 +77,21 @@ function ScratchCell({
     <div className="text-right">
       <Button size="default" variant="destructive" onClick={() => setPendingId(entry.id)}>
         <XCircle className="mr-2 h-4 w-4" />
-        Scratch
+        Pull
       </Button>
     </div>
   );
 }
 
-export function ScratchEntriesTable({
+export function PullEntriesTable({
   entries,
-  onScratch,
-  onScratchDirect,
-}: ScratchEntriesTableProps) {
+  onPull,
+  onPullDirect,
+}: PullEntriesTableProps) {
   // Track which row is in the "armed" confirmation state
   const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const columns: ColumnDef<ScratchableEntry, unknown>[] = useMemo(
+  const columns: ColumnDef<PullableEntry, unknown>[] = useMemo(
     () => [
       {
         accessorKey: 'armband',
@@ -147,10 +147,10 @@ export function ScratchEntriesTable({
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => (
-          <ScratchCell
+          <PullCell
             entry={row.original}
-            onScratch={onScratch}
-            onScratchDirect={onScratchDirect}
+            onPull={onPull}
+            onPullDirect={onPullDirect}
             pendingId={pendingId}
             setPendingId={setPendingId}
           />
@@ -159,23 +159,23 @@ export function ScratchEntriesTable({
         enableHiding: false,
       },
     ],
-    [onScratch, onScratchDirect, pendingId, setPendingId]
+    [onPull, onPullDirect, pendingId, setPendingId]
   );
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Scratch Management</CardTitle>
+        <CardTitle>Pull Management</CardTitle>
         <CardDescription>
-          Mark entries as scratched (no refund for day-of scratches)
+          Mark entries as pulled (no refund for day-of pulls)
         </CardDescription>
       </CardHeader>
       <CardContent>
         <DataTable
-          tableId="scratchEntries"
+          tableId="pullEntries"
           columns={columns}
           data={entries}
-          emptyState="No entries available to scratch"
+          emptyState="No entries available to pull"
         />
       </CardContent>
     </Card>

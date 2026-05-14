@@ -11,7 +11,7 @@ test.describe('People Page UI Improvements', () => {
   test.describe('Data Display', () => {
     test('should display actual member since date, not hardcoded value', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Click on the first person in the sidebar
@@ -38,7 +38,7 @@ test.describe('People Page UI Improvements', () => {
 
     test('should NOT display Email Status badge', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
@@ -59,7 +59,7 @@ test.describe('People Page UI Improvements', () => {
   test.describe('Quick Actions', () => {
     test('should display quick action buttons in hero card', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
@@ -81,7 +81,7 @@ test.describe('People Page UI Improvements', () => {
 
     test('should display dogs count badge when person has dogs', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Look for a person card that displays dogs count
@@ -98,7 +98,7 @@ test.describe('People Page UI Improvements', () => {
   test.describe('Navigation', () => {
     test('should display breadcrumb navigation', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
@@ -118,7 +118,7 @@ test.describe('People Page UI Improvements', () => {
 
     test('should navigate back to people list when clicking People breadcrumb', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
@@ -130,8 +130,8 @@ test.describe('People Page UI Improvements', () => {
         // Click on People breadcrumb
         await page.locator('button:has-text("People")').click();
 
-        // Should navigate back to /users
-        await expect(page).toHaveURL(/\/users/);
+        // Should navigate back to /people
+        await expect(page).toHaveURL(/\/people/);
       }
     });
   });
@@ -139,7 +139,7 @@ test.describe('People Page UI Improvements', () => {
   test.describe('Terminology Consistency', () => {
     test('should use "People" in sidebar header', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Sidebar header should say "People", not "Users"
@@ -150,7 +150,7 @@ test.describe('People Page UI Improvements', () => {
   test.describe('Sidebar Filters', () => {
     test('should have filter chips for Judges and Has Dogs', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Filter chips should be visible
@@ -160,7 +160,7 @@ test.describe('People Page UI Improvements', () => {
 
     test('should filter results when Judges chip is clicked', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Get initial count
@@ -179,7 +179,7 @@ test.describe('People Page UI Improvements', () => {
 
     test('should toggle filter chip active state on click', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       const judgesChip = page.locator('button:has-text("Judges")');
@@ -202,7 +202,7 @@ test.describe('People Page UI Improvements', () => {
 
     test('should show filter result count when filters active', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Click a filter
@@ -217,7 +217,7 @@ test.describe('People Page UI Improvements', () => {
   test.describe('Settings Tab', () => {
     test('should NOT display Settings tab (removed)', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
@@ -236,7 +236,7 @@ test.describe('People Page UI Improvements', () => {
   test.describe('Contact Information Card', () => {
     test('should display consolidated Contact Information card', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
@@ -258,7 +258,7 @@ test.describe('People Page UI Improvements', () => {
   test.describe('Judge Qualifications Visibility', () => {
     test('should conditionally show Judge Qualifications card', async ({ page }) => {
       await testSetup.signIn('admin');
-      await page.goto('/users');
+      await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
       // Find a non-judge person (marked as Member in sidebar)

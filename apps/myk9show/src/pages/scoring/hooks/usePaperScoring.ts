@@ -10,16 +10,6 @@ import {
 import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
 import type { PaperResult, PaperScoringMode, SessionSettings } from '../paper-scoring-types';
 
-function readModeFromStorage(userId: string): PaperScoringMode {
-  try {
-    const stored = localStorage.getItem(modeStorageKey(userId));
-    if (stored === 'split' || stored === 'sequential') return stored;
-  } catch {
-    // localStorage unavailable (SSR, private mode)
-  }
-  return 'split';
-}
-
 function writeModeToStorage(userId: string, mode: PaperScoringMode) {
   try {
     localStorage.setItem(modeStorageKey(userId), mode);
@@ -32,7 +22,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [sessionSettings, setSessionSettingsState] =
     useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
-  const [mode, setModeState] = useState<PaperScoringMode>(() => readModeFromStorage(userId));
+  const [mode, setModeState] = useState<PaperScoringMode>('split');
   const [isSaving, setIsSaving] = useState(false);
 
   const currentIndex = entries.findIndex(e => e.entryId === selectedEntryId);
@@ -48,14 +38,22 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   }, [entries]);
 
   const performSave = useCallback(
-    async (entryId: string, result: PaperResult, timeDigits: string, faults: number) => {
+    async (
+      entryId: string,
+      result: PaperResult,
+      timeDigits: string,
+      faults: number,
+      reason?: string
+    ) => {
       const seconds = digitsToSeconds(timeDigits);
       const statusValue = mapQualificationToResultStatus(result);
+      const resultReason = result === 'NQ' || result === 'EX' ? reason?.trim() || null : null;
       setIsSaving(true);
       try {
         await replicatedEntriesTable.updateEntry(entryId, {
           result_status: statusValue,
           resultStatus: statusValue,
+          disqualification_reason: resultReason,
           search_time_seconds: seconds,
           searchTimeSeconds: seconds,
           total_faults: faults,
@@ -71,12 +69,40 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   );
 
   const saveEntry = useCallback(
-    async (entryId: string, result: PaperResult, timeDigits: string, faults: number) => {
-      await performSave(entryId, result, timeDigits, faults);
+    async (
+      entryId: string,
+      result: PaperResult,
+      timeDigits: string,
+      faults: number,
+      reason?: string
+    ) => {
+      await performSave(entryId, result, timeDigits, faults, reason);
       setSelectedEntryId(null);
     },
     [performSave]
   );
+
+  const clearEntry = useCallback(async (entryId: string) => {
+    setIsSaving(true);
+    try {
+      await replicatedEntriesTable.updateEntry(entryId, {
+        result_status: 'pending',
+        resultStatus: 'pending',
+        is_scored: false,
+        isScored: false,
+        search_time_seconds: 0,
+        searchTimeSeconds: 0,
+        total_faults: 0,
+        totalFaults: 0,
+        finalPlacement: null,
+        scoringCompletedAt: null,
+        scoring_completed_at: null,
+        disqualification_reason: null,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
 
   const setSessionSettings = useCallback((patch: Partial<SessionSettings>) => {
     setSessionSettingsState(prev => ({ ...prev, ...patch }));
@@ -99,6 +125,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
     selectEntry,
     nextUnscored,
     saveEntry,
+    clearEntry,
     setSessionSettings,
     setMode,
   };

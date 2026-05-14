@@ -58,6 +58,7 @@ export interface ScoringResult {
   placement?: number;
   points?: number;
   notes?: string;
+  reason?: string;
 }
 
 /**
@@ -79,7 +80,8 @@ export interface ClassInfo {
 export function toScoringEntry(
   entry: ReplicatedEntry,
   dog: ReplicatedDog | null,
-  index: number
+  index: number,
+  breedOverride?: string | undefined
 ): ScoringEntry {
   const armband = parseInt(entry.armband || '0', 10) || 0;
   const status = mapEntryStatus(entry.status);
@@ -96,6 +98,7 @@ export function toScoringEntry(
         time: (entry.search_time_seconds || entry.searchTimeSeconds || 0) * 1000,
         faults: entry.total_faults ?? entry.totalFaults ?? 0,
         qualification: mapResultStatusToQualification(resultStatus),
+        ...(entry.disqualification_reason ? { reason: entry.disqualification_reason } : {}),
       }
     : undefined;
 
@@ -111,7 +114,7 @@ export function toScoringEntry(
     // Display fields
     callName: dog?.callName || dog?.name || 'Unknown',
     handler: entry.handler || 'Unknown Handler',
-    breed: dog?.breed || 'Unknown Breed',
+    breed: breedOverride || entry.dogBreed || entry.dog_breed || dog?.breed || 'Unknown Breed',
     armband,
 
     // Status

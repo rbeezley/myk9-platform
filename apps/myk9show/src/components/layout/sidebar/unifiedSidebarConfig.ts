@@ -151,7 +151,7 @@ export function buildUnifiedSidebarConfig(
             title: 'Day of Show',
             href: '/secretary/day-of',
             icon: ClipboardCheck,
-            description: 'Walk-ins, scratches, move-ups',
+            description: 'Walk-ins, pulled entries, move-ups',
           },
           {
             title: 'Reports',

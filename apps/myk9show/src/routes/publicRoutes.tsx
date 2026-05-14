@@ -225,7 +225,7 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* /profile redirects to /users/{personId} */}
+    {/* /profile redirects to /people/{personId} */}
     <Route
       path="/profile"
       element={

@@ -17,7 +17,7 @@ const ENTRY_STATUS_LABEL: Record<string, string> = {
   competing: 'Competing',
   completed: 'Completed',
   withdrawn: 'Withdrawn',
-  scratched: 'Scratched',
+  scratched: 'Pulled',
   absent: 'Absent',
 };
 

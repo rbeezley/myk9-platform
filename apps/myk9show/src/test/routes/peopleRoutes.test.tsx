@@ -1,5 +1,5 @@
 /**
- * Tests for /people and /users/:id routes and sidebar visibility.
+ * Tests for /people and /people/:id routes and sidebar visibility.
  *
  * Covers:
  * - Route renders for secretary and site_admin
@@ -11,7 +11,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import { UserRole } from '@/types/auth-types';
@@ -64,7 +64,7 @@ const SignInPage = () => <div data-testid="sign-in-page">Sign In</div>;
 
 /**
  * Renders a mini router that mirrors the actual route definitions for /people
- * and /users/:id.
+ * and /people/:id.
  */
 function renderPeopleRoutes(initialPath: string, mockEmail: string | null = null) {
   if (mockEmail !== null) {
@@ -88,13 +88,14 @@ function renderPeopleRoutes(initialPath: string, mockEmail: string | null = null
         }
       />
       <Route
-        path="/users/:id"
+        path="/people/:id"
         element={
           <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
             <PersonPage />
           </ProtectedRoute>
         }
       />
+      <Route path="/users/:id" element={<Navigate to="/people/abc-123" replace />} />
     </Routes>,
     { wrapper: Wrapper }
   );
@@ -141,31 +142,36 @@ describe('/people route', () => {
   });
 });
 
-describe('/users/:id route', () => {
+describe('/people/:id route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders for a secretary', () => {
-    renderPeopleRoutes('/users/abc-123', SECRETARY_EMAIL);
+    renderPeopleRoutes('/people/abc-123', SECRETARY_EMAIL);
     expect(screen.getByTestId('person-page')).toBeInTheDocument();
   });
 
   it('renders for a site_admin', () => {
-    renderPeopleRoutes('/users/abc-123', ADMIN_EMAIL);
+    renderPeopleRoutes('/people/abc-123', ADMIN_EMAIL);
     expect(screen.getByTestId('person-page')).toBeInTheDocument();
   });
 
   it('shows access-denied fallback for an exhibitor', () => {
-    renderPeopleRoutes('/users/abc-123', EXHIBITOR_EMAIL);
+    renderPeopleRoutes('/people/abc-123', EXHIBITOR_EMAIL);
     expect(screen.queryByTestId('person-page')).not.toBeInTheDocument();
     expect(screen.getByText(/you don't have permission/i)).toBeInTheDocument();
   });
 
   it('redirects unauthenticated users to /sign-in', () => {
-    renderPeopleRoutes('/users/abc-123', null);
+    renderPeopleRoutes('/people/abc-123', null);
     expect(screen.getByTestId('sign-in-page')).toBeInTheDocument();
     expect(screen.queryByTestId('person-page')).not.toBeInTheDocument();
+  });
+
+  it('redirects legacy /users/:id detail links to the person detail route', () => {
+    renderPeopleRoutes('/users/abc-123', SECRETARY_EMAIL);
+    expect(screen.getByTestId('person-page')).toBeInTheDocument();
   });
 });
 

@@ -22,7 +22,7 @@ export const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ statistics }) 
         value={statistics.checkedInCount}
         color="emerald"
       />
-      <StatCard icon={XCircle} title="Scratched" value={statistics.scratchedCount} color="amber" />
+      <StatCard icon={XCircle} title="Pulled" value={statistics.scratchedCount} color="amber" />
       <StatCard
         icon={AlertTriangle}
         title="Conflicts"

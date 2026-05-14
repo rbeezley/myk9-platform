@@ -1,18 +1,19 @@
-import {
-  GripVertical,
-  ClipboardCheck,
-  Pencil,
-  X,
-  RotateCcw,
-  CheckCircle2,
-  Circle,
-} from 'lucide-react';
+import { createContext, useContext, type CSSProperties, type ReactNode } from 'react';
+import { ClipboardCheck, GripVertical, Pencil, X, CheckCircle2 } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { CHECKIN_STATUSES, getCheckinStatusConfig, type CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
-import { PersonAvatar } from '@/components/common/PersonAvatar';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ResultEntryForm } from './ResultEntryForm';
-import type { RunSheetEntry, RunSheetResult } from './types';
+import type { RunSheetEntry } from './types';
 
 const PLACEMENT_LABELS = ['1st', '2nd', '3rd', '4th'];
 const PLACEMENT_COLORS = ['#f59e0b', '#9ca3af', '#d97706', '#6366f1'];
@@ -20,167 +21,204 @@ const PLACEMENT_COLORS = ['#f59e0b', '#9ca3af', '#d97706', '#6366f1'];
 interface RunSheetRowProps {
   entry: RunSheetEntry;
   position: number;
-  expanded: boolean;
-  timeLimit: string;
-  onToggleExpand: () => void;
-  onCheckIn: (checked: boolean) => void;
-  onScratch: (scratched: boolean) => void;
-  onSaveResult: (result: RunSheetResult) => void;
+  onScoreEntry: () => void;
+  onCheckInStatus: (status: CheckInStatus) => void;
+  isMine?: boolean;
+  draggable?: boolean;
+}
+
+interface DragHandleContextValue {
+  listeners: ReturnType<typeof useSortable>['listeners'];
+}
+
+const STATUS_CLASS_BY_VALUE: Partial<Record<CheckInStatus, string>> = {
+  'no-status': 'border-border bg-background text-muted-foreground',
+  'checked-in': 'border-emerald-300 bg-emerald-950/20 text-emerald-300',
+  'at-gate': 'border-sky-300 bg-sky-950/20 text-sky-300',
+  'come-to-gate': 'border-amber-300 bg-amber-950/20 text-amber-300',
+  conflict: 'border-red-300 bg-red-950/20 text-red-300',
+  pulled: 'border-red-300 bg-red-950/20 text-red-300',
+  'in-ring': 'border-violet-300 bg-violet-950/20 text-violet-300',
+  completed: 'border-green-300 bg-green-950/20 text-green-300',
+};
+
+function statusLabel(status: CheckInStatus): string {
+  return getCheckinStatusConfig(status)?.label ?? 'No Status';
+}
+
+const DragHandleContext = createContext<DragHandleContextValue | null>(null);
+
+function SortableCard({
+  id,
+  enabled,
+  children,
+}: {
+  id: string;
+  enabled: boolean;
+  children: ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: !enabled,
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+    position: 'relative',
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <DragHandleContext.Provider value={{ listeners }}>
+      <div ref={setNodeRef} style={style} {...attributes}>
+        {children}
+      </div>
+    </DragHandleContext.Provider>
+  );
+}
+
+function DragHandle({ position, enabled }: { position: number; enabled: boolean }) {
+  const ctx = useContext(DragHandleContext);
+
+  return (
+    <button
+      type="button"
+      aria-label={`Drag run order position ${position}`}
+      disabled={!enabled}
+      className={cn(
+        'flex h-11 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors',
+        enabled && 'cursor-grab hover:bg-muted hover:text-foreground active:cursor-grabbing',
+        !enabled && 'cursor-not-allowed opacity-35'
+      )}
+      style={{ touchAction: 'none' }}
+      {...(enabled && ctx ? ctx.listeners : {})}
+    >
+      <GripVertical className="h-4 w-4" aria-hidden />
+    </button>
+  );
 }
 
 export function RunSheetRow({
   entry,
   position,
-  expanded,
-  timeLimit,
-  onToggleExpand,
-  onCheckIn,
-  onScratch,
-  onSaveResult,
+  onScoreEntry,
+  onCheckInStatus,
+  isMine = false,
+  draggable = true,
 }: RunSheetRowProps) {
-  const { isScored, isScratched, isCheckedIn, result } = entry;
+  const { isScored, isScratched, result } = entry;
+  const statusClass =
+    STATUS_CLASS_BY_VALUE[entry.checkInStatus] ?? STATUS_CLASS_BY_VALUE['no-status'];
 
   return (
-    <div
-      className={cn(
-        'rounded-2xl border bg-card overflow-hidden transition-opacity',
-        isScored && 'border-green-200',
-        isScratched && 'border-red-200 opacity-60',
-        !isScored && !isScratched && 'border-border'
-      )}
-    >
+    <SortableCard id={entry.id} enabled={draggable}>
       <div
-        className="grid items-center gap-4 px-4 py-3.5"
-        style={{ gridTemplateColumns: '24px 44px 44px 1fr auto auto' }}
+        className={cn(
+          'overflow-hidden rounded-md border bg-card transition-opacity',
+          isScored && 'border-green-200',
+          isScratched && 'border-red-200 opacity-60',
+          !isScored && !isScratched && (isMine ? 'border-primary/50' : 'border-border')
+        )}
       >
-        <GripVertical
-          size={18}
-          className="text-muted-foreground/25 cursor-not-allowed"
-          aria-hidden
-        />
+        <div className="grid min-h-[92px] grid-cols-[32px_64px_minmax(0,1fr)_auto_auto] items-center gap-4 px-4 py-4">
+          <DragHandle position={position} enabled={draggable} />
 
-        <div
-          className={cn(
-            'w-11 h-11 rounded-xl flex items-center justify-center font-mono text-lg font-bold',
-            isScored ? 'bg-green-50 text-green-700' : 'bg-muted text-foreground'
-          )}
-        >
-          {isScratched ? '–' : position}
-        </div>
-
-        <PersonAvatar name={entry.dogName} size="sm" className="h-11 w-11" />
-
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-base font-bold text-foreground">{entry.dogName}</span>
-            {entry.breed && <span className="text-xs text-muted-foreground">{entry.breed}</span>}
+          <div
+            className={cn(
+              'flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-primary font-mono text-lg font-bold text-primary-foreground shadow-sm',
+              isScratched && 'bg-destructive/80'
+            )}
+          >
+            {entry.armband || '-'}
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-            <span className="font-mono font-semibold">#{entry.armband}</span>
-            {entry.ownerName && (
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-base font-bold text-foreground">{entry.dogName}</span>
+              {isMine && (
+                <Chip color="purple" size="sm">
+                  Your dog
+                </Chip>
+              )}
+            </div>
+            <div className="mt-1 space-y-0.5">
+              <p className="truncate text-sm text-muted-foreground">
+                {entry.breed ?? 'Unknown breed'}
+              </p>
+              {entry.handlerName && (
+                <p className="truncate text-sm text-muted-foreground">{entry.handlerName}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {isScored && result && (
               <>
-                <span>·</span>
-                <span>{entry.ownerName}</span>
+                <Chip
+                  color={result.qualified ? 'green' : 'red'}
+                  size="sm"
+                  leadingIcon={result.qualified ? <CheckCircle2 size={12} /> : <X size={12} />}
+                >
+                  {result.qualified ? 'Qualified' : 'NQ'}
+                </Chip>
+                {result.timeStr && (
+                  <span className="font-mono text-sm font-bold text-foreground">
+                    {result.timeStr}
+                  </span>
+                )}
+                {result.placement && (
+                  <span
+                    className="text-xs font-bold font-mono px-2 py-0.5 rounded-full text-white"
+                    style={{ background: PLACEMENT_COLORS[result.placement - 1] }}
+                  >
+                    {PLACEMENT_LABELS[result.placement - 1]}
+                  </span>
+                )}
               </>
+            )}
+            <Select
+              value={entry.checkInStatus}
+              onValueChange={value => onCheckInStatus(value as CheckInStatus)}
+            >
+              <SelectTrigger
+                aria-label={`Check-in status for ${entry.dogName}`}
+                className={cn('h-11 min-w-[148px] rounded-full border font-semibold', statusClass)}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHECKIN_STATUSES.map(status => (
+                  <SelectItem key={status} value={status}>
+                    {statusLabel(status)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isScratched && (
+              <Button
+                size="sm"
+                variant={isScored ? 'outline' : 'default'}
+                onClick={onScoreEntry}
+                className="gap-1.5"
+              >
+                {isScored ? (
+                  <>
+                    <Pencil size={13} /> Edit result
+                  </>
+                ) : (
+                  <>
+                    <ClipboardCheck size={13} /> Enter result
+                  </>
+                )}
+              </Button>
             )}
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          {isScored && result && (
-            <>
-              <Chip
-                color={result.qualified ? 'green' : 'red'}
-                size="sm"
-                leadingIcon={result.qualified ? <CheckCircle2 size={12} /> : <X size={12} />}
-              >
-                {result.qualified ? 'Qualified' : 'NQ'}
-              </Chip>
-              {result.timeStr && (
-                <span className="font-mono text-sm font-bold text-foreground">
-                  {result.timeStr}
-                </span>
-              )}
-              {result.placement && (
-                <span
-                  className="text-xs font-bold font-mono px-2 py-0.5 rounded-full text-white"
-                  style={{ background: PLACEMENT_COLORS[result.placement - 1] }}
-                >
-                  {PLACEMENT_LABELS[result.placement - 1]}
-                </span>
-              )}
-            </>
-          )}
-          {isScratched && (
-            <Chip color="red" size="sm">
-              Scratched
-            </Chip>
-          )}
-          {!isScored && !isScratched && (
-            <button
-              onClick={() => onCheckIn(!isCheckedIn)}
-              className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-semibold transition-colors',
-                isCheckedIn
-                  ? 'bg-green-50 border-green-300 text-green-700'
-                  : 'bg-background border-border text-muted-foreground hover:border-green-400'
-              )}
-            >
-              {isCheckedIn ? (
-                <>
-                  <CheckCircle2 size={15} /> Checked in
-                </>
-              ) : (
-                <>
-                  <Circle size={15} /> Check in
-                </>
-              )}
-            </button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!isScratched && (
-            <Button
-              size="sm"
-              variant={isScored ? 'outline' : 'default'}
-              onClick={onToggleExpand}
-              className="gap-1.5"
-            >
-              {isScored ? (
-                <>
-                  <Pencil size={13} /> Edit result
-                </>
-              ) : (
-                <>
-                  <ClipboardCheck size={13} /> Enter result
-                </>
-              )}
-            </Button>
-          )}
-          <button
-            onClick={() => onScratch(!isScratched)}
-            title={isScratched ? 'Unscratch' : 'Scratch entry'}
-            aria-label={isScratched ? 'Unscratch entry' : 'Scratch entry'}
-            className="w-9 h-9 rounded-lg border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
-          >
-            {isScratched ? <RotateCcw size={15} /> : <X size={15} />}
-          </button>
-        </div>
       </div>
-
-      {expanded && !isScratched && (
-        <ResultEntryForm
-          dogName={entry.dogName}
-          timeLimit={timeLimit}
-          initial={entry.result}
-          onCancel={onToggleExpand}
-          onSave={r => {
-            onSaveResult(r);
-            onToggleExpand();
-          }}
-        />
-      )}
-    </div>
+    </SortableCard>
   );
 }

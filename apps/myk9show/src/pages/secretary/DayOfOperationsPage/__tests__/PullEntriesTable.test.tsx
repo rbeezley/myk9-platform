@@ -1,8 +1,8 @@
 import { render, screen } from '@/test/utils/testUtils';
-import { ScratchEntriesTable } from '../ScratchEntriesTable';
-import type { ScratchableEntry } from '../types';
+import { PullEntriesTable } from '../PullEntriesTable';
+import type { PullableEntry } from '../types';
 
-const mockEntries: ScratchableEntry[] = [
+const mockEntries: PullableEntry[] = [
   {
     id: 'e1',
     class_id: 'c1',
@@ -29,38 +29,38 @@ const mockEntries: ScratchableEntry[] = [
   },
 ];
 
-describe('ScratchEntriesTable', () => {
+describe('PullEntriesTable', () => {
   it('renders sortable column headers', () => {
-    render(<ScratchEntriesTable entries={mockEntries} onScratch={vi.fn()} />);
+    render(<PullEntriesTable entries={mockEntries} onPull={vi.fn()} />);
     expect(screen.getByRole('button', { name: /armband/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /dog/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /class/i })).toBeInTheDocument();
   });
 
   it('renders search input', () => {
-    render(<ScratchEntriesTable entries={mockEntries} onScratch={vi.fn()} />);
+    render(<PullEntriesTable entries={mockEntries} onPull={vi.fn()} />);
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
   });
 
   it('renders entry data rows', () => {
-    render(<ScratchEntriesTable entries={mockEntries} onScratch={vi.fn()} />);
+    render(<PullEntriesTable entries={mockEntries} onPull={vi.fn()} />);
     expect(screen.getByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('"Rexy"')).toBeInTheDocument();
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
     expect(screen.getByText('Bella')).toBeInTheDocument();
   });
 
-  it('calls onScratch after inline two-tap confirmation', async () => {
-    const onScratch = vi.fn();
-    const { user } = render(<ScratchEntriesTable entries={mockEntries} onScratch={onScratch} />);
-    const scratchButtons = screen.getAllByRole('button', { name: /^scratch$/i });
-    await user.click(scratchButtons[0]);
-    await user.click(screen.getByRole('button', { name: /confirm scratch/i }));
-    expect(onScratch).toHaveBeenCalledWith(mockEntries[0]);
+  it('calls onPull after inline two-tap confirmation', async () => {
+    const onPull = vi.fn();
+    const { user } = render(<PullEntriesTable entries={mockEntries} onPull={onPull} />);
+    const pullButtons = screen.getAllByRole('button', { name: /^pull$/i });
+    await user.click(pullButtons[0]);
+    await user.click(screen.getByRole('button', { name: /confirm pull/i }));
+    expect(onPull).toHaveBeenCalledWith(mockEntries[0]);
   });
 
   it('renders empty state when no entries', () => {
-    render(<ScratchEntriesTable entries={[]} onScratch={vi.fn()} />);
-    expect(screen.getByText(/no entries available to scratch/i)).toBeInTheDocument();
+    render(<PullEntriesTable entries={[]} onPull={vi.fn()} />);
+    expect(screen.getByText(/no entries available to pull/i)).toBeInTheDocument();
   });
 });

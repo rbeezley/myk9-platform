@@ -9,11 +9,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { getSecretaryShows } from '@/services/database/shows';
 import {
   getClassesWithCapacity,
-  getScratchableEntries,
+  getScratchableEntries as getPullableEntries,
   getMoveUpEligibleEntries,
   ClassWithCapacity,
 } from '@/services/database/day-of-operations';
-import type { Show, ScratchableEntry } from './types';
+import type { DayOfOperationEntry, PullableEntry, Show } from './types';
 
 export interface UseDayOfOperationsDataReturn {
   // User
@@ -29,8 +29,8 @@ export interface UseDayOfOperationsDataReturn {
 
   // Data
   classes: ClassWithCapacity[];
-  scratchableEntries: ScratchableEntry[];
-  moveUpEntries: ScratchableEntry[];
+  pullableEntries: PullableEntry[];
+  moveUpEntries: DayOfOperationEntry[];
 
   // Actions
   loadData: () => Promise<void>;
@@ -46,8 +46,8 @@ export function useDayOfOperationsData(): UseDayOfOperationsDataReturn {
 
   // Data
   const [classes, setClasses] = useState<ClassWithCapacity[]>([]);
-  const [scratchableEntries, setScratchableEntries] = useState<ScratchableEntry[]>([]);
-  const [moveUpEntries, setMoveUpEntries] = useState<ScratchableEntry[]>([]);
+  const [pullableEntries, setPullableEntries] = useState<PullableEntry[]>([]);
+  const [moveUpEntries, setMoveUpEntries] = useState<DayOfOperationEntry[]>([]);
 
   // Load shows on mount
   useEffect(() => {
@@ -69,14 +69,14 @@ export function useDayOfOperationsData(): UseDayOfOperationsDataReturn {
     setIsLoading(true);
 
     try {
-      const [classesRes, scratchRes, moveUpRes] = await Promise.all([
+      const [classesRes, pullRes, moveUpRes] = await Promise.all([
         getClassesWithCapacity(selectedShowId),
-        getScratchableEntries(selectedShowId),
+        getPullableEntries(selectedShowId),
         getMoveUpEligibleEntries(selectedShowId),
       ]);
 
       if (classesRes.data) setClasses(classesRes.data);
-      if (scratchRes.data) setScratchableEntries(scratchRes.data);
+      if (pullRes.data) setPullableEntries(pullRes.data);
       if (moveUpRes.data) setMoveUpEntries(moveUpRes.data);
     } finally {
       setIsLoading(false);
@@ -97,7 +97,7 @@ export function useDayOfOperationsData(): UseDayOfOperationsDataReturn {
     setSelectedShowId,
     isLoading,
     classes,
-    scratchableEntries,
+    pullableEntries,
     moveUpEntries,
     loadData,
   };

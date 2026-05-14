@@ -37,7 +37,7 @@ export const PeopleListView: React.FC<PeopleListViewProps> = ({ people }) => {
           <Card
             key={person.id}
             className="bg-card/95 backdrop-blur-sm border-border/50 hover:shadow-md transition-all duration-200 cursor-pointer"
-            onClick={() => navigate(`/users/${person.id}`)}
+            onClick={() => navigate(`/people/${person.id}`)}
           >
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -101,7 +101,7 @@ export const PeopleListView: React.FC<PeopleListViewProps> = ({ people }) => {
                     size="sm"
                     onClick={e => {
                       e.stopPropagation();
-                      navigate(`/users/${person.id}`);
+                      navigate(`/people/${person.id}`);
                     }}
                   >
                     <Eye className="h-4 w-4 mr-2" />

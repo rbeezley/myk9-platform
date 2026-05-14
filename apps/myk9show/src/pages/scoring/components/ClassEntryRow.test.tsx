@@ -25,10 +25,12 @@ function makeEntry(overrides: Partial<ScoringEntry> = {}): ScoringEntry {
 }
 
 describe('ClassEntryRow', () => {
-  it('renders armband and dog name', () => {
+  it('renders armband, dog name, breed, and handler', () => {
     render(<ClassEntryRow entry={makeEntry()} isActive={false} onClick={vi.fn()} />);
     expect(screen.getByText('101')).toBeInTheDocument();
     expect(screen.getByText('Buddy')).toBeInTheDocument();
+    expect(screen.getByText('Lab')).toBeInTheDocument();
+    expect(screen.getByText('Smith')).toBeInTheDocument();
   });
 
   it('calls onClick when clicked', async () => {

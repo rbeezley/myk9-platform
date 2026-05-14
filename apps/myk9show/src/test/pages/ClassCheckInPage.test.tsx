@@ -155,15 +155,15 @@ describe('ClassCheckInPage', () => {
     );
   });
 
-  it('calls mutation with pulled when user selects Scratch', async () => {
+  it('calls mutation with pulled when user selects Pull', async () => {
     mockUseClassCheckInData.mockReturnValue({
       isLoading: false,
       data: mockClassInfo,
       error: null,
     });
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /^scratch$/i }));
-    await userEvent.click(screen.getByRole('button', { name: /confirm scratch/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^pull$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /confirm pull/i }));
     await userEvent.click(screen.getByRole('button', { name: /confirm check.in/i }));
     await waitFor(() =>
       expect(mockMutateAsync).toHaveBeenCalledWith({

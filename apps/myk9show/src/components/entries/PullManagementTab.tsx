@@ -1,7 +1,7 @@
 /**
- * Scratch Management Tab
+ * Pull Management Tab
  *
- * Displays and manages scratch requests from exhibitors.
+ * Displays and manages pull requests from exhibitors.
  * Allows secretary to approve, deny, and process refunds.
  */
 
@@ -39,25 +39,25 @@ import {
   CreditCard,
 } from 'lucide-react';
 import {
-  getPendingScratchRequests,
-  getScratchedEntries,
-  approveScratchRequest,
-  denyScratchRequest,
+  getPendingScratchRequests as getPendingPullRequests,
+  getScratchedEntries as getPulledEntries,
+  approveScratchRequest as approvePullRequest,
+  denyScratchRequest as denyPullRequest,
   updateRefundStatus,
-  ScratchRequest,
+  ScratchRequest as PullRequest,
 } from '@/services/database/queries/dayOfOperationsQueries';
 
-interface ScratchManagementTabProps {
+interface PullManagementTabProps {
   showId: string;
   onRefresh?: () => void;
 }
 
-export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
+export const PullManagementTab: React.FC<PullManagementTabProps> = ({
   showId,
   onRefresh,
 }) => {
-  const [pendingRequests, setPendingRequests] = useState<ScratchRequest[]>([]);
-  const [processedScratches, setProcessedScratches] = useState<ScratchRequest[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PullRequest[]>([]);
+  const [processedPulls, setProcessedPulls] = useState<PullRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +65,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
   const [activeTab, setActiveTab] = useState('pending');
 
   // Dialog state
-  const [selectedRequest, setSelectedRequest] = useState<ScratchRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<PullRequest | null>(null);
   const [dialogAction, setDialogAction] = useState<'approve' | 'deny' | 'refund' | null>(null);
   const [processRefund, setProcessRefund] = useState(false);
   const [refundAmount, setRefundAmount] = useState<number>(0);
@@ -79,18 +79,18 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
 
       try {
         const [pendingResult, processedResult] = await Promise.all([
-          getPendingScratchRequests(showId),
-          getScratchedEntries(showId),
+          getPendingPullRequests(showId),
+          getPulledEntries(showId),
         ]);
 
         if (pendingResult.error) {
-          setError('Failed to load scratch requests');
+          setError('Failed to load pull requests');
         } else {
-          setPendingRequests(pendingResult.data as ScratchRequest[]);
+          setPendingRequests(pendingResult.data as PullRequest[]);
         }
 
         if (!processedResult.error) {
-          setProcessedScratches(processedResult.data as ScratchRequest[]);
+          setProcessedPulls(processedResult.data as PullRequest[]);
         }
       } catch (_err) {
         setError('An unexpected error occurred');
@@ -110,18 +110,18 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
 
     try {
       const [pendingResult, processedResult] = await Promise.all([
-        getPendingScratchRequests(showId),
-        getScratchedEntries(showId),
+        getPendingPullRequests(showId),
+        getPulledEntries(showId),
       ]);
 
       if (pendingResult.error) {
-        setError('Failed to load scratch requests');
+        setError('Failed to load pull requests');
       } else {
-        setPendingRequests(pendingResult.data as ScratchRequest[]);
+        setPendingRequests(pendingResult.data as PullRequest[]);
       }
 
       if (!processedResult.error) {
-        setProcessedScratches(processedResult.data as ScratchRequest[]);
+        setProcessedPulls(processedResult.data as PullRequest[]);
       }
     } catch (_err) {
       setError('An unexpected error occurred');
@@ -136,20 +136,16 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
     setIsProcessing(true);
 
     try {
-      const { error } = await approveScratchRequest(
+      const { error } = await approvePullRequest(
         selectedRequest.id,
         processRefund,
         processRefund ? refundAmount : undefined
       );
 
       if (error) {
-        toast.error('Failed to approve scratch request');
+        toast.error('Failed to approve pull request');
       } else {
-        toast.success(
-          processRefund
-            ? 'Scratch approved with refund'
-            : 'Scratch approved'
-        );
+        toast.success(processRefund ? 'Pull approved with refund' : 'Pull approved');
         await loadData();
         onRefresh?.();
       }
@@ -167,12 +163,12 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
     setIsProcessing(true);
 
     try {
-      const { error } = await denyScratchRequest(selectedRequest.id, denyReason);
+      const { error } = await denyPullRequest(selectedRequest.id, denyReason);
 
       if (error) {
-        toast.error('Failed to deny scratch request');
+        toast.error('Failed to deny pull request');
       } else {
-        toast.success('Scratch request denied');
+        toast.success('Pull request denied');
         await loadData();
         onRefresh?.();
       }
@@ -213,20 +209,20 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
     }
   };
 
-  const openApproveDialog = (request: ScratchRequest) => {
+  const openApproveDialog = (request: PullRequest) => {
     setSelectedRequest(request);
     setDialogAction('approve');
     setProcessRefund(false);
     setRefundAmount(request.entry_fee || 0);
   };
 
-  const openDenyDialog = (request: ScratchRequest) => {
+  const openDenyDialog = (request: PullRequest) => {
     setSelectedRequest(request);
     setDialogAction('deny');
     setDenyReason('');
   };
 
-  const openRefundDialog = (request: ScratchRequest) => {
+  const openRefundDialog = (request: PullRequest) => {
     setSelectedRequest(request);
     setDialogAction('refund');
     setRefundAmount(request.entry_fee || 0);
@@ -241,7 +237,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
   };
 
   // Filter requests by search term
-  const filterRequests = (items: ScratchRequest[]) => {
+  const filterRequests = (items: PullRequest[]) => {
     if (!searchTerm) return items;
     const search = searchTerm.toLowerCase();
     return items.filter(
@@ -254,7 +250,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
   };
 
   const filteredPending = filterRequests(pendingRequests);
-  const filteredProcessed = filterRequests(processedScratches);
+  const filteredProcessed = filterRequests(processedPulls);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return 'N/A';
@@ -300,11 +296,9 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <XCircle className="h-5 w-5" />
-            Scratch Management
+            Pull Management
           </h3>
-          <p className="text-sm text-muted-foreground">
-            Review scratch requests and process refunds
-          </p>
+          <p className="text-sm text-muted-foreground">Review pull requests and process refunds</p>
         </div>
         <Button variant="outline" size="sm" onClick={loadData}>
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -348,11 +342,11 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
             <Card>
               <CardContent className="py-12 text-center">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Pending Scratch Requests</p>
+                <p className="text-lg font-medium">No Pending Pull Requests</p>
                 <p className="text-sm text-muted-foreground">
                   {searchTerm
                     ? 'No requests match your search'
-                    : 'There are no pending scratch requests'}
+                    : 'There are no pending pull requests'}
                 </p>
               </CardContent>
             </Card>
@@ -435,24 +429,24 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
           )}
         </TabsContent>
 
-        {/* Processed Scratches */}
+        {/* Processed Pulls */}
         <TabsContent value="processed" className="mt-4">
           {filteredProcessed.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Processed Scratches</p>
+                <p className="text-lg font-medium">No Processed Pulls</p>
                 <p className="text-sm text-muted-foreground">
                   {searchTerm
-                    ? 'No scratches match your search'
-                    : 'There are no processed scratches for this show'}
+                    ? 'No pulls match your search'
+                    : 'There are no processed pulls for this show'}
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredProcessed.map((scratch) => (
-                <Card key={scratch.id} className="hover:bg-muted/50 transition-colors">
+              {filteredProcessed.map((pull) => (
+                <Card key={pull.id} className="hover:bg-muted/50 transition-colors">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -462,19 +456,19 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
-                              {scratch.dog?.name || 'Unknown Dog'}
+                              {pull.dog?.name || 'Unknown Dog'}
                             </span>
-                            {scratch.armband && (
-                              <Badge variant="outline">#{scratch.armband}</Badge>
+                            {pull.armband && (
+                              <Badge variant="outline">#{pull.armband}</Badge>
                             )}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {scratch.class?.class_number && `#${scratch.class.class_number} - `}
-                            {scratch.class?.name}
+                            {pull.class?.class_number && `#${pull.class.class_number} - `}
+                            {pull.class?.name}
                           </div>
-                          {scratch.scratch_reason && (
+                          {pull.scratch_reason && (
                             <div className="text-xs text-muted-foreground italic">
-                              {scratch.scratch_reason}
+                              {pull.scratch_reason}
                             </div>
                           )}
                         </div>
@@ -482,23 +476,23 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
 
                       <div className="flex items-center gap-6">
                         <div className="text-center">
-                          {getRefundStatusBadge(scratch.refund_status ?? null)}
-                          {scratch.refund_amount && scratch.refund_status === 'processed' && (
+                          {getRefundStatusBadge(pull.refund_status ?? null)}
+                          {pull.refund_amount && pull.refund_status === 'processed' && (
                             <div className="text-sm text-green-600 mt-1">
-                              {formatCurrency(scratch.refund_amount)}
+                              {formatCurrency(pull.refund_amount)}
                             </div>
                           )}
                         </div>
 
                         <div className="text-sm text-muted-foreground">
-                          Scratched: {formatDate(scratch.scratched_at ?? scratch.updated_at)}
+                          Pulled: {formatDate(pull.scratched_at ?? pull.updated_at)}
                         </div>
 
-                        {scratch.refund_status === 'eligible' && scratch.stripe_payment_intent_id && (
+                        {pull.refund_status === 'eligible' && pull.stripe_payment_intent_id && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openRefundDialog(scratch)}
+                            onClick={() => openRefundDialog(pull)}
                           >
                             <CreditCard className="h-4 w-4 mr-1" />
                             Process Refund
@@ -518,9 +512,9 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
       <Dialog open={dialogAction === 'approve'} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve Scratch Request</DialogTitle>
+            <DialogTitle>Approve Pull Request</DialogTitle>
             <DialogDescription>
-              Approve the scratch request for {selectedRequest?.dog?.name} in{' '}
+              Approve the pull request for {selectedRequest?.dog?.name} in{' '}
               {selectedRequest?.class?.name}.
             </DialogDescription>
           </DialogHeader>
@@ -570,7 +564,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
               ) : (
                 <>
                   <Check className="h-4 w-4 mr-2" />
-                  Approve Scratch
+                  Approve Pull
                 </>
               )}
             </Button>
@@ -582,9 +576,9 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
       <Dialog open={dialogAction === 'deny'} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Deny Scratch Request</DialogTitle>
+            <DialogTitle>Deny Pull Request</DialogTitle>
             <DialogDescription>
-              Deny the scratch request for {selectedRequest?.dog?.name}.
+              Deny the pull request for {selectedRequest?.dog?.name}.
               The exhibitor will be notified.
             </DialogDescription>
           </DialogHeader>
@@ -629,7 +623,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
           <DialogHeader>
             <DialogTitle>Process Refund</DialogTitle>
             <DialogDescription>
-              Process a refund for the scratched entry. This will initiate a refund via Stripe.
+              Process a refund for the pulled entry. This will initiate a refund via Stripe.
             </DialogDescription>
           </DialogHeader>
 
@@ -682,4 +676,4 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
   );
 };
 
-export default ScratchManagementTab;
+export default PullManagementTab;

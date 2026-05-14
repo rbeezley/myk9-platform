@@ -57,7 +57,7 @@ export function RunOrderBar({ sortMode, onSort }: RunOrderBarProps) {
       <div className="flex-1" />
       <span className="flex items-center gap-1 text-xs text-muted-foreground">
         <GripVertical size={13} className="opacity-40" />
-        Drag to reorder (coming soon)
+        Drag handles reorder custom runs
       </span>
     </div>
   );

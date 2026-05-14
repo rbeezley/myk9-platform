@@ -44,7 +44,7 @@ test.describe('UserEditPanel Authentication Tests', () => {
       
       if (!foundNav) {
         console.log('⚠️ No user navigation found, trying direct URL...');
-        await page.goto('http://127.0.0.1:5174/users');
+        await page.goto('http://127.0.0.1:5174/people');
         await page.waitForLoadState('networkidle');
       }
       
@@ -59,7 +59,7 @@ test.describe('UserEditPanel Authentication Tests', () => {
         '.user-row',
         'tbody tr',
         '[class*="user"]',
-        'a[href*="/users/"]'
+        'a[href*="/people/"]'
       ];
       
       let userFound = false;
@@ -78,7 +78,7 @@ test.describe('UserEditPanel Authentication Tests', () => {
         console.log('⚠️ No user entries found, trying to create or find test user...');
         
         // Try navigating to a specific user ID if we can find one
-        const userLinks = await page.locator('a[href*="/users/"]').all();
+        const userLinks = await page.locator('a[href*="/people/"]').all();
         if (userLinks.length > 0) {
           await userLinks[0].click();
           await page.waitForLoadState('networkidle');

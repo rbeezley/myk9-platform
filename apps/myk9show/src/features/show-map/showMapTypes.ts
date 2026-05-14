@@ -30,9 +30,20 @@ export interface ShowMapNode {
   progress?: ShowMapProgress | undefined;
   attentionCount?: number | undefined;
   href?: string | undefined;
+  scoreHref?: string | undefined;
+  entryDisplay?: ShowMapEntryDisplay | undefined;
   parentId?: string | undefined;
   childrenCount: number;
   isSynthetic?: boolean | undefined;
+}
+
+export interface ShowMapEntryDisplay {
+  armband?: string | undefined;
+  dogName: string;
+  breed?: string | undefined;
+  handler?: string | undefined;
+  dogHref?: string | undefined;
+  handlerHref?: string | undefined;
 }
 
 export interface ShowMapTree {
@@ -64,33 +75,4 @@ export interface BuildShowMapTreeInput {
   classes: ShowMapClassInput[];
   entries: ShowMapEntryInput[];
   entryPreviewLimit?: number;
-}
-
-export interface ShowMapNodeData {
-  [key: string]: unknown;
-  node: ShowMapNode;
-  isExpanded: boolean;
-  isFilteredOut?: boolean | undefined;
-  hasChildren: boolean;
-  onToggle: (nodeId: string) => void;
-  onNavigate?: ((href: string) => void) | undefined;
-}
-
-export interface ShowMapLayoutNode {
-  id: string;
-  type: 'showMapNode';
-  position: { x: number; y: number };
-  data: ShowMapNodeData;
-}
-
-export interface ShowMapLayoutEdge {
-  id: string;
-  source: string;
-  target: string;
-  type: 'smoothstep';
-}
-
-export interface ShowMapLayoutResult {
-  nodes: ShowMapLayoutNode[];
-  edges: ShowMapLayoutEdge[];
 }

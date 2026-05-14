@@ -8,6 +8,7 @@ const show = {
   id: 'show-1',
   name: 'Spring Trial',
   clubName: 'Calm Canine Club',
+  organization: 'AKC',
 } as Show;
 
 const trial = {
@@ -45,10 +46,20 @@ describe('buildShowMapTree', () => {
         {
           id: 'entry-1',
           class_id: 'class-1',
+          dog_id: 'dog-1',
+          handler_id: 'person-1',
           armband: '12',
           entry_status: 'accepted',
           check_in_status: 'checked-in',
-          dog: { call_name: 'Bella' },
+          handler: 'Jane Handler',
+          dog: {
+            call_name: 'Bella',
+            breed: 'Mixed Breed',
+            registrations: [
+              { organization: 'UKC', breed: 'All American Dog' },
+              { organization: 'AKC', breed: 'Labrador Retriever' },
+            ],
+          },
         },
       ],
     });
@@ -57,7 +68,19 @@ describe('buildShowMapTree', () => {
     expect(tree.childIdsByParentId[tree.root.id]).toEqual(['trial:trial-1']);
     expect(tree.childIdsByParentId['trial:trial-1']).toEqual(['class:class-1']);
     expect(tree.childIdsByParentId['class:class-1']).toEqual(['entry:entry-1']);
+    expect(tree.nodesById['class:class-1']?.scoreHref).toBe(
+      '/scoring/classes/class-1/entries?mode=split'
+    );
     expect(tree.nodesById['entry:entry-1']?.label).toBe('#12 Bella');
+    expect(tree.nodesById['entry:entry-1']?.entryDisplay).toEqual({
+      armband: '12',
+      dogName: 'Bella',
+      breed: 'Labrador Retriever',
+      handler: 'Jane Handler',
+      dogHref: '/dogs/dog-1',
+      handlerHref: '/people/person-1',
+    });
+    expect(tree.nodesById['entry:entry-1']?.scoreHref).toBeUndefined();
   });
 
   it('keeps empty shows as a root-only tree', () => {

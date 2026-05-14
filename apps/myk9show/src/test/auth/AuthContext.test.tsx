@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
+import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 
 // Mock the useAuth hook
 const mockUseAuth = vi.fn();
@@ -67,6 +68,7 @@ describe('AuthContext', () => {
   };
 
   beforeEach(() => {
+    localStorage.clear();
     mockUseAuth.mockReturnValue(mockAuthReturn);
     mockRbacService.getUserPermissions.mockResolvedValue({
       roles: [],
@@ -309,6 +311,42 @@ describe('AuthContext', () => {
       // Should eventually show admin role after switch
       await waitFor(() => {
         expect(screen.getByTestId('user-roles')).toHaveTextContent('admin');
+      });
+    });
+
+    it('adds the database person id to a selected dev mock user', async () => {
+      localStorage.setItem('dev-current-mock-user', 'test-secretary-user');
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          return createChainableQuery({
+            data: {
+              id: 'person-test-secretary',
+              first_name: 'Test',
+              last_name: 'Secretary',
+              email: 'testsecretary@example.com',
+              status: 'active',
+            },
+            error: null,
+          });
+        }
+        return createChainableQuery();
+      });
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return (
+          <div>
+            <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ')}</span>
+            <span data-testid="database-user-id">{auth.userWithRoles?.databaseUserId ?? ''}</span>
+          </div>
+        );
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
+        expect(screen.getByTestId('database-user-id')).toHaveTextContent('person-test-secretary');
       });
     });
   });

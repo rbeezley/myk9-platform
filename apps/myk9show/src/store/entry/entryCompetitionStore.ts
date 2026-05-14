@@ -171,7 +171,7 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
             status: 'scratched',
             competitionData: {
               ...competition.competitionData,
-              qualificationReason: reason || 'Scratched',
+              qualificationReason: reason || 'Pulled',
             },
           });
         }

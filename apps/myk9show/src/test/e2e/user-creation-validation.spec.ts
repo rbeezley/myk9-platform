@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
  * - User creation dialog opens and functions properly
  * - Users are successfully created and persisted to database
  * - New users appear in the browse grid
- * - Navigation routing works correctly (/users/ not /people/)
+ * - Navigation routing works correctly (/people/ not /users/)
  */
 
 test.describe('User Creation Interface Validation', () => {
@@ -43,7 +43,7 @@ test.describe('User Creation Interface Validation', () => {
     });
 
     // Navigate to users page
-    await page.goto('/users');
+    await page.goto('/people');
 
     // Wait for page to load and authentication to be processed
     await page.waitForLoadState('networkidle');
@@ -104,14 +104,14 @@ test.describe('User Creation Interface Validation', () => {
     await expect(page.getByRole('dialog')).not.toBeVisible();
 
     // Verify the URL changed to the new user's detail page
-    await expect(page).toHaveURL(/\/users\/[\w-]+/);
+    await expect(page).toHaveURL(/\/people\/[\w-]+/);
   });
 
-  test('should navigate correctly using /users/ route', async ({ page }) => {
+  test('should navigate correctly using /people/ route', async ({ page }) => {
     // Test that we're on the correct route
-    await expect(page).toHaveURL('/users');
+    await expect(page).toHaveURL('/people');
 
-    // Verify the navigation shows "Users" as active
+    // Verify the people navigation remains available
     const usersLink = page.getByRole('link', { name: 'Users' });
     await expect(usersLink).toBeVisible();
   });
@@ -170,6 +170,6 @@ test.describe('User Creation Interface Validation', () => {
     await expect(page.getByRole('dialog')).not.toBeVisible();
 
     // Verify we're still on the users page
-    await expect(page).toHaveURL('/users');
+    await expect(page).toHaveURL('/people');
   });
 });

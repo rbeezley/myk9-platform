@@ -141,7 +141,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
   const [handlerChange, setHandlerChange] = useState<string>('');
   const [specialRequests, setSpecialRequests] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showScratchWarning, setShowScratchWarning] = useState(false);
+  const [showPullWarning, setShowPullWarning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOnline] = useState(navigator.onLine);
@@ -169,7 +169,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
   const handleCheckInSelect = (status: 'present' | 'scratch') => {
     setCheckInStatus(status);
     if (status === 'scratch') {
-      setShowScratchWarning(true);
+      setShowPullWarning(true);
     } else {
       setShowConfirmDialog(true);
     }
@@ -398,7 +398,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                   disabled={isSubmitting}
                 >
                   <XCircle className="h-8 w-8" />
-                  <span>Scratch</span>
+                  <span>Pull</span>
                 </Button>
               </div>
             </div>
@@ -515,13 +515,13 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Scratch Warning Dialog */}
-      <Dialog open={showScratchWarning} onOpenChange={setShowScratchWarning}>
+      {/* Pull Warning Dialog */}
+      <Dialog open={showPullWarning} onOpenChange={setShowPullWarning}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Scratch</DialogTitle>
+            <DialogTitle>Confirm Pull</DialogTitle>
             <DialogDescription>
-              Are you sure you want to scratch from {showClass.name}?
+              Are you sure you want to pull from {showClass.name}?
             </DialogDescription>
           </DialogHeader>
 
@@ -531,7 +531,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
               <p className="font-medium mb-1">Important:</p>
               <ul className="text-sm space-y-1">
                 <li>• Entry fees are non-refundable</li>
-                <li>• You cannot un-scratch once confirmed</li>
+                <li>• You cannot restore the entry once confirmed</li>
                 <li>• This may affect title progression</li>
               </ul>
             </AlertDescription>
@@ -541,7 +541,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             <Button
               variant="outline"
               onClick={() => {
-                setShowScratchWarning(false);
+                setShowPullWarning(false);
                 setCheckInStatus(null);
               }}
               disabled={isSubmitting}
@@ -551,12 +551,12 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             <Button
               variant="destructive"
               onClick={() => {
-                setShowScratchWarning(false);
+                setShowPullWarning(false);
                 setShowConfirmDialog(true);
               }}
               disabled={isSubmitting}
             >
-              Confirm Scratch
+              Confirm Pull
             </Button>
           </DialogFooter>
         </DialogContent>

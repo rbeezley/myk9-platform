@@ -14,6 +14,14 @@ const baseShow: Partial<Show> = {
 };
 
 describe('QuickInfoCards — payment methods', () => {
+  it('promotes entries close instead of repeating show date and host club', () => {
+    render(<QuickInfoCards show={baseShow as Show} />);
+    expect(screen.getByText('Entries Close')).toBeInTheDocument();
+    expect(screen.getByText('Apr 15')).toBeInTheDocument();
+    expect(screen.queryByText('Date')).not.toBeInTheDocument();
+    expect(screen.queryByText('Host Club')).not.toBeInTheDocument();
+  });
+
   it('always renders Card badge', () => {
     render(<QuickInfoCards show={baseShow as Show} />);
     expect(screen.getByText('Card')).toBeInTheDocument();

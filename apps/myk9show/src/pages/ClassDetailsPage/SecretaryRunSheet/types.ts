@@ -1,3 +1,5 @@
+import type { CheckInStatus } from '@myk9/core';
+
 export type SortMode = 'runOrder' | 'armband-asc' | 'armband-desc' | 'random';
 export type ClassPhase = 'not-started' | 'in-progress' | 'finished';
 
@@ -15,7 +17,9 @@ export interface RunSheetEntry {
   dogName: string;
   armband: string;
   breed: string | null;
+  handlerName: string;
   ownerName: string;
+  checkInStatus: CheckInStatus;
   isCheckedIn: boolean;
   isScratched: boolean;
   isScored: boolean;

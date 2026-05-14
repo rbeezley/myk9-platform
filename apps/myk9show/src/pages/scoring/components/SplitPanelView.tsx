@@ -11,8 +11,9 @@ interface SplitPanelViewProps {
   settings: SessionSettings;
   selectedEntryId: string | null;
   onSelectEntry: (entryId: string | null) => void;
-  onSave: (result: PaperResult, timeDigits: string, faults: number) => void;
-  onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number) => void;
+  onSave: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
+  onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
+  onClearResult?: (() => void) | undefined;
   isSaving: boolean;
 }
 
@@ -23,10 +24,12 @@ export function SplitPanelView({
   onSelectEntry,
   onSave,
   onSaveAndNext,
+  onClearResult,
   isSaving,
 }: SplitPanelViewProps) {
   const sorted = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const selectedEntry = sorted.find(e => e.entryId === selectedEntryId) ?? null;
+  const allEntriesScored = sorted.length > 0 && sorted.every(entry => entry.isScored);
 
   return (
     <div className="flex gap-4 h-full">
@@ -36,6 +39,7 @@ export function SplitPanelView({
             key={entry.entryId}
             entry={entry}
             isActive={entry.entryId === selectedEntryId}
+            showPlacement={allEntriesScored}
             onClick={() => onSelectEntry(entry.entryId)}
           />
         ))}
@@ -48,6 +52,7 @@ export function SplitPanelView({
             settings={settings}
             onSave={onSave}
             onSaveAndNext={onSaveAndNext}
+            onClearResult={onClearResult}
             onClose={() => onSelectEntry(null)}
             isSaving={isSaving}
           />

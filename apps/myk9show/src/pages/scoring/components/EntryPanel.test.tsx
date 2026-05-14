@@ -1,6 +1,6 @@
 // apps/myk9show/src/pages/scoring/components/EntryPanel.test.tsx
 import { describe, it, expect, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { EntryPanel } from './EntryPanel';
@@ -101,8 +101,8 @@ describe('EntryPanel', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: /^NQ$/i }));
     expect(screen.queryByLabelText(/search time/i)).not.toBeInTheDocument();
-    // Auto-saves immediately for NQ in q-only mode (no pre-fill)
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith('NQ', '', 0));
+    expect(screen.getByLabelText(/reason/i)).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('reveals time field for NQ in all-runs mode', async () => {
@@ -153,6 +153,132 @@ describe('EntryPanel', () => {
     expect(screen.getByRole('button', { name: /save & next/i })).toBeInTheDocument();
   });
 
+  it('requires a reason before saving NQ and passes it to onSave', async () => {
+    const onSave = vi.fn();
+    render(
+      <EntryPanel
+        entry={makeEntry()}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={onSave}
+        onSaveAndNext={vi.fn()}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^NQ$/i }));
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
+
+    await userEvent.selectOptions(screen.getByLabelText(/reason/i), 'Max Time');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(onSave).toHaveBeenCalledWith('NQ', '', 0, 'Max Time');
+  });
+
+  it('requires a reason before saving Excused and passes it to onSaveAndNext', async () => {
+    const onSaveAndNext = vi.fn();
+    render(
+      <EntryPanel
+        entry={makeEntry()}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={onSaveAndNext}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^EX$/i }));
+    expect(screen.getByRole('button', { name: /save & next/i })).toBeDisabled();
+
+    await userEvent.selectOptions(screen.getByLabelText(/reason/i), 'Handler Request');
+    await userEvent.click(screen.getByRole('button', { name: /save & next/i }));
+
+    expect(onSaveAndNext).toHaveBeenCalledWith('EX', '', 0, 'Handler Request');
+  });
+
+  it('opens an already-scored entry with its saved result ready to edit', () => {
+    render(
+      <EntryPanel
+        entry={makeEntry({
+          isScored: true,
+          result: {
+            qualification: 'Qualified',
+            time: 83450,
+            faults: 2,
+          },
+        })}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /^Q$/i })).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByLabelText(/search time/i)).toHaveValue('12345');
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+  });
+
+  it('opens an already-scored NQ entry with its saved reason ready to edit', () => {
+    render(
+      <EntryPanel
+        entry={makeEntry({
+          isScored: true,
+          result: {
+            qualification: 'Not Qualified',
+            time: 0,
+            faults: 0,
+            reason: 'Incorrect Call',
+          },
+        })}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /^NQ$/i })).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByLabelText(/reason/i)).toHaveValue('Incorrect Call');
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
+  });
+
+  it('clears an already-scored result after confirmation', async () => {
+    const onClearResult = vi.fn();
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+
+    render(
+      <EntryPanel
+        entry={makeEntry({
+          isScored: true,
+          result: {
+            qualification: 'Not Qualified',
+            time: 0,
+            faults: 0,
+            reason: 'Incorrect Call',
+          },
+        })}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        onClearResult={onClearResult}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /clear result/i }));
+
+    expect(window.confirm).toHaveBeenCalledWith('Clear the saved result for Buddy?');
+    expect(onClearResult).toHaveBeenCalledOnce();
+    expect(screen.queryByLabelText(/reason/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();
+  });
+
   it('Save & Next calls onSaveAndNext with result, timeDigits, faults', async () => {
     const onSaveAndNext = vi.fn();
     render(
@@ -167,6 +293,6 @@ describe('EntryPanel', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: /^Q$/i }));
     await userEvent.click(screen.getByRole('button', { name: /save & next/i }));
-    expect(onSaveAndNext).toHaveBeenCalledWith('Q', expect.any(String), 0);
+    expect(onSaveAndNext).toHaveBeenCalledWith('Q', expect.any(String), 0, undefined);
   });
 });

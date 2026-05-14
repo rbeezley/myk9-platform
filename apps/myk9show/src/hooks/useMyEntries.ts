@@ -4,7 +4,6 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
-import { UserRole } from '@/types/auth-types';
 import type { CheckInStatus } from '@myk9/core';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 
@@ -38,7 +37,7 @@ function isScored(entry: Pick<SyncableShowEntry, 'status' | 'competitionData'>):
 }
 
 export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
-  const { userWithRoles, isAdmin, isSecretary, hasRole } = useAuthContext();
+  const { userWithRoles, loading: authLoading, rbacLoading } = useAuthContext();
   // Use a selector so the component re-renders when entries change
   const storeEntries = useEntryStore(s => s.entries);
   const isLoading = useEntryStore(s => s.isLoading);
@@ -47,10 +46,16 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
   const { dogs } = useDogStoreCompat();
 
   const databaseUserId = userWithRoles?.databaseUserId;
-  const canSeeAll = isAdmin || isSecretary || hasRole(UserRole.CLUB_ADMIN);
 
   return useMemo(() => {
     if (!showId) return { ...EMPTY_RESULT };
+    if (!databaseUserId) {
+      return {
+        ...EMPTY_RESULT,
+        isLoading: isLoading || authLoading || rbacLoading,
+        isError: !!error,
+      };
+    }
 
     // Get ALL entries for the show (needed for dogsAhead computation)
     const allShowEntries = storeEntries.filter(e => e.showId === showId);
@@ -61,15 +66,8 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
       dogs.map(d => [d.id, { callName: d.callName, name: d.name, ownerId: d.ownerId }])
     );
 
-    // Role-based filtering
-    let filteredEntries = allShowEntries;
-    if (!canSeeAll) {
-      if (!databaseUserId) {
-        return { ...EMPTY_RESULT, isLoading, isError: !!error };
-      }
-      const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
-      filteredEntries = allShowEntries.filter(e => myDogIds.has(e.dogId));
-    }
+    const myDogIds = new Set(dogs.filter(d => d.ownerId === databaseUserId).map(d => d.id));
+    const filteredEntries = allShowEntries.filter(e => myDogIds.has(e.dogId));
 
     // Build entries list
     const entries = filteredEntries.map(e => ({ id: e.id, showId: e.showId }));
@@ -118,5 +116,15 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
       isLoading,
       isError: !!error,
     };
-  }, [showId, storeEntries, classes, dogs, canSeeAll, databaseUserId, isLoading, error]);
+  }, [
+    showId,
+    storeEntries,
+    classes,
+    dogs,
+    databaseUserId,
+    isLoading,
+    authLoading,
+    rbacLoading,
+    error,
+  ]);
 }

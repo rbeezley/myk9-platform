@@ -9,25 +9,10 @@ function parseDate(dateStr: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function formatShowDate(startDate: string, endDate: string): string {
-  const start = parseDate(startDate);
-  if (!start) return 'TBD';
-  const end = parseDate(endDate) || start;
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-
-  if (start.getTime() === end.getTime()) {
-    return start.toLocaleDateString('en-US', { weekday: 'short', ...opts });
-  }
-  const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const endStr = end.toLocaleDateString('en-US', opts);
-  return `${startStr} – ${endStr}`;
-}
-
-function getEntryCloseText(entryCloseDate: string): string | null {
+function getEntryCloseValue(entryCloseDate: string): string | null {
   const close = parseDate(entryCloseDate);
   if (!close) return null;
-  if (close <= new Date()) return null;
-  return `Entries close ${close.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  return close.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 interface MetadataItemProps {
@@ -53,13 +38,11 @@ interface QuickInfoCardsProps {
 }
 
 export function QuickInfoCards({ show }: QuickInfoCardsProps) {
-  const dateStr = formatShowDate(show.startDate, show.endDate);
-  const entryCloseText = show.entryCloseDate ? getEntryCloseText(show.entryCloseDate) : null;
+  const entryCloseValue = show.entryCloseDate ? getEntryCloseValue(show.entryCloseDate) : null;
 
   return (
     <div className="flex flex-wrap">
-      <MetadataItem label="Date" value={dateStr} secondary={entryCloseText} />
-      <MetadataItem label="Host Club" value={show.clubName || 'TBD'} />
+      <MetadataItem label="Entries Close" value={entryCloseValue ?? 'TBD'} />
       <MetadataItem label="Location" value={show.location || 'TBD'} />
       <MetadataItem
         label="Entry Fee"

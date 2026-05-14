@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { ArrowUpCircle, XCircle, List, Table2 } from 'lucide-react';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
-import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
+import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
@@ -65,7 +65,7 @@ interface RegistrationViewProps {
   onOpenCompDialog: (entry: EntryManagementEntry) => void;
   onUncompEntry: (entryId: string) => void;
   onRemoveEntry: (entryId: string) => void;
-  /** Show ID for move-ups / scratches tabs */
+  /** Show ID for move-ups / pulled entries tabs */
   showId: string;
   /** Reload entries callback */
   onRefresh: () => void;
@@ -171,7 +171,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             </TabsTrigger>
             <TabsTrigger value="scratches">
               <XCircle className="h-4 w-4 mr-1" />
-              Scratches
+              Pulled
             </TabsTrigger>
             <TabsTrigger value="issues">Issues ({tabCounts.issues})</TabsTrigger>
           </TabsList>
@@ -242,11 +242,11 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           </Card>
         </TabsContent>
 
-        {/* Scratches Tab Content */}
+        {/* Pulled Tab Content */}
         <TabsContent value="scratches" className="mt-6">
           <Card>
             <CardContent className="pt-6">
-              <ScratchManagementTab showId={showId} onRefresh={onRefresh} />
+              <PullManagementTab showId={showId} onRefresh={onRefresh} />
             </CardContent>
           </Card>
         </TabsContent>

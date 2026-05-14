@@ -12,8 +12,20 @@ import type {
   ShowMapProgress,
 } from './showMapTypes';
 
-const COMPLETE_RESULT_STATUSES = new Set(['qualified', 'nq', 'non_qualifying', 'absent', 'excused']);
-const SCRATCH_ENTRY_STATUSES = new Set(['scratch', 'scratched', 'withdrawn', 'cancelled', 'canceled']);
+const COMPLETE_RESULT_STATUSES = new Set([
+  'qualified',
+  'nq',
+  'non_qualifying',
+  'absent',
+  'excused',
+]);
+const SCRATCH_ENTRY_STATUSES = new Set([
+  'scratch',
+  'scratched',
+  'withdrawn',
+  'cancelled',
+  'canceled',
+]);
 const ATTENTION_ENTRY_STATUSES = new Set(['conflict', 'failed', 'rejected']);
 
 function readString(record: ShowMapEntryInput, key: string): string | undefined {
@@ -58,11 +70,8 @@ export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplay
     return { value: checkInStatus, label: 'Needs attention', kind: 'attention' };
   }
 
-  if (
-    (entryStatus && SCRATCH_ENTRY_STATUSES.has(entryStatus)) ||
-    checkInStatus === 'pulled'
-  ) {
-    return { value: entryStatus ?? 'pulled', label: 'Scratch', kind: 'muted' };
+  if ((entryStatus && SCRATCH_ENTRY_STATUSES.has(entryStatus)) || checkInStatus === 'pulled') {
+    return { value: entryStatus ?? 'pulled', label: 'Pulled', kind: 'muted' };
   }
 
   if (
@@ -78,7 +87,10 @@ export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplay
     return { value: 'in-ring', label: 'In ring', kind: 'active' };
   }
 
-  if (entryStatus && ['accepted', 'confirmed', 'submitted', 'pending', 'draft'].includes(entryStatus)) {
+  if (
+    entryStatus &&
+    ['accepted', 'confirmed', 'submitted', 'pending', 'draft'].includes(entryStatus)
+  ) {
     return { value: entryStatus, label: 'Pending', kind: 'neutral' };
   }
 
@@ -104,7 +116,7 @@ export function classifyEntryCheckInStatus(
     return { value: status, label: 'Conflict', kind: 'attention' };
   }
   if (status === 'pulled') {
-    return { value: status, label: 'No-show', kind: 'muted' };
+    return { value: status, label: 'Pulled', kind: 'muted' };
   }
   if (status === 'completed') {
     return { value: status, label: 'Complete', kind: 'complete' };
@@ -130,7 +142,11 @@ export function hasEntryAttention(entry: ShowMapEntryInput): boolean {
   );
 }
 
-export function buildProgress(completed: number, total: number, unit: string): ShowMapProgress | undefined {
+export function buildProgress(
+  completed: number,
+  total: number,
+  unit: string
+): ShowMapProgress | undefined {
   if (total <= 0) return undefined;
   return {
     completed,

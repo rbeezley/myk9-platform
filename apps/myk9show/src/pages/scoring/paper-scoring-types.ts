@@ -1,6 +1,32 @@
 /** Display codes used in UI buttons */
 export type PaperResult = 'Q' | 'NQ' | 'ABS' | 'EX';
 
+export const PAPER_NQ_REASONS = [
+  'Incorrect Call',
+  'Max Time',
+  'Point to Hide',
+  'Harsh Correction',
+  'Significant Disruption',
+] as const;
+
+export const PAPER_EXCUSED_REASONS = [
+  'Dog Eliminated in Area',
+  'Handler Request',
+  'Out of Control',
+  'Overly Stressed',
+  'Other',
+] as const;
+
+export function resultRequiresReason(result: PaperResult | null): result is 'NQ' | 'EX' {
+  return result === 'NQ' || result === 'EX';
+}
+
+export function getReasonOptions(result: PaperResult | null): readonly string[] {
+  if (result === 'NQ') return PAPER_NQ_REASONS;
+  if (result === 'EX') return PAPER_EXCUSED_REASONS;
+  return [];
+}
+
 /** Layout mode — persisted in localStorage */
 export type PaperScoringMode = 'split' | 'sequential';
 

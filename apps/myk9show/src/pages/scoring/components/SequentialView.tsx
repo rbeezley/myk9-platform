@@ -12,8 +12,9 @@ interface SequentialViewProps {
   currentIndex: number;
   settings: SessionSettings;
   onNavigate: (index: number) => void;
-  onSave: (result: PaperResult, timeDigits: string, faults: number) => void;
-  onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number) => void;
+  onSave: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
+  onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
+  onClearResult?: (() => void) | undefined;
   isSaving: boolean;
 }
 
@@ -24,6 +25,7 @@ export function SequentialView({
   onNavigate,
   onSave,
   onSaveAndNext,
+  onClearResult,
   isSaving,
 }: SequentialViewProps) {
   const sorted = useMemo(() => sortByExhibitorOrder(entries), [entries]);
@@ -74,10 +76,12 @@ export function SequentialView({
 
       <Card>
         <EntryPanel
+          key={currentEntry.entryId}
           entry={currentEntry}
           settings={settings}
           onSave={onSave}
           onSaveAndNext={onSaveAndNext}
+          onClearResult={onClearResult}
           onClose={() => {}}
           isSaving={isSaving}
         />

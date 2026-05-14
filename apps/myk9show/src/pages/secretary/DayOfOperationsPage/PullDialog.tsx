@@ -1,7 +1,7 @@
 /**
- * Scratch Confirmation Dialog
+ * Pull Confirmation Dialog
  *
- * Dialog for confirming entry scratch with optional reason
+ * Dialog for confirming an entry pull with an optional reason
  */
 
 import { useState } from 'react';
@@ -19,38 +19,38 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { AlertCircle } from 'lucide-react';
-import { scratchEntry } from '@/services/database/day-of-operations';
-import type { ScratchableEntry } from './types';
+import { scratchEntry as pullEntry } from '@/services/database/day-of-operations';
+import type { PullableEntry } from './types';
 
-interface ScratchDialogProps {
+interface PullDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  entry: ScratchableEntry | null;
+  entry: PullableEntry | null;
   onSuccess: () => void;
 }
 
-export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchDialogProps) {
+export function PullDialog({ open, onOpenChange, entry, onSuccess }: PullDialogProps) {
   const [reason, setReason] = useState('');
-  const [isScratching, setIsScratching] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
 
-  const handleScratch = async () => {
+  const handlePull = async () => {
     if (!entry) return;
 
-    setIsScratching(true);
+    setIsPulling(true);
     try {
-      const { error } = await scratchEntry(entry.id, reason || undefined);
+      const { error } = await pullEntry(entry.id, reason || undefined);
 
       if (error) {
         toast.error(getUserFriendlyError(error));
         return;
       }
 
-      toast.success('Entry scratched successfully');
+      toast.success('Entry pulled successfully');
       onOpenChange(false);
       setReason('');
       onSuccess();
     } finally {
-      setIsScratching(false);
+      setIsPulling(false);
     }
   };
 
@@ -67,10 +67,10 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-destructive" />
-            Confirm Scratch
+            Confirm Pull
           </DialogTitle>
           <DialogDescription>
-            This will scratch the entry from the class. Day-of scratches are not eligible for
+            This will pull the entry from the class. Day-of pulls are not eligible for
             refunds.
           </DialogDescription>
         </DialogHeader>
@@ -92,7 +92,7 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
             <div className="space-y-2">
               <Label>Reason (optional)</Label>
               <Textarea
-                placeholder="Enter reason for scratch..."
+                placeholder="Enter reason for pulling..."
                 value={reason}
                 onChange={e => setReason(e.target.value)}
               />
@@ -104,8 +104,8 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
           <Button variant="outline" onClick={() => handleClose(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleScratch} disabled={isScratching}>
-            {isScratching ? 'Scratching...' : 'Confirm Scratch'}
+          <Button variant="destructive" onClick={handlePull} disabled={isPulling}>
+            {isPulling ? 'Pulling...' : 'Confirm Pull'}
           </Button>
         </DialogFooter>
       </DialogContent>

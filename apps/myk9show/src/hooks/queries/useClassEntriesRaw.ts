@@ -26,6 +26,13 @@ export interface RawEntryRow {
     name: string;
     call_name: string | null;
     breed: string | null;
+    registrations?:
+      | Array<{
+          organization: string | null;
+          breed: string | null;
+        }>
+      | null
+      | undefined;
     owner: {
       id: string;
       first_name: string | null;

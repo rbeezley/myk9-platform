@@ -376,7 +376,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   const navigate = useNavigate();
 
   // Handle row actions
-  const handleViewUser = (user: User) => navigate(`/users/${user.id}`);
+  const handleViewUser = (user: User) => navigate(`/people/${user.id}`);
   const handleEditUser = (user: User) => onUserClick(user);
   const handleDeleteUser = (user: User) => setDeleteTarget(user);
 

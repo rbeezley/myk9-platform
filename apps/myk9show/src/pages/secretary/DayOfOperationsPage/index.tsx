@@ -4,7 +4,7 @@
  * Secretary page for managing day-of-show operations:
  * - Day-of entries (walk-in registrations)
  * - Move-ups
- * - Scratches
+ * - Pulled entries
  */
 
 import { useMemo, useState } from 'react';
@@ -27,7 +27,7 @@ const DAY_OF_OPS_TABS: PrimaryTabDef[] = [
   { id: 'pipeline', label: 'Pipeline', icon: GitBranch },
   { id: 'entries', label: 'Day of Show Entries', icon: UserPlus },
   { id: 'moveups', label: 'Move-Ups', icon: ArrowUpCircle },
-  { id: 'scratches', label: 'Scratches', icon: XCircle },
+  { id: 'scratches', label: 'Pulled', icon: XCircle },
   { id: 'check-in', label: 'Check-In', icon: UserCheck },
 ];
 import { PipelineTab } from './PipelineTab';
@@ -37,14 +37,14 @@ import CheckInReportPage from '../CheckInReportPage';
 import { useDayOfOperationsData } from './useDayOfOperationsData';
 import { ClassAvailabilityTable } from './ClassAvailabilityTable';
 import { MoveUpEntriesTable } from './MoveUpEntriesTable';
-import { ScratchEntriesTable } from './ScratchEntriesTable';
+import { PullEntriesTable } from './PullEntriesTable';
 import { DayOfEntryDialog } from './DayOfEntryDialog';
-import { ScratchDialog } from './ScratchDialog';
+import { PullDialog } from './PullDialog';
 import { MoveUpDialog } from './MoveUpDialog';
-import { scratchEntry } from '@/services/database/day-of-operations';
+import { scratchEntry as pullEntry } from '@/services/database/day-of-operations';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
-import type { ScratchableEntry } from './types';
+import type { DayOfOperationEntry, PullableEntry } from './types';
 
 export default function DayOfOperationsPage() {
   const {
@@ -54,7 +54,7 @@ export default function DayOfOperationsPage() {
     setSelectedShowId,
     isLoading,
     classes,
-    scratchableEntries,
+    pullableEntries,
     moveUpEntries,
     loadData,
   } = useDayOfOperationsData();
@@ -64,37 +64,37 @@ export default function DayOfOperationsPage() {
     'pipeline'
   );
 
-  const [isScratchingDirect, setIsScratchingDirect] = useState(false);
+  const [isPullingDirect, setIsPullingDirect] = useState(false);
 
   // Dialog state
   const [showEntryDialog, setShowEntryDialog] = useState(false);
-  const [showScratchDialog, setShowScratchDialog] = useState(false);
+  const [showPullDialog, setShowPullDialog] = useState(false);
   const [showMoveUpDialog, setShowMoveUpDialog] = useState(false);
-  const [entryToScratch, setEntryToScratch] = useState<ScratchableEntry | null>(null);
-  const [entryToMoveUp, setEntryToMoveUp] = useState<ScratchableEntry | null>(null);
+  const [entryToPull, setEntryToPull] = useState<PullableEntry | null>(null);
+  const [entryToMoveUp, setEntryToMoveUp] = useState<DayOfOperationEntry | null>(null);
 
-  const handleScratchClick = (entry: ScratchableEntry) => {
-    setEntryToScratch(entry);
-    setShowScratchDialog(true);
+  const handlePullClick = (entry: PullableEntry) => {
+    setEntryToPull(entry);
+    setShowPullDialog(true);
   };
 
-  const handleScratchDirect = async (entry: ScratchableEntry) => {
-    if (isScratchingDirect) return;
-    setIsScratchingDirect(true);
+  const handlePullDirect = async (entry: PullableEntry) => {
+    if (isPullingDirect) return;
+    setIsPullingDirect(true);
     try {
-      const { error } = await scratchEntry(entry.id, undefined);
+      const { error } = await pullEntry(entry.id, undefined);
       if (error) {
         toast.error(getUserFriendlyError(error));
       } else {
-        toast.success('Entry scratched');
+        toast.success('Entry pulled');
         loadData();
       }
     } finally {
-      setIsScratchingDirect(false);
+      setIsPullingDirect(false);
     }
   };
 
-  const handleMoveUpClick = (entry: ScratchableEntry) => {
+  const handleMoveUpClick = (entry: DayOfOperationEntry) => {
     setEntryToMoveUp(entry);
     setShowMoveUpDialog(true);
   };
@@ -114,7 +114,7 @@ export default function DayOfOperationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Day of Show</h1>
-          <p className="text-muted-foreground">Manage walk-in entries, move-ups, and scratches</p>
+          <p className="text-muted-foreground">Manage walk-in entries, move-ups, and pulled entries</p>
         </div>
         <Button onClick={loadData} variant="outline" disabled={isLoading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -164,10 +164,10 @@ export default function DayOfOperationsPage() {
           </TabsContent>
 
           <TabsContent value="scratches" className="space-y-4">
-            <ScratchEntriesTable
-              entries={scratchableEntries}
-              onScratch={handleScratchClick}
-              onScratchDirect={handleScratchDirect}
+            <PullEntriesTable
+              entries={pullableEntries}
+              onPull={handlePullClick}
+              onPullDirect={handlePullDirect}
             />
           </TabsContent>
 
@@ -186,10 +186,10 @@ export default function DayOfOperationsPage() {
         onSuccess={handleDialogSuccess}
       />
 
-      <ScratchDialog
-        open={showScratchDialog}
-        onOpenChange={setShowScratchDialog}
-        entry={entryToScratch}
+      <PullDialog
+        open={showPullDialog}
+        onOpenChange={setShowPullDialog}
+        entry={entryToPull}
         onSuccess={handleDialogSuccess}
       />
 

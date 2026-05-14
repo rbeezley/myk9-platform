@@ -14,7 +14,7 @@ import {
   BarChart3,
   Trash2,
   Pencil,
-  Map,
+  ListTree,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,7 @@ import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
@@ -62,7 +63,6 @@ import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
-import { formatDateRange } from '@/utils/date-format';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
@@ -77,6 +77,19 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
   submitted: 'default',
   not_yet_open: 'default',
 };
+
+function isActiveEntryForMineFilter(entry: Record<string, unknown>): boolean {
+  const entryStatus = typeof entry.entry_status === 'string' ? entry.entry_status : '';
+  const checkInStatus = typeof entry.check_in_status === 'string' ? entry.check_in_status : '';
+  const deletedAt = entry.deleted_at;
+
+  return (
+    !deletedAt &&
+    entryStatus !== 'scratched' &&
+    entryStatus !== 'withdrawn' &&
+    checkInStatus !== 'pulled'
+  );
+}
 
 function parseOptionalCurrency(value: string | number | undefined): number | undefined {
   if (value === undefined) return undefined;
@@ -124,10 +137,13 @@ const ShowDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { endNavigation } = useNavigationPerformance();
-  const { user, isSecretary, isAdmin, hasRole } = useAuthContext();
+  const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
+  const loadTrials = useTrialStore(s => s.loadTrials);
+  const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
   const { data: showEntries = [] } = useEntriesByShowQuery(id || '', !!id);
+  const { dogs } = useDogStoreCompat();
 
   // Use fast show details loading with cache optimization
   const {
@@ -175,6 +191,12 @@ const ShowDetailsPage: React.FC = () => {
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = isSecretary || isAdmin;
 
+  useEffect(() => {
+    if (!id) return;
+    void loadTrials();
+    void loadTrialClasses();
+  }, [id, loadTrials, loadTrialClasses]);
+
   // Get associated trials for secretary view
   const showId_ = actualCurrentShow?.id;
   const { data: showJudgeRoster = [] } = useShowJudges(showId_);
@@ -196,7 +218,25 @@ const ShowDetailsPage: React.FC = () => {
   // Check if user has entries in this show (determines default tab)
   // Only enable polling when the My Entries tab is active (fix #3)
   const { entries: userEntries } = useMyEntries(showId_);
-  const hasUserEntries = userEntries.length > 0;
+  const userDogIds = useMemo(() => {
+    const databaseUserId = userWithRoles?.databaseUserId;
+    if (!databaseUserId) return new Set<string>();
+    return new Set(dogs.filter(dog => dog.ownerId === databaseUserId).map(dog => dog.id));
+  }, [dogs, userWithRoles?.databaseUserId]);
+
+  const userEntryClassIds = useMemo(() => {
+    const classIds = new Set<string>();
+    for (const entry of showEntries) {
+      if (!isActiveEntryForMineFilter(entry)) continue;
+      const dogId = typeof entry.dog_id === 'string' ? entry.dog_id : undefined;
+      const classId = typeof entry.class_id === 'string' ? entry.class_id : undefined;
+      if (dogId && classId && userDogIds.has(dogId)) {
+        classIds.add(classId);
+      }
+    }
+    return classIds;
+  }, [showEntries, userDogIds]);
+  const hasUserEntries = userEntryClassIds.size > 0 || userEntries.length > 0;
 
   // Tab state — URL-synced with dynamic allowed tabs
   const isAuthenticated = !!user;
@@ -220,7 +260,6 @@ const ShowDetailsPage: React.FC = () => {
 
   // Flatten trial classes into ClassInfo for ClassesTab
   const showClasses = useMemo(() => {
-    const userEntryClassIds = new Set(userEntries.map(e => e.id));
     return associatedTrials.flatMap(trial => {
       const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
       return classes.map(cls => ({
@@ -243,7 +282,7 @@ const ShowDetailsPage: React.FC = () => {
         trialName: trial.name || '',
       }));
     });
-  }, [associatedTrials, trialClasses, userEntries, showEntries]);
+  }, [associatedTrials, trialClasses, userEntryClassIds, showEntries]);
 
   const effectiveJudges = useMemo((): ShowJudgeAssignment[] => {
     return resolveOverviewJudgesWithRoster(
@@ -303,6 +342,7 @@ const ShowDetailsPage: React.FC = () => {
   const tabDefs: PrimaryTabDef[] = useMemo(
     () => [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+      ...(canShowMap ? [{ id: 'map', label: 'Show List', icon: ListTree }] : []),
       { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
       { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
       ...(isAuthenticated
@@ -312,7 +352,6 @@ const ShowDetailsPage: React.FC = () => {
           ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
-      ...(canShowMap ? [{ id: 'map', label: 'Map', icon: Map }] : []),
     ],
     [isAuthenticated, canShowMap, associatedTrials.length, showClasses.length, userEntries.length]
   );
@@ -389,11 +428,6 @@ const ShowDetailsPage: React.FC = () => {
         />
 
         <DetailHero
-          eyebrow={
-            actualCurrentShow.startDate && actualCurrentShow.endDate
-              ? formatDateRange(actualCurrentShow.startDate, actualCurrentShow.endDate, 'short')
-              : undefined
-          }
           cover={
             actualCurrentShow.startDate ? (
               <ShowDateBlock

@@ -124,6 +124,10 @@ async function postgrestGetAllEntries() {
         name,
         call_name,
         breed,
+        registrations:dog_registrations (
+          organization,
+          breed
+        ),
         owner:owner_id (
           id,
           first_name,
@@ -217,6 +221,10 @@ async function postgrestGetEntriesByShow(showId: string) {
         name,
         call_name,
         breed,
+        registrations:dog_registrations (
+          organization,
+          breed
+        ),
         owner:owner_id (
           id,
           first_name,

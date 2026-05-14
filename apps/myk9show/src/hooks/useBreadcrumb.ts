@@ -128,7 +128,7 @@ export const useBreadcrumb = ({
       });
       items.push({
         label: fullName,
-        href: `/users/${fromPerson.id}`,
+        href: `/people/${fromPerson.id}`,
       });
       items.push({
         label: getDogDisplayName(dog),

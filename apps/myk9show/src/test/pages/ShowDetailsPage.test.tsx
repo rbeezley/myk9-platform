@@ -17,6 +17,7 @@ const showEditPanelMock = vi.hoisted<{
 // Mock auth context
 const mockAuthContext = {
   user: { id: 'user-1' } as Record<string, unknown> | null,
+  userWithRoles: { databaseUserId: 'person-1' } as { databaseUserId?: string } | null,
   isSecretary: false,
   isAdmin: false,
   hasRole: vi.fn(() => false),
@@ -57,6 +58,23 @@ vi.mock('@/hooks/useMyEntries', () => ({
     isLoading: false,
     isError: false,
   }),
+}));
+
+let mockShowEntries: Array<{
+  id: string;
+  show_id?: string;
+  dog_id?: string;
+  class_id?: string;
+  entry_status?: string;
+  check_in_status?: string;
+}> = [];
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useEntriesByShowQuery: () => ({ data: mockShowEntries }),
+}));
+
+let mockDogs: Array<{ id: string; ownerId: string }> = [];
+vi.mock('@/hooks/useDogStoreCompat', () => ({
+  useDogStoreCompat: () => ({ dogs: mockDogs }),
 }));
 
 // Mock shows query
@@ -104,9 +122,16 @@ vi.mock('@/hooks/useNavigationPerformance', () => ({
 }));
 
 // Mock trial store
+let mockTrials: Array<Record<string, unknown>> = [];
+let mockTrialClasses: Record<string, Array<Record<string, unknown>>> = {};
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: (selector: (s: Record<string, unknown>) => unknown) => {
-    const state = { trials: [], trialClasses: {} };
+    const state = {
+      trials: mockTrials,
+      trialClasses: mockTrialClasses,
+      loadTrials: vi.fn(),
+      loadTrialClasses: vi.fn(),
+    };
     return selector(state);
   },
 }));
@@ -127,7 +152,21 @@ vi.mock('@/components/shows/tabs/MyEntriesTab', () => ({
   MyEntriesTab: () => <div data-testid="my-entries-tab">MyEntriesTab</div>,
 }));
 vi.mock('@/components/shows/tabs/ClassesTab', () => ({
-  ClassesTab: () => <div data-testid="classes-tab">ClassesTab</div>,
+  ClassesTab: ({
+    classes,
+    userHasEntries,
+  }: {
+    classes: Array<{ userHasEntry: boolean }>;
+    userHasEntries: boolean;
+  }) => (
+    <div
+      data-testid="classes-tab"
+      data-mine-count={classes.filter(cls => cls.userHasEntry).length}
+      data-user-has-entries={String(userHasEntries)}
+    >
+      ClassesTab
+    </div>
+  ),
 }));
 vi.mock('@/components/shows/tabs/TrialsTab', () => ({
   TrialsTab: () => <div data-testid="trials-tab">TrialsTab</div>,
@@ -175,11 +214,11 @@ vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="loading-skeleton" className="animate-pulse" />,
 }));
 
-function renderPage(showId = 'show-1') {
+function renderPage(showId = 'show-1', query = '') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[`/shows/${showId}`]}>
+      <MemoryRouter initialEntries={[`/shows/${showId}${query}`]}>
         <Routes>
           <Route path="/shows/:id" element={<ShowDetailsPage />} />
         </Routes>
@@ -249,7 +288,12 @@ describe('ShowDetailsPage', () => {
     };
     mockLoading = false;
     mockUserEntries = [];
+    mockShowEntries = [];
+    mockDogs = [];
+    mockTrials = [];
+    mockTrialClasses = {};
     mockAuthContext.user = { id: 'user-1' };
+    mockAuthContext.userWithRoles = { databaseUserId: 'person-1' };
     mockAuthContext.isSecretary = false;
     mockAuthContext.isAdmin = false;
     mockAuthContext.hasRole.mockReturnValue(false);
@@ -293,6 +337,78 @@ describe('ShowDetailsPage', () => {
     renderPage();
     const tab = screen.getByText('Overview');
     expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
+  });
+
+  it('marks show classes as mine when an owned dog is entered', () => {
+    mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
+    mockShowEntries = [
+      { id: 'entry-1', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-1' },
+      { id: 'entry-2', show_id: 'show-1', dog_id: 'dog-2', class_id: 'class-2' },
+    ];
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [
+        { id: 'class-1', element: 'Container', level: 'Novice', status: 'scheduled' },
+        { id: 'class-2', element: 'Interior', level: 'Advanced', status: 'scheduled' },
+      ],
+    };
+
+    renderPage('show-1', '?tab=classes');
+
+    const classesTab = screen.getByTestId('classes-tab');
+    expect(classesTab).toHaveAttribute('data-mine-count', '1');
+    expect(classesTab).toHaveAttribute('data-user-has-entries', 'true');
+  });
+
+  it('does not mark pulled entries as my classes', () => {
+    mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
+    mockShowEntries = [
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        class_id: 'class-1',
+        check_in_status: 'pulled',
+      },
+      {
+        id: 'entry-2',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        class_id: 'class-2',
+        entry_status: 'scratched',
+      },
+      { id: 'entry-3', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-3' },
+    ];
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [
+        { id: 'class-1', element: 'Container', level: 'Novice A', status: 'scheduled' },
+        { id: 'class-2', element: 'Container', level: 'Novice B', status: 'scheduled' },
+        { id: 'class-3', element: 'Interior', level: 'Advanced', status: 'scheduled' },
+      ],
+    };
+
+    renderPage('show-1', '?tab=classes');
+
+    const classesTab = screen.getByTestId('classes-tab');
+    expect(classesTab).toHaveAttribute('data-mine-count', '1');
+    expect(classesTab).toHaveAttribute('data-user-has-entries', 'true');
   });
 
   it('hides Entries and Results tabs for unauthenticated users', () => {

@@ -1,132 +1,64 @@
 import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { CheckInStatus } from '@myk9/core';
 import { useEntryStore } from '@/store/entryStore';
-import type { ClassData } from '@/components/classes/types/classTypes';
-import type { ClassInput } from '@/store/classStore.types';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
+import type { Dog } from '@/types/dog-types';
 import { buildRunSheetEntries } from './buildRunSheetEntries';
-import type { SortMode, RunSheetEntry, RunSheetResult, ClassPhase } from './types';
-import { toClassPhase } from './types';
+import type { SortMode, RunSheetEntry } from './types';
 
 interface UseRunSheetStateProps {
   rawEntries: RawEntryRow[];
-  currentClass: ClassData | null;
-  updateClass: (id: string, updates: Partial<ClassInput>) => Promise<unknown>;
+  classId: string;
   userId: string;
+  dogs: Dog[];
+  organization?: string | null | undefined;
 }
 
 interface UseRunSheetStateReturn {
   sortMode: SortMode;
   onSort: (mode: SortMode) => void;
-  expandedId: string | null;
-  onToggleExpand: (id: string) => void;
-  classPhase: ClassPhase;
   sortedEntries: RunSheetEntry[];
-  onCheckIn: (entryId: string, checked: boolean) => Promise<void>;
-  onScratch: (entryId: string, scratched: boolean) => Promise<void>;
-  onSaveResult: (entryId: string, result: RunSheetResult) => Promise<void>;
-  onStartClass: () => Promise<void>;
-  onCloseClass: () => Promise<void>;
+  onCheckInStatus: (entryId: string, status: CheckInStatus) => Promise<void>;
 }
 
 export function useRunSheetState({
   rawEntries,
-  currentClass,
-  updateClass,
+  classId,
   userId,
+  dogs,
+  organization,
 }: UseRunSheetStateProps): UseRunSheetStateReturn {
   const queryClient = useQueryClient();
   const [sortMode, setSortMode] = useState<SortMode>('runOrder');
   const [randomSnapshot, setRandomSnapshot] = useState<RunSheetEntry[]>([]);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const classPhase = toClassPhase(currentClass?.status);
-  const classId = currentClass?.id;
+  const dogLookup = useMemo(() => new Map(dogs.map(dog => [dog.id, dog])), [dogs]);
 
   const sortedEntries = useMemo(() => {
     if (sortMode === 'random') return randomSnapshot;
-    return buildRunSheetEntries(rawEntries, sortMode);
-  }, [rawEntries, sortMode, randomSnapshot]);
+    return buildRunSheetEntries(rawEntries, sortMode, dogLookup, organization);
+  }, [rawEntries, sortMode, randomSnapshot, dogLookup, organization]);
 
   const onSort = (mode: SortMode) => {
-    if (mode === 'random') setRandomSnapshot(buildRunSheetEntries(rawEntries, 'random'));
+    if (mode === 'random')
+      setRandomSnapshot(buildRunSheetEntries(rawEntries, 'random', dogLookup, organization));
     setSortMode(mode);
   };
 
-  const setCheckInStatus = async (
-    entryId: string,
-    status: 'checked-in' | 'no-status' | 'pulled',
-    errorMsg: string
-  ) => {
+  const onCheckInStatus = async (entryId: string, status: CheckInStatus) => {
     try {
       await useEntryStore.getState().updateCheckInStatus(entryId, status, userId);
-      if (classId) {
-        await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
-      }
+      await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
     } catch {
-      toast.error(errorMsg);
+      toast.error('Failed to update check-in status');
     }
   };
-
-  const onCheckIn = (entryId: string, checked: boolean) =>
-    setCheckInStatus(entryId, checked ? 'checked-in' : 'no-status', 'Failed to update check-in');
-
-  const onScratch = (entryId: string, scratched: boolean) =>
-    setCheckInStatus(entryId, scratched ? 'pulled' : 'no-status', 'Failed to scratch entry');
-
-  const onSaveResult = async (entryId: string, result: RunSheetResult) => {
-    const { recordResult } = useEntryStore.getState();
-    try {
-      await recordResult(entryId, {
-        qualified: result.qualified,
-        time: result.timeStr || undefined,
-        faults: result.faults,
-        placement: result.placement !== null ? String(result.placement) : undefined,
-        judgeNotes: result.judgeNotes || undefined,
-        recordedBy: userId,
-        recordedAt: new Date().toISOString(),
-      });
-      if (classId) {
-        await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
-      }
-      toast.success('Result saved');
-    } catch {
-      toast.error('Failed to save result');
-    }
-  };
-
-  const onStartClass = async () => {
-    if (!currentClass?.id) return;
-    try {
-      await updateClass(currentClass.id, { status: 'In Progress' });
-    } catch {
-      toast.error('Failed to start class');
-    }
-  };
-
-  const onCloseClass = async () => {
-    if (!currentClass?.id) return;
-    try {
-      await updateClass(currentClass.id, { status: 'Completed' });
-    } catch {
-      toast.error('Failed to close class');
-    }
-  };
-
-  const onToggleExpand = (id: string) => setExpandedId(expandedId === id ? null : id);
 
   return {
     sortMode,
     onSort,
-    expandedId,
-    onToggleExpand,
-    classPhase,
     sortedEntries,
-    onCheckIn,
-    onScratch,
-    onSaveResult,
-    onStartClass,
-    onCloseClass,
+    onCheckInStatus,
   };
 }

@@ -115,7 +115,7 @@ export const MemberList: React.FC<MemberListProps> = ({ club, canManageMembers =
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/users/${person.id}`)}>
+                      <DropdownMenuItem onClick={() => navigate(`/people/${person.id}`)}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>

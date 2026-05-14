@@ -10,16 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUpCircle } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
-import type { ScratchableEntry } from './types';
+import type { DayOfOperationEntry } from './types';
 
 interface MoveUpEntriesTableProps {
-  entries: ScratchableEntry[];
-  onMoveUp: (entry: ScratchableEntry) => void;
+  entries: DayOfOperationEntry[];
+  onMoveUp: (entry: DayOfOperationEntry) => void;
 }
 
 function buildColumns(
-  onMoveUp: (entry: ScratchableEntry) => void
-): ColumnDef<ScratchableEntry, unknown>[] {
+  onMoveUp: (entry: DayOfOperationEntry) => void
+): ColumnDef<DayOfOperationEntry, unknown>[] {
   return [
     {
       accessorKey: 'armband',

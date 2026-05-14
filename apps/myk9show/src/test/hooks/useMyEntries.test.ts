@@ -19,6 +19,8 @@ let mockAuthState = {
   } as Record<string, unknown>,
   isAdmin: false,
   isSecretary: false,
+  loading: false,
+  rbacLoading: false,
   hasRole: (role: string) => role === 'exhibitor',
 };
 
@@ -91,6 +93,8 @@ describe('useMyEntries', () => {
       },
       isAdmin: false,
       isSecretary: false,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'exhibitor',
     };
   });
@@ -118,14 +122,19 @@ describe('useMyEntries', () => {
     expect(result.current.entriesByClass[0].className).toBe('Novice JWW');
   });
 
-  it('returns all entries for site admin regardless of dog ownership', () => {
+  it('keeps site admin My entries scoped to dogs they own', () => {
     mockAuthState = {
       userWithRoles: { databaseUserId: 'admin-1', roles: [{ name: 'site_admin' }] },
       isAdmin: true,
       isSecretary: false,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'site_admin',
     };
-    mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'someone-else' });
+    mockDogs.push(
+      { id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'admin-1' },
+      { id: 'd2', callName: 'Max', name: 'Max', ownerId: 'someone-else' }
+    );
     mockClasses.push({ id: 'c1', className: 'Novice JWW' });
     mockEntries.push(
       makeEntry({ id: 'e1', showId: 'show-1', classId: 'c1', dogId: 'd1' }),
@@ -133,42 +142,45 @@ describe('useMyEntries', () => {
     );
 
     const { result } = renderHook(() => useMyEntries('show-1'));
-    expect(result.current.entries).toHaveLength(2);
+    expect(result.current.entries).toHaveLength(1);
+    expect(result.current.entries[0].id).toBe('e1');
   });
 
-  it('returns all entries for secretary', () => {
+  it('keeps secretary My entries scoped to dogs they own', () => {
     mockAuthState = {
       userWithRoles: { databaseUserId: 'sec-1', roles: [{ name: 'secretary' }] },
       isAdmin: false,
       isSecretary: true,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'secretary',
     };
+    mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'someone-else' });
     mockEntries.push(makeEntry({ id: 'e1', showId: 'show-1', classId: 'c1', dogId: 'd1' }));
     mockClasses.push({ id: 'c1', className: 'Open Standard' });
 
     const { result } = renderHook(() => useMyEntries('show-1'));
-    expect(result.current.entries).toHaveLength(1);
+    expect(result.current.entries).toHaveLength(0);
   });
 
-  it('returns all entries for club_admin', () => {
+  it('keeps club_admin My entries scoped to dogs they own', () => {
     mockAuthState = {
       userWithRoles: { databaseUserId: 'ca-1', roles: [{ name: 'club_admin' }] },
       isAdmin: false,
       isSecretary: false,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'club_admin',
     };
+    mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'someone-else' });
     mockEntries.push(makeEntry({ id: 'e1', showId: 'show-1', classId: 'c1', dogId: 'd1' }));
     mockClasses.push({ id: 'c1', className: 'Open Standard' });
 
     const { result } = renderHook(() => useMyEntries('show-1'));
-    expect(result.current.entries).toHaveLength(1);
+    expect(result.current.entries).toHaveLength(0);
   });
 
   it('computes dogsAhead from entries in the same class', () => {
-    mockAuthState = {
-      ...mockAuthState,
-      isAdmin: true,
-    };
     mockClasses.push({ id: 'c1', className: 'Novice JWW' });
     mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'person-1' });
     mockEntries.push(
@@ -220,8 +232,8 @@ describe('useMyEntries', () => {
   });
 
   it('marks entry as scored when status is completed', () => {
-    mockAuthState = { ...mockAuthState, isAdmin: true };
     mockClasses.push({ id: 'c1', className: 'Novice JWW' });
+    mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'person-1' });
     mockEntries.push(
       makeEntry({
         id: 'e1',
@@ -237,8 +249,8 @@ describe('useMyEntries', () => {
   });
 
   it('marks entry as scored when competitionData exists', () => {
-    mockAuthState = { ...mockAuthState, isAdmin: true };
     mockClasses.push({ id: 'c1', className: 'Novice JWW' });
+    mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'person-1' });
     mockEntries.push(
       makeEntry({
         id: 'e1',
@@ -254,7 +266,7 @@ describe('useMyEntries', () => {
   });
 
   it('falls back to Unknown Class/Dog when stores have no data', () => {
-    mockAuthState = { ...mockAuthState, isAdmin: true };
+    mockDogs.push({ id: 'd-missing', name: '', ownerId: 'person-1' });
     mockEntries.push(
       makeEntry({ id: 'e1', showId: 'show-1', classId: 'c-missing', dogId: 'd-missing' })
     );
@@ -302,6 +314,8 @@ describe('useMyEntries', () => {
       userWithRoles: { databaseUserId: undefined, roles: [{ name: 'exhibitor' }] },
       isAdmin: false,
       isSecretary: false,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'exhibitor',
     };
     mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'person-1' });
@@ -309,5 +323,20 @@ describe('useMyEntries', () => {
 
     const { result } = renderHook(() => useMyEntries('show-1'));
     expect(result.current.entries).toHaveLength(0);
+  });
+
+  it('keeps loading while auth is still resolving the database person id', () => {
+    mockAuthState = {
+      userWithRoles: { databaseUserId: undefined, roles: [{ name: 'exhibitor' }] },
+      isAdmin: false,
+      isSecretary: false,
+      loading: true,
+      rbacLoading: false,
+      hasRole: (role: string) => role === 'exhibitor',
+    };
+
+    const { result } = renderHook(() => useMyEntries('show-1'));
+    expect(result.current.entries).toHaveLength(0);
+    expect(result.current.isLoading).toBe(true);
   });
 });

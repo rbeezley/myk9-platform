@@ -141,7 +141,7 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
         'Missing Info'
       );
     case EntryStatus.SCRATCHED:
-      return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Scratched');
+      return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Pulled');
     case EntryStatus.MOVED:
       return React.createElement(Badge, { className: 'bg-gray-100 text-gray-700' }, 'Moved');
     default:

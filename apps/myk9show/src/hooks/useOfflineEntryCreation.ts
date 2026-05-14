@@ -314,11 +314,11 @@ export function useOfflineEntryCreation(): UseOfflineEntryCreationResult {
       const result = await OfflineEntryCreator.scratchEntry(entryId, reason, userId);
 
       if (result.success) {
-        toast.success('Entry scratched', {
-          description: 'Entry has been scratched and refund processing queued',
+        toast.success('Entry pulled', {
+          description: 'Entry has been pulled and refund processing queued',
         });
       } else {
-        toast.error('Failed to scratch entry', {
+        toast.error('Failed to pull entry', {
           description: result.error,
         });
       }

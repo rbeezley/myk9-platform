@@ -249,7 +249,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         <DropdownMenuItem
                           onClick={() => onStatusChange(entry.id, EntryStatus.SCRATCHED)}
                         >
-                          Scratched
+                          Pulled
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -337,7 +337,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             <AlertDialogDescription>
               This removes {removeDialog.entry?.dogName ?? 'this dog'} from{' '}
               {removeDialog.entry?.classes[0]?.name ?? 'this class'}. Use this for mistaken or
-              duplicate entries; use Scratched or Withdrawn when the entry should stay in records.
+              duplicate entries; use Pulled or Withdrawn when the entry should stay in records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

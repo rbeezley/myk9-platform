@@ -75,7 +75,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       notifications.success('User deleted successfully');
       const remainingPeople = people.filter(p => p.id !== person.id);
       if (remainingPeople.length > 0) {
-        navigate(`/users/${remainingPeople[0].id}`, { replace: true });
+        navigate(`/people/${remainingPeople[0].id}`, { replace: true });
       } else {
         navigate('/people', { replace: true });
       }

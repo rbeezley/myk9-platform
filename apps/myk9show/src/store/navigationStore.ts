@@ -65,7 +65,7 @@ const ROUTE_METADATA = {
   '/exhibitor/dashboard': { title: 'Exhibitor Dashboard' },
   '/exhibitor/check-in/:entryId': { title: 'Check-in' },
   '/people': { title: 'People' },
-  '/users/:id': { title: 'User Details' },
+  '/people/:id': { title: 'Person Details' },
   '/dogs': { title: 'Dogs' },
   '/dogs/:id': { title: 'Dog Details' },
   '/clubs': { title: 'Clubs' },

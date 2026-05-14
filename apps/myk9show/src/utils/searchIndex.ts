@@ -388,7 +388,7 @@ export function createSearchableItem(
           .filter(Boolean)
           .join(' '),
         metadata: data,
-        route: `/users/${data.id}`,
+        route: `/people/${data.id}`,
       };
 
     case 'show':

@@ -18,7 +18,7 @@ import {
   getHealthStatistics,
   getHealthTimeline,
   searchHealthRecords,
-} from '@/services/database/queries/healthQueries';
+} from '@/services/database/health-records';
 
 import {
   mapDbHealthRecordToApp,

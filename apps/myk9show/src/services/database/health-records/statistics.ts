@@ -5,10 +5,10 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { HealthFilters, HealthStatistics } from '@/types/health';
-import { getAllVaccinations, getUpcomingVaccinations } from './vaccinationQueries';
-import { getAllMedications, getActiveMedications } from './medicationQueries';
-import { getAllAllergies, getActiveAllergies } from './allergyQueries';
-import { getAllVetVisits, getVetVisitsRequiringFollowUp } from './vetVisitQueries';
+import { getAllVaccinations, getUpcomingVaccinations } from './vaccinations';
+import { getAllMedications, getActiveMedications } from './medications';
+import { getAllAllergies, getActiveAllergies } from './allergies';
+import { getAllVetVisits, getVetVisitsRequiringFollowUp } from './vet-visits';
 
 // ========================================
 // HEALTH STATISTICS & ANALYTICS

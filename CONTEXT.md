@@ -79,6 +79,14 @@ per-viewer, not per-announcement. Announcements are show-scoped today; the
 single-word entity name reserves room for the table to grow other scopes
 without a rename.
 
+**Health Record**
+A record about a Dog's health — vaccinations, medications, allergies, vet
+visits, OFA screenings (hip/elbow X-rays for breeding-eligible dogs), and
+genetic screenings. Each sub-type lives in its own table but all are owned
+by a Dog. Statistics, timeline, and search cross-cut the sub-tables and
+share a single canonical module so callers can read "everything about this
+dog's health" without coordinating across files.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under

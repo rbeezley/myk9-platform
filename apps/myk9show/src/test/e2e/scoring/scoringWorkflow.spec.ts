@@ -1,350 +1,269 @@
-import { test, expect } from '@playwright/test';
-import { TestSetup } from '../helpers/testSetup';
+import { expect, test, type Page } from '@playwright/test';
+import { TEST_USERS, type TestUser } from '../helpers/testUsers';
 
-test.describe('Scoring Workflow', () => {
-  let testSetup: TestSetup;
+const CLASS_ID = 'e2e-paper-scoring-class';
+const TRIAL_ID = 'e2e-paper-scoring-trial';
+const SHOW_ID = 'e2e-paper-scoring-show';
+const ENTRY_ONE_ID = 'e2e-paper-scoring-entry-1';
+const ENTRY_TWO_ID = 'e2e-paper-scoring-entry-2';
 
-  test.beforeEach(async ({ page }) => {
-    testSetup = new TestSetup(page);
-    await testSetup.clearTestData();
-    await testSetup.mockApiResponses();
+interface SeedRow {
+  tableName: string;
+  id: string;
+  data: Record<string, unknown>;
+}
+
+async function signIn(page: Page, user: TestUser, returnTo: string) {
+  const params = new URLSearchParams({ returnTo });
+  await page.goto(`/sign-in?${params.toString()}`, { waitUntil: 'domcontentloaded' });
+
+  await expect(page.getByTestId('email-input')).toBeVisible({ timeout: 15000 });
+  await page.getByTestId('email-input').fill(user.email);
+  await page.getByTestId('password-input').fill(user.password);
+  await page.getByTestId('sign-in-button').click();
+
+  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
+  await page.waitForLoadState('domcontentloaded');
+  await expect(page).not.toHaveURL(/\/sign-in/);
+}
+
+async function preventSharedScoringWrites(page: Page) {
+  await page.route('**/rest/v1/dog_registrations**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
+    });
   });
 
-  test('should complete basic conformation scoring workflow', async ({ page }) => {
-    await testSetup.signIn('judge');
-    await page.goto('/judge/class-123/scoring');
-    
-    // Verify class information is displayed
-    await expect(page.locator('[data-testid="class-name"]')).toContainText('Novice A');
-    await expect(page.locator('[data-testid="judge-name"]')).toContainText('Judge Wilson');
-    
-    // Start scoring session
-    await page.click('[data-testid="start-scoring-button"]');
-    
-    // Verify entries are loaded
-    await expect(page.locator('[data-testid="entry-list"]')).toBeVisible();
-    await expect(page.locator('[data-testid="entry-card"]')).toHaveCount(5);
-    
-    // Score first dog
-    await page.click('[data-testid="entry-card-1"] [data-testid="score-dog-button"]');
-    
-    // Individual examination scores
-    await page.click('[data-testid="head-score-excellent"]');
-    await page.click('[data-testid="body-score-very-good"]');
-    await page.click('[data-testid="movement-score-excellent"]');
-    await page.click('[data-testid="temperament-score-excellent"]');
-    
-    // Add judge notes
-    await page.fill('[data-testid="judge-notes-textarea"]', 'Beautiful head type, strong movement, excellent temperament.');
-    
-    // Save individual scores
-    await page.click('[data-testid="save-individual-scores-button"]');
-    
-    // Continue with remaining dogs
-    for (let i = 2; i <= 5; i++) {
-      await page.click(`[data-testid="entry-card-${i}"] [data-testid="score-dog-button"]`);
-      await page.click('[data-testid="head-score-good"]');
-      await page.click('[data-testid="body-score-good"]');
-      await page.click('[data-testid="movement-score-good"]');
-      await page.click('[data-testid="temperament-score-good"]');
-      await page.click('[data-testid="save-individual-scores-button"]');
+  await page.route('**/rest/v1/entries**', async route => {
+    const request = route.request();
+    if (request.method() === 'PATCH') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+      return;
     }
-    
-    // Final ranking
-    await page.click('[data-testid="final-ranking-tab"]');
-    
-    // Drag and drop to set placements
-    await page.dragAndDrop('[data-testid="entry-1"]', '[data-testid="placement-1"]');
-    await page.dragAndDrop('[data-testid="entry-3"]', '[data-testid="placement-2"]');
-    await page.dragAndDrop('[data-testid="entry-2"]', '[data-testid="placement-3"]');
-    await page.dragAndDrop('[data-testid="entry-5"]', '[data-testid="placement-4"]');
-    
-    // Add final comments
-    await page.fill('[data-testid="final-comments-textarea"]', 'Excellent quality class with strong competition.');
-    
-    // Submit scores
-    await page.click('[data-testid="submit-scores-button"]');
-    
-    // Verify submission confirmation
-    await expect(page.locator('[data-testid="scores-submitted-message"]')).toBeVisible();
+
+    await route.fallback();
+  });
+}
+
+async function seedPaperScoringCache(page: Page) {
+  const now = Date.now();
+  const rows: SeedRow[] = [
+    {
+      tableName: 'shows',
+      id: SHOW_ID,
+      data: {
+        id: SHOW_ID,
+        name: 'E2E Paper Scoring Show',
+        organization: 'AKC',
+        startDate: '2026-06-12',
+        endDate: '2026-06-14',
+      },
+    },
+    {
+      tableName: 'trials',
+      id: TRIAL_ID,
+      data: {
+        id: TRIAL_ID,
+        showId: SHOW_ID,
+        name: 'Friday Trial 1',
+        date: '2026-06-12',
+        trialNumber: '1',
+        trialType: 'scent_work',
+      },
+    },
+    {
+      tableName: 'classes',
+      id: CLASS_ID,
+      data: {
+        id: CLASS_ID,
+        trialId: TRIAL_ID,
+        trial_id: TRIAL_ID,
+        name: 'Container Novice A',
+        level: 'Novice A',
+        element: 'Container',
+        classStatus: 'In Progress',
+      },
+    },
+    {
+      tableName: 'dogs',
+      id: 'e2e-paper-scoring-dog-1',
+      data: {
+        id: 'e2e-paper-scoring-dog-1',
+        name: 'Willow Run Fast Asleep',
+        callName: 'Willow',
+        breed: 'Beagle',
+      },
+    },
+    {
+      tableName: 'dogs',
+      id: 'e2e-paper-scoring-dog-2',
+      data: {
+        id: 'e2e-paper-scoring-dog-2',
+        name: 'Northwind Bright Spark',
+        callName: 'Spark',
+        breed: 'Border Collie',
+      },
+    },
+    {
+      tableName: 'entries',
+      id: ENTRY_ONE_ID,
+      data: {
+        id: ENTRY_ONE_ID,
+        classId: CLASS_ID,
+        class_id: CLASS_ID,
+        showId: SHOW_ID,
+        dogId: 'e2e-paper-scoring-dog-1',
+        dog_id: 'e2e-paper-scoring-dog-1',
+        armband: '101',
+        handler: 'Avery Handler',
+        entryStatus: 'accepted',
+        entry_status: 'accepted',
+        checkInStatus: 'in-ring',
+        check_in_status: 'in-ring',
+        runOrder: 1,
+      },
+    },
+    {
+      tableName: 'entries',
+      id: ENTRY_TWO_ID,
+      data: {
+        id: ENTRY_TWO_ID,
+        classId: CLASS_ID,
+        class_id: CLASS_ID,
+        showId: SHOW_ID,
+        dogId: 'e2e-paper-scoring-dog-2',
+        dog_id: 'e2e-paper-scoring-dog-2',
+        armband: '102',
+        handler: 'Jordan Handler',
+        entryStatus: 'accepted',
+        entry_status: 'accepted',
+        checkInStatus: 'no-status',
+        check_in_status: 'no-status',
+        runOrder: 2,
+      },
+    },
+  ];
+
+  await page.evaluate(
+    async ({ seedRows, timestamp }) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('myK9_Replication', 5);
+
+        request.onupgradeneeded = () => {
+          const database = request.result;
+          if (!database.objectStoreNames.contains('replicated_tables')) {
+            database.createObjectStore('replicated_tables', {
+              keyPath: ['tableName', 'id'],
+            });
+          }
+          if (!database.objectStoreNames.contains('sync_metadata')) {
+            database.createObjectStore('sync_metadata', { keyPath: 'tableName' });
+          }
+          if (!database.objectStoreNames.contains('pending_mutations')) {
+            database.createObjectStore('pending_mutations', { keyPath: 'id' });
+          }
+          if (!database.objectStoreNames.contains('prefetch_cache')) {
+            database.createObjectStore('prefetch_cache', { keyPath: 'key' });
+          }
+          if (!database.objectStoreNames.contains('offline_queue')) {
+            database.createObjectStore('offline_queue', { keyPath: 'id' });
+          }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('replicated_tables', 'readwrite');
+        const store = tx.objectStore('replicated_tables');
+
+        for (const row of seedRows) {
+          store.put({
+            tableName: row.tableName,
+            id: row.id,
+            data: row.data,
+            version: 1,
+            lastSyncedAt: timestamp,
+            lastAccessedAt: timestamp,
+            accessCount: 0,
+            lastModifiedAt: timestamp,
+            isDirty: false,
+            syncStatus: 'synced',
+          });
+        }
+
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error);
+        };
+        tx.onabort = () => {
+          db.close();
+          reject(tx.error);
+        };
+      });
+    },
+    { seedRows: rows, timestamp: now }
+  );
+}
+
+async function openScoringFlow(page: Page, mode: 'split' | 'sequential' = 'split') {
+  await preventSharedScoringWrites(page);
+  await signIn(page, TEST_USERS.SECRETARY, `/scoring/classes/${CLASS_ID}/entries?mode=${mode}`);
+  await seedPaperScoringCache(page);
+  await page.goto(`/scoring/classes/${CLASS_ID}/entries?mode=${mode}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await expect(page.getByRole('heading', { name: 'Container Novice A' })).toBeVisible({
+    timeout: 15000,
+  });
+}
+
+test.describe('Paper scoring workflow', () => {
+  test('secretary records a paper result from the current split-panel flow', async ({ page }) => {
+    await openScoringFlow(page);
+
+    await expect(page.getByText('0 of 2 scored')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Willow/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Spark/ })).toBeVisible();
+
+    await page.locator('button[aria-label="Q"]').last().click();
+    await page.getByLabel('Search Time').fill('4231');
+    await page.getByRole('button', { name: 'Save & Next' }).click();
+
+    await expect(page.getByText('1 of 2 scored').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: /Willow/ })).toContainText('Q');
+    await expect(page.getByRole('button', { name: /Willow/ })).toContainText('0:42.31');
+    await expect(page.getByRole('button', { name: /Spark/ })).toHaveAttribute(
+      'data-active',
+      'true'
+    );
   });
 
-  test('should handle obedience trial scoring', async ({ page }) => {
-    await testSetup.signIn('judge');
-    await page.goto('/judge/trial-456/scoring');
-    
-    // Select scoring type
-    await page.click('[data-testid="scoring-type-obedience"]');
-    
-    // Start judging first exercise
-    await page.click('[data-testid="exercise-heel-free"]');
-    
-    // Score each dog for the exercise
-    await page.click('[data-testid="dog-1-score-button"]');
-    await page.fill('[data-testid="points-input"]', '38');
-    await page.selectOption('[data-testid="qualifying-select"]', 'yes');
-    await page.fill('[data-testid="exercise-notes"]', 'Excellent attention, minor lagging on about turn.');
-    await page.click('[data-testid="save-exercise-score"]');
-    
-    // Continue with remaining dogs
-    await page.click('[data-testid="dog-2-score-button"]');
-    await page.fill('[data-testid="points-input"]', '35');
-    await page.selectOption('[data-testid="qualifying-select"]', 'yes');
-    await page.click('[data-testid="save-exercise-score"]');
-    
-    // Move to next exercise
-    await page.click('[data-testid="next-exercise-button"]');
-    await expect(page.locator('[data-testid="current-exercise"]')).toContainText('Stand for Examination');
-    
-    // Complete all exercises
-    const exercises = ['Stand for Examination', 'Recall', 'Sit Stay', 'Down Stay'];
-    for (const exercise of exercises) {
-      await page.click('[data-testid="dog-1-score-button"]');
-      await page.fill('[data-testid="points-input"]', '38');
-      await page.selectOption('[data-testid="qualifying-select"]', 'yes');
-      await page.click('[data-testid="save-exercise-score"]');
-      
-      if (exercise !== 'Down Stay') {
-        await page.click('[data-testid="next-exercise-button"]');
-      }
-    }
-    
-    // Calculate final scores
-    await page.click('[data-testid="calculate-totals-button"]');
-    
-    // Verify final scores
-    await expect(page.locator('[data-testid="dog-1-total-score"]')).toContainText('190');
-    await expect(page.locator('[data-testid="dog-1-final-qualifying"]')).toContainText('Yes');
-    
-    // Submit trial results
-    await page.click('[data-testid="submit-trial-results-button"]');
-    await expect(page.locator('[data-testid="trial-results-submitted"]')).toBeVisible();
-  });
+  test('secretary can switch to the card flow and record non-qualifying reason', async ({
+    page,
+  }) => {
+    await openScoringFlow(page, 'sequential');
 
-  test('should handle agility scoring with faults and time', async ({ page }) => {
-    await testSetup.signIn('judge');
-    await page.goto('/judge/agility-789/scoring');
-    
-    // Set course parameters
-    await page.fill('[data-testid="standard-course-time"]', '45');
-    await page.fill('[data-testid="course-length"]', '150');
-    
-    // Start timing first dog
-    await page.click('[data-testid="dog-1-run-button"]');
-    await page.click('[data-testid="start-timer-button"]');
-    
-    // Record faults during run
-    await page.click('[data-testid="knocked-bar-button"]'); // 5 faults
-    await page.click('[data-testid="wrong-course-button"]'); // Elimination
-    
-    // Stop timer
-    await page.click('[data-testid="stop-timer-button"]');
-    
-    // Verify automatic calculation
-    await expect(page.locator('[data-testid="dog-1-status"]')).toContainText('Eliminated');
-    
-    // Score next dog - clean run
-    await page.click('[data-testid="dog-2-run-button"]');
-    await page.click('[data-testid="start-timer-button"]');
-    
-    // Simulate clean run - wait then stop
-    await page.waitForTimeout(2000);
-    await page.click('[data-testid="stop-timer-button"]');
-    
-    // Verify time recorded
-    await expect(page.locator('[data-testid="dog-2-time"]')).toContainText('42.5');
-    await expect(page.locator('[data-testid="dog-2-faults"]')).toContainText('0');
-    await expect(page.locator('[data-testid="dog-2-status"]')).toContainText('Qualifying');
-    
-    // Score dog with time fault
-    await page.click('[data-testid="dog-3-run-button"]');
-    await page.click('[data-testid="start-timer-button"]');
-    await page.waitForTimeout(3000);
-    await page.click('[data-testid="stop-timer-button"]');
-    
-    // Should show time fault
-    await expect(page.locator('[data-testid="dog-3-time"]')).toContainText('48.2');
-    await expect(page.locator('[data-testid="dog-3-faults"]')).toContainText('3.2'); // Time faults
-    
-    // Generate final results
-    await page.click('[data-testid="generate-results-button"]');
-    
-    // Verify results ranking
-    await expect(page.locator('[data-testid="placement-1"]')).toContainText('Dog 2');
-    await expect(page.locator('[data-testid="placement-2"]')).toContainText('Dog 3');
-    
-    // Submit results
-    await page.click('[data-testid="submit-agility-results-button"]');
-    await expect(page.locator('[data-testid="results-submitted-confirmation"]')).toBeVisible();
-  });
+    await expect(page.getByRole('tab', { name: 'Card' })).toHaveAttribute('aria-selected', 'true');
 
-  test('should handle rally scoring with course map', async ({ page }) => {
-    await testSetup.signIn('judge');
-    await page.goto('/judge/rally-101/scoring');
-    
-    // Load course map
-    await expect(page.locator('[data-testid="rally-course-map"]')).toBeVisible();
-    await expect(page.locator('[data-testid="station-count"]')).toContainText('12 stations');
-    
-    // Start first team
-    await page.click('[data-testid="team-1-start-button"]');
-    
-    // Score each station
-    for (let station = 1; station <= 12; station++) {
-      await page.click(`[data-testid="station-${station}-button"]`);
-      
-      if (station === 3) {
-        // Deduct points at station 3
-        await page.click('[data-testid="deduction-1-point"]');
-        await page.fill('[data-testid="deduction-reason"]', 'Slow response to sit command');
-      } else if (station === 8) {
-        // Major deduction at station 8
-        await page.click('[data-testid="deduction-3-points"]');
-        await page.fill('[data-testid="deduction-reason"]', 'Handler guided dog');
-      }
-      
-      await page.click('[data-testid="station-complete-button"]');
-    }
-    
-    // Final score calculation
-    await page.click('[data-testid="calculate-final-score-button"]');
-    
-    // Verify score calculation (100 - 4 deductions = 96)
-    await expect(page.locator('[data-testid="team-1-final-score"]')).toContainText('96');
-    await expect(page.locator('[data-testid="team-1-qualifying"]')).toContainText('Yes');
-    
-    // Continue with remaining teams
-    await page.click('[data-testid="next-team-button"]');
-    
-    // Complete scoring session
-    await page.click('[data-testid="complete-rally-scoring-button"]');
-    await expect(page.locator('[data-testid="rally-scoring-complete"]')).toBeVisible();
-  });
+    await page.locator('button[aria-label="NQ"]').last().click();
+    await page.locator('select#reason-select').selectOption('Incorrect Call');
+    await page.getByRole('button', { name: 'Save & Next' }).click();
 
-  test('should handle scoring corrections and revisions', async ({ page }) => {
-    await testSetup.signIn('judge');
-    await page.goto('/judge/class-123/scoring');
-    
-    // Complete initial scoring
-    await page.click('[data-testid="start-scoring-button"]');
-    
-    // Score a dog initially
-    await page.click('[data-testid="entry-card-1"] [data-testid="score-dog-button"]');
-    await page.click('[data-testid="head-score-good"]');
-    await page.click('[data-testid="save-individual-scores-button"]');
-    
-    // Realize mistake and need to correct
-    await page.click('[data-testid="entry-card-1"] [data-testid="edit-scores-button"]');
-    
-    // Update the score
-    await page.click('[data-testid="head-score-excellent"]');
-    await page.fill('[data-testid="correction-reason"]', 'Initial assessment was too conservative');
-    
-    // Save correction
-    await page.click('[data-testid="save-correction-button"]');
-    
-    // Verify correction is tracked
-    await expect(page.locator('[data-testid="score-history-button"]')).toBeVisible();
-    await page.click('[data-testid="score-history-button"]');
-    
-    // Check audit trail
-    await expect(page.locator('[data-testid="score-change-log"]')).toContainText('Head: Good → Excellent');
-    await expect(page.locator('[data-testid="correction-timestamp"]')).toBeVisible();
-  });
-
-  test('should support offline scoring with sync', async ({ page }) => {
-    await testSetup.signIn('judge');
-    await page.goto('/judge/class-123/scoring');
-    
-    // Enable offline mode
-    await page.click('[data-testid="offline-mode-toggle"]');
-    await expect(page.locator('[data-testid="offline-indicator"]')).toBeVisible();
-    
-    // Score dogs while offline
-    await page.click('[data-testid="start-scoring-button"]');
-    await page.click('[data-testid="entry-card-1"] [data-testid="score-dog-button"]');
-    await page.click('[data-testid="head-score-excellent"]');
-    await page.click('[data-testid="save-individual-scores-button"]');
-    
-    // Verify data saved locally
-    await expect(page.locator('[data-testid="offline-data-indicator"]')).toBeVisible();
-    
-    // Go back online
-    await page.click('[data-testid="offline-mode-toggle"]');
-    
-    // Wait for sync
-    await expect(page.locator('[data-testid="sync-in-progress"]')).toBeVisible();
-    await expect(page.locator('[data-testid="sync-complete"]')).toBeVisible();
-    
-    // Verify data synced
-    await expect(page.locator('[data-testid="offline-indicator"]')).not.toBeVisible();
-  });
-
-  test('should generate detailed scoring reports', async ({ page }) => {
-    await testSetup.signIn('judge');
-    await page.goto('/judge/class-123/reports');
-    
-    // Access completed scoring session
-    await page.click('[data-testid="completed-class-123"]');
-    
-    // Generate individual score report
-    await page.click('[data-testid="generate-individual-report-button"]');
-    await expect(page.locator('[data-testid="individual-scores-report"]')).toBeVisible();
-    
-    // Check report contains all required elements
-    await expect(page.locator('[data-testid="judge-signature-line"]')).toBeVisible();
-    await expect(page.locator('[data-testid="class-details-section"]')).toBeVisible();
-    await expect(page.locator('[data-testid="placement-results-section"]')).toBeVisible();
-    
-    // Export as PDF
-    const downloadPromise = page.waitForEvent('download');
-    await page.click('[data-testid="export-scoring-report-pdf"]');
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toContain('scoring-report');
-    
-    // Generate summary report for show
-    await page.click('[data-testid="show-summary-report-button"]');
-    await expect(page.locator('[data-testid="show-summary-content"]')).toBeVisible();
-    
-    // Export summary
-    const summaryDownloadPromise = page.waitForEvent('download');
-    await page.click('[data-testid="export-summary-pdf"]');
-    const summaryDownload = await summaryDownloadPromise;
-    expect(summaryDownload.suggestedFilename()).toContain('show-summary');
-  });
-
-  test('should handle scoring disputes and appeals', async ({ page }) => {
-    await testSetup.signIn('secretary');
-    await page.goto('/secretary/scoring-disputes');
-    
-    // View submitted dispute
-    await expect(page.locator('[data-testid="dispute-list"]')).toBeVisible();
-    await page.click('[data-testid="dispute-case-1"]');
-    
-    // Review dispute details
-    await expect(page.locator('[data-testid="dispute-class"]')).toContainText('Novice A');
-    await expect(page.locator('[data-testid="dispute-reason"]')).toBeVisible();
-    await expect(page.locator('[data-testid="original-scores"]')).toBeVisible();
-    
-    // Add superintendent notes
-    await page.fill('[data-testid="superintendent-notes"]', 'Reviewing scoring sheets and video footage.');
-    
-    // Request judge review
-    await page.click('[data-testid="request-judge-review-button"]');
-    
-    // Switch to judge perspective
-    await testSetup.signIn('judge');
-    await page.goto('/judge/dispute-reviews');
-    
-    // Review the dispute
-    await page.click('[data-testid="dispute-case-1"]');
-    await expect(page.locator('[data-testid="original-scoring-notes"]')).toBeVisible();
-    
-    // Provide judge response
-    await page.fill('[data-testid="judge-response"]', 'After review, original placement stands. Detailed reasoning attached.');
-    await page.click('[data-testid="submit-judge-response-button"]');
-    
-    // Verify dispute resolution
-    await expect(page.locator('[data-testid="dispute-resolved-indicator"]')).toBeVisible();
+    await expect(page.getByText('1 of 2 scored').first()).toBeVisible({ timeout: 10000 });
+    await page.getByRole('tab', { name: 'List' }).click();
+    await expect(page.getByRole('button', { name: /Willow/ })).toContainText('NQ');
+    await expect(page.getByRole('button', { name: /Willow/ })).toContainText('Incorrect Call');
   });
 });

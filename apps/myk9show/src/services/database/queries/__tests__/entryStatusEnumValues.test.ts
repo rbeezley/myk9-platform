@@ -10,16 +10,17 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getMoveUpEligibleEntries, denyMoveUpRequest } from '../moveUpQueries';
 import {
+  getMoveUpEligibleEntries,
+  denyMoveUpRequest,
   getScratchableEntries,
   scratchEntry,
   requestScratch,
   approveScratchRequest,
   denyScratchRequest,
-} from '../scratchQueries';
+} from '../../day-of-operations';
 import { getEntryCountsByStatus } from '../../entries/secretary';
-import { autoAssignArmbands, getNextArmbandForShow } from '../secretaryArmbandQueries';
+import { autoAssignArmbands, getNextArmbandForShow } from '../../armbands';
 
 const mockFrom = vi.fn();
 

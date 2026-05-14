@@ -5,15 +5,10 @@ import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import { useCallback, useRef, useEffect, useMemo } from 'react';
 import { queryKeys, cacheStrategies } from './queryClient';
-import {
-  getAllDogs,
-  getDogById,
-  getAllUsers,
-  getUserById,
-  getAllShows,
-  getAllClubs,
-  getClubById,
-} from '@/services/database/queries';
+import { getAllDogs, getDogById } from '@/services/database/dogs';
+import { getAllUsers, getUserById } from '@/services/database/users';
+import { getAllShows } from '@/services/database/shows';
+import { getAllClubs, getClubById } from '@/services/database/clubs';
 
 // Debouncing utility for search queries
 export const useDebounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {

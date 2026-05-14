@@ -17,18 +17,6 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../queries/queryUtils';
 
-// Re-export entry operations from sibling module for backward compatibility
-export {
-  getAllEntries,
-  getEntriesByClassId,
-  createEntry,
-  updateEntry,
-  deleteEntry,
-  hardDeleteEntry,
-  restoreEntry,
-  getDeletedEntries,
-} from '../queries/classQueries.entries';
-
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
 // ---------------------------------------------------------------------------

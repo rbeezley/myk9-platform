@@ -52,6 +52,14 @@ export {
 - Plurality reflects return shape: `getAchievementById` (one) vs `getAchievementsByDogId` (many).
 - Reserved words (`delete`, `new`, `class`) are dodged by the entity-prefix convention.
 
+**Domain-clear bare-verb exception.** Some modules expose operations whose names already read as unambiguous domain actions and would only become noisier with an entity prefix. `processMoveUp`, `scratchEntry`, `getClassesWithCapacity`, `logActivity`, `getActivityForRecord` are all examples: the verb is the domain operation, not a generic CRUD action. Bare verbs are permitted **only when all three hold**:
+
+1. The function name names a domain action (move-up processing, scratching, capacity lookup) rather than a generic CRUD verb (`create`, `get`, `update`, `delete`).
+2. There is no plausible name collision with another entity module's surface (`processMoveUp` is unique; `process` is not).
+3. The name is not a JavaScript reserved word.
+
+When in doubt, prefix with the entity. The rule biases toward longer, less ambiguous names because import-site readability is the cheapest place to pay the cost.
+
 **Internal organization within an entity module is unconstrained.** A module may split implementation across `reads.ts`, `writes.ts`, `lifecycle.ts`, `secretary.ts`, etc. Only the `index.ts` surface is governed.
 
 ## Reasons

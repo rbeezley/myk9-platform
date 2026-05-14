@@ -1,6 +1,6 @@
 # Open Todos
 
-Active work items only. Resolved items and full context live in TO-DOS.md.
+Active work items only. Resolved historical context lives in git history and dated plan docs.
 
 ---
 
@@ -188,9 +188,13 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 - [x] **Admin / judge / club-admin interior audit** — Completed on 2026-05-11. Repaired the E2E admin and club-admin accounts, walked the admin, judge, and club-admin route sets, and fixed the UI warnings surfaced by the audit.
 
+## Auth & Access
+
+- [ ] **Add an approval workflow for sign-up role requests** — The sign-up page currently lets users select `Exhibitor`, `Club officer / show host`, and `Show secretary`; those values are stored only as auth metadata (`raw_user_meta_data.intended_roles`) and do **not** self-grant `club_admin` or `secretary` roles. **Problem:** The UI wording implies access may be granted automatically, and we need a safe admin approval path before elevated roles are acted on. **Files:** `apps/myk9show/src/pages/SignUpPage.tsx`, `apps/myk9show/src/hooks/useAuth.ts`, `supabase/migrations/165_handle_new_user_agreed_to_tos.sql`, future admin approval UI under `apps/myk9show/src/pages/admin/` or role-management components. **Solution:** (1) Change copy to "I'm interested in..." or "Request access as..." and add helper text that club officer / secretary access requires approval. (2) Decide whether to keep requests in auth metadata short-term or create a `role_requests` table. (3) Build an admin review queue with approve/deny actions. (4) Approval creates scoped `user_roles` rows only through an authorized path; denied requests are auditable. (5) Add regression coverage proving signup still auto-grants only `exhibitor`.
+
 ## Payments & Email
 
-- [ ] **Stripe Integration** — No Stripe integration exists. Entry fees need Stripe Connect (club's connected account + platform convenience fee via `application_fee_amount`). Includes club Stripe onboarding flow + webhook. Full context in TO-DOS.md § "Stripe Integration + Exhibitor Payments Page — 2026-04-30".
+- [ ] **Stripe Integration** — No Stripe integration exists. Entry fees need Stripe Connect (club's connected account + platform convenience fee via `application_fee_amount`). Includes club Stripe onboarding flow, webhook handling, entry payment references, and reconciliation reporting.
 - [ ] **Exhibitor Payments page** — `/exhibitor/payments` list view: date, show name, amount, Stripe reference, status, receipt link. Blocked on Stripe integration above. Files: `apps/myk9show/src/pages/`.
 
 ## Pre-Launch Housekeeping
@@ -203,9 +207,9 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## Post-Fall (parked — do not pick up before Phase 3 exit)
 
-- [ ] **Prevent Duplicate Rows in Core Tables** — Uniqueness constraints on people/dogs/clubs. Requires duplicate-audit + merge migration before adding constraints. Full context in TO-DOS.md.
-- [ ] **Configurable Exhibitor Convenience Fee** — Per-show override + site-admin default. Full context in TO-DOS.md.
-- [ ] **Role-Mode Icon Switcher for Sidebar Nav** — Replace labelled section groups with icon-mode switcher (Claude Desktop pattern). Brainstorm before implementing. Full context in TO-DOS.md.
-- [ ] **Queue-based Offline Dog Create** — Extend MutationManager to `dogs` table; replace rollback pattern with enqueue. Full context in TO-DOS.md.
+- [ ] **Prevent Duplicate Rows in Core Tables** — Add uniqueness constraints on people/dogs/clubs after a duplicate audit and merge migration.
+- [ ] **Configurable Exhibitor Convenience Fee** — Add site-admin default and per-show override for exhibitor convenience fees.
+- [ ] **Role-Mode Icon Switcher for Sidebar Nav** — Replace labelled section groups with an icon-mode switcher; brainstorm before implementing.
+- [ ] **Queue-based Offline Dog Create** — Extend MutationManager to `dogs` table and replace rollback behavior with queued offline create.
 - [ ] **Review awesome-design-md for Design Consistency** — Evaluate against current dual approach (shadcn/ui + semantic CSS).
-- [ ] **Research Claude Code Managed Agents for AskQ** — Evaluate managed agents API for the AskQ feature. Full context in TO-DOS.md.
+- [ ] **Research Claude Code Managed Agents for AskQ** — Evaluate managed agents API for the AskQ feature.

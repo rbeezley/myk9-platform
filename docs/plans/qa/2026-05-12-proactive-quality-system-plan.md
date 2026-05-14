@@ -88,8 +88,8 @@ Immediate need: classify these specs into a smaller set of named suites:
 - `docs/plans/qa/2026-05-11-qa-regression-proof.md`
   - Good model for proof matrices.
   - Should remain specific to the 2026-05-10 secretary remediation batch.
-- `TO-DOS.md`
-  - Already holds strategic QA work such as Dogs CRUD audit.
+- `OPEN-TODOS.md`
+  - Holds active strategic QA work such as Dogs CRUD audit.
 - `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`
   - Existing source of truth for Phase 2/3 golden path work.
 
@@ -146,7 +146,7 @@ Example rows:
 | Asset | Use When | Command Or Invocation | Output | Cadence |
 | --- | --- | --- | --- | --- |
 | `qa-feature` | Auditing one feature end to end | `/qa-feature dogs CRUD as secretary` | E2E spec + fixes | Feature hardening |
-| `audit-pages` | Broad page health sweep | `/audit-pages secretary` | TO-DOS entries | Weekly/nightly |
+| `audit-pages` | Broad page health sweep | `/audit-pages secretary` | `OPEN-TODOS.md` entries | Weekly/nightly |
 | `harden` | Before commit on risky changes | `/harden apps/myk9show/src/hooks/useProfileForm.ts` | Findings/fixes | Per PR |
 | UAT secretary proof | Secretary regression proof | `pnpm test:e2e:clean src/test/e2e/uat/secretary/qa-regression-proof.spec.ts` | Playwright trace | Pre-release |
 

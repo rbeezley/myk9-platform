@@ -116,7 +116,7 @@ Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render
 
 ## Workflow
 
-Update plan/tracking documents (TO-DOS.md, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
+Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
 
 ## Debugging seed-data / config bugs
 

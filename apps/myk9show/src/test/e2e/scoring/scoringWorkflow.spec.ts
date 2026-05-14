@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { TEST_USERS, type TestUser } from '../helpers/testUsers';
+import { DB_NAME, DB_VERSION } from '@myk9/replication';
+import { signInAsSecretary } from '../uat/shared/auth';
 
 const CLASS_ID = 'e2e-paper-scoring-class';
 const TRIAL_ID = 'e2e-paper-scoring-trial';
@@ -13,18 +14,10 @@ interface SeedRow {
   data: Record<string, unknown>;
 }
 
-async function signIn(page: Page, user: TestUser, returnTo: string) {
-  const params = new URLSearchParams({ returnTo });
-  await page.goto(`/sign-in?${params.toString()}`, { waitUntil: 'domcontentloaded' });
-
-  await expect(page.getByTestId('email-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('email-input').fill(user.email);
-  await page.getByTestId('password-input').fill(user.password);
-  await page.getByTestId('sign-in-button').click();
-
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('domcontentloaded');
-  await expect(page).not.toHaveURL(/\/sign-in/);
+function resultButton(page: Page, code: 'Q' | 'NQ') {
+  return page.locator(`button[aria-label="${code}"]`).filter({
+    hasText: code === 'Q' ? 'Qualified' : 'Not Qualified',
+  });
 }
 
 async function preventSharedScoringWrites(page: Page) {
@@ -53,6 +46,9 @@ async function preventSharedScoringWrites(page: Page) {
 
 async function seedPaperScoringCache(page: Page) {
   const now = Date.now();
+  // Replication rows intentionally include both app-facing camelCase and
+  // Supabase-facing snake_case fields because the page reads through the
+  // local replicated cache while mutations serialize back to DB column names.
   const rows: SeedRow[] = [
     {
       tableName: 'shows',
@@ -151,9 +147,9 @@ async function seedPaperScoringCache(page: Page) {
   ];
 
   await page.evaluate(
-    async ({ seedRows, timestamp }) => {
+    async ({ dbName, dbVersion, seedRows, timestamp }) => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('myK9_Replication', 5);
+        const request = indexedDB.open(dbName, dbVersion);
 
         request.onupgradeneeded = () => {
           const database = request.result;
@@ -213,13 +209,13 @@ async function seedPaperScoringCache(page: Page) {
         };
       });
     },
-    { seedRows: rows, timestamp: now }
+    { dbName: DB_NAME, dbVersion: DB_VERSION, seedRows: rows, timestamp: now }
   );
 }
 
 async function openScoringFlow(page: Page, mode: 'split' | 'sequential' = 'split') {
   await preventSharedScoringWrites(page);
-  await signIn(page, TEST_USERS.SECRETARY, `/scoring/classes/${CLASS_ID}/entries?mode=${mode}`);
+  await signInAsSecretary(page, `/scoring/classes/${CLASS_ID}/entries?mode=${mode}`);
   await seedPaperScoringCache(page);
   await page.goto(`/scoring/classes/${CLASS_ID}/entries?mode=${mode}`, {
     waitUntil: 'domcontentloaded',
@@ -234,10 +230,10 @@ test.describe('Paper scoring workflow', () => {
     await openScoringFlow(page);
 
     await expect(page.getByText('0 of 2 scored')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Willow/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Spark/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Willow/ })).toContainText('101');
+    await expect(page.getByRole('button', { name: /Spark/ })).toContainText('102');
 
-    await page.locator('button[aria-label="Q"]').last().click();
+    await resultButton(page, 'Q').click();
     await page.getByLabel('Search Time').fill('4231');
     await page.getByRole('button', { name: 'Save & Next' }).click();
 
@@ -257,7 +253,7 @@ test.describe('Paper scoring workflow', () => {
 
     await expect(page.getByRole('tab', { name: 'Card' })).toHaveAttribute('aria-selected', 'true');
 
-    await page.locator('button[aria-label="NQ"]').last().click();
+    await resultButton(page, 'NQ').click();
     await page.locator('select#reason-select').selectOption('Incorrect Call');
     await page.getByRole('button', { name: 'Save & Next' }).click();
 

@@ -1,8 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 
-test.describe.configure({ timeout: 90000 });
-
 async function openFirstShowFromBrowse(page: Page): Promise<string> {
   await page.goto('/shows', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Shows', level: 1 })).toBeVisible({
@@ -12,7 +10,10 @@ async function openFirstShowFromBrowse(page: Page): Promise<string> {
   await page.getByRole('tab', { name: /^Browse All/ }).click();
 
   const firstShowLink = page.locator('a[href^="/shows/"]').first();
-  await expect(firstShowLink).toBeVisible({ timeout: 15000 });
+  await expect(
+    firstShowLink,
+    'Expected at least one seeded public show with a /shows/:id link in Browse All.'
+  ).toBeVisible({ timeout: 15000 });
   const href = (await firstShowLink.getAttribute('href')) ?? '';
   expect(href).toMatch(/^\/shows\/[a-f0-9-]{36}$/);
 

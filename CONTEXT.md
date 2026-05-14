@@ -63,6 +63,13 @@ The submission workflow that turns an Exhibitor's selected Dogs and Classes
 into persisted Entries for a Show, including payment details, confirmation
 number, and Armband assignment.
 
+**Promo Code**
+A discount token issued by a Club, scoped to a single Show or a single Trial.
+Has a code string, discount type (`percentage` | `flat`), discount value,
+optional usage limit, optional expiry, and a running usage count. Applied at
+checkout during Show Registration to reduce entry fees. Trial-scoped codes
+take priority over show-scoped codes when both match.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under
@@ -74,7 +81,7 @@ Replicated entities (cached in IndexedDB for offline reads): Entry, Class,
 Trial, Dog, Show, Armband.
 
 PostgREST-only entities (online reads): Club, Handler, Exhibitor, Volunteer,
-WaitList, Secretary tasks, Visibility settings, Achievement.
+WaitList, Secretary tasks, Visibility settings, Achievement, Promo Code.
 
 **Replicated Table Sync**
 The package-owned workflow that keeps a replicated entity's IndexedDB cache,

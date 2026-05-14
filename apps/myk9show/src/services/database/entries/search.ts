@@ -12,7 +12,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
-import { buildMapFromArray } from '../queries/queryUtils';
+import { buildMapFromArray } from '../_shared/maps';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)

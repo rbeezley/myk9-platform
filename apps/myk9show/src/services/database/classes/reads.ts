@@ -15,7 +15,7 @@ import {
 } from '@/services/mappers/classMappers';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
-import { buildMapFromArray } from '../queries/queryUtils';
+import { buildMapFromArray } from '../_shared/maps';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads

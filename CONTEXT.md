@@ -106,3 +106,16 @@ Judge roster and qualification reads live in `services/database/judges/reads.ts`
 alongside Judge assignment persistence. Judges are a role applied to Users, but
 Secretary workflows should import Judge-specific reads and writes from
 `services/database/judges/`, not from the User module or legacy query files.
+
+## Shared database helpers
+
+Cross-cutting helpers that are used by multiple entity modules but aren't
+tied to a single entity live under `services/database/_shared/`. The leading
+underscore signals "infrastructure, not a domain entity" so the directory
+sorts apart from entity folders. Today's content: `maps.ts` (lookup-Map
+builders used by `reads.ts`/`search.ts` across entries, classes, trials,
+shows, and waitlists to avoid N+1 joins).
+
+A helper earns a place in `_shared/` only when more than one entity module
+imports it. Single-caller helpers belong inside the entity module that uses
+them.

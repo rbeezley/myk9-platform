@@ -13,7 +13,7 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/waitlistMappers';
-import { buildMapFromArray } from '../queries/queryUtils';
+import { buildMapFromArray } from '../_shared/maps';
 
 export interface WaitlistEntry {
   id: string;

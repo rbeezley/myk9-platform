@@ -139,7 +139,7 @@ vi.mock('@/components/common/ErrorBoundary', () => ({
   RegistrationErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('@/services/database/queries/armbandQueries', () => ({
+vi.mock('@/services/database/armbands', () => ({
   assignArmband: vi.fn(),
 }));
 

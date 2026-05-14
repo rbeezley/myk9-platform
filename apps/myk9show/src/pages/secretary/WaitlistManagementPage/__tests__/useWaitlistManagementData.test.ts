@@ -17,7 +17,7 @@ vi.mock('@/services/database/shows', () => ({
   getSecretaryShows: vi.fn().mockResolvedValue({ data: [], error: null }),
 }));
 
-vi.mock('@/services/database/queries/waitlistQueries', () => ({
+vi.mock('@/services/database/waitlists', () => ({
   getClassesWithWaitlistCounts: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
   offerWaitlistSpot: vi.fn(),
@@ -55,10 +55,9 @@ describe('useWaitlistManagementData — showId sync', () => {
 
   it('selectedShowId updates when showId changes', async () => {
     let showId = 'show-1';
-    const { result, rerender } = renderHook(
-      () => useWaitlistManagementData(showId),
-      { wrapper: createWrapper() }
-    );
+    const { result, rerender } = renderHook(() => useWaitlistManagementData(showId), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.selectedShowId).toBe('show-1'));
 
@@ -72,10 +71,9 @@ describe('useWaitlistManagementData — showId sync', () => {
 
   it('selectedShowId clears when showId becomes empty string', async () => {
     let showId: string | undefined = 'show-1';
-    const { result, rerender } = renderHook(
-      () => useWaitlistManagementData(showId),
-      { wrapper: createWrapper() }
-    );
+    const { result, rerender } = renderHook(() => useWaitlistManagementData(showId), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.selectedShowId).toBe('show-1'));
 

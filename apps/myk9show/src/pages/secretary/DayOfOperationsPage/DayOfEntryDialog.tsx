@@ -32,7 +32,7 @@ import {
   createDayOfEntry,
   searchDogs,
   ClassWithCapacity,
-} from '@/services/database/queries/dayOfOperationsQueries';
+} from '@/services/database/day-of-operations';
 import type { DogSearchResult, PaymentMethod } from './types';
 
 interface DayOfEntryDialogProps {

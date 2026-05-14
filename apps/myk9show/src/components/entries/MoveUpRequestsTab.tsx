@@ -47,7 +47,7 @@ import {
   denyMoveUpRequest,
   getClassesWithCapacity,
   ClassWithCapacity,
-} from '@/services/database/queries/dayOfOperationsQueries';
+} from '@/services/database/day-of-operations';
 
 interface MoveUpRequest {
   id: string;
@@ -78,10 +78,7 @@ interface MoveUpRequestsTabProps {
   onRefresh?: () => void;
 }
 
-export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
-  showId,
-  onRefresh,
-}) => {
+export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, onRefresh }) => {
   const [requests, setRequests] = useState<MoveUpRequest[]>([]);
   const [classes, setClasses] = useState<ClassWithCapacity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -160,10 +157,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
     setIsProcessing(true);
 
     try {
-      const { error } = await approveMoveUpRequest(
-        selectedRequest.id,
-        targetClassId
-      );
+      const { error } = await approveMoveUpRequest(selectedRequest.id, targetClassId);
 
       if (error) {
         if (error.message?.includes('full')) {
@@ -227,7 +221,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
   };
 
   // Filter requests by search term
-  const filteredRequests = requests.filter((request) => {
+  const filteredRequests = requests.filter(request => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
@@ -240,7 +234,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
 
   // Get available target classes (exclude current class, only show higher levels)
   const getAvailableTargetClasses = (request: MoveUpRequest) => {
-    return classes.filter((cls) => {
+    return classes.filter(cls => {
       // Exclude current class
       if (cls.id === request.class_id) return false;
       // Only show classes with available spots
@@ -299,7 +293,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
           <Input
             placeholder="Search by dog, handler, or class..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -320,7 +314,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredRequests.map((request) => (
+          {filteredRequests.map(request => (
             <Card key={request.id} className="hover:bg-muted/50 transition-colors">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -331,17 +325,11 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">
-                          {request.dog?.name || 'Unknown Dog'}
-                        </span>
+                        <span className="font-medium">{request.dog?.name || 'Unknown Dog'}</span>
                         {request.dog?.call_name && (
-                          <span className="text-muted-foreground">
-                            ({request.dog.call_name})
-                          </span>
+                          <span className="text-muted-foreground">({request.dog.call_name})</span>
                         )}
-                        {request.armband && (
-                          <Badge variant="outline">#{request.armband}</Badge>
-                        )}
+                        {request.armband && <Badge variant="outline">#{request.armband}</Badge>}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Handler: {request.handler || 'Not specified'}
@@ -382,10 +370,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => openApproveDialog(request)}
-                      >
+                      <Button size="sm" onClick={() => openApproveDialog(request)}>
                         <Check className="h-4 w-4 mr-1" />
                         Approve
                       </Button>
@@ -408,13 +393,13 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
       )}
 
       {/* Approve Dialog */}
-      <Dialog open={dialogAction === 'approve'} onOpenChange={(open) => !open && closeDialog()}>
+      <Dialog open={dialogAction === 'approve'} onOpenChange={open => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Approve Move-Up Request</DialogTitle>
             <DialogDescription>
-              Move {selectedRequest?.dog?.name} from{' '}
-              {selectedRequest?.class?.name} to the selected class.
+              Move {selectedRequest?.dog?.name} from {selectedRequest?.class?.name} to the selected
+              class.
             </DialogDescription>
           </DialogHeader>
 
@@ -427,7 +412,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {selectedRequest &&
-                    getAvailableTargetClasses(selectedRequest).map((cls) => (
+                    getAvailableTargetClasses(selectedRequest).map(cls => (
                       <SelectItem key={cls.id} value={cls.id}>
                         <div className="flex items-center justify-between gap-4">
                           <span>
@@ -449,14 +434,13 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
                 <Users className="h-4 w-4" />
                 <AlertDescription>
                   {(() => {
-                    const targetClass = classes.find((c) => c.id === targetClassId);
+                    const targetClass = classes.find(c => c.id === targetClassId);
                     if (!targetClass) return null;
                     return (
                       <>
                         <strong>{targetClass.name}</strong> has{' '}
-                        <strong>{targetClass.available_spots}</strong> spots available
-                        ({targetClass.accepted_count}/
-                        {targetClass.max_entries || '∞'} filled)
+                        <strong>{targetClass.available_spots}</strong> spots available (
+                        {targetClass.accepted_count}/{targetClass.max_entries || '∞'} filled)
                       </>
                     );
                   })()}
@@ -487,13 +471,13 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
       </Dialog>
 
       {/* Deny Dialog */}
-      <Dialog open={dialogAction === 'deny'} onOpenChange={(open) => !open && closeDialog()}>
+      <Dialog open={dialogAction === 'deny'} onOpenChange={open => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Deny Move-Up Request</DialogTitle>
             <DialogDescription>
-              Deny the move-up request for {selectedRequest?.dog?.name}.
-              The exhibitor will be notified.
+              Deny the move-up request for {selectedRequest?.dog?.name}. The exhibitor will be
+              notified.
             </DialogDescription>
           </DialogHeader>
 
@@ -503,7 +487,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
               <Textarea
                 placeholder="Enter a reason for denying this request..."
                 value={denyReason}
-                onChange={(e) => setDenyReason(e.target.value)}
+                onChange={e => setDenyReason(e.target.value)}
                 rows={3}
               />
             </div>
@@ -513,11 +497,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
             <Button variant="outline" onClick={closeDialog} disabled={isProcessing}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeny}
-              disabled={isProcessing}
-            >
+            <Button variant="destructive" onClick={handleDeny} disabled={isProcessing}>
               {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

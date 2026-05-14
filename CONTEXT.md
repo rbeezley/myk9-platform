@@ -27,6 +27,13 @@ location, and one or more Trials. The unit of secretary work.
 A registered canine competitor. A Dog has an owner (Handler or Exhibitor),
 breed, titles, and health records. Dogs are shared across Shows.
 
+**Achievement**
+A title, qualification, or recognition earned by a Dog from a sanctioning
+organization (AKC, UKC, etc.). Records the organization, date earned,
+certificate number, and notes. One Dog has many Achievements; an Achievement
+belongs to exactly one Dog. Distinct from in-progress Entries — an Achievement
+is a permanent record of a result already conferred.
+
 **Handler**
 The person who physically runs a dog in the ring. May be the dog's owner or
 a designated agent. Tracked per Entry.
@@ -67,7 +74,7 @@ Replicated entities (cached in IndexedDB for offline reads): Entry, Class,
 Trial, Dog, Show, Armband.
 
 PostgREST-only entities (online reads): Club, Handler, Exhibitor, Volunteer,
-WaitList, Secretary tasks, Visibility settings.
+WaitList, Secretary tasks, Visibility settings, Achievement.
 
 **Replicated Table Sync**
 The package-owned workflow that keeps a replicated entity's IndexedDB cache,

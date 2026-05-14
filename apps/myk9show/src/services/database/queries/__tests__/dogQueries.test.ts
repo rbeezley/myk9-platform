@@ -9,7 +9,7 @@ import {
   searchDogs,
   searchAllDogs,
   getDogStatistics,
-} from '../dogQueries';
+} from '../../dogs';
 import { mapDogInputToReplicated } from '@/services/mappers/dogMappers';
 import type { DbDogInsert, DbDogUpdate } from '../../../../types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';

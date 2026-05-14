@@ -9,7 +9,7 @@ export interface Show {
   end_date: string | null;
 }
 
-export interface ScratchableEntry {
+export interface DayOfOperationEntry {
   id: string;
   class_id: string | null;
   trial_id: string | null;
@@ -30,6 +30,8 @@ export interface ScratchableEntry {
     trial_id?: string;
   } | null;
 }
+
+export type PullableEntry = DayOfOperationEntry;
 
 export interface DogSearchResult {
   id: string;

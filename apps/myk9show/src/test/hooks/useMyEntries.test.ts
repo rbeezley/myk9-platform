@@ -19,6 +19,8 @@ let mockAuthState = {
   } as Record<string, unknown>,
   isAdmin: false,
   isSecretary: false,
+  loading: false,
+  rbacLoading: false,
   hasRole: (role: string) => role === 'exhibitor',
 };
 
@@ -91,6 +93,8 @@ describe('useMyEntries', () => {
       },
       isAdmin: false,
       isSecretary: false,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'exhibitor',
     };
   });
@@ -123,6 +127,8 @@ describe('useMyEntries', () => {
       userWithRoles: { databaseUserId: 'admin-1', roles: [{ name: 'site_admin' }] },
       isAdmin: true,
       isSecretary: false,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'site_admin',
     };
     mockDogs.push(
@@ -145,6 +151,8 @@ describe('useMyEntries', () => {
       userWithRoles: { databaseUserId: 'sec-1', roles: [{ name: 'secretary' }] },
       isAdmin: false,
       isSecretary: true,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'secretary',
     };
     mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'someone-else' });
@@ -160,6 +168,8 @@ describe('useMyEntries', () => {
       userWithRoles: { databaseUserId: 'ca-1', roles: [{ name: 'club_admin' }] },
       isAdmin: false,
       isSecretary: false,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'club_admin',
     };
     mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'someone-else' });
@@ -304,6 +314,8 @@ describe('useMyEntries', () => {
       userWithRoles: { databaseUserId: undefined, roles: [{ name: 'exhibitor' }] },
       isAdmin: false,
       isSecretary: false,
+      loading: false,
+      rbacLoading: false,
       hasRole: (role: string) => role === 'exhibitor',
     };
     mockDogs.push({ id: 'd1', callName: 'Bella', name: 'Bella', ownerId: 'person-1' });
@@ -311,5 +323,20 @@ describe('useMyEntries', () => {
 
     const { result } = renderHook(() => useMyEntries('show-1'));
     expect(result.current.entries).toHaveLength(0);
+  });
+
+  it('keeps loading while auth is still resolving the database person id', () => {
+    mockAuthState = {
+      userWithRoles: { databaseUserId: undefined, roles: [{ name: 'exhibitor' }] },
+      isAdmin: false,
+      isSecretary: false,
+      loading: true,
+      rbacLoading: false,
+      hasRole: (role: string) => role === 'exhibitor',
+    };
+
+    const { result } = renderHook(() => useMyEntries('show-1'));
+    expect(result.current.entries).toHaveLength(0);
+    expect(result.current.isLoading).toBe(true);
   });
 });

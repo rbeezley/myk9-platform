@@ -37,7 +37,7 @@ function isScored(entry: Pick<SyncableShowEntry, 'status' | 'competitionData'>):
 }
 
 export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
-  const { userWithRoles } = useAuthContext();
+  const { userWithRoles, loading: authLoading, rbacLoading } = useAuthContext();
   // Use a selector so the component re-renders when entries change
   const storeEntries = useEntryStore(s => s.entries);
   const isLoading = useEntryStore(s => s.isLoading);
@@ -50,7 +50,11 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
   return useMemo(() => {
     if (!showId) return { ...EMPTY_RESULT };
     if (!databaseUserId) {
-      return { ...EMPTY_RESULT, isLoading, isError: !!error };
+      return {
+        ...EMPTY_RESULT,
+        isLoading: isLoading || authLoading || rbacLoading,
+        isError: !!error,
+      };
     }
 
     // Get ALL entries for the show (needed for dogsAhead computation)
@@ -112,5 +116,15 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
       isLoading,
       isError: !!error,
     };
-  }, [showId, storeEntries, classes, dogs, databaseUserId, isLoading, error]);
+  }, [
+    showId,
+    storeEntries,
+    classes,
+    dogs,
+    databaseUserId,
+    isLoading,
+    authLoading,
+    rbacLoading,
+    error,
+  ]);
 }

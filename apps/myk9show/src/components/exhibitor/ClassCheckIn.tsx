@@ -141,7 +141,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
   const [handlerChange, setHandlerChange] = useState<string>('');
   const [specialRequests, setSpecialRequests] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showScratchWarning, setShowScratchWarning] = useState(false);
+  const [showPullWarning, setShowPullWarning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOnline] = useState(navigator.onLine);
@@ -169,7 +169,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
   const handleCheckInSelect = (status: 'present' | 'scratch') => {
     setCheckInStatus(status);
     if (status === 'scratch') {
-      setShowScratchWarning(true);
+      setShowPullWarning(true);
     } else {
       setShowConfirmDialog(true);
     }
@@ -516,7 +516,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
       </Dialog>
 
       {/* Pull Warning Dialog */}
-      <Dialog open={showScratchWarning} onOpenChange={setShowScratchWarning}>
+      <Dialog open={showPullWarning} onOpenChange={setShowPullWarning}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Pull</DialogTitle>
@@ -541,7 +541,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             <Button
               variant="outline"
               onClick={() => {
-                setShowScratchWarning(false);
+                setShowPullWarning(false);
                 setCheckInStatus(null);
               }}
               disabled={isSubmitting}
@@ -551,7 +551,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             <Button
               variant="destructive"
               onClick={() => {
-                setShowScratchWarning(false);
+                setShowPullWarning(false);
                 setShowConfirmDialog(true);
               }}
               disabled={isSubmitting}

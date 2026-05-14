@@ -1,8 +1,8 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { MoveUpEntriesTable } from '../MoveUpEntriesTable';
-import type { ScratchableEntry } from '../types';
+import type { DayOfOperationEntry } from '../types';
 
-const mockEntries: ScratchableEntry[] = [
+const mockEntries: DayOfOperationEntry[] = [
   {
     id: 'e1',
     class_id: 'c1',

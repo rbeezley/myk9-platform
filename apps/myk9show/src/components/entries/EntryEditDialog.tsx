@@ -2,7 +2,7 @@
  * Entry Edit Dialog
  *
  * Allows exhibitors to modify their entries before the show's entry deadline.
- * Supports: scratch (withdraw), handler change, jump height change.
+ * Supports: pulling from a class, handler change, jump height change.
  */
 
 import { useState, useEffect } from 'react';
@@ -94,8 +94,8 @@ export function EntryEditDialog({
     Record<string, { jumpHeight?: string; status?: string }>
   >({});
 
-  // Confirm scratch dialog
-  const [scratchDialog, setScratchDialog] = useState<{
+  // Confirm pull dialog
+  const [pullDialog, setPullDialog] = useState<{
     open: boolean;
     classId: string | null;
     className: string | null;
@@ -125,27 +125,27 @@ export function EntryEditDialog({
     }));
   };
 
-  const handleScratchRequest = (classId: string, className: string) => {
-    setScratchDialog({ open: true, classId, className });
+  const handlePullRequest = (classId: string, className: string) => {
+    setPullDialog({ open: true, classId, className });
   };
 
-  const handleConfirmScratch = async () => {
-    if (!scratchDialog.classId) return;
+  const handleConfirmPull = async () => {
+    if (!pullDialog.classId) return;
 
     setIsSaving(true);
     setError(null);
 
     try {
-      const { error } = await withdrawEntry(scratchDialog.classId);
+      const { error } = await withdrawEntry(pullDialog.classId);
 
       if (error) {
         setError('Failed to withdraw from class. Please try again.');
         logger.error('Failed to withdraw class entry:', 'entries', {}, error as Error);
       } else {
-        // Mark as scratched locally
+        // Mark as pulled locally.
         setClassEdits((prev) => ({
           ...prev,
-          [scratchDialog.classId!]: { ...prev[scratchDialog.classId!], status: 'withdrawn' },
+          [pullDialog.classId!]: { ...prev[pullDialog.classId!], status: 'withdrawn' },
         }));
         onUpdate();
       }
@@ -154,7 +154,7 @@ export function EntryEditDialog({
       logger.error('Error withdrawing class entry:', 'entries', {}, err as Error);
     } finally {
       setIsSaving(false);
-      setScratchDialog({ open: false, classId: null, className: null });
+      setPullDialog({ open: false, classId: null, className: null });
     }
   };
 
@@ -278,7 +278,7 @@ export function EntryEditDialog({
 
                 {entry.classes.map((classEntry) => {
                   const status = getClassStatus(classEntry);
-                  const isScratched = status === 'scratched';
+                  const isPulled = status === 'scratched';
                   const currentJumpHeight =
                     classEdits[classEntry.id]?.jumpHeight || classEntry.jumpHeight;
 
@@ -286,7 +286,7 @@ export function EntryEditDialog({
                     <div
                       key={classEntry.id}
                       className={`p-3 rounded-lg border ${
-                        isScratched
+                        isPulled
                           ? 'bg-muted/50 border-muted'
                           : 'bg-card border-border'
                       }`}
@@ -295,7 +295,7 @@ export function EntryEditDialog({
                         <div>
                           <div
                             className={`font-medium ${
-                              isScratched ? 'line-through text-muted-foreground' : ''
+                              isPulled ? 'line-through text-muted-foreground' : ''
                             }`}
                           >
                             {classEntry.name}
@@ -305,14 +305,14 @@ export function EntryEditDialog({
                             ${classEntry.fee.toFixed(2)}
                           </div>
                         </div>
-                        {isScratched ? (
+                        {isPulled ? (
                           <Badge variant="secondary">Pulled</Badge>
                         ) : (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              handleScratchRequest(classEntry.id, classEntry.name)
+                              handlePullRequest(classEntry.id, classEntry.name)
                             }
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
@@ -322,7 +322,7 @@ export function EntryEditDialog({
                         )}
                       </div>
 
-                      {!isScratched && (
+                      {!isPulled && (
                         <div className="mt-3 flex items-center gap-2">
                           <Label
                             htmlFor={`jump-height-${classEntry.id}`}
@@ -388,9 +388,9 @@ export function EntryEditDialog({
 
       {/* Pull Confirmation Dialog */}
       <AlertDialog
-        open={scratchDialog.open}
+        open={pullDialog.open}
         onOpenChange={(open) =>
-          !open && setScratchDialog({ open: false, classId: null, className: null })
+          !open && setPullDialog({ open: false, classId: null, className: null })
         }
       >
         <AlertDialogContent>
@@ -398,14 +398,14 @@ export function EntryEditDialog({
             <AlertDialogTitle>Pull from class?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to withdraw from{' '}
-              <strong>{scratchDialog.className}</strong>? This action cannot be
+              <strong>{pullDialog.className}</strong>? This action cannot be
               undone and the entry fee will not be refunded.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmScratch}
+              onClick={handleConfirmPull}
               disabled={isSaving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

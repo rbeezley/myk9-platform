@@ -30,12 +30,12 @@ import {
   processMoveUp,
   ClassWithCapacity,
 } from '@/services/database/queries/dayOfOperationsQueries';
-import type { ScratchableEntry } from './types';
+import type { DayOfOperationEntry } from './types';
 
 interface MoveUpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  entry: ScratchableEntry | null;
+  entry: DayOfOperationEntry | null;
   classes: ClassWithCapacity[];
   onSuccess: () => void;
 }

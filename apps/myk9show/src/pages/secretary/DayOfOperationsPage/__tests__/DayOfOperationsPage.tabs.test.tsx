@@ -10,7 +10,7 @@ vi.mock('../useDayOfOperationsData', () => ({
     setSelectedShowId: vi.fn(),
     isLoading: false,
     classes: [],
-    scratchableEntries: [],
+    pullableEntries: [],
     moveUpEntries: [],
     loadData: vi.fn(),
   }),

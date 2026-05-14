@@ -90,7 +90,7 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
     breed: entryRegisteredBreed(entry, organization),
     handler: entryHandlerName(entry),
     dogHref: dogId ? `/dogs/${dogId}` : undefined,
-    handlerHref: handlerId ? `/people/${handlerId}` : undefined,
+    handlerHref: handlerId ? `/users/${handlerId}` : undefined,
   };
 }
 

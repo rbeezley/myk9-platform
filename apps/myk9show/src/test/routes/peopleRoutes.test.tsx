@@ -11,7 +11,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import { UserRole } from '@/types/auth-types';
@@ -95,6 +95,7 @@ function renderPeopleRoutes(initialPath: string, mockEmail: string | null = null
           </ProtectedRoute>
         }
       />
+      <Route path="/people/:id" element={<Navigate to="/users/abc-123" replace />} />
     </Routes>,
     { wrapper: Wrapper }
   );
@@ -166,6 +167,11 @@ describe('/users/:id route', () => {
     renderPeopleRoutes('/users/abc-123', null);
     expect(screen.getByTestId('sign-in-page')).toBeInTheDocument();
     expect(screen.queryByTestId('person-page')).not.toBeInTheDocument();
+  });
+
+  it('redirects legacy /people/:id detail links to the user detail route', () => {
+    renderPeopleRoutes('/people/abc-123', SECRETARY_EMAIL);
+    expect(screen.getByTestId('person-page')).toBeInTheDocument();
   });
 });
 

@@ -75,6 +75,11 @@ const ShowEditRedirect = () => {
   return null;
 };
 
+const PeopleDetailRedirect = () => {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? `/users/${id}` : '/people'} replace />;
+};
+
 /** All secretary routes — rendered inside UnifiedAppLayout */
 export const SecretaryRoutes = () => (
   <>
@@ -315,6 +320,7 @@ export const SecretaryRoutes = () => (
       }
     />
     <Route path="/users" element={<Navigate to="/people" replace />} />
+    <Route path="/people/:id" element={<PeopleDetailRedirect />} />
     <Route
       path="/users/:id"
       element={

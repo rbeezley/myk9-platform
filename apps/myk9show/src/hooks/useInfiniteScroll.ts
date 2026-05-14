@@ -165,7 +165,7 @@ export function useInfiniteScroll<T extends { id: string }>(
       log('Page load failed:', pageNumber, errorMessage);
       
       // Auto-retry logic
-      if (autoRetry && state.retryCount < maxRetries) {
+      if (!isBackground && autoRetry && state.retryCount < maxRetries) {
         log('Retrying page load:', pageNumber, 'attempt:', state.retryCount + 1);
         setTimeout(() => {
           loadPageData(pageNumber, true, isBackground);

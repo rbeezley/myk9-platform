@@ -123,4 +123,28 @@ describe('Registration error handling and recovery', () => {
       severity: 'medium',
     });
   });
+
+  it('does not retry when retryable type config only partially matches the error code', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'));
+
+    const result = await new APIErrorInterceptor().interceptRequest({
+      url: '/api/registrations',
+      method: 'POST',
+      body: { showId: 'show-123' },
+      retryConfig: {
+        maxRetries: 2,
+        baseDelay: 0,
+        maxDelay: 0,
+        retryableErrorTypes: ['Error'],
+      },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.retries).toBe(0);
+    expect(result.error).toMatchObject({
+      code: 'NETWORK_ERROR',
+      retryable: true,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

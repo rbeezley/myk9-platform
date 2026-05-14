@@ -114,6 +114,39 @@ describe('useInfiniteScroll performance and caching', () => {
     expect(result.current.items).toHaveLength(20);
   });
 
+  it('does not retry failed background prefetches', async () => {
+    const loadPage = vi.fn(async (page: number, pageSize: number) => {
+      if (page === 2) {
+        throw new Error('prefetch failed');
+      }
+
+      return makeDogPage(page, pageSize);
+    });
+
+    const { result } = renderHook(() =>
+      useInfiniteScroll(loadPage, {
+        pageSize: 10,
+        prefetch: true,
+        enableCache: true,
+        maxRetries: 3,
+      })
+    );
+
+    await waitFor(() => expect(result.current.currentPage).toBe(1));
+    await waitFor(() => expect(loadPage).toHaveBeenCalledWith(2, 10), {
+      timeout: 1000,
+    });
+    await new Promise(resolve => setTimeout(resolve, 1100));
+
+    expect(loadPage).toHaveBeenCalledTimes(2);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(result.current.getCacheStats()).toEqual({
+      cachedPages: 1,
+      totalCachedItems: 10,
+    });
+  });
+
   it('bounds cached registration pages by evicting the oldest page first', async () => {
     const loadPage = vi.fn(async (page: number, pageSize: number) =>
       makeDogPage(page, pageSize)

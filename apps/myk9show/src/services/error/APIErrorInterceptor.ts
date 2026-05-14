@@ -302,8 +302,8 @@ class APIErrorInterceptor {
     // Check if error type is retryable. Codes are stored as constants such as
     // NETWORK_ERROR while config values use class-like names such as NetworkError.
     const normalizedCode = error.code.replace(/[^a-z0-9]/gi, '').toLowerCase();
-    return config.retryableErrorTypes.some(type =>
-      normalizedCode.includes(type.replace(/[^a-z0-9]/gi, '').toLowerCase())
+    return config.retryableErrorTypes.some(
+      type => normalizedCode === type.replace(/[^a-z0-9]/gi, '').toLowerCase()
     );
   }
 

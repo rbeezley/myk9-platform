@@ -23,8 +23,8 @@ export const features = {
   statisticsTab: true,
 
   // Show management — coming soon for exhibitors
-  showRegistration: false,
-  myEntries: false,
+  showRegistration: true,
+  myEntries: true,
   calendar: false,
   showDay: false,
   analytics: false,

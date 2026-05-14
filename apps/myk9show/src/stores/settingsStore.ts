@@ -242,11 +242,11 @@ function applyAccentColor(color: 'clay' | 'grove' | 'dusk' | 'heather') {
 
 /**
  * Initialize settings on app load
- * NOTE: Theme and theme color are initialized by blocking script in index.html
+ * NOTE: Theme and theme color are initialized by blocking script in public/theme-init.js
  */
 export function initializeSettings() {
   const { settings } = useSettingsStore.getState();
-  // Theme already applied by blocking script in index.html
+  // Theme already applied by blocking script in public/theme-init.js
   applyAccentColor(settings.accentColor || 'clay');
   // Listen for system theme changes (for 'auto' mode)
   setupSystemThemeListener();

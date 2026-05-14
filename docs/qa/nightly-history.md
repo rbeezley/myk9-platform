@@ -22,11 +22,11 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 - **Playwright command:** pass
 - **Route sweep:** partial
-- **Active specs:** Vitest 18/18; Playwright 40/40
+- **Active specs:** Vitest 18/18; Playwright 46/46 after cross-role, exhibitor online-entry, and secretary mail-in entry promotion proof
 - **Failures:** none in active Vitest or Playwright Nightly; route sweep could not audit club-admin because the documented local credential failed sign-in, and admin was skipped because no local admin password is configured
-- **Fixes made:** none
-- **Demotions/promotions:** none
-- **Notes:** Ran from clean `main`. Route sweep covered public, secretary, exhibitor, and judge routes at desktop plus 375px mobile with no console errors or owned 4xx/5xx responses on passed routes. Public `/sign-in` and protected `/registration` redirects were treated as expected route behavior, not findings.
+- **Fixes made:** `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts` rewritten from stale all-in-one workflow coverage to focused current role smoke coverage; `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts` rewritten from placeholder coverage to a real online-entry replay with shared writes intercepted; `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts` repaired to cover secretary mail-in person, dog, and dog-registration creation with shared writes intercepted.
+- **Demotions/promotions:** promoted repaired cross-role smoke, exhibitor online-entry replay, and secretary mail-in entry into `Nightly Active`.
+- **Notes:** Ran from clean `main`. Route sweep covered public, secretary, exhibitor, and judge routes at desktop plus 375px mobile with no console errors or owned 4xx/5xx responses on passed routes. Public `/sign-in` and protected `/registration` redirects were treated as expected route behavior, not findings. Later repair proof passed the focused cross-role spec alone (`4 passed`, retries disabled), the focused exhibitor online-entry spec alone (`1 passed`, retries disabled), the focused secretary mail-in entry spec alone (`1 passed`, retries disabled), and the full active Playwright command with the promoted online-entry replay and secretary mail-in entry (`46 passed`, 2.7m, retries disabled).
 
 ### 2026-05-13
 

@@ -83,7 +83,7 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
       case UserRole.CLUB_ADMIN:
         return 'secretary_new'; // Full capabilities
       case UserRole.SECRETARY:
-        return context?.mode === 'secretary_new' ? 'secretary_new' : 'secretary_existing';
+        return 'secretary_new'; // Mail-in entry requires creating offline exhibitors/dogs
       case UserRole.EXHIBITOR:
       default:
         return 'exhibitor';

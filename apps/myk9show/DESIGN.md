@@ -242,7 +242,7 @@ Default fallback (no class on `:root`): teal. CSS selector pattern:
 }
 ```
 
-User selection is persisted to `localStorage` (`myK9Q_settings` key via Zustand persist). The blocking init script in `index.html` reads this to apply the class before first paint, preventing FOUC.
+User selection is persisted to `localStorage` (`myK9Q_settings` key via Zustand persist). The blocking init script loaded from `public/theme-init.js` reads this to apply the class before first paint, preventing FOUC while honoring CSP.
 
 ### Per-Show Branding (Show/Club Data)
 

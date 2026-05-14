@@ -9,6 +9,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User as UserIcon, AlertTriangle, CheckCircle } from 'lucide-react';
 import { User } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
+import { createUser } from '@/services/database/users';
+import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 import { logger } from '@/services/LoggingService';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { commonValidations } from '@/lib/validation';
@@ -63,6 +66,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
   const [activeTab, setActiveTab] = useState<'create' | 'duplicates'>('create');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Mock people data for duplicate detection (in real app, this would come from a store/API)
   const mockUsers: User[] = [
@@ -164,6 +168,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
 
   // Handle form field changes
   const handleFieldChange = (field: keyof ExhibitorFormData, value: string) => {
+    setCreateError(null);
     form.setValue(field, value);
     form.touchField(field);
 
@@ -183,28 +188,39 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   // Handle form submission
   const handleSubmit = form.handleSubmit(async (validatedData: ExhibitorFormData) => {
     setIsCreating(true);
+    setCreateError(null);
     try {
-      // Create new exhibitor
-      const newExhibitor: User = {
-        id: `exhibitor-${Date.now()}`,
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
-        email: validatedData.email,
-        phone: validatedData.phone,
-        streetAddress: validatedData.streetAddress,
-        city: validatedData.city,
-        state: validatedData.state,
-        zipCode: validatedData.zipCode,
-        dogs: [],
-      };
+      const { data, error } = await createUser({
+        first_name: validatedData.firstName,
+        last_name: validatedData.lastName,
+        email: validatedData.email || null,
+        phone: validatedData.phone || null,
+        street_address: validatedData.streetAddress || null,
+        city: validatedData.city || null,
+        state: validatedData.state || null,
+        zip_code: validatedData.zipCode || null,
+      });
 
-      // In real app, this would be an API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (error || !data) {
+        throw new Error(error?.message || 'Unable to create exhibitor.');
+      }
+
+      const newExhibitor: User = {
+        ...mapDatabaseToUser(data as Record<string, unknown>),
+        roles: [UserRole.EXHIBITOR],
+        dogs: [],
+        associatedDogs: [],
+      };
 
       onExhibitorCreated(newExhibitor);
       handleClose();
     } catch (error) {
       logger.error('Error creating exhibitor:', 'shows', {}, error as Error);
+      setCreateError(
+        error instanceof Error
+          ? error.message
+          : 'We could not create that exhibitor. Please try again.'
+      );
     } finally {
       setIsCreating(false);
     }
@@ -215,6 +231,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     form.reset(INITIAL_FORM_DATA);
     setDuplicates([]);
     setActiveTab('create');
+    setCreateError(null);
     onOpenChange(false);
   };
 
@@ -351,6 +368,13 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                   We found {duplicates.length} potential duplicate(s). Please check the "Possible
                   Duplicates" tab to ensure you're not creating a duplicate exhibitor.
                 </AlertDescription>
+              </Alert>
+            )}
+
+            {createError && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{createError}</AlertDescription>
               </Alert>
             )}
           </TabsContent>

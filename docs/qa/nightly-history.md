@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-14
+
+- **Playwright command:** pass
+- **Route sweep:** partial
+- **Active specs:** Vitest 18/18; Playwright 40/40
+- **Failures:** none in active Vitest or Playwright Nightly; route sweep could not audit club-admin because the documented local credential failed sign-in, and admin was skipped because no local admin password is configured
+- **Fixes made:** none
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean `main`. Route sweep covered public, secretary, exhibitor, and judge routes at desktop plus 375px mobile with no console errors or owned 4xx/5xx responses on passed routes. Public `/sign-in` and protected `/registration` redirects were treated as expected route behavior, not findings.
+
 ### 2026-05-13
 
 - **Playwright command:** fail

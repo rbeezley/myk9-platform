@@ -14,13 +14,13 @@ import { test, expect, Page } from '@playwright/test';
  *     (2026-04-26): financial + statistics categories were silently hidden
  *     by the dropdown's category filter.
  *
- * Auth: secretary@myk9t.com / testpass123.
+ * Auth: secretary@myk9t.com / TestPass4567!.
  */
 
 test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_PASSWORD = 'TestPass4567!';
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });

@@ -7,8 +7,8 @@ secretary's Accept / Waitlist / Bulk-email flows.
 
 | Role      | Email                | Password      |
 | --------- | -------------------- | ------------- |
-| Exhibitor | exhibitor1@myk9t.com | TestPass1234! |
-| Secretary | secretary@myk9t.com  | testpass123   |
+| Exhibitor | exhibitor1@myk9t.com | TestPass4567! |
+| Secretary | secretary@myk9t.com  | TestPass4567! |
 
 ## Seeded Show
 
@@ -31,7 +31,7 @@ secretary's Accept / Waitlist / Bulk-email flows.
 
 ## How to Walk the Secretary Accept/Waitlist/Bulk-Email Flows
 
-1. Sign in as `secretary@myk9t.com` / `testpass123`
+1. Sign in as `secretary@myk9t.com` / `TestPass4567!`
 2. Go to **Secretary → Entry Management** (`/secretary/entries`)
 3. Select **QA Walk Show 1777260779 (May 14, 2026)** from the show picker
 4. All 3 entries appear under the **Pending (3)** tab

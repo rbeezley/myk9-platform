@@ -12,7 +12,7 @@ import { test, expect, Page } from '@playwright/test';
 test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_PASSWORD = 'TestPass4567!';
 
 // Seeded "June 2026" AKC Scent Work show.
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';

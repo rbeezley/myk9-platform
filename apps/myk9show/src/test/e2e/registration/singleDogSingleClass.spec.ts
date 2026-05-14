@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_PASSWORD = 'TestPass4567!';
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const DOG_SEARCH = 'Bravo';
 

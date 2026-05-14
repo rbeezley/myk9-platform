@@ -19,13 +19,13 @@ import { test, expect, Page } from '@playwright/test';
  *   trial under the "June 2026 AKC Scent Work" show (same pattern as
  *   trialsUI.spec.ts) so it never mutates the shared fixture.
  *
- * Auth: secretary@myk9t.com / testpass123 (matches clubsUI.spec.ts).
+ * Auth: secretary@myk9t.com / TestPass4567! (matches clubsUI.spec.ts).
  */
 
 test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_PASSWORD = 'TestPass4567!';
 
 const TEST_SHOW_ID = '4ad95cdc-2c04-4386-8e0b-07b9111fcac3'; // Test Golden Path Show
 const TEST_TRIAL_ID = '0c300700-10a6-4a80-9f82-ccd3e6d80f5c'; // Saturday Trial 1

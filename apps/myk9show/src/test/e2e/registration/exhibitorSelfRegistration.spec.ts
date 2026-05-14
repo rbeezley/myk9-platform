@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const EXHIBITOR_EMAIL = 'exhibitor1@myk9t.com';
-const EXHIBITOR_PASSWORD = 'TestPass1234!';
+const EXHIBITOR_PASSWORD = 'TestPass4567!';
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 
 async function signInAsExhibitor(page: Page) {

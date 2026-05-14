@@ -10,13 +10,13 @@ import { test, expect, Page } from '@playwright/test';
  *     classCreationStore → Supabase fix: the page used to render "0 classes"
  *     against any trial not created in the same browser session.
  *
- * Auth: secretary@myk9t.com / testpass123 (matches clubsUI / dogsUI / peopleUI).
+ * Auth: secretary@myk9t.com / TestPass4567! (matches clubsUI / dogsUI / peopleUI).
  */
 
 test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_PASSWORD = 'TestPass4567!';
 const QA_PREMIUM_MONOGRAM_SHOW_ID = '5d8bfe56-a48d-48dd-ae75-7f90c2e02c4f';
 
 async function signIn(page: Page, email: string, password: string) {

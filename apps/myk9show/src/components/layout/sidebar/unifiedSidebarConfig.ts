@@ -125,12 +125,16 @@ export function buildUnifiedSidebarConfig(
 
     // 2. Manage section (secretary / club admin)
     if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
+      const manageDashboardHref = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])
+        ? '/secretary/dashboard'
+        : '/club-admin/members';
+
       groups.push({
         title: 'Manage',
         items: [
           {
             title: 'Dashboard',
-            href: '/secretary/dashboard',
+            href: manageDashboardHref,
             icon: LayoutDashboard,
             description: 'Show management dashboard',
           },
@@ -282,11 +286,13 @@ export function buildUnifiedSidebarConfig(
   // Dashboard href = first role-specific dashboard, or /shows for browse-only
   const dashboardHref = isAdmin
     ? '/admin/dashboard'
-    : isSecretary
+    : hasAnyRole(userRoles, [UserRole.SECRETARY])
       ? '/secretary/dashboard'
-      : hasAnyRole(userRoles, [UserRole.EXHIBITOR])
-        ? '/exhibitor/entries'
-        : '/shows';
+      : hasAnyRole(userRoles, [UserRole.CLUB_ADMIN])
+        ? '/club-admin/members'
+        : hasAnyRole(userRoles, [UserRole.EXHIBITOR])
+          ? '/exhibitor/entries'
+          : '/shows';
 
   return {
     groups,

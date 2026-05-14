@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 export const SECRETARY_USER = {
   email: 'secretary@myk9t.com',
-  password: 'testpass123',
+  password: 'TestPass4567!',
 };
 
 export async function signIn(page: Page, email: string, password: string, returnTo = '/') {

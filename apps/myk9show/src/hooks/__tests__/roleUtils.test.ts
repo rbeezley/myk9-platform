@@ -45,8 +45,8 @@ describe('getDashboardRoute', () => {
     expect(getDashboardRoute([UserRole.SITE_ADMIN])).toBe('/admin/dashboard');
   });
 
-  it('routes CLUB_ADMIN to /secretary/dashboard', () => {
-    expect(getDashboardRoute([UserRole.CLUB_ADMIN])).toBe('/secretary/dashboard');
+  it('routes CLUB_ADMIN to /club-admin/members', () => {
+    expect(getDashboardRoute([UserRole.CLUB_ADMIN])).toBe('/club-admin/members');
   });
 
   it('routes SECRETARY to /secretary/dashboard', () => {
@@ -63,6 +63,12 @@ describe('getDashboardRoute', () => {
 
   it('routes SITE_ADMIN + EXHIBITOR multi-role user to /admin/dashboard', () => {
     expect(getDashboardRoute([UserRole.EXHIBITOR, UserRole.SITE_ADMIN])).toBe('/admin/dashboard');
+  });
+
+  it('routes SECRETARY + CLUB_ADMIN multi-role user to /secretary/dashboard', () => {
+    expect(getDashboardRoute([UserRole.CLUB_ADMIN, UserRole.SECRETARY])).toBe(
+      '/secretary/dashboard'
+    );
   });
 
   it('routes STEWARD (no dedicated dashboard) to /exhibitor/entries fallback', () => {

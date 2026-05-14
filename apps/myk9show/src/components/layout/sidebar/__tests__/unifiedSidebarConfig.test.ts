@@ -72,6 +72,14 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(item?.href).toBe('/secretary/dashboard');
   });
 
+  it('club admin-only manage Dashboard href is /club-admin/members', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.CLUB_ADMIN]);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Dashboard');
+    expect(item?.href).toBe('/club-admin/members');
+    expect(config.dashboardHref).toBe('/club-admin/members');
+  });
+
   it('manage Schedule href is /secretary/run-order', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');

@@ -25,13 +25,13 @@ import { test, expect, Page } from '@playwright/test';
  *   - All cleanup runs in afterEach so the parent show stays tidy even if a
  *     UI flow aborts mid-test.
  *
- * Auth: secretary@myk9t.com / testpass123 (matches clubsUI / dogsUI / peopleUI).
+ * Auth: secretary@myk9t.com / TestPass4567! (matches clubsUI / dogsUI / peopleUI).
  */
 
 test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_PASSWORD = 'TestPass4567!';
 
 const RUN_ID = Date.now();
 

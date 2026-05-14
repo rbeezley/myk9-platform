@@ -14,8 +14,8 @@ import type { Page } from '@playwright/test';
 
 // Test user credentials
 const testUser = {
-  email: 'working-exhibitor@example.com',
-  password: 'testpass123'
+  email: 'exhibitor1@myk9t.com',
+  password: 'TestPass4567!',
 };
 
 // Helper function to login
@@ -62,7 +62,9 @@ test.describe('Shows Page - Collapsible Filter Panel', () => {
     await page.waitForTimeout(300);
 
     // Filter dropdowns should now be visible
-    const disciplineSelect = page.locator('button:has-text("Discipline"), button:has-text("All Disciplines")');
+    const disciplineSelect = page.locator(
+      'button:has-text("Discipline"), button:has-text("All Disciplines")'
+    );
     await expect(disciplineSelect).toBeVisible();
   });
 
@@ -199,14 +201,16 @@ test.describe('Shows Page - View Mode Toggle', () => {
     const _calendarButton = page.locator('button:has-text("Calendar")');
 
     // At least the buttons should exist (text may be hidden on mobile)
-    await expect(gridButton.or(page.locator('button').filter({ has: page.locator('[class*="Grid"]') }))).toBeVisible();
+    await expect(
+      gridButton.or(page.locator('button').filter({ has: page.locator('[class*="Grid"]') }))
+    ).toBeVisible();
   });
 
   test('should switch to list view when clicking List button', async ({ page }) => {
     // Find and click List button (may have text hidden on mobile)
-    const listButton = page.locator('button:has-text("List")').or(
-      page.locator('button').filter({ has: page.locator('svg.lucide-list') })
-    );
+    const listButton = page
+      .locator('button:has-text("List")')
+      .or(page.locator('button').filter({ has: page.locator('svg.lucide-list') }));
     await listButton.first().click();
     await page.waitForTimeout(300);
 
@@ -216,9 +220,9 @@ test.describe('Shows Page - View Mode Toggle', () => {
   });
 
   test('should switch to calendar view when clicking Calendar button', async ({ page }) => {
-    const calendarButton = page.locator('button:has-text("Calendar")').or(
-      page.locator('button').filter({ has: page.locator('svg.lucide-calendar-days') })
-    );
+    const calendarButton = page
+      .locator('button:has-text("Calendar")')
+      .or(page.locator('button').filter({ has: page.locator('svg.lucide-calendar-days') }));
     await calendarButton.first().click();
     await page.waitForTimeout(500);
 
@@ -234,7 +238,10 @@ test.describe('Shows Page - View Mode Toggle', () => {
     await page.waitForLoadState('networkidle');
 
     // Hover over Grid button
-    const gridButton = page.locator('button').filter({ has: page.locator('svg.lucide-grid-3x3') }).first();
+    const gridButton = page
+      .locator('button')
+      .filter({ has: page.locator('svg.lucide-grid-3x3') })
+      .first();
     await gridButton.hover();
 
     // Wait for tooltip to appear
@@ -282,9 +289,7 @@ test.describe('Shows Page - Card Visual Status Cues', () => {
 
     if (await cardTitle.isVisible()) {
       // Get computed style - font-size should be 22px
-      const fontSize = await cardTitle.evaluate(el =>
-        window.getComputedStyle(el).fontSize
-      );
+      const fontSize = await cardTitle.evaluate(el => window.getComputedStyle(el).fontSize);
       expect(fontSize).toBe('22px');
     }
   });
@@ -298,7 +303,9 @@ test.describe('Shows Page - Full Calendar Button', () => {
 
   test('should have Full Calendar button with tooltip', async ({ page }) => {
     // Find the Full Calendar button
-    const calendarLink = page.locator('a:has-text("Full Calendar"), a:has-text("Calendar")').first();
+    const calendarLink = page
+      .locator('a:has-text("Full Calendar"), a:has-text("Calendar")')
+      .first();
     await expect(calendarLink).toBeVisible();
 
     // Hover to see tooltip

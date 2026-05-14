@@ -12,13 +12,13 @@ import { test, expect, Page } from '@playwright/test';
  *     used to be parsed as local time in west-of-UTC zones and shifted the
  *     visible day forward (Apr 26, 2026).
  *
- * Auth: secretary@myk9t.com / testpass123 (matches showsUI.spec.ts).
+ * Auth: secretary@myk9t.com / TestPass4567! (matches showsUI.spec.ts).
  */
 
 test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_PASSWORD = 'TestPass4567!';
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });

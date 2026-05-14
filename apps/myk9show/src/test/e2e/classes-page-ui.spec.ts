@@ -14,13 +14,13 @@ import type { Page } from '@playwright/test';
 
 // Test user credentials
 const testUser = {
-  email: 'working-exhibitor@example.com',
-  password: 'testpass123',
+  email: 'exhibitor1@myk9t.com',
+  password: 'TestPass4567!',
 };
 
 const adminUser = {
-  email: 'working-admin@example.com',
-  password: 'testpass123',
+  email: 'admin@myk9t.com',
+  password: 'TestPass4567!',
 };
 
 // Helper function to login
@@ -94,7 +94,14 @@ test.describe('Classes Page - Status Terminology', () => {
     await page.waitForTimeout(2000);
 
     // Check for valid status values
-    const validStatuses = ['Scheduled', 'Upcoming', 'In Progress', 'Completed', 'Complete', 'Cancelled'];
+    const validStatuses = [
+      'Scheduled',
+      'Upcoming',
+      'In Progress',
+      'Completed',
+      'Complete',
+      'Cancelled',
+    ];
 
     // Look for status badges
     const statusBadges = page.locator('[class*="badge"], [class*="status"]');
@@ -103,7 +110,7 @@ test.describe('Classes Page - Status Terminology', () => {
     for (let i = 0; i < count; i++) {
       const text = await statusBadges.nth(i).textContent();
       if (text) {
-        const hasValidStatus = validStatuses.some((status) => text.includes(status));
+        const hasValidStatus = validStatuses.some(status => text.includes(status));
         if (!hasValidStatus && text.trim().length > 0) {
           // Only fail if it looks like a status but doesn't match
           const looksLikeStatus = /pending|progress|complete|cancel|upcoming|scheduled/i.test(text);
@@ -144,7 +151,9 @@ test.describe('Classes Page - Progress Indicators', () => {
 
       // Look for progress bars (thin horizontal bars)
       // Progress bars may or may not be visible depending on data
-      const _progressBars = page.locator('[class*="rounded-full"][class*="h-1"], [class*="progress"]');
+      const _progressBars = page.locator(
+        '[class*="rounded-full"][class*="h-1"], [class*="progress"]'
+      );
     }
   });
 
@@ -193,7 +202,7 @@ test.describe('Classes Page - Mobile Responsiveness', () => {
 
     // Page should be visible and not have horizontal overflow
     const body = page.locator('body');
-    const bodyWidth = await body.evaluate((el) => el.scrollWidth);
+    const bodyWidth = await body.evaluate(el => el.scrollWidth);
     expect(bodyWidth).toBeLessThanOrEqual(375 + 20); // Allow small margin for scrollbar
   });
 
@@ -206,7 +215,7 @@ test.describe('Classes Page - Mobile Responsiveness', () => {
     // This is a visual check - we verify no horizontal overflow
     const container = page.locator('.container, [class*="container"]').first();
     if ((await container.count()) > 0) {
-      const width = await container.evaluate((el) => el.scrollWidth);
+      const width = await container.evaluate(el => el.scrollWidth);
       expect(width).toBeLessThanOrEqual(375);
     }
   });
@@ -250,7 +259,7 @@ test.describe('Classes Page - Secretary Class Management', () => {
       }
 
       // Should not include "Pending"
-      expect(optionTexts.some((t) => t === 'Pending')).toBeFalsy();
+      expect(optionTexts.some(t => t === 'Pending')).toBeFalsy();
     }
   });
 });
@@ -324,7 +333,9 @@ test.describe('Classes Page - Favorite Button', () => {
 
       // Look for heart icon (favorite button) on class cards
       // Heart buttons should be present on each card
-      const _heartButtons = page.locator('[class*="Heart"], button:has(svg[class*="lucide-heart"])');
+      const _heartButtons = page.locator(
+        '[class*="Heart"], button:has(svg[class*="lucide-heart"])'
+      );
     }
   });
 
@@ -385,7 +396,7 @@ test.describe('Classes Page - Favorite Button', () => {
         // Favorite state should be preserved (stored in localStorage)
         // Check localStorage for favorites
         const favoritesKey = await page.evaluate(() => {
-          return Object.keys(localStorage).find((k) => k.startsWith('myk9show_favorites_'));
+          return Object.keys(localStorage).find(k => k.startsWith('myk9show_favorites_'));
         });
         expect(favoritesKey).toBeTruthy();
       }
@@ -482,7 +493,9 @@ test.describe('Classes Page - Info Popover', () => {
 
         // Popover should contain status label
         // Status label should be present
-        const _statusLabel = page.locator('[role="dialog"] :text("Status"), [data-radix-popper-content-wrapper] :text("Status")');
+        const _statusLabel = page.locator(
+          '[role="dialog"] :text("Status"), [data-radix-popper-content-wrapper] :text("Status")'
+        );
       }
     }
   });

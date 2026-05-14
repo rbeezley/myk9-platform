@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASS = 'testpass123';
+const SECRETARY_PASS = 'TestPass4567!';
 const TEST_SHOW_ID = '4ad95cdc-2c04-4386-8e0b-07b9111fcac3';
 
 async function signInAsSecretary(page: import('@playwright/test').Page) {

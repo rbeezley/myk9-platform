@@ -16,41 +16,65 @@ export interface TestUser {
 export const TEST_USERS: Record<string, TestUser> = {
   SITE_ADMIN: {
     email: process.env.E2E_ADMIN_EMAIL ?? 'admin@myk9t.com',
-    password: process.env.E2E_ADMIN_PASSWORD ?? '',
+    password: process.env.E2E_ADMIN_PASSWORD ?? 'TestPass4567!',
     role: 'site_admin',
-    description: 'Site administrator — set E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD in E2E secrets',
+    description: 'Site administrator — confirmed reset 2026-05-14',
   },
 
   SECRETARY: {
     email: 'secretary@myk9t.com',
-    password: 'testpass123',
+    password: 'TestPass4567!',
     role: 'secretary',
-    description: 'Show secretary — confirmed working 2026-05-02',
+    description: 'Show secretary — confirmed reset 2026-05-14',
   },
 
   JUDGE: {
-    // Password follows the same testpass123 pattern but has not been verified
-    // via automated test. Update description once confirmed.
     email: 'judge@myk9t.com',
-    password: 'testpass123',
+    password: 'TestPass4567!',
     role: 'judge',
-    description: 'Show judge — password unverified, may need reset',
+    description: 'Show judge — confirmed reset 2026-05-14',
   },
 
   CLUB_ADMIN: {
-    // Password follows the same testpass123 pattern but has not been verified
-    // via automated test. Update description once confirmed.
     email: 'club@myk9t.com',
-    password: 'testpass123',
+    password: 'TestPass4567!',
     role: 'club_admin',
-    description: 'Club administrator — password unverified, may need reset',
+    description: 'Club administrator — confirmed reset 2026-05-14',
   },
 
   EXHIBITOR: {
     email: 'exhibitor1@myk9t.com',
-    password: 'TestPass1234!',
+    password: 'TestPass4567!',
     role: 'exhibitor',
-    description: 'Exhibitor (Alice Martin) — confirmed working 2026-05-01',
+    description: 'Exhibitor (Alice Martin) — confirmed reset 2026-05-14',
+  },
+
+  EXHIBITOR_2: {
+    email: 'exhibitor2@myk9t.com',
+    password: 'TestPass4567!',
+    role: 'exhibitor',
+    description: 'Exhibitor test account — confirmed reset 2026-05-14',
+  },
+
+  EXHIBITOR_3: {
+    email: 'exhibitor3@myk9t.com',
+    password: 'TestPass4567!',
+    role: 'exhibitor',
+    description: 'Exhibitor test account — confirmed reset 2026-05-14',
+  },
+
+  EXHIBITOR_4: {
+    email: 'exhibitor4@myk9t.com',
+    password: 'TestPass4567!',
+    role: 'exhibitor',
+    description: 'Exhibitor test account — confirmed reset 2026-05-14',
+  },
+
+  EXHIBITOR_5: {
+    email: 'exhibitor5@myk9t.com',
+    password: 'TestPass4567!',
+    role: 'exhibitor',
+    description: 'Exhibitor test account — confirmed reset 2026-05-14',
   },
 };
 

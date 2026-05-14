@@ -15,8 +15,8 @@ import type { Page } from '@playwright/test';
 
 // Test user credentials
 const testUser = {
-  email: 'working-exhibitor@example.com',
-  password: 'testpass123',
+  email: 'exhibitor1@myk9t.com',
+  password: 'TestPass4567!',
 };
 
 // Helper function to login

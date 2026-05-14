@@ -14,7 +14,7 @@ import { test, expect, Page } from '@playwright/test';
  *     enrollment filed under the dog's owner (not the secretary).
  *   - DB verification that the entry carries a non-zero entry_fee (PR #75).
  *
- * Auth: secretary@myk9t.com / testpass123
+ * Auth: secretary@myk9t.com / TestPass4567!
  *
  * Out of scope (require multi-user / role-swap fixtures):
  *   - currentWorkflowMode reset on role change
@@ -24,7 +24,7 @@ import { test, expect, Page } from '@playwright/test';
 test.describe.configure({ mode: 'serial' });
 
 const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'testpass123';
+const SECRETARY_PASSWORD = 'TestPass4567!';
 
 // Seeded "June 2026" AKC Scent Work show — entry close 2026-06-13.
 // Trial "Saturday Trial 1" with Interior element classes ($30 each).

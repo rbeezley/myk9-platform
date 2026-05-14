@@ -13,7 +13,8 @@ import { test, expect, Page } from '@playwright/test';
  *   - Delete only Club C at the end — Club A and Club B remain in the DB
  *     to provide ongoing test data.
  *
- * Auth: site admin via E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD.
+ * Auth: site admin via E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD, or the shared
+ * admin@myk9t.com / TestPass4567! test account.
  * RLS: create/delete coverage expects a user with the site_admin role.
  */
 
@@ -24,12 +25,11 @@ const CLUB_A_NAME = `E2E Club A ${RUN_ID}`;
 const CLUB_B_NAME = `E2E Club B ${RUN_ID}`;
 const CLUB_C_NAME = `E2E Club C ${RUN_ID}`;
 
-// Admin credentials come from env (.env / .env.local) so they're not committed.
-// Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD to a user with the site_admin role.
+// Admin credentials can come from env, but fall back to the shared dev/staging test account.
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@myk9t.com';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'TestPass4567!';
 const EXHIBITOR_EMAIL = 'exhibitor1@myk9t.com';
-const EXHIBITOR_PASSWORD = 'TestPass1234!';
+const EXHIBITOR_PASSWORD = 'TestPass4567!';
 
 async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });

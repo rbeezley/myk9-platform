@@ -15,22 +15,21 @@ const baseShow = {
 describe('QuickInfoCards', () => {
   it('renders all 4 info items', () => {
     render(<QuickInfoCards show={baseShow} />);
-    expect(screen.getByText('Date')).toBeInTheDocument();
-    expect(screen.getByText('Entry Fee')).toBeInTheDocument();
+    expect(screen.getByText('Entries Close')).toBeInTheDocument();
     expect(screen.getByText('Location')).toBeInTheDocument();
-    expect(screen.getByText('Host Club')).toBeInTheDocument();
+    expect(screen.getByText('Entry Fee')).toBeInTheDocument();
+    expect(screen.getByText('Payment Methods')).toBeInTheDocument();
   });
 
-  it('displays single-day date format', () => {
+  it('displays entry close date', () => {
     render(<QuickInfoCards show={baseShow} />);
-    // Should show a formatted single date (not a range)
-    expect(screen.getByText(/Mar.*21.*2026/)).toBeInTheDocument();
+    expect(screen.getByText('Mar 15')).toBeInTheDocument();
   });
 
-  it('displays multi-day date range', () => {
-    const multiDay = { ...baseShow, endDate: '2026-03-22' };
-    render(<QuickInfoCards show={multiDay as Show} />);
-    expect(screen.getByText(/Mar.*21.*–.*Mar.*22/i)).toBeInTheDocument();
+  it('displays TBD when entry close date is missing', () => {
+    const showWithoutCloseDate = { ...baseShow, entryCloseDate: '' };
+    render(<QuickInfoCards show={showWithoutCloseDate as Show} />);
+    expect(screen.getByText('TBD')).toBeInTheDocument();
   });
 
   it('displays entry fee', () => {
@@ -43,13 +42,25 @@ describe('QuickInfoCards', () => {
     expect(screen.getByText('Olathe, KS')).toBeInTheDocument();
   });
 
-  it('displays club name', () => {
+  it('displays default card payment method', () => {
     render(<QuickInfoCards show={baseShow} />);
-    expect(screen.getByText('Jayhawk Agility Club')).toBeInTheDocument();
+    expect(screen.getByText('Card')).toBeInTheDocument();
   });
 
-  it('shows entry close date as secondary text when entries are open', () => {
+  it('displays optional cash and check payment methods', () => {
+    const showWithOfflinePayments = {
+      ...baseShow,
+      acceptCashPayments: true,
+      acceptCheckPayments: true,
+    };
+    render(<QuickInfoCards show={showWithOfflinePayments as Show} />);
+    expect(screen.getByText('Cash')).toBeInTheDocument();
+    expect(screen.getByText('Check')).toBeInTheDocument();
+  });
+
+  it('hides optional cash and check payment methods by default', () => {
     render(<QuickInfoCards show={baseShow} />);
-    expect(screen.getByText(/entries close/i)).toBeInTheDocument();
+    expect(screen.queryByText('Cash')).not.toBeInTheDocument();
+    expect(screen.queryByText('Check')).not.toBeInTheDocument();
   });
 });

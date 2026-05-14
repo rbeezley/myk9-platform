@@ -32,7 +32,7 @@ export const phase34ValidationReport: Phase34ValidationResult[] = [
     ],
     testFiles: [
       'src/test/services/entries/entryLimitChecker.test.ts',
-      'src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts',
+      'src/test/services/entries/entryLimitChecker.waitlists.test.ts',
       'src/test/integration/phase3-4-waitlist-integration.test.ts'
     ],
     keyFeatures: [
@@ -58,7 +58,7 @@ export const phase34ValidationReport: Phase34ValidationResult[] = [
     ],
     testFiles: [
       'src/test/services/entries/entryLimitChecker.test.ts',
-      'src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts',
+      'src/test/services/entries/entryLimitChecker.waitlists.test.ts',
       'src/test/integration/phase3-4-waitlist-integration.test.ts'
     ],
     keyFeatures: [
@@ -85,7 +85,7 @@ export const phase34ValidationReport: Phase34ValidationResult[] = [
     ],
     testFiles: [
       'src/test/services/entries/entryLimitChecker.test.ts',
-      'src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts',
+      'src/test/services/entries/entryLimitChecker.waitlists.test.ts',
       'src/test/integration/phase3-4-waitlist-integration.test.ts'
     ],
     keyFeatures: [
@@ -110,7 +110,7 @@ export const phase34ValidationReport: Phase34ValidationResult[] = [
       'Maintains transparency in priority handling'
     ],
     testFiles: [
-      'src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts',
+      'src/test/services/entries/entryLimitChecker.waitlists.test.ts',
       'src/test/integration/phase3-4-waitlist-integration.test.ts'
     ],
     keyFeatures: [
@@ -161,7 +161,7 @@ export const phase34ValidationReport: Phase34ValidationResult[] = [
     ],
     testFiles: [
       'src/test/services/entries/entryLimitChecker.test.ts',
-      'src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts'
+      'src/test/services/entries/entryLimitChecker.waitlists.test.ts'
     ],
     keyFeatures: [
       'Multi-level limit coordination',
@@ -186,7 +186,7 @@ export const phase34ValidationReport: Phase34ValidationResult[] = [
     ],
     testFiles: [
       'src/test/services/entries/entryLimitChecker.test.ts',
-      'src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts',
+      'src/test/services/entries/entryLimitChecker.waitlists.test.ts',
       'src/test/integration/phase3-4-waitlist-integration.test.ts'
     ],
     keyFeatures: [
@@ -235,7 +235,7 @@ export const phase34ValidationReport: Phase34ValidationResult[] = [
       'Performance testing validates scalability under load'
     ],
     testFiles: [
-      'src/test/e2e/registration/phase3-4-entry-limits-waitlists.spec.ts',
+      'src/test/services/entries/entryLimitChecker.waitlists.test.ts',
       'src/test/integration/phase3-4-waitlist-integration.test.ts'
     ],
     keyFeatures: [

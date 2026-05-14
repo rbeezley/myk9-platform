@@ -5,7 +5,7 @@
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  */
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import { withReplicationFallback } from '../queries/replicationUtils';
+import { withReplicationFallback } from '../_shared/replication-fallback';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';

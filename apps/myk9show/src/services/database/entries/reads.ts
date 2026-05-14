@@ -6,7 +6,7 @@
  * Mutation functions live in writes.ts and secretary.ts.
  */
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import { withReplicationFallback } from '../queries/replicationUtils';
+import { withReplicationFallback } from '../_shared/replication-fallback';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';

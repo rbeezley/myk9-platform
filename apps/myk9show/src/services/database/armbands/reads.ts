@@ -4,7 +4,7 @@
 // Mutation functions (assignArmband) stay on PostgREST (RPC call — DO NOT CHANGE).
 
 import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
-import { withReplicationFallback } from '../queries/replicationUtils';
+import { withReplicationFallback } from '../_shared/replication-fallback';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { withReplicationFallback } from './replicationUtils';
+import { withReplicationFallback } from './replication-fallback';
 
 // Mock the supabaseClient module so logQuery/createDatabaseError are controllable in tests
 vi.mock('../supabaseClient', () => ({

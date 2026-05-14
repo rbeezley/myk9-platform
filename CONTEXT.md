@@ -112,9 +112,14 @@ Secretary workflows should import Judge-specific reads and writes from
 Cross-cutting helpers that are used by multiple entity modules but aren't
 tied to a single entity live under `services/database/_shared/`. The leading
 underscore signals "infrastructure, not a domain entity" so the directory
-sorts apart from entity folders. Today's content: `maps.ts` (lookup-Map
-builders used by `reads.ts`/`search.ts` across entries, classes, trials,
-shows, and waitlists to avoid N+1 joins).
+sorts apart from entity folders. Today's contents:
+
+- `maps.ts` — lookup-Map builders used by `reads.ts`/`search.ts` across
+  entries, classes, trials, shows, and waitlists to avoid N+1 joins.
+- `replication-fallback.ts` — the `withReplicationFallback` wrapper used by
+  every replicated entity (entries, classes, trials, shows, dogs, armbands)
+  to try the IndexedDB-backed replication store first and fall back to
+  PostgREST on failure.
 
 A helper earns a place in `_shared/` only when more than one entity module
 imports it. Single-caller helpers belong inside the entity module that uses

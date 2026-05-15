@@ -12,6 +12,7 @@
 @import './styles/theme-preferences.css';
 @import './styles/form-field.css';
 @import './styles/legal.css';
+@import './styles/landing.css';
 
 @tailwind base;
 @tailwind components;

@@ -520,14 +520,18 @@ Deno.serve(async (req: Request) => {
         const showStyle = resolveEmailStyle(show.experience_published_style ?? show.style);
         const emailBuilder = selectEmailBuilderKey(showStyle);
 
-        // Mirrors features/premium/pdf/pdfStyles.ts → buildMonogram. Inline because
-        // Deno edge functions cannot import from workspace packages.
-        const monogramLetters = (emailData.clubName || '')
-          .split(/\s+/)
-          .filter(Boolean)
-          .slice(0, 3)
-          .map(w => w[0].toUpperCase())
-          .join('') || '?';
+        // Mirrors apps/myk9show/src/features/monogram/utils/buildMonogram.ts
+        // (canonical app-side helper) and the older premium/pdf/pdfStyles.ts
+        // helper. Inline here because Deno edge functions cannot import from
+        // workspace packages. Keep the three copies semantically aligned.
+        const monogramLetters =
+          (emailData.clubName || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 3)
+            .map(w => w[0]!.toUpperCase())
+            .join('') || '?';
 
         let html: string;
         if (emailBuilder === 'headline') {

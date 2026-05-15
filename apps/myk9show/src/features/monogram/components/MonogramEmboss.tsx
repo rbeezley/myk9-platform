@@ -26,14 +26,17 @@ export interface MonogramEmbossProps {
  * which case `MonogramEmboss` falls back to solid color so the letters
  * remain visible. Mirrors the @supports rule in monogram.css.
  *
- * Returns null on the first render in CSR/SSR to avoid a hydration mismatch;
- * the second render (post-mount) returns the resolved value.
+ * Defaults to `false` (assume unsupported until proven otherwise) so the
+ * first render shows solid letters. Supporting browsers upgrade to embossed
+ * on the next render once the effect runs. The inverse default would briefly
+ * show invisible text on non-supporting browsers (`color: transparent` from
+ * the embossed-paper style block, applied before the fallback kicks in) —
+ * a worse failure mode than a single frame of solid-color flash.
  */
-function useSupportsBackgroundClipText(): boolean | null {
-  const [supports, setSupports] = useState<boolean | null>(null);
+function useSupportsBackgroundClipText(): boolean {
+  const [supports, setSupports] = useState<boolean>(false);
   useEffect(() => {
     if (typeof window === 'undefined' || !window.CSS || !window.CSS.supports) {
-      setSupports(false);
       return;
     }
     setSupports(
@@ -90,7 +93,7 @@ export function MonogramEmboss({
   className,
 }: MonogramEmbossProps): JSX.Element {
   const supportsBackgroundClip = useSupportsBackgroundClipText();
-  const useEmboss = variant === 'embossed' && supportsBackgroundClip !== false;
+  const useEmboss = variant === 'embossed' && supportsBackgroundClip;
 
   const fontFamily = "'Italiana', 'Bodoni Moda', Georgia, serif";
   const baseStyle: React.CSSProperties = {
@@ -108,11 +111,7 @@ export function MonogramEmboss({
     : { color: solidColor };
 
   return (
-    <span
-      aria-hidden={ariaHidden}
-      className={className}
-      style={{ ...baseStyle, ...variantStyle }}
-    >
+    <span aria-hidden={ariaHidden} className={className} style={{ ...baseStyle, ...variantStyle }}>
       {letters || '?'}
     </span>
   );

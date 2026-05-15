@@ -11,6 +11,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { resolveEmailStyle, selectEmailBuilderKey } from './email-style-registry.ts';
 import { buildHeadlineHtml } from './headline-email.ts';
+import { buildMonogramHtml } from './monogram-email.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -518,8 +519,28 @@ Deno.serve(async (req: Request) => {
         };
         const showStyle = resolveEmailStyle(show.experience_published_style ?? show.style);
         const emailBuilder = selectEmailBuilderKey(showStyle);
-        const html =
-          emailBuilder === 'headline' ? buildHeadlineHtml(emailData) : buildHtml(emailData);
+
+        // Mirrors apps/myk9show/src/features/monogram/utils/buildMonogram.ts
+        // (canonical app-side helper) and the older premium/pdf/pdfStyles.ts
+        // helper. Inline here because Deno edge functions cannot import from
+        // workspace packages. Keep the three copies semantically aligned.
+        const monogramLetters =
+          (emailData.clubName || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 3)
+            .map(w => w[0]!.toUpperCase())
+            .join('') || '?';
+
+        let html: string;
+        if (emailBuilder === 'headline') {
+          html = buildHeadlineHtml(emailData);
+        } else if (emailBuilder === 'monogram') {
+          html = buildMonogramHtml({ ...emailData, monogramLetters });
+        } else {
+          html = buildHtml(emailData);
+        }
 
         // Mark pending before send (prevents double-sends on retry)
         await supabase

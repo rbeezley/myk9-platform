@@ -8,7 +8,7 @@ export type EmailStyle =
   | 'fieldGuide'
   | 'heritage';
 
-export type EmailBuilderKey = 'heritage' | 'headline';
+export type EmailBuilderKey = 'heritage' | 'headline' | 'monogram';
 
 export const EMAIL_STYLES: readonly EmailStyle[] = [
   'monogram',
@@ -24,8 +24,8 @@ export const EMAIL_STYLES: readonly EmailStyle[] = [
 const VALID_EMAIL_STYLES = new Set<string>(EMAIL_STYLES);
 
 const STYLE_TO_EMAIL_BUILDER: Record<EmailStyle, EmailBuilderKey> = {
-  monogram: 'heritage',
-  banner: 'heritage',
+  monogram: 'monogram',
+  banner: 'monogram',
   headline: 'headline',
   magazine: 'heritage',
   poster: 'heritage',

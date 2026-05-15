@@ -1,4 +1,4 @@
-import { MonogramSectionFolio } from '../../components/MonogramSectionFolio';
+import { MonogramSectionHead } from '../../components/MonogramSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY } from '../../fonts';
 import { monogramColors } from '../../tokens';
@@ -86,47 +86,18 @@ export function ParticularsSection({
 
   return (
     <section className="mg-section">
-      <header
-        className="mg-section__head"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '80px 1fr',
-          gap: 28,
-          alignItems: 'baseline',
-          marginBottom: 48,
-          paddingBottom: 16,
-          borderBottom: `1px solid ${monogramColors.ink}`,
-        }}
-      >
-        <MonogramSectionFolio numeral="ii" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span
-            style={{
-              fontFamily: MONOGRAM_BODY_FAMILY,
-              fontSize: 11,
-              fontWeight: 500,
-              letterSpacing: '0.32em',
-              textTransform: 'uppercase',
-              color: monogramColors.bronze,
-            }}
-          >
-            Trial particulars
-          </span>
-          <h2
-            style={{
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-              fontSize: 44,
-              letterSpacing: '-0.015em',
-              color: monogramColors.ink,
-              margin: 0,
-              lineHeight: 1.1,
-              fontWeight: 400,
-            }}
-          >
-            All the <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>facts &amp; figures</span>
-          </h2>
-        </div>
-      </header>
+      <MonogramSectionHead
+        numeral="ii"
+        eyebrow="Trial particulars"
+        title={
+          <>
+            All the{' '}
+            <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>
+              facts &amp; figures
+            </span>
+          </>
+        }
+      />
 
       <div
         ref={ref}

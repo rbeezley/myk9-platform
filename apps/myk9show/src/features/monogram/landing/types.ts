@@ -16,6 +16,10 @@ export interface MonogramJudge {
   name: string;
   /** Pre-derived 2-letter initials shown as the bronze portrait monogram. */
   initials: string;
+  /** Uppercase-roman trial numbers this judge is assigned to (e.g. ["I", "III"]).
+   *  Not yet surfaced in the JudgesSection UI; preserved so a future
+   *  "Trials I & III" credential line can read it without re-deriving. */
+  trials: string[];
   /** Trial-panel summary like "Containers · Interiors". */
   credential: string | null;
   /** Optional bio paragraph, displayed below the credential line. */
@@ -47,10 +51,12 @@ export interface MonogramAccommodation {
 export interface MonogramPlanItem {
   /** Small-caps label, e.g. "Doors", "First class". */
   label: string;
-  /** Either a short display value (rendered in Bodoni Moda 18px) or a longer
-   *  body line (rendered in Crimson Pro 15px). The section infers which by
-   *  length — values > 32 chars or containing line breaks render as body. */
+  /** Display value text. */
   value: string;
+  /** When true, render in Crimson Pro 15px (body prose). When false/omitted,
+   *  render in Bodoni Moda 18px (short display value). Callers know which is
+   *  intended; we never guess from string length. */
+  isBody?: boolean;
 }
 
 export interface MonogramLandingData {
@@ -91,8 +97,9 @@ export interface MonogramLandingData {
   // Officers
   officers: MonogramOfficer[];
 
-  // Plan / On-the-day (two-col section folio v)
-  onTheDay: MonogramPlanItem[];
+  // Plan / On-the-day (two-col section folio v). Once the schema grows
+  // structured day-of-event data, add an `onTheDay: MonogramPlanItem[]`
+  // field here and source it from supplemental experience snapshots.
   accommodations: MonogramAccommodation[];
   hospitalityNotes: string | null;
 

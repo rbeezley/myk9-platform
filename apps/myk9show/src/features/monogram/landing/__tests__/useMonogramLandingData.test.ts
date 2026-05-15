@@ -72,6 +72,33 @@ describe('useMonogramLandingData', () => {
     expect(result.current.judges[1]?.initials).toBe('MW');
   });
 
+  it('accumulates uppercase-roman trial numbers per judge across multiple trials', () => {
+    const show = makeShow();
+    const trials: Trial[] = [
+      makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't2', trialNumber: 2, judge: 'Marcus Whitfield' }),
+      makeTrial({ id: 't3', trialNumber: 3, judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't4', trialNumber: 4, judge: 'Catherine Beagles' }),
+    ];
+    const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
+
+    const beagles = result.current.judges.find(j => j.name === 'Catherine Beagles');
+    const whitfield = result.current.judges.find(j => j.name === 'Marcus Whitfield');
+
+    expect(beagles?.trials).toEqual(['I', 'III', 'IV']);
+    expect(whitfield?.trials).toEqual(['II']);
+  });
+
+  it('does not duplicate trial numbers when same trial appears twice for a judge', () => {
+    const show = makeShow();
+    const trials: Trial[] = [
+      makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
+      makeTrial({ id: 't1-dup', trialNumber: 1, judge: 'Catherine Beagles' }),
+    ];
+    const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
+    expect(result.current.judges[0]?.trials).toEqual(['I']);
+  });
+
   it('skips trials with no judge assigned when deriving the judges list', () => {
     const show = makeShow();
     const trials: Trial[] = [

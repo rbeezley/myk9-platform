@@ -1,4 +1,4 @@
-import { MonogramSectionFolio } from '../../components/MonogramSectionFolio';
+import { MonogramSectionHead } from '../../components/MonogramSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY } from '../../fonts';
 import { monogramColors } from '../../tokens';
@@ -39,48 +39,16 @@ export function OfficersSection({ officers, secretaryName, secretaryEmail }: Off
 
   return (
     <section className="mg-section">
-      <header
-        className="mg-section__head"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '80px 1fr',
-          gap: 28,
-          alignItems: 'baseline',
-          marginBottom: 48,
-          paddingBottom: 16,
-          borderBottom: `1px solid ${monogramColors.ink}`,
-        }}
-      >
-        <MonogramSectionFolio numeral="vi" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span
-            style={{
-              fontFamily: MONOGRAM_BODY_FAMILY,
-              fontSize: 11,
-              fontWeight: 500,
-              letterSpacing: '0.32em',
-              textTransform: 'uppercase',
-              color: monogramColors.bronze,
-            }}
-          >
-            The committee
-          </span>
-          <h2
-            style={{
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-              fontSize: 44,
-              letterSpacing: '-0.015em',
-              color: monogramColors.ink,
-              margin: 0,
-              lineHeight: 1.1,
-              fontWeight: 400,
-            }}
-          >
-            Officers <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>&amp;</span>{' '}
-            staff
-          </h2>
-        </div>
-      </header>
+      <MonogramSectionHead
+        numeral="vi"
+        eyebrow="The committee"
+        title={
+          <>
+            Officers{' '}
+            <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>&amp;</span> staff
+          </>
+        }
+      />
 
       <div
         ref={ref}

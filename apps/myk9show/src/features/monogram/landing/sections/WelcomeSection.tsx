@@ -1,5 +1,5 @@
 import { MonogramEmboss } from '../../components/MonogramEmboss';
-import { MonogramSectionFolio } from '../../components/MonogramSectionFolio';
+import { MonogramSectionHead } from '../../components/MonogramSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY, MONOGRAM_MONOGRAM_FAMILY } from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
@@ -9,7 +9,8 @@ interface WelcomeSectionProps {
   trialChairName: string | null;
   monogramLetters: string;
   /** Bronze italic display text shown in the aside card, e.g. a constitution
-   *  quote or club motto. Falls back to a neutral string when null. */
+   *  quote or club motto. When null/empty the aside card is hidden — we do
+   *  not fall back to mock copy. */
   asideQuote?: string | null;
   /** Eyebrow text above the aside quote, e.g. "Established 1947". */
   asideEyebrow?: string | null;
@@ -56,46 +57,29 @@ export function WelcomeSection({
 
   const paragraphs = welcomeText ? welcomeText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean) : [];
   const firstChar = paragraphs[0]?.charAt(0) ?? '';
+  const showAside = !!asideQuote;
 
   return (
     <section className="mg-section mg-welcome-section">
-      <header
-        className="mg-section__head"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '80px 1fr',
-          gap: 28,
-          alignItems: 'baseline',
-          marginBottom: 48,
-          paddingBottom: 16,
-          borderBottom: `1px solid ${monogramColors.ink}`,
-        }}
-      >
-        <MonogramSectionFolio numeral="i" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={SMALLCAPS_BRONZE}>Letter from the chair</span>
-          <h2
-            style={{
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-              fontSize: 44,
-              letterSpacing: '-0.015em',
-              color: monogramColors.ink,
-              margin: 0,
-              lineHeight: 1.1,
-              fontWeight: 400,
-            }}
-          >
-            A welcome <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>to all entrants</span>
-          </h2>
-        </div>
-      </header>
+      <MonogramSectionHead
+        numeral="i"
+        eyebrow="Letter from the chair"
+        title={
+          <>
+            A welcome{' '}
+            <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>
+              to all entrants
+            </span>
+          </>
+        }
+      />
 
       <div
         ref={ref}
         className={`mg-welcome ${revealed ? 'in' : ''}`}
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: showAside ? '1fr 1fr' : '1fr',
           gap: 72,
           alignItems: 'start',
         }}
@@ -161,50 +145,54 @@ export function WelcomeSection({
           )}
         </div>
 
-        <aside
-          className="mg-welcome__card"
-          style={{
-            position: 'relative',
-            padding: '48px 44px',
-            background: monogramColors.paperDeep,
-            border: '1px solid rgba(28, 24, 21, 0.18)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
+        {showAside && (
+          <aside
+            className="mg-welcome__card"
             style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none',
+              position: 'relative',
+              padding: '48px 44px',
+              background: monogramColors.paperDeep,
+              border: '1px solid rgba(28, 24, 21, 0.18)',
+              overflow: 'hidden',
             }}
           >
-            <MonogramEmboss
-              letters={monogramLetters}
-              size={monogramSpacing.cardMonogramSize}
-              variant="embossed"
-              surface="paper"
-            />
-          </div>
-          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-            {asideEyebrow && <div style={{ ...SMALLCAPS_BRONZE, marginBottom: 14 }}>{asideEyebrow}</div>}
-            <p
+            <div
               style={{
-                fontFamily: MONOGRAM_DISPLAY_FAMILY,
-                fontStyle: 'italic',
-                fontSize: 26,
-                lineHeight: 1.4,
-                color: monogramColors.ink,
-                marginBottom: 20,
-                marginTop: 0,
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                pointerEvents: 'none',
               }}
             >
-              {asideQuote ?? '“The point of a trial is the dog and the work.”'}
-            </p>
-            {asideAttribution && <div style={SMALLCAPS_MUTE}>{asideAttribution}</div>}
-          </div>
-        </aside>
+              <MonogramEmboss
+                letters={monogramLetters}
+                size={monogramSpacing.cardMonogramSize}
+                variant="embossed"
+                surface="paper"
+              />
+            </div>
+            <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+              {asideEyebrow && (
+                <div style={{ ...SMALLCAPS_BRONZE, marginBottom: 14 }}>{asideEyebrow}</div>
+              )}
+              <p
+                style={{
+                  fontFamily: MONOGRAM_DISPLAY_FAMILY,
+                  fontStyle: 'italic',
+                  fontSize: 26,
+                  lineHeight: 1.4,
+                  color: monogramColors.ink,
+                  marginBottom: 20,
+                  marginTop: 0,
+                }}
+              >
+                {asideQuote}
+              </p>
+              {asideAttribution && <div style={SMALLCAPS_MUTE}>{asideAttribution}</div>}
+            </div>
+          </aside>
+        )}
       </div>
     </section>
   );

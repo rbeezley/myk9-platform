@@ -115,6 +115,11 @@ vi.mock('@/features/headline/landing/HeadlineLandingPage', () => ({
     <div data-testid="headline-landing">{show.style}</div>
   ),
 }));
+vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
+  MonogramLandingPage: ({ show }: { show: { style?: string | null } }) => (
+    <div data-testid="monogram-landing">{show.style}</div>
+  ),
+}));
 
 // Mock navigation performance
 vi.mock('@/hooks/useNavigationPerformance', () => ({
@@ -505,6 +510,53 @@ describe('ShowDetailsPage', () => {
     renderPage();
 
     expect(screen.getByTestId('headline-landing')).toHaveTextContent('headline');
+  });
+
+  it('renders the Monogram public landing when style is explicit monogram', () => {
+    mockShow = {
+      ...mockShow,
+      style: 'monogram',
+    };
+
+    renderPage();
+
+    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('monogram');
+  });
+
+  it('routes Banner-style shows to the Monogram landing as a visual fallback', () => {
+    mockShow = {
+      ...mockShow,
+      style: 'banner',
+    };
+
+    renderPage();
+
+    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('banner');
+  });
+
+  it('does not render any styled landing for shows with style=null (preserves legacy behavior)', () => {
+    mockShow = {
+      ...mockShow,
+      style: null,
+      landing_style: null,
+    };
+
+    renderPage();
+
+    expect(screen.queryByTestId('monogram-landing')).toBeNull();
+    expect(screen.queryByTestId('heritage-landing')).toBeNull();
+    expect(screen.queryByTestId('headline-landing')).toBeNull();
+  });
+
+  it('does not render any styled landing for shows with style="default"', () => {
+    mockShow = {
+      ...mockShow,
+      style: 'default',
+    };
+
+    renderPage();
+
+    expect(screen.queryByTestId('monogram-landing')).toBeNull();
   });
 
   it('shows success feedback after saving show edits', async () => {

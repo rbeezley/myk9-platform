@@ -33,6 +33,10 @@ export {
   MonogramJudgeCard,
   type MonogramJudgeCardProps,
 } from './components/MonogramJudgeCard';
+export {
+  MonogramSectionHead,
+  type MonogramSectionHeadProps,
+} from './components/MonogramSectionHead';
 
 export { MonogramLandingPage } from './landing/MonogramLandingPage';
 

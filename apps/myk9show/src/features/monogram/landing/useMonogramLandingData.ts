@@ -23,6 +23,25 @@ import type {
   MonogramFee,
 } from './types';
 
+/** Convert a trial number to its uppercase-roman representation. Used to
+ *  build per-judge trial assignment lists ("Trials I & III"). Falls back to
+ *  the input as a string for unparseable values. */
+function toUpperRoman(n: number | string | null | undefined): string {
+  if (n == null) return '';
+  let num = typeof n === 'string' ? parseInt(n, 10) : n;
+  if (isNaN(num) || num <= 0) return String(n);
+  const vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+  const syms = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+  let result = '';
+  for (let i = 0; i < vals.length; i++) {
+    while (num >= vals[i]!) {
+      result += syms[i];
+      num -= vals[i]!;
+    }
+  }
+  return result || String(n);
+}
+
 export function useMonogramLandingData(
   show: Show | null | undefined,
   currentTrial: Trial | null | undefined,
@@ -75,14 +94,24 @@ export function useMonogramLandingData(
 
     // Judges — derive from trials that have a judge field. Initials cap at 2
     // for the 64px portrait slot (the design spec uses CB / MW throughout).
+    // We accumulate uppercase-roman trial numbers per judge so a future
+    // "Trials I & III" credential line can read them without re-deriving.
     const judgeMap = new Map<string, MonogramJudge>();
     trials.forEach(t => {
       if (!t.judgeName) return;
-      if (judgeMap.has(t.judgeName)) return;
+      const roman = toUpperRoman(t.trialNumber);
+      const existing = judgeMap.get(t.judgeName);
+      if (existing) {
+        if (roman && !existing.trials.includes(roman)) {
+          existing.trials.push(roman);
+        }
+        return;
+      }
       judgeMap.set(t.judgeName, {
         id: `judge-${judgeMap.size}`,
         name: t.judgeName,
         initials: buildMonogram(t.judgeName, 2),
+        trials: roman ? [roman] : [],
         credential: null,
         bio: null,
       });
@@ -133,7 +162,6 @@ export function useMonogramLandingData(
       fees,
       officers: [],
 
-      onTheDay: [],
       accommodations: supplemental?.accommodations ?? [],
       hospitalityNotes: supplemental?.hospitalityNotes ?? null,
 

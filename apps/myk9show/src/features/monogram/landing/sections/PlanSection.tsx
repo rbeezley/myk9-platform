@@ -1,12 +1,10 @@
-import { MonogramSectionFolio } from '../../components/MonogramSectionFolio';
+import { MonogramSectionHead } from '../../components/MonogramSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY } from '../../fonts';
 import { monogramColors } from '../../tokens';
 import type { MonogramAccommodation, MonogramPlanItem } from '../types';
 
 interface PlanSectionProps {
-  /** "On the day" list — doors / first class / parking / hospitality. */
-  onTheDay: MonogramPlanItem[];
   accommodations: MonogramAccommodation[];
   hospitalityNotes: string | null;
 }
@@ -21,64 +19,33 @@ interface PlanSectionProps {
  * `value-body` rows (longer text) render in Crimson Pro 15px; short display
  * values render in Bodoni Moda 18px.
  */
-export function PlanSection({ onTheDay, accommodations, hospitalityNotes }: PlanSectionProps) {
+export function PlanSection({ accommodations, hospitalityNotes }: PlanSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
-  const hasOnDay = onTheDay.length > 0 || !!hospitalityNotes;
+  const hasOnDay = !!hospitalityNotes;
   const hasStays = accommodations.length > 0;
   if (!hasOnDay && !hasStays) return null;
 
-  // Inline hospitality into the on-the-day list when present.
-  const onDayItems: MonogramPlanItem[] = [
-    ...onTheDay,
-    ...(hospitalityNotes ? [{ label: 'Hospitality', value: hospitalityNotes }] : []),
-  ];
+  // "On the day" currently surfaces only the hospitality notes field. Once
+  // the schema grows structured day-of-event data, populate this list from
+  // the hook rather than building inline here.
+  const onDayItems: MonogramPlanItem[] = hospitalityNotes
+    ? [{ label: 'Hospitality', value: hospitalityNotes, isBody: true }]
+    : [];
 
   return (
     <section className="mg-section" id="plan">
-      <header
-        className="mg-section__head"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '80px 1fr',
-          gap: 28,
-          alignItems: 'baseline',
-          marginBottom: 48,
-          paddingBottom: 16,
-          borderBottom: `1px solid ${monogramColors.ink}`,
-        }}
-      >
-        <MonogramSectionFolio numeral="v" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span
-            style={{
-              fontFamily: MONOGRAM_BODY_FAMILY,
-              fontSize: 11,
-              fontWeight: 500,
-              letterSpacing: '0.32em',
-              textTransform: 'uppercase',
-              color: monogramColors.bronze,
-            }}
-          >
-            Plan your weekend
-          </span>
-          <h2
-            style={{
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-              fontSize: 44,
-              letterSpacing: '-0.015em',
-              color: monogramColors.ink,
-              margin: 0,
-              lineHeight: 1.1,
-              fontWeight: 400,
-            }}
-          >
+      <MonogramSectionHead
+        numeral="v"
+        eyebrow="Plan your weekend"
+        title={
+          <>
             On the day{' '}
             <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>&amp;</span> getting
             there
-          </h2>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <div
         ref={ref}
@@ -94,13 +61,7 @@ export function PlanSection({ onTheDay, accommodations, hospitalityNotes }: Plan
             <h3 style={columnHeadingStyle}>
               On the <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>day</span>
             </h3>
-            <DefinitionList
-              items={onDayItems.map(item => ({
-                label: item.label,
-                value: item.value,
-                isBody: looksLikeBody(item.value),
-              }))}
-            />
+            <DefinitionList items={onDayItems} />
           </div>
         )}
 
@@ -124,10 +85,6 @@ export function PlanSection({ onTheDay, accommodations, hospitalityNotes }: Plan
   );
 }
 
-function looksLikeBody(value: string): boolean {
-  return value.length > 32 || /[\n.]/.test(value);
-}
-
 function formatAccommodationLine(acc: MonogramAccommodation): string {
   const parts = [acc.type, acc.address, acc.phone].filter(Boolean);
   return parts.join(' · ');
@@ -136,7 +93,7 @@ function formatAccommodationLine(acc: MonogramAccommodation): string {
 interface DefItem {
   label: string;
   value: string;
-  isBody: boolean;
+  isBody?: boolean;
 }
 
 function DefinitionList({ items }: { items: DefItem[] }) {

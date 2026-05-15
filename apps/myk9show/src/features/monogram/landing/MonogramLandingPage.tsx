@@ -95,12 +95,11 @@ export function MonogramLandingPage({ show, trial, allTrials }: MonogramLandingP
           timezone={data.timezone}
         />
 
-        <JudgesSection judges={data.judges} />
+        <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
 
         <RosterSection entryCount={data.entryCount} entryLimit={data.entryLimit} />
 
         <PlanSection
-          onTheDay={data.onTheDay}
           accommodations={data.accommodations}
           hospitalityNotes={data.hospitalityNotes}
         />

@@ -8,8 +8,7 @@ Active work items only. Resolved historical context lives in git history and dat
 
 Heritage and Headline shipped end-to-end. Monogram and Banner are partially shipped — list below tracks the remaining artifacts so deferred work doesn't get lost. Order: finish one style fully before starting the next.
 
-- [ ] **Monogram landing page** ([PR #187](https://github.com/rbeezley/myk9-platform/pull/187) — open, awaiting review) — Public trial detail page in Monogram visual register. Plan: [`docs/plan-monogram-landing.md`](docs/plan-monogram-landing.md). Clones `features/heritage/landing/` shape; reuses `MonogramEmboss` from PR #182; dispatch wired in `apps/myk9show/src/pages/ShowDetailsPage.tsx`.
-- [ ] **Monogram wizard completion + entry-blank PDF** — `MonogramEntryReceived.tsx` + `MonogramEntryBlankDocument.tsx` (@react-pdf). Clone Heritage equivalents. Plan doc TBD when picked up.
+- [ ] **Monogram — landing + wizard + entry-blank PDF** ([PR #187](https://github.com/rbeezley/myk9-platform/pull/187) — open, awaiting review). Bundled close-out for all three remaining Monogram artifacts. Plan: [`docs/plan-monogram-landing.md`](docs/plan-monogram-landing.md). Clones `features/heritage/{landing,wizard,entry-blank}/` shape; reuses Heritage's `buildEntryBlankProps` verbatim as the shared data layer; dispatch wired in `ShowDetailsPage.tsx` (landing) and `WorkflowStepContent.tsx` (wizard).
 - [ ] **Banner email pipeline + primitive** — `BannerFlagBar` primitive, `BannerConfirmationEmail` template, `banner-email.ts` Deno builder, registry update to 4-way dispatch. **Requires migration**: `shows.brand_color text not null default '#0d4d4f'`. Plan: [`docs/plan-banner-style.md`](docs/plan-banner-style.md). Decision log + open-question answers captured in the session transcript.
 - [ ] **Banner landing + wizard + entry-blank PDF** — Full Banner trial experience. Plan doc TBD.
 

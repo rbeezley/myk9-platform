@@ -24,9 +24,6 @@ export function LandingFooter() {
               <li>
                 <a href="#offline">Offline / myK9Q</a>
               </li>
-              <li>
-                <Link to="/pricing">Pricing</Link>
-              </li>
             </ul>
           </div>
           <div>
@@ -49,9 +46,6 @@ export function LandingFooter() {
               </li>
               <li>
                 <Link to="/legal">Legal</Link>
-              </li>
-              <li>
-                <Link to="/sign-in">Early access</Link>
               </li>
             </ul>
           </div>

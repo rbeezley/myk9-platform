@@ -43,7 +43,7 @@ export function LandingHeader({ onJoinWaitlistClick }: LandingHeaderProps) {
         <span className="l-hdr-spacer" />
         <nav className="l-hdr-nav" aria-label="Primary">
           <a href="#features">Features</a>
-          <a href="#offline">Offline</a>
+          <a href="#offline">Ringside</a>
           <a href="#trust">Who we are</a>
         </nav>
         <button type="button" className="l-btn l-btn-ghost" onClick={onJoinWaitlistClick}>

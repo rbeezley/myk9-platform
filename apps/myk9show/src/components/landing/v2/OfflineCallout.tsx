@@ -46,7 +46,7 @@ export function OfflineCallout() {
         <div>
           <span className="l-eyebrow">Offline-first · myK9Q</span>
           <h2>
-            Trial venues have <em>terrible signal.</em> So we built for none.
+            Trial venues have <em>terrible signal.</em> So we built for it.
           </h2>
           <p>
             Judges score in the ring on their own device. Exhibitors check their armband and
@@ -56,7 +56,7 @@ export function OfflineCallout() {
           <ul className="l-checks">
             <li>
               <Check width={18} height={18} strokeWidth={2.5} aria-hidden="true" />
-              Score, check-in, and place from the ring — fully offline.
+              Score from the ring without signal — sync resumes when LTE returns.
             </li>
             <li>
               <Check width={18} height={18} strokeWidth={2.5} aria-hidden="true" />

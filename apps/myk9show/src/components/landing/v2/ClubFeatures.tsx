@@ -17,9 +17,9 @@ const CARDS: FeatureCard[] = [
         Offline-first <em>ringside.</em>
       </>
     ),
-    body: 'Set the trial up online. Run trial day offline on any phone or tablet. Sync the moment signal returns — never lose a score because the venue Wi-Fi died.',
+    body: 'Set the trial up online. Judges score at the ring even when signal is weak or gone. Scores sync to your laptop the moment LTE returns — no lost work when the venue Wi-Fi dies.',
     footLeft: 'PWA · local-first',
-    badge: 'No internet required',
+    badge: 'Ringside-resilient',
   },
   {
     icon: <Clock width={20} height={20} />,

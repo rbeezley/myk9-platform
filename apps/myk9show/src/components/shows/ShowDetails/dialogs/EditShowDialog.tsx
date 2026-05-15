@@ -18,7 +18,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { ShowJudgeAssignment } from '@/types/judge-types';
 import { logger } from '@/services/LoggingService';
-import { untypedFrom } from '@/services/database/queries/search-query-helpers';
+import { untypedFrom } from '@/services/database/_shared/untyped-from';
 
 export interface ShowFormData {
   name: string;

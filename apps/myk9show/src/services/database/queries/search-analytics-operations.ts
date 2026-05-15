@@ -11,7 +11,8 @@ import type {
   SearchPeriod
 } from '../../../types/search-analytics';
 import { searchPerformanceQueries } from './search-performance-queries';
-import { untypedFrom, type SearchAnalyticsRow } from './search-query-helpers';
+import { untypedFrom } from '../_shared/untyped-from';
+import { type SearchAnalyticsRow } from './search-query-helpers';
 
 // Row shape for the partial select on search_history used by history stats
 interface HistoryStatsRow {

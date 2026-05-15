@@ -15,7 +15,8 @@ import type {
   SearchPeriod
 } from '../../../types/search-analytics';
 import { searchAnalyticsMappers } from '../../mappers/searchMappers';
-import { untypedFrom, type SearchHistoryRow } from './search-query-helpers';
+import { untypedFrom } from '../_shared/untyped-from';
+import { type SearchHistoryRow } from './search-query-helpers';
 
 export const searchAnalyticsQueries = {
   // Create new analytics entry

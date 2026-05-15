@@ -15,7 +15,7 @@ import {
   JudgeQualificationFilters,
   JudgeQualificationSummary,
 } from '../../../types/judge-management';
-import { untypedFrom } from '../queries/search-query-helpers';
+import { untypedFrom } from '../_shared/untyped-from';
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import type { DbJudgeAvailability } from '@/types/database-mappings';
 

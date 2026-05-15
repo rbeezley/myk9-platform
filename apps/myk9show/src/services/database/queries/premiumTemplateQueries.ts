@@ -11,7 +11,7 @@ import type {
   PremiumGeneration,
   PremiumStyle,
 } from '../../../types/premium-types';
-import { untypedFrom } from './search-query-helpers';
+import { untypedFrom } from '../_shared/untyped-from';
 
 // ── table accessors ───────────────────────────────────────────────────────────
 

@@ -143,6 +143,11 @@ sorts apart from entity folders. Today's contents:
   every replicated entity (entries, classes, trials, shows, dogs, armbands)
   to try the IndexedDB-backed replication store first and fall back to
   PostgREST on failure.
+- `untyped-from.ts` — the `untypedFrom(table)` escape hatch for Supabase
+  tables not yet in the generated Database type. Used by judges, the
+  premium-template workflow, the search cluster, and the EditShowDialog.
+  Callers should switch back to typed `supabase.from(...)` once the table
+  joins the generated types.
 
 A helper earns a place in `_shared/` only when more than one entity module
 imports it. Single-caller helpers belong inside the entity module that uses

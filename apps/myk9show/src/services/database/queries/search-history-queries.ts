@@ -13,7 +13,8 @@ import type {
   SearchHistoryFilters,
 } from '../../../types/search-analytics';
 import { searchHistoryMappers } from '../../mappers/searchMappers';
-import { untypedFrom, type SearchHistoryRow } from './search-query-helpers';
+import { untypedFrom } from '../_shared/untyped-from';
+import { type SearchHistoryRow } from './search-query-helpers';
 
 export const searchHistoryQueries = {
   // Create new search history entry

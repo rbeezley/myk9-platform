@@ -1,13 +1,11 @@
 /**
  * Search Query Helpers
  *
- * Shared row type interfaces and utility functions for the search query modules.
- * The search_history and search_analytics tables are not yet included in the
- * generated Supabase Database type definition, so we define runtime row types
- * here and provide an `untypedFrom` helper that bypasses the typed `.from()`.
+ * Shared row type interfaces for the search query modules. The search_history
+ * and search_analytics tables are not yet included in the generated Supabase
+ * Database type definition, so runtime row types live here. The `untypedFrom`
+ * escape hatch they use lives in `_shared/untyped-from.ts` (cross-cutting).
  */
-
-import { supabase } from '../supabaseClient';
 
 // ---------------------------------------------------------------------------
 // Row types for tables missing from the generated Supabase schema
@@ -51,18 +49,3 @@ export interface SearchAnalyticsRow {
   created_at?: string;
   updated_at?: string;
 }
-
-// ---------------------------------------------------------------------------
-// Helper to bypass the typed Supabase `.from()` for tables not in the schema
-// ---------------------------------------------------------------------------
-
-/**
- * Query a table that is not yet in the generated Supabase Database type.
- * These tables exist at runtime but are absent from the type definition.
- *
- * Uses `unknown` cast to bypass the strict `.from()` overloads while still
- * returning a chainable Postgrest query builder at runtime.
- */
-export const untypedFrom = (table: string) =>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentional escape hatch for tables not in generated types
-  (supabase as unknown as { from(t: string): any }).from(table);

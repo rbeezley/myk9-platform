@@ -31,3 +31,10 @@ export {
   type BannerFlagBarProps,
   type BannerFlagBarVariant,
 } from './components/BannerFlagBar';
+
+export {
+  BannerSectionHead,
+  type BannerSectionHeadProps,
+} from './components/BannerSectionHead';
+
+export { BannerLandingPage } from './landing/BannerLandingPage';

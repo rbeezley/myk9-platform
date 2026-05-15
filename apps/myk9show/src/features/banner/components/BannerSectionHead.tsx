@@ -1,5 +1,5 @@
 import { type JSX, type ReactNode } from 'react';
-import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../fonts';
+import { BANNER_DISPLAY_FAMILY } from '../fonts';
 import { bannerColors } from '../tokens';
 
 export interface BannerSectionHeadProps {

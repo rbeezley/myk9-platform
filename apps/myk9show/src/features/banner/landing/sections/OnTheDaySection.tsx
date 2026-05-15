@@ -1,3 +1,4 @@
+import { BannerContentRow } from '../../components/BannerContentRow';
 import { BannerSectionHead } from '../../components/BannerSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { BANNER_BODY_FAMILY } from '../../fonts';
@@ -34,52 +35,45 @@ export function OnTheDaySection({ items, hospitalityNotes, flag }: OnTheDaySecti
         Doors <span style={{ color: flag }}>open.</span>
       </BannerSectionHead>
 
-      <div
-        ref={ref}
-        className={`bn-reveal ${revealed ? 'in' : ''}`}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '240px 1fr',
-          gap: 32,
-        }}
-      >
-        <div />
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '24px 48px',
-          }}
-        >
-          {all.map((item, i) => (
-            <div key={`${item.label}-${i}`}>
-              <div
-                style={{
-                  fontFamily: BANNER_BODY_FAMILY,
-                  fontWeight: 500,
-                  fontSize: 10,
-                  letterSpacing: '0.28em',
-                  textTransform: 'uppercase',
-                  color: bannerColors.mute,
-                  marginBottom: 6,
-                }}
-              >
-                {item.label}
+      <div ref={ref} className={`bn-reveal ${revealed ? 'in' : ''}`}>
+        <BannerContentRow>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '24px 48px',
+            }}
+          >
+            {all.map((item, i) => (
+              <div key={`${item.label}-${i}`}>
+                <div
+                  style={{
+                    fontFamily: BANNER_BODY_FAMILY,
+                    fontWeight: 500,
+                    fontSize: 10,
+                    letterSpacing: '0.28em',
+                    textTransform: 'uppercase',
+                    color: bannerColors.mute,
+                    marginBottom: 6,
+                  }}
+                >
+                  {item.label}
+                </div>
+                <div
+                  style={{
+                    fontFamily: BANNER_BODY_FAMILY,
+                    fontSize: 15,
+                    lineHeight: 1.55,
+                    color: bannerColors.soft,
+                    whiteSpace: 'pre-line',
+                  }}
+                >
+                  {item.value}
+                </div>
               </div>
-              <div
-                style={{
-                  fontFamily: BANNER_BODY_FAMILY,
-                  fontSize: 15,
-                  lineHeight: 1.55,
-                  color: bannerColors.soft,
-                  whiteSpace: 'pre-line',
-                }}
-              >
-                {item.value}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </BannerContentRow>
       </div>
     </section>
   );

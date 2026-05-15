@@ -540,12 +540,14 @@ Deno.serve(async (req: Request) => {
         } else if (emailBuilder === 'monogram') {
           html = buildMonogramHtml({ ...emailData, monogramLetters });
         } else if (emailBuilder === 'banner') {
-          // brand_color may be `undefined` if the column hasn't been migrated
-          // yet — the Banner builder validates the hex and falls back to deep
-          // teal so an unmigrated row still renders cleanly.
+          // Migration 20260515212527 added shows.brand_color with a
+          // NOT NULL default, so rows should always have a value. The
+          // builder still validates the hex and falls back to deep teal
+          // defensively.
+          const brandColor = (show as Record<string, unknown>).brand_color;
           html = buildBannerHtml({
             ...emailData,
-            brandColor: (show as { brand_color?: string | null }).brand_color ?? '#0d4d4f',
+            brandColor: typeof brandColor === 'string' ? brandColor : '#0d4d4f',
           });
         } else {
           html = buildHtml(emailData);

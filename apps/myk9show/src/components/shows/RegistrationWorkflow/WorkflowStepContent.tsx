@@ -126,9 +126,10 @@ export function WorkflowStepContent({
 
     return {
       style,
-      // brand_color flows through for Banner shows. May be undefined on
-      // unmigrated rows — BannerEntryReceived defaults to deep teal.
-      brandColor: (currentShow as { brand_color?: string | null } | undefined)?.brand_color ?? null,
+      // brand_color flows through for Banner shows. May be null on shows
+      // that haven't picked one (the DB default is enforced for new rows,
+      // so this is mostly defensive against pre-migration rows).
+      brandColor: currentShow?.brand_color ?? null,
       showName: currentShow?.name ?? '',
       clubName: currentShow?.clubName ?? currentShow?.name ?? '',
       dateRange: currentShow?.startDate

@@ -43,21 +43,27 @@ export function JudgesSection({ judges, trialsCount, flag }: JudgesSectionProps)
           borderTop: `2px solid ${bannerColors.ink}`,
         }}
       >
-        {judges.map((j, i) => (
-          <article
-            key={j.id}
-            style={{
-              padding: '40px 32px 40px 0',
-              borderRight:
-                i % 2 === 0 && i !== judges.length - 1
-                  ? `1px solid ${bannerColors.hair}`
-                  : 'none',
-              borderBottom:
-                i < judges.length - 2 ? `1px solid ${bannerColors.hair}` : 'none',
-              paddingLeft: i % 2 === 1 ? 32 : 0,
-              paddingRight: i % 2 === 0 ? 32 : 0,
-            }}
-          >
+        {judges.map((j, i) => {
+          // Determine "last row" for an N-column grid where N=2. With an even
+          // judge count, the last 2 cards are the bottom row; with odd, only
+          // the last card is. We use that to drop the bottom border so the
+          // outer rule doubles instead of stacking with an inner hairline.
+          const lastRowSize = judges.length % 2 === 0 ? 2 : 1;
+          const isLastRow = i >= judges.length - lastRowSize;
+          return (
+            <article
+              key={j.id}
+              style={{
+                padding: '40px 32px 40px 0',
+                borderRight:
+                  i % 2 === 0 && i !== judges.length - 1
+                    ? `1px solid ${bannerColors.hair}`
+                    : 'none',
+                borderBottom: isLastRow ? 'none' : `1px solid ${bannerColors.hair}`,
+                paddingLeft: i % 2 === 1 ? 32 : 0,
+                paddingRight: i % 2 === 0 ? 32 : 0,
+              }}
+            >
             {j.trialsLabel && (
               <div
                 style={{
@@ -138,8 +144,9 @@ export function JudgesSection({ judges, trialsCount, flag }: JudgesSectionProps)
                 {j.bio}
               </p>
             )}
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
     </section>
   );

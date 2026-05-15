@@ -9,6 +9,10 @@ interface FinalFlagBandProps {
   entryWizardUrl: string;
   entryCloseDate: string | null;
   timezone: string;
+  /** Prefix copy before the colored accent word. Default: "See you". */
+  closingLead?: string;
+  /** Colored accent word inside the final headline. Default: "ringside". */
+  closingAccent?: string;
 }
 
 export function FinalFlagBand({
@@ -16,6 +20,8 @@ export function FinalFlagBand({
   entryWizardUrl,
   entryCloseDate,
   timezone,
+  closingLead = 'See you',
+  closingAccent = 'ringside',
 }: FinalFlagBandProps) {
   const closesLabel = entryCloseDate ? formatDateInTimezone(entryCloseDate, timezone, 'long') : null;
 
@@ -54,7 +60,8 @@ export function FinalFlagBand({
             maxWidth: 900,
           }}
         >
-          See you <span style={{ color: brandColors.flagBright }}>ringside.</span>
+          {closingLead}{' '}
+          <span style={{ color: brandColors.flagBright }}>{closingAccent}.</span>
         </h2>
         <a
           href={entryWizardUrl}

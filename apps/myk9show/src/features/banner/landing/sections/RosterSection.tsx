@@ -1,3 +1,4 @@
+import { BannerContentRow } from '../../components/BannerContentRow';
 import { BannerSectionHead } from '../../components/BannerSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
@@ -36,15 +37,8 @@ export function RosterSection({ entryCount, entryLimit, flag, flagBright }: Rost
         <div
           ref={ref}
           className={`bn-reveal bn-capacity ${revealed ? 'in' : ''}`}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '240px 1fr',
-            gap: 32,
-            alignItems: 'baseline',
-          }}
         >
-          <div />
-          <div>
+          <BannerContentRow>
             <div
               style={{
                 fontFamily: BANNER_DISPLAY_FAMILY,
@@ -111,7 +105,7 @@ export function RosterSection({ entryCount, entryLimit, flag, flagBright }: Rost
                 />
               </div>
             )}
-          </div>
+          </BannerContentRow>
         </div>
       </div>
     </section>

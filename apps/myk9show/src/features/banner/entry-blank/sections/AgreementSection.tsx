@@ -1,5 +1,5 @@
 import { Text, View } from '@react-pdf/renderer';
-import { BODY, HAIR, INK, MUTE, PAPER_WARM, SectionHeader } from './pdfPrimitives';
+import { BODY, INK, MUTE, PAPER_WARM, SectionHeader } from './pdfPrimitives';
 
 export function AgreementSection({
   agreementText,
@@ -72,10 +72,6 @@ export function AgreementSection({
         </View>
       </View>
 
-      {/* HAIR is imported for parity with Heritage but unused here — Banner
-       *  uses borderTop on flag-color rules instead of hairlines for these
-       *  blocks. Suppress unused-import via a no-op view. */}
-      <View style={{ display: 'none', borderColor: HAIR }} />
     </View>
   );
 }

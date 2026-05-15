@@ -1,3 +1,4 @@
+import { BannerContentRow } from '../../components/BannerContentRow';
 import { BannerSectionHead } from '../../components/BannerSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
@@ -31,17 +32,9 @@ export function PlanSection({ accommodations, flag }: PlanSectionProps) {
         Where <span style={{ color: flag }}>to stay.</span>
       </BannerSectionHead>
 
-      <div
-        ref={ref}
-        className={`bn-reveal ${revealed ? 'in' : ''}`}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '240px 1fr',
-          gap: 32,
-        }}
-      >
-        <div />
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+      <div ref={ref} className={`bn-reveal ${revealed ? 'in' : ''}`}>
+        <BannerContentRow>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {accommodations.map((acc, i) => (
             <li
               key={`${acc.name}-${i}`}
@@ -79,6 +72,7 @@ export function PlanSection({ accommodations, flag }: PlanSectionProps) {
             </li>
           ))}
         </ul>
+        </BannerContentRow>
       </div>
     </section>
   );

@@ -81,9 +81,13 @@
     padding-left: 24px !important;
     padding-right: 24px !important;
   }
-  [data-banner] .bn-section-head {
+  [data-banner] .bn-section-head,
+  [data-banner] .bn-content-row {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
+  }
+  [data-banner] .bn-content-row > [aria-hidden] {
+    display: none;
   }
   [data-banner] .bn-twocol {
     grid-template-columns: 1fr !important;

@@ -29,7 +29,7 @@ function pad2(n: number | string): string {
 }
 
 export function useBannerLandingData(
-  show: (Show & { brand_color?: string | null }) | null | undefined,
+  show: Show | null | undefined,
   currentTrial: Trial | null | undefined,
   allTrials: Trial[]
 ): BannerLandingData {

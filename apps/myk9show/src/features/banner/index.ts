@@ -37,6 +37,11 @@ export {
   type BannerSectionHeadProps,
 } from './components/BannerSectionHead';
 
+export {
+  BannerContentRow,
+  type BannerContentRowProps,
+} from './components/BannerContentRow';
+
 export { BannerLandingPage } from './landing/BannerLandingPage';
 export { BannerEntryReceived, type BannerEntryReceivedProps } from './wizard/BannerEntryReceived';
 export {

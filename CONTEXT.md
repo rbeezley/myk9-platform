@@ -130,6 +130,17 @@ manage that club's Shows). The same Person can hold any combination of
 the three roles. Distinct from Club itself (the organization) — this
 entity is about who's in it.
 
+**Training Record**
+A Dog's training log, spanning three sub-tables: journal entries
+(`training_journal_entries` — per-session notes), goals
+(`training_goals` — open-ended objectives), and training milestones
+(`training_milestones` — dated achievements within the training journey).
+Distinct from the User-platform `milestones/` canonical, which covers
+account-level milestones like first signup or first show; training
+milestones live per-Dog and represent learning checkpoints. Function
+names are entity-prefixed (`getAllTrainingMilestones` not
+`getAllMilestones`) so grep doesn't conflate the two domains.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under

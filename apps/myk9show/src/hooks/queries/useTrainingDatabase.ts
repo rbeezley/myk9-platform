@@ -9,11 +9,11 @@ import {
   getAllTrainingGoals,
   createTrainingGoal,
   updateTrainingGoal,
-  getAllMilestones,
-  createMilestone,
-  updateMilestone,
-  deleteMilestone,
-} from '@/services/database/queries/trainingQueries';
+  getAllTrainingMilestones,
+  createTrainingMilestone,
+  updateTrainingMilestone,
+  deleteTrainingMilestone,
+} from '@/services/database/training';
 import {
   mapDbTrainingEntryToApp,
   mapAppTrainingEntryToDbInsert,
@@ -108,7 +108,7 @@ export const useMilestonesQuery = (dogId?: string) => {
   return useQuery({
     queryKey: dogId ? trainingQueryKeys.dogMilestones(dogId) : trainingQueryKeys.milestones(),
     queryFn: async () => {
-      const { data, error } = await getAllMilestones(dogId);
+      const { data, error } = await getAllTrainingMilestones(dogId);
       if (error) throw error;
       return data?.map(mapDbMilestoneToApp) || [];
     },
@@ -235,7 +235,7 @@ export const useCreateMilestoneMutation = () => {
   return useMutation({
     mutationFn: async (milestone: Omit<TrainingMilestone, 'id' | 'created_at' | 'updated_at'>) => {
       const dbInsert = mapAppMilestoneToDbInsert(milestone);
-      const { data, error } = await createMilestone(dbInsert);
+      const { data, error } = await createTrainingMilestone(dbInsert);
       if (error) throw error;
       return data ? mapDbMilestoneToApp(data) : null;
     },
@@ -254,7 +254,7 @@ export const useUpdateMilestoneMutation = () => {
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<TrainingMilestone> }) => {
       const dbUpdate = mapAppMilestoneToDbUpdate(updates);
-      const { data, error } = await updateMilestone(id, dbUpdate);
+      const { data, error } = await updateTrainingMilestone(id, dbUpdate);
       if (error) throw error;
       return data ? mapDbMilestoneToApp(data) : null;
     },
@@ -273,7 +273,7 @@ export const useDeleteMilestoneMutation = () => {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await deleteMilestone(id);
+      const { error } = await deleteTrainingMilestone(id);
       if (error) throw error;
       return id;
     },

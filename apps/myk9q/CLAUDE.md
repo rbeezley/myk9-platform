@@ -120,6 +120,12 @@ Reusable dialogs in `src/components/dialogs/`:
 - Mobile-first: base styles are mobile, enhance with `@media (min-width: 640px)`
 - See `docs/CSS_ARCHITECTURE.md` for details
 
+### PWA Updates
+
+Both apps use `@myk9/pwa-update` for the prompt-then-skip-waiting pattern. **Do not switch `registerType` to `'autoUpdate'`** — it activates new SWs immediately, which causes (1) chunk-load errors when a user has multiple tabs open across a deploy, and (2) mid-session interruption of scoring. The prompt pattern is deliberate. See `packages/pwa-update/README.md` and `docs/plan-pwa-update-flow.md`.
+
+myK9Q-specific: scoresheets defer the update toast via `isOnScoresheet()` in `main.tsx`. If you add a new sensitive route (mid-action, can't safely reload), add it there.
+
 ## File Structure
 
 ```

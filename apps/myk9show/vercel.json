@@ -68,7 +68,16 @@
       ]
     },
     {
-      "source": "/sw.js",
+      "source": "/(sw|sw-custom|registerSW)\\.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/workbox-(.*)\\.js",
       "headers": [
         {
           "key": "Cache-Control",

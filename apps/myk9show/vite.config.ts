@@ -8,6 +8,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     react(),
     saveTemplatesPlugin() as PluginOption,
@@ -16,7 +19,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw-custom.ts',
-      injectRegister: null,
+      registerType: 'prompt',
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit for large chunks
@@ -73,8 +76,8 @@ export default defineConfig({
     }) as PluginOption,
   ],
   optimizeDeps: {
-    exclude: ['workbox-window'], // Removed lucide-react - it breaks production build
     include: [
+      'workbox-window',
       'react',
       'react-dom',
       'react-dom/client',

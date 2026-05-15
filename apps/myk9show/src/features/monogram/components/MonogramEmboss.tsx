@@ -39,8 +39,8 @@ function useSupportsBackgroundClipText(): boolean {
   }
 
   return (
-      window.CSS.supports('-webkit-background-clip', 'text') ||
-        window.CSS.supports('background-clip', 'text')
+    window.CSS.supports('-webkit-background-clip', 'text') ||
+    window.CSS.supports('background-clip', 'text')
   );
 }
 

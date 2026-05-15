@@ -116,6 +116,10 @@ export interface Show {
   experiencePublishedStyle?: string | null;
   experiencePublishedContent?: ShowExperienceSnapshot | null;
 
+  // Banner per-club brand color (migration 20260515212527). Hex; default is
+  // deep teal `#0d4d4f` enforced by DB default. Other styles ignore this.
+  brand_color?: string | null;
+
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
   _lastModified?: Date | undefined;

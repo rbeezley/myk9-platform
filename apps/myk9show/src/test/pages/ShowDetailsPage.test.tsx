@@ -120,6 +120,11 @@ vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
     <div data-testid="monogram-landing">{show.style}</div>
   ),
 }));
+vi.mock('@/features/banner/landing/BannerLandingPage', () => ({
+  BannerLandingPage: ({ show }: { show: { style?: string | null } }) => (
+    <div data-testid="banner-landing">{show.style}</div>
+  ),
+}));
 
 // Mock navigation performance
 vi.mock('@/hooks/useNavigationPerformance', () => ({
@@ -523,7 +528,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByTestId('monogram-landing')).toHaveTextContent('monogram');
   });
 
-  it('routes Banner-style shows to the Monogram landing as a visual fallback', () => {
+  it('routes Banner-style shows to the dedicated BannerLandingPage', () => {
     mockShow = {
       ...mockShow,
       style: 'banner',
@@ -531,7 +536,8 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('banner');
+    expect(screen.getByTestId('banner-landing')).toHaveTextContent('banner');
+    expect(screen.queryByTestId('monogram-landing')).toBeNull();
   });
 
   it('does not render any styled landing for shows with style=null (preserves legacy behavior)', () => {

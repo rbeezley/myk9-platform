@@ -4,6 +4,7 @@ import { publishExperience } from '@/features/experience/publishExperience';
 import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
 import { HeadlineLandingPage } from '@/features/headline/landing/HeadlineLandingPage';
 import { MonogramLandingPage } from '@/features/monogram/landing/MonogramLandingPage';
+import { BannerLandingPage } from '@/features/banner/landing/BannerLandingPage';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -420,8 +421,12 @@ const ShowDetailsPage: React.FC = () => {
     if (publicShowStyle === 'headline') {
       return <HeadlineLandingPage {...landingProps} />;
     }
-    // Both `monogram` and `banner` route to MonogramLandingPage — Banner uses
-    // Monogram as the closest visual register until its own landing ships.
+    if (publicShowStyle === 'banner') {
+      return <BannerLandingPage {...landingProps} />;
+    }
+    // monogram falls through here. magazine/poster/gazette/fieldGuide are
+    // currently excluded by the `hasExplicitStyle` gate above; if they ever
+    // ship their own landing pages, add their branches before this fallback.
     return <MonogramLandingPage {...landingProps} />;
   }
 

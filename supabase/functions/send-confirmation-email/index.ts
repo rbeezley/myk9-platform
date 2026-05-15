@@ -12,6 +12,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { resolveEmailStyle, selectEmailBuilderKey } from './email-style-registry.ts';
 import { buildHeadlineHtml } from './headline-email.ts';
 import { buildMonogramHtml } from './monogram-email.ts';
+import { buildBannerHtml } from './banner-email.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -538,6 +539,16 @@ Deno.serve(async (req: Request) => {
           html = buildHeadlineHtml(emailData);
         } else if (emailBuilder === 'monogram') {
           html = buildMonogramHtml({ ...emailData, monogramLetters });
+        } else if (emailBuilder === 'banner') {
+          // Migration 20260515212527 added shows.brand_color with a
+          // NOT NULL default, so rows should always have a value. The
+          // builder still validates the hex and falls back to deep teal
+          // defensively.
+          const brandColor = (show as Record<string, unknown>).brand_color;
+          html = buildBannerHtml({
+            ...emailData,
+            brandColor: typeof brandColor === 'string' ? brandColor : '#0d4d4f',
+          });
         } else {
           html = buildHtml(emailData);
         }

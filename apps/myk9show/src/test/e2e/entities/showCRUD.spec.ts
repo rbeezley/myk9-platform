@@ -160,6 +160,7 @@ test.describe('Show CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
+      const { supabase } = await import('/src/services/database/supabaseClient.ts');
       const { createShow, deleteShow, getShowById } = await import('/src/services/database/shows/index.ts');
 
       // Calculate dates
@@ -182,7 +183,17 @@ test.describe('Show CRUD Operations', () => {
       const { data: createdShow, error: createError } = await createShow(testShowData);
 
       if (createError || !createdShow) {
-        return { success: false, error: createError?.message || 'Failed to create show' };
+        const { data: userData } = await supabase.auth.getUser();
+        const { data: siteAdmin } = await supabase.rpc('is_site_admin');
+        const { data: platformAdmin } = await supabase.rpc('is_platform_admin');
+        return {
+          success: false,
+          error: createError?.message || 'Failed to create show',
+          authEmail: userData.user?.email,
+          siteAdmin,
+          platformAdmin,
+          payload: testShowData
+        };
       }
 
       const showId = createdShow.id;

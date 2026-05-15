@@ -97,13 +97,11 @@ export const deleteShow = async (id: string, deletedBy?: string) => {
       updateData.deleted_by = deletedBy;
     }
 
-    const { data, error } = await supabase
-      .from('shows')
-      .update(updateData)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .select('id, name')
-      .single();
+    // Use the existing SECURITY DEFINER RPC so show soft delete follows the
+    // same RLS-safe pattern as dog soft delete while preserving permission
+    // checks inside the database function.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.rpc as any)('soft_delete_show', { p_show_id: id });
 
     const duration = Date.now() - startTime;
     logQuery('show', 'soft_delete', duration, error?.message);
@@ -112,7 +110,14 @@ export const deleteShow = async (id: string, deletedBy?: string) => {
       throw createDatabaseError(error, 'show', 'soft_delete');
     }
 
-    return { data, error: null };
+    return {
+      data: {
+        id,
+        deleted_at: updateData.deleted_at as string,
+        deleted_by: (updateData.deleted_by as string | null) ?? null,
+      },
+      error: null,
+    };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'show', 'soft_delete');

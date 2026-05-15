@@ -1,0 +1,74 @@
+/*
+ * Monogram surface styles.
+ *
+ * All rules are scoped under [data-monogram] so importing this CSS at the
+ * root of a non-Monogram page is a no-op. Mirrors the heritage.css pattern.
+ *
+ * The embossed monogram technique (background-clip:text + layered text-shadow
+ * on a paper-tone gradient) is fragile — it depends on browser support for
+ * -webkit-background-clip. Falls back to solid ink color when unsupported.
+ */
+
+[data-monogram] {
+  background: #f3eee4;
+  color: #1c1815;
+  font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-monogram] .mg-emboss-paper {
+  font-family: 'Italiana', 'Bodoni Moda', Georgia, serif;
+  color: transparent;
+  background: linear-gradient(180deg, #ece5d4 0%, #f3eee4 50%, #d8cfb8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow:
+    1px 1px 0 rgba(255, 252, 240, 0.95),
+    -1px -1px 0 rgba(28, 24, 21, 0.18),
+    2px 2px 4px rgba(28, 24, 21, 0.12),
+    -2px -2px 4px rgba(255, 252, 240, 0.55);
+  filter: drop-shadow(0 2px 1px rgba(28, 24, 21, 0.08));
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+[data-monogram] .mg-emboss-dark {
+  font-family: 'Italiana', 'Bodoni Moda', Georgia, serif;
+  color: transparent;
+  background: linear-gradient(180deg, #2a241e 0%, #1c1815 50%, #0f0c09 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow:
+    1px 1px 0 rgba(255, 252, 240, 0.04),
+    -1px -1px 0 rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+[data-monogram] .mg-emboss-solid {
+  font-family: 'Italiana', 'Bodoni Moda', Georgia, serif;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+/* Reduced-motion: drop the drop-shadow filter (paints can flicker on scroll
+   with reduced-motion users). Leaves the static gradient + text-shadow. */
+@media (prefers-reduced-motion: reduce) {
+  [data-monogram] .mg-emboss-paper {
+    filter: none;
+  }
+}
+
+/* Fallback for browsers without background-clip:text — render solid ink so
+   the letters remain visible. The MonogramEmboss component also detects this
+   at runtime via a feature test (see components/MonogramEmboss.tsx). */
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  [data-monogram] .mg-emboss-paper,
+  [data-monogram] .mg-emboss-dark {
+    color: #1c1815;
+    background: none;
+    text-shadow: none;
+    filter: none;
+  }
+}

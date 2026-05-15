@@ -70,6 +70,71 @@ export interface HeritageConfirmationProps {
   showSlug: string | null;
 }
 
+// ─── Monogram Confirmation Email ─────────────────────────────────────────────
+
+export interface MonogramRunRow {
+  /** Roman numeral from trial_number, e.g. "I", "III". */
+  trialNumeral: string;
+  /** Formatted date, e.g. "Fri 12 Jun". */
+  dayLabel: string;
+  /** "Excellent · Containers" */
+  classLabel: string;
+  /** Judge display name. */
+  judgeName: string;
+  /** Armband number (may be null if not yet assigned). */
+  armband: string | null;
+}
+
+export interface MonogramConfirmationProps {
+  // Header
+  /** Pre-computed monogram initials (1–3 chars). Derive via buildMonogram(clubName). */
+  monogramLetters: string;
+  clubName: string;
+  clubEstablished: string | null;
+  clubCity: string | null;
+  showTitle: string;
+  /** e.g. "12–14 June 2026" */
+  dateRange: string;
+
+  // Greeting
+  /** Full salutation name, e.g. "Ms. Patricia Holloway" */
+  salutation: string;
+
+  // Entry detail card
+  dogRegisteredName: string;
+  dogCallName: string | null;
+  dogBreed: string | null;
+  dogSex: string | null;
+  runs: MonogramRunRow[];
+  runCount: number;
+  totalFeesFormatted: string;
+  /** e.g. "Receipt № 2026-0137" */
+  receiptNumber: string | null;
+
+  // On the day
+  doorsTime: string | null;
+  firstClassTime: string | null;
+  venueNameAndAddress: string | null;
+  parkingNotes: string | null;
+  hospitalityNotes: string | null;
+  cratingNotes: string | null;
+
+  // Withdraw / contact
+  secretaryEmail: string | null;
+  secretaryPhone: string | null;
+
+  // CTA
+  trialUrl: string | null;
+
+  // Signature
+  trialChairName: string | null;
+  trialChairTitle: string | null;
+
+  // Footer
+  memberClubLanguage: string;
+  showSlug: string | null;
+}
+
 export interface RegistrationConfirmationProps {
   firstName: string;
   confirmationNumber: string;

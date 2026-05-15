@@ -112,6 +112,14 @@ admin "recent generations" panel to seed defaults from a prior premium.
 "Premium" in this context means the printable show prospectus, not a
 billing tier.
 
+**Manual Result**
+A competition result entered manually by a Dog's owner — distinct from
+in-system Show results, which are recorded automatically as part of the
+Entry lifecycle. Used to log trial results from shows the platform didn't
+run (e.g. AKC trials at non-myK9 events). A series of qualifying Manual
+Results may aggregate into an Achievement once the sanctioning body's
+title requirements are met.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under

@@ -79,7 +79,21 @@ Copy this block for each new finding.
 
 ## Open Findings
 
-No open Phase 0 findings.
+### QA-ROLE-RLS-MISMATCH-002
+
+- **Status:** open
+- **Severity:** medium
+- **Role:** admin
+- **Surface:** `apps/myk9show/src/test/e2e/entities/showCRUD.spec.ts` / show delete feature-audit proof
+- **Suite category:** feature-audit
+- **Pattern:** role-rls-mismatch
+- **Detected by:** qa-feature
+- **Evidence:** Reproduced on 2026-05-15 with `cd apps/myk9show && pnpm test:e2e:clean src/test/e2e/entities/showCRUD.spec.ts --grep "delete a show" --project=chromium --workers=1 --timeout=90000 --retries=0`. The delete proof fails during setup before the delete call: `createShow` returns `new row violates row-level security policy for table "shows"`. The neighboring isolated create proof passes with the same role and equivalent insert payload: `cd apps/myk9show && pnpm test:e2e:clean src/test/e2e/entities/showCRUD.spec.ts --grep "create a new show" --project=chromium --workers=1 --timeout=90000 --retries=0` (`1 passed`).
+- **User impact:** The feature-audit suite cannot currently prove show soft-delete behavior. If this is product behavior rather than test setup, an admin or show manager may be able to create some draft shows but hit an RLS denial in adjacent show-management paths.
+- **Intent check:** Harms the admin/secretary expectation that show-management actions are predictable and explainable.
+- **Fix owner:** show database writes / show CRUD feature-audit setup / show RLS policy evidence.
+- **Proof required:** The isolated delete proof above passes, then the full show CRUD feature-audit spec passes with retries disabled.
+- **Notes:** Initial repair removed stale `shows.type` usage from the feature-audit specs. This remaining failure is not the schema-cache error; it is a reproducible RLS denial during delete-proof setup and needs a focused policy/session investigation.
 
 ## Closed Findings
 

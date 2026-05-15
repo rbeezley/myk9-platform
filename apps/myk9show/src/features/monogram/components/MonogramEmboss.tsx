@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react';
+import { type JSX } from 'react';
 import { monogramColors } from '../tokens';
 
 export interface MonogramEmbossProps {
@@ -34,17 +34,14 @@ export interface MonogramEmbossProps {
  * a worse failure mode than a single frame of solid-color flash.
  */
 function useSupportsBackgroundClipText(): boolean {
-  const [supports, setSupports] = useState<boolean>(false);
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.CSS || !window.CSS.supports) {
-      return;
-    }
-    setSupports(
+  if (typeof window === 'undefined' || !window.CSS || !window.CSS.supports) {
+    return false;
+  }
+
+  return (
       window.CSS.supports('-webkit-background-clip', 'text') ||
         window.CSS.supports('background-clip', 'text')
-    );
-  }, []);
-  return supports;
+  );
 }
 
 const EMBOSS_PAPER: React.CSSProperties = {

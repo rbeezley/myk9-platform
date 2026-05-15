@@ -53,7 +53,7 @@ test.describe('Show CRUD Operations', () => {
 
       const testShowData = {
         name: `E2E Test Show ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: startDate.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0],
         location: 'Test Venue, Test City, TS',
@@ -77,7 +77,7 @@ test.describe('Show CRUD Operations', () => {
         success: true,
         showId: createdShow?.id,
         showName: createdShow?.name,
-        showType: createdShow?.type
+        organization: createdShow?.organization
       };
     });
 
@@ -85,7 +85,7 @@ test.describe('Show CRUD Operations', () => {
     expect(result.success).toBe(true);
     expect(result.showId).toBeTruthy();
     expect(result.showName).toContain('E2E Test Show');
-    expect(result.showType).toBe('conformation');
+    expect(result.organization).toBe('AKC');
   });
 
   test('should update an existing show in database (UPDATE)', async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe('Show CRUD Operations', () => {
 
       const testShowData = {
         name: `Update Test Show ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: startDate.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0],
         location: 'Original Venue',
@@ -122,7 +122,7 @@ test.describe('Show CRUD Operations', () => {
       // Update the show
       const updatedLocation = 'Updated Venue, New City';
       const updatedStatus = 'published';  // Valid status per check constraint
-      const { data: _updatedShow, error: updateError } = await updateShow(createdShow.id, {
+      const { data: updatedShow, error: updateError } = await updateShow(createdShow.id, {
         location: updatedLocation,
         status: updatedStatus,
         max_total_entries: 150
@@ -133,21 +133,16 @@ test.describe('Show CRUD Operations', () => {
         return { success: false, error: updateError.message };
       }
 
-      // Verify the update using getAllShows (simpler query)
-      const { getAllShows } = await import('/src/services/database/shows/index.ts');
-      const { data: allShows } = await getAllShows();
-      const fetchedShow = allShows.find((s: { id: string }) => s.id === createdShow.id);
-
       // Clean up
       await deleteShow(createdShow.id);
 
       return {
         success: true,
         originalLocation: testShowData.location,
-        updatedLocation: fetchedShow?.location,
-        updatedStatus: fetchedShow?.status,
-        locationMatches: fetchedShow?.location === updatedLocation,
-        statusMatches: fetchedShow?.status === updatedStatus
+        updatedLocation: updatedShow?.location,
+        updatedStatus: updatedShow?.status,
+        locationMatches: updatedShow?.location === updatedLocation,
+        statusMatches: updatedShow?.status === updatedStatus
       };
     });
 
@@ -169,16 +164,19 @@ test.describe('Show CRUD Operations', () => {
 
       // Calculate dates
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() + 90);
+      startDate.setDate(startDate.getDate() + 30);
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 2);
 
       const testShowData = {
-        name: `Delete Test Show ${Date.now()}`,
-        type: 'conformation',
+        name: `E2E Test Show ${Date.now()}`,
+        organization: 'AKC',
         start_date: startDate.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0],
-        status: 'draft'
+        location: 'Test Venue, Test City, TS',
+        status: 'draft',
+        max_total_entries: 100,
+        pre_entry_fee: 25
       };
 
       const { data: createdShow, error: createError } = await createShow(testShowData);

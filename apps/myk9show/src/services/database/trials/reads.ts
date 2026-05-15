@@ -293,6 +293,11 @@ export const getTrialsByShow = async (showId: string) => {
           replicatedTrialsTable.getTrialsByShow(showId),
           replicatedShowsTable.getShowById(showId),
         ]);
+
+        if (!show) {
+          return await postgrestGetTrialsByShow(showId);
+        }
+
         const data = trials.map(trial => mapReplicatedTrialToDbRow(trial, { show }));
         return { data, error: null };
       },

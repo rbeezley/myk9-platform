@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>myK9Show · Dog show management built for scent work</title>
+<meta name="description" content="Dog show management built for AKC, UKC, and ASCA scent sports. Local-first software that works offline at trial venues. From the team behind mySWT, myNWT, and myK9Q."/>
+
+<link rel="stylesheet" href="assets/colors_and_type.css"/>
+<link rel="stylesheet" href="landing.css"/>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<script>
+window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "heroVariant": "photo",
+  "headlineIdx": 2,
+  "accent": "terracotta",
+  "waitlistFields": "email-role",
+  "showRingside": true,
+  "showRoadmap": true
+}/*EDITMODE-END*/;
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body data-screen-label="01 myK9Show Landing">
+
+<!-- ─── HEADER ─────────────────────────────────────────────── -->
+<header class="hdr">
+  <div class="hdr-inner">
+    <a href="#" class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 120 160" fill="currentColor">
+          <path class="ribbon" d="M48 78 L38 150 L52 140 L60 152 L68 140 L82 150 L72 78 Z" opacity="0.92"/>
+          <circle cx="60" cy="60" r="36"/>
+          <circle cx="60" cy="60" r="36" fill="none" stroke="#faf9f5" stroke-width="2" opacity="0.95"/>
+          <circle cx="60" cy="60" r="26" fill="none" stroke="#faf9f5" stroke-width="1" opacity="0.7"/>
+        </svg>
+      </span>
+      myK9Show
+    </a>
+    <span class="status-chip">Waitlist · launching 2026</span>
+    <span class="hdr-spacer"></span>
+    <nav class="hdr-nav">
+      <a href="#features">Features</a>
+      <a href="#offline">Offline</a>
+      <a href="#trust">Who we are</a>
+      <a href="/pricing">Pricing</a>
+    </nav>
+    <button class="btn btn-ghost" id="join-cta">Join the waitlist</button>
+    <a href="/signin" class="btn-text">Early access →</a>
+  </div>
+</header>
+
+<!-- ─── HERO · Variant A: Editorial split ─────────────────── -->
+<section class="hero v-split" data-variant="split">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <div class="kicker">
+          <span class="dot"></span>
+          <span class="eyebrow">Dog-sport software · Scent work first</span>
+        </div>
+
+        <h1 class="hero-headline" data-headline="0">Dog-sport software,<br/><span class="italic">built for scent work first.</span></h1>
+        <h1 class="hero-headline" data-headline="1" hidden>Built for scent work today.<br/><span class="italic">Ready for every ring</span> by 2027.</h1>
+        <h1 class="hero-headline" data-headline="2" hidden>From premium list to<br/><span class="italic">final placements</span> — without the paperwork.</h1>
+
+        <p class="lede">Online entries, ringside scoring, and exhibitor tracking — <strong>built for AKC Scent Work, UKC Nosework, and ASCA Scent Detection.</strong> Obedience, agility, and conformation arrive in 2027.</p>
+
+        <div class="form-wrap">
+          <!-- waitlist form is the same component, mounted in #waitlist-slot -->
+          <div data-waitlist-slot></div>
+        </div>
+      </div>
+
+      <div class="hero-photo">
+        <img src="assets/hero-ziva-tera.jpg" alt="Two working-line dogs — a Belgian Tervuren and a Dutch Shepherd — standing in a golden autumn field" loading="eager"/>
+        <div class="photo-caption">
+          <span class="swatch"></span>
+          <span><em>Ziva &amp; Tera</em></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── HERO · Variant B: Full-bleed photo ────────────────── -->
+<section class="hero v-bleed" data-variant="bleed" hidden>
+  <div class="bleed-wrap">
+    <img src="assets/hero-ziva-tera.jpg" alt=""/>
+    <div class="bleed-content">
+      <div class="kicker">
+        <span class="dot"></span>
+        <span class="eyebrow">Dog-sport software · Scent work first</span>
+      </div>
+
+      <h1 class="hero-headline" data-headline="0">Dog-sport software,<br/><span class="italic">built for scent work first.</span></h1>
+      <h1 class="hero-headline" data-headline="1" hidden>Built for scent work today.<br/><span class="italic">Ready for every ring</span> by 2027.</h1>
+      <h1 class="hero-headline" data-headline="2" hidden>From premium list to<br/><span class="italic">final placements</span> — without the paperwork.</h1>
+
+      <p class="lede">Online entries, ringside scoring, and exhibitor tracking — <strong>built for AKC Scent Work, UKC Nosework, and ASCA Scent Detection.</strong> Obedience, agility, and conformation arrive in 2027.</p>
+
+      <div class="form-wrap">
+        <div data-waitlist-slot></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── HERO · Variant C: Photo-led ────────────────────────── -->
+<section class="hero v-photo" data-variant="photo" hidden>
+  <div class="photo-band">
+    <img src="assets/hero-ziva-tera.jpg" alt="Two working-line dogs in a golden autumn field"/>
+    <div class="photo-meta"><span class="swatch"></span><span><em>Ziva &amp; Tera</em></span></div>
+  </div>
+  <div class="below">
+    <div class="below-grid">
+      <div class="col-left">
+        <div class="kicker">
+          <span class="dot"></span>
+          <span class="eyebrow">Dog-sport software · Scent work first</span>
+        </div>
+
+        <h1 class="hero-headline" data-headline="0">Dog-sport software,<br/><span class="italic">built for scent work first.</span></h1>
+        <h1 class="hero-headline" data-headline="1" hidden>Built for scent work today.<br/><span class="italic">Ready for every ring</span> by 2027.</h1>
+        <h1 class="hero-headline" data-headline="2" hidden>From premium list to<br/><span class="italic">final placements</span> — without the paperwork.</h1>
+
+        <p class="lede">Online entries, ringside scoring, and exhibitor tracking — <strong>built for AKC Scent Work, UKC Nosework, and ASCA Scent Detection.</strong> Obedience, agility, and conformation arrive in 2027.</p>
+      </div>
+      <div class="col-right">
+        <div data-waitlist-slot></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── TAGLINE STRIP ──────────────────────────────────────── -->
+<div class="tagline-strip">
+  <div class="container inner">
+    <span class="tag"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg> Local-first PWA · works offline at venues</span>
+    <span class="sep" aria-hidden="true"></span>
+    <span class="tag"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> AKC Scent Work · UKC Nosework · ASCA Scent Detection</span>
+    <span class="sep" aria-hidden="true"></span>
+    <span class="tag tag-future"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Obedience, agility &amp; conformation in 2027</span>
+  </div>
+</div>
+
+<!-- ─── CREDIBILITY ────────────────────────────────────────── -->
+<section class="cred" id="trust">
+  <div class="container cred-grid">
+    <div class="cred-copy">
+      <span class="eyebrow">Who we are</span>
+      <h2>The same team you've trusted at trial since <em>2013.</em></h2>
+      <p>myK9Show is the next chapter from RyKris — the people behind mySWT, myNWT, and myK9Q. Thirteen years of building scent-sport software, alongside the judges, secretaries, and exhibitors who use it every weekend.</p>
+    </div>
+    <div class="cred-card-grid">
+      <div class="cred-card">
+        <div class="name"><span class="dot" style="background:var(--teal-500)"></span>mySWT</div>
+        <div class="desc">AKC Scent Work entries &amp; results — since 2017.</div>
+        <div class="stat">9 years · Filemaker</div>
+      </div>
+      <div class="cred-card">
+        <div class="name"><span class="dot" style="background:var(--purple-500)"></span>myNWT</div>
+        <div class="desc">UKC Nosework trial management.</div>
+        <div class="stat">7 years · 1,400+ trials</div>
+      </div>
+      <div class="cred-card">
+        <div class="name"><span class="dot" style="background:var(--terracotta-500)"></span>myK9Q</div>
+        <div class="desc">Ringside PWA for judges &amp; exhibitors.</div>
+        <div class="stat">Offline-first · 2024</div>
+      </div>
+      <div class="cred-card is-new">
+        <div class="name"><span class="dot" style="background:var(--primary)"></span>myK9Show</div>
+        <div class="desc">One platform. All three sanctioning bodies. Modern web.</div>
+        <div class="stat">Joining the waitlist · 2026</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FOR CLUBS ──────────────────────────────────────────── -->
+<section class="section alt" id="features">
+  <div class="container">
+    <div class="audience-tag for-clubs"><span class="dot"></span>For clubs &amp; secretaries</div>
+    <div class="heading">
+      <h2>Run a trial without <em>the paperwork</em> — from premium list to final placements.</h2>
+      <div class="heading-aside">One system replaces the spreadsheet, the entry form, the catalog, and the scoresheet. Offline at the venue, synced when you're back.</div>
+    </div>
+    <div class="features-grid">
+      <div class="feature club-tone">
+        <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></span>
+        <h3>Offline-first <em>ringside.</em></h3>
+        <p>Set the trial up online. Run trial day offline on any phone or tablet. Sync the moment signal returns — never lose a score because the venue Wi-Fi died.</p>
+        <div class="footnote"><span>PWA · local-first</span><span class="badge">No internet required</span></div>
+      </div>
+      <div class="feature club-tone">
+        <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        <h3>Scent-sport rules, <em>built in.</em></h3>
+        <p>AKC Scent Work, UKC Nosework, and ASCA Scent Detection — class structures, levels, and qualifying logic are pre-loaded. No spreadsheet templates. No edge cases by hand.</p>
+        <div class="footnote"><span>AKC · UKC · ASCA</span><span class="badge">3 sanctioning bodies</span></div>
+      </div>
+      <div class="feature club-tone">
+        <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span>
+        <h3>One flow. <em>Entry to ribbon.</em></h3>
+        <p>Premium list → online entries → armbands → catalog → live scoring → results → title tracking. The same record, end to end, with no re-keying between stages.</p>
+        <div class="footnote"><span>End-to-end</span><span class="badge">No re-keying</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FOR EXHIBITORS ─────────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <div class="audience-tag for-exhibitors"><span class="dot"></span>For exhibitors</div>
+    <div class="heading">
+      <h2>Your dog's career — <em>in one place.</em> Forever.</h2>
+      <div class="heading-aside">Browse, enter, follow the day live, then watch your titles, statistics, and ribbons build over the years.</div>
+    </div>
+    <div class="features-grid">
+      <div class="feature exhibitor-tone">
+        <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <h3>Find your trial. <em>Enter in minutes.</em></h3>
+        <p>Browse upcoming trials by sanctioning body, level, and distance. Saved dogs, saved handlers — entry is as fast as &ldquo;tap, confirm, pay.&rdquo;</p>
+        <div class="footnote"><span>Browse · Enter</span><span class="badge">One profile, every trial</span></div>
+      </div>
+      <div class="feature exhibitor-tone">
+        <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+        <h3>Live from <em>ringside.</em></h3>
+        <p>Ring status, next-up alerts, and your dog's score the moment the judge signs off. From your phone, even with one bar of LTE.</p>
+        <div class="footnote"><span>Live status</span><span class="badge">Push notifications</span></div>
+      </div>
+      <div class="feature exhibitor-tone">
+        <span class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+        <h3>Titles, trends, <em>the whole story.</em></h3>
+        <p>Qualifying rate by element. Time-under-par by level. Health records and training journal alongside thirteen years of placements — never lost, never re-entered.</p>
+        <div class="footnote"><span>Statistics</span><span class="badge">Career history</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── OFFLINE / RINGSIDE CALLOUT ────────────────────────── -->
+<section class="ringside" id="offline" data-section="ringside">
+  <div class="container grid">
+    <div>
+      <span class="eyebrow">Offline-first · myK9Q</span>
+      <h2>Trial venues have <em>terrible signal.</em> So we built for none.</h2>
+      <p>Judges score in the ring on their own device. Exhibitors check their armband and next-up in the parking lot. When a tower comes back online, every record syncs in the order it happened — no conflicts, no lost scores, no &ldquo;please refresh.&rdquo;</p>
+      <ul class="checks">
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Score, check-in, and place from the ring — fully offline.</li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Replication queues in order. Sync resumes the moment LTE returns.</li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Same app on iPhone, iPad, Android — install once from any browser.</li>
+      </ul>
+    </div>
+    <div class="phone-card">
+      <div class="phone-head">
+        <div class="ring">Ring 2 · Container · Novice A</div>
+        <span class="offline-pill"><span class="dot"></span>Offline</span>
+      </div>
+      <div class="entry">
+        <div class="armband">112</div>
+        <div class="dog"><div class="name">Tera</div><div class="meta">Dutch Shepherd · Beezley</div></div>
+        <div class="res q">Q · 24.81</div>
+      </div>
+      <div class="entry">
+        <div class="armband">113</div>
+        <div class="dog"><div class="name">Ziva</div><div class="meta">Belgian Tervuren · Beezley</div></div>
+        <div class="res q">Q · 31.04</div>
+      </div>
+      <div class="entry">
+        <div class="armband">114</div>
+        <div class="dog"><div class="name">Juno</div><div class="meta">Labrador · Patel</div></div>
+        <div class="res nq">NQ</div>
+      </div>
+      <div class="entry">
+        <div class="armband">115</div>
+        <div class="dog"><div class="name">Mosby</div><div class="meta">Vizsla · Chen</div></div>
+        <div class="res pending">Next up</div>
+      </div>
+      <div class="foot-row">
+        <span>3 of 12 scored · queued to sync</span>
+        <span class="sync-time">last sync 11:48</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── CLOSING WAITLIST ────────────────────────────────────── -->
+<section class="closing">
+  <div class="container">
+    <span class="eyebrow">Joining the waitlist</span>
+    <h2>Be in the room when <em>the first trial</em> goes live.</h2>
+    <p>We're shipping to a handful of clubs across AKC, UKC, and ASCA in late 2026. Tell us who you are and we'll keep you in the loop — no spam, no hype.</p>
+    <div data-waitlist-slot></div>
+  </div>
+</section>
+
+<!-- ─── FOOTER ─────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">myK9Show</div>
+        <div class="foot-brand-blurb">Dog-sport software for the working-line community. Built by RyKris, since 2013.</div>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#features">For clubs</a></li>
+          <li><a href="#features">For exhibitors</a></li>
+          <li><a href="#offline">Offline / myK9Q</a></li>
+          <li><a href="/pricing">Pricing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Sanctioning</h4>
+        <ul>
+          <li>AKC Scent Work</li>
+          <li>UKC Nosework</li>
+          <li>ASCA Scent Detection</li>
+          <li>Obedience &amp; agility · 2027</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#trust">About RyKris</a></li>
+          <li><a href="mailto:hello@myk9show.com">Contact</a></li>
+          <li><a href="/legal">Legal</a></li>
+          <li><a href="/signin">Early access</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <div>© 2026 RyKris LLC · myK9 Platform</div>
+      <div class="ver">v0.9.4 · pre-launch</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ─── Waitlist form template ─────────────────────────────── -->
+<template id="waitlist-template">
+  <form class="waitlist" onsubmit="return window.__myk9_submit(event)">
+    <div class="form-head">
+      <h3 class="form-title">Join the waitlist</h3>
+      <span class="form-count">487 · waiting</span>
+    </div>
+    <div class="field-stack">
+      <div class="field-name">
+        <label class="lbl" for="wl-name">Your name</label>
+        <input class="pill-input" type="text" id="wl-name" name="name" placeholder="First &amp; last name" autocomplete="name"/>
+      </div>
+      <div class="field-email">
+        <label class="lbl" for="wl-email">Email</label>
+        <input class="pill-input" type="email" id="wl-email" name="email" placeholder="you@example.com" required autocomplete="email"/>
+      </div>
+      <div class="field-role">
+        <label class="lbl">I'm a…</label>
+        <div class="roles">
+          <label><input type="radio" name="role" value="exhibitor" checked/><span>Exhibitor</span></label>
+          <label><input type="radio" name="role" value="club"/><span>Club / secretary</span></label>
+          <label><input type="radio" name="role" value="judge"/><span>Judge</span></label>
+        </div>
+      </div>
+      <div class="field-org">
+        <label class="lbl">Which sanctioning body? (pick any)</label>
+        <div class="org-grid">
+          <label><input type="checkbox" name="org" value="akc"/><span>AKC SW</span></label>
+          <label><input type="checkbox" name="org" value="ukc"/><span>UKC NW</span></label>
+          <label><input type="checkbox" name="org" value="asca"/><span>ASCA SD</span></label>
+          <label><input type="checkbox" name="org" value="other"/><span>Other</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="submit-row">
+      <button type="submit" class="btn btn-primary btn-lg">Join the waitlist <span aria-hidden="true">→</span></button>
+    </div>
+    <div class="fineprint">We'll only email you when there's something to say. No marketing blasts, ever.</div>
+  </form>
+</template>
+
+<script src="page.js"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="tweaks-app.jsx"></script>
+
+</body>
+</html>

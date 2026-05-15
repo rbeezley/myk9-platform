@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Entry received · Poster Wizard Completion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter+Tight:wght@500;700;800;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --po-cream:#f3ede0; --po-cream-warm:#e9dfc8;
+      --po-ink:#1f1d18; --po-ink-soft:#3a342a; --po-mute:#7a7466; --po-hair:#cabe9f;
+      --po-red:#c83b1a; --po-olive:#3d3a2a;
+      --po-display:'Archivo Black', system-ui, sans-serif;
+      --po-display-tight:'Inter Tight', system-ui, sans-serif;
+      --po-body:'Inter', system-ui, sans-serif;
+      --po-mono:'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:#d4cab5; color:var(--po-ink); font-family: var(--po-body); }
+
+    .preview-frame {
+      max-width: 520px; margin: 40px auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.16);
+    }
+    .preview-bar {
+      background: var(--po-ink); color: var(--po-cream);
+      padding: 10px 16px;
+      font-family: var(--po-mono); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .po-receipt {
+      background: var(--po-cream); color: var(--po-ink);
+      font-family: var(--po-body);
+      position: relative; overflow: hidden;
+    }
+    .po-receipt::before {
+      content: ""; position: absolute;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      background: var(--po-red);
+      right: -100px; top: -100px;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+    .po-receipt > * { position: relative; z-index: 1; }
+
+    .po-receipt__header {
+      padding: 28px 28px 22px;
+      border-bottom: 2px solid var(--po-ink);
+    }
+    .po-receipt__kicker {
+      font-family: var(--po-mono); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--po-red); margin: 0 0 12px;
+    }
+    .po-receipt__heading {
+      font-family: var(--po-display); font-size: 48px;
+      letter-spacing: -0.045em; line-height: 0.85;
+      color: var(--po-ink); margin: 0 0 12px;
+    }
+    .po-receipt__heading-accent { color: var(--po-red); }
+    .po-receipt__byline {
+      font-family: var(--po-display-tight); font-weight: 700;
+      font-size: 14px; letter-spacing: -0.005em; line-height: 1.35;
+      color: var(--po-ink-soft); margin: 0;
+    }
+
+    .po-receipt__detail {
+      padding: 20px 28px;
+      border-bottom: 2px solid var(--po-ink);
+    }
+    .po-receipt__folio {
+      font-family: var(--po-mono); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--po-red); margin: 0 0 8px;
+    }
+    .po-receipt__dog {
+      font-family: var(--po-display); font-size: 22px;
+      letter-spacing: -0.035em; line-height: 1.0;
+      color: var(--po-ink); margin: 0 0 6px;
+    }
+    .po-receipt__call {
+      font-family: var(--po-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--po-mute); margin: 0 0 14px;
+    }
+    .po-receipt__class {
+      font-family: var(--po-body); font-size: 14px; line-height: 1.55;
+      color: var(--po-ink-soft); margin: 0 0 16px;
+    }
+    .po-receipt__total {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-top: 1px solid var(--po-hair); padding-top: 12px;
+    }
+    .po-receipt__total-label {
+      font-family: var(--po-mono); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--po-mute);
+    }
+    .po-receipt__total-amt {
+      font-family: var(--po-display); font-size: 32px;
+      letter-spacing: -0.05em; color: var(--po-red);
+    }
+
+    .po-receipt__ctas {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 22px 28px 18px;
+    }
+    .po-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 16px 18px;
+      font-family: var(--po-display); font-size: 15px; letter-spacing: -0.015em;
+      cursor: pointer; border: none; width: 100%;
+      transition: all 200ms ease;
+    }
+    .po-btn--primary { background: var(--po-ink); color: var(--po-cream); }
+    .po-btn--primary:hover { background: var(--po-red); }
+    .po-btn--secondary {
+      background: transparent; color: var(--po-ink);
+      border: 2px solid var(--po-ink);
+    }
+    .po-btn--secondary:hover { background: var(--po-ink); color: var(--po-cream); }
+    .po-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+    .po-btn[disabled]:hover { background: var(--po-ink); }
+    .po-btn__icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+    .po-receipt__caption {
+      text-align: left;
+      padding: 14px 28px 28px;
+      font-family: var(--po-body); font-size: 13px; line-height: 1.6;
+      color: var(--po-mute);
+      border-top: 1px solid var(--po-hair);
+      margin-top: 4px;
+    }
+    .po-receipt__caption strong { color: var(--po-ink); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="preview-frame">
+    <div class="preview-bar">POSTER · PosterEntryReceived · WIZARD FINAL STEP</div>
+
+    <div class="po-receipt" data-poster>
+
+      <header class="po-receipt__header">
+        <p class="po-receipt__kicker">NO 01 / CONFIRMED · RECEIPT 2026-0137</p>
+        <h2 class="po-receipt__heading">YOU'RE <span class="po-receipt__heading-accent">IN.</span></h2>
+        <p class="po-receipt__byline">SPRING SCENT WORK · BCKC · JUN 12—14, 2026</p>
+      </header>
+
+      <div class="po-receipt__detail">
+        <p class="po-receipt__folio">NO 02 / THE DOG</p>
+        <p class="po-receipt__dog">CH CEDARWOOD'S RISEN ON POINTE RN</p>
+        <p class="po-receipt__call">"POINTE" · GERMAN SHORTHAIRED POINTER · F</p>
+        <p class="po-receipt__class">
+          3 runs · Excellent Containers, Excellent Interiors, Excellent Buried · Judge C. Beagles
+        </p>
+        <div class="po-receipt__total">
+          <span class="po-receipt__total-label">TOTAL · FEES RECEIVED</span>
+          <span class="po-receipt__total-amt">$69.00</span>
+        </div>
+      </div>
+
+      <div class="po-receipt__ctas">
+        <button class="po-btn po-btn--primary" aria-label="Print my entry blank">
+          <svg class="po-btn__icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          PRINT MY ENTRY BLANK
+        </button>
+        <button class="po-btn po-btn--secondary" aria-label="Return to dashboard">
+          RETURN TO DASHBOARD
+        </button>
+      </div>
+
+      <p class="po-receipt__caption">
+        A formal confirmation will be emailed on <strong>Jun 6, 2026</strong> once the draw is complete. Watch your inbox — your armband number will be included.
+      </p>
+
+    </div>
+  </div>
+</body>
+</html>

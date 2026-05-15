@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Spring Scent Work Trial 2026 · Bexar County Kennel Club</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Italiana&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;1,6..96,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --mg-paper:#f3eee4; --mg-paper-deep:#ece5d4;
+      --mg-ink:#1c1815; --mg-soft:#3a342c;
+      --mg-mute:#7a6f5e; --mg-quill:#5a4f3e;
+      --mg-bronze:#8a6938; --mg-bronze-light:#b08948;
+      --mg-leaf:#c9a14b; --mg-rule:#1c1815;
+      --mg-display:'Bodoni Moda', 'Didot', 'Bodoni 72', serif;
+      --mg-body:'Crimson Pro', 'EB Garamond', Georgia, serif;
+      --mg-mono:'Italiana', 'Bodoni Moda', serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--mg-paper); color: var(--mg-ink);
+      font-family: var(--mg-body); font-size: 17px; line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      background-image: radial-gradient(ellipse 70% 50% at 50% -10%, rgba(138,105,56,0.06), transparent 60%);
+    }
+
+    /* ── Embossed monogram — the signature element ─────────────────────── */
+    .mg-monogram {
+      font-family: var(--mg-mono);
+      color: transparent;
+      letter-spacing: -0.03em;
+      background: linear-gradient(180deg, var(--mg-paper-deep) 0%, var(--mg-paper) 50%, #d8cfb8 100%);
+      -webkit-background-clip: text; background-clip: text;
+      text-shadow:
+        1px 1px 0 rgba(255, 252, 240, 0.95),
+        -1px -1px 0 rgba(28, 24, 21, 0.18),
+        2px 2px 4px rgba(28, 24, 21, 0.12),
+        -2px -2px 4px rgba(255, 252, 240, 0.55);
+      filter: drop-shadow(0 2px 1px rgba(28, 24, 21, 0.08));
+      user-select: none;
+    }
+
+    /* ── Type system ────────────────────────────────────────────────────── */
+    h1, h2, h3, h4 { margin: 0; font-family: var(--mg-display); font-weight: 400; line-height: 1.1; letter-spacing: -0.005em; }
+    p { margin: 0; }
+    a { color: var(--mg-ink); text-decoration: none; }
+
+    .smallcaps {
+      font-family: var(--mg-body); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mg-bronze);
+    }
+    .smallcaps--mute { color: var(--mg-mute); }
+    .smallcaps--ink { color: var(--mg-ink); }
+
+    .display-italic {
+      font-family: var(--mg-display); font-style: italic; font-weight: 400;
+      color: var(--mg-bronze);
+    }
+
+    /* ── Sticky nav ─────────────────────────────────────────────────────── */
+    .mg-nav {
+      position: sticky; top: 0; z-index: 30;
+      background: rgba(243, 238, 228, 0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(28, 24, 21, 0.08);
+      padding: 14px 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: var(--mg-body);
+    }
+    .mg-nav__brand {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .mg-nav__monogram {
+      font-family: var(--mg-mono);
+      font-size: 32px;
+      color: var(--mg-ink);
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+    .mg-nav__club {
+      font-family: var(--mg-display); font-style: italic; font-weight: 400;
+      font-size: 16px; color: var(--mg-ink);
+    }
+    .mg-nav__cta {
+      padding: 10px 22px;
+      border: 1px solid var(--mg-ink);
+      font-family: var(--mg-body); font-size: 13px; font-weight: 500;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--mg-ink);
+      transition: all 240ms ease;
+    }
+    .mg-nav__cta:hover { background: var(--mg-ink); color: var(--mg-paper); }
+
+    /* ── Hero ───────────────────────────────────────────────────────────── */
+    .mg-hero {
+      position: relative;
+      padding: 96px 56px 80px;
+      overflow: hidden;
+      border-bottom: 1px solid rgba(28, 24, 21, 0.12);
+    }
+    .mg-hero__monogram {
+      position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 640px;
+      line-height: 1;
+      pointer-events: none;
+      animation: mg-emboss-in 1600ms cubic-bezier(0.2, 0, 0, 1) 200ms backwards;
+    }
+    @keyframes mg-emboss-in {
+      from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    .mg-hero__inner {
+      position: relative; z-index: 2;
+      max-width: 1100px; margin: 0 auto;
+      text-align: center;
+    }
+    .mg-hero__kicker {
+      display: flex; align-items: center; justify-content: center; gap: 14px;
+      margin-bottom: 36px;
+    }
+    .mg-hero__kicker::before, .mg-hero__kicker::after {
+      content: ""; height: 1px; background: var(--mg-ink); flex: 0 0 60px;
+    }
+    .mg-hero__title {
+      font-family: var(--mg-display);
+      font-size: 88px;
+      font-weight: 400;
+      letter-spacing: -0.025em;
+      line-height: 1;
+      margin: 0 0 24px;
+      animation: mg-fade-up 900ms cubic-bezier(0.2, 0, 0, 1) 600ms backwards;
+    }
+    .mg-hero__title .italic {
+      font-style: italic; color: var(--mg-bronze);
+    }
+    .mg-hero__sub {
+      font-family: var(--mg-display); font-style: italic; font-weight: 400;
+      font-size: 24px; color: var(--mg-quill);
+      max-width: 640px; margin: 0 auto 40px;
+      animation: mg-fade-up 900ms cubic-bezier(0.2, 0, 0, 1) 800ms backwards;
+    }
+
+    @keyframes mg-fade-up {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .mg-hero__meta {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      max-width: 880px; margin: 0 auto 44px;
+      border-top: 1px solid var(--mg-ink);
+      border-bottom: 1px solid var(--mg-ink);
+      animation: mg-fade-up 900ms cubic-bezier(0.2, 0, 0, 1) 1000ms backwards;
+    }
+    .mg-hero__meta-cell {
+      padding: 18px 16px;
+      border-right: 1px solid rgba(28, 24, 21, 0.16);
+      text-align: center;
+    }
+    .mg-hero__meta-cell:last-child { border-right: none; }
+    .mg-hero__meta-label { display: block; margin-bottom: 6px; }
+    .mg-hero__meta-value {
+      font-family: var(--mg-display); font-size: 22px; color: var(--mg-ink);
+      letter-spacing: -0.01em;
+    }
+    .mg-hero__meta-value .em { font-style: italic; color: var(--mg-bronze); }
+
+    .mg-hero__cta {
+      display: inline-flex; align-items: center; gap: 14px;
+      padding: 18px 36px;
+      background: var(--mg-ink); color: var(--mg-paper);
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 18px; letter-spacing: 0.02em;
+      transition: all 280ms ease;
+      animation: mg-fade-up 900ms cubic-bezier(0.2, 0, 0, 1) 1200ms backwards;
+    }
+    .mg-hero__cta:hover {
+      background: var(--mg-bronze); color: var(--mg-paper);
+      transform: translateY(-1px);
+    }
+    .mg-hero__cta-arrow { font-family: var(--mg-mono); font-size: 22px; }
+
+    /* ── Section template ───────────────────────────────────────────────── */
+    .mg-section {
+      padding: 80px 56px;
+      max-width: 1200px; margin: 0 auto;
+    }
+    .mg-section__head {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 28px;
+      align-items: baseline;
+      margin-bottom: 48px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--mg-ink);
+    }
+    .mg-section__folio {
+      font-family: var(--mg-mono);
+      font-size: 56px;
+      color: var(--mg-bronze);
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+    .mg-section__title-block { display: flex; flex-direction: column; gap: 8px; }
+    .mg-section__eyebrow { letter-spacing: 0.32em; }
+    .mg-section__title {
+      font-family: var(--mg-display);
+      font-size: 44px;
+      letter-spacing: -0.015em;
+      color: var(--mg-ink);
+    }
+    .mg-section__title .italic { font-style: italic; color: var(--mg-bronze); }
+
+    /* ── Welcome ────────────────────────────────────────────────────────── */
+    .mg-welcome {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 72px;
+      align-items: start;
+    }
+    .mg-welcome__text {
+      font-size: 21px; line-height: 1.65; color: var(--mg-soft);
+    }
+    .mg-welcome__text p + p { margin-top: 1.1em; }
+    .mg-welcome__text .lead-letter {
+      font-family: var(--mg-mono);
+      font-size: 84px; line-height: 0.85;
+      float: left; margin: 6px 14px -2px 0;
+      color: var(--mg-bronze);
+    }
+    .mg-welcome__sig {
+      margin-top: 36px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(28,24,21,0.18);
+    }
+    .mg-welcome__sig-name {
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 24px; color: var(--mg-ink);
+      margin-bottom: 4px;
+    }
+    .mg-welcome__sig-role { letter-spacing: 0.32em; color: var(--mg-mute); }
+
+    .mg-welcome__card {
+      position: relative;
+      padding: 48px 44px;
+      background: var(--mg-paper-deep);
+      border: 1px solid rgba(28,24,21,0.18);
+    }
+    .mg-welcome__card-monogram {
+      position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 280px;
+      line-height: 1;
+      pointer-events: none;
+    }
+    .mg-welcome__card-content { position: relative; z-index: 1; text-align: center; }
+    .mg-welcome__card-eyebrow { margin-bottom: 14px; }
+    .mg-welcome__card-quote {
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 26px; line-height: 1.4; color: var(--mg-ink);
+      margin-bottom: 20px;
+    }
+    .mg-welcome__card-attrib { letter-spacing: 0.32em; color: var(--mg-mute); }
+
+    /* ── Particulars (definition-list grid) ─────────────────────────────── */
+    .mg-particulars {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--mg-ink);
+    }
+    .mg-particulars__row {
+      display: grid; grid-template-columns: 200px 1fr;
+      gap: 32px; align-items: baseline;
+      padding: 22px 4px;
+      border-bottom: 1px solid rgba(28,24,21,0.16);
+    }
+    .mg-particulars__row:nth-child(odd) { border-right: 1px solid rgba(28,24,21,0.16); padding-right: 36px; }
+    .mg-particulars__row:nth-child(even) { padding-left: 36px; }
+    .mg-particulars__label { letter-spacing: 0.32em; }
+    .mg-particulars__value {
+      font-family: var(--mg-display); font-size: 22px; color: var(--mg-ink);
+      letter-spacing: -0.01em;
+    }
+    .mg-particulars__value .italic { font-style: italic; color: var(--mg-bronze); }
+
+    /* ── Judges ─────────────────────────────────────────────────────────── */
+    .mg-judges {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--mg-ink);
+      border-bottom: 1px solid var(--mg-ink);
+    }
+    .mg-judge {
+      padding: 36px 36px 36px 0;
+      border-bottom: 1px solid rgba(28,24,21,0.16);
+    }
+    .mg-judge:nth-child(odd) {
+      border-right: 1px solid rgba(28,24,21,0.16);
+      padding-right: 36px;
+    }
+    .mg-judge:nth-child(even) { padding-left: 36px; padding-right: 0; }
+    .mg-judge:nth-last-child(-n+2) { border-bottom: none; }
+
+    .mg-judge__monogram {
+      font-family: var(--mg-mono);
+      font-size: 64px;
+      color: var(--mg-bronze);
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+    .mg-judge__name {
+      font-family: var(--mg-display); font-size: 28px;
+      color: var(--mg-ink); margin-bottom: 4px;
+      letter-spacing: -0.015em;
+    }
+    .mg-judge__credential { letter-spacing: 0.32em; margin-bottom: 16px; }
+    .mg-judge__bio {
+      font-size: 15px; line-height: 1.6; color: var(--mg-soft);
+    }
+
+    /* ── Roster bar ─────────────────────────────────────────────────────── */
+    .mg-roster {
+      padding: 56px 48px;
+      background: var(--mg-paper-deep);
+      border: 1px solid rgba(28,24,21,0.16);
+      text-align: center;
+    }
+    .mg-roster__count {
+      font-family: var(--mg-mono);
+      font-size: 140px; line-height: 1;
+      color: var(--mg-ink);
+      letter-spacing: -0.04em;
+    }
+    .mg-roster__count .of {
+      font-size: 56px; color: var(--mg-bronze);
+      vertical-align: middle;
+    }
+    .mg-roster__label { display: block; margin-top: 12px; letter-spacing: 0.32em; }
+    .mg-roster__bar {
+      max-width: 420px; margin: 28px auto 0;
+      height: 4px; background: rgba(28,24,21,0.12);
+      position: relative;
+      overflow: hidden;
+    }
+    .mg-roster__bar-fill {
+      position: absolute; top: 0; left: 0; bottom: 0;
+      width: 78%;
+      background: linear-gradient(90deg, var(--mg-bronze) 0%, var(--mg-leaf) 100%);
+      animation: mg-bar-fill 2000ms cubic-bezier(0.2, 0, 0, 1) 400ms backwards;
+    }
+    @keyframes mg-bar-fill {
+      from { width: 0%; }
+      to { width: 78%; }
+    }
+
+    /* ── Two-column inset (On the day / Plan) ───────────────────────────── */
+    .mg-twocol {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 56px;
+    }
+    .mg-twocol__heading {
+      font-family: var(--mg-display); font-size: 28px;
+      letter-spacing: -0.015em; color: var(--mg-ink);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--mg-ink);
+    }
+    .mg-twocol__heading .italic { font-style: italic; color: var(--mg-bronze); }
+    .mg-twocol__list { list-style: none; padding: 0; margin: 0; }
+    .mg-twocol__list li {
+      padding: 14px 0;
+      border-bottom: 1px dotted rgba(28,24,21,0.2);
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 20px;
+      align-items: baseline;
+    }
+    .mg-twocol__list li:last-child { border-bottom: none; }
+    .mg-twocol__list .label { letter-spacing: 0.32em; }
+    .mg-twocol__list .value {
+      font-family: var(--mg-display); font-size: 18px; color: var(--mg-ink);
+    }
+    .mg-twocol__list .value-body {
+      font-family: var(--mg-body); font-size: 15px; color: var(--mg-soft); line-height: 1.55;
+    }
+
+    /* ── Officers ───────────────────────────────────────────────────────── */
+    .mg-officers {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--mg-ink);
+      border-bottom: 1px solid var(--mg-ink);
+    }
+    .mg-officer {
+      padding: 28px 24px;
+      border-right: 1px solid rgba(28,24,21,0.16);
+      text-align: center;
+    }
+    .mg-officer:last-child { border-right: none; }
+    .mg-officer__role { letter-spacing: 0.32em; color: var(--mg-bronze); margin-bottom: 8px; }
+    .mg-officer__name {
+      font-family: var(--mg-display); font-size: 22px;
+      letter-spacing: -0.01em; color: var(--mg-ink);
+    }
+    .mg-officer__contact { font-family: var(--mg-body); font-size: 13px; color: var(--mg-mute); margin-top: 4px; }
+
+    /* ── Final CTA ──────────────────────────────────────────────────────── */
+    .mg-final {
+      position: relative;
+      padding: 120px 56px;
+      text-align: center;
+      background: var(--mg-ink);
+      color: var(--mg-paper);
+      overflow: hidden;
+    }
+    .mg-final__monogram {
+      position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-family: var(--mg-mono);
+      font-size: 580px;
+      line-height: 1;
+      color: transparent;
+      background: linear-gradient(180deg, #2a241e 0%, #1c1815 50%, #0f0c09 100%);
+      -webkit-background-clip: text; background-clip: text;
+      text-shadow:
+        1px 1px 0 rgba(255, 252, 240, 0.04),
+        -1px -1px 0 rgba(0,0,0,0.6);
+      pointer-events: none;
+    }
+    .mg-final__inner { position: relative; z-index: 2; max-width: 720px; margin: 0 auto; }
+    .mg-final__eyebrow {
+      letter-spacing: 0.32em; color: var(--mg-leaf); margin-bottom: 20px;
+    }
+    .mg-final__title {
+      font-family: var(--mg-display); font-size: 64px;
+      letter-spacing: -0.025em; line-height: 1.05;
+      color: var(--mg-paper); margin-bottom: 28px;
+    }
+    .mg-final__title .italic { font-style: italic; color: var(--mg-leaf); }
+    .mg-final__cta {
+      display: inline-flex; align-items: center; gap: 14px;
+      padding: 18px 44px;
+      background: var(--mg-paper); color: var(--mg-ink);
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 18px; letter-spacing: 0.02em;
+      transition: all 280ms ease;
+    }
+    .mg-final__cta:hover { background: var(--mg-leaf); color: var(--mg-ink); }
+
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    .mg-footer {
+      padding: 56px 56px 36px;
+      border-top: 1px solid rgba(28,24,21,0.18);
+      background: var(--mg-paper-deep);
+      display: grid;
+      grid-template-columns: 200px 1fr auto;
+      gap: 56px; align-items: start;
+    }
+    .mg-footer__monogram {
+      font-family: var(--mg-mono);
+      font-size: 96px; line-height: 1;
+      color: var(--mg-ink);
+      letter-spacing: -0.04em;
+    }
+    .mg-footer__club {
+      font-family: var(--mg-display); font-style: italic; font-size: 22px;
+      color: var(--mg-ink); margin-bottom: 8px;
+    }
+    .mg-footer__small {
+      font-family: var(--mg-body); font-size: 14px; color: var(--mg-quill);
+      line-height: 1.65;
+    }
+    .mg-footer__meta { letter-spacing: 0.32em; color: var(--mg-mute); text-align: right; line-height: 2; }
+
+    /* ── Reduced motion ─────────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ── Responsive: collapse to single column ──────────────────────────── */
+    @media (max-width: 900px) {
+      .mg-nav { padding: 12px 24px; }
+      .mg-hero { padding: 56px 24px; }
+      .mg-hero__title { font-size: 48px; }
+      .mg-hero__monogram { font-size: 320px; }
+      .mg-hero__meta { grid-template-columns: 1fr 1fr; }
+      .mg-section { padding: 56px 24px; }
+      .mg-section__head { grid-template-columns: 1fr; gap: 12px; }
+      .mg-welcome, .mg-twocol { grid-template-columns: 1fr; gap: 36px; }
+      .mg-judges, .mg-particulars, .mg-officers { grid-template-columns: 1fr; }
+      .mg-judge, .mg-particulars__row, .mg-officer {
+        border-right: none !important; padding: 24px 0 !important;
+      }
+      .mg-final { padding: 72px 24px; }
+      .mg-final__title { font-size: 40px; }
+      .mg-final__monogram { font-size: 320px; }
+      .mg-footer { grid-template-columns: 1fr; gap: 24px; }
+      .mg-footer__meta { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="mg-nav">
+    <div class="mg-nav__brand">
+      <span class="mg-nav__monogram">BC</span>
+      <span class="mg-nav__club">Bexar County Kennel Club</span>
+    </div>
+    <a class="mg-nav__cta" href="#enter">Enter the trial</a>
+  </nav>
+
+  <!-- ── HERO ─────────────────────────────────────────────────────────── -->
+  <header class="mg-hero">
+    <div class="mg-monogram mg-hero__monogram" aria-hidden="true">BC</div>
+    <div class="mg-hero__inner">
+      <div class="mg-hero__kicker">
+        <span class="smallcaps">AKC Licensed Trial · 12–14 June 2026</span>
+      </div>
+      <h1 class="mg-hero__title">
+        Spring Scent Work<br />
+        <span class="italic">trial</span> twenty&#8202;twenty&#8202;six
+      </h1>
+      <p class="mg-hero__sub">
+        A three-day scent-work meeting hosted by the Bexar County Kennel Club at the Live Oak Civic Center, San Antonio.
+      </p>
+      <div class="mg-hero__meta">
+        <div class="mg-hero__meta-cell">
+          <span class="mg-hero__meta-label smallcaps smallcaps--mute">Dates</span>
+          <span class="mg-hero__meta-value">Jun 12<span class="em">–</span>14</span>
+        </div>
+        <div class="mg-hero__meta-cell">
+          <span class="mg-hero__meta-label smallcaps smallcaps--mute">Closes</span>
+          <span class="mg-hero__meta-value">Jun 3 <span class="em">·</span> 8 PM</span>
+        </div>
+        <div class="mg-hero__meta-cell">
+          <span class="mg-hero__meta-label smallcaps smallcaps--mute">Limit</span>
+          <span class="mg-hero__meta-value">360 <span class="em">runs</span></span>
+        </div>
+        <div class="mg-hero__meta-cell">
+          <span class="mg-hero__meta-label smallcaps smallcaps--mute">Venue</span>
+          <span class="mg-hero__meta-value">Live Oak <span class="em">·</span> TX</span>
+        </div>
+      </div>
+      <a class="mg-hero__cta" href="#enter">
+        Enter your dog
+        <span class="mg-hero__cta-arrow">→</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ── WELCOME ──────────────────────────────────────────────────────── -->
+  <section class="mg-section">
+    <header class="mg-section__head">
+      <div class="mg-section__folio">i</div>
+      <div class="mg-section__title-block">
+        <span class="mg-section__eyebrow smallcaps">Letter from the chair</span>
+        <h2 class="mg-section__title">A welcome <span class="italic">to all entrants</span></h2>
+      </div>
+    </header>
+    <div class="mg-welcome">
+      <div class="mg-welcome__text">
+        <p>
+          <span class="lead-letter">D</span>ear exhibitor — on behalf of the officers and members of the Bexar County Kennel Club, it is my pleasure to welcome you to our seventy-ninth licensed trial weekend, and our second running the AKC Scent Work programme at this venue.
+        </p>
+        <p>
+          Three days, two judges, six trials. Containers and Interiors with Mrs. Beagles in Hall A; Exteriors and Buried with Mr. Whitfield in Hall B. The order of running publishes one week prior. We have set the entry limit at 360 runs to keep the pace humane for both dogs and judges, and we expect to fill.
+        </p>
+        <p>
+          We are a small club. The volunteers running this trial are the same people you will see ribboning in the morning and stewarding in the afternoon. Treat them kindly.
+        </p>
+        <div class="mg-welcome__sig">
+          <div class="mg-welcome__sig-name">Sarah Whitman</div>
+          <div class="mg-welcome__sig-role smallcaps">Trial Chair</div>
+        </div>
+      </div>
+      <aside class="mg-welcome__card">
+        <div class="mg-monogram mg-welcome__card-monogram" aria-hidden="true">BC</div>
+        <div class="mg-welcome__card-content">
+          <div class="mg-welcome__card-eyebrow smallcaps">Established 1947</div>
+          <p class="mg-welcome__card-quote">
+            “The point of a trial is the dog and the work. The point of a club is the people who put the trial on.”
+          </p>
+          <div class="mg-welcome__card-attrib smallcaps">— Constitution, Article I</div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ── PARTICULARS ──────────────────────────────────────────────────── -->
+  <section class="mg-section">
+    <header class="mg-section__head">
+      <div class="mg-section__folio">ii</div>
+      <div class="mg-section__title-block">
+        <span class="mg-section__eyebrow smallcaps">Trial particulars</span>
+        <h2 class="mg-section__title">All the <span class="italic">facts &amp; figures</span></h2>
+      </div>
+    </header>
+    <div class="mg-particulars">
+      <div class="mg-particulars__row">
+        <span class="mg-particulars__label smallcaps">License</span>
+        <span class="mg-particulars__value">AKC <span class="italic">№ 2026-2841</span></span>
+      </div>
+      <div class="mg-particulars__row">
+        <span class="mg-particulars__label smallcaps">Sport</span>
+        <span class="mg-particulars__value">Scent Work · all elements</span>
+      </div>
+      <div class="mg-particulars__row">
+        <span class="mg-particulars__label smallcaps">Entries open</span>
+        <span class="mg-particulars__value">May 13, 2026</span>
+      </div>
+      <div class="mg-particulars__row">
+        <span class="mg-particulars__label smallcaps">Entries close</span>
+        <span class="mg-particulars__value">Jun 3, 8 <span class="italic">pm</span> CT</span>
+      </div>
+      <div class="mg-particulars__row">
+        <span class="mg-particulars__label smallcaps">Confirmation</span>
+        <span class="mg-particulars__value">Jun 6 <span class="italic">· emailed to all entrants</span></span>
+      </div>
+      <div class="mg-particulars__row">
+        <span class="mg-particulars__label smallcaps">Entry limit</span>
+        <span class="mg-particulars__value">360 runs · firm</span>
+      </div>
+      <div class="mg-particulars__row">
+        <span class="mg-particulars__label smallcaps">First entry</span>
+        <span class="mg-particulars__value">$25.00</span>
+      </div>
+      <div class="mg-particulars__row">
+        <span class="mg-particulars__label smallcaps">Each additional</span>
+        <span class="mg-particulars__value">$22.00</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── JUDGES ───────────────────────────────────────────────────────── -->
+  <section class="mg-section">
+    <header class="mg-section__head">
+      <div class="mg-section__folio">iii</div>
+      <div class="mg-section__title-block">
+        <span class="mg-section__eyebrow smallcaps">The judges</span>
+        <h2 class="mg-section__title">Two judges, <span class="italic">six trials</span></h2>
+      </div>
+    </header>
+    <div class="mg-judges">
+      <div class="mg-judge">
+        <div class="mg-judge__monogram">CB</div>
+        <div class="mg-judge__name">Mrs. Catherine Beagles</div>
+        <div class="mg-judge__credential smallcaps">Containers · Interiors</div>
+        <p class="mg-judge__bio">
+          AKC judge since 2014. Approved for all Scent Work elements at all levels. Former trial chair, Lone Star Working Dog Club. Lives in Austin with two terriers, both retired competitors.
+        </p>
+      </div>
+      <div class="mg-judge">
+        <div class="mg-judge__monogram">MW</div>
+        <div class="mg-judge__name">Mr. Marcus Whitfield</div>
+        <div class="mg-judge__credential smallcaps">Exteriors · Buried · HD</div>
+        <p class="mg-judge__bio">
+          AKC judge since 2017. Approved through Master and Detective. Detection-dog handler, twenty years. Author of <em>Reading the Wind: A Practical Guide to Exterior Searches</em>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ROSTER ───────────────────────────────────────────────────────── -->
+  <section class="mg-section">
+    <header class="mg-section__head">
+      <div class="mg-section__folio">iv</div>
+      <div class="mg-section__title-block">
+        <span class="mg-section__eyebrow smallcaps">The roster</span>
+        <h2 class="mg-section__title">Filling <span class="italic">quickly</span></h2>
+      </div>
+    </header>
+    <div class="mg-roster">
+      <div class="mg-roster__count">281<span class="of"> ⁄ 360</span></div>
+      <span class="mg-roster__label smallcaps">Entries received as of 28 May</span>
+      <div class="mg-roster__bar"><div class="mg-roster__bar-fill"></div></div>
+    </div>
+  </section>
+
+  <!-- ── PLAN + ON THE DAY ────────────────────────────────────────────── -->
+  <section class="mg-section">
+    <header class="mg-section__head">
+      <div class="mg-section__folio">v</div>
+      <div class="mg-section__title-block">
+        <span class="mg-section__eyebrow smallcaps">Plan your weekend</span>
+        <h2 class="mg-section__title">On the day <span class="italic">&amp;</span> getting there</h2>
+      </div>
+    </header>
+    <div class="mg-twocol">
+      <div>
+        <h3 class="mg-twocol__heading">On the <span class="italic">day</span></h3>
+        <ul class="mg-twocol__list">
+          <li><span class="label smallcaps">Doors</span><span class="value">7:00 am</span></li>
+          <li><span class="label smallcaps">First class</span><span class="value">8:30 am</span></li>
+          <li><span class="label smallcaps">Crating</span><span class="value">Adjacent ballroom</span></li>
+          <li><span class="label smallcaps">Parking</span><span class="value">On site, free</span></li>
+          <li><span class="label smallcaps">Hospitality</span><span class="value-body">Coffee &amp; breakfast tacos at check-in. Lunch on site, all three days, $9.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="mg-twocol__heading">Where <span class="italic">to stay</span></h3>
+        <ul class="mg-twocol__list">
+          <li><span class="label smallcaps">Hampton Inn</span><span class="value-body">Live Oak, dog-friendly, 1.2 mi · $129/night</span></li>
+          <li><span class="label smallcaps">La Quinta</span><span class="value-body">Selma, dog-friendly, 3.8 mi · $109/night</span></li>
+          <li><span class="label smallcaps">Mention</span><span class="value-body">"BCKC Trial" for the trial-rate block</span></li>
+          <li><span class="label smallcaps">RV</span><span class="value-body">15 hookups behind venue · $35/night · reserve via secretary</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── OFFICERS ─────────────────────────────────────────────────────── -->
+  <section class="mg-section">
+    <header class="mg-section__head">
+      <div class="mg-section__folio">vi</div>
+      <div class="mg-section__title-block">
+        <span class="mg-section__eyebrow smallcaps">The committee</span>
+        <h2 class="mg-section__title">Officers <span class="italic">&amp;</span> staff</h2>
+      </div>
+    </header>
+    <div class="mg-officers">
+      <div class="mg-officer">
+        <div class="mg-officer__role smallcaps">Trial Chair</div>
+        <div class="mg-officer__name">Sarah Whitman</div>
+        <div class="mg-officer__contact">chair@bckc.org</div>
+      </div>
+      <div class="mg-officer">
+        <div class="mg-officer__role smallcaps">Trial Secretary</div>
+        <div class="mg-officer__name">Daniel Reyes</div>
+        <div class="mg-officer__contact">secretary@bckc.org</div>
+      </div>
+      <div class="mg-officer">
+        <div class="mg-officer__role smallcaps">Hospitality</div>
+        <div class="mg-officer__name">Margaret Olsen</div>
+        <div class="mg-officer__contact">hospitality@bckc.org</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FINAL CTA ────────────────────────────────────────────────────── -->
+  <section class="mg-final" id="enter">
+    <div class="mg-final__monogram" aria-hidden="true">BC</div>
+    <div class="mg-final__inner">
+      <div class="mg-final__eyebrow smallcaps">Closes 8 pm CT, 3 June 2026</div>
+      <h2 class="mg-final__title">Enter your dog <span class="italic">in confidence</span>.</h2>
+      <a class="mg-final__cta" href="#">
+        Open the entry wizard
+        <span>→</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ───────────────────────────────────────────────────────── -->
+  <footer class="mg-footer">
+    <div class="mg-footer__monogram">BC</div>
+    <div>
+      <div class="mg-footer__club">Bexar County Kennel Club</div>
+      <p class="mg-footer__small">
+        Established 1947 · A member club of the American Kennel Club<br />
+        PO Box 4421 · San Antonio, Texas 78212
+      </p>
+    </div>
+    <div class="mg-footer__meta smallcaps">
+      License № 2026-2841<br />
+      AKC · Scent Work<br />
+      Designed in TX
+    </div>
+  </footer>
+
+</body>
+</html>

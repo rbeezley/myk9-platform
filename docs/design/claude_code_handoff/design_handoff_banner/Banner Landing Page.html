@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Spring Scent Work Trial 2026 · Bexar County Kennel Club</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ===========================================================
+       BANNER — flag-bar masthead, Swiss-modern grid, single accent
+       Tone: corporate-modern confidence, monolithic typography,
+             zero ornamentation, left-aligned everything
+       Differentiator: ONE big colored bar; type does the rest
+       =========================================================== */
+
+    :root {
+      --bn-paper:#fafaf8; --bn-paper-warm:#f0eeea;
+      --bn-ink:#111111; --bn-soft:#2a2a2a;
+      --bn-mute:#6b6b6b; --bn-hair:#d8d8d4;
+      --bn-flag:#0d4d4f;                /* deep teal — the banner color */
+      --bn-flag-deep:#093234;
+      --bn-flag-bright:#1a7679;
+      --bn-warn:#d97742;                 /* single accent — used 1x for status */
+      --bn-display:'Inter Tight', system-ui, sans-serif;
+      --bn-body:'Inter', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--bn-paper); color: var(--bn-ink);
+      font-family: var(--bn-body); font-size: 16px; line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4 { margin: 0; font-family: var(--bn-display); font-weight: 800; line-height: 1; letter-spacing: -0.025em; }
+    p { margin: 0; }
+    a { color: var(--bn-ink); text-decoration: none; }
+
+    /* ── Top "flag bar" ────────────────────────────────────────── */
+    .bn-flag {
+      background: var(--bn-flag);
+      color: var(--bn-paper);
+      padding: 56px 64px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .bn-flag::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 0 auto;
+      width: 240px;
+      background: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.18) 100%);
+      pointer-events: none;
+    }
+    .bn-flag__container {
+      max-width: 1280px; margin: 0 auto;
+      position: relative; z-index: 2;
+    }
+    .bn-flag__top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 40px;
+      margin-bottom: 40px;
+      border-bottom: 1px solid rgba(255,255,255,0.18);
+    }
+    .bn-flag__mark {
+      display: flex; align-items: center; gap: 16px;
+      font-family: var(--bn-display); font-weight: 800;
+      font-size: 18px; letter-spacing: -0.01em;
+    }
+    .bn-flag__mark::before {
+      content: ""; width: 16px; height: 16px;
+      background: var(--bn-paper);
+    }
+    .bn-flag__nav {
+      display: flex; gap: 32px;
+      font-family: var(--bn-body); font-weight: 500;
+      font-size: 13px; letter-spacing: 0.04em;
+    }
+    .bn-flag__nav a { color: rgba(255,255,255,0.7); }
+    .bn-flag__nav a:hover, .bn-flag__nav a.active { color: var(--bn-paper); }
+    .bn-flag__cta {
+      padding: 12px 22px;
+      background: var(--bn-paper); color: var(--bn-flag);
+      font-family: var(--bn-display); font-weight: 700; font-size: 14px;
+      letter-spacing: -0.005em; border: none; cursor: pointer;
+      transition: all 200ms ease;
+    }
+    .bn-flag__cta:hover { background: var(--bn-flag-bright); color: var(--bn-paper); }
+
+    .bn-flag__eyebrow {
+      font-family: var(--bn-body); font-weight: 500; font-size: 13px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 28px;
+    }
+    .bn-flag__title {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 144px; letter-spacing: -0.05em; line-height: 0.88;
+      margin: 0 0 28px;
+      color: var(--bn-paper);
+      max-width: 14ch;
+      text-wrap: balance;
+    }
+    .bn-flag__sub {
+      font-family: var(--bn-body); font-weight: 400;
+      font-size: 20px; line-height: 1.45;
+      color: rgba(255,255,255,0.85);
+      max-width: 540px;
+      margin-bottom: 48px;
+    }
+    .bn-flag__meta {
+      display: grid; grid-template-columns: repeat(4, max-content);
+      gap: 0 64px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,0.18);
+    }
+    .bn-flag__meta-cell { }
+    .bn-flag__meta-label {
+      font-family: var(--bn-body); font-weight: 500;
+      font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: rgba(255,255,255,0.6); margin-bottom: 6px;
+    }
+    .bn-flag__meta-value {
+      font-family: var(--bn-display); font-weight: 700;
+      font-size: 28px; letter-spacing: -0.015em; line-height: 1;
+      color: var(--bn-paper);
+    }
+
+    /* ── Sub-bar (sticky condensed) ──────────────────────────── */
+    .bn-subbar {
+      position: sticky; top: 0; z-index: 30;
+      background: var(--bn-paper);
+      border-bottom: 1px solid var(--bn-ink);
+    }
+    .bn-subbar__inner {
+      max-width: 1280px; margin: 0 auto;
+      padding: 14px 64px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .bn-subbar__nav {
+      display: flex; gap: 28px;
+      font-family: var(--bn-body); font-weight: 500; font-size: 13px;
+      letter-spacing: 0.04em;
+    }
+    .bn-subbar__nav a { color: var(--bn-mute); }
+    .bn-subbar__nav a:hover { color: var(--bn-ink); }
+    .bn-subbar__status {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--bn-body); font-weight: 500; font-size: 12px;
+      letter-spacing: 0.2em; text-transform: uppercase; color: var(--bn-ink);
+    }
+    .bn-subbar__dot {
+      width: 8px; height: 8px; background: var(--bn-warn); border-radius: 50%;
+      animation: bnPulse 2.4s ease-in-out infinite;
+    }
+    @keyframes bnPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    /* ── Sections ────────────────────────────────────────────── */
+    .bn-section {
+      max-width: 1280px; margin: 0 auto;
+      padding: 96px 64px;
+      border-bottom: 1px solid var(--bn-hair);
+    }
+    .bn-section--alt {
+      background: var(--bn-paper-warm);
+      max-width: none;
+      padding: 96px 0;
+    }
+    .bn-section--alt > .bn-section__inner {
+      max-width: 1280px; margin: 0 auto; padding: 0 64px;
+    }
+
+    .bn-section__head {
+      display: grid; grid-template-columns: 240px 1fr;
+      gap: 48px; align-items: baseline;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--bn-ink);
+      margin-bottom: 48px;
+    }
+    .bn-section__num {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 20px; letter-spacing: 0.06em;
+      color: var(--bn-flag);
+    }
+    .bn-section__title {
+      font-family: var(--bn-display); font-weight: 800;
+      font-size: 64px; letter-spacing: -0.035em; line-height: 1;
+      color: var(--bn-ink);
+      max-width: 16ch;
+    }
+    .bn-section__title .colored { color: var(--bn-flag); }
+
+    /* ── Welcome / Prose ─────────────────────────────────────── */
+    .bn-prose {
+      max-width: 720px;
+      font-family: var(--bn-body); font-size: 19px; line-height: 1.6;
+      color: var(--bn-soft);
+    }
+    .bn-prose p + p { margin-top: 1.1em; }
+    .bn-prose strong { color: var(--bn-ink); font-weight: 600; }
+    .bn-byline {
+      margin-top: 36px;
+      padding-top: 18px;
+      border-top: 1px solid var(--bn-hair);
+      font-family: var(--bn-body); font-size: 13px;
+      letter-spacing: 0.2em; text-transform: uppercase; color: var(--bn-mute);
+    }
+    .bn-byline strong { color: var(--bn-ink); font-weight: 600; }
+
+    /* ── Particulars table ───────────────────────────────────── */
+    .bn-table {
+      width: 100%; border-collapse: collapse;
+      font-family: var(--bn-body);
+      border-top: 2px solid var(--bn-ink);
+    }
+    .bn-table tr { border-bottom: 1px solid var(--bn-hair); }
+    .bn-table tr:last-child { border-bottom: 2px solid var(--bn-ink); }
+    .bn-table th {
+      text-align: left;
+      font-family: var(--bn-body); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--bn-mute);
+      padding: 22px 28px 22px 0; width: 280px; vertical-align: top;
+    }
+    .bn-table td {
+      padding: 22px 0;
+      font-family: var(--bn-display); font-weight: 700; font-size: 22px;
+      letter-spacing: -0.015em; color: var(--bn-ink);
+    }
+    .bn-table td .colored { color: var(--bn-flag); }
+    .bn-table td .sub {
+      display: block; margin-top: 6px;
+      font-family: var(--bn-body); font-weight: 400; font-size: 14px;
+      letter-spacing: 0; color: var(--bn-mute); line-height: 1.5;
+    }
+
+    /* ── Judges (large block) ────────────────────────────────── */
+    .bn-judges {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+      border-top: 2px solid var(--bn-ink);
+      border-bottom: 2px solid var(--bn-ink);
+    }
+    .bn-judge {
+      padding: 40px 40px 40px 0;
+      border-right: 1px solid var(--bn-hair);
+    }
+    .bn-judge:nth-child(even) { padding: 40px 0 40px 40px; border-right: none; }
+    .bn-judge__num {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 13px; letter-spacing: 0.2em;
+      color: var(--bn-flag); margin-bottom: 18px;
+    }
+    .bn-judge__name {
+      font-family: var(--bn-display); font-weight: 800;
+      font-size: 44px; letter-spacing: -0.03em; line-height: 1;
+      color: var(--bn-ink); margin-bottom: 6px;
+    }
+    .bn-judge__city {
+      font-family: var(--bn-body); font-weight: 500; font-size: 14px;
+      color: var(--bn-mute); margin-bottom: 24px;
+    }
+    .bn-judge__panel {
+      font-family: var(--bn-body); font-size: 14px; line-height: 1.6;
+      color: var(--bn-soft);
+    }
+    .bn-judge__panel-label {
+      font-family: var(--bn-body); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--bn-flag);
+      display: block; margin-bottom: 8px;
+    }
+
+    /* ── Fees ─────────────────────────────────────────────── */
+    .bn-fees {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+      border-top: 2px solid var(--bn-ink);
+      border-bottom: 2px solid var(--bn-ink);
+    }
+    .bn-fee {
+      padding: 36px 32px;
+      border-right: 1px solid var(--bn-hair);
+    }
+    .bn-fee:last-child { border-right: none; }
+    .bn-fee__lbl {
+      font-family: var(--bn-body); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--bn-mute);
+      margin-bottom: 16px;
+    }
+    .bn-fee__n {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 64px; letter-spacing: -0.045em; line-height: 0.9;
+      color: var(--bn-ink);
+    }
+    .bn-fee__n .cents {
+      font-size: 24px; vertical-align: 20px; color: var(--bn-mute);
+    }
+    .bn-fee__sub {
+      font-family: var(--bn-body); font-size: 13px; color: var(--bn-mute);
+      margin-top: 10px;
+    }
+
+    /* ── Capacity ────────────────────────────────────────────── */
+    .bn-capacity {
+      background: var(--bn-flag); color: var(--bn-paper);
+      padding: 56px 64px;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 48px; align-items: center;
+    }
+    .bn-capacity__nums {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 144px; letter-spacing: -0.05em; line-height: 0.88;
+    }
+    .bn-capacity__nums .of {
+      color: rgba(255,255,255,0.5); font-size: 88px;
+    }
+    .bn-capacity__right {
+      font-family: var(--bn-body);
+    }
+    .bn-capacity__pct {
+      font-family: var(--bn-body); font-weight: 500; font-size: 13px;
+      letter-spacing: 0.28em; text-transform: uppercase;
+      color: rgba(255,255,255,0.7); margin-bottom: 18px;
+    }
+    .bn-capacity__bar {
+      height: 8px; background: rgba(255,255,255,0.18);
+      position: relative; overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .bn-capacity__bar-fill {
+      position: absolute; inset: 0 auto 0 0;
+      background: var(--bn-paper); width: 78%;
+    }
+    .bn-capacity__copy {
+      font-family: var(--bn-body); font-size: 15px; line-height: 1.55;
+      color: rgba(255,255,255,0.85);
+    }
+
+    /* ── Timeline (steps as horizontal flag-bar) ─────────────── */
+    .bn-steps {
+      display: grid; grid-template-columns: repeat(6, 1fr);
+      gap: 0;
+      border-top: 2px solid var(--bn-ink);
+      border-bottom: 2px solid var(--bn-ink);
+    }
+    .bn-step {
+      padding: 24px 20px;
+      border-right: 1px solid var(--bn-hair);
+      position: relative;
+    }
+    .bn-step:last-child { border-right: none; }
+    .bn-step.done { color: var(--bn-mute); background: var(--bn-paper-warm); }
+    .bn-step.active { background: var(--bn-flag); color: var(--bn-paper); }
+    .bn-step__num {
+      font-family: var(--bn-body); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      margin-bottom: 10px; opacity: 0.7;
+    }
+    .bn-step__when {
+      font-family: var(--bn-display); font-weight: 800;
+      font-size: 22px; letter-spacing: -0.02em; line-height: 1;
+      margin-bottom: 8px;
+    }
+    .bn-step__what {
+      font-family: var(--bn-body); font-size: 13px; line-height: 1.5;
+    }
+
+    /* ── Plan / On-day cards ─────────────────────────────────── */
+    .bn-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+      border-top: 2px solid var(--bn-ink);
+      border-bottom: 2px solid var(--bn-ink);
+    }
+    .bn-card {
+      padding: 32px 36px;
+      border-right: 1px solid var(--bn-hair);
+    }
+    .bn-card:nth-child(2n) { border-right: none; }
+    .bn-card:nth-child(n+3) { border-top: 1px solid var(--bn-hair); }
+    .bn-card__cat {
+      font-family: var(--bn-body); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--bn-flag);
+      margin-bottom: 10px;
+    }
+    .bn-card__title {
+      font-family: var(--bn-display); font-weight: 800;
+      font-size: 26px; letter-spacing: -0.02em; line-height: 1.1;
+      color: var(--bn-ink); margin-bottom: 8px;
+    }
+    .bn-card__meta {
+      font-family: var(--bn-body); font-size: 13px; color: var(--bn-mute);
+      margin-bottom: 14px;
+    }
+    .bn-card__body {
+      font-family: var(--bn-body); font-size: 14px; line-height: 1.6;
+      color: var(--bn-soft);
+    }
+
+    /* ── Officers ────────────────────────────────────────────── */
+    .bn-officers {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+      border-top: 2px solid var(--bn-ink);
+      border-bottom: 2px solid var(--bn-ink);
+    }
+    .bn-officer {
+      padding: 24px 28px;
+      border-right: 1px solid var(--bn-hair);
+    }
+    .bn-officer:nth-child(3n) { border-right: none; }
+    .bn-officer:nth-child(n+4) { border-top: 1px solid var(--bn-hair); }
+    .bn-officer__role {
+      font-family: var(--bn-body); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--bn-mute);
+      margin-bottom: 6px;
+    }
+    .bn-officer__name {
+      font-family: var(--bn-display); font-weight: 700;
+      font-size: 18px; letter-spacing: -0.01em; color: var(--bn-ink);
+    }
+
+    /* ── Final CTA (second flag bar) ─────────────────────────── */
+    .bn-final {
+      background: var(--bn-ink); color: var(--bn-paper);
+      padding: 120px 64px;
+      position: relative;
+      overflow: hidden;
+    }
+    .bn-final::before {
+      content: "";
+      position: absolute;
+      top: 0; bottom: 0;
+      left: 0; width: 12px;
+      background: var(--bn-flag);
+    }
+    .bn-final__inner {
+      max-width: 1280px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 360px;
+      gap: 80px; align-items: center;
+    }
+    .bn-final__eyebrow {
+      font-family: var(--bn-body); font-weight: 500; font-size: 13px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: rgba(250,250,248,0.6); margin-bottom: 24px;
+    }
+    .bn-final__title {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 96px; letter-spacing: -0.045em; line-height: 0.92;
+      color: var(--bn-paper); margin: 0 0 24px;
+      max-width: 14ch; text-wrap: balance;
+    }
+    .bn-final__title .colored { color: var(--bn-flag-bright); }
+    .bn-final__sub {
+      font-family: var(--bn-body); font-size: 17px; line-height: 1.55;
+      color: rgba(250,250,248,0.75); max-width: 520px; margin: 0;
+    }
+    .bn-final__cta-card {
+      background: var(--bn-paper); color: var(--bn-ink);
+      padding: 36px;
+    }
+    .bn-final__cta-l {
+      font-family: var(--bn-body); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--bn-mute);
+      margin-bottom: 10px;
+    }
+    .bn-final__cta-v {
+      font-family: var(--bn-display); font-weight: 800;
+      font-size: 22px; letter-spacing: -0.015em; line-height: 1.2;
+      color: var(--bn-ink); margin-bottom: 24px;
+    }
+    .bn-final__cta-btn {
+      width: 100%;
+      background: var(--bn-flag); color: var(--bn-paper);
+      padding: 16px 24px; border: none; cursor: pointer;
+      font-family: var(--bn-display); font-weight: 700; font-size: 15px;
+      letter-spacing: -0.005em; text-align: center;
+      transition: all 200ms ease;
+    }
+    .bn-final__cta-btn:hover { background: var(--bn-flag-deep); }
+    .bn-final__cta-helper {
+      font-family: var(--bn-body); font-size: 12px; color: var(--bn-mute);
+      margin-top: 12px; text-align: center;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .bn-footer {
+      background: var(--bn-paper);
+      padding: 56px 64px 24px;
+      border-top: 1px solid var(--bn-hair);
+    }
+    .bn-footer__inner {
+      max-width: 1280px; margin: 0 auto;
+      display: grid; grid-template-columns: 2fr 1fr 1fr;
+      gap: 64px; align-items: start;
+    }
+    .bn-footer h4 {
+      font-family: var(--bn-body); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--bn-mute); margin: 0 0 14px;
+    }
+    .bn-footer p, .bn-footer a {
+      font-family: var(--bn-body); font-size: 14px; line-height: 1.65;
+      color: var(--bn-soft); margin: 0;
+      display: block;
+    }
+    .bn-footer .club-name {
+      font-family: var(--bn-display); font-weight: 800;
+      font-size: 22px; letter-spacing: -0.015em; color: var(--bn-ink);
+      margin-bottom: 8px;
+    }
+    .bn-footer__fine {
+      max-width: 1280px; margin: 40px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid var(--bn-hair);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      font-family: var(--bn-body); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.2em; text-transform: uppercase; color: var(--bn-mute);
+    }
+
+    /* ── Motion (Swiss snap; nothing precious) ───────────────── */
+    .bn-flag__container > * {
+      opacity: 0; transform: translateY(8px);
+      animation: bnRise 600ms cubic-bezier(0.2, 0, 0, 1) forwards;
+    }
+    .bn-flag__top      { animation-delay: 60ms; }
+    .bn-flag__eyebrow  { animation-delay: 180ms; }
+    .bn-flag__title    { animation-delay: 260ms; }
+    .bn-flag__sub      { animation-delay: 380ms; }
+    .bn-flag__meta     { animation-delay: 500ms; }
+    @keyframes bnRise { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+    .bn-capacity__bar-fill { width: 0; animation: bnBar 1200ms cubic-bezier(0.2,0,0,1) 600ms forwards; }
+    @keyframes bnBar { to { width: 78%; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .bn-capacity__bar-fill { width: 78% !important; }
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .bn-flag { padding: 32px 24px 56px; }
+      .bn-flag__nav { display: none; }
+      .bn-flag__title { font-size: 64px; }
+      .bn-flag__meta { grid-template-columns: 1fr 1fr; gap: 24px 32px; }
+      .bn-subbar__inner { padding: 12px 24px; }
+      .bn-subbar__nav { display: none; }
+      .bn-section, .bn-section--alt > .bn-section__inner { padding: 56px 24px; }
+      .bn-section--alt { padding: 0; }
+      .bn-section__head { grid-template-columns: 1fr; gap: 16px; }
+      .bn-section__title { font-size: 40px; }
+      .bn-table th { width: auto; font-size: 10px; padding-right: 16px; }
+      .bn-table td { font-size: 18px; }
+      .bn-judges, .bn-cards, .bn-fees { grid-template-columns: 1fr; }
+      .bn-judge, .bn-card, .bn-fee { border-right: none !important; padding: 24px 0 !important; border-bottom: 1px solid var(--bn-hair); }
+      .bn-judge__name { font-size: 32px; }
+      .bn-steps { grid-template-columns: 1fr 1fr; }
+      .bn-capacity { grid-template-columns: 1fr; padding: 32px 24px; }
+      .bn-capacity__nums { font-size: 80px; }
+      .bn-final { padding: 64px 24px; }
+      .bn-final__inner { grid-template-columns: 1fr; gap: 32px; }
+      .bn-final__title { font-size: 48px; }
+      .bn-footer { padding: 40px 24px; }
+      .bn-footer__inner { grid-template-columns: 1fr; gap: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── FLAG MASTHEAD ────────────────────────────────────────── -->
+  <header class="bn-flag">
+    <div class="bn-flag__container">
+      <div class="bn-flag__top">
+        <div class="bn-flag__mark">Bexar County Kennel Club</div>
+        <nav class="bn-flag__nav">
+          <a href="#welcome">Welcome</a>
+          <a href="#particulars">Particulars</a>
+          <a href="#judges">Judges</a>
+          <a href="#roster">Roster</a>
+          <a href="#plan">Plan</a>
+        </nav>
+        <button class="bn-flag__cta" onclick="document.getElementById('enter').scrollIntoView({behavior:'smooth'})">Enter the trial →</button>
+      </div>
+
+      <p class="bn-flag__eyebrow">AKC Licensed Scent Work Trial · License № 2026-2841</p>
+
+      <h1 class="bn-flag__title">Spring Scent Work, 2026.</h1>
+
+      <p class="bn-flag__sub">Three days. Six trials. 360 runs. Bexar County Kennel Club presents the spring meeting at the Live Oak Civic Center, San Antonio — June 12 through 14.</p>
+
+      <div class="bn-flag__meta">
+        <div class="bn-flag__meta-cell">
+          <div class="bn-flag__meta-label">Dates</div>
+          <div class="bn-flag__meta-value">Jun 12–14</div>
+        </div>
+        <div class="bn-flag__meta-cell">
+          <div class="bn-flag__meta-label">Closes</div>
+          <div class="bn-flag__meta-value">Jun 3, 8 PM</div>
+        </div>
+        <div class="bn-flag__meta-cell">
+          <div class="bn-flag__meta-label">Capacity</div>
+          <div class="bn-flag__meta-value">360 runs</div>
+        </div>
+        <div class="bn-flag__meta-cell">
+          <div class="bn-flag__meta-label">Venue</div>
+          <div class="bn-flag__meta-value">Live Oak, TX</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── STICKY SUB-BAR ───────────────────────────────────────── -->
+  <div class="bn-subbar">
+    <div class="bn-subbar__inner">
+      <nav class="bn-subbar__nav">
+        <a href="#welcome">Welcome</a>
+        <a href="#particulars">Particulars</a>
+        <a href="#judges">Judges</a>
+        <a href="#roster">Roster</a>
+        <a href="#plan">Plan</a>
+        <a href="#enter">Enter</a>
+      </nav>
+      <div class="bn-subbar__status">
+        <span class="bn-subbar__dot"></span>
+        Open · 281 / 360 entries
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 01 WELCOME ───────────────────────────────────────────── -->
+  <section class="bn-section" id="welcome">
+    <div class="bn-section__head">
+      <div class="bn-section__num">01 / WELCOME</div>
+      <h2 class="bn-section__title">A note from <span class="colored">the chair.</span></h2>
+    </div>
+    <div class="bn-prose">
+      <p>For seventy-nine years our club has put on shows that exhibitors look forward to. This spring we return with three days of <strong>scent work</strong> — a discipline built on partnership, patience, and the impossibly good nose of a willing dog.</p>
+      <p>Two judges, six trials, 360 runs. Mrs. Beagles judges Containers and Interiors in Hall A. Mr. Whitfield judges Exteriors, Buried, and Handler Discrimination in Hall B. We have set the limit firmly; first-received, no late entries, no exceptions.</p>
+      <p>Lunch is on site all three days. Crating in the adjacent ballroom. Free parking. We're a small club and most of the volunteers will be the same people stewarding in the afternoon — please be patient with us.</p>
+      <div class="bn-byline"><strong>Sarah Whitman</strong> · Trial Chair · BCKC</div>
+    </div>
+  </section>
+
+  <!-- ── 02 PARTICULARS ───────────────────────────────────────── -->
+  <section class="bn-section" id="particulars">
+    <div class="bn-section__head">
+      <div class="bn-section__num">02 / PARTICULARS</div>
+      <h2 class="bn-section__title">The <span class="colored">facts.</span></h2>
+    </div>
+
+    <table class="bn-table">
+      <tbody>
+        <tr><th>Sanctioning</th><td>American Kennel Club<span class="sub">License #2026-2841 · Scent Work Trial</span></td></tr>
+        <tr><th>Format</th><td>Six trials over three days<span class="sub">Two trials per day · Friday → Sunday</span></td></tr>
+        <tr><th>Levels</th><td>Novice · Advanced · Excellent · Master</td></tr>
+        <tr><th>Elements</th><td>Containers · Interiors · Exteriors · Buried<span class="sub">Plus Handler Discrimination &amp; Detective at Master</span></td></tr>
+        <tr><th>Entry limit</th><td><span class="colored">360 runs total</span><span class="sub">60 per trial · 120 per day · firm</span></td></tr>
+        <tr><th>Opens</th><td>April 15, 2026</td></tr>
+        <tr><th>Closes</th><td><span class="colored">June 3, 2026 · 8:00 PM Central</span></td></tr>
+        <tr><th>Draw</th><td>June 4, 2026</td></tr>
+        <tr><th>Confirmation</th><td>June 6, 2026<span class="sub">Running orders &amp; armband numbers emailed</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-family: var(--bn-display); font-weight: 800; font-size: 32px; letter-spacing: -0.025em; margin: 80px 0 24px;">Fees.</h3>
+    <div class="bn-fees">
+      <div class="bn-fee">
+        <div class="bn-fee__lbl">First entry</div>
+        <div class="bn-fee__n">25<span class="cents">.00</span></div>
+        <div class="bn-fee__sub">per dog, per trial</div>
+      </div>
+      <div class="bn-fee">
+        <div class="bn-fee__lbl">Each additional</div>
+        <div class="bn-fee__n">22<span class="cents">.00</span></div>
+        <div class="bn-fee__sub">same dog, additional trials</div>
+      </div>
+      <div class="bn-fee">
+        <div class="bn-fee__lbl">Junior handler</div>
+        <div class="bn-fee__n">18<span class="cents">.00</span></div>
+        <div class="bn-fee__sub">all entries · age 9–18</div>
+      </div>
+      <div class="bn-fee">
+        <div class="bn-fee__lbl">Novice package</div>
+        <div class="bn-fee__n">95<span class="cents">.00</span></div>
+        <div class="bn-fee__sub">all four Novice elements</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 03 JUDGES ────────────────────────────────────────────── -->
+  <section class="bn-section" id="judges">
+    <div class="bn-section__head">
+      <div class="bn-section__num">03 / JUDGES</div>
+      <h2 class="bn-section__title">Two judges, <span class="colored">six trials.</span></h2>
+    </div>
+    <div class="bn-judges">
+      <article class="bn-judge">
+        <div class="bn-judge__num">TRIALS 01 · 03 · 05</div>
+        <h3 class="bn-judge__name">Catherine Beagles</h3>
+        <div class="bn-judge__city">Austin, TX</div>
+        <p class="bn-judge__panel">
+          <span class="bn-judge__panel-label">Element panel</span>
+          Containers · Interiors · Buried. AKC judge since 2014, approved at all levels. Former trial chair, Lone Star Working Dog Club.
+        </p>
+      </article>
+      <article class="bn-judge">
+        <div class="bn-judge__num">TRIALS 02 · 04 · 06</div>
+        <h3 class="bn-judge__name">Marcus Whitfield</h3>
+        <div class="bn-judge__city">Boulder, CO</div>
+        <p class="bn-judge__panel">
+          <span class="bn-judge__panel-label">Element panel</span>
+          Exteriors · Vehicles · Handler Discrimination. AKC judge since 2017, approved through Master and Detective. Twenty years working detection dogs.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── 04 ROSTER ────────────────────────────────────────────── -->
+  <section class="bn-section--alt" id="roster">
+    <div class="bn-section__inner">
+      <div class="bn-section__head">
+        <div class="bn-section__num">04 / ROSTER</div>
+        <h2 class="bn-section__title">Filling <span class="colored">quickly.</span></h2>
+      </div>
+      <div class="bn-capacity">
+        <div class="bn-capacity__nums">281<span class="of"> / 360</span></div>
+        <div class="bn-capacity__right">
+          <div class="bn-capacity__pct">78% claimed as of 28 May</div>
+          <div class="bn-capacity__bar"><div class="bn-capacity__bar-fill"></div></div>
+          <p class="bn-capacity__copy">First-received basis. Limit is firm; over-entries refunded. Last year filled by May 24 — submit early.</p>
+        </div>
+      </div>
+
+      <h3 style="font-family: var(--bn-display); font-weight: 800; font-size: 32px; letter-spacing: -0.025em; margin: 80px 0 24px;">From here to trial day.</h3>
+      <div class="bn-steps">
+        <div class="bn-step done">
+          <div class="bn-step__num">01 / DONE</div>
+          <div class="bn-step__when">Apr 15</div>
+          <div class="bn-step__what">Entries opened</div>
+        </div>
+        <div class="bn-step done">
+          <div class="bn-step__num">02 / DONE</div>
+          <div class="bn-step__when">May 18</div>
+          <div class="bn-step__what">Hotel block deadline</div>
+        </div>
+        <div class="bn-step active">
+          <div class="bn-step__num">03 / LIVE</div>
+          <div class="bn-step__when">Jun 3</div>
+          <div class="bn-step__what">Entries close 8 PM</div>
+        </div>
+        <div class="bn-step">
+          <div class="bn-step__num">04 / NEXT</div>
+          <div class="bn-step__when">Jun 4</div>
+          <div class="bn-step__what">Random draw</div>
+        </div>
+        <div class="bn-step">
+          <div class="bn-step__num">05 / SOON</div>
+          <div class="bn-step__when">Jun 6</div>
+          <div class="bn-step__what">Confirmations sent</div>
+        </div>
+        <div class="bn-step">
+          <div class="bn-step__num">06 / TRIAL</div>
+          <div class="bn-step__when">Jun 12</div>
+          <div class="bn-step__what">Doors at 7 AM</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 05 PLAN ──────────────────────────────────────────────── -->
+  <section class="bn-section" id="plan">
+    <div class="bn-section__head">
+      <div class="bn-section__num">05 / PLAN YOUR TRIP</div>
+      <h2 class="bn-section__title">Where to stay. <span class="colored">Where to eat.</span></h2>
+    </div>
+    <div class="bn-cards">
+      <article class="bn-card">
+        <div class="bn-card__cat">HOTEL · 01</div>
+        <h3 class="bn-card__title">Hampton Inn Live Oak</h3>
+        <div class="bn-card__meta">0.4 mi · $129/night · Code BCKC26</div>
+        <p class="bn-card__body">Closest hotel to the venue. Reserved block expires May 18; mention <strong>BCKC26</strong> at booking.</p>
+      </article>
+      <article class="bn-card">
+        <div class="bn-card__cat">HOTEL · 02</div>
+        <h3 class="bn-card__title">Holiday Inn Express Selma</h3>
+        <div class="bn-card__meta">1.2 mi · $119/night · Code BCKC</div>
+        <p class="bn-card__body">Pet-friendly with a small fee. Continental breakfast included.</p>
+      </article>
+      <article class="bn-card">
+        <div class="bn-card__cat">HOTEL · 03</div>
+        <h3 class="bn-card__title">La Quinta Windcrest</h3>
+        <div class="bn-card__meta">2.1 mi · $109/night</div>
+        <p class="bn-card__body">No fee for pets. No reserved block — book direct.</p>
+      </article>
+      <article class="bn-card">
+        <div class="bn-card__cat">EMERGENCY VET</div>
+        <h3 class="bn-card__title">Alamo Veterinary Hospital</h3>
+        <div class="bn-card__meta">8420 Pat Booker Rd · (210) 555-2840</div>
+        <p class="bn-card__body">Open 24 hours. Five minutes from the venue. Save the number to your phone before you arrive.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── 06 ON THE DAY ────────────────────────────────────────── -->
+  <section class="bn-section" id="onday">
+    <div class="bn-section__head">
+      <div class="bn-section__num">06 / ON THE DAY</div>
+      <h2 class="bn-section__title">What to <span class="colored">expect.</span></h2>
+    </div>
+    <div class="bn-cards">
+      <article class="bn-card">
+        <div class="bn-card__cat">HOSPITALITY</div>
+        <h3 class="bn-card__title">Lunch is on us.</h3>
+        <div class="bn-card__meta">All three days · 12:00–12:45</div>
+        <p class="bn-card__body">Lunch and refreshments provided on site Friday through Sunday. Coffee and breakfast tacos at check-in.</p>
+      </article>
+      <article class="bn-card">
+        <div class="bn-card__cat">AWARDS</div>
+        <h3 class="bn-card__title">Ribbons &amp; trophies.</h3>
+        <div class="bn-card__meta">End-of-day · End-of-weekend</div>
+        <p class="bn-card__body">Hand-tied rosettes for first through fourth. Qualifying ribbons for all qualifying scores. Engraved bowl for High in Trial each day. Silver platter for High Combined Master.</p>
+      </article>
+      <article class="bn-card">
+        <div class="bn-card__cat">VENUE</div>
+        <h3 class="bn-card__title">Live Oak Civic Center</h3>
+        <div class="bn-card__meta">8101 Pat Booker Rd · 78233</div>
+        <p class="bn-card__body">Indoor air-conditioned facility with sealed concrete floors. Crating in adjacent hall. Ample on-site parking, no fee.</p>
+      </article>
+      <article class="bn-card">
+        <div class="bn-card__cat">HOUSE RULES</div>
+        <h3 class="bn-card__title">Read before you arrive.</h3>
+        <div class="bn-card__meta">Site &amp; conduct</div>
+        <p class="bn-card__body">Soft-sided crates only in the crating hall. No flexi-leads on the trial floor. Please pick up after your dog.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── 07 WHO'S RUNNING IT ──────────────────────────────────── -->
+  <section class="bn-section" id="who">
+    <div class="bn-section__head">
+      <div class="bn-section__num">07 / WHO'S RUNNING IT</div>
+      <h2 class="bn-section__title">Officers and <span class="colored">committee.</span></h2>
+    </div>
+    <p class="bn-prose" style="margin-bottom: 48px;">
+      Bexar County Kennel Club was founded in 1947 and has held licensed AKC events in the San Antonio area continuously since. The club hosts conformation, obedience, rally, and scent work events throughout the year.
+    </p>
+    <div class="bn-officers">
+      <div class="bn-officer"><div class="bn-officer__role">President</div><div class="bn-officer__name">Eleanor Park</div></div>
+      <div class="bn-officer"><div class="bn-officer__role">Vice President</div><div class="bn-officer__name">Daniel Ortega</div></div>
+      <div class="bn-officer"><div class="bn-officer__role">Treasurer</div><div class="bn-officer__name">Marcia Liu</div></div>
+      <div class="bn-officer"><div class="bn-officer__role">Secretary</div><div class="bn-officer__name">Robert Chen</div></div>
+      <div class="bn-officer"><div class="bn-officer__role">Trial Chair</div><div class="bn-officer__name">Sarah Whitman</div></div>
+      <div class="bn-officer"><div class="bn-officer__role">Trial Secretary</div><div class="bn-officer__name">James Nakamura</div></div>
+    </div>
+  </section>
+
+  <!-- ── FINAL FLAG ───────────────────────────────────────────── -->
+  <section class="bn-final" id="enter">
+    <div class="bn-final__inner">
+      <div>
+        <div class="bn-final__eyebrow">CLOSING JUN 3 · 8 PM CT</div>
+        <h2 class="bn-final__title">Enter your dog. <span class="colored">Today.</span></h2>
+        <p class="bn-final__sub">Three days, six trials, three hundred and sixty runs. First-received basis until the limit is hit. Refunds (less $5 processing) issued for written withdrawals received before closing.</p>
+      </div>
+      <div class="bn-final__cta-card">
+        <div class="bn-final__cta-l">ONLINE ENTRY</div>
+        <div class="bn-final__cta-v">myk9show.com<br/>/bckc-spring-2026</div>
+        <button class="bn-final__cta-btn">Submit Entry →</button>
+        <div class="bn-final__cta-helper">~3 min · saves &amp; resumes</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ───────────────────────────────────────────────── -->
+  <footer class="bn-footer">
+    <div class="bn-footer__inner">
+      <div>
+        <div class="club-name">Bexar County Kennel Club</div>
+        <p>Established 1947 · San Antonio, TX · A member club of the American Kennel Club.</p>
+      </div>
+      <div>
+        <h4>Trial Secretary</h4>
+        <p><strong style="color: var(--bn-ink); font-weight: 600;">James Nakamura</strong></p>
+        <a href="mailto:secretary@bckc.org">secretary@bckc.org</a>
+        <a href="tel:+12105550142">(210) 555-0142</a>
+      </div>
+      <div>
+        <h4>Sponsors</h4>
+        <p>Lone Star Pet Supply</p>
+        <p>K9 Nose Work® Texas</p>
+        <p>Alamo Veterinary Hospital</p>
+      </div>
+    </div>
+    <div class="bn-footer__fine">
+      <span>© 2026 Bexar County Kennel Club</span>
+      <span>Premium published via myK9Show</span>
+      <span>License #2026-2841</span>
+    </div>
+  </footer>
+
+  <script>
+    (function() {
+      const ids = ['welcome','particulars','judges','roster','plan','enter'];
+      const sections = ids.map(id => document.getElementById(id)).filter(Boolean);
+      const links = document.querySelectorAll('.bn-subbar__nav a');
+      function update() {
+        const y = window.scrollY + 100;
+        let active = sections[0];
+        for (const s of sections) if (s.offsetTop <= y) active = s;
+        links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + active.id));
+      }
+      window.addEventListener('scroll', update, { passive: true });
+      update();
+    })();
+  </script>
+
+</body>
+</html>

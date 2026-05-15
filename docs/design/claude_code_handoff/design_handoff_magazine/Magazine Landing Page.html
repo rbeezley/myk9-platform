@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Spring Scent Work Trial 2026 · Bexar County Kennel Club</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Inter+Tight:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ===========================================================
+       MAGAZINE — editorial spread; warm gold; pull quotes; drop caps
+       Tone: Kinfolk meets Vogue. Photography-led, literary, slow.
+       Differentiator: multi-column body, lead-letter drop caps,
+                       gold gradient hairlines, oversized pull quotes
+       =========================================================== */
+    :root {
+      --mz-paper:#f6f1e8; --mz-paper-deep:#ece4d3;
+      --mz-ink:#1a1a1a; --mz-soft:#2e2820;
+      --mz-mute:#7a6e58; --mz-quill:#5c4f3a;
+      --mz-gold-1:#c9a87c; --mz-gold-2:#a8814f; --mz-gold-3:#4a3826;
+      --mz-gold-line: linear-gradient(90deg, #c9a87c, #a8814f);
+      --mz-display:'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+      --mz-body:'Source Serif 4', Georgia, serif;
+      --mz-meta:'Inter Tight', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--mz-paper); color: var(--mz-ink);
+      font-family: var(--mz-body); font-size: 17px; line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 { margin: 0; font-family: var(--mz-display); font-weight: 500; line-height: 1.05; }
+    p { margin: 0; }
+    a { color: var(--mz-ink); text-decoration: none; }
+
+    .smallcaps {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--mz-gold-3);
+    }
+    .smallcaps--mute { color: var(--mz-mute); }
+    .em-italic { font-family: var(--mz-display); font-style: italic; color: var(--mz-gold-3); }
+
+    /* Gold hairline rule */
+    .gold-rule {
+      height: 1px;
+      background: var(--mz-gold-line);
+      margin: 0;
+      border: none;
+    }
+
+    /* ── Top nav (magazine masthead) ─────────────────────────── */
+    .mz-nav {
+      max-width: 1280px; margin: 0 auto;
+      padding: 28px 64px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--mz-ink);
+    }
+    .mz-nav__edition {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-mute);
+    }
+    .mz-nav__title {
+      font-family: var(--mz-display); font-weight: 400; font-style: italic;
+      font-size: 26px; letter-spacing: 0.02em; color: var(--mz-ink);
+    }
+    .mz-nav__cta {
+      padding: 10px 22px;
+      border: 1px solid var(--mz-ink);
+      font-family: var(--mz-display); font-weight: 500; font-style: italic;
+      font-size: 14px; color: var(--mz-ink);
+      transition: all 240ms ease;
+    }
+    .mz-nav__cta:hover { background: var(--mz-ink); color: var(--mz-paper); }
+
+    /* ── Hero (editorial cover spread) ───────────────────────── */
+    .mz-hero {
+      max-width: 1280px; margin: 0 auto;
+      padding: 64px 64px 80px;
+      display: grid; grid-template-columns: 1.1fr 1fr;
+      gap: 64px;
+      align-items: start;
+      border-bottom: 1px solid var(--mz-ink);
+    }
+    .mz-hero__text { padding-top: 8px; }
+    .mz-hero__eyebrow {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 24px;
+    }
+    .mz-hero__eyebrow::after {
+      content: ""; flex: 1; height: 1px;
+      background: var(--mz-gold-line);
+    }
+    .mz-hero__title {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 112px; letter-spacing: -0.015em; line-height: 0.92;
+      color: var(--mz-ink);
+      margin: 0 0 28px;
+    }
+    .mz-hero__title em {
+      font-style: italic;
+      background: linear-gradient(90deg, #c9a87c, #a8814f);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
+    }
+    .mz-hero__sub {
+      font-family: var(--mz-display); font-style: italic; font-weight: 400;
+      font-size: 24px; line-height: 1.4; color: var(--mz-quill);
+      max-width: 480px;
+      margin-bottom: 40px;
+    }
+    .mz-hero__byline {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--mz-mute);
+      display: flex; align-items: center; gap: 16px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(26,26,26,0.18);
+    }
+    .mz-hero__byline strong { color: var(--mz-ink); font-weight: 500; }
+    .mz-hero__byline-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--mz-gold-2); }
+
+    .mz-hero__feature {
+      position: relative;
+      aspect-ratio: 4 / 5;
+      background: linear-gradient(135deg, #c9a87c 0%, #a8814f 45%, #4a3826 100%);
+      overflow: hidden;
+    }
+    .mz-hero__feature::after {
+      content: "";
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 30% 40%, rgba(255,255,255,0.18) 0%, transparent 60%),
+                  radial-gradient(ellipse 80% 60% at 80% 80%, rgba(0,0,0,0.32) 0%, transparent 60%);
+    }
+    .mz-hero__placeholder {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: rgba(246, 241, 232, 0.8); padding: 40px;
+      text-align: center;
+    }
+    .mz-hero__placeholder-mark {
+      font-family: var(--mz-display); font-style: italic;
+      font-size: 64px; line-height: 1;
+      color: rgba(246, 241, 232, 0.85);
+      margin-bottom: 18px;
+    }
+    .mz-hero__placeholder-label {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: rgba(246, 241, 232, 0.6);
+    }
+    .mz-hero__caption {
+      position: absolute; bottom: 24px; left: 24px; right: 24px;
+      font-family: var(--mz-display); font-style: italic;
+      font-size: 14px; color: rgba(246, 241, 232, 0.9);
+      line-height: 1.4;
+      z-index: 2;
+    }
+
+    /* ── Issue strip (the meta row at the top of feature) ───── */
+    .mz-issue {
+      max-width: 1280px; margin: 0 auto;
+      padding: 24px 64px;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 48px;
+      border-bottom: 1px solid var(--mz-ink);
+    }
+    .mz-issue__cell { }
+    .mz-issue__l {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--mz-mute); margin-bottom: 6px;
+    }
+    .mz-issue__v {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 22px; letter-spacing: -0.005em; color: var(--mz-ink);
+    }
+    .mz-issue__v em { font-style: italic; color: var(--mz-gold-3); }
+
+    /* ── Sections ────────────────────────────────────────────── */
+    .mz-section {
+      max-width: 1280px; margin: 0 auto;
+      padding: 96px 64px;
+      border-bottom: 1px solid var(--mz-ink);
+    }
+    .mz-section__head {
+      text-align: center;
+      max-width: 720px; margin: 0 auto 64px;
+    }
+    .mz-section__folio {
+      display: inline-flex; align-items: center; gap: 12px;
+      margin-bottom: 24px;
+    }
+    .mz-section__folio::before, .mz-section__folio::after {
+      content: ""; height: 1px; width: 32px;
+      background: var(--mz-gold-line);
+    }
+    .mz-section__title {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 72px; letter-spacing: -0.01em; line-height: 1.05;
+      color: var(--mz-ink); margin: 0 0 18px;
+      text-wrap: balance;
+    }
+    .mz-section__title em { font-style: italic; color: var(--mz-gold-3); }
+    .mz-section__dek {
+      font-family: var(--mz-display); font-style: italic; font-weight: 400;
+      font-size: 20px; line-height: 1.5; color: var(--mz-quill);
+      max-width: 580px; margin: 0 auto;
+    }
+
+    /* ── Welcome (multi-column with drop cap) ─────────────────── */
+    .mz-welcome {
+      column-count: 2; column-gap: 56px;
+      max-width: 900px; margin: 0 auto;
+      font-family: var(--mz-body); font-size: 18px; line-height: 1.75;
+      color: var(--mz-soft);
+    }
+    .mz-welcome p { margin: 0 0 1em; break-inside: avoid-column; }
+    .mz-welcome .drop-cap {
+      float: left;
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 88px; line-height: 0.85;
+      margin: 8px 12px -4px 0;
+      color: var(--mz-gold-3);
+    }
+    .mz-welcome em {
+      font-family: var(--mz-display); font-style: italic;
+      color: var(--mz-gold-3);
+    }
+    .mz-welcome strong { color: var(--mz-ink); font-weight: 500; }
+    .mz-signature {
+      text-align: center;
+      margin-top: 48px;
+      column-span: all;
+    }
+    .mz-signature__name {
+      font-family: var(--mz-display); font-weight: 500; font-style: italic;
+      font-size: 28px; color: var(--mz-ink);
+      margin-bottom: 4px;
+    }
+    .mz-signature__role {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-mute);
+    }
+
+    /* ── Pull quote (full-width feature) ─────────────────────── */
+    .mz-pullquote {
+      max-width: 900px; margin: 80px auto 0;
+      padding: 64px 48px;
+      border-top: 1px solid var(--mz-gold-2);
+      border-bottom: 1px solid var(--mz-gold-2);
+      text-align: center;
+      position: relative;
+    }
+    .mz-pullquote::before {
+      content: "";
+      position: absolute;
+      top: -1px; left: 50%; transform: translateX(-50%);
+      width: 88px; height: 3px;
+      background: var(--mz-gold-line);
+    }
+    .mz-pullquote__text {
+      font-family: var(--mz-display); font-style: italic; font-weight: 500;
+      font-size: 36px; line-height: 1.3; color: var(--mz-ink);
+      margin: 0 0 24px;
+      text-wrap: pretty;
+    }
+    .mz-pullquote__attrib {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-gold-3);
+    }
+
+    /* ── Judges (editorial portrait spread) ──────────────────── */
+    .mz-judges {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px;
+      max-width: 1080px; margin: 0 auto;
+    }
+    .mz-judge { text-align: left; }
+    .mz-judge__portrait {
+      aspect-ratio: 4 / 5;
+      background: linear-gradient(160deg, #c9a87c 0%, #8a6a45 60%, #4a3826 100%);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .mz-judge__portrait::after {
+      content: "";
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 35% 30%, rgba(255,255,255,0.18) 0%, transparent 55%);
+    }
+    .mz-judge__portrait-mark {
+      position: absolute; bottom: 24px; left: 24px;
+      font-family: var(--mz-display); font-style: italic; font-weight: 500;
+      font-size: 56px; line-height: 1;
+      color: rgba(246, 241, 232, 0.9);
+      z-index: 2;
+    }
+    .mz-judge__caption {
+      position: absolute; top: 24px; right: 24px;
+      font-family: var(--mz-meta); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: rgba(246, 241, 232, 0.85);
+      z-index: 2;
+    }
+    .mz-judge__num {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-gold-3);
+      margin-bottom: 10px;
+    }
+    .mz-judge__name {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 40px; letter-spacing: -0.005em; line-height: 1;
+      color: var(--mz-ink); margin-bottom: 6px;
+    }
+    .mz-judge__city {
+      font-family: var(--mz-display); font-style: italic;
+      font-size: 16px; color: var(--mz-quill); margin-bottom: 18px;
+    }
+    .mz-judge__bio {
+      font-family: var(--mz-body); font-size: 15px; line-height: 1.7;
+      color: var(--mz-soft);
+    }
+
+    /* ── Particulars (definition columns) ────────────────────── */
+    .mz-particulars {
+      max-width: 1080px; margin: 0 auto;
+      column-count: 2; column-gap: 56px;
+    }
+    .mz-particulars dl {
+      margin: 0;
+      column-count: 1;
+    }
+    .mz-particulars__row {
+      padding: 18px 0;
+      border-bottom: 1px dotted var(--mz-gold-2);
+      break-inside: avoid-column;
+    }
+    .mz-particulars__row:last-child { border-bottom: none; }
+    .mz-particulars dt {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--mz-mute); margin-bottom: 6px;
+    }
+    .mz-particulars dd {
+      margin: 0;
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 22px; letter-spacing: -0.005em; color: var(--mz-ink);
+      line-height: 1.3;
+    }
+    .mz-particulars dd em { font-style: italic; color: var(--mz-gold-3); }
+    .mz-particulars dd .sub {
+      display: block; margin-top: 4px;
+      font-family: var(--mz-body); font-size: 14px;
+      color: var(--mz-quill); line-height: 1.5;
+    }
+
+    /* ── Roster / capacity ───────────────────────────────────── */
+    .mz-roster {
+      max-width: 900px; margin: 0 auto;
+      text-align: center;
+    }
+    .mz-roster__nums {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 168px; letter-spacing: -0.025em; line-height: 1;
+      color: var(--mz-ink);
+    }
+    .mz-roster__nums em {
+      font-style: italic; font-size: 96px; color: var(--mz-gold-3);
+      vertical-align: 26px;
+    }
+    .mz-roster__lbl {
+      font-family: var(--mz-display); font-style: italic;
+      font-size: 22px; color: var(--mz-quill); margin: 12px 0 32px;
+    }
+    .mz-roster__bar {
+      max-width: 520px; margin: 0 auto;
+      height: 2px; background: var(--mz-paper-deep);
+      position: relative; overflow: hidden;
+    }
+    .mz-roster__bar-fill {
+      position: absolute; inset: 0 auto 0 0;
+      width: 78%;
+      background: var(--mz-gold-line);
+    }
+    .mz-roster__caption {
+      margin-top: 14px;
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--mz-mute);
+    }
+
+    /* ── Plan cards (editorial gallery) ──────────────────────── */
+    .mz-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+      max-width: 1080px; margin: 0 auto;
+    }
+    .mz-card { }
+    .mz-card__hdr {
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--mz-ink);
+      margin-bottom: 18px;
+    }
+    .mz-card__num {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-gold-3);
+      margin-bottom: 8px;
+    }
+    .mz-card__title {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 32px; letter-spacing: -0.005em; line-height: 1.1;
+      color: var(--mz-ink); margin-bottom: 6px;
+    }
+    .mz-card__title em { font-style: italic; color: var(--mz-gold-3); }
+    .mz-card__meta {
+      font-family: var(--mz-display); font-style: italic; font-size: 15px;
+      color: var(--mz-quill);
+    }
+    .mz-card__body {
+      font-family: var(--mz-body); font-size: 15px; line-height: 1.7;
+      color: var(--mz-soft);
+    }
+    .mz-card__body strong { color: var(--mz-ink); font-weight: 500; }
+
+    /* ── Awards / list ───────────────────────────────────────── */
+    .mz-list {
+      max-width: 720px; margin: 0 auto;
+      list-style: none; padding: 0;
+    }
+    .mz-list li {
+      padding: 18px 0;
+      border-bottom: 1px dotted var(--mz-gold-2);
+      display: grid; grid-template-columns: 24px 1fr;
+      gap: 16px; align-items: baseline;
+      font-family: var(--mz-body); font-size: 16px; line-height: 1.6;
+      color: var(--mz-soft);
+    }
+    .mz-list li::before {
+      content: "★";
+      color: var(--mz-gold-2); font-size: 12px;
+      text-align: center;
+    }
+
+    /* ── Officers (gallery row) ──────────────────────────────── */
+    .mz-officers {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+      border-top: 1px solid var(--mz-ink);
+      border-bottom: 1px solid var(--mz-ink);
+      max-width: 1080px; margin: 0 auto;
+    }
+    .mz-officer {
+      padding: 28px 24px;
+      border-right: 1px dotted var(--mz-gold-2);
+      text-align: center;
+    }
+    .mz-officer:nth-child(3n) { border-right: none; }
+    .mz-officer:nth-child(n+4) { border-top: 1px dotted var(--mz-gold-2); }
+    .mz-officer__role {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-gold-3);
+      margin-bottom: 8px;
+    }
+    .mz-officer__name {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 20px; letter-spacing: -0.005em; color: var(--mz-ink);
+    }
+
+    /* ── Final CTA (dark editorial) ──────────────────────────── */
+    .mz-final {
+      background: linear-gradient(135deg, #4a3826 0%, #2e2820 60%, #1a1a1a 100%);
+      color: var(--mz-paper);
+      padding: 120px 64px;
+      position: relative;
+      overflow: hidden;
+    }
+    .mz-final__inner {
+      max-width: 1080px; margin: 0 auto;
+      text-align: center;
+    }
+    .mz-final__eyebrow {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 12px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--mz-gold-1);
+      margin-bottom: 24px;
+    }
+    .mz-final__title {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 96px; letter-spacing: -0.015em; line-height: 0.95;
+      color: var(--mz-paper); margin: 0 auto 32px;
+      max-width: 18ch;
+      text-wrap: balance;
+    }
+    .mz-final__title em {
+      font-style: italic;
+      background: linear-gradient(90deg, #c9a87c, #a8814f);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
+    }
+    .mz-final__sub {
+      font-family: var(--mz-display); font-style: italic;
+      font-size: 22px; line-height: 1.5; color: rgba(246, 241, 232, 0.7);
+      max-width: 580px; margin: 0 auto 48px;
+    }
+    .mz-final__cta {
+      display: inline-flex; align-items: center; gap: 14px;
+      padding: 18px 44px;
+      background: var(--mz-paper); color: var(--mz-ink);
+      font-family: var(--mz-display); font-style: italic; font-weight: 500;
+      font-size: 18px; transition: all 280ms ease;
+    }
+    .mz-final__cta:hover {
+      background: var(--mz-gold-1); color: var(--mz-ink);
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .mz-footer {
+      background: var(--mz-paper-deep);
+      padding: 56px 64px 36px;
+    }
+    .mz-footer__inner {
+      max-width: 1280px; margin: 0 auto;
+      display: grid; grid-template-columns: 2fr 1fr 1fr;
+      gap: 56px; align-items: start;
+    }
+    .mz-footer__club {
+      font-family: var(--mz-display); font-weight: 500; font-style: italic;
+      font-size: 28px; color: var(--mz-ink); margin-bottom: 10px;
+    }
+    .mz-footer__small {
+      font-family: var(--mz-body); font-size: 14px; line-height: 1.7;
+      color: var(--mz-quill);
+    }
+    .mz-footer h4 {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-mute);
+      margin: 0 0 14px;
+    }
+    .mz-footer p, .mz-footer a {
+      font-family: var(--mz-body); font-size: 14px; color: var(--mz-soft);
+      margin: 0; display: block;
+    }
+    .mz-footer__fine {
+      max-width: 1280px; margin: 40px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid rgba(26,26,26,0.18);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      font-family: var(--mz-meta); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--mz-mute);
+    }
+
+    /* ── Motion ──────────────────────────────────────────────── */
+    .mz-hero__text > * { opacity: 0; transform: translateY(8px); animation: mzRise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+    .mz-hero__text > *:nth-child(1) { animation-delay: 100ms; }
+    .mz-hero__text > *:nth-child(2) { animation-delay: 250ms; }
+    .mz-hero__text > *:nth-child(3) { animation-delay: 400ms; }
+    .mz-hero__text > *:nth-child(4) { animation-delay: 550ms; }
+    .mz-hero__feature { opacity: 0; animation: mzFade 1200ms ease-out 300ms forwards; }
+    .mz-roster__bar-fill { width: 0; animation: mzFill 1800ms cubic-bezier(0.22,0.61,0.36,1) 400ms forwards; }
+    @keyframes mzRise { to { opacity: 1; transform: translateY(0); } }
+    @keyframes mzFade { to { opacity: 1; } }
+    @keyframes mzFill { to { width: 78%; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .mz-roster__bar-fill { width: 78% !important; }
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .mz-nav, .mz-issue { padding: 18px 24px; }
+      .mz-issue { grid-template-columns: 1fr 1fr; gap: 18px 24px; }
+      .mz-hero { padding: 32px 24px 48px; grid-template-columns: 1fr; gap: 32px; }
+      .mz-hero__title { font-size: 56px; }
+      .mz-section { padding: 56px 24px; }
+      .mz-section__title { font-size: 40px; }
+      .mz-welcome { column-count: 1; }
+      .mz-pullquote { padding: 40px 24px; }
+      .mz-pullquote__text { font-size: 24px; }
+      .mz-judges, .mz-cards { grid-template-columns: 1fr; gap: 32px; }
+      .mz-particulars { column-count: 1; }
+      .mz-officers { grid-template-columns: 1fr; }
+      .mz-officer { border-right: none; border-bottom: 1px dotted var(--mz-gold-2); }
+      .mz-roster__nums { font-size: 96px; }
+      .mz-roster__nums em { font-size: 56px; }
+      .mz-final { padding: 72px 24px; }
+      .mz-final__title { font-size: 48px; }
+      .mz-footer { padding: 40px 24px; }
+      .mz-footer__inner { grid-template-columns: 1fr; gap: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── MASTHEAD ─────────────────────────────────────────────── -->
+  <nav class="mz-nav">
+    <div class="mz-nav__edition">Volume LXXIX · Spring Issue · 2026</div>
+    <div class="mz-nav__title">Bexar County Kennel Club</div>
+    <a class="mz-nav__cta" href="#enter">Enter the trial</a>
+  </nav>
+
+  <!-- ── HERO ─────────────────────────────────────────────────── -->
+  <header class="mz-hero">
+    <div class="mz-hero__text">
+      <div class="mz-hero__eyebrow">
+        <span class="smallcaps">Feature · AKC Scent Work</span>
+      </div>
+      <h1 class="mz-hero__title">Spring <em>Scent Work</em></h1>
+      <p class="mz-hero__sub">A weekend of containers, interiors, exteriors and buried; of patient dogs and patient people; of the same volunteers stewarding all weekend long.</p>
+      <div class="mz-hero__byline">
+        <span><strong>By</strong> Sarah Whitman</span>
+        <span class="mz-hero__byline-dot"></span>
+        <span>12–14 June 2026</span>
+        <span class="mz-hero__byline-dot"></span>
+        <span>Live Oak, Texas</span>
+      </div>
+    </div>
+    <figure class="mz-hero__feature">
+      <span class="mz-hero__caption">A handler reads the wind. Photography by the trial committee.</span>
+      <div class="mz-hero__placeholder">
+        <div class="mz-hero__placeholder-mark">B<em style="font-style:italic;">.</em>C</div>
+        <div class="mz-hero__placeholder-label">Cover photograph · Club to supply</div>
+      </div>
+    </figure>
+  </header>
+
+  <!-- ── ISSUE STRIP ──────────────────────────────────────────── -->
+  <section class="mz-issue">
+    <div class="mz-issue__cell">
+      <div class="mz-issue__l">Dates</div>
+      <div class="mz-issue__v">June 12<em>–</em>14</div>
+    </div>
+    <div class="mz-issue__cell">
+      <div class="mz-issue__l">Closes</div>
+      <div class="mz-issue__v">June 3, <em>8 PM</em></div>
+    </div>
+    <div class="mz-issue__cell">
+      <div class="mz-issue__l">Capacity</div>
+      <div class="mz-issue__v">360 <em>runs</em></div>
+    </div>
+    <div class="mz-issue__cell">
+      <div class="mz-issue__l">License</div>
+      <div class="mz-issue__v">AKC <em>№ 2026-2841</em></div>
+    </div>
+  </section>
+
+  <!-- ── WELCOME ──────────────────────────────────────────────── -->
+  <section class="mz-section" id="welcome">
+    <header class="mz-section__head">
+      <div class="mz-section__folio"><span class="smallcaps">Letter from the chair</span></div>
+      <h2 class="mz-section__title">A welcome <em>to all entrants</em></h2>
+      <p class="mz-section__dek">On behalf of the officers and members of the Bexar County Kennel Club, our second running of the AKC Scent Work programme at Live Oak.</p>
+    </header>
+
+    <div class="mz-welcome">
+      <p><span class="drop-cap">F</span>or seventy-nine years our club has put on shows that exhibitors look forward to. This spring we return with three days of <em>scent work</em> — a discipline built on partnership, patience, and the impossibly good nose of a willing dog.</p>
+      <p>Three days, two judges, six trials. Mrs. Beagles judges Containers and Interiors in Hall A. Mr. Whitfield judges Exteriors, Buried, and Handler Discrimination in Hall B. We have set the entry limit at 360 runs to keep the pace humane for both dogs and judges, and we expect to fill — last year we closed nine days early.</p>
+      <p>Coffee and breakfast tacos at check-in. Lunch on site, all three days, prepared by the hospitality committee. Crating in the adjacent ballroom, free of charge. Free parking. We are a small club, and the volunteers running this trial are the same people you will see ribboning in the morning and stewarding in the afternoon. <strong>Please treat them kindly.</strong></p>
+      <p>We look forward to seeing you and your dogs at Live Oak.</p>
+
+      <div class="mz-signature">
+        <div class="mz-signature__name">Sarah Whitman</div>
+        <div class="mz-signature__role">Trial Chair · BCKC</div>
+      </div>
+    </div>
+
+    <blockquote class="mz-pullquote">
+      <p class="mz-pullquote__text">"The point of a trial is the dog and the work. The point of a club is the people who put the trial on."</p>
+      <div class="mz-pullquote__attrib">— BCKC Constitution, Article I</div>
+    </blockquote>
+  </section>
+
+  <!-- ── JUDGES ───────────────────────────────────────────────── -->
+  <section class="mz-section" id="judges">
+    <header class="mz-section__head">
+      <div class="mz-section__folio"><span class="smallcaps">The bench</span></div>
+      <h2 class="mz-section__title">Two judges, <em>six trials</em></h2>
+      <p class="mz-section__dek">Both approved by the American Kennel Club; each handling three of the six trials on a fixed rotation published in advance.</p>
+    </header>
+
+    <div class="mz-judges">
+      <article class="mz-judge">
+        <div class="mz-judge__portrait">
+          <span class="mz-judge__caption">Plate I</span>
+          <span class="mz-judge__portrait-mark">CB</span>
+        </div>
+        <div class="mz-judge__num">Trials i · iii · v</div>
+        <h3 class="mz-judge__name">Mrs. Catherine Beagles</h3>
+        <div class="mz-judge__city">of Austin, Texas</div>
+        <p class="mz-judge__bio">AKC judge since 2014. Approved for all Scent Work elements at all levels. Former trial chair of Lone Star Working Dog Club. Lives in Austin with two terriers, both retired competitors. Sees the dogs as the protagonists.</p>
+      </article>
+      <article class="mz-judge">
+        <div class="mz-judge__portrait">
+          <span class="mz-judge__caption">Plate II</span>
+          <span class="mz-judge__portrait-mark">MW</span>
+        </div>
+        <div class="mz-judge__num">Trials ii · iv · vi</div>
+        <h3 class="mz-judge__name">Mr. Marcus Whitfield</h3>
+        <div class="mz-judge__city">of Boulder, Colorado</div>
+        <p class="mz-judge__bio">AKC judge since 2017. Approved through Master and Detective. Detection-dog handler, twenty years. Author of <em>Reading the Wind: A Practical Guide to Exterior Searches</em> (Two Coast Press, 2023). Patient with handlers; ruthless with hides.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── PARTICULARS ──────────────────────────────────────────── -->
+  <section class="mz-section" id="particulars">
+    <header class="mz-section__head">
+      <div class="mz-section__folio"><span class="smallcaps">The particulars</span></div>
+      <h2 class="mz-section__title">All the <em>facts &amp; figures</em></h2>
+    </header>
+
+    <div class="mz-particulars">
+      <dl>
+        <div class="mz-particulars__row">
+          <dt>Sanctioning</dt>
+          <dd>American Kennel Club<span class="sub">License № 2026-2841 · Scent Work Trial</span></dd>
+        </div>
+        <div class="mz-particulars__row">
+          <dt>Format</dt>
+          <dd>Six trials, three days<span class="sub">Two per day · Friday → Sunday</span></dd>
+        </div>
+        <div class="mz-particulars__row">
+          <dt>Levels</dt>
+          <dd>Novice <em>·</em> Advanced <em>·</em> Excellent <em>·</em> Master</dd>
+        </div>
+        <div class="mz-particulars__row">
+          <dt>Elements</dt>
+          <dd>All four<span class="sub">Plus Handler Discrimination &amp; Detective at Master</span></dd>
+        </div>
+        <div class="mz-particulars__row">
+          <dt>Entry limit</dt>
+          <dd>360 runs, <em>firm</em><span class="sub">60 per trial · 120 per day · over-entries refunded</span></dd>
+        </div>
+      </dl>
+      <dl>
+        <div class="mz-particulars__row">
+          <dt>Opens</dt>
+          <dd>April 15, <em>2026</em></dd>
+        </div>
+        <div class="mz-particulars__row">
+          <dt>Closes</dt>
+          <dd>June 3 <em>·</em> 8 PM CT</dd>
+        </div>
+        <div class="mz-particulars__row">
+          <dt>Draw</dt>
+          <dd>June 4, 2026</dd>
+        </div>
+        <div class="mz-particulars__row">
+          <dt>Confirmation</dt>
+          <dd>June 6 <em>·</em> emailed to all entrants</dd>
+        </div>
+        <div class="mz-particulars__row">
+          <dt>Fees</dt>
+          <dd>$25 first <em>·</em> $22 additional <em>·</em> $18 junior<span class="sub">Refunds (less $5) for written withdrawals before close</span></dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ── ROSTER ───────────────────────────────────────────────── -->
+  <section class="mz-section" id="roster">
+    <header class="mz-section__head">
+      <div class="mz-section__folio"><span class="smallcaps">The roster</span></div>
+      <h2 class="mz-section__title">Filling <em>quickly</em></h2>
+    </header>
+
+    <div class="mz-roster">
+      <div class="mz-roster__nums">281<em>/360</em></div>
+      <div class="mz-roster__lbl">runs claimed at this hour</div>
+      <div class="mz-roster__bar"><div class="mz-roster__bar-fill"></div></div>
+      <div class="mz-roster__caption">Updated 28 May · 78 percent full · Last year filled May 24</div>
+    </div>
+  </section>
+
+  <!-- ── PLAN ─────────────────────────────────────────────────── -->
+  <section class="mz-section" id="plan">
+    <header class="mz-section__head">
+      <div class="mz-section__folio"><span class="smallcaps">Plan your weekend</span></div>
+      <h2 class="mz-section__title">Where to <em>stay</em>, where to <em>eat</em></h2>
+    </header>
+
+    <div class="mz-cards">
+      <article class="mz-card">
+        <header class="mz-card__hdr">
+          <div class="mz-card__num">Lodging · I</div>
+          <h3 class="mz-card__title">Hampton Inn <em>Live Oak</em></h3>
+          <div class="mz-card__meta">0.4 mi · $129/night · Code BCKC26</div>
+        </header>
+        <p class="mz-card__body">Closest hotel to the venue. Reserved block expires May 18; mention <strong>BCKC26</strong> at booking. Pet-friendly, no fee.</p>
+      </article>
+      <article class="mz-card">
+        <header class="mz-card__hdr">
+          <div class="mz-card__num">Lodging · II</div>
+          <h3 class="mz-card__title">Holiday Inn <em>Express Selma</em></h3>
+          <div class="mz-card__meta">1.2 mi · $119/night · Code BCKC</div>
+        </header>
+        <p class="mz-card__body">Pet-friendly with a small fee. Continental breakfast included. Walking distance to two restaurants and a coffeehouse.</p>
+      </article>
+      <article class="mz-card">
+        <header class="mz-card__hdr">
+          <div class="mz-card__num">Lodging · III</div>
+          <h3 class="mz-card__title">La Quinta <em>Windcrest</em></h3>
+          <div class="mz-card__meta">2.1 mi · $109/night</div>
+        </header>
+        <p class="mz-card__body">No fee for pets. No reserved block — book direct.</p>
+      </article>
+      <article class="mz-card">
+        <header class="mz-card__hdr">
+          <div class="mz-card__num">Emergency Vet</div>
+          <h3 class="mz-card__title">Alamo <em>Veterinary Hospital</em></h3>
+          <div class="mz-card__meta">8420 Pat Booker Rd · (210) 555-2840</div>
+        </header>
+        <p class="mz-card__body">Open 24 hours. Five minutes from the venue. <strong>Save the number before you arrive.</strong></p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── ON THE DAY ───────────────────────────────────────────── -->
+  <section class="mz-section" id="onday">
+    <header class="mz-section__head">
+      <div class="mz-section__folio"><span class="smallcaps">On the day</span></div>
+      <h2 class="mz-section__title">What to <em>expect</em></h2>
+      <p class="mz-section__dek">Doors open at seven; first class at eight-thirty; approximate finish at five-thirty. The day flows like clockwork because we want it to.</p>
+    </header>
+
+    <ul class="mz-list">
+      <li>Hand-tied rosettes for first through fourth in every class</li>
+      <li>Qualifying ribbons for all qualifying scores</li>
+      <li>Engraved bowl for High in Trial — presented each day</li>
+      <li>Silver platter for High Combined Master — presented Sunday evening</li>
+      <li>New Title certificates presented at end of trial</li>
+      <li>Lunch and refreshments on site Friday, Saturday, and Sunday</li>
+    </ul>
+  </section>
+
+  <!-- ── OFFICERS ─────────────────────────────────────────────── -->
+  <section class="mz-section" id="who">
+    <header class="mz-section__head">
+      <div class="mz-section__folio"><span class="smallcaps">In whose care</span></div>
+      <h2 class="mz-section__title">Officers <em>&amp;</em> committee</h2>
+    </header>
+
+    <div class="mz-officers">
+      <div class="mz-officer"><div class="mz-officer__role">Trial Chair</div><div class="mz-officer__name">Sarah Whitman</div></div>
+      <div class="mz-officer"><div class="mz-officer__role">Trial Secretary</div><div class="mz-officer__name">James Nakamura</div></div>
+      <div class="mz-officer"><div class="mz-officer__role">Hospitality</div><div class="mz-officer__name">Rita Alvarez</div></div>
+      <div class="mz-officer"><div class="mz-officer__role">President</div><div class="mz-officer__name">Eleanor Park</div></div>
+      <div class="mz-officer"><div class="mz-officer__role">Treasurer</div><div class="mz-officer__name">Marcia Liu</div></div>
+      <div class="mz-officer"><div class="mz-officer__role">Volunteers</div><div class="mz-officer__name">Kevin O'Brien</div></div>
+    </div>
+  </section>
+
+  <!-- ── FINAL ────────────────────────────────────────────────── -->
+  <section class="mz-final" id="enter">
+    <div class="mz-final__inner">
+      <div class="mz-final__eyebrow">Closing 8 PM CT · 3 June 2026</div>
+      <h2 class="mz-final__title">You are <em>cordially invited</em> to enter.</h2>
+      <p class="mz-final__sub">Three days, six trials, three hundred and sixty runs. First-received basis until the limit is hit. Refunds (less $5 processing) issued for written withdrawals received before closing.</p>
+      <a class="mz-final__cta" href="#">Open the entry wizard <span>→</span></a>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ───────────────────────────────────────────────── -->
+  <footer class="mz-footer">
+    <div class="mz-footer__inner">
+      <div>
+        <div class="mz-footer__club">Bexar County Kennel Club</div>
+        <p class="mz-footer__small">Established 1947 · A member club of the American Kennel Club · San Antonio, Texas</p>
+      </div>
+      <div>
+        <h4>Trial Secretary</h4>
+        <p><strong style="color: var(--mz-ink); font-weight: 500;">James Nakamura</strong></p>
+        <a href="mailto:secretary@bckc.org">secretary@bckc.org</a>
+        <a href="tel:+12105550142">(210) 555-0142</a>
+      </div>
+      <div>
+        <h4>Patrons</h4>
+        <p>Lone Star Pet Supply</p>
+        <p>K9 Nose Work® Texas</p>
+        <p>Alamo Veterinary Hospital</p>
+      </div>
+    </div>
+    <div class="mz-footer__fine">
+      <span>© 2026 Bexar County Kennel Club</span>
+      <span>Premium published via myK9Show</span>
+      <span>License № 2026-2841</span>
+    </div>
+  </footer>
+
+</body>
+</html>

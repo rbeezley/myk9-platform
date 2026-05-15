@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Entry received · Monogram Wizard Completion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Italiana&family=Bodoni+Moda:ital,wght@0,400;0,500;0,600;1,400&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    /* Mirrors HeritageEntryReceived.tsx prop interface 1:1.
+       Tokens map: PAPER=#f3eee4 INK=#1c1815 BRONZE=#8a6938 QUILL=#5a4f3e MUTE=#7a6f5e */
+    :root {
+      --mg-paper:#f3eee4; --mg-paper-deep:#ece5d4;
+      --mg-ink:#1c1815; --mg-soft:#3a342c;
+      --mg-mute:#7a6f5e; --mg-quill:#5a4f3e; --mg-bronze:#8a6938; --mg-leaf:#c9a14b;
+      --mg-display:'Bodoni Moda', 'Didot', Georgia, serif;
+      --mg-body:'Crimson Pro', Georgia, serif;
+      --mg-mono:'Italiana', 'Bodoni Moda', serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:#d4ccba; color:var(--mg-ink); font-family: var(--mg-body); }
+
+    .preview-frame {
+      max-width: 520px; margin: 40px auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.14);
+    }
+    .preview-bar {
+      background: var(--mg-ink); color: var(--mg-paper);
+      padding: 10px 16px;
+      font-family: var(--mg-body); font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+    }
+
+    .mg-receipt {
+      background: var(--mg-paper);
+      color: var(--mg-ink);
+      font-family: var(--mg-body);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* HEADER */
+    .mg-receipt__header {
+      text-align: center;
+      padding: 36px 28px 24px;
+      border-bottom: 1px solid var(--mg-ink);
+      position: relative;
+      overflow: hidden;
+    }
+    .mg-receipt__monogram {
+      font-family: var(--mg-mono);
+      font-size: 80px;
+      line-height: 1;
+      color: var(--mg-ink);
+      letter-spacing: -0.04em;
+      margin: 0 auto 14px;
+    }
+    .mg-receipt__eyebrow {
+      font-family: var(--mg-body); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mg-bronze);
+      margin: 0 0 10px;
+    }
+    .mg-receipt__heading {
+      font-family: var(--mg-display); font-weight: 400;
+      font-size: 30px; letter-spacing: -0.015em; line-height: 1.1;
+      margin: 0 0 12px; color: var(--mg-ink);
+    }
+    .mg-receipt__heading-accent {
+      font-style: italic; color: var(--mg-bronze);
+    }
+    .mg-receipt__club {
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 14px; color: var(--mg-quill);
+      margin: 0;
+    }
+    .mg-receipt__byline {
+      font-family: var(--mg-body); font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mg-mute);
+      margin: 8px 0 0;
+    }
+
+    /* DETAIL */
+    .mg-receipt__detail {
+      margin: 0 28px;
+      border-top: 1px solid var(--mg-ink);
+      border-bottom: 1px solid var(--mg-ink);
+      padding: 18px 4px;
+      margin-top: 20px;
+    }
+    .mg-receipt__folio {
+      font-family: var(--mg-body); font-size: 10px; font-weight: 500;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--mg-bronze);
+      margin: 0 0 6px;
+    }
+    .mg-receipt__dog {
+      font-family: var(--mg-display); font-weight: 400;
+      font-size: 22px; letter-spacing: -0.015em; line-height: 1.15;
+      color: var(--mg-ink); margin: 0 0 4px;
+    }
+    .mg-receipt__call {
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 14px; color: var(--mg-quill);
+      margin: 0 0 12px;
+    }
+    .mg-receipt__class {
+      font-family: var(--mg-body); font-size: 14px; line-height: 1.55;
+      color: var(--mg-soft); margin: 0 0 14px;
+    }
+    .mg-receipt__total {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-top: 1px dotted rgba(28,24,21,0.3); padding-top: 12px;
+    }
+    .mg-receipt__total-label {
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 14px; color: var(--mg-quill);
+    }
+    .mg-receipt__total-amt {
+      font-family: var(--mg-display); font-weight: 400;
+      font-size: 26px; letter-spacing: -0.02em; color: var(--mg-bronze);
+    }
+
+    /* CTAs */
+    .mg-receipt__ctas {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 22px 28px 16px;
+    }
+    .mg-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px 18px;
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 15px; letter-spacing: 0.02em;
+      cursor: pointer; border: none;
+      width: 100%;
+      transition: all 240ms ease;
+    }
+    .mg-btn--primary {
+      background: var(--mg-ink); color: var(--mg-paper);
+    }
+    .mg-btn--primary:hover { background: var(--mg-bronze); }
+    .mg-btn--secondary {
+      background: transparent; color: var(--mg-ink);
+      border: 1px solid var(--mg-ink);
+    }
+    .mg-btn--secondary:hover { background: var(--mg-ink); color: var(--mg-paper); }
+    .mg-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+    .mg-btn[disabled]:hover { background: var(--mg-ink); }
+
+    .mg-btn__icon {
+      width: 14px; height: 14px;
+      stroke: currentColor; stroke-width: 1.5; fill: none;
+    }
+
+    /* CAPTION */
+    .mg-receipt__caption {
+      text-align: center;
+      padding: 14px 28px 32px;
+      font-family: var(--mg-display); font-style: italic;
+      font-size: 14px; line-height: 1.6;
+      color: var(--mg-quill);
+    }
+    .mg-receipt__caption strong {
+      color: var(--mg-ink); font-weight: 400;
+      font-style: normal;
+      font-family: var(--mg-display);
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-frame">
+    <div class="preview-bar">Monogram · MonogramEntryReceived · Wizard final step</div>
+
+    <!-- Component: matches HeritageEntryReceived.tsx prop interface 1:1 -->
+    <div class="mg-receipt" data-monogram>
+
+      <!-- ── Header ── -->
+      <header class="mg-receipt__header">
+        <div class="mg-receipt__monogram">BC</div>
+        <p class="mg-receipt__eyebrow">A formal receipt from</p>
+        <p class="mg-receipt__club">Bexar County Kennel Club</p>
+        <h2 class="mg-receipt__heading">
+          Your entry is <span class="mg-receipt__heading-accent">received</span>.
+        </h2>
+        <p class="mg-receipt__byline">
+          Spring Scent Work Trial · Jun 12–14, 2026
+        </p>
+      </header>
+
+      <!-- ── Entry detail card ── -->
+      <div class="mg-receipt__detail">
+        <p class="mg-receipt__folio">§ i · The dog</p>
+
+        <p class="mg-receipt__dog">CH Cedarwood's Risen On Pointe RN</p>
+        <p class="mg-receipt__call">called "Pointe"</p>
+
+        <p class="mg-receipt__class">
+          3 runs · Excellent Containers, Excellent Interiors, Excellent Buried · Judge Mrs. Beagles
+        </p>
+
+        <div class="mg-receipt__total">
+          <span class="mg-receipt__total-label">Receipt № 2026-0137</span>
+          <span class="mg-receipt__total-amt">$69.00</span>
+        </div>
+      </div>
+
+      <!-- ── CTAs ── -->
+      <div class="mg-receipt__ctas">
+        <button class="mg-btn mg-btn--primary" aria-label="Print my entry blank">
+          <svg class="mg-btn__icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Print my entry blank
+        </button>
+
+        <button class="mg-btn mg-btn--secondary" aria-label="Return to dashboard">
+          Return to dashboard
+        </button>
+      </div>
+
+      <!-- ── Caption ── -->
+      <p class="mg-receipt__caption">
+        A formal confirmation will be emailed on <strong>Jun 6, 2026</strong><br />once the draw is complete.
+      </p>
+
+    </div>
+  </div>
+</body>
+</html>

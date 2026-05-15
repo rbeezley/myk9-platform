@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Entry received · Banner Wizard Completion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* Mirrors HeritageEntryReceived.tsx prop interface 1:1.
+       Tokens: PAPER=#fafaf8 INK=#111 FLAG=#0d4d4f MUTE=#6b6b6b HAIR=#d8d8d4 */
+    :root {
+      --bn-paper:#fafaf8; --bn-ink:#111; --bn-soft:#2a2a2a;
+      --bn-mute:#6b6b6b; --bn-hair:#d8d8d4; --bn-flag:#0d4d4f; --bn-flag-bright:#1a7679;
+      --bn-display:'Inter Tight', system-ui, sans-serif;
+      --bn-body:'Inter', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:#e3e1dc; color:var(--bn-ink); font-family: var(--bn-body); }
+
+    .preview-frame {
+      max-width: 520px; margin: 40px auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+    }
+    .preview-bar {
+      background: var(--bn-ink); color: var(--bn-paper);
+      padding: 10px 16px;
+      font-family: var(--bn-body); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.28em; text-transform: uppercase;
+    }
+
+    .bn-receipt {
+      background: var(--bn-paper);
+      color: var(--bn-ink);
+      font-family: var(--bn-body);
+    }
+
+    /* FLAG MASTHEAD */
+    .bn-receipt__flag {
+      background: var(--bn-flag); color: var(--bn-paper);
+      padding: 24px 28px 28px;
+    }
+    .bn-receipt__kicker {
+      font-family: var(--bn-body); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: rgba(255,255,255,0.7); margin: 0 0 12px;
+    }
+    .bn-receipt__heading {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 36px; letter-spacing: -0.04em; line-height: 0.92;
+      color: var(--bn-paper); margin: 0 0 10px;
+    }
+    .bn-receipt__byline {
+      font-family: var(--bn-body); font-size: 14px; line-height: 1.45;
+      color: rgba(255,255,255,0.85); margin: 0;
+    }
+
+    /* DETAIL */
+    .bn-receipt__detail {
+      margin: 0 28px;
+      border-top: 2px solid var(--bn-flag);
+      border-bottom: 2px solid var(--bn-flag);
+      padding: 16px 0;
+      margin-top: 20px;
+    }
+    .bn-receipt__folio {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 12px; letter-spacing: 0.2em;
+      color: var(--bn-flag); margin: 0 0 8px;
+    }
+    .bn-receipt__dog {
+      font-family: var(--bn-display); font-weight: 800;
+      font-size: 24px; letter-spacing: -0.025em; line-height: 1.1;
+      color: var(--bn-ink); margin: 0 0 4px;
+    }
+    .bn-receipt__call {
+      font-family: var(--bn-body); font-weight: 500; font-size: 12px;
+      letter-spacing: 0.08em; color: var(--bn-mute); margin: 0 0 14px;
+    }
+    .bn-receipt__class {
+      font-family: var(--bn-body); font-size: 14px; line-height: 1.5;
+      color: var(--bn-soft); margin: 0 0 14px;
+    }
+    .bn-receipt__total {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-top: 1px solid var(--bn-hair); padding-top: 12px;
+    }
+    .bn-receipt__total-label {
+      font-family: var(--bn-body); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.28em; text-transform: uppercase; color: var(--bn-mute);
+    }
+    .bn-receipt__total-amt {
+      font-family: var(--bn-display); font-weight: 900;
+      font-size: 30px; letter-spacing: -0.035em; color: var(--bn-flag);
+    }
+
+    /* CTAs */
+    .bn-receipt__ctas {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 20px 28px 16px;
+    }
+    .bn-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px 18px;
+      font-family: var(--bn-display); font-weight: 700;
+      font-size: 14px; letter-spacing: -0.005em;
+      cursor: pointer; border: none; width: 100%;
+      transition: all 200ms ease;
+    }
+    .bn-btn--primary { background: var(--bn-flag); color: var(--bn-paper); }
+    .bn-btn--primary:hover { background: var(--bn-ink); }
+    .bn-btn--secondary {
+      background: transparent; color: var(--bn-ink);
+      border: 1.5px solid var(--bn-ink);
+    }
+    .bn-btn--secondary:hover { background: var(--bn-ink); color: var(--bn-paper); }
+    .bn-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+    .bn-btn[disabled]:hover { background: var(--bn-flag); }
+    .bn-btn__icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+    /* CAPTION */
+    .bn-receipt__caption {
+      text-align: left;
+      padding: 14px 28px 28px;
+      font-family: var(--bn-body); font-size: 12px; line-height: 1.6;
+      color: var(--bn-mute);
+      border-top: 1px solid var(--bn-hair);
+      margin-top: 4px;
+    }
+    .bn-receipt__caption strong { color: var(--bn-ink); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="preview-frame">
+    <div class="preview-bar">Banner · BannerEntryReceived · Wizard final step</div>
+
+    <div class="bn-receipt" data-banner>
+
+      <header class="bn-receipt__flag">
+        <p class="bn-receipt__kicker">Confirmed · Receipt 2026-0137</p>
+        <h2 class="bn-receipt__heading">You're in.</h2>
+        <p class="bn-receipt__byline">
+          Spring Scent Work · BCKC · Jun 12–14, 2026
+        </p>
+      </header>
+
+      <div class="bn-receipt__detail">
+        <p class="bn-receipt__folio">01 / THE DOG</p>
+        <p class="bn-receipt__dog">CH Cedarwood's Risen On Pointe RN</p>
+        <p class="bn-receipt__call">"Pointe" · German Shorthaired Pointer · F</p>
+        <p class="bn-receipt__class">
+          3 runs · Excellent Containers, Excellent Interiors, Excellent Buried · Judge C. Beagles
+        </p>
+        <div class="bn-receipt__total">
+          <span class="bn-receipt__total-label">Total · Fees received</span>
+          <span class="bn-receipt__total-amt">$69.00</span>
+        </div>
+      </div>
+
+      <div class="bn-receipt__ctas">
+        <button class="bn-btn bn-btn--primary" aria-label="Print my entry blank">
+          <svg class="bn-btn__icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Print my entry blank
+        </button>
+        <button class="bn-btn bn-btn--secondary" aria-label="Return to dashboard">
+          Return to dashboard
+        </button>
+      </div>
+
+      <p class="bn-receipt__caption">
+        A formal confirmation will be emailed on <strong>Jun 6, 2026</strong> once the draw is complete. Watch your inbox — your armband number will be included.
+      </p>
+
+    </div>
+  </div>
+</body>
+</html>

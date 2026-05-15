@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Spring Scent Work Trial · Field Guide · BCKC 2026</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ===========================================================
+       FIELD GUIDE — utility scannable reference; mono labels;
+       parchment paper; ink + indicator-orange accent
+       Differentiator: numbered §-sections; dense data tables;
+                       indicator chips; reference layout
+       =========================================================== */
+    :root {
+      --fg-paper:#f6f1e6; --fg-paper-warm:#ebe4cf; --fg-paper-deep:#1f2a24;
+      --fg-ink:#1f2a24; --fg-ink-soft:#3a4339; --fg-mute:#6b6e5e;
+      --fg-hair:#c4bba0; --fg-rule:#1f2a24;
+      --fg-orange:#c96442; --fg-orange-deep:#8a3e21;
+      --fg-cyan:#3a6e72;
+      --fg-display:'IBM Plex Sans', system-ui, sans-serif;
+      --fg-body:'IBM Plex Sans', system-ui, sans-serif;
+      --fg-serif:'IBM Plex Serif', Georgia, serif;
+      --fg-mono:'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--fg-paper); color: var(--fg-ink);
+      font-family: var(--fg-body); font-size: 14px; line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 { margin: 0; font-family: var(--fg-display); font-weight: 700; line-height: 1.15; letter-spacing: -0.005em; }
+    p { margin: 0; }
+    a { color: var(--fg-orange-deep); text-decoration: underline; text-underline-offset: 2px; }
+    a:hover { color: var(--fg-orange); }
+
+    .mono { font-family: var(--fg-mono); }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 6px;
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.04em;
+      background: var(--fg-paper-warm); color: var(--fg-ink);
+      border: 1px solid var(--fg-ink);
+    }
+    .chip.orange {
+      background: var(--fg-orange); color: var(--fg-paper);
+      border-color: var(--fg-orange);
+    }
+    .chip.cyan {
+      background: var(--fg-cyan); color: var(--fg-paper);
+      border-color: var(--fg-cyan);
+    }
+
+    /* ── Top header (compact reference card) ──────────────────── */
+    .fg-top {
+      background: var(--fg-paper-deep); color: var(--fg-paper);
+      padding: 10px 24px;
+      font-family: var(--fg-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 24px; flex-wrap: wrap;
+    }
+    .fg-top__id { display: flex; align-items: center; gap: 14px; }
+    .fg-top__id strong { color: var(--fg-orange); font-weight: 600; }
+    .fg-top__nav { display: flex; gap: 16px; }
+    .fg-top__nav a { color: rgba(246,241,230,0.7); text-decoration: none; }
+    .fg-top__nav a:hover, .fg-top__nav a.active { color: var(--fg-paper); }
+    .fg-top__cta {
+      padding: 4px 12px; background: var(--fg-orange); color: var(--fg-paper);
+      text-decoration: none;
+    }
+    .fg-top__cta:hover { background: var(--fg-paper); color: var(--fg-ink); }
+
+    /* ── Specsheet hero ──────────────────────────────────────── */
+    .fg-hero {
+      max-width: 1200px; margin: 0 auto;
+      padding: 40px 32px 32px;
+      border-bottom: 2px solid var(--fg-ink);
+    }
+    .fg-hero__id-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .fg-hero__title {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 56px; letter-spacing: -0.025em; line-height: 1.0;
+      color: var(--fg-ink); margin: 0 0 16px;
+      max-width: 22ch;
+    }
+    .fg-hero__title .sub {
+      display: block;
+      font-family: var(--fg-mono); font-weight: 500; font-size: 14px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep);
+      text-transform: none;
+      margin-top: 8px;
+    }
+    .fg-hero__sub {
+      font-family: var(--fg-body); font-size: 16px; line-height: 1.55;
+      color: var(--fg-ink-soft);
+      max-width: 720px;
+      margin-bottom: 28px;
+    }
+
+    .fg-hero__quickref {
+      display: grid; grid-template-columns: repeat(6, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--fg-ink); border-bottom: 1px solid var(--fg-ink);
+    }
+    .fg-hero__quickref-cell {
+      padding: 14px 16px;
+      border-right: 1px solid var(--fg-hair);
+    }
+    .fg-hero__quickref-cell:last-child { border-right: none; }
+    .fg-hero__quickref-cell .l {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.04em; color: var(--fg-mute); text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .fg-hero__quickref-cell .v {
+      font-family: var(--fg-display); font-weight: 700; font-size: 18px;
+      letter-spacing: -0.015em; color: var(--fg-ink);
+    }
+    .fg-hero__quickref-cell .v .orange { color: var(--fg-orange-deep); }
+
+    /* ── Section header (specsheet style) ────────────────────── */
+    .fg-section {
+      max-width: 1200px; margin: 0 auto;
+      padding: 64px 32px 56px;
+      border-bottom: 1px solid var(--fg-ink);
+    }
+    .fg-section__head {
+      display: grid; grid-template-columns: auto 1fr auto;
+      gap: 24px; align-items: baseline;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--fg-ink);
+      margin-bottom: 32px;
+    }
+    .fg-section__id {
+      font-family: var(--fg-mono); font-weight: 600; font-size: 14px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep);
+    }
+    .fg-section__title {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 28px; letter-spacing: -0.02em; line-height: 1.1;
+      color: var(--fg-ink);
+    }
+    .fg-section__meta {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--fg-mute);
+    }
+
+    /* ── Welcome (compact prose, no fluff) ───────────────────── */
+    .fg-prose {
+      max-width: 760px;
+      font-family: var(--fg-serif); font-size: 16px; line-height: 1.7;
+      color: var(--fg-ink-soft);
+    }
+    .fg-prose p + p { margin-top: 1em; }
+    .fg-prose strong { color: var(--fg-ink); font-weight: 700; font-family: var(--fg-display); }
+    .fg-byline {
+      margin-top: 24px;
+      padding-top: 14px;
+      border-top: 1px solid var(--fg-hair);
+      font-family: var(--fg-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--fg-mute);
+    }
+    .fg-byline strong { color: var(--fg-ink); font-weight: 600; }
+
+    /* ── Data table (the workhorse) ──────────────────────────── */
+    .fg-data {
+      width: 100%; border-collapse: collapse;
+      font-family: var(--fg-body); font-size: 14px;
+      border-top: 2px solid var(--fg-ink);
+      border-bottom: 2px solid var(--fg-ink);
+    }
+    .fg-data tr { border-bottom: 1px solid var(--fg-hair); }
+    .fg-data tr:last-child { border-bottom: none; }
+    .fg-data tr.alt { background: var(--fg-paper-warm); }
+    .fg-data th {
+      text-align: left;
+      font-family: var(--fg-mono); font-weight: 600; font-size: 10.5px;
+      letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-mute);
+      padding: 8px 12px; background: var(--fg-paper-warm);
+      border-bottom: 1px solid var(--fg-ink);
+    }
+    .fg-data td {
+      padding: 10px 12px;
+      vertical-align: top;
+      color: var(--fg-ink);
+    }
+    .fg-data td .mono { font-family: var(--fg-mono); font-weight: 500; font-size: 13px; }
+    .fg-data td.num {
+      font-family: var(--fg-mono); font-weight: 600; font-size: 14px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .fg-data td.id {
+      font-family: var(--fg-mono); font-weight: 600;
+      color: var(--fg-orange-deep);
+      width: 60px;
+    }
+
+    /* ── Stat grid (mini-cards) ──────────────────────────────── */
+    .fg-stat-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+      border-top: 2px solid var(--fg-ink); border-bottom: 2px solid var(--fg-ink);
+    }
+    .fg-stat {
+      padding: 18px 20px;
+      border-right: 1px solid var(--fg-hair);
+    }
+    .fg-stat:last-child { border-right: none; }
+    .fg-stat__l {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.04em; color: var(--fg-mute); text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .fg-stat__n {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 40px; letter-spacing: -0.025em; line-height: 0.95;
+      color: var(--fg-ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .fg-stat__n .unit {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 14px;
+      color: var(--fg-mute); margin-left: 4px;
+    }
+    .fg-stat__sub {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep);
+      margin-top: 4px;
+    }
+
+    /* ── Judges (specsheet rows) ─────────────────────────────── */
+    .fg-judge-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+      border-top: 2px solid var(--fg-ink); border-bottom: 2px solid var(--fg-ink);
+    }
+    .fg-judge {
+      padding: 24px 24px 24px 0;
+      border-right: 1px solid var(--fg-hair);
+    }
+    .fg-judge:nth-child(even) { padding: 24px 0 24px 24px; border-right: none; }
+    .fg-judge__chips {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .fg-judge__name {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 26px; letter-spacing: -0.02em; line-height: 1.1;
+      color: var(--fg-ink); margin-bottom: 6px;
+    }
+    .fg-judge__city {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--fg-mute);
+      margin-bottom: 14px;
+    }
+    .fg-judge__bio {
+      font-family: var(--fg-body); font-size: 14px; line-height: 1.6;
+      color: var(--fg-ink-soft);
+    }
+    .fg-judge__bio strong { color: var(--fg-ink); font-weight: 600; }
+
+    /* ── Capacity (mini-spec) ────────────────────────────────── */
+    .fg-capacity {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+      padding: 28px 0;
+      border-top: 2px solid var(--fg-ink); border-bottom: 2px solid var(--fg-ink);
+      align-items: center;
+    }
+    .fg-capacity__nums {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 88px; letter-spacing: -0.035em; line-height: 0.9;
+      color: var(--fg-ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .fg-capacity__nums .of {
+      color: var(--fg-mute); font-size: 56px;
+    }
+    .fg-capacity__nums .unit {
+      display: block;
+      font-family: var(--fg-mono); font-weight: 500; font-size: 13px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep);
+      margin-top: 8px;
+      text-transform: uppercase;
+    }
+    .fg-capacity__bar {
+      height: 10px; background: var(--fg-paper-warm);
+      border: 1px solid var(--fg-ink);
+      position: relative; overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .fg-capacity__bar-fill {
+      position: absolute; inset: -1px auto -1px -1px;
+      background: var(--fg-orange); width: 78%;
+    }
+    .fg-capacity__bar-fill::after {
+      content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--fg-orange-deep);
+    }
+    .fg-capacity__meta {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--fg-mute);
+      display: flex; justify-content: space-between;
+    }
+    .fg-capacity__meta strong { color: var(--fg-ink); font-weight: 600; }
+
+    /* ── Schedule (timetable) ────────────────────────────────── */
+    .fg-timetable {
+      width: 100%; border-collapse: collapse;
+      font-family: var(--fg-body); font-size: 14px;
+      border-top: 2px solid var(--fg-ink); border-bottom: 2px solid var(--fg-ink);
+    }
+    .fg-timetable th {
+      text-align: left;
+      font-family: var(--fg-mono); font-weight: 600; font-size: 10.5px;
+      letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-mute);
+      padding: 8px 12px; background: var(--fg-paper-warm);
+      border-bottom: 1px solid var(--fg-ink);
+    }
+    .fg-timetable td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--fg-hair);
+      color: var(--fg-ink);
+    }
+    .fg-timetable tr:last-child td { border-bottom: none; }
+    .fg-timetable .time {
+      font-family: var(--fg-mono); font-weight: 600;
+      color: var(--fg-orange-deep);
+      font-variant-numeric: tabular-nums;
+      width: 90px;
+    }
+    .fg-timetable .duration {
+      font-family: var(--fg-mono); font-size: 11px;
+      color: var(--fg-mute);
+      width: 70px;
+      font-variant-numeric: tabular-nums;
+    }
+    .fg-timetable .hall {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 11px;
+      color: var(--fg-mute);
+      width: 90px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+
+    /* ── Reference card (lodging, vet, hospitality) ──────────── */
+    .fg-cards {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0;
+      border-top: 2px solid var(--fg-ink); border-bottom: 2px solid var(--fg-ink);
+    }
+    .fg-card {
+      padding: 18px 20px;
+      border-right: 1px solid var(--fg-hair);
+    }
+    .fg-card:nth-child(2n) { border-right: none; }
+    .fg-card:nth-child(n+3) { border-top: 1px solid var(--fg-hair); }
+    .fg-card__head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .fg-card__id {
+      font-family: var(--fg-mono); font-weight: 600; font-size: 10.5px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep);
+    }
+    .fg-card__title {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 20px; letter-spacing: -0.015em; line-height: 1.15;
+      color: var(--fg-ink); margin-bottom: 6px;
+    }
+    .fg-card__data {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 12px;
+      letter-spacing: 0.04em; color: var(--fg-mute);
+      margin-bottom: 10px;
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .fg-card__body {
+      font-family: var(--fg-body); font-size: 13px; line-height: 1.55;
+      color: var(--fg-ink-soft);
+    }
+    .fg-card__body strong { color: var(--fg-ink); font-weight: 600; }
+
+    /* ── Officers (4-col compact roster) ─────────────────────── */
+    .fg-officers {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+      border-top: 2px solid var(--fg-ink); border-bottom: 2px solid var(--fg-ink);
+    }
+    .fg-officer {
+      padding: 14px 16px;
+      border-right: 1px solid var(--fg-hair);
+    }
+    .fg-officer:nth-child(4n) { border-right: none; }
+    .fg-officer:nth-child(n+5) { border-top: 1px solid var(--fg-hair); }
+    .fg-officer__role {
+      font-family: var(--fg-mono); font-weight: 600; font-size: 10px;
+      letter-spacing: 0.04em; color: var(--fg-mute); text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .fg-officer__name {
+      font-family: var(--fg-display); font-weight: 600;
+      font-size: 15px; letter-spacing: -0.005em; color: var(--fg-ink);
+    }
+
+    /* ── Final (compact spec band) ───────────────────────────── */
+    .fg-final {
+      background: var(--fg-paper-deep); color: var(--fg-paper);
+      padding: 64px 32px;
+    }
+    .fg-final__inner {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 320px;
+      gap: 56px; align-items: center;
+    }
+    .fg-final__id {
+      font-family: var(--fg-mono); font-weight: 600; font-size: 12px;
+      letter-spacing: 0.04em; color: var(--fg-orange);
+      margin-bottom: 16px;
+    }
+    .fg-final__title {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 48px; letter-spacing: -0.025em; line-height: 1.0;
+      color: var(--fg-paper); margin: 0 0 16px;
+      max-width: 18ch;
+    }
+    .fg-final__title .orange { color: var(--fg-orange); }
+    .fg-final__sub {
+      font-family: var(--fg-body); font-size: 15px; line-height: 1.6;
+      color: rgba(246,241,230,0.75);
+      max-width: 540px;
+    }
+    .fg-final__card {
+      background: var(--fg-paper); color: var(--fg-ink);
+      padding: 24px;
+    }
+    .fg-final__card-l {
+      font-family: var(--fg-mono); font-weight: 600; font-size: 10.5px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep); text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .fg-final__card-v {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 16px; letter-spacing: -0.005em; color: var(--fg-ink);
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+    .fg-final__cta {
+      display: block; width: 100%; text-align: center;
+      padding: 14px; background: var(--fg-orange); color: var(--fg-paper);
+      font-family: var(--fg-display); font-weight: 700; font-size: 14px;
+      letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none;
+      transition: background 200ms;
+    }
+    .fg-final__cta:hover { background: var(--fg-ink); }
+    .fg-final__helper {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.04em; color: var(--fg-mute);
+      margin-top: 10px; text-align: center;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .fg-footer {
+      background: var(--fg-paper);
+      padding: 32px 32px 18px;
+      border-top: 1px solid var(--fg-ink);
+    }
+    .fg-footer__inner {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: 2fr 1fr 1fr;
+      gap: 48px;
+    }
+    .fg-footer h4 {
+      font-family: var(--fg-mono); font-weight: 600; font-size: 10.5px;
+      letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-mute);
+      margin: 0 0 12px;
+    }
+    .fg-footer p, .fg-footer a {
+      font-family: var(--fg-mono); font-size: 12px; color: var(--fg-ink-soft);
+      margin: 0; display: block; letter-spacing: 0.02em; line-height: 1.7;
+    }
+    .fg-footer .club-name {
+      font-family: var(--fg-display); font-weight: 700; font-size: 20px;
+      letter-spacing: -0.015em; color: var(--fg-ink);
+      margin-bottom: 6px;
+    }
+    .fg-footer__fine {
+      max-width: 1200px; margin: 24px auto 0;
+      padding-top: 16px;
+      border-top: 1px solid var(--fg-hair);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.04em; color: var(--fg-mute);
+    }
+
+    /* ── Motion (minimal — utility tools don't dance) ────────── */
+    .fg-capacity__bar-fill { width: 0; animation: fgBar 1100ms cubic-bezier(0.2, 0, 0, 1) 400ms forwards; }
+    @keyframes fgBar { to { width: 78%; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .fg-capacity__bar-fill { width: 78% !important; }
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .fg-top { padding: 8px 16px; gap: 12px; }
+      .fg-top__nav { display: none; }
+      .fg-hero { padding: 28px 16px; }
+      .fg-hero__title { font-size: 36px; }
+      .fg-hero__quickref { grid-template-columns: 1fr 1fr 1fr; }
+      .fg-hero__quickref-cell:nth-child(3n) { border-right: none; }
+      .fg-hero__quickref-cell:nth-child(n+4) { border-top: 1px solid var(--fg-hair); }
+      .fg-section { padding: 40px 16px; }
+      .fg-section__head { grid-template-columns: 1fr; gap: 8px; }
+      .fg-section__title { font-size: 22px; }
+      .fg-stat-grid { grid-template-columns: 1fr 1fr; }
+      .fg-stat:nth-child(2) { border-right: none; }
+      .fg-stat:nth-child(n+3) { border-top: 1px solid var(--fg-hair); }
+      .fg-judge-grid { grid-template-columns: 1fr; }
+      .fg-judge { border-right: none; padding: 24px 0; }
+      .fg-judge:nth-child(2n) { padding: 24px 0; border-top: 1px solid var(--fg-hair); }
+      .fg-capacity { grid-template-columns: 1fr; }
+      .fg-capacity__nums { font-size: 56px; }
+      .fg-capacity__nums .of { font-size: 36px; }
+      .fg-cards { grid-template-columns: 1fr; }
+      .fg-card { border-right: none; border-bottom: 1px solid var(--fg-hair); }
+      .fg-officers { grid-template-columns: 1fr 1fr; }
+      .fg-officer:nth-child(2n) { border-right: none; }
+      .fg-officer:nth-child(n+3) { border-top: 1px solid var(--fg-hair); }
+      .fg-final { padding: 40px 16px; }
+      .fg-final__inner { grid-template-columns: 1fr; gap: 24px; }
+      .fg-final__title { font-size: 32px; }
+      .fg-footer { padding: 24px 16px; }
+      .fg-footer__inner { grid-template-columns: 1fr; gap: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP ID BAR -->
+  <div class="fg-top">
+    <div class="fg-top__id">
+      <strong>BCKC.2026.SS</strong>
+      <span>AKC §2026-2841</span>
+      <span>SCENT WORK</span>
+      <span>360-RUN LIMIT</span>
+    </div>
+    <nav class="fg-top__nav">
+      <a href="#§01">§01</a>
+      <a href="#§02">§02</a>
+      <a href="#§03">§03</a>
+      <a href="#§04">§04</a>
+      <a href="#§05">§05</a>
+      <a href="#§06">§06</a>
+      <a href="#§07">§07</a>
+    </nav>
+    <a href="#enter" class="fg-top__cta">ENTER →</a>
+  </div>
+
+  <!-- HERO SPECSHEET -->
+  <header class="fg-hero">
+    <div class="fg-hero__id-row">
+      <span class="chip orange">OPEN</span>
+      <span class="chip">SCENT WORK / TRIAL</span>
+      <span class="chip">AKC LICENSED</span>
+      <span class="chip cyan">3 DAYS / 6 TRIALS</span>
+    </div>
+    <h1 class="fg-hero__title">
+      Spring Scent Work Trial
+      <span class="sub">FIELD GUIDE · BCKC.2026.SS · REV 04</span>
+    </h1>
+    <p class="fg-hero__sub">
+      Reference document for entrants of the Bexar County Kennel Club Spring Scent Work Trial. Three days, six trials, three&#x2011;hundred and sixty runs at the Live Oak Civic Center, San Antonio. Read before entry; use as on-site reference during the weekend.
+    </p>
+    <div class="fg-hero__quickref">
+      <div class="fg-hero__quickref-cell">
+        <div class="l">DATES</div>
+        <div class="v">JUN 12–14</div>
+      </div>
+      <div class="fg-hero__quickref-cell">
+        <div class="l">OPENS</div>
+        <div class="v">APR 15</div>
+      </div>
+      <div class="fg-hero__quickref-cell">
+        <div class="l">CLOSES</div>
+        <div class="v"><span class="orange">JUN 03</span></div>
+      </div>
+      <div class="fg-hero__quickref-cell">
+        <div class="l">DRAW</div>
+        <div class="v">JUN 04</div>
+      </div>
+      <div class="fg-hero__quickref-cell">
+        <div class="l">CONFIRM</div>
+        <div class="v">JUN 06</div>
+      </div>
+      <div class="fg-hero__quickref-cell">
+        <div class="l">CAP</div>
+        <div class="v">360 <span class="orange">RUNS</span></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- §01 WELCOME -->
+  <section class="fg-section" id="§01">
+    <header class="fg-section__head">
+      <div class="fg-section__id">§01</div>
+      <h2 class="fg-section__title">Welcome & purpose</h2>
+      <div class="fg-section__meta">~280 WORDS · CHAIR'S NOTE</div>
+    </header>
+    <div class="fg-prose">
+      <p>This document is the official reference for the Bexar County Kennel Club's <strong>Spring Scent Work Trial</strong>, held 12–14 June 2026 at the Live Oak Civic Center, San Antonio. Use it before entry to confirm levels, fees, and dates; use it on site to find the venue, the vet, and the schedule.</p>
+      <p>The trial is <strong>AKC licensed (§2026-2841)</strong>. Six trials over three days. Two judges. All four elements plus Handler Discrimination and Detective at Master. Entry limit is <strong>360 runs · firm</strong>; over-entries are refunded.</p>
+      <p>The trial committee is a small volunteer body. Most volunteers will be running the trial in the morning and stewarding in the afternoon. Please be patient with us and pick up after your dog.</p>
+      <div class="fg-byline"><strong>Sarah Whitman</strong> · TRIAL CHAIR · sarah@bckc.org</div>
+    </div>
+  </section>
+
+  <!-- §02 PARTICULARS -->
+  <section class="fg-section" id="§02">
+    <header class="fg-section__head">
+      <div class="fg-section__id">§02</div>
+      <h2 class="fg-section__title">Trial particulars</h2>
+      <div class="fg-section__meta">REFERENCE DATA</div>
+    </header>
+    <table class="fg-data">
+      <tbody>
+        <tr><th>SANCTIONING</th><td>American Kennel Club · License §2026-2841 · Scent Work</td></tr>
+        <tr class="alt"><th>FORMAT</th><td>6 trials × 3 days · 2 trials per day · Fri → Sun</td></tr>
+        <tr><th>LEVELS</th><td>
+          <span class="chip">NOVICE</span>
+          <span class="chip">ADVANCED</span>
+          <span class="chip">EXCELLENT</span>
+          <span class="chip">MASTER</span>
+        </td></tr>
+        <tr class="alt"><th>ELEMENTS</th><td>
+          <span class="chip">CONTAINERS</span>
+          <span class="chip">INTERIORS</span>
+          <span class="chip">EXTERIORS</span>
+          <span class="chip">BURIED</span>
+          <span class="chip cyan">HD (MASTER)</span>
+          <span class="chip cyan">DETECTIVE (MASTER)</span>
+        </td></tr>
+        <tr><th>ENTRY LIMIT</th><td><span class="chip orange">360 RUNS · FIRM</span> · 60 per trial · 120 per day · over-entries refunded</td></tr>
+        <tr class="alt"><th>OPEN — CLOSE</th><td><span class="mono">2026-04-15</span> → <span class="mono">2026-06-03 20:00 CT</span></td></tr>
+        <tr><th>DRAW</th><td><span class="mono">2026-06-04</span></td></tr>
+        <tr class="alt"><th>CONFIRMATION</th><td><span class="mono">2026-06-06</span> · running orders &amp; armbands emailed</td></tr>
+        <tr><th>REFUND POLICY</th><td>Less $5 processing · written withdrawals before close</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- §03 FEES -->
+  <section class="fg-section" id="§03">
+    <header class="fg-section__head">
+      <div class="fg-section__id">§03</div>
+      <h2 class="fg-section__title">Fee schedule</h2>
+      <div class="fg-section__meta">USD · BEFORE PROCESSING</div>
+    </header>
+    <div class="fg-stat-grid">
+      <div class="fg-stat">
+        <div class="fg-stat__l">FIRST ENTRY</div>
+        <div class="fg-stat__n">$25<span class="unit">.00</span></div>
+        <div class="fg-stat__sub">PER DOG / PER TRIAL</div>
+      </div>
+      <div class="fg-stat">
+        <div class="fg-stat__l">EACH ADDITIONAL</div>
+        <div class="fg-stat__n">$22<span class="unit">.00</span></div>
+        <div class="fg-stat__sub">SAME DOG / +TRIALS</div>
+      </div>
+      <div class="fg-stat">
+        <div class="fg-stat__l">JUNIOR HANDLER</div>
+        <div class="fg-stat__n">$18<span class="unit">.00</span></div>
+        <div class="fg-stat__sub">AGE 9—18</div>
+      </div>
+      <div class="fg-stat">
+        <div class="fg-stat__l">NOVICE PACK</div>
+        <div class="fg-stat__n">$95<span class="unit">.00</span></div>
+        <div class="fg-stat__sub">ALL 4 NOVICE ELEMENTS</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- §04 JUDGES -->
+  <section class="fg-section" id="§04">
+    <header class="fg-section__head">
+      <div class="fg-section__id">§04</div>
+      <h2 class="fg-section__title">Judging assignments</h2>
+      <div class="fg-section__meta">2 JUDGES / 6 TRIALS / FIXED ROTATION</div>
+    </header>
+    <div class="fg-judge-grid">
+      <article class="fg-judge">
+        <div class="fg-judge__chips">
+          <span class="chip orange">TRIALS 01·03·05</span>
+          <span class="chip">CONT</span>
+          <span class="chip">INT</span>
+          <span class="chip">BUR</span>
+        </div>
+        <h3 class="fg-judge__name">Catherine Beagles</h3>
+        <div class="fg-judge__city">AUSTIN, TX · AKC SINCE 2014</div>
+        <p class="fg-judge__bio">Approved at all levels. Former trial chair, Lone Star Working Dog Club. <strong>Known for clear briefings and a steady pace.</strong></p>
+      </article>
+      <article class="fg-judge">
+        <div class="fg-judge__chips">
+          <span class="chip orange">TRIALS 02·04·06</span>
+          <span class="chip">EXT</span>
+          <span class="chip">BUR</span>
+          <span class="chip cyan">HD (MASTER)</span>
+        </div>
+        <h3 class="fg-judge__name">Marcus Whitfield</h3>
+        <div class="fg-judge__city">BOULDER, CO · AKC SINCE 2017</div>
+        <p class="fg-judge__bio">Approved through Master &amp; Detective. 20 years detection-dog handling. Author of <strong>Reading the Wind</strong> (Two Coast Press, 2023).</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- §05 ROSTER STATUS -->
+  <section class="fg-section" id="§05">
+    <header class="fg-section__head">
+      <div class="fg-section__id">§05</div>
+      <h2 class="fg-section__title">Roster status</h2>
+      <div class="fg-section__meta">LIVE · UPDATED 28 MAY 09:42 CT</div>
+    </header>
+    <div class="fg-capacity">
+      <div class="fg-capacity__nums">281<span class="of">/360</span><span class="unit">RUNS CLAIMED · 78%</span></div>
+      <div>
+        <div class="fg-capacity__bar"><div class="fg-capacity__bar-fill"></div></div>
+        <div class="fg-capacity__meta">
+          <span><strong>OPENED</strong> APR 15</span>
+          <span><strong>CLOSES</strong> JUN 03</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- §06 SHOW HOURS -->
+  <section class="fg-section" id="§06">
+    <header class="fg-section__head">
+      <div class="fg-section__id">§06</div>
+      <h2 class="fg-section__title">Show hours · each day</h2>
+      <div class="fg-section__meta">FRI · SAT · SUN · IDENTICAL</div>
+    </header>
+    <table class="fg-timetable">
+      <thead>
+        <tr><th class="time">TIME</th><th class="duration">DUR</th><th>ITEM</th><th class="hall">LOCATION</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="time">07:00</td><td class="duration">45m</td><td>Doors open · Check-in begins</td><td class="hall">LOBBY</td></tr>
+        <tr><td class="time">07:45</td><td class="duration">45m</td><td>Briefing — Trial I (Containers, Interiors)</td><td class="hall">HALL A</td></tr>
+        <tr><td class="time">08:30</td><td class="duration">3h 30m</td><td>Trial I begins · Novice → Master</td><td class="hall">HALL A</td></tr>
+        <tr><td class="time">12:00</td><td class="duration">45m</td><td>Lunch break · provided on site</td><td class="hall">BALLROOM</td></tr>
+        <tr><td class="time">12:45</td><td class="duration">45m</td><td>Briefing — Trial II (Exteriors, Buried)</td><td class="hall">HALL B</td></tr>
+        <tr><td class="time">13:30</td><td class="duration">~4h</td><td>Trial II begins</td><td class="hall">HALL B</td></tr>
+        <tr><td class="time">17:30</td><td class="duration">—</td><td>Approximate finish · Ribbons &amp; Q-cards</td><td class="hall">HALL A</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- §07 SITE REFERENCE -->
+  <section class="fg-section" id="§07">
+    <header class="fg-section__head">
+      <div class="fg-section__id">§07</div>
+      <h2 class="fg-section__title">Site reference · lodging · vet</h2>
+      <div class="fg-section__meta">CHECKED 2026-05-15</div>
+    </header>
+    <div class="fg-cards">
+      <article class="fg-card">
+        <div class="fg-card__head">
+          <span class="fg-card__id">VEN.01</span>
+          <span class="chip orange">VENUE</span>
+        </div>
+        <h3 class="fg-card__title">Live Oak Civic Center</h3>
+        <div class="fg-card__data">
+          <span>8101 PAT BOOKER RD</span>
+          <span>78233</span>
+        </div>
+        <p class="fg-card__body">Indoor, air-conditioned. Sealed concrete floors throughout. Crating in adjacent ballroom. <strong>Ample on-site parking · no fee.</strong></p>
+      </article>
+      <article class="fg-card">
+        <div class="fg-card__head">
+          <span class="fg-card__id">VET.01</span>
+          <span class="chip cyan">24-HOUR VET</span>
+        </div>
+        <h3 class="fg-card__title">Alamo Veterinary Hospital</h3>
+        <div class="fg-card__data">
+          <span>8420 PAT BOOKER RD</span>
+          <span>(210) 555-2840</span>
+        </div>
+        <p class="fg-card__body"><strong>Open 24 hours.</strong> 5 min from venue. Save the number to your phone before you arrive.</p>
+      </article>
+      <article class="fg-card">
+        <div class="fg-card__head">
+          <span class="fg-card__id">LDG.01</span>
+          <span class="chip">HOTEL · 0.4 MI</span>
+        </div>
+        <h3 class="fg-card__title">Hampton Inn Live Oak</h3>
+        <div class="fg-card__data">
+          <span>$129/NT</span>
+          <span>CODE BCKC26</span>
+          <span>EXPIRES MAY 18</span>
+        </div>
+        <p class="fg-card__body">Closest hotel to the venue. Reserved block expires May 18; mention <strong>BCKC26</strong> at booking. Pet-friendly, no fee.</p>
+      </article>
+      <article class="fg-card">
+        <div class="fg-card__head">
+          <span class="fg-card__id">LDG.02</span>
+          <span class="chip">HOTEL · 1.2 MI</span>
+        </div>
+        <h3 class="fg-card__title">Holiday Inn Express Selma</h3>
+        <div class="fg-card__data">
+          <span>$119/NT</span>
+          <span>CODE BCKC</span>
+        </div>
+        <p class="fg-card__body">Pet-friendly with a small fee. Continental breakfast included.</p>
+      </article>
+      <article class="fg-card">
+        <div class="fg-card__head">
+          <span class="fg-card__id">LDG.03</span>
+          <span class="chip">HOTEL · 2.1 MI</span>
+        </div>
+        <h3 class="fg-card__title">La Quinta Windcrest</h3>
+        <div class="fg-card__data">
+          <span>$109/NT</span>
+          <span>NO BLOCK · BOOK DIRECT</span>
+        </div>
+        <p class="fg-card__body">No fee for pets. No reserved block.</p>
+      </article>
+      <article class="fg-card">
+        <div class="fg-card__head">
+          <span class="fg-card__id">HSP.01</span>
+          <span class="chip">ON SITE · 3 DAYS</span>
+        </div>
+        <h3 class="fg-card__title">Hospitality (on site)</h3>
+        <div class="fg-card__data">
+          <span>FRI · SAT · SUN</span>
+          <span>NO ADD'L COST</span>
+        </div>
+        <p class="fg-card__body">Coffee &amp; breakfast tacos at check-in. Lunch on site all three days, prepared by hospitality committee.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- §08 OFFICERS -->
+  <section class="fg-section" id="§08">
+    <header class="fg-section__head">
+      <div class="fg-section__id">§08</div>
+      <h2 class="fg-section__title">Trial committee</h2>
+      <div class="fg-section__meta">6 OFFICERS · BCKC</div>
+    </header>
+    <div class="fg-officers">
+      <div class="fg-officer"><div class="fg-officer__role">PRESIDENT</div><div class="fg-officer__name">Eleanor Park</div></div>
+      <div class="fg-officer"><div class="fg-officer__role">VICE PRESIDENT</div><div class="fg-officer__name">Daniel Ortega</div></div>
+      <div class="fg-officer"><div class="fg-officer__role">TREASURER</div><div class="fg-officer__name">Marcia Liu</div></div>
+      <div class="fg-officer"><div class="fg-officer__role">SECRETARY</div><div class="fg-officer__name">Robert Chen</div></div>
+      <div class="fg-officer"><div class="fg-officer__role">TRIAL CHAIR</div><div class="fg-officer__name">Sarah Whitman</div></div>
+      <div class="fg-officer"><div class="fg-officer__role">TRIAL SECRETARY</div><div class="fg-officer__name">James Nakamura</div></div>
+      <div class="fg-officer"><div class="fg-officer__role">HOSPITALITY</div><div class="fg-officer__name">Rita Alvarez</div></div>
+      <div class="fg-officer"><div class="fg-officer__role">CHIEF STEWARD</div><div class="fg-officer__name">Patricia Yamamoto</div></div>
+    </div>
+  </section>
+
+  <!-- §09 ENTER -->
+  <section class="fg-final" id="enter">
+    <div class="fg-final__inner">
+      <div>
+        <div class="fg-final__id">§09 · ENTRY · CLOSES 2026-06-03 20:00 CT</div>
+        <h2 class="fg-final__title">Submit your <span class="orange">entry</span>.</h2>
+        <p class="fg-final__sub">Three days. Six trials. 360 runs. First-received basis until the limit is hit. Refunds (less $5 processing) for written withdrawals received before close.</p>
+      </div>
+      <div class="fg-final__card">
+        <div class="fg-final__card-l">ONLINE ENTRY URL</div>
+        <div class="fg-final__card-v">myk9show.com<br />/bckc-spring-2026</div>
+        <a class="fg-final__cta" href="#">SUBMIT ENTRY →</a>
+        <div class="fg-final__helper">~3 MIN · SAVES &amp; RESUMES</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="fg-footer">
+    <div class="fg-footer__inner">
+      <div>
+        <div class="club-name">Bexar County Kennel Club</div>
+        <p>EST. 1947 · SAN ANTONIO, TX · A MEMBER CLUB OF THE AMERICAN KENNEL CLUB</p>
+        <p style="margin-top: 8px;">PO BOX 4421 · SAN ANTONIO, TX 78212</p>
+      </div>
+      <div>
+        <h4>TRIAL SECRETARY</h4>
+        <p><strong style="color: var(--fg-ink); font-weight: 700;">James Nakamura</strong></p>
+        <a href="mailto:secretary@bckc.org">secretary@bckc.org</a>
+        <a href="tel:+12105550142">(210) 555-0142</a>
+      </div>
+      <div>
+        <h4>DOCUMENT</h4>
+        <p>FIELD GUIDE · REV 04</p>
+        <p>GENERATED 2026-05-28</p>
+        <p>VIA myK9Show</p>
+      </div>
+    </div>
+    <div class="fg-footer__fine">
+      <span>© 2026 BCKC</span>
+      <span>BCKC.2026.SS · AKC §2026-2841</span>
+      <span>PAGE FIELD-GUIDE.1</span>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Entry received · Field Guide Wizard Completion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --fg-paper:#f6f1e6; --fg-paper-warm:#ebe4cf; --fg-paper-deep:#1f2a24;
+      --fg-ink:#1f2a24; --fg-soft:#3a4339; --fg-mute:#6b6e5e;
+      --fg-hair:#c4bba0; --fg-orange:#c96442; --fg-orange-deep:#8a3e21;
+      --fg-display:'IBM Plex Sans', system-ui, sans-serif;
+      --fg-body:'IBM Plex Sans', system-ui, sans-serif;
+      --fg-mono:'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:#dcd5b9; color:var(--fg-ink); font-family: var(--fg-body); }
+
+    .preview-frame {
+      max-width: 520px; margin: 40px auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.14);
+    }
+    .preview-bar {
+      background: var(--fg-paper-deep); color: var(--fg-paper);
+      padding: 10px 16px;
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .fg-receipt {
+      background: var(--fg-paper);
+      color: var(--fg-ink);
+      font-family: var(--fg-body);
+    }
+
+    .fg-receipt__top {
+      background: var(--fg-paper-deep); color: var(--fg-paper);
+      padding: 10px 24px;
+      display: flex; justify-content: space-between;
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+    .fg-receipt__top strong { color: var(--fg-orange); font-weight: 600; }
+
+    .fg-receipt__header {
+      padding: 22px 28px 18px;
+      border-bottom: 2px solid var(--fg-ink);
+    }
+    .fg-receipt__chip-row {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .fg-receipt__chip {
+      padding: 2px 7px;
+      font-family: var(--fg-mono); font-weight: 500; font-size: 9px;
+      letter-spacing: 0.04em;
+      background: var(--fg-paper-warm); color: var(--fg-ink);
+      border: 1px solid var(--fg-ink);
+    }
+    .fg-receipt__chip.orange {
+      background: var(--fg-orange); color: var(--fg-paper); border-color: var(--fg-orange);
+    }
+    .fg-receipt__heading {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 28px; letter-spacing: -0.025em; line-height: 1.05;
+      color: var(--fg-ink); margin: 0 0 8px;
+    }
+    .fg-receipt__byline {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep); text-transform: uppercase;
+      margin: 0;
+    }
+
+    .fg-receipt__detail {
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--fg-hair);
+    }
+    .fg-receipt__folio {
+      font-family: var(--fg-mono); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep);
+      margin: 0 0 6px;
+    }
+    .fg-receipt__dog {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 22px; letter-spacing: -0.02em; line-height: 1.15;
+      color: var(--fg-ink); margin: 0 0 4px;
+    }
+    .fg-receipt__call {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--fg-mute); text-transform: uppercase;
+      margin: 0 0 14px;
+    }
+    .fg-receipt__class {
+      font-family: var(--fg-body); font-size: 14px; line-height: 1.55;
+      color: var(--fg-soft); margin: 0 0 14px;
+    }
+    .fg-receipt__total {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-top: 1px solid var(--fg-hair); padding-top: 12px;
+    }
+    .fg-receipt__total-label {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.04em; color: var(--fg-mute); text-transform: uppercase;
+    }
+    .fg-receipt__total-amt {
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 28px; letter-spacing: -0.025em; color: var(--fg-orange-deep);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fg-receipt__ctas {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 18px 28px 16px;
+    }
+    .fg-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px 18px;
+      font-family: var(--fg-display); font-weight: 700;
+      font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase;
+      cursor: pointer; border: none; width: 100%;
+      transition: all 200ms ease;
+    }
+    .fg-btn--primary { background: var(--fg-orange); color: var(--fg-paper); }
+    .fg-btn--primary:hover { background: var(--fg-paper-deep); }
+    .fg-btn--secondary {
+      background: transparent; color: var(--fg-ink);
+      border: 1px solid var(--fg-ink);
+    }
+    .fg-btn--secondary:hover { background: var(--fg-ink); color: var(--fg-paper); }
+    .fg-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+    .fg-btn[disabled]:hover { background: var(--fg-orange); }
+    .fg-btn__icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+    .fg-receipt__caption {
+      text-align: left;
+      padding: 14px 28px 28px;
+      font-family: var(--fg-body); font-size: 13px; line-height: 1.6;
+      color: var(--fg-mute);
+      border-top: 1px solid var(--fg-hair);
+      margin-top: 4px;
+    }
+    .fg-receipt__caption strong { color: var(--fg-ink); font-weight: 700; }
+    .fg-receipt__caption .mono {
+      font-family: var(--fg-mono); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.04em; color: var(--fg-orange-deep);
+      display: block; margin-top: 6px; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-frame">
+    <div class="preview-bar">FIELD GUIDE · FieldGuideEntryReceived · WIZARD FINAL STEP</div>
+
+    <div class="fg-receipt" data-field-guide>
+
+      <div class="fg-receipt__top">
+        <span><strong>BCKC.2026.SS</strong> · CONFIRMATION · REV 01</span>
+        <span>RECEIPT 2026-0137</span>
+      </div>
+
+      <header class="fg-receipt__header">
+        <div class="fg-receipt__chip-row">
+          <span class="fg-receipt__chip orange">CONFIRMED</span>
+          <span class="fg-receipt__chip">3 RUNS</span>
+          <span class="fg-receipt__chip">ARMBAND #247</span>
+        </div>
+        <h2 class="fg-receipt__heading">Entry confirmed.</h2>
+        <p class="fg-receipt__byline">SPRING SCENT WORK · BCKC · JUN 12–14, 2026</p>
+      </header>
+
+      <div class="fg-receipt__detail">
+        <p class="fg-receipt__folio">§01 · THE DOG</p>
+        <p class="fg-receipt__dog">CH Cedarwood's Risen On Pointe RN</p>
+        <p class="fg-receipt__call">"POINTE" · GERMAN SHORTHAIRED POINTER · F</p>
+        <p class="fg-receipt__class">
+          3 runs · Excellent Containers, Excellent Interiors, Excellent Buried · Judge C. Beagles
+        </p>
+        <div class="fg-receipt__total">
+          <span class="fg-receipt__total-label">TOTAL · FEES RECEIVED</span>
+          <span class="fg-receipt__total-amt">$69.00</span>
+        </div>
+      </div>
+
+      <div class="fg-receipt__ctas">
+        <button class="fg-btn fg-btn--primary" aria-label="Print my entry blank">
+          <svg class="fg-btn__icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Print my entry blank
+        </button>
+        <button class="fg-btn fg-btn--secondary" aria-label="Return to dashboard">
+          Return to dashboard
+        </button>
+      </div>
+
+      <p class="fg-receipt__caption">
+        Formal confirmation will be emailed on <strong>Jun 6, 2026</strong> once the draw is complete. Watch your inbox — your armband number will be included.
+        <span class="mono">NEXT: §02 ON THE DAY · §03 WITHDRAW POLICY</span>
+      </p>
+
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Entry received · Magazine Wizard Completion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400&family=Inter+Tight:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --mz-paper:#f6f1e8; --mz-paper-deep:#ece4d3;
+      --mz-ink:#1a1a1a; --mz-soft:#2e2820; --mz-mute:#7a6e58; --mz-quill:#5c4f3a;
+      --mz-gold-1:#c9a87c; --mz-gold-2:#a8814f; --mz-gold-3:#4a3826;
+      --mz-display:'Cormorant Garamond', Georgia, serif;
+      --mz-body:'Source Serif 4', Georgia, serif;
+      --mz-meta:'Inter Tight', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:#dad2bd; color:var(--mz-ink); font-family: var(--mz-body); }
+
+    .preview-frame {
+      max-width: 520px; margin: 40px auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.14);
+    }
+    .preview-bar {
+      background: var(--mz-ink); color: var(--mz-paper);
+      padding: 10px 16px;
+      font-family: var(--mz-meta); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+    }
+
+    .mz-receipt {
+      background: var(--mz-paper); color: var(--mz-ink);
+      font-family: var(--mz-body);
+    }
+
+    .mz-receipt__header {
+      padding: 32px 28px 18px;
+    }
+    .mz-receipt__kicker {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-gold-3);
+      margin: 0 0 14px;
+    }
+    .mz-receipt__heading {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 36px; letter-spacing: -0.01em; line-height: 1.05;
+      margin: 0 0 14px; color: var(--mz-ink);
+    }
+    .mz-receipt__heading-accent { font-style: italic; color: var(--mz-gold-3); }
+    .mz-receipt__byline {
+      font-family: var(--mz-display); font-style: italic;
+      font-size: 16px; color: var(--mz-quill);
+      margin: 0;
+    }
+    .mz-receipt__gold-rule {
+      height: 2px;
+      background: linear-gradient(90deg, var(--mz-gold-1), var(--mz-gold-2));
+      margin: 18px 28px 0;
+    }
+
+    .mz-receipt__detail {
+      margin: 0 28px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--mz-ink);
+    }
+    .mz-receipt__folio {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--mz-gold-3); margin: 0 0 8px;
+    }
+    .mz-receipt__dog {
+      font-family: var(--mz-display); font-weight: 500;
+      font-size: 26px; letter-spacing: -0.005em; line-height: 1.15;
+      color: var(--mz-ink); margin: 0 0 4px;
+    }
+    .mz-receipt__call {
+      font-family: var(--mz-display); font-style: italic;
+      font-size: 15px; color: var(--mz-quill); margin: 0 0 14px;
+    }
+    .mz-receipt__class {
+      font-family: var(--mz-body); font-size: 14px; line-height: 1.6;
+      color: var(--mz-soft); margin: 0 0 16px;
+    }
+    .mz-receipt__total {
+      display: flex; justify-content: space-between; align-items: baseline;
+      border-top: 1px dotted var(--mz-gold-2); padding-top: 12px;
+    }
+    .mz-receipt__total-label {
+      font-family: var(--mz-meta); font-weight: 500; font-size: 10px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--mz-mute);
+    }
+    .mz-receipt__total-amt {
+      font-family: var(--mz-display); font-style: italic; font-weight: 500;
+      font-size: 28px; color: var(--mz-gold-3);
+    }
+
+    .mz-receipt__ctas {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 20px 28px 16px;
+    }
+    .mz-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px 18px;
+      font-family: var(--mz-display); font-style: italic; font-weight: 500;
+      font-size: 16px; cursor: pointer; border: none; width: 100%;
+      transition: all 240ms ease;
+    }
+    .mz-btn--primary { background: var(--mz-ink); color: var(--mz-paper); }
+    .mz-btn--primary:hover { background: var(--mz-gold-3); }
+    .mz-btn--secondary {
+      background: transparent; color: var(--mz-ink);
+      border: 1px solid var(--mz-ink);
+    }
+    .mz-btn--secondary:hover { background: var(--mz-ink); color: var(--mz-paper); }
+    .mz-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+    .mz-btn[disabled]:hover { background: var(--mz-ink); }
+    .mz-btn__icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+
+    .mz-receipt__caption {
+      text-align: center;
+      padding: 14px 28px 32px;
+      font-family: var(--mz-display); font-style: italic;
+      font-size: 15px; line-height: 1.55;
+      color: var(--mz-quill);
+    }
+    .mz-receipt__caption strong {
+      color: var(--mz-ink); font-weight: 500; font-style: normal;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-frame">
+    <div class="preview-bar">Magazine · MagazineEntryReceived · Wizard final step</div>
+
+    <div class="mz-receipt" data-magazine>
+
+      <header class="mz-receipt__header">
+        <p class="mz-receipt__kicker">Confirmed · Receipt 2026-0137</p>
+        <h2 class="mz-receipt__heading">Your entry is <span class="mz-receipt__heading-accent">received</span>.</h2>
+        <p class="mz-receipt__byline">Bexar County Kennel Club · Spring Scent Work, Jun 12–14, 2026</p>
+      </header>
+      <div class="mz-receipt__gold-rule"></div>
+
+      <div class="mz-receipt__detail">
+        <p class="mz-receipt__folio">Article i · The dog</p>
+        <p class="mz-receipt__dog">CH Cedarwood's Risen On Pointe RN</p>
+        <p class="mz-receipt__call">called "Pointe" · German Shorthaired Pointer · F</p>
+        <p class="mz-receipt__class">
+          3 runs · Excellent Containers, Excellent Interiors, Excellent Buried · Judge Mrs. Beagles
+        </p>
+        <div class="mz-receipt__total">
+          <span class="mz-receipt__total-label">Receipt № 2026-0137</span>
+          <span class="mz-receipt__total-amt">$69.00</span>
+        </div>
+      </div>
+
+      <div class="mz-receipt__ctas">
+        <button class="mz-btn mz-btn--primary" aria-label="Print my entry blank">
+          <svg class="mz-btn__icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Print my entry blank
+        </button>
+        <button class="mz-btn mz-btn--secondary" aria-label="Return to dashboard">
+          Return to dashboard
+        </button>
+      </div>
+
+      <p class="mz-receipt__caption">
+        A formal confirmation will be emailed on <strong>Jun 6, 2026</strong><br />once the draw is complete.
+      </p>
+
+    </div>
+  </div>
+</body>
+</html>

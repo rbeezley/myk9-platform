@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Spring Scent Work Trial · Bexar County Gazette · 2026</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,400;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ===========================================================
+       GAZETTE — newspaper broadsheet; ivory + sepia + brown;
+       Playfair masthead; multi-column body; classifieds boxes
+       Differentiator: actual 3-column newspaper text setting,
+                       smallcaps bylines, "continued" rules,
+                       boxed classifieds, edition-strip masthead
+       =========================================================== */
+    :root {
+      --gz-paper:#f7f1e3; --gz-paper-warm:#ede5d2;
+      --gz-ink:#2a2520; --gz-soft:#3d352c;
+      --gz-mute:#7a6e58; --gz-brown:#6b4f3a;
+      --gz-hair:#b8a98a; --gz-deep:#1a1611;
+      --gz-display:'Playfair Display', 'Georgia', serif;
+      --gz-body:'Source Serif 4', Georgia, serif;
+      --gz-meta:'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--gz-paper);
+      background-image: repeating-linear-gradient(
+        45deg, transparent 0 4px,
+        rgba(107, 79, 58, 0.018) 4px 5px
+      );
+      color: var(--gz-ink);
+      font-family: var(--gz-body); font-size: 15px; line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "onum" 1, "liga" 1;
+    }
+    h1, h2, h3, h4 { margin: 0; font-family: var(--gz-display); font-weight: 700; line-height: 1.05; letter-spacing: -0.005em; }
+    p { margin: 0; }
+    a { color: var(--gz-brown); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: var(--gz-hair); }
+    a:hover { text-decoration-color: var(--gz-brown); }
+
+    /* ── Masthead ─────────────────────────────────────────────── */
+    .gz-masthead {
+      max-width: 1100px; margin: 0 auto;
+      padding: 28px 48px 16px;
+      border-top: 3px solid var(--gz-ink);
+      border-bottom: 4px double var(--gz-ink);
+    }
+    .gz-masthead__strip {
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: var(--gz-meta); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.04em;
+      color: var(--gz-brown);
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--gz-hair);
+      margin-bottom: 16px;
+    }
+    .gz-masthead__title {
+      font-family: var(--gz-display); font-weight: 900;
+      font-size: 88px; letter-spacing: -0.015em; line-height: 0.95;
+      text-align: center; color: var(--gz-ink);
+      margin: 0 0 12px;
+    }
+    .gz-masthead__title em { font-style: italic; font-weight: 400; }
+    .gz-masthead__sub {
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: var(--gz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.06em; color: var(--gz-mute);
+      padding-top: 12px;
+      border-top: 1px solid var(--gz-hair);
+    }
+    .gz-masthead__sub-center {
+      font-family: var(--gz-body); font-style: italic; font-size: 13px;
+      letter-spacing: 0; color: var(--gz-soft);
+    }
+
+    /* ── Front-page lead ─────────────────────────────────────── */
+    .gz-lead {
+      max-width: 1100px; margin: 0 auto;
+      padding: 32px 48px;
+      border-bottom: 1px solid var(--gz-ink);
+    }
+    .gz-lead__kicker {
+      text-align: center;
+      font-family: var(--gz-meta); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--gz-brown);
+      margin-bottom: 16px;
+    }
+    .gz-lead__title {
+      font-family: var(--gz-display); font-weight: 900;
+      font-size: 64px; letter-spacing: -0.015em; line-height: 1;
+      text-align: center; color: var(--gz-ink);
+      max-width: 18ch; margin: 0 auto 18px;
+      text-wrap: balance;
+    }
+    .gz-lead__title em { font-style: italic; font-weight: 400; color: var(--gz-brown); }
+    .gz-lead__dek {
+      font-family: var(--gz-display); font-style: italic; font-weight: 400;
+      font-size: 22px; line-height: 1.4;
+      text-align: center; color: var(--gz-soft);
+      max-width: 640px; margin: 0 auto 24px;
+      text-wrap: pretty;
+    }
+    .gz-lead__byline {
+      text-align: center;
+      font-family: var(--gz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-brown);
+      padding: 12px 0;
+      border-top: 1px solid var(--gz-hair);
+      border-bottom: 1px solid var(--gz-hair);
+      margin: 0 auto 24px;
+      max-width: 580px;
+    }
+
+    /* ── Three-column body ───────────────────────────────────── */
+    .gz-columns {
+      column-count: 3; column-gap: 32px;
+      column-rule: 1px solid var(--gz-hair);
+      font-family: var(--gz-body); font-size: 15px; line-height: 1.65;
+      color: var(--gz-soft);
+      max-width: 1100px; margin: 0 auto;
+      padding: 32px 48px 48px;
+    }
+    .gz-columns p { margin: 0 0 1em; break-inside: avoid-column; }
+    .gz-columns .drop-cap {
+      float: left;
+      font-family: var(--gz-display); font-weight: 700;
+      font-size: 72px; line-height: 0.85;
+      margin: 6px 8px -2px 0;
+      color: var(--gz-ink);
+    }
+    .gz-columns h3 {
+      font-family: var(--gz-display); font-weight: 700;
+      font-size: 20px; letter-spacing: -0.005em; line-height: 1.15;
+      margin: 1.4em 0 0.4em;
+      color: var(--gz-ink);
+      column-span: none;
+    }
+    .gz-columns h3 em { font-style: italic; color: var(--gz-brown); font-weight: 400; }
+    .gz-columns strong { color: var(--gz-ink); font-weight: 600; }
+    .gz-columns em { font-style: italic; color: var(--gz-brown); }
+    .gz-columns .signature {
+      display: block; column-span: all;
+      text-align: right;
+      font-family: var(--gz-meta); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-brown);
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--gz-hair);
+    }
+    .gz-columns .signature em { font-family: var(--gz-display); font-style: italic; color: var(--gz-ink); font-size: 16px; letter-spacing: 0; text-transform: none; margin-right: 8px; }
+
+    .gz-continued {
+      max-width: 1100px; margin: 0 auto;
+      padding: 0 48px 24px;
+      font-family: var(--gz-display); font-style: italic; font-size: 14px;
+      color: var(--gz-brown);
+      text-align: right;
+    }
+    .gz-continued::before { content: "▸ "; }
+
+    /* ── Section divider with "page" rule ────────────────────── */
+    .gz-pagerule {
+      max-width: 1100px; margin: 0 auto;
+      padding: 16px 48px;
+      border-top: 4px double var(--gz-ink);
+      display: flex; justify-content: space-between;
+      font-family: var(--gz-meta); font-weight: 600; font-size: 10.5px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--gz-brown);
+    }
+
+    /* ── Section template ────────────────────────────────────── */
+    .gz-section {
+      max-width: 1100px; margin: 0 auto;
+      padding: 48px 48px 56px;
+      border-bottom: 1px solid var(--gz-ink);
+    }
+    .gz-section__head {
+      text-align: center;
+      margin-bottom: 32px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--gz-hair);
+    }
+    .gz-section__kicker {
+      font-family: var(--gz-meta); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--gz-brown);
+      margin-bottom: 10px;
+    }
+    .gz-section__title {
+      font-family: var(--gz-display); font-weight: 900;
+      font-size: 44px; letter-spacing: -0.012em; line-height: 1.0;
+      color: var(--gz-ink); margin: 0 0 8px;
+      text-wrap: balance;
+    }
+    .gz-section__title em { font-style: italic; font-weight: 400; color: var(--gz-brown); }
+    .gz-section__dek {
+      font-family: var(--gz-display); font-style: italic; font-weight: 400;
+      font-size: 16px; color: var(--gz-soft); max-width: 580px; margin: 0 auto;
+    }
+
+    /* ── Particulars (definition-list, 2-col) ────────────────── */
+    .gz-particulars {
+      column-count: 2; column-gap: 48px;
+    }
+    .gz-particulars__row {
+      padding: 12px 0;
+      border-bottom: 1px dotted var(--gz-hair);
+      break-inside: avoid-column;
+      display: grid; grid-template-columns: 130px 1fr; gap: 16px;
+      align-items: baseline;
+    }
+    .gz-particulars dt {
+      font-family: var(--gz-meta); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-brown);
+    }
+    .gz-particulars dd {
+      margin: 0;
+      font-family: var(--gz-display); font-weight: 600;
+      font-size: 17px; color: var(--gz-ink);
+      letter-spacing: -0.005em; line-height: 1.3;
+    }
+    .gz-particulars dd em { font-style: italic; color: var(--gz-brown); font-weight: 400; }
+    .gz-particulars dd .sub {
+      display: block; margin-top: 2px;
+      font-family: var(--gz-body); font-size: 13px;
+      color: var(--gz-mute); line-height: 1.5;
+    }
+
+    /* ── Judges (two-column with byline) ─────────────────────── */
+    .gz-judges {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+    }
+    .gz-judge {
+      padding-top: 12px;
+      border-top: 3px solid var(--gz-ink);
+    }
+    .gz-judge__kicker {
+      font-family: var(--gz-meta); font-weight: 600; font-size: 10.5px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-brown);
+      margin-bottom: 6px;
+    }
+    .gz-judge__name {
+      font-family: var(--gz-display); font-weight: 900;
+      font-size: 32px; letter-spacing: -0.015em; line-height: 1.0;
+      color: var(--gz-ink); margin-bottom: 4px;
+    }
+    .gz-judge__city {
+      font-family: var(--gz-display); font-style: italic; font-size: 16px;
+      color: var(--gz-brown); margin-bottom: 14px;
+    }
+    .gz-judge__bio {
+      font-family: var(--gz-body); font-size: 14px; line-height: 1.6;
+      color: var(--gz-soft);
+    }
+    .gz-judge__bio em { font-style: italic; color: var(--gz-brown); }
+
+    /* ── Roster / capacity ───────────────────────────────────── */
+    .gz-roster {
+      text-align: center;
+      padding: 8px 0;
+    }
+    .gz-roster__nums {
+      font-family: var(--gz-display); font-weight: 900;
+      font-size: 112px; letter-spacing: -0.025em; line-height: 1;
+      color: var(--gz-ink);
+    }
+    .gz-roster__nums em {
+      font-style: italic; font-weight: 400; font-size: 64px;
+      color: var(--gz-brown); vertical-align: 18px;
+    }
+    .gz-roster__lbl {
+      font-family: var(--gz-display); font-style: italic;
+      font-size: 18px; color: var(--gz-brown); margin: 8px 0 20px;
+    }
+    .gz-roster__bar {
+      max-width: 460px; margin: 0 auto;
+      height: 4px; background: var(--gz-hair);
+      position: relative; overflow: hidden;
+    }
+    .gz-roster__bar-fill {
+      position: absolute; inset: 0 auto 0 0;
+      width: 78%; background: var(--gz-brown);
+    }
+    .gz-roster__caption {
+      margin-top: 12px;
+      font-family: var(--gz-meta); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-mute);
+    }
+
+    /* ── Classifieds (boxed columns) ─────────────────────────── */
+    .gz-classifieds {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;
+    }
+    .gz-classified {
+      border: 1px solid var(--gz-ink);
+      padding: 18px;
+      background: var(--gz-paper);
+    }
+    .gz-classified__head {
+      padding-bottom: 8px;
+      border-bottom: 1px dotted var(--gz-hair);
+      margin-bottom: 10px;
+    }
+    .gz-classified__cat {
+      font-family: var(--gz-meta); font-weight: 600; font-size: 9px;
+      letter-spacing: 0.32em; text-transform: uppercase; color: var(--gz-brown);
+      margin-bottom: 4px;
+    }
+    .gz-classified__title {
+      font-family: var(--gz-display); font-weight: 800;
+      font-size: 22px; letter-spacing: -0.01em; line-height: 1.05;
+      color: var(--gz-ink);
+    }
+    .gz-classified__title em { font-style: italic; font-weight: 400; color: var(--gz-brown); }
+    .gz-classified__body {
+      font-family: var(--gz-body); font-size: 13.5px; line-height: 1.55;
+      color: var(--gz-soft);
+    }
+    .gz-classified__body strong { color: var(--gz-ink); font-weight: 600; }
+    .gz-classified__meta {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dotted var(--gz-hair);
+      font-family: var(--gz-meta); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.06em; color: var(--gz-mute);
+    }
+
+    /* ── Schedule rows ───────────────────────────────────────── */
+    .gz-schedule {
+      max-width: 760px; margin: 0 auto;
+      border-top: 3px solid var(--gz-ink);
+      border-bottom: 3px solid var(--gz-ink);
+    }
+    .gz-schedule__row {
+      display: grid; grid-template-columns: 120px 1fr 80px;
+      gap: 24px; align-items: baseline;
+      padding: 14px 0;
+      border-bottom: 1px dotted var(--gz-hair);
+    }
+    .gz-schedule__row:last-child { border-bottom: none; }
+    .gz-schedule__time {
+      font-family: var(--gz-display); font-weight: 700;
+      font-size: 20px; color: var(--gz-ink); letter-spacing: -0.005em;
+    }
+    .gz-schedule__what {
+      font-family: var(--gz-body); font-size: 15px; color: var(--gz-soft);
+      line-height: 1.45;
+    }
+    .gz-schedule__hall {
+      text-align: right;
+      font-family: var(--gz-meta); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-brown);
+    }
+
+    /* ── Officers (compact list) ─────────────────────────────── */
+    .gz-officers {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px 48px;
+    }
+    .gz-officer {
+      padding-top: 10px;
+      border-top: 1px solid var(--gz-ink);
+    }
+    .gz-officer__role {
+      font-family: var(--gz-meta); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-brown);
+      margin-bottom: 4px;
+    }
+    .gz-officer__name {
+      font-family: var(--gz-display); font-weight: 700;
+      font-size: 18px; letter-spacing: -0.005em; color: var(--gz-ink);
+    }
+
+    /* ── Final advertisement (deep band) ─────────────────────── */
+    .gz-final {
+      background: var(--gz-deep); color: var(--gz-paper);
+      padding: 96px 48px;
+      position: relative;
+      border-top: 4px double var(--gz-paper);
+      border-bottom: 4px double var(--gz-paper);
+    }
+    .gz-final__inner {
+      max-width: 880px; margin: 0 auto;
+      text-align: center;
+    }
+    .gz-final__kicker {
+      font-family: var(--gz-meta); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.32em; text-transform: uppercase;
+      color: rgba(247,241,227,0.65);
+      margin-bottom: 24px;
+    }
+    .gz-final__title {
+      font-family: var(--gz-display); font-weight: 900;
+      font-size: 80px; letter-spacing: -0.015em; line-height: 0.95;
+      color: var(--gz-paper); margin: 0 auto 20px;
+      max-width: 18ch;
+      text-wrap: balance;
+    }
+    .gz-final__title em { font-style: italic; font-weight: 400; color: rgba(247,241,227,0.85); }
+    .gz-final__sub {
+      font-family: var(--gz-display); font-style: italic; font-weight: 400;
+      font-size: 19px; line-height: 1.5;
+      color: rgba(247,241,227,0.75);
+      max-width: 580px; margin: 0 auto 32px;
+    }
+    .gz-final__cta {
+      display: inline-flex; align-items: center; gap: 14px;
+      padding: 16px 36px;
+      background: var(--gz-paper); color: var(--gz-ink);
+      font-family: var(--gz-display); font-weight: 700;
+      font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase;
+      transition: background 280ms ease;
+    }
+    .gz-final__cta:hover { background: var(--gz-paper-warm); }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .gz-footer {
+      max-width: 1100px; margin: 0 auto;
+      padding: 32px 48px 28px;
+    }
+    .gz-footer__inner {
+      display: grid; grid-template-columns: 2fr 1fr 1fr;
+      gap: 48px; align-items: start;
+    }
+    .gz-footer__club {
+      font-family: var(--gz-display); font-weight: 900;
+      font-size: 28px; letter-spacing: -0.015em; line-height: 0.95;
+      color: var(--gz-ink); margin-bottom: 8px;
+    }
+    .gz-footer__small {
+      font-family: var(--gz-body); font-size: 13px; line-height: 1.7;
+      color: var(--gz-soft);
+    }
+    .gz-footer h4 {
+      font-family: var(--gz-meta); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-brown);
+      margin: 0 0 10px;
+    }
+    .gz-footer p, .gz-footer a {
+      font-family: var(--gz-body); font-size: 13px; color: var(--gz-soft);
+      margin: 0; display: block;
+    }
+    .gz-footer__fine {
+      max-width: 1100px; margin: 24px auto 0;
+      padding: 18px 48px;
+      border-top: 4px double var(--gz-ink);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      font-family: var(--gz-meta); font-weight: 500; font-size: 10.5px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--gz-brown);
+    }
+
+    /* ── Motion ──────────────────────────────────────────────── */
+    .gz-masthead__title { opacity: 0; transform: translateY(6px); animation: gzRise 800ms cubic-bezier(0.2,0,0,1) 100ms forwards; }
+    .gz-lead__title { opacity: 0; transform: translateY(6px); animation: gzRise 800ms cubic-bezier(0.2,0,0,1) 280ms forwards; }
+    .gz-lead__dek, .gz-lead__byline { opacity: 0; transform: translateY(6px); animation: gzRise 800ms cubic-bezier(0.2,0,0,1) 420ms forwards; }
+    .gz-roster__bar-fill { width: 0; animation: gzBar 1400ms cubic-bezier(0.2,0,0,1) 400ms forwards; }
+    @keyframes gzRise { to { opacity: 1; transform: translateY(0); } }
+    @keyframes gzBar { to { width: 78%; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .gz-roster__bar-fill { width: 78% !important; }
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .gz-masthead, .gz-lead, .gz-section, .gz-pagerule, .gz-footer, .gz-footer__fine { padding-left: 24px; padding-right: 24px; }
+      .gz-masthead__title { font-size: 48px; }
+      .gz-masthead__strip, .gz-masthead__sub { flex-direction: column; gap: 6px; text-align: center; }
+      .gz-lead__title { font-size: 40px; }
+      .gz-lead__dek { font-size: 17px; }
+      .gz-columns { column-count: 1; padding: 24px; }
+      .gz-section__title { font-size: 32px; }
+      .gz-particulars { column-count: 1; }
+      .gz-judges { grid-template-columns: 1fr; gap: 32px; }
+      .gz-classifieds { grid-template-columns: 1fr; }
+      .gz-officers { grid-template-columns: 1fr; gap: 18px; }
+      .gz-roster__nums { font-size: 72px; }
+      .gz-roster__nums em { font-size: 42px; }
+      .gz-final { padding: 56px 24px; }
+      .gz-final__title { font-size: 40px; }
+      .gz-footer__inner { grid-template-columns: 1fr; gap: 28px; }
+      .gz-schedule__row { grid-template-columns: 90px 1fr; gap: 12px; }
+      .gz-schedule__hall { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── MASTHEAD ─────────────────────────────────────────────── -->
+  <header class="gz-masthead">
+    <div class="gz-masthead__strip">
+      <span>VOL. LXXIX · NO 47</span>
+      <span>SAN ANTONIO, TX · TWO CENTS</span>
+      <span>FRIDAY, MAY 28, 2026</span>
+    </div>
+    <h1 class="gz-masthead__title"><em>The</em> Bexar County <em>Gazette</em></h1>
+    <div class="gz-masthead__sub">
+      <span>ESTABLISHED MCMXLVII</span>
+      <span class="gz-masthead__sub-center">"All the news fit to point at a hide."</span>
+      <span>AKC LICENSE №2026-2841</span>
+    </div>
+  </header>
+
+  <!-- ── FRONT-PAGE LEAD ──────────────────────────────────────── -->
+  <article class="gz-lead">
+    <div class="gz-lead__kicker">Front Page · Trial Edition · 12—14 June</div>
+    <h2 class="gz-lead__title">Bexar County Kennel Club to Hold Spring <em>Scent Work</em> Trial</h2>
+    <p class="gz-lead__dek">Three days, six trials, three&#x2011;hundred and sixty runs to be contested at the Live Oak Civic Center under judges <em>Beagles</em> and <em>Whitfield</em>; entries closing 3 June.</p>
+    <div class="gz-lead__byline">By Sarah Whitman, Trial Chair · Special to the Gazette</div>
+  </article>
+
+  <!-- ── 3-COLUMN BODY ────────────────────────────────────────── -->
+  <div class="gz-columns" id="welcome">
+    <p><span class="drop-cap">F</span>or seventy-nine years our club has put on shows that exhibitors look forward to. This spring the Bexar County Kennel Club returns to the Live Oak Civic Center with three days of <em>scent work</em>, a discipline that has grown faster than any AKC programme in recent memory.</p>
+    <p>The trial committee has set the entry limit firmly at <strong>360 runs</strong>, with sixty per trial and one hundred and twenty per day. Last year's spring meeting filled by May twenty-fourth; entrants are advised to submit early.</p>
+
+    <h3>The <em>judging panel</em></h3>
+    <p><strong>Mrs. Catherine Beagles</strong> of Austin will judge Trials I, III, and V — Containers and Interiors — in Hall A. Mrs. Beagles is approved for all elements at all levels; this is her seventh time judging at a BCKC trial.</p>
+    <p><strong>Mr. Marcus Whitfield</strong> of Boulder, Colorado, judges Trials II, IV, and VI in Hall B — Exteriors, Buried, and Handler Discrimination at Master. Author of <em>Reading the Wind: A Practical Guide to Exterior Searches</em>.</p>
+
+    <h3>Of <em>hospitality &amp; quarter</em></h3>
+    <p>Coffee and breakfast tacos will be served at check-in each morning. Lunch is provided by the hospitality committee all three days at no additional charge. The club has reserved blocks at the Hampton Inn Live Oak (Code <strong>BCKC26</strong>, expires May 18) and at the Holiday Inn Express Selma.</p>
+    <p>Crating is in the ballroom adjacent to the trial floor. Parking is plentiful and free. Soft-sided crates only, please. <em>No flexi-leads on the trial floor.</em></p>
+
+    <h3>The <em>committee</em></h3>
+    <p>This trial is given by a small club. The volunteers running it will, by Friday afternoon, also be ribboning and stewarding. Please be patient with them, and pick up after your dog.</p>
+
+    <div class="signature"><em>Sarah Whitman</em> &nbsp; · &nbsp; Trial Chair</div>
+  </div>
+
+  <div class="gz-continued">Continued on §02 — Particulars</div>
+
+  <div class="gz-pagerule">
+    <span>SECTION B · PARTICULARS</span>
+    <span>PAGE 02</span>
+    <span>VOL. LXXIX</span>
+  </div>
+
+  <!-- ── PARTICULARS ──────────────────────────────────────────── -->
+  <section class="gz-section" id="particulars">
+    <header class="gz-section__head">
+      <div class="gz-section__kicker">Notice to Exhibitors</div>
+      <h2 class="gz-section__title">The trial, <em>in particular</em></h2>
+      <p class="gz-section__dek">All the facts an entrant requires, set out in the customary manner.</p>
+    </header>
+
+    <div class="gz-particulars">
+      <div class="gz-particulars__row"><dt>Sanctioning</dt><dd>American Kennel Club<span class="sub">License №2026-2841 · Scent Work</span></dd></div>
+      <div class="gz-particulars__row"><dt>Format</dt><dd>Six trials, three days<span class="sub">Two per day · Fri → Sun</span></dd></div>
+      <div class="gz-particulars__row"><dt>Levels</dt><dd>Novice · Advanced · Excellent · Master</dd></div>
+      <div class="gz-particulars__row"><dt>Elements</dt><dd>Containers · Interiors · Exteriors · Buried<span class="sub">Plus HD &amp; Detective at Master</span></dd></div>
+      <div class="gz-particulars__row"><dt>Entry limit</dt><dd><em>360 runs · firm</em><span class="sub">60/trial · 120/day · over-entries refunded</span></dd></div>
+      <div class="gz-particulars__row"><dt>Opens</dt><dd>April 15, 2026</dd></div>
+      <div class="gz-particulars__row"><dt>Closes</dt><dd><em>June 3 · 8:00 PM CT</em></dd></div>
+      <div class="gz-particulars__row"><dt>Draw</dt><dd>June 4, 2026</dd></div>
+      <div class="gz-particulars__row"><dt>Confirmation</dt><dd>June 6, 2026<span class="sub">Running orders &amp; armbands emailed</span></dd></div>
+      <div class="gz-particulars__row"><dt>Fees</dt><dd>$25 first · $22 add'l · $18 jr<span class="sub">Refunds (less $5) for written withdrawals before close</span></dd></div>
+    </div>
+  </section>
+
+  <!-- ── JUDGES ───────────────────────────────────────────────── -->
+  <section class="gz-section" id="judges">
+    <header class="gz-section__head">
+      <div class="gz-section__kicker">The bench</div>
+      <h2 class="gz-section__title">Two judges, <em>six trials</em></h2>
+      <p class="gz-section__dek">Each judging three of the six on a rotation published in advance.</p>
+    </header>
+
+    <div class="gz-judges">
+      <article class="gz-judge">
+        <div class="gz-judge__kicker">Trials i · iii · v · Hall A</div>
+        <h3 class="gz-judge__name">Mrs. Catherine Beagles</h3>
+        <div class="gz-judge__city">of Austin, Texas</div>
+        <p class="gz-judge__bio">AKC judge since <em>2014</em>. Approved for all Scent Work elements at all levels. Former trial chair of Lone Star Working Dog Club. Lives in Austin with two retired terriers. Known for clear briefings and a steady pace; sees the dogs as the protagonists.</p>
+      </article>
+      <article class="gz-judge">
+        <div class="gz-judge__kicker">Trials ii · iv · vi · Hall B</div>
+        <h3 class="gz-judge__name">Mr. Marcus Whitfield</h3>
+        <div class="gz-judge__city">of Boulder, Colorado</div>
+        <p class="gz-judge__bio">AKC judge since <em>2017</em>. Approved through Master and Detective. Twenty years of detection-dog handling. Author of <em>Reading the Wind: A Practical Guide to Exterior Searches</em> (Two Coast Press). Patient with handlers; ruthless with hides.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── ROSTER ───────────────────────────────────────────────── -->
+  <section class="gz-section" id="roster">
+    <header class="gz-section__head">
+      <div class="gz-section__kicker">As reported</div>
+      <h2 class="gz-section__title">Roster <em>filling quickly</em></h2>
+    </header>
+    <div class="gz-roster">
+      <div class="gz-roster__nums">281<em>/360</em></div>
+      <div class="gz-roster__lbl">runs claimed at this hour</div>
+      <div class="gz-roster__bar"><div class="gz-roster__bar-fill"></div></div>
+      <div class="gz-roster__caption">Updated 28 May · 78 percent full · Last year filled May 24</div>
+    </div>
+  </section>
+
+  <!-- ── SCHEDULE ─────────────────────────────────────────────── -->
+  <section class="gz-section" id="schedule">
+    <header class="gz-section__head">
+      <div class="gz-section__kicker">Show hours · Each day</div>
+      <h2 class="gz-section__title">The day, <em>hour by hour</em></h2>
+    </header>
+    <div class="gz-schedule">
+      <div class="gz-schedule__row"><div class="gz-schedule__time">7:00 AM</div><div class="gz-schedule__what">Doors open · Check-in begins</div><div class="gz-schedule__hall">Lobby</div></div>
+      <div class="gz-schedule__row"><div class="gz-schedule__time">7:45 AM</div><div class="gz-schedule__what">Briefing — Trial I (Containers, Interiors)</div><div class="gz-schedule__hall">Hall A</div></div>
+      <div class="gz-schedule__row"><div class="gz-schedule__time">8:30 AM</div><div class="gz-schedule__what">Trial I begins · Novice → Master</div><div class="gz-schedule__hall">Hall A</div></div>
+      <div class="gz-schedule__row"><div class="gz-schedule__time">12:00 PM</div><div class="gz-schedule__what">Lunch break · 45 minutes · Hospitality</div><div class="gz-schedule__hall">Ballroom</div></div>
+      <div class="gz-schedule__row"><div class="gz-schedule__time">12:45 PM</div><div class="gz-schedule__what">Briefing — Trial II (Exteriors, Buried)</div><div class="gz-schedule__hall">Hall B</div></div>
+      <div class="gz-schedule__row"><div class="gz-schedule__time">1:30 PM</div><div class="gz-schedule__what">Trial II begins</div><div class="gz-schedule__hall">Hall B</div></div>
+      <div class="gz-schedule__row"><div class="gz-schedule__time">5:30 PM</div><div class="gz-schedule__what">Approximate finish · Ribbons &amp; Q-cards</div><div class="gz-schedule__hall">Hall A</div></div>
+    </div>
+  </section>
+
+  <!-- ── CLASSIFIEDS ──────────────────────────────────────────── -->
+  <section class="gz-section" id="plan">
+    <header class="gz-section__head">
+      <div class="gz-section__kicker">Classified advertisements</div>
+      <h2 class="gz-section__title">Lodging, <em>victuals &amp; vet</em></h2>
+    </header>
+    <div class="gz-classifieds">
+      <article class="gz-classified">
+        <header class="gz-classified__head">
+          <div class="gz-classified__cat">LODGING · I</div>
+          <h3 class="gz-classified__title">Hampton Inn <em>Live Oak</em></h3>
+        </header>
+        <p class="gz-classified__body">Closest hotel to the venue. Reserved block expires May 18; mention <strong>BCKC26</strong> at booking. Pet-friendly, no fee.</p>
+        <div class="gz-classified__meta">0.4 MI · $129/NT · CODE BCKC26</div>
+      </article>
+      <article class="gz-classified">
+        <header class="gz-classified__head">
+          <div class="gz-classified__cat">LODGING · II</div>
+          <h3 class="gz-classified__title">Holiday Inn <em>Express Selma</em></h3>
+        </header>
+        <p class="gz-classified__body">Pet-friendly with a small fee. Continental breakfast included. Walking distance to two restaurants.</p>
+        <div class="gz-classified__meta">1.2 MI · $119/NT · CODE BCKC</div>
+      </article>
+      <article class="gz-classified">
+        <header class="gz-classified__head">
+          <div class="gz-classified__cat">LODGING · III</div>
+          <h3 class="gz-classified__title">La Quinta <em>Windcrest</em></h3>
+        </header>
+        <p class="gz-classified__body">No fee for pets. No reserved block — book direct.</p>
+        <div class="gz-classified__meta">2.1 MI · $109/NT</div>
+      </article>
+      <article class="gz-classified">
+        <header class="gz-classified__head">
+          <div class="gz-classified__cat">VET · EMERGENCY</div>
+          <h3 class="gz-classified__title">Alamo <em>Veterinary Hospital</em></h3>
+        </header>
+        <p class="gz-classified__body">Open <strong>24 hours</strong>. Five minutes from the venue. Save the number before you arrive.</p>
+        <div class="gz-classified__meta">(210) 555-2840 · 8420 PAT BOOKER RD</div>
+      </article>
+      <article class="gz-classified">
+        <header class="gz-classified__head">
+          <div class="gz-classified__cat">VICTUALS · ON SITE</div>
+          <h3 class="gz-classified__title">Hospitality</h3>
+        </header>
+        <p class="gz-classified__body">Coffee &amp; breakfast tacos at check-in. Lunch on site all three days, prepared by the hospitality committee. <strong>No additional charge.</strong></p>
+        <div class="gz-classified__meta">FRI · SAT · SUN · COMPLIMENTARY</div>
+      </article>
+      <article class="gz-classified">
+        <header class="gz-classified__head">
+          <div class="gz-classified__cat">AWARDS</div>
+          <h3 class="gz-classified__title">Ribbons <em>&amp; trophies</em></h3>
+        </header>
+        <p class="gz-classified__body">Hand-tied rosettes 1st–4th every class. Engraved bowl for High in Trial each day. <strong>Silver platter</strong> for High Combined Master.</p>
+        <div class="gz-classified__meta">PRESENTED END OF DAY · END OF WEEKEND</div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── OFFICERS ─────────────────────────────────────────────── -->
+  <section class="gz-section" id="who">
+    <header class="gz-section__head">
+      <div class="gz-section__kicker">In whose care</div>
+      <h2 class="gz-section__title">Officers <em>of the club</em></h2>
+    </header>
+    <div class="gz-officers">
+      <div class="gz-officer"><div class="gz-officer__role">President</div><div class="gz-officer__name">Eleanor Park</div></div>
+      <div class="gz-officer"><div class="gz-officer__role">Vice President</div><div class="gz-officer__name">Daniel Ortega</div></div>
+      <div class="gz-officer"><div class="gz-officer__role">Treasurer</div><div class="gz-officer__name">Marcia Liu</div></div>
+      <div class="gz-officer"><div class="gz-officer__role">Secretary</div><div class="gz-officer__name">Robert Chen</div></div>
+      <div class="gz-officer"><div class="gz-officer__role">Trial Chair</div><div class="gz-officer__name">Sarah Whitman</div></div>
+      <div class="gz-officer"><div class="gz-officer__role">Trial Secretary</div><div class="gz-officer__name">James Nakamura</div></div>
+    </div>
+  </section>
+
+  <!-- ── FINAL ADVERTISEMENT ──────────────────────────────────── -->
+  <section class="gz-final" id="enter">
+    <div class="gz-final__inner">
+      <div class="gz-final__kicker">Notice · Entries Close 3 June at 8 PM CT</div>
+      <h2 class="gz-final__title">You are <em>cordially invited</em> to enter.</h2>
+      <p class="gz-final__sub">Three days, six trials, three hundred and sixty runs at the Live Oak Civic Center. First-received basis until the limit is hit.</p>
+      <a class="gz-final__cta" href="#">Open the entry wizard ▸</a>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ───────────────────────────────────────────────── -->
+  <footer class="gz-footer">
+    <div class="gz-footer__inner">
+      <div>
+        <div class="gz-footer__club">Bexar County <em style="font-style:italic; font-weight:400;">Kennel Club</em></div>
+        <p class="gz-footer__small">Established 1947 · San Antonio, Texas · A member club of the American Kennel Club. <em>The Gazette</em> is the club's quarterly newsletter and the official organ of its trial committee.</p>
+      </div>
+      <div>
+        <h4>Trial Secretary</h4>
+        <p><strong style="color: var(--gz-ink); font-weight: 600;">James Nakamura</strong></p>
+        <a href="mailto:secretary@bckc.org">secretary@bckc.org</a>
+        <a href="tel:+12105550142">(210) 555-0142</a>
+      </div>
+      <div>
+        <h4>Patrons</h4>
+        <p>Lone Star Pet Supply</p>
+        <p>K9 Nose Work® Texas</p>
+        <p>Alamo Veterinary Hospital</p>
+      </div>
+    </div>
+  </footer>
+  <div class="gz-footer__fine">
+    <span>© 2026 BCKC</span>
+    <span>PUBLISHED VIA myK9Show</span>
+    <span>LICENSE №2026-2841 · TWO CENTS</span>
+  </div>
+
+</body>
+</html>

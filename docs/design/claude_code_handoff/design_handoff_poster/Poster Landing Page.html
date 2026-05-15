@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Spring Scent Work Trial 2026 · Bexar County Kennel Club</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter+Tight:wght@500;700;800;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ===========================================================
+       POSTER — maximalist contemporary; Archivo Black; ink-blot;
+       red + olive + cream; mono meta strips; diagonal accents
+       Differentiator: graphic shapes, condensed display at scale,
+                       diagonal layered cuts, mono running strips
+       =========================================================== */
+    :root {
+      --po-cream:#f3ede0; --po-cream-warm:#e9dfc8;
+      --po-ink:#1f1d18; --po-ink-soft:#3a342a;
+      --po-mute:#7a7466; --po-hair:#cabe9f;
+      --po-red:#c83b1a; --po-red-deep:#8a2810;
+      --po-olive:#3d3a2a; --po-olive-deep:#1f1d18;
+      --po-display:'Archivo Black', system-ui, sans-serif;
+      --po-display-tight:'Inter Tight', system-ui, sans-serif;
+      --po-body:'Inter', system-ui, sans-serif;
+      --po-mono:'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--po-cream); color: var(--po-ink);
+      font-family: var(--po-body); font-size: 16px; line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 { margin: 0; font-family: var(--po-display); font-weight: 400; line-height: 0.88; letter-spacing: -0.02em; }
+    p { margin: 0; }
+    a { color: var(--po-ink); text-decoration: none; }
+
+    /* ── Top mono strip (running header) ──────────────────────── */
+    .po-strip {
+      background: var(--po-ink);
+      color: var(--po-cream);
+      padding: 8px 32px;
+      font-family: var(--po-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em;
+      display: flex; justify-content: space-between; align-items: center;
+      overflow: hidden; white-space: nowrap;
+      gap: 32px;
+    }
+    .po-strip__item { display: inline-flex; align-items: center; gap: 8px; }
+    .po-strip__sep { color: var(--po-red); font-weight: 600; }
+    .po-strip__cta {
+      background: var(--po-red); color: var(--po-cream);
+      padding: 4px 12px;
+      font-family: var(--po-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em;
+      transition: background 200ms;
+    }
+    .po-strip__cta:hover { background: var(--po-cream); color: var(--po-ink); }
+
+    /* ── Hero (the poster face) ──────────────────────────────── */
+    .po-hero {
+      position: relative;
+      padding: 48px 32px 64px;
+      overflow: hidden;
+      min-height: 88vh;
+      background: var(--po-cream);
+    }
+    .po-hero__inkblot {
+      position: absolute;
+      width: 720px; height: 720px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, var(--po-red) 0%, var(--po-red-deep) 70%);
+      right: -180px; top: 80px;
+      filter: drop-shadow(0 8px 32px rgba(200, 59, 26, 0.35));
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+    .po-hero__square {
+      position: absolute;
+      width: 320px; height: 320px;
+      background: var(--po-olive);
+      left: -80px; bottom: -80px;
+      transform: rotate(8deg);
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+
+    .po-hero__inner {
+      position: relative; z-index: 2;
+      max-width: 1280px; margin: 0 auto;
+    }
+    .po-hero__masthead {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 32px;
+      padding-bottom: 32px;
+      border-bottom: 2px solid var(--po-ink);
+      margin-bottom: 48px;
+    }
+    .po-hero__mark {
+      font-family: var(--po-display); font-size: 24px;
+      letter-spacing: -0.025em;
+      color: var(--po-ink);
+    }
+    .po-hero__mark .red { color: var(--po-red); }
+    .po-hero__masthead-meta {
+      text-align: right;
+      font-family: var(--po-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--po-ink);
+    }
+    .po-hero__masthead-meta strong {
+      display: block;
+      font-family: var(--po-display); font-size: 20px;
+      letter-spacing: -0.02em; color: var(--po-red);
+      margin-top: 2px;
+    }
+
+    /* THE POSTER TITLE */
+    .po-hero__title-stack {
+      max-width: 1100px;
+      position: relative;
+      z-index: 4;
+    }
+    .po-hero__title-word {
+      font-family: var(--po-display); font-size: 224px;
+      letter-spacing: -0.045em; line-height: 0.82;
+      color: var(--po-ink);
+      text-wrap: nowrap;
+      display: block;
+    }
+    .po-hero__title-word.red { color: var(--po-red); }
+    .po-hero__title-word.olive { color: var(--po-olive); }
+    .po-hero__title-word.outline {
+      color: transparent;
+      -webkit-text-stroke: 3px var(--po-ink);
+    }
+    .po-hero__year {
+      display: inline-block;
+      font-family: var(--po-display); font-size: 224px;
+      line-height: 0.82;
+      color: var(--po-cream);
+      background: var(--po-ink);
+      padding: 0 12px 18px;
+      margin-top: -8px;
+      letter-spacing: -0.04em;
+    }
+
+    .po-hero__bottom {
+      display: grid; grid-template-columns: 1fr auto;
+      gap: 64px; align-items: end;
+      margin-top: 64px;
+      position: relative; z-index: 4;
+    }
+    .po-hero__sub {
+      font-family: var(--po-display-tight); font-weight: 800;
+      font-size: 26px; letter-spacing: -0.02em; line-height: 1.15;
+      color: var(--po-ink);
+      max-width: 540px;
+      text-wrap: balance;
+    }
+    .po-hero__sub .red { color: var(--po-red); }
+    .po-hero__closing {
+      background: var(--po-ink); color: var(--po-cream);
+      padding: 24px 32px;
+      font-family: var(--po-mono);
+      min-width: 280px;
+    }
+    .po-hero__closing-l {
+      font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--po-red); font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .po-hero__closing-v {
+      font-family: var(--po-display); font-size: 38px;
+      letter-spacing: -0.025em; line-height: 0.95;
+      color: var(--po-cream);
+    }
+    .po-hero__closing-sub {
+      font-family: var(--po-mono); font-size: 11px;
+      color: rgba(243,237,224,0.7); margin-top: 6px; letter-spacing: 0.04em;
+    }
+
+    /* ── Section template ────────────────────────────────────── */
+    .po-section {
+      max-width: 1280px; margin: 0 auto;
+      padding: 96px 32px;
+      border-bottom: 2px solid var(--po-ink);
+    }
+    .po-section--dark {
+      background: var(--po-ink); color: var(--po-cream);
+      max-width: none; padding: 96px 32px;
+      position: relative; overflow: hidden;
+    }
+    .po-section--dark > .po-section__inner { max-width: 1280px; margin: 0 auto; }
+    .po-section--olive {
+      background: var(--po-olive); color: var(--po-cream);
+      max-width: none; padding: 96px 32px;
+    }
+    .po-section--olive > .po-section__inner { max-width: 1280px; margin: 0 auto; }
+
+    .po-section__head {
+      display: grid; grid-template-columns: 160px 1fr;
+      gap: 48px; align-items: baseline;
+      margin-bottom: 56px;
+    }
+    .po-section__num {
+      font-family: var(--po-mono); font-weight: 600; font-size: 14px;
+      letter-spacing: 0.04em;
+      color: var(--po-red);
+      padding-top: 12px;
+    }
+    .po-section__title {
+      font-family: var(--po-display); font-size: 96px;
+      letter-spacing: -0.035em; line-height: 0.88;
+      color: var(--po-ink);
+      text-wrap: balance;
+    }
+    .po-section--dark .po-section__title, .po-section--olive .po-section__title { color: var(--po-cream); }
+    .po-section--dark .po-section__num, .po-section--olive .po-section__num { color: var(--po-red); }
+    .po-section__title .red { color: var(--po-red); }
+    .po-section__title .outline {
+      color: transparent;
+      -webkit-text-stroke: 2px currentColor;
+    }
+
+    /* ── Welcome ─────────────────────────────────────────────── */
+    .po-prose {
+      max-width: 760px;
+      font-family: var(--po-body); font-size: 19px; line-height: 1.7;
+      color: var(--po-ink-soft);
+    }
+    .po-prose p + p { margin-top: 1.1em; }
+    .po-prose strong { color: var(--po-ink); font-weight: 600; }
+    .po-prose em {
+      font-style: normal;
+      background: var(--po-red); color: var(--po-cream);
+      padding: 0 4px;
+    }
+    .po-byline {
+      margin-top: 36px;
+      display: inline-block;
+      padding: 12px 18px;
+      background: var(--po-ink); color: var(--po-cream);
+      font-family: var(--po-mono); font-weight: 500; font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+    .po-byline strong { color: var(--po-red); font-weight: 600; }
+
+    /* ── Particulars ─────────────────────────────────────────── */
+    .po-table {
+      width: 100%; border-collapse: collapse;
+      font-family: var(--po-body);
+      border-top: 2px solid var(--po-ink);
+    }
+    .po-table tr {
+      border-bottom: 1px solid var(--po-hair);
+    }
+    .po-table tr:last-child { border-bottom: 2px solid var(--po-ink); }
+    .po-table th {
+      text-align: left;
+      font-family: var(--po-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--po-mute);
+      padding: 22px 28px 22px 0; width: 280px; vertical-align: top;
+    }
+    .po-table td {
+      padding: 22px 0;
+      font-family: var(--po-display-tight); font-weight: 800;
+      font-size: 22px; letter-spacing: -0.02em; color: var(--po-ink);
+    }
+    .po-table td .red {
+      background: var(--po-red); color: var(--po-cream);
+      padding: 2px 6px;
+    }
+    .po-table td .sub {
+      display: block; margin-top: 6px;
+      font-family: var(--po-mono); font-weight: 400; font-size: 12px;
+      color: var(--po-mute); letter-spacing: 0.02em; line-height: 1.5;
+    }
+
+    /* ── Fees (oversized) ────────────────────────────────────── */
+    .po-fees {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+      border-top: 2px solid var(--po-cream);
+      border-bottom: 2px solid var(--po-cream);
+      margin-top: 32px;
+    }
+    .po-fee {
+      padding: 36px 24px;
+      border-right: 1px solid rgba(243,237,224,0.2);
+    }
+    .po-fee:last-child { border-right: none; }
+    .po-fee__lbl {
+      font-family: var(--po-mono); font-weight: 500; font-size: 11px;
+      letter-spacing: 0.04em; color: rgba(243,237,224,0.6);
+      margin-bottom: 12px;
+    }
+    .po-fee__n {
+      font-family: var(--po-display); font-size: 72px;
+      letter-spacing: -0.04em; line-height: 0.88;
+      color: var(--po-cream);
+    }
+    .po-fee__n .cents {
+      font-size: 28px; color: rgba(243,237,224,0.5);
+      vertical-align: 24px;
+    }
+    .po-fee__sub {
+      font-family: var(--po-mono); font-size: 11px; color: rgba(243,237,224,0.7);
+      margin-top: 8px; letter-spacing: 0.04em;
+    }
+
+    /* ── Judges ──────────────────────────────────────────────── */
+    .po-judges {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+      border-top: 2px solid var(--po-ink);
+      border-bottom: 2px solid var(--po-ink);
+    }
+    .po-judge {
+      padding: 48px 40px 48px 0;
+      border-right: 1px solid var(--po-hair);
+      position: relative;
+    }
+    .po-judge:nth-child(2n) { padding: 48px 0 48px 40px; border-right: none; }
+    .po-judge__num {
+      font-family: var(--po-mono); font-weight: 600; font-size: 12px;
+      letter-spacing: 0.04em;
+      color: var(--po-red);
+      margin-bottom: 18px;
+    }
+    .po-judge__name {
+      font-family: var(--po-display); font-size: 56px;
+      letter-spacing: -0.035em; line-height: 0.92;
+      color: var(--po-ink); margin-bottom: 6px;
+    }
+    .po-judge__city {
+      font-family: var(--po-mono); font-size: 12px; letter-spacing: 0.04em;
+      color: var(--po-mute); margin-bottom: 24px;
+    }
+    .po-judge__bio {
+      font-family: var(--po-body); font-size: 14px; line-height: 1.65;
+      color: var(--po-ink-soft);
+      padding-left: 16px;
+      border-left: 3px solid var(--po-red);
+    }
+
+    /* ── Capacity (oversized red) ────────────────────────────── */
+    .po-capacity {
+      display: grid; grid-template-columns: 2fr 1fr;
+      gap: 48px; align-items: center;
+    }
+    .po-capacity__nums {
+      font-family: var(--po-display); font-size: 240px;
+      line-height: 0.85; letter-spacing: -0.05em;
+      color: var(--po-red);
+    }
+    .po-capacity__nums .of {
+      color: var(--po-ink); font-size: 144px;
+    }
+    .po-capacity__right { font-family: var(--po-body); }
+    .po-capacity__pct {
+      font-family: var(--po-mono); font-weight: 600; font-size: 12px;
+      letter-spacing: 0.04em; color: var(--po-red);
+      margin-bottom: 18px;
+    }
+    .po-capacity__bar {
+      height: 12px; background: var(--po-hair);
+      position: relative; overflow: hidden;
+      border: 1px solid var(--po-ink);
+      margin-bottom: 24px;
+    }
+    .po-capacity__bar-fill {
+      position: absolute; inset: -1px auto -1px -1px;
+      width: 78%; background: var(--po-red);
+    }
+    .po-capacity__copy {
+      font-family: var(--po-body); font-size: 15px; line-height: 1.6;
+      color: var(--po-ink-soft);
+    }
+
+    /* ── Timeline (mono running) ─────────────────────────────── */
+    .po-timeline {
+      display: grid; grid-template-columns: 1fr;
+      border-top: 2px solid var(--po-cream);
+      margin-top: 32px;
+      font-family: var(--po-mono);
+    }
+    .po-step {
+      display: grid; grid-template-columns: 60px 120px 1fr auto;
+      gap: 28px;
+      padding: 20px 0;
+      border-bottom: 1px solid rgba(243,237,224,0.18);
+      align-items: baseline;
+    }
+    .po-step__num {
+      font-weight: 600; font-size: 11px; letter-spacing: 0.04em;
+      color: rgba(243,237,224,0.5);
+    }
+    .po-step__when {
+      font-family: var(--po-display); font-size: 28px;
+      letter-spacing: -0.025em;
+      color: var(--po-cream);
+    }
+    .po-step__what {
+      font-family: var(--po-body); font-size: 16px;
+      color: rgba(243,237,224,0.95);
+    }
+    .po-step__what .desc {
+      display: block; font-size: 13px; color: rgba(243,237,224,0.55);
+      margin-top: 2px;
+    }
+    .po-step__status {
+      font-family: var(--po-mono); font-size: 11px; letter-spacing: 0.04em;
+      color: rgba(243,237,224,0.6);
+    }
+    .po-step.done .po-step__when, .po-step.done .po-step__what { color: rgba(243,237,224,0.4); }
+    .po-step.active {
+      background: rgba(200, 59, 26, 0.18);
+      padding-left: 16px; padding-right: 16px;
+      border-left: 4px solid var(--po-red);
+    }
+    .po-step.active .po-step__status { color: var(--po-red); font-weight: 600; }
+
+    /* ── Plan cards (poster cards) ───────────────────────────── */
+    .po-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+      border-top: 2px solid var(--po-ink);
+      border-bottom: 2px solid var(--po-ink);
+    }
+    .po-card {
+      padding: 32px 36px;
+      border-right: 1px solid var(--po-hair);
+      position: relative;
+    }
+    .po-card:nth-child(2n) { border-right: none; }
+    .po-card:nth-child(n+3) { border-top: 1px solid var(--po-hair); }
+    .po-card__num {
+      font-family: var(--po-mono); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--po-red);
+      margin-bottom: 10px;
+    }
+    .po-card__title {
+      font-family: var(--po-display); font-size: 32px;
+      letter-spacing: -0.025em; line-height: 0.95;
+      color: var(--po-ink); margin-bottom: 8px;
+    }
+    .po-card__meta {
+      font-family: var(--po-mono); font-size: 12px; color: var(--po-mute);
+      letter-spacing: 0.04em;
+      margin-bottom: 14px;
+    }
+    .po-card__body {
+      font-family: var(--po-body); font-size: 14px; line-height: 1.6;
+      color: var(--po-ink-soft);
+    }
+
+    /* ── Officers ────────────────────────────────────────────── */
+    .po-officers {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+      border-top: 2px solid var(--po-ink);
+      border-bottom: 2px solid var(--po-ink);
+    }
+    .po-officer {
+      padding: 24px 28px;
+      border-right: 1px solid var(--po-hair);
+    }
+    .po-officer:nth-child(3n) { border-right: none; }
+    .po-officer:nth-child(n+4) { border-top: 1px solid var(--po-hair); }
+    .po-officer__role {
+      font-family: var(--po-mono); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--po-red); margin-bottom: 6px;
+    }
+    .po-officer__name {
+      font-family: var(--po-display-tight); font-weight: 800;
+      font-size: 18px; letter-spacing: -0.015em; color: var(--po-ink);
+    }
+
+    /* ── Final CTA (full poster) ─────────────────────────────── */
+    .po-final {
+      background: var(--po-cream);
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+      border-top: 2px solid var(--po-ink);
+    }
+    .po-final__inner {
+      max-width: 1280px; margin: 0 auto;
+      padding: 120px 32px;
+      position: relative;
+      z-index: 2;
+    }
+    .po-final::before {
+      content: "";
+      position: absolute;
+      width: 880px; height: 880px;
+      border-radius: 50%;
+      background: var(--po-red);
+      right: -240px; top: -240px;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+    .po-final::after {
+      content: "";
+      position: absolute;
+      width: 400px; height: 400px;
+      background: var(--po-olive);
+      left: -100px; bottom: -100px;
+      transform: rotate(12deg);
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+    .po-final__mark {
+      font-family: var(--po-mono); font-weight: 600; font-size: 12px;
+      letter-spacing: 0.04em; color: var(--po-red);
+      margin-bottom: 24px;
+    }
+    .po-final__title {
+      font-family: var(--po-display); font-size: 168px;
+      letter-spacing: -0.05em; line-height: 0.82;
+      color: var(--po-ink);
+      margin: 0 0 24px;
+      max-width: 14ch;
+    }
+    .po-final__title .red { color: var(--po-red); }
+    .po-final__title .outline { color: transparent; -webkit-text-stroke: 3px var(--po-ink); }
+    .po-final__sub {
+      font-family: var(--po-display-tight); font-weight: 800;
+      font-size: 22px; letter-spacing: -0.015em; line-height: 1.35;
+      color: var(--po-ink-soft);
+      max-width: 540px;
+      margin: 0 0 40px;
+    }
+    .po-final__cta {
+      display: inline-flex; align-items: center; gap: 14px;
+      padding: 22px 44px;
+      background: var(--po-ink); color: var(--po-cream);
+      font-family: var(--po-display); font-size: 20px;
+      letter-spacing: -0.015em;
+      transition: all 200ms ease;
+      position: relative; z-index: 3;
+    }
+    .po-final__cta:hover {
+      background: var(--po-red); color: var(--po-cream);
+    }
+
+    /* ── Footer (mono strip) ─────────────────────────────────── */
+    .po-footer {
+      background: var(--po-ink); color: var(--po-cream);
+      padding: 48px 32px 24px;
+    }
+    .po-footer__inner {
+      max-width: 1280px; margin: 0 auto;
+      display: grid; grid-template-columns: 2fr 1fr 1fr;
+      gap: 56px; align-items: start;
+    }
+    .po-footer__club {
+      font-family: var(--po-display); font-size: 32px;
+      letter-spacing: -0.025em; line-height: 0.9;
+      color: var(--po-cream); margin-bottom: 12px;
+    }
+    .po-footer__small {
+      font-family: var(--po-mono); font-size: 12px; letter-spacing: 0.04em;
+      color: rgba(243,237,224,0.65);
+      line-height: 1.75;
+    }
+    .po-footer h4 {
+      font-family: var(--po-mono); font-weight: 600; font-size: 11px;
+      letter-spacing: 0.04em; color: var(--po-red);
+      margin: 0 0 14px;
+    }
+    .po-footer p, .po-footer a {
+      font-family: var(--po-mono); font-size: 12px;
+      color: rgba(243,237,224,0.8); margin: 0; display: block;
+      letter-spacing: 0.02em; line-height: 1.7;
+    }
+    .po-footer__fine {
+      max-width: 1280px; margin: 40px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid rgba(243,237,224,0.18);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      font-family: var(--po-mono); font-size: 10px; letter-spacing: 0.04em;
+      color: rgba(243,237,224,0.5);
+    }
+
+    /* ── Motion ──────────────────────────────────────────────── */
+    .po-hero__inkblot { animation: poBlot 1400ms cubic-bezier(0.2, 0, 0, 1) 200ms backwards; }
+    @keyframes poBlot {
+      from { opacity: 0; transform: scale(0.7) translateX(40px); }
+      to { opacity: 1; transform: scale(1) translateX(0); }
+    }
+    .po-hero__square { animation: poSquare 1000ms cubic-bezier(0.2, 0, 0, 1) 400ms backwards; }
+    @keyframes poSquare {
+      from { opacity: 0; transform: rotate(-4deg) translateY(60px); }
+      to { opacity: 1; transform: rotate(8deg) translateY(0); }
+    }
+    .po-hero__title-word, .po-hero__year, .po-hero__sub, .po-hero__closing {
+      opacity: 0; animation: poRise 800ms cubic-bezier(0.2, 0, 0, 1) forwards;
+    }
+    .po-hero__title-word:nth-of-type(1) { animation-delay: 600ms; }
+    .po-hero__title-word:nth-of-type(2) { animation-delay: 720ms; }
+    .po-hero__title-word:nth-of-type(3) { animation-delay: 840ms; }
+    .po-hero__year { animation-delay: 960ms; }
+    .po-hero__sub { animation-delay: 1080ms; }
+    .po-hero__closing { animation-delay: 1200ms; }
+    @keyframes poRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .po-capacity__bar-fill { width: 0; animation: poBar 1200ms cubic-bezier(0.2, 0, 0, 1) 400ms forwards; }
+    @keyframes poBar { to { width: 78%; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .po-capacity__bar-fill { width: 78% !important; }
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .po-strip { padding: 8px 16px; font-size: 10px; }
+      .po-strip__item:nth-child(n+3) { display: none; }
+      .po-hero { padding: 28px 20px 48px; min-height: 0; }
+      .po-hero__inkblot { width: 420px; height: 420px; right: -160px; }
+      .po-hero__square { width: 200px; height: 200px; }
+      .po-hero__title-word, .po-hero__year { font-size: 80px; }
+      .po-hero__masthead { flex-direction: column; gap: 12px; padding-bottom: 16px; margin-bottom: 24px; }
+      .po-hero__bottom { grid-template-columns: 1fr; gap: 28px; margin-top: 40px; }
+      .po-section { padding: 56px 20px; }
+      .po-section--dark, .po-section--olive { padding: 56px 20px; }
+      .po-section__head { grid-template-columns: 1fr; gap: 16px; }
+      .po-section__title { font-size: 56px; }
+      .po-judges, .po-cards { grid-template-columns: 1fr; }
+      .po-judge, .po-card { border-right: none; padding: 28px 0 !important; }
+      .po-fees { grid-template-columns: 1fr 1fr; }
+      .po-fee:nth-child(2) { border-right: none; }
+      .po-fee:nth-child(n+3) { border-top: 1px solid rgba(243,237,224,0.2); }
+      .po-capacity { grid-template-columns: 1fr; }
+      .po-capacity__nums { font-size: 120px; }
+      .po-capacity__nums .of { font-size: 72px; }
+      .po-step { grid-template-columns: 50px 1fr; gap: 12px; }
+      .po-step__when, .po-step__what, .po-step__status { grid-column: 2; }
+      .po-officers { grid-template-columns: 1fr; }
+      .po-officer { border-right: none; border-bottom: 1px solid var(--po-hair); }
+      .po-final__inner { padding: 72px 20px; }
+      .po-final__title { font-size: 80px; }
+      .po-footer { padding: 32px 20px; }
+      .po-footer__inner { grid-template-columns: 1fr; gap: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP STRIP -->
+  <div class="po-strip">
+    <span class="po-strip__item">SS<span class="po-strip__sep">●</span>2026</span>
+    <span class="po-strip__item">12—14 JUN</span>
+    <span class="po-strip__item">LIVE OAK CIVIC CENTER</span>
+    <span class="po-strip__item">281 / 360 CLAIMED</span>
+    <a class="po-strip__cta" href="#enter">ENTER →</a>
+  </div>
+
+  <!-- HERO POSTER -->
+  <header class="po-hero">
+    <div class="po-hero__inkblot"></div>
+    <div class="po-hero__square"></div>
+
+    <div class="po-hero__inner">
+      <div class="po-hero__masthead">
+        <div class="po-hero__mark">BEXAR COUNTY KC<span class="red">.</span></div>
+        <div class="po-hero__masthead-meta">
+          AKC LICENSE №<br />
+          <strong>2026—2841</strong>
+        </div>
+      </div>
+
+      <div class="po-hero__title-stack">
+        <span class="po-hero__title-word">SPRING</span>
+        <span class="po-hero__title-word red">SCENT</span>
+        <span class="po-hero__title-word olive">WORK.</span>
+        <span class="po-hero__year">'26</span>
+      </div>
+
+      <div class="po-hero__bottom">
+        <p class="po-hero__sub">Three days. Six trials. Three&#x2011;hundred and sixty <span class="red">runs.</span> Hosted by the Bexar County Kennel Club at Live Oak.</p>
+        <div class="po-hero__closing">
+          <div class="po-hero__closing-l">CLOSING</div>
+          <div class="po-hero__closing-v">JUN 03</div>
+          <div class="po-hero__closing-sub">8:00 PM CENTRAL · FIRM</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 01 WELCOME -->
+  <section class="po-section" id="welcome">
+    <header class="po-section__head">
+      <div class="po-section__num">№ 01 / WELCOME</div>
+      <h2 class="po-section__title">A NOTE<br /><span class="outline">FROM THE CHAIR.</span></h2>
+    </header>
+    <div class="po-prose">
+      <p>For <strong>seventy-nine years</strong> our club has put on shows that exhibitors look forward to. This spring we return with three days of scent work — a discipline built on partnership, patience, and the impossibly good nose of a willing dog.</p>
+      <p>Two judges, six trials, <em>360 runs</em>. Mrs. Beagles judges Containers and Interiors in Hall A. Mr. Whitfield judges Exteriors, Buried, and Handler Discrimination in Hall B. We have set the entry limit firmly; first-received, no late entries, no exceptions.</p>
+      <p>Coffee and breakfast tacos at check-in. Lunch on site all three days. Crating in the adjacent ballroom. Free parking. We are a small club, and the volunteers will be the same people stewarding in the afternoon — be patient with us.</p>
+    </div>
+    <div class="po-byline"><strong>SARAH WHITMAN</strong> · TRIAL CHAIR · BCKC</div>
+  </section>
+
+  <!-- 02 PARTICULARS -->
+  <section class="po-section" id="particulars">
+    <header class="po-section__head">
+      <div class="po-section__num">№ 02 / PARTICULARS</div>
+      <h2 class="po-section__title">THE <span class="red">FACTS.</span></h2>
+    </header>
+
+    <table class="po-table">
+      <tbody>
+        <tr><th>SANCTIONING</th><td>American Kennel Club<span class="sub">License #2026-2841 · Scent Work Trial</span></td></tr>
+        <tr><th>FORMAT</th><td>Six trials, three days<span class="sub">Two per day · Friday → Sunday</span></td></tr>
+        <tr><th>LEVELS</th><td>Novice · Advanced · Excellent · Master</td></tr>
+        <tr><th>ELEMENTS</th><td>Containers · Interiors · Exteriors · Buried<span class="sub">Plus Handler Discrimination &amp; Detective at Master</span></td></tr>
+        <tr><th>ENTRY LIMIT</th><td><span class="red">360 RUNS · FIRM</span><span class="sub">60 per trial · 120 per day · over-entries refunded</span></td></tr>
+        <tr><th>OPENS</th><td>April 15, 2026</td></tr>
+        <tr><th>CLOSES</th><td><span class="red">JUN 03 · 8 PM CT</span></td></tr>
+        <tr><th>DRAW</th><td>June 4, 2026</td></tr>
+        <tr><th>CONFIRMATION</th><td>June 6, 2026<span class="sub">Running orders &amp; armband numbers emailed</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 03 FEES (DARK) -->
+  <section class="po-section--dark">
+    <div class="po-section__inner">
+      <header class="po-section__head">
+        <div class="po-section__num">№ 03 / FEES</div>
+        <h2 class="po-section__title">PAY YOUR <span class="red">WAY.</span></h2>
+      </header>
+      <div class="po-fees">
+        <div class="po-fee">
+          <div class="po-fee__lbl">FIRST ENTRY</div>
+          <div class="po-fee__n">25<span class="cents">.00</span></div>
+          <div class="po-fee__sub">PER DOG, PER TRIAL</div>
+        </div>
+        <div class="po-fee">
+          <div class="po-fee__lbl">EACH ADDITIONAL</div>
+          <div class="po-fee__n">22<span class="cents">.00</span></div>
+          <div class="po-fee__sub">SAME DOG, MORE TRIALS</div>
+        </div>
+        <div class="po-fee">
+          <div class="po-fee__lbl">JUNIOR HANDLER</div>
+          <div class="po-fee__n">18<span class="cents">.00</span></div>
+          <div class="po-fee__sub">ALL ENTRIES · AGE 9—18</div>
+        </div>
+        <div class="po-fee">
+          <div class="po-fee__lbl">NOVICE PACKAGE</div>
+          <div class="po-fee__n">95<span class="cents">.00</span></div>
+          <div class="po-fee__sub">ALL FOUR NOVICE ELEMENTS</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 JUDGES -->
+  <section class="po-section" id="judges">
+    <header class="po-section__head">
+      <div class="po-section__num">№ 04 / JUDGES</div>
+      <h2 class="po-section__title">TWO JUDGES,<br /><span class="red">SIX TRIALS.</span></h2>
+    </header>
+    <div class="po-judges">
+      <article class="po-judge">
+        <div class="po-judge__num">TRIALS 01 · 03 · 05</div>
+        <h3 class="po-judge__name">CATHERINE BEAGLES.</h3>
+        <div class="po-judge__city">AUSTIN, TX</div>
+        <p class="po-judge__bio">AKC judge since 2014. Approved at all levels. Former trial chair, Lone Star Working Dog Club. Sees the dogs as the protagonists.</p>
+      </article>
+      <article class="po-judge">
+        <div class="po-judge__num">TRIALS 02 · 04 · 06</div>
+        <h3 class="po-judge__name">MARCUS WHITFIELD.</h3>
+        <div class="po-judge__city">BOULDER, CO</div>
+        <p class="po-judge__bio">AKC judge since 2017. Approved through Master and Detective. Twenty years of detection-dog handling. Patient with handlers; ruthless with hides.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 05 ROSTER -->
+  <section class="po-section" id="roster">
+    <header class="po-section__head">
+      <div class="po-section__num">№ 05 / ROSTER</div>
+      <h2 class="po-section__title">FILLING<br /><span class="red">QUICKLY.</span></h2>
+    </header>
+    <div class="po-capacity">
+      <div class="po-capacity__nums">281<span class="of">/360</span></div>
+      <div class="po-capacity__right">
+        <div class="po-capacity__pct">78% CLAIMED · AS OF 28 MAY</div>
+        <div class="po-capacity__bar"><div class="po-capacity__bar-fill"></div></div>
+        <p class="po-capacity__copy">First-received basis. Limit is firm; over-entries refunded. Last year filled by May 24 — <strong>submit early</strong>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 TIMELINE (OLIVE) -->
+  <section class="po-section--olive">
+    <div class="po-section__inner">
+      <header class="po-section__head">
+        <div class="po-section__num">№ 06 / TIMELINE</div>
+        <h2 class="po-section__title">FROM HERE<br />TO <span class="red">TRIAL DAY.</span></h2>
+      </header>
+      <div class="po-timeline">
+        <div class="po-step done">
+          <div class="po-step__num">01</div>
+          <div class="po-step__when">APR 15</div>
+          <div class="po-step__what">Entries opened<span class="desc">Online and mail-in active</span></div>
+          <div class="po-step__status">DONE</div>
+        </div>
+        <div class="po-step done">
+          <div class="po-step__num">02</div>
+          <div class="po-step__when">MAY 18</div>
+          <div class="po-step__what">Hotel block deadline<span class="desc">Discounted rates released</span></div>
+          <div class="po-step__status">DONE</div>
+        </div>
+        <div class="po-step active">
+          <div class="po-step__num">03</div>
+          <div class="po-step__when">JUN 03</div>
+          <div class="po-step__what">Entries close<span class="desc">8:00 PM Central · firm</span></div>
+          <div class="po-step__status">LIVE</div>
+        </div>
+        <div class="po-step">
+          <div class="po-step__num">04</div>
+          <div class="po-step__when">JUN 04</div>
+          <div class="po-step__what">Random draw<span class="desc">Running orders generated</span></div>
+          <div class="po-step__status">NEXT</div>
+        </div>
+        <div class="po-step">
+          <div class="po-step__num">05</div>
+          <div class="po-step__when">JUN 06</div>
+          <div class="po-step__what">Confirmations sent<span class="desc">With running orders + armbands</span></div>
+          <div class="po-step__status">SOON</div>
+        </div>
+        <div class="po-step">
+          <div class="po-step__num">06</div>
+          <div class="po-step__when">JUN 12</div>
+          <div class="po-step__what">Trial weekend<span class="desc">Doors at 7 AM · three days</span></div>
+          <div class="po-step__status">TRIAL</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 PLAN -->
+  <section class="po-section" id="plan">
+    <header class="po-section__head">
+      <div class="po-section__num">№ 07 / PLAN</div>
+      <h2 class="po-section__title">WHERE TO STAY.<br /><span class="outline">WHERE TO EAT.</span></h2>
+    </header>
+    <div class="po-cards">
+      <article class="po-card">
+        <div class="po-card__num">HOTEL · 01</div>
+        <h3 class="po-card__title">HAMPTON INN<br />LIVE OAK</h3>
+        <div class="po-card__meta">0.4 MI · $129/NT · CODE BCKC26</div>
+        <p class="po-card__body">Closest hotel to the venue. Reserved block expires May 18.</p>
+      </article>
+      <article class="po-card">
+        <div class="po-card__num">HOTEL · 02</div>
+        <h3 class="po-card__title">HOLIDAY INN<br />SELMA</h3>
+        <div class="po-card__meta">1.2 MI · $119/NT · CODE BCKC</div>
+        <p class="po-card__body">Pet-friendly with a small fee. Continental breakfast.</p>
+      </article>
+      <article class="po-card">
+        <div class="po-card__num">HOTEL · 03</div>
+        <h3 class="po-card__title">LA QUINTA<br />WINDCREST</h3>
+        <div class="po-card__meta">2.1 MI · $109/NT</div>
+        <p class="po-card__body">No fee for pets. No reserved block — book direct.</p>
+      </article>
+      <article class="po-card">
+        <div class="po-card__num">EMERGENCY VET</div>
+        <h3 class="po-card__title">ALAMO<br />VETERINARY</h3>
+        <div class="po-card__meta">(210) 555-2840 · 8420 PAT BOOKER RD</div>
+        <p class="po-card__body">Open 24 hours. Five minutes from the venue. <strong>Save the number before you arrive.</strong></p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 08 OFFICERS -->
+  <section class="po-section" id="who">
+    <header class="po-section__head">
+      <div class="po-section__num">№ 08 / COMMITTEE</div>
+      <h2 class="po-section__title">WHO'S<br /><span class="red">RUNNING IT.</span></h2>
+    </header>
+    <div class="po-officers">
+      <div class="po-officer"><div class="po-officer__role">PRESIDENT</div><div class="po-officer__name">Eleanor Park</div></div>
+      <div class="po-officer"><div class="po-officer__role">VICE PRESIDENT</div><div class="po-officer__name">Daniel Ortega</div></div>
+      <div class="po-officer"><div class="po-officer__role">TREASURER</div><div class="po-officer__name">Marcia Liu</div></div>
+      <div class="po-officer"><div class="po-officer__role">SECRETARY</div><div class="po-officer__name">Robert Chen</div></div>
+      <div class="po-officer"><div class="po-officer__role">TRIAL CHAIR</div><div class="po-officer__name">Sarah Whitman</div></div>
+      <div class="po-officer"><div class="po-officer__role">TRIAL SECRETARY</div><div class="po-officer__name">James Nakamura</div></div>
+    </div>
+  </section>
+
+  <!-- FINAL POSTER -->
+  <section class="po-final" id="enter">
+    <div class="po-final__inner">
+      <div class="po-final__mark">№ 09 / ENTER · CLOSES 03 JUN · 8 PM CT</div>
+      <h2 class="po-final__title">ENTER<br />YOUR <span class="red">DOG.</span><br /><span class="outline">TODAY.</span></h2>
+      <p class="po-final__sub">Three days. Six trials. 360 runs. First-received until the limit is hit. Refunds (less $5 processing) for written withdrawals before close.</p>
+      <a class="po-final__cta" href="#">OPEN ENTRY WIZARD →</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="po-footer">
+    <div class="po-footer__inner">
+      <div>
+        <div class="po-footer__club">BEXAR COUNTY<br />KENNEL CLUB.</div>
+        <p class="po-footer__small">EST. 1947 · A MEMBER CLUB OF THE AMERICAN KENNEL CLUB · SAN ANTONIO, TX</p>
+      </div>
+      <div>
+        <h4>TRIAL SECRETARY</h4>
+        <p>James Nakamura</p>
+        <a href="mailto:secretary@bckc.org">secretary@bckc.org</a>
+        <a href="tel:+12105550142">(210) 555-0142</a>
+      </div>
+      <div>
+        <h4>PATRONS</h4>
+        <p>Lone Star Pet Supply</p>
+        <p>K9 Nose Work® Texas</p>
+        <p>Alamo Veterinary Hospital</p>
+      </div>
+    </div>
+    <div class="po-footer__fine">
+      <span>© 2026 BCKC</span>
+      <span>PUBLISHED VIA myK9Show</span>
+      <span>LICENSE №2026-2841</span>
+    </div>
+  </footer>
+
+</body>
+</html>

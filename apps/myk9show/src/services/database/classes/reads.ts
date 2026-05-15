@@ -3,7 +3,7 @@
 // Mutation functions (create, update, delete) remain on PostgREST.
 
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import { withReplicationFallback } from '../queries/replicationUtils';
+import { withReplicationFallback } from '../_shared/replication-fallback';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -15,7 +15,7 @@ import {
 } from '@/services/mappers/classMappers';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
-import { buildMapFromArray } from '../queries/queryUtils';
+import { buildMapFromArray } from '../_shared/maps';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads

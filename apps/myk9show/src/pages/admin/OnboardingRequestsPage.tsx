@@ -13,7 +13,7 @@ import {
   getAllOnboardingRequests,
   updateOnboardingRequest,
   type OnboardingRequest,
-} from '@/services/database/queries/onboardingRequestQueries';
+} from '@/services/database/onboarding-requests';
 import { logger } from '@/services/LoggingService';
 
 const STATUS_OPTIONS: OnboardingRequest['status'][] = [

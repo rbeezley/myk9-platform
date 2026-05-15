@@ -2,7 +2,7 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
 import { supabase, logQuery, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import { withReplicationFallback } from '../queries/replicationUtils';
+import { withReplicationFallback } from '../_shared/replication-fallback';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';

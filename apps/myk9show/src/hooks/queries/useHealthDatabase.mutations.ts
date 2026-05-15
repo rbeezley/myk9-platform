@@ -22,7 +22,7 @@ import {
   createGeneticScreening,
   updateGeneticScreening,
   deleteGeneticScreening,
-} from '@/services/database/queries/healthQueries';
+} from '@/services/database/health-records';
 
 import {
   mapDbHealthRecordToApp,

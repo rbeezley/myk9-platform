@@ -8,7 +8,7 @@ import {
   createPromoCode,
   deletePromoCode,
   incrementPromoCodeUsage,
-} from '@/services/database/queries/promoCodeQueries';
+} from '@/services/database/promo-codes';
 import {
   mapDbPromoCodeToApp,
   mapAppPromoCodeToDbInsert,

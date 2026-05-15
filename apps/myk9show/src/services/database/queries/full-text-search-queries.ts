@@ -12,7 +12,7 @@ import type {
   FullTextSearchResult,
   SearchableTable,
 } from '../../../types/search-analytics';
-import { untypedFrom } from './search-query-helpers';
+import { untypedFrom } from '../_shared/untyped-from';
 
 export const fullTextSearchQueries = {
   // Perform full-text search across multiple tables

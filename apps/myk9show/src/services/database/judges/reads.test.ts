@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => {
   return { state, isMock, eqMock, deleteMock, insertMock, untypedFromMock };
 });
 
-vi.mock('../queries/search-query-helpers', () => ({
+vi.mock('../_shared/untyped-from', () => ({
   untypedFrom: mocks.untypedFromMock,
 }));
 
@@ -42,9 +42,9 @@ describe('persistShowJudgeAssignments', () => {
   it('throws when deleting existing show-level assignments fails', async () => {
     mocks.state.deleteResponse = { error: { message: 'RLS denied delete' } };
 
-    await expect(
-      persistShowJudgeAssignments('show-1', [{ judgeId: 'judge-1' }])
-    ).rejects.toThrow('judge_assignments:delete_show_assignments:RLS denied delete');
+    await expect(persistShowJudgeAssignments('show-1', [{ judgeId: 'judge-1' }])).rejects.toThrow(
+      'judge_assignments:delete_show_assignments:RLS denied delete'
+    );
 
     expect(mocks.insertMock).not.toHaveBeenCalled();
   });

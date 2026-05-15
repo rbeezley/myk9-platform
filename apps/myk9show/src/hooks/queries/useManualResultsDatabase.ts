@@ -6,7 +6,7 @@ import {
   createManualResult,
   updateManualResult,
   deleteManualResult,
-} from '@/services/database/queries/manualResultQueries';
+} from '@/services/database/manual-results';
 import {
   mapDbManualResultToApp,
   mapAppManualResultToDbInsert,

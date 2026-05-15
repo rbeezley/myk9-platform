@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { buildRegistrationIndexes } from '@/store/buildRegistrationIndexes';
-import * as queries from '@/services/database/queries/showRegistrationQueries';
+import * as queries from '@/services/database/show-registrations';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 
-vi.mock('@/services/database/queries/showRegistrationQueries', () => ({
+vi.mock('@/services/database/show-registrations', () => ({
   getRegistrationByShowAndHandler: vi.fn(),
   createShowRegistration: vi.fn(),
 }));

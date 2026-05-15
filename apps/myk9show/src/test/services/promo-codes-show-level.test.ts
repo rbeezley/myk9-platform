@@ -101,7 +101,7 @@ describe('promoCodeMappers', () => {
 
 // ─── Query Tests ─────────────────────────────────────────────────
 
-describe('promoCodeQueries', () => {
+describe('promo-codes', () => {
   describe('getPromoCodesByShow', () => {
     it('queries by show_id', async () => {
       const mockData = [
@@ -115,7 +115,7 @@ describe('promoCodeQueries', () => {
       ];
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
 
-      const { getPromoCodesByShow } = await import('@/services/database/queries/promoCodeQueries');
+      const { getPromoCodesByShow } = await import('@/services/database/promo-codes');
       const result = await getPromoCodesByShow('show-1');
 
       expect(result.data).toEqual(mockData);
@@ -137,7 +137,7 @@ describe('promoCodeQueries', () => {
       ];
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
 
-      const { getPromoCodesByTrial } = await import('@/services/database/queries/promoCodeQueries');
+      const { getPromoCodesByTrial } = await import('@/services/database/promo-codes');
       const result = await getPromoCodesByTrial('trial-1');
 
       expect(result.data).toEqual(mockData);
@@ -165,7 +165,7 @@ describe('promoCodeQueries', () => {
       // Single query returns array of matches; trial-level should be preferred
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [trialCode], error: null }));
 
-      const { findPromoCodeByCode } = await import('@/services/database/queries/promoCodeQueries');
+      const { findPromoCodeByCode } = await import('@/services/database/promo-codes');
       const result = await findPromoCodeByCode('trial-1', 'show-1', 'SAVE10');
 
       expect(result.data).toEqual(trialCode);
@@ -191,7 +191,7 @@ describe('promoCodeQueries', () => {
       // Single query returns only show-level match (no trial-level match)
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [showCode], error: null }));
 
-      const { findPromoCodeByCode } = await import('@/services/database/queries/promoCodeQueries');
+      const { findPromoCodeByCode } = await import('@/services/database/promo-codes');
       const result = await findPromoCodeByCode('trial-1', 'show-1', 'SHOWWIDE');
 
       expect(result.data).toEqual(showCode);
@@ -218,8 +218,7 @@ describe('promoCodeQueries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
 
-      const { validatePromoCodeForEntry } =
-        await import('@/services/database/queries/promoCodeQueries');
+      const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'VALID');
 
       expect(result.valid).toBe(true);
@@ -245,8 +244,7 @@ describe('promoCodeQueries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
 
-      const { validatePromoCodeForEntry } =
-        await import('@/services/database/queries/promoCodeQueries');
+      const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'EXPIRED');
 
       expect(result.valid).toBe(false);
@@ -271,8 +269,7 @@ describe('promoCodeQueries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [code], error: null }));
 
-      const { validatePromoCodeForEntry } =
-        await import('@/services/database/queries/promoCodeQueries');
+      const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'EXHAUSTED');
 
       expect(result.valid).toBe(false);
@@ -282,8 +279,7 @@ describe('promoCodeQueries', () => {
     it('returns invalid when no code found', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
 
-      const { validatePromoCodeForEntry } =
-        await import('@/services/database/queries/promoCodeQueries');
+      const { validatePromoCodeForEntry } = await import('@/services/database/promo-codes');
       const result = await validatePromoCodeForEntry('trial-1', 'show-1', 'NONEXIST');
 
       expect(result.valid).toBe(false);
@@ -291,17 +287,17 @@ describe('promoCodeQueries', () => {
     });
   });
 
-  describe('calculateDiscount', () => {
+  describe('calculatePromoDiscount', () => {
     it('calculates percentage discount', async () => {
-      const { calculateDiscount } = await import('@/services/database/queries/promoCodeQueries');
-      expect(calculateDiscount('percentage', 50, 100)).toBe(50);
-      expect(calculateDiscount('percentage', 100, 80)).toBe(80);
+      const { calculatePromoDiscount } = await import('@/services/database/promo-codes');
+      expect(calculatePromoDiscount('percentage', 50, 100)).toBe(50);
+      expect(calculatePromoDiscount('percentage', 100, 80)).toBe(80);
     });
 
     it('calculates flat discount capped at entry fee', async () => {
-      const { calculateDiscount } = await import('@/services/database/queries/promoCodeQueries');
-      expect(calculateDiscount('flat', 10, 100)).toBe(10);
-      expect(calculateDiscount('flat', 200, 100)).toBe(100);
+      const { calculatePromoDiscount } = await import('@/services/database/promo-codes');
+      expect(calculatePromoDiscount('flat', 10, 100)).toBe(10);
+      expect(calculatePromoDiscount('flat', 200, 100)).toBe(100);
     });
   });
 });

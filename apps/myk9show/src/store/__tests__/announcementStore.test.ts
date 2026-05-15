@@ -3,8 +3,8 @@ import { useAnnouncementStore } from '../announcementStore';
 import type { ShowAnnouncement } from '@/types/announcement-types';
 
 // Mock query functions
-vi.mock('@/services/database/queries/announcementQueries', () => ({
-  fetchShowAnnouncements: vi.fn(),
+vi.mock('@/services/database/announcements', () => ({
+  getAnnouncementsByShow: vi.fn(),
   createAnnouncement: vi.fn(),
   updateAnnouncement: vi.fn(),
   deleteAnnouncement: vi.fn(),
@@ -37,8 +37,8 @@ vi.mock('@/store/toastStore', () => ({
   },
 }));
 
-const { fetchShowAnnouncements, createAnnouncement: createQuery } =
-  await import('@/services/database/queries/announcementQueries');
+const { getAnnouncementsByShow, createAnnouncement: createQuery } =
+  await import('@/services/database/announcements');
 
 function makeAnnouncement(overrides: Partial<ShowAnnouncement> = {}): ShowAnnouncement {
   return {
@@ -76,7 +76,7 @@ describe('announcementStore', () => {
   describe('subscribe', () => {
     it('fetches announcements and sets up realtime channels', async () => {
       const ann = makeAnnouncement();
-      vi.mocked(fetchShowAnnouncements).mockResolvedValue([ann]);
+      vi.mocked(getAnnouncementsByShow).mockResolvedValue([ann]);
 
       await useAnnouncementStore.getState().subscribe(['show-1']);
 
@@ -90,7 +90,7 @@ describe('announcementStore', () => {
     it('skips if already subscribed to same shows', async () => {
       useAnnouncementStore.setState({ currentShowIds: ['show-1'] });
       await useAnnouncementStore.getState().subscribe(['show-1']);
-      expect(fetchShowAnnouncements).not.toHaveBeenCalled();
+      expect(getAnnouncementsByShow).not.toHaveBeenCalled();
     });
 
     it('clears state when subscribing to empty shows', async () => {
@@ -108,7 +108,7 @@ describe('announcementStore', () => {
     });
 
     it('sets error on fetch failure', async () => {
-      vi.mocked(fetchShowAnnouncements).mockRejectedValue(new Error('Network error'));
+      vi.mocked(getAnnouncementsByShow).mockRejectedValue(new Error('Network error'));
 
       await useAnnouncementStore.getState().subscribe(['show-1']);
 
@@ -156,7 +156,7 @@ describe('announcementStore', () => {
   describe('deleteAnnouncement', () => {
     it('optimistically removes the announcement', async () => {
       const { deleteAnnouncement: deleteMock } =
-        await import('@/services/database/queries/announcementQueries');
+        await import('@/services/database/announcements');
       vi.mocked(deleteMock).mockResolvedValue(undefined);
       useAnnouncementStore.setState({
         announcements: [makeAnnouncement()],
@@ -204,7 +204,7 @@ describe('announcementStore', () => {
 
     it('skips when no unread announcements', async () => {
       const { markAllAnnouncementsRead } =
-        await import('@/services/database/queries/announcementQueries');
+        await import('@/services/database/announcements');
       useAnnouncementStore.setState({
         announcements: [makeAnnouncement({ is_read: true })],
         unreadCount: 0,

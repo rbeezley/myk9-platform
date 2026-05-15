@@ -1,19 +1,9 @@
 // Authoritative data access module for day-of-show operations.
 // All callers import from here — never from supabaseClient directly.
 
-export type {
-  DayOfEntry,
-  MoveUpRequest,
-  ClassWithCapacity,
-  ScratchRequest,
-} from '../queries/dayOfOperationsTypes';
+export type { DayOfEntry, MoveUpRequest, ClassWithCapacity, ScratchRequest } from './types';
 
-export {
-  getClassesWithCapacity,
-  createDayOfEntry,
-  getShowDogs,
-  searchDogs,
-} from '../queries/dayOfEntryQueries';
+export { getClassesWithCapacity, createDayOfEntry, getShowDogs, searchDogs } from './entries';
 
 export {
   processMoveUp,
@@ -21,7 +11,7 @@ export {
   getPendingMoveUpRequests,
   approveMoveUpRequest,
   denyMoveUpRequest,
-} from '../queries/moveUpQueries';
+} from './move-up';
 
 export {
   scratchEntry,
@@ -32,4 +22,4 @@ export {
   approveScratchRequest,
   denyScratchRequest,
   updateRefundStatus,
-} from '../queries/scratchQueries';
+} from './scratch';

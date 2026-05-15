@@ -6,8 +6,8 @@ import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTabl
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
-import { buildMapFromArray } from '../queries/queryUtils';
-import { withReplicationFallback } from '../queries/replicationUtils';
+import { buildMapFromArray } from '../_shared/maps';
+import { withReplicationFallback } from '../_shared/replication-fallback';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';

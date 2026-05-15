@@ -21,7 +21,7 @@ const MOCK_DB_ROW = {
   updated_at: '2026-03-09T10:00:00Z',
 };
 
-describe('showRegistrationQueries', () => {
+describe('show-registrations', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });

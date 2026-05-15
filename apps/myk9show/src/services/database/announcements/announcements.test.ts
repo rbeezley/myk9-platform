@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  fetchShowAnnouncements,
+  getAnnouncementsByShow,
   createAnnouncement,
   updateAnnouncement,
   deleteAnnouncement,
   markAnnouncementRead,
   markAllAnnouncementsRead,
-} from '../announcementQueries';
+} from '.';
 
 // Mock supabase client
 const mockFrom = vi.fn();
 
-vi.mock('../../supabaseClient', () => ({
+vi.mock('../supabaseClient', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
@@ -40,12 +40,12 @@ function chainMock(overrides: Record<string, unknown> = {}) {
   return chain;
 }
 
-describe('announcementQueries', () => {
+describe('announcements', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('fetchShowAnnouncements', () => {
+  describe('getAnnouncementsByShow', () => {
     it('returns announcements with is_read computed from reads table', async () => {
       const announcements = [
         { id: 'a1', show_id: 's1', title: 'Test 1', is_active: true, created_at: '2026-01-01' },
@@ -64,7 +64,7 @@ describe('announcementQueries', () => {
         return chainMock({ in: vi.fn().mockResolvedValue({ data: reads, error: null }) });
       });
 
-      const result = await fetchShowAnnouncements('s1');
+      const result = await getAnnouncementsByShow('s1');
 
       expect(result).toHaveLength(2);
       expect(result[0].is_read).toBe(true);
@@ -76,7 +76,7 @@ describe('announcementQueries', () => {
         chainMock({ order: vi.fn().mockResolvedValue({ data: [], error: null }) })
       );
 
-      const result = await fetchShowAnnouncements('s1');
+      const result = await getAnnouncementsByShow('s1');
       expect(result).toEqual([]);
     });
 
@@ -87,7 +87,7 @@ describe('announcementQueries', () => {
         })
       );
 
-      await expect(fetchShowAnnouncements('s1')).rejects.toThrow('DB error');
+      await expect(getAnnouncementsByShow('s1')).rejects.toThrow('DB error');
     });
   });
 

@@ -94,6 +94,14 @@ position in the family tree. The Pedigree is the collection; individual
 rows are ancestors. Used for breeding records and breed-club registration
 paperwork.
 
+**Onboarding Request**
+A request submitted by a Club asking to join the myK9 platform. Captures
+the club name, organization (sanctioning body), contact details, and
+optional first-show date and message. Status (`pending | contacted |
+onboarded | declined`) tracks the workflow; admin staff move requests
+through the states from the admin dashboard. Distinct from a User's
+account-signup flow — this is per-Club platform onboarding.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under

@@ -7,7 +7,7 @@ import {
   submitOnboardingRequest,
   getMyOnboardingRequests,
   type OnboardingRequest,
-} from '@/services/database/queries/onboardingRequestQueries';
+} from '@/services/database/onboarding-requests';
 import { logger } from '@/services/LoggingService';
 
 export default function ClubOnboardingForm() {

@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
+import { LAUNCH_YEAR } from './constants';
 
 export function LandingFooter() {
-  const year = new Date().getFullYear();
-
   return (
     <footer className="l-footer">
       <div className="l-container">
@@ -58,7 +57,7 @@ export function LandingFooter() {
           </div>
         </div>
         <div className="l-foot-bot">
-          <div>© {year} RyKris LLC · myK9 Platform</div>
+          <div>© {LAUNCH_YEAR} RyKris LLC · myK9 Platform</div>
           <div className="l-ver">v0.9.4 · pre-launch</div>
         </div>
       </div>

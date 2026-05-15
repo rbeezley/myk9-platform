@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { LAUNCH_YEAR } from './constants';
 
 interface LandingHeaderProps {
   onJoinWaitlistClick: () => void;
@@ -39,7 +40,7 @@ export function LandingHeader({ onJoinWaitlistClick }: LandingHeaderProps) {
           </span>
           myK9Show
         </a>
-        <span className="l-status-chip">Waitlist · launching 2026</span>
+        <span className="l-status-chip">Waitlist · launching {LAUNCH_YEAR}</span>
         <span className="l-hdr-spacer" />
         <nav className="l-hdr-nav" aria-label="Primary">
           <a href="#features">Features</a>

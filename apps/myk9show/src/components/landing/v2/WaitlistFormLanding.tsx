@@ -51,9 +51,12 @@ export function WaitlistFormLanding({
     }
     setState({ kind: 'submitting' });
 
-    // platform_waitlist isn't yet in the generated Database types, so we
-    // use the untyped client surface. Schema lives in migration
-    // 197_create_platform_waitlist.sql and matches these field names.
+    // TODO(post-197-push): drop this cast once migration 197 is pushed and
+    // `pnpm supabase:gen-types` is re-run — at that point Database['public']
+    // ['Tables'] will include 'platform_waitlist' and the typed client will
+    // accept these field names directly.
+    //
+    // Schema source of truth: supabase/migrations/197_create_platform_waitlist.sql
     const { error } = await (supabase as unknown as {
       from: (table: string) => {
         insert: (row: Record<string, unknown>) => Promise<{ error: { code?: string } | null }>;

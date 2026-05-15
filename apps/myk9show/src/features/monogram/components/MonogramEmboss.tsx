@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react';
+import { type JSX } from 'react';
 import { monogramColors } from '../tokens';
 
 export interface MonogramEmbossProps {
@@ -34,20 +34,14 @@ export interface MonogramEmbossProps {
  * a worse failure mode than a single frame of solid-color flash.
  */
 function useSupportsBackgroundClipText(): boolean {
-  const [supports, setSupports] = useState<boolean>(false);
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.CSS || !window.CSS.supports) {
-      return;
-    }
-    // Deliberate setState-in-effect: see the hook docstring above. Defaulting
-    // to `false` and upgrading on mount keeps initial paint hydration-safe.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSupports(
-      window.CSS.supports('-webkit-background-clip', 'text') ||
-        window.CSS.supports('background-clip', 'text')
-    );
-  }, []);
-  return supports;
+  if (typeof window === 'undefined' || !window.CSS || !window.CSS.supports) {
+    return false;
+  }
+
+  return (
+    window.CSS.supports('-webkit-background-clip', 'text') ||
+    window.CSS.supports('background-clip', 'text')
+  );
 }
 
 const EMBOSS_PAPER: React.CSSProperties = {

@@ -302,6 +302,11 @@ export const getClassesByTrialId = async (trialId: string) => {
           replicatedClassesTable.getClassesByTrial(trialId),
           loadEntryCountsByClassMap(),
         ]);
+
+        if (classes.length === 0) {
+          return await postgrestGetClassesByTrialId(trialId);
+        }
+
         const data = classes.map(cls =>
           mapReplicatedClassToDbRow(cls, { entryCount: entryCountsMap.get(cls.id) ?? 0 })
         );

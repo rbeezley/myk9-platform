@@ -42,6 +42,18 @@ export class TestSetup {
     await this.page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
     await this.page.waitForLoadState('domcontentloaded');
 
+    await expect
+      .poll(
+        async () =>
+          await this.page.evaluate(async () => {
+            const { supabase } = await import('/src/services/database/supabaseClient.ts');
+            const { data } = await supabase.auth.getUser();
+            return data.user?.email ?? null;
+          }),
+        { timeout: 15000 }
+      )
+      .toBe(creds.email);
+
     // Wait for any loading spinners to disappear
     await this.page
       .waitForSelector('[data-testid="loading-spinner"]', {

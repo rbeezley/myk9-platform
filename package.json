@@ -12,6 +12,8 @@
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "qa:e2e-map:check": "node scripts/check-e2e-suite-map.js",
+    "qa:discovery:crud": "pnpm --dir apps/myk9show test:e2e:clean src/test/e2e/entities/dogCRUD.spec.ts src/test/e2e/entities/clubCRUD.spec.ts src/test/e2e/entities/peopleCRUD.spec.ts src/test/e2e/entities/classCRUD.spec.ts src/test/e2e/entities/trialCRUD.spec.ts src/test/e2e/entities/showCRUD.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0",
+    "qa:discovery:crud:full": "pnpm --dir apps/myk9show test:e2e:clean src/test/e2e/entities/dogCRUD.spec.ts src/test/e2e/entities/clubCRUD.spec.ts src/test/e2e/entities/peopleCRUD.spec.ts src/test/e2e/entities/classCRUD.spec.ts src/test/e2e/entities/trialCRUD.spec.ts src/test/e2e/entities/showCRUD.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0",
     "test": "turbo test",
     "test:packages": "turbo test --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui",
     "test:packages:coverage": "turbo test --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui -- --coverage",

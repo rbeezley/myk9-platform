@@ -408,20 +408,20 @@ describe('Show Queries', () => {
   });
 
   describe('deleteShow', () => {
-    it('should delete show successfully', async () => {
+    it('should soft delete show via RPC', async () => {
       const showId = 'show-123';
-      const mockDeletedShow = {
-        id: showId,
-        name: 'Deleted Show',
-      };
-
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({ data: mockDeletedShow, error: null })
-      );
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
       const result = await deleteShow(showId);
 
-      expect(result.data).toEqual(mockDeletedShow);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_show', { p_show_id: showId });
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          id: showId,
+          deleted_by: null,
+        })
+      );
+      expect(result.data?.deleted_at).toBeDefined();
       expect(result.error).toBeNull();
     });
 
@@ -433,7 +433,7 @@ describe('Show Queries', () => {
         details: 'Show has associated entries',
       };
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
       const result = await deleteShow(showId);
 

@@ -9,11 +9,11 @@ import type {
   SearchSuggestion,
   SearchType
 } from '../../../types/search-analytics';
-import { untypedFrom } from '../_shared/untyped-from';
-import type {
-  SearchAnalyticsRow,
-  SearchHistoryRow
+import {
+  type SearchAnalyticsRow,
+  type SearchHistoryRow
 } from './search-query-helpers';
+import { untypedFrom } from '../_shared/untyped-from';
 
 export const searchSuggestionQueries = {
   // Get search suggestions based on query

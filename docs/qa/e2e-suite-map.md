@@ -95,6 +95,22 @@ cd apps/myk9show
 pnpm test:e2e:clean src/test/e2e/entities/<spec>.spec.ts --project=chromium --workers=1
 ```
 
+### QA Discovery
+
+Discovery is allowed to find failures. It is not the trusted Nightly gate. Use it when intentionally hunting for bugs in a domain, then fix low-risk local issues or log durable findings in `docs/qa/findings.md`.
+
+Current CRUD discovery batch covers dog, club, people, class, trial, and show CRUD, including the show soft-delete proof:
+
+```bash
+pnpm qa:discovery:crud
+```
+
+Compatibility alias for prior QA notes:
+
+```bash
+pnpm qa:discovery:crud:full
+```
+
 ### Manual Debug
 
 ```bash

@@ -129,13 +129,13 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
 
     // Calculate total fees
     const defaultFee = 35;
-    const totalFees = entryData.classIds.reduce((sum, classId) => {
+    const totalFees = entryData.classIds.reduce((sum: number, classId: string) => {
       const info = classInfoMap.get(classId);
       return sum + (info?.entry_fee || defaultFee);
     }, 0);
 
     // Create one entry per class (entries table has one row per class entry)
-    const entries = entryData.classIds.map((classId, index) => {
+    const entries = entryData.classIds.map((classId: string, index: number) => {
       const classInfo = classInfoMap.get(classId);
       return {
         dog_id: entryData.dogId,

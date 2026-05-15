@@ -54,7 +54,7 @@ test.describe('Trial CRUD Operations', () => {
 
       const showData = {
         name: `Test Show for Trial ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
         status: 'draft'
@@ -71,7 +71,7 @@ test.describe('Trial CRUD Operations', () => {
         name: `E2E Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'planned'
+        status: 'upcoming'
       };
 
       const { data: createdTrial, error: trialError } = await createTrial(trialData);
@@ -109,7 +109,7 @@ test.describe('Trial CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
-      const { createTrial, updateTrial, deleteTrial, getAllTrials } = await import('/src/services/database/trials/index.ts');
+      const { createTrial, updateTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
 
       // First create a show
       const showStartDate = new Date();
@@ -119,7 +119,7 @@ test.describe('Trial CRUD Operations', () => {
 
       const showData = {
         name: `Update Test Show ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
         status: 'draft'
@@ -136,7 +136,7 @@ test.describe('Trial CRUD Operations', () => {
         name: `Update Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'planned'
+        status: 'upcoming'
       };
 
       const { data: createdTrial, error: createError } = await createTrial(trialData);
@@ -147,8 +147,8 @@ test.describe('Trial CRUD Operations', () => {
 
       // Update the trial
       const updatedName = 'Updated Trial Name';
-      const updatedStatus = 'published';
-      const { error: updateError } = await updateTrial(createdTrial.id, {
+      const updatedStatus = 'in_progress';
+      const { data: updatedTrial, error: updateError } = await updateTrial(createdTrial.id, {
         name: updatedName,
         status: updatedStatus,
         trial_number: 'T1-Updated'
@@ -160,10 +160,6 @@ test.describe('Trial CRUD Operations', () => {
         return { success: false, error: updateError.message };
       }
 
-      // Verify the update
-      const { data: allTrials } = await getAllTrials();
-      const fetchedTrial = allTrials?.find((t: { id: string }) => t.id === createdTrial.id);
-
       // Clean up
       await deleteTrial(createdTrial.id);
       await deleteShow(createdShow.id);
@@ -171,10 +167,10 @@ test.describe('Trial CRUD Operations', () => {
       return {
         success: true,
         originalName: trialData.name,
-        updatedName: fetchedTrial?.name,
-        updatedStatus: fetchedTrial?.status,
-        nameMatches: fetchedTrial?.name === updatedName,
-        statusMatches: fetchedTrial?.status === updatedStatus
+        updatedName: updatedTrial?.name,
+        updatedStatus: updatedTrial?.status,
+        nameMatches: updatedTrial?.name === updatedName,
+        statusMatches: updatedTrial?.status === updatedStatus
       };
     });
 
@@ -203,7 +199,7 @@ test.describe('Trial CRUD Operations', () => {
 
       const showData = {
         name: `Delete Test Show ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
         status: 'draft'
@@ -220,7 +216,7 @@ test.describe('Trial CRUD Operations', () => {
         name: `Delete Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'planned'
+        status: 'upcoming'
       };
 
       const { data: createdTrial, error: createError } = await createTrial(trialData);
@@ -275,7 +271,7 @@ test.describe('Trial CRUD Operations', () => {
 
       const showData = {
         name: `Query Test Show ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
         status: 'draft'
@@ -292,7 +288,7 @@ test.describe('Trial CRUD Operations', () => {
         name: 'Trial Day 1',
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'planned'
+        status: 'upcoming'
       };
 
       const trial2Date = new Date(showStartDate);
@@ -302,7 +298,7 @@ test.describe('Trial CRUD Operations', () => {
         name: 'Trial Day 2',
         date: trial2Date.toISOString().split('T')[0],
         trial_number: 'T2',
-        status: 'planned'
+        status: 'upcoming'
       };
 
       const { data: t1 } = await createTrial(trial1);

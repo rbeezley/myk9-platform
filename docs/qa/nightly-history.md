@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-15
+
+- **Playwright command:** pass
+- **Route sweep:** partial
+- **Active specs:** Vitest 18/18; Playwright 46/46
+- **Failures:** none in active Vitest or Playwright Nightly; route sweep produced soft warnings for expected protected-route redirects, possible skeleton markers, and generic exhibitor-route console noise without a captured owned 4xx/5xx response
+- **Fixes made:** none in the baseline Nightly run. Later same-day discovery repaired stale feature-audit schema drift in show/trial/class CRUD specs and fixed stale replicated-read fallbacks for freshly-created trial/class child rows.
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`. Used `docs/qa/e2e-suite-map.md` as the source of truth for the active Nightly command. Route sweep covered public, secretary, exhibitor, judge, club-admin, and admin route groups at desktop plus 375px mobile. A focused follow-up probe for exhibitor warnings was inconclusive because sign-in hit an external auth fetch failure, so no durable finding was opened from that probe. Discovery opened `QA-ROLE-RLS-MISMATCH-002` for the remaining reproducible show delete feature-audit setup failure.
+
 ### 2026-05-14
 
 - **Playwright command:** pass

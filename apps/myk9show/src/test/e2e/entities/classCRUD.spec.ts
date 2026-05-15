@@ -55,7 +55,7 @@ test.describe('Class CRUD Operations', () => {
 
       const showData = {
         name: `Test Show for Class ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
         status: 'draft'
@@ -72,7 +72,7 @@ test.describe('Class CRUD Operations', () => {
         name: `Test Trial for Class ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'planned'
+        status: 'upcoming'
       };
 
       const { data: createdTrial, error: trialError } = await createTrial(trialData);
@@ -86,7 +86,7 @@ test.describe('Class CRUD Operations', () => {
         trial_id: createdTrial.id,
         name: `E2E Test Class ${Date.now()}`,
         level: 'Novice',
-        status: 'no-status'
+        status: 'upcoming'
       };
 
       const { data: createdClass, error: classError } = await createClass(classData);
@@ -135,7 +135,7 @@ test.describe('Class CRUD Operations', () => {
 
       const { data: createdShow, error: showError } = await createShow({
         name: `Update Test Show ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
         status: 'draft'
@@ -151,7 +151,7 @@ test.describe('Class CRUD Operations', () => {
         name: `Update Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'planned'
+        status: 'upcoming'
       });
 
       if (trialError || !createdTrial) {
@@ -164,7 +164,7 @@ test.describe('Class CRUD Operations', () => {
         trial_id: createdTrial.id,
         name: `Update Test Class ${Date.now()}`,
         level: 'Novice',
-        status: 'no-status'
+        status: 'upcoming'
       });
 
       if (classError || !createdClass) {
@@ -220,7 +220,7 @@ test.describe('Class CRUD Operations', () => {
 
       const { data: createdShow, error: showError } = await createShow({
         name: `Delete Test Show ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
         status: 'draft'
@@ -236,7 +236,7 @@ test.describe('Class CRUD Operations', () => {
         name: `Delete Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'planned'
+        status: 'upcoming'
       });
 
       if (trialError || !createdTrial) {
@@ -249,7 +249,7 @@ test.describe('Class CRUD Operations', () => {
         trial_id: createdTrial.id,
         name: `Delete Test Class ${Date.now()}`,
         level: 'Novice',
-        status: 'no-status'
+        status: 'upcoming'
       });
 
       if (classError || !createdClass) {
@@ -300,7 +300,7 @@ test.describe('Class CRUD Operations', () => {
 
       const { data: createdShow, error: showError } = await createShow({
         name: `Classes By Trial Test Show ${Date.now()}`,
-        type: 'conformation',
+        organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
         status: 'draft'
@@ -316,7 +316,7 @@ test.describe('Class CRUD Operations', () => {
         name: `Classes By Trial Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'planned'
+        status: 'upcoming'
       });
 
       if (trialError || !createdTrial) {
@@ -325,8 +325,8 @@ test.describe('Class CRUD Operations', () => {
       }
 
       // Create two classes for this trial
-      const class1Data = { trial_id: createdTrial.id, name: 'Class A', level: 'Novice', status: 'no-status' };
-      const class2Data = { trial_id: createdTrial.id, name: 'Class B', level: 'Open', status: 'no-status' };
+      const class1Data = { trial_id: createdTrial.id, name: 'Class A', level: 'Novice', status: 'upcoming' };
+      const class2Data = { trial_id: createdTrial.id, name: 'Class B', level: 'Open', status: 'upcoming' };
 
       const { data: class1 } = await createClass(class1Data);
       const { data: class2 } = await createClass(class2Data);

@@ -102,6 +102,16 @@ onboarded | declined`) tracks the workflow; admin staff move requests
 through the states from the admin dashboard. Distinct from a User's
 account-signup flow — this is per-Club platform onboarding.
 
+**Premium Template**
+A reusable show-program template owned by a Club. Holds the standard
+vet-clinic details, hospitality notes, accommodations, awards copy, and
+cover image style that the club reuses across Shows. A separate
+`premium_generations` table records each per-Show generation event with
+the field overrides and narrative edits applied that time — used by the
+admin "recent generations" panel to seed defaults from a prior premium.
+"Premium" in this context means the printable show prospectus, not a
+billing tier.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under

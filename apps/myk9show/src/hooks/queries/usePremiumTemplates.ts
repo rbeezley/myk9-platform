@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createClubPremiumTemplate,
   deleteClubPremiumTemplate,
-  fetchClubPremiumTemplates,
+  getClubPremiumTemplates,
   updateClubPremiumTemplate,
-} from '../../services/database/queries/premiumTemplateQueries';
+} from '@/services/database/premium-templates';
 import type { ClubPremiumTemplate } from '../../types/premium-types';
 
 const key = (clubId: string) => ['club_premium_templates', clubId] as const;
@@ -12,7 +12,7 @@ const key = (clubId: string) => ['club_premium_templates', clubId] as const;
 export function useClubPremiumTemplates(clubId: string) {
   return useQuery({
     queryKey: key(clubId),
-    queryFn: () => fetchClubPremiumTemplates(clubId),
+    queryFn: () => getClubPremiumTemplates(clubId),
     enabled: !!clubId,
   });
 }

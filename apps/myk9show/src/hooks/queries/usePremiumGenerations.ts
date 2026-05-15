@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  fetchRecentPremiumGenerations,
+  getRecentPremiumGenerations,
   insertPremiumGeneration,
-} from '../../services/database/queries/premiumTemplateQueries';
+} from '@/services/database/premium-templates';
 import type { PremiumGeneration } from '../../types/premium-types';
 
 export function useRecentPremiumGenerations(clubId: string, limit = 5) {
   return useQuery({
     queryKey: ['premium_generations_recent', clubId, limit] as const,
-    queryFn: () => fetchRecentPremiumGenerations(clubId, limit),
+    queryFn: () => getRecentPremiumGenerations(clubId, limit),
     enabled: !!clubId,
   });
 }

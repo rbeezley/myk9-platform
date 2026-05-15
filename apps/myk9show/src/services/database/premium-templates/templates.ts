@@ -1,24 +1,9 @@
-/**
- * Premium Template Database Queries
- *
- * Database operations for club premium templates and premium generation history.
- * These tables (club_premium_templates, premium_generations) are not yet in the
- * generated Supabase types, so we use untypedFrom() for .from() calls.
- */
+// CRUD operations for club_premium_templates — reusable show-premium templates per club.
 
-import type {
-  ClubPremiumTemplate,
-  PremiumGeneration,
-  PremiumStyle,
-} from '../../../types/premium-types';
+import type { ClubPremiumTemplate, PremiumStyle } from '../../../types/premium-types';
 import { untypedFrom } from '../_shared/untyped-from';
 
-// ── table accessors ───────────────────────────────────────────────────────────
-
 const templatesTable = () => untypedFrom('club_premium_templates');
-const generationsTable = () => untypedFrom('premium_generations');
-
-// ── helpers ───────────────────────────────────────────────────────────────────
 
 function rowToTemplate(row: Record<string, unknown>): ClubPremiumTemplate {
   return {
@@ -59,9 +44,7 @@ function templateToRow(t: Partial<ClubPremiumTemplate>): Record<string, unknown>
   return row;
 }
 
-// ── queries ───────────────────────────────────────────────────────────────────
-
-export async function fetchClubPremiumTemplates(clubId: string): Promise<ClubPremiumTemplate[]> {
+export async function getClubPremiumTemplates(clubId: string): Promise<ClubPremiumTemplate[]> {
   const { data, error } = await templatesTable()
     .select('*')
     .eq('club_id', clubId)
@@ -94,34 +77,5 @@ export async function updateClubPremiumTemplate(
 
 export async function deleteClubPremiumTemplate(id: string): Promise<void> {
   const { error } = await templatesTable().delete().eq('id', id);
-  if (error) throw error;
-}
-
-export async function fetchRecentPremiumGenerations(
-  clubId: string,
-  limit = 5
-): Promise<Pick<PremiumGeneration, 'fieldOverrides'>[]> {
-  const { data, error } = await generationsTable()
-    .select('field_overrides')
-    .eq('club_id', clubId)
-    .order('generated_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return (data as Record<string, unknown>[]).map(row => ({
-    fieldOverrides: (row.field_overrides ?? {}) as PremiumGeneration['fieldOverrides'],
-  }));
-}
-
-export async function insertPremiumGeneration(
-  gen: Omit<PremiumGeneration, 'id' | 'generatedAt'>
-): Promise<void> {
-  const { error } = await generationsTable().insert({
-    show_id: gen.showId,
-    club_id: gen.clubId,
-    template_id: gen.templateId,
-    org: gen.org,
-    field_overrides: gen.fieldOverrides,
-    narrative_edits: gen.narrativeEdits,
-  });
   if (error) throw error;
 }

@@ -87,6 +87,13 @@ by a Dog. Statistics, timeline, and search cross-cut the sub-tables and
 share a single canonical module so callers can read "everything about this
 dog's health" without coordinating across files.
 
+**Pedigree**
+A Dog's ancestor lineage tree. Stored as rows in `pedigree_ancestors`
+keyed by `(dog_id, position)` — each row is one ancestor at a known
+position in the family tree. The Pedigree is the collection; individual
+rows are ancestors. Used for breeding records and breed-club registration
+paperwork.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under

@@ -5,7 +5,7 @@ import {
   upsertPedigreeAncestor,
   updatePedigreeAncestor,
   deletePedigreeAncestor,
-} from '@/services/database/queries/pedigreeQueries';
+} from '@/services/database/pedigrees';
 import {
   mapDbPedigreeAncestorToApp,
   mapAppPedigreeAncestorToDbInsert,

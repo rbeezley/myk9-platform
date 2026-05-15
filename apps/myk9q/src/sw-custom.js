@@ -299,6 +299,12 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('message', (event) => {
   console.log('📬 [ServiceWorker] Message received:', event.data?.type);
 
+  // Activate the new SW when the page asks (prompt-then-skip-waiting pattern).
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+
   if (event.data && event.data.type === 'UPDATE_LICENSE_KEY') {
     // Store license key for tenant isolation
     self.currentLicenseKey = event.data.licenseKey;

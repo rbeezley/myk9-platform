@@ -39,6 +39,9 @@ function useSupportsBackgroundClipText(): boolean {
     if (typeof window === 'undefined' || !window.CSS || !window.CSS.supports) {
       return;
     }
+    // Deliberate setState-in-effect: see the hook docstring above. Defaulting
+    // to `false` and upgrading on mount keeps initial paint hydration-safe.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSupports(
       window.CSS.supports('-webkit-background-clip', 'text') ||
         window.CSS.supports('background-clip', 'text')

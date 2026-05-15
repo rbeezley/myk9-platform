@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute } from 'workbox-precaching';
+import { installSkipWaitingHandler } from '@myk9/pwa-update/sw';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
@@ -7,6 +8,9 @@ declare const self: ServiceWorkerGlobalScope & {
 
 // Workbox precaching — vite-plugin-pwa injects the manifest here
 precacheAndRoute(self.__WB_MANIFEST);
+
+// Activate the new SW immediately when the page asks (prompt-then-skip-waiting pattern).
+installSkipWaitingHandler(self);
 
 // Handle push notifications when app is in background
 self.addEventListener('push', (event: PushEvent) => {

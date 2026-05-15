@@ -9,10 +9,10 @@ import type {
   SearchSuggestion,
   SearchType
 } from '../../../types/search-analytics';
-import {
-  untypedFrom,
-  type SearchAnalyticsRow,
-  type SearchHistoryRow
+import { untypedFrom } from '../_shared/untyped-from';
+import type {
+  SearchAnalyticsRow,
+  SearchHistoryRow
 } from './search-query-helpers';
 
 export const searchSuggestionQueries = {

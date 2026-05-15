@@ -3,6 +3,7 @@ import { X, Info, Globe, Key, Smartphone, RefreshCw, CheckCircle, Loader2 } from
 import './shared-dialog.css';
 import { productVersion, formattedBuildDate } from '../../config/appVersion';
 import { logger } from '@/utils/logger';
+import { applyPwaUpdate } from '@myk9/pwa-update';
 
 const PUSH_USER_ID_KEY = 'push_user_id'; // Must match pushNotificationService.ts
 
@@ -132,13 +133,10 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose, licen
         timersRef.current.push(timer);
         return;
       }
-
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
-      });
-
+      // Delegate to the shared package — posts SKIP_WAITING and reloads on
+      // controllerchange (wired up in main.tsx via setupPwaUpdate).
+      await applyPwaUpdate();
+      // Fallback reload if controllerchange doesn't fire within 3s.
       const timer = setTimeout(() => window.location.reload(), 3000);
       timersRef.current.push(timer);
     } catch (error) {

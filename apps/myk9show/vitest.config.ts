@@ -42,6 +42,10 @@ export default defineConfig({
       // Stub packages that are not installed but imported by source files under test.
       // Tests that need real behavior mock these via vi.mock() in the test file.
       pako: path.resolve(__dirname, 'src/test/mocks/pako.ts'),
+      'virtual:pwa-register': path.resolve(
+        __dirname,
+        'src/test/mocks/virtual-pwa-register.ts'
+      ),
     },
   },
 });

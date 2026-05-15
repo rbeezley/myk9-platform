@@ -88,6 +88,7 @@
     "@myk9/core": "workspace:*",
     "@myk9/email": "workspace:*",
     "@myk9/notifications": "workspace:*",
+    "@myk9/pwa-update": "workspace:*",
     "@myk9/replication": "workspace:*",
     "@myk9/scoring": "workspace:*",
     "@myk9/scoring-ui": "workspace:*",
@@ -176,6 +177,7 @@
     "vite": "^7.3.1",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.18",
-    "workbox-precaching": "^7.4.0"
+    "workbox-precaching": "^7.4.0",
+    "workbox-window": "^7.4.0"
   }
 }

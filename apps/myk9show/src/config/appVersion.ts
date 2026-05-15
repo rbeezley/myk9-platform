@@ -14,18 +14,21 @@ declare const __BUILD_TIMESTAMP__: string;
 /** Product version from package.json */
 export const productVersion = version;
 
-/** Build timestamp - unique per deployment */
+/** Build timestamp - unique per deployment. Stable 'dev' fallback so the
+ *  PWA prompt-once de-dup key doesn't change on every page load when the
+ *  define isn't injected (unit tests, dev server, misconfigured build). */
 export const buildTimestamp =
-  typeof __BUILD_TIMESTAMP__ !== 'undefined'
-    ? __BUILD_TIMESTAMP__
-    : new Date().toISOString(); // Fallback for dev/test
+  typeof __BUILD_TIMESTAMP__ !== 'undefined' ? __BUILD_TIMESTAMP__ : 'dev';
 
 /** Formatted build date for display (e.g., "Dec 16, 2025 2:30 PM") */
-export const formattedBuildDate = new Date(buildTimestamp).toLocaleString('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-  hour12: true,
-});
+export const formattedBuildDate =
+  buildTimestamp === 'dev'
+    ? 'Development'
+    : new Date(buildTimestamp).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });

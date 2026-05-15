@@ -12,7 +12,7 @@
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
-import type { DayOfEntry } from './dayOfOperationsTypes';
+import type { DayOfEntry } from './types';
 
 /**
  * Get classes with available capacity for day-of entries

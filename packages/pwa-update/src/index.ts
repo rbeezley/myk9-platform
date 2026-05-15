@@ -120,6 +120,8 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
 
   let updateSW: UpdateSWFn | undefined;
   let activeRegistration: ServiceWorkerRegistration | undefined;
+  let pollIntervalHandle: ReturnType<typeof setInterval> | undefined;
+  let initialCheckTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
   const updateAvailableHandlers = new Set<() => void>();
   const inMemoryPromptedVersions = new Set<string>();
 
@@ -196,7 +198,7 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
           activeRegistration = registration;
           opts.onRegistered?.(registration);
 
-          setTimeout(() => {
+          initialCheckTimeoutHandle = setTimeout(() => {
             if (navigator.onLine) {
               registration.update().catch((err: unknown) => {
                 log.warn('[PWA] initial update check failed', {
@@ -206,7 +208,7 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
             }
           }, initialCheckDelayMs);
 
-          setInterval(() => {
+          pollIntervalHandle = setInterval(() => {
             if (navigator.onLine) {
               registration.update().catch((err: unknown) => {
                 log.warn('[PWA] update poll failed', {
@@ -228,10 +230,9 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
       });
     }
 
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      log.info('[PWA] update applied', { version: opts.version });
-      window.location.reload();
-    });
+    // Note: no controllerchange listener here. workbox-window's updateSW(true)
+    // already reloads on controllerchange, and an unconditional listener would
+    // also fire on first-install (no prior controller) and stack across resets.
   }
 
   const applyUpdate = async (): Promise<void> => {
@@ -277,6 +278,14 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
   };
 
   const __reset = (): void => {
+    if (pollIntervalHandle !== undefined) {
+      clearInterval(pollIntervalHandle);
+      pollIntervalHandle = undefined;
+    }
+    if (initialCheckTimeoutHandle !== undefined) {
+      clearTimeout(initialCheckTimeoutHandle);
+      initialCheckTimeoutHandle = undefined;
+    }
     updateSW = undefined;
     activeRegistration = undefined;
     updateAvailableHandlers.clear();

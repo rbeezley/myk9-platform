@@ -133,12 +133,9 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose, licen
         timersRef.current.push(timer);
         return;
       }
-      // Delegate to the shared package — posts SKIP_WAITING and reloads on
-      // controllerchange (wired up in main.tsx via setupPwaUpdate).
+      // Delegate to the shared package — posts SKIP_WAITING via updateSW(true),
+      // which itself reloads the page once the new SW takes control.
       await applyPwaUpdate();
-      // Fallback reload if controllerchange doesn't fire within 3s.
-      const timer = setTimeout(() => window.location.reload(), 3000);
-      timersRef.current.push(timer);
     } catch (error) {
       logger.warn('[About] Failed to apply update:', error);
       window.location.reload();

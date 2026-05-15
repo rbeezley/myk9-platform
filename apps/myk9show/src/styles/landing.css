@@ -855,7 +855,28 @@
   transition: all 0.15s;
 }
 .landing-v2 .l-waitlist .l-roles label:hover { border-color: var(--stone-300); }
-.landing-v2 .l-waitlist .l-roles input { display: none; }
+/* Visually hide the native radio while keeping it in the a11y tree.
+   `display: none` would remove it from screen readers entirely, so users
+   would hear "Exhibitor" with no indication it's a radio button or
+   whether it's checked. The 1px-clip pattern keeps the input announced
+   correctly while letting the styled <label> render the visual chip. */
+.landing-v2 .l-waitlist .l-roles input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* Make the visual focus state of the styled chip mirror the hidden
+   input's keyboard focus, so keyboard users can see where they are. */
+.landing-v2 .l-waitlist .l-roles label:focus-within {
+  border-color: var(--terracotta-500);
+  box-shadow: 0 0 0 3px rgba(201, 100, 66, 0.18);
+}
 .landing-v2 .l-waitlist .l-roles label:has(input:checked) {
   background: var(--terracotta-50);
   border-color: var(--terracotta-500);
@@ -888,7 +909,7 @@
   max-width: 540px;
   text-align: left;
 }
-.landing-v2 .l-waitlist-success h3 {
+.landing-v2 .l-waitlist-success .l-success-title {
   font-family: var(--font-serif);
   font-weight: 500;
   font-size: 22px;

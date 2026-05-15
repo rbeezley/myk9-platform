@@ -11,12 +11,12 @@ type Role = 'exhibitor' | 'club_official' | 'judge';
 
 interface WaitlistFormLandingProps {
   source?: string;
-  showCounter?: boolean;
-  /** Optional id used by the closing-section variant for in-page anchoring. */
-  formId?: string;
   /** Heading text shown inside the card; defaults to "Join the waitlist". */
   title?: string;
-  /** Optional ref so callers can scroll/focus the email input. */
+  /** Unique id prefix for the form's inputs — required when the form is
+   *  rendered more than once on the same page (hero + closing) to avoid
+   *  duplicate `<input id>` collisions. Also used as the focus target
+   *  by Home.tsx's smooth-scroll-to-waitlist handler. */
   emailInputId?: string;
 }
 
@@ -34,7 +34,6 @@ const ROLE_DB_VALUE: Record<Role, string> = {
 
 export function WaitlistFormLanding({
   source = 'myk9show.com',
-  formId,
   title = 'Join the waitlist',
   emailInputId = 'l-wl-email',
 }: WaitlistFormLandingProps) {
@@ -91,7 +90,9 @@ export function WaitlistFormLanding({
   if (state.kind === 'success') {
     return (
       <div className="l-waitlist-success" role="status" aria-live="polite">
-        <h3>You're on the list.</h3>
+        {/* Same a11y reasoning as the form-title <p>: no <h*> here, since
+            heading skips break document outline inside the hero section. */}
+        <p className="l-success-title">You're on the list.</p>
         <p>
           Thanks — we'll send you an update when there's news worth sharing. No spam, no
           marketing blasts. Just real updates on myK9Show.
@@ -101,9 +102,15 @@ export function WaitlistFormLanding({
   }
 
   return (
-    <form className="l-waitlist" onSubmit={handleSubmit} id={formId} noValidate>
+    <form className="l-waitlist" onSubmit={handleSubmit} noValidate>
       <div className="l-form-head">
-        <h3 className="l-form-title">{title}</h3>
+        {/*
+          Visual-only title. Using a <p> instead of <h3> avoids a
+          heading-level skip — the form lives inside the hero section
+          which carries the page's only <h1>, and a <h3> here without an
+          intervening <h2> breaks document outline for screen readers.
+        */}
+        <p className="l-form-title">{title}</p>
       </div>
       <div className="l-field-stack">
         <div>

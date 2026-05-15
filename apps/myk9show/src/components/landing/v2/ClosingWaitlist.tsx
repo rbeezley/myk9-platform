@@ -13,7 +13,7 @@ export const ClosingWaitlist = forwardRef<HTMLElement>((_props, ref) => {
           We're shipping to a handful of clubs across AKC, UKC, and ASCA in late 2026. Tell us
           who you are and we'll keep you in the loop — no spam, no hype.
         </p>
-        <WaitlistFormLanding emailInputId="l-wl-closing" formId="closing-waitlist" />
+        <WaitlistFormLanding emailInputId="l-wl-closing" />
       </div>
     </section>
   );

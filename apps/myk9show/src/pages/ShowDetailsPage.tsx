@@ -3,6 +3,7 @@ import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
 import { HeadlineLandingPage } from '@/features/headline/landing/HeadlineLandingPage';
+import { MonogramLandingPage } from '@/features/monogram/landing/MonogramLandingPage';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -390,26 +391,38 @@ const ShowDetailsPage: React.FC = () => {
 
   // Styled public landing — renders for any visitor who is not staff.
   // Staff (secretary / admin / club_admin) always reach the management UI.
+  //
+  // We gate on an *explicit* style being set, not the `getShowStyle()` fallback
+  // value ('monogram'). Otherwise legacy shows with `style = null` would
+  // unexpectedly render the Monogram landing — those shows historically
+  // rendered the management UI and we preserve that behavior. Checks both
+  // post-migration `style` and pre-migration `landing_style` columns.
+  const rawShowStyle =
+    publicLandingShow.style ??
+    (publicLandingShow as { landing_style?: string | null }).landing_style;
+  const hasExplicitStyle = !!rawShowStyle && rawShowStyle !== 'default';
   const publicShowStyle = getShowStyle(publicLandingShow);
-  if (
-    (publicShowStyle === 'heritage' || publicShowStyle === 'headline') &&
-    !isSecretary &&
-    !isAdmin &&
-    !hasRole('club_admin')
-  ) {
-    return publicShowStyle === 'heritage' ? (
-      <HeritageLandingPage
-        show={publicLandingShow}
-        trial={associatedTrials[0] ?? null}
-        allTrials={associatedTrials}
-      />
-    ) : (
-      <HeadlineLandingPage
-        show={publicLandingShow}
-        trial={associatedTrials[0] ?? null}
-        allTrials={associatedTrials}
-      />
-    );
+  const isStyledLanding =
+    hasExplicitStyle &&
+    (publicShowStyle === 'heritage' ||
+      publicShowStyle === 'headline' ||
+      publicShowStyle === 'monogram' ||
+      publicShowStyle === 'banner');
+  if (isStyledLanding && !isSecretary && !isAdmin && !hasRole('club_admin')) {
+    const landingProps = {
+      show: publicLandingShow,
+      trial: associatedTrials[0] ?? null,
+      allTrials: associatedTrials,
+    };
+    if (publicShowStyle === 'heritage') {
+      return <HeritageLandingPage {...landingProps} />;
+    }
+    if (publicShowStyle === 'headline') {
+      return <HeadlineLandingPage {...landingProps} />;
+    }
+    // Both `monogram` and `banner` route to MonogramLandingPage — Banner uses
+    // Monogram as the closest visual register until its own landing ships.
+    return <MonogramLandingPage {...landingProps} />;
   }
 
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries);

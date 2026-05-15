@@ -10,11 +10,124 @@
  */
 
 [data-monogram] {
-  background: #f3eee4;
-  color: #1c1815;
+  --mg-paper: #f3eee4;
+  --mg-paper-deep: #ece5d4;
+  --mg-ink: #1c1815;
+  --mg-soft: #3a342c;
+  --mg-quill: #5a4f3e;
+  --mg-mute: #7a6f5e;
+  --mg-bronze: #8a6938;
+  --mg-bronze-light: #b08948;
+  --mg-leaf: #c9a14b;
+
+  background: var(--mg-paper);
+  color: var(--mg-ink);
   font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Subtle radial wash behind the masthead — purely decorative. */
+  background-image: radial-gradient(ellipse 70% 50% at 50% -10%, rgba(138, 105, 56, 0.06), transparent 60%);
+}
+
+[data-monogram] * {
+  box-sizing: border-box;
+}
+
+[data-monogram] a {
+  color: var(--mg-ink);
+  text-decoration: none;
+}
+
+[data-monogram] .mg-section {
+  padding: 80px 56px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+[data-monogram] .mg-nav__cta:hover {
+  background: var(--mg-ink);
+  color: var(--mg-paper);
+}
+
+[data-monogram] .mg-hero__cta:hover {
+  background: var(--mg-bronze);
+  color: var(--mg-paper);
+  transform: translateY(-1px);
+}
+
+[data-monogram] .mg-final a:hover {
+  background: var(--mg-leaf);
+  color: var(--mg-ink);
+}
+
+/* Section reveal — set opacity on the parent reveal wrapper. Components add
+   `.in` once the IntersectionObserver fires; we transition from 0.6 → 1.0. */
+[data-monogram] .mg-welcome,
+[data-monogram] .mg-particulars,
+[data-monogram] .mg-judges,
+[data-monogram] .mg-roster,
+[data-monogram] .mg-twocol,
+[data-monogram] .mg-officers,
+[data-monogram] .mg-final {
+  opacity: 0;
+  transition: opacity 720ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-monogram] .mg-welcome.in,
+[data-monogram] .mg-particulars.in,
+[data-monogram] .mg-judges.in,
+[data-monogram] .mg-roster.in,
+[data-monogram] .mg-twocol.in,
+[data-monogram] .mg-officers.in,
+[data-monogram] .mg-final.in {
+  opacity: 1;
+}
+
+/* Mobile collapse — under 900px sections stack to single column and lose
+   their internal grid borders. Matches the handoff's responsive block. */
+@media (max-width: 900px) {
+  [data-monogram] .mg-nav {
+    padding: 12px 24px !important;
+  }
+  [data-monogram] .mg-hero {
+    padding: 56px 24px !important;
+  }
+  [data-monogram] .mg-section {
+    padding: 56px 24px;
+  }
+  [data-monogram] .mg-welcome,
+  [data-monogram] .mg-twocol,
+  [data-monogram] .mg-judges,
+  [data-monogram] .mg-particulars,
+  [data-monogram] .mg-officers {
+    grid-template-columns: 1fr !important;
+  }
+  [data-monogram] .mg-final {
+    padding: 72px 24px !important;
+  }
+  [data-monogram] .mg-footer {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  [data-monogram] .mg-footer__meta {
+    text-align: left !important;
+  }
+}
+
+/* Honour reduced-motion: drop reveal transitions and force settled state. */
+@media (prefers-reduced-motion: reduce) {
+  [data-monogram] .mg-welcome,
+  [data-monogram] .mg-particulars,
+  [data-monogram] .mg-judges,
+  [data-monogram] .mg-roster,
+  [data-monogram] .mg-twocol,
+  [data-monogram] .mg-officers,
+  [data-monogram] .mg-final {
+    opacity: 1 !important;
+    transition: none !important;
+  }
 }
 
 [data-monogram] .mg-emboss-paper {

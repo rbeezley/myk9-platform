@@ -1,11 +1,6 @@
 /**
  * Monogram feature — public API.
  *
- * Phase 1 ships tokens, fonts, the embossed-letters primitive, and the
- * buildMonogram helper. Higher-level surfaces (landing page sections,
- * entry blank PDF, wizard completion) will live in sibling subdirectories
- * and ship in follow-up PRs.
- *
  * CSS: import 'features/monogram/monogram.css' once at the root of any
  * Monogram surface. All rules are scoped under [data-monogram] so adding
  * the CSS to a non-Monogram page is a no-op.
@@ -28,5 +23,26 @@ export {
 } from './fonts';
 
 export { MonogramEmboss, type MonogramEmbossProps } from './components/MonogramEmboss';
+export { MonogramHeading, type MonogramHeadingProps } from './components/MonogramHeading';
+export {
+  MonogramSectionFolio,
+  toLowerRoman,
+  type MonogramSectionFolioProps,
+} from './components/MonogramSectionFolio';
+export {
+  MonogramJudgeCard,
+  type MonogramJudgeCardProps,
+} from './components/MonogramJudgeCard';
+export {
+  MonogramSectionHead,
+  type MonogramSectionHeadProps,
+} from './components/MonogramSectionHead';
+
+export { MonogramLandingPage } from './landing/MonogramLandingPage';
+export { MonogramEntryReceived, type MonogramEntryReceivedProps } from './wizard/MonogramEntryReceived';
+export {
+  MonogramEntryBlankDocument,
+  MonogramEntryBlankButton,
+} from './entry-blank';
 
 export { buildMonogram } from './utils/buildMonogram';

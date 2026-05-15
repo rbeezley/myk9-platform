@@ -13,6 +13,8 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { getShowStyle } from '@/features/registries';
 import { HeritageEntryReceived } from '@/features/heritage/wizard/HeritageEntryReceived';
 import { HeadlineEntryReceived } from '@/features/headline/wizard/HeadlineEntryReceived';
+import { MonogramEntryReceived } from '@/features/monogram/wizard/MonogramEntryReceived';
+import { buildMonogram } from '@/features/monogram/utils/buildMonogram';
 import {
   ClassSelectionData,
   RegistrationFormData,
@@ -106,7 +108,8 @@ export function WorkflowStepContent({
     if (currentStepId !== 'confirmation') return null;
     const currentShow = shows.find(s => s.id === showId);
     const style = getShowStyle(currentShow);
-    if (style !== 'heritage' && style !== 'headline') return null;
+    if (style !== 'heritage' && style !== 'headline' && style !== 'monogram' && style !== 'banner')
+      return null;
 
     const firstTrial = allTrials.find(t => t.showId === showId);
     const firstDogId = optimisticState.formData.selectedDogs[0];
@@ -287,6 +290,12 @@ export function WorkflowStepContent({
           <HeritageEntryReceived {...styledReceiptProps} />
         ) : styledReceipt?.style === 'headline' && styledReceiptProps ? (
           <HeadlineEntryReceived {...styledReceiptProps} />
+        ) : (styledReceipt?.style === 'monogram' || styledReceipt?.style === 'banner') &&
+          styledReceiptProps ? (
+          <MonogramEntryReceived
+            {...styledReceiptProps}
+            monogramLetters={buildMonogram(styledReceiptProps.clubName)}
+          />
         ) : (
           <ConfirmationStep
             registrationNumber={registrationNumber}

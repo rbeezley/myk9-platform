@@ -156,6 +156,45 @@ Font.register({
   ],
 });
 
+// Monogram visual system (Bodoni Moda display + Italiana decorative initials +
+// Crimson Pro body) — added when the polished Monogram entry-blank shipped.
+// Legacy MONOGRAM_TOKENS in pdfTokens.ts still uses Playfair/Lora for the
+// premium PDF cover; that's a separate refresh tracked as an open question
+// in the Monogram reconciliation notes.
+Font.register({
+  family: 'Bodoni Moda',
+  fonts: [
+    { src: `${FS}/bodoni-moda@5/files/bodoni-moda-latin-400-normal.woff`, fontWeight: 400 },
+    { src: `${FS}/bodoni-moda@5/files/bodoni-moda-latin-500-normal.woff`, fontWeight: 500 },
+    { src: `${FS}/bodoni-moda@5/files/bodoni-moda-latin-700-normal.woff`, fontWeight: 700 },
+    {
+      src: `${FS}/bodoni-moda@5/files/bodoni-moda-latin-400-italic.woff`,
+      fontWeight: 400,
+      fontStyle: 'italic',
+    },
+  ],
+});
+
+Font.register({
+  family: 'Italiana',
+  fonts: [
+    { src: `${FS}/italiana@5/files/italiana-latin-400-normal.woff`, fontWeight: 400 },
+  ],
+});
+
+Font.register({
+  family: 'Crimson Pro',
+  fonts: [
+    { src: `${FS}/crimson-pro@5/files/crimson-pro-latin-400-normal.woff`, fontWeight: 400 },
+    { src: `${FS}/crimson-pro@5/files/crimson-pro-latin-500-normal.woff`, fontWeight: 500 },
+    {
+      src: `${FS}/crimson-pro@5/files/crimson-pro-latin-400-italic.woff`,
+      fontWeight: 400,
+      fontStyle: 'italic',
+    },
+  ],
+});
+
 // Disable the default word-splitter so display text doesn't hyphenate at
 // awkward places (e.g., across the centered cover headline). Guarded so
 // partial Font mocks in unit tests don't trip on a missing method.

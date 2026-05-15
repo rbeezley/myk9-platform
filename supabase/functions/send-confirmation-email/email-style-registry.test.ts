@@ -15,14 +15,13 @@ describe('confirmation email style registry', () => {
     ]);
   });
 
-  it('routes each style to its assigned builder (3-way dispatch)', () => {
-    // Headline + Monogram have dedicated builders; magazine/poster/gazette/
-    // fieldGuide currently fall back to Heritage until their own builders
-    // ship. Banner is mapped to Monogram because its visual register sits
-    // closer to Monogram than to Heritage.
+  it('routes each style to its assigned builder (4-way dispatch)', () => {
+    // Headline, Monogram, and Banner have dedicated builders;
+    // magazine/poster/gazette/fieldGuide currently fall back to Heritage
+    // until their own builders ship.
     expect(selectEmailBuilderKey('headline')).toBe('headline');
     expect(selectEmailBuilderKey('monogram')).toBe('monogram');
-    expect(selectEmailBuilderKey('banner')).toBe('monogram');
+    expect(selectEmailBuilderKey('banner')).toBe('banner');
     expect(selectEmailBuilderKey('heritage')).toBe('heritage');
     expect(selectEmailBuilderKey('magazine')).toBe('heritage');
     expect(selectEmailBuilderKey('poster')).toBe('heritage');

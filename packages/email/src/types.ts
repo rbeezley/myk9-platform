@@ -135,6 +135,80 @@ export interface MonogramConfirmationProps {
   showSlug: string | null;
 }
 
+// ─── Banner Confirmation Email ───────────────────────────────────────────────
+
+export interface BannerRunRow {
+  /** Roman numeral from trial_number, e.g. "I", "III". */
+  trialNumeral: string;
+  /** Formatted date, e.g. "Fri 12 Jun". */
+  dayLabel: string;
+  /** "Excellent · Containers" */
+  classLabel: string;
+  /** Judge display name. */
+  judgeName: string;
+  /** Armband number (may be null if not yet assigned). */
+  armband: string | null;
+}
+
+export interface BannerConfirmationProps {
+  // Per-club brand color (precomputed in the Deno function — Outlook can't
+  // do color-mix() or OKLCH, so all three siblings + the contrast pick
+  // arrive ready to drop into inline styles).
+  /** Flag hex from show.brand_color (or default teal). */
+  brandColor: string;
+  /** Darker sibling used on the final-CTA band background. */
+  brandColorDeep: string;
+  /** Brighter sibling used for the single emphasis word. */
+  brandColorBright: string;
+  /** WCAG-luminance-derived text color for on-flag content. */
+  textOnFlag: '#ffffff' | '#111111';
+
+  // Header / masthead
+  clubName: string;
+  clubCity: string | null;
+  showTitle: string;
+  /** e.g. "Jun 12–14, 2026" */
+  dateRange: string;
+
+  // Greeting
+  /** Full salutation name, e.g. "Ms. Patricia Holloway" */
+  salutation: string;
+
+  // Entry detail card
+  dogRegisteredName: string;
+  dogCallName: string | null;
+  dogBreed: string | null;
+  dogSex: string | null;
+  runs: BannerRunRow[];
+  runCount: number;
+  totalFeesFormatted: string;
+  /** e.g. "Receipt 2026-0137" */
+  receiptNumber: string | null;
+
+  // On the day
+  doorsTime: string | null;
+  firstClassTime: string | null;
+  venueNameAndAddress: string | null;
+  parkingNotes: string | null;
+  hospitalityNotes: string | null;
+  cratingNotes: string | null;
+
+  // Withdraw / contact
+  secretaryEmail: string | null;
+  secretaryPhone: string | null;
+
+  // CTA
+  trialUrl: string | null;
+
+  // Signature
+  trialChairName: string | null;
+  trialChairTitle: string | null;
+
+  // Footer
+  memberClubLanguage: string;
+  showSlug: string | null;
+}
+
 export interface RegistrationConfirmationProps {
   firstName: string;
   confirmationNumber: string;

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
@@ -49,6 +49,11 @@ const AppHeader: React.FC = () => {
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The marketing landing renders its own editorial sticky header
+  // (LandingHeader). Suppressing this global app bar on `/` for guests
+  // avoids two stacked headers.
+  const isGuestLanding = !user && location.pathname === '/';
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -130,6 +135,8 @@ const AppHeader: React.FC = () => {
 
   useKeyboardShortcuts(shortcuts);
   const shortcutDisplays = useMemo(() => getShortcutDisplays(shortcuts), [shortcuts]);
+
+  if (isGuestLanding) return null;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background text-foreground border-border h-12 shadow-[var(--shadow-header)]">

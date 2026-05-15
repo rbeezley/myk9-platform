@@ -4,6 +4,17 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Premium Style Completion — Monogram + Banner — 2026-05-15
+
+Heritage and Headline shipped end-to-end. Monogram and Banner are partially shipped — list below tracks the remaining artifacts so deferred work doesn't get lost. Order: finish one style fully before starting the next.
+
+- [ ] **Monogram landing page** (PR #183 — in progress this session) — Public trial detail page in Monogram visual register. Plan: [`docs/plan-monogram-landing.md`](docs/plan-monogram-landing.md). Clone `features/heritage/landing/` shape; reuse `MonogramEmboss` from PR #182; wire dispatch in `apps/myk9show/src/pages/ShowDetailsPage.tsx`.
+- [ ] **Monogram wizard completion + entry-blank PDF** (PR #184) — `MonogramEntryReceived.tsx` + `MonogramEntryBlankDocument.tsx` (@react-pdf). Clone Heritage equivalents. Plan doc TBD when picked up.
+- [ ] **Banner email pipeline + primitive** (PR #186-equivalent) — `BannerFlagBar` primitive, `BannerConfirmationEmail` template, `banner-email.ts` Deno builder, registry update to 4-way dispatch. **Requires migration**: `shows.brand_color text not null default '#0d4d4f'`. Plan: [`docs/plan-banner-style.md`](docs/plan-banner-style.md). Decision log + open-question answers captured in this session's transcript.
+- [ ] **Banner landing + wizard + entry-blank PDF** (PR #187 sequence) — Full Banner trial experience. Plan doc TBD.
+
+---
+
 ## Nightly E2E Repair Queue — 2026-05-12
 
 - [x] **Repair `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`** — Wave 1 fixed 2026-05-12. Now asserts user-critical route/auth/navigation affordances and passes in the promoted Nightly command.

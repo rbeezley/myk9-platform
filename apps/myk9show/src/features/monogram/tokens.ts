@@ -18,8 +18,14 @@ export const monogramColors = {
   paperDeep: '#ece5d4',
   /** Primary text, borders, dark headings. */
   ink: '#1c1815',
+  /** Body prose — slightly softer than ink so long copy reads less aggressive. */
+  soft: '#3a342c',
   /** Accent / italic highlights / monogram on dark bands. */
   bronze: '#8a6938',
+  /** Brighter bronze used on hover/active states and gradient stops. */
+  bronzeLight: '#b08948',
+  /** Warm gold accent used on the dark Final CTA band where bronze loses contrast. */
+  leaf: '#c9a14b',
   /** Italic muted text, captions, labels — slightly cooler than bronze. */
   quill: '#5a4f3e',
   /** Subtle dividers, dotted underlines. */

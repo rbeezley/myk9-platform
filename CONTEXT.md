@@ -191,3 +191,12 @@ sorts apart from entity folders. Today's contents:
 A helper earns a place in `_shared/` only when more than one entity module
 imports it. Single-caller helpers belong inside the entity module that uses
 them.
+
+`_shared/` deliberately has no `index.ts` barrel — callers import directly
+from the specific helper file (`from '../_shared/maps'`, not
+`from '../_shared'`). This is intentional: an `_shared/` barrel would invite
+the directory to become a junk drawer of unrelated helpers, and the
+per-file imports make each helper's surface area visible at the call site.
+Entity modules use a barrel because their multiple files form one cohesive
+entity surface; `_shared/` is a collection of independent single-purpose
+helpers, not a single concept.

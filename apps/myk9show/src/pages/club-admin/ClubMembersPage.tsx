@@ -38,7 +38,7 @@ import {
   addClubOfficer,
   removeClubOfficer,
   getClubShowManagerIds,
-} from '@/services/database/queries/clubMembershipQueries';
+} from '@/services/database/club-memberships';
 import { rbacService } from '@/services/rbac/RBACService';
 import { logger } from '@/services/LoggingService';
 import {

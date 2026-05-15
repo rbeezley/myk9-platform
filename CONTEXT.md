@@ -120,6 +120,16 @@ run (e.g. AKC trials at non-myK9 events). A series of qualifying Manual
 Results may aggregate into an Achievement once the sanctioning body's
 title requirements are met.
 
+**Club Membership**
+The people affiliated with a Club, spanning three sub-concepts: regular
+members (`club_members` — enrollment records with dues, voting eligibility,
+membership type), elected officers (`club_officers` — president,
+treasurer, etc. with term dates), and show managers (people granted the
+SECRETARY RBAC role scoped to the club, allowing them to create and
+manage that club's Shows). The same Person can hold any combination of
+the three roles. Distinct from Club itself (the organization) — this
+entity is about who's in it.
+
 ## Data Access Modules
 
 Each entity has one authoritative data access module under

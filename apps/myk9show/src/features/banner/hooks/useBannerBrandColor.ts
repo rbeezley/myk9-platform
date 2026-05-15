@@ -43,7 +43,9 @@ export function useBannerBrandColor(show: BannerColorInput | null | undefined): 
 
 /** Pure derivation — exported so `banner-email.ts` and unit tests can call
  *  it without setting up a React tree. */
-export function deriveBannerBrandColors(input: string | null | undefined): BannerBrandColors {
+export function deriveBannerBrandColors(
+  input: string | null | undefined
+): BannerBrandColors {
   const flag = HEX_RE.test(input ?? '') ? (input as string) : bannerColors.flag;
   const { r, g, b } = hexToRgb(flag);
   return {

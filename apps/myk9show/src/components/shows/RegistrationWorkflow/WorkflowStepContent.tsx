@@ -14,6 +14,7 @@ import { getShowStyle } from '@/features/registries';
 import { HeritageEntryReceived } from '@/features/heritage/wizard/HeritageEntryReceived';
 import { HeadlineEntryReceived } from '@/features/headline/wizard/HeadlineEntryReceived';
 import { MonogramEntryReceived } from '@/features/monogram/wizard/MonogramEntryReceived';
+import { BannerEntryReceived } from '@/features/banner/wizard/BannerEntryReceived';
 import { buildMonogram } from '@/features/monogram/utils/buildMonogram';
 import {
   ClassSelectionData,
@@ -125,6 +126,9 @@ export function WorkflowStepContent({
 
     return {
       style,
+      // brand_color flows through for Banner shows. May be undefined on
+      // unmigrated rows — BannerEntryReceived defaults to deep teal.
+      brandColor: (currentShow as { brand_color?: string | null } | undefined)?.brand_color ?? null,
       showName: currentShow?.name ?? '',
       clubName: currentShow?.clubName ?? currentShow?.name ?? '',
       dateRange: currentShow?.startDate
@@ -290,8 +294,12 @@ export function WorkflowStepContent({
           <HeritageEntryReceived {...styledReceiptProps} />
         ) : styledReceipt?.style === 'headline' && styledReceiptProps ? (
           <HeadlineEntryReceived {...styledReceiptProps} />
-        ) : (styledReceipt?.style === 'monogram' || styledReceipt?.style === 'banner') &&
-          styledReceiptProps ? (
+        ) : styledReceipt?.style === 'banner' && styledReceiptProps ? (
+          <BannerEntryReceived
+            {...styledReceiptProps}
+            brandColor={styledReceipt.brandColor ?? undefined}
+          />
+        ) : styledReceipt?.style === 'monogram' && styledReceiptProps ? (
           <MonogramEntryReceived
             {...styledReceiptProps}
             monogramLetters={buildMonogram(styledReceiptProps.clubName)}

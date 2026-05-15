@@ -38,3 +38,4 @@ export {
 } from './components/BannerSectionHead';
 
 export { BannerLandingPage } from './landing/BannerLandingPage';
+export { BannerEntryReceived, type BannerEntryReceivedProps } from './wizard/BannerEntryReceived';

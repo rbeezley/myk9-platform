@@ -39,3 +39,8 @@ export {
 
 export { BannerLandingPage } from './landing/BannerLandingPage';
 export { BannerEntryReceived, type BannerEntryReceivedProps } from './wizard/BannerEntryReceived';
+export {
+  BannerEntryBlankDocument,
+  BannerEntryBlankButton,
+  type BannerEntryBlankProps,
+} from './entry-blank';

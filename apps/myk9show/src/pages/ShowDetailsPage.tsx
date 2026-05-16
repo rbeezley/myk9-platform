@@ -570,10 +570,6 @@ const ShowDetailsPage: React.FC = () => {
 
           {canShowMap && (
             <TabsContent value="map">
-              {/* TODO(cls): ShowMapTab is being modified by a parallel branch
-                  (default-expand). After that lands, consider wrapping its
-                  outer container in a `min-height` so its lazy/Suspense fallback
-                  doesn't shift the page when the chunk resolves. */}
               <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
                 <ShowMapTab
                   show={actualCurrentShow}

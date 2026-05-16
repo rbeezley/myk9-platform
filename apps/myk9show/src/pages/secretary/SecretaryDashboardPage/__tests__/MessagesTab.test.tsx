@@ -106,6 +106,26 @@ describe('MessagesTab', () => {
     expect(skeleton).toHaveAttribute('aria-busy', 'true');
   });
 
+  it('renders FilterChips in the loading state so they do not pop in later', () => {
+    setupStore([], true);
+    render(<MessagesTab shows={shows} />, { wrapper });
+
+    // "All Shows" chip should be present alongside the skeleton.
+    expect(screen.getByTestId('messages-tab-skeleton')).toBeInTheDocument();
+    expect(screen.getByText('All Shows')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Spring Trial').some(el => el.closest('[aria-pressed]'))
+    ).toBe(true);
+  });
+
+  it('does not render skeleton when data is loaded', () => {
+    setupStore([makeThread()]);
+    render(<MessagesTab shows={shows} />, { wrapper });
+
+    expect(screen.queryByTestId('messages-tab-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+  });
+
   it('filters threads by show when chip is clicked', () => {
     setupStore([
       makeThread({ id: 'thread-1', show_id: 'show-1', participant_name: 'Jane Doe' }),

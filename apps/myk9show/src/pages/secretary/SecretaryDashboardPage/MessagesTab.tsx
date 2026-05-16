@@ -52,31 +52,26 @@ export function MessagesTab({ shows }: MessagesTabProps) {
     ? (showNameMap[selectedThread.show_id] ?? selectedThread.show_id)
     : '';
 
-  if (isLoading) {
-    return (
-      <div
-        data-testid="messages-tab-skeleton"
-        className="space-y-4"
-        style={{ minHeight: `${MESSAGES_TAB_RESERVED_MIN_HEIGHT_PX}px` }}
-        aria-busy="true"
-        aria-label="Loading messages"
-      >
-        <Skeleton className="h-8 w-40" />
-        <div className="space-y-2">
+  return (
+    <div className="space-y-4">
+      {/* FilterChips render in both loading and loaded branches so they don't
+          pop in and shift the thread list down when loading completes
+          (mirrors the TasksTab pattern). */}
+      <FilterChips options={filterOptions} active={filter} onChange={setFilter} />
+
+      {isLoading ? (
+        <div
+          data-testid="messages-tab-skeleton"
+          className="space-y-2"
+          style={{ minHeight: `${MESSAGES_TAB_RESERVED_MIN_HEIGHT_PX}px` }}
+          aria-busy="true"
+          aria-label="Loading messages"
+        >
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <FilterChips options={filterOptions} active={filter} onChange={setFilter} />
-
-      {/* Thread list */}
-      {filtered.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
           <MessageSquare className="h-8 w-8 opacity-40" />
           <p className="text-sm">No messages yet.</p>

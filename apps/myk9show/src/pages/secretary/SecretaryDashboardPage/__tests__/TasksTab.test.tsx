@@ -185,6 +185,18 @@ describe('TasksTab', () => {
     expect(skeleton).toHaveAttribute('aria-busy', 'true');
   });
 
+  it('does not render skeleton when data is loaded', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
+
+    expect(screen.queryByTestId('tasks-tab-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('No open tasks.')).toBeInTheDocument();
+  });
+
   it('renders the List/Timeline view toggle', () => {
     render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
     expect(screen.getByLabelText('List view')).toBeInTheDocument();

@@ -6,11 +6,26 @@ import { CalendarDays, MapPin } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useShowsByClubQuery } from '@/hooks/queries/useShowsDatabase';
 
-// Approximate height of the rendered "More from <club>" row (heading + one row
-// of 3 cards on desktop). Used as a min-height on the loading skeleton so the
-// rest of the page doesn't reflow when the data arrives.
-// INTENT: prevent CLS on /shows/:id Overview tab.
+// Approximate height of the rendered "More from <club>" row.
+//
+// Lighthouse runs against a mobile preset, where the grid collapses to
+// `grid-cols-1` and the 3 cards stack vertically — that case is the worst
+// CLS contributor. Desktop renders all 3 cards on one row, so we reserve
+// less space there. Use responsive Tailwind classes (`min-h-[…]` +
+// `sm:min-h-[…]`) so the skeleton matches the loaded height in each
+// breakpoint instead of leaving extra whitespace on desktop.
+//
+// Mobile (`grid-cols-1`): heading (~30px) + mb-4 (16px) + 3 × h-24 cards
+// (288px) + 2 × gap-4 (32px) ≈ 366px → reserve 380px to absorb minor
+// font/line-height drift.
+//
+// Desktop (`sm:` upward, 2–3 col): heading row + one row of cards ≈ 160px →
+// keep 180px as a safe floor.
+//
+// INTENT: prevent CLS on /shows/:id Overview tab on mobile (Lighthouse
+// preset).
 export const MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX = 180;
+export const MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_MOBILE_PX = 380;
 
 interface MoreFromClubProps {
   clubId: string;
@@ -34,11 +49,13 @@ export function MoreFromClub({ clubId, clubName, currentShowId }: MoreFromClubPr
   // While the club-shows query is in flight we don't know whether the row
   // will end up rendering or returning null. Reserve space optimistically so
   // late-arriving content can't push the page down past CLS thresholds.
+  // Mobile reserves more because the grid stacks; desktop collapses to a
+  // single row of cards.
   if (isLoading) {
     return (
       <div
         data-testid="more-from-club-skeleton"
-        style={{ minHeight: `${MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX}px` }}
+        className="min-h-[380px] sm:min-h-[180px]"
         aria-busy="true"
       >
         <Skeleton className="h-6 w-48 mb-4" />

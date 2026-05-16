@@ -67,6 +67,14 @@ describe('ShowOfficials', () => {
     );
   });
 
+  it('does not render skeleton when data is loaded', () => {
+    mockData = fullData;
+    mockIsLoading = false;
+    renderWithQuery(<ShowOfficials showId="show-1" />);
+    expect(screen.queryByTestId('show-officials-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('Sarah Johnson')).toBeInTheDocument();
+  });
+
   it('renders role labels', () => {
     mockData = fullData;
     renderWithQuery(<ShowOfficials showId="show-1" />);

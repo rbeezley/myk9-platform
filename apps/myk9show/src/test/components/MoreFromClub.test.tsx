@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   MoreFromClub,
   MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX,
+  MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_MOBILE_PX,
 } from '@/components/shows/overview/MoreFromClub';
 
 // Mock React Router
@@ -73,14 +74,28 @@ describe('MoreFromClub', () => {
     mockIsLoading = false;
   });
 
-  it('reserves min-height while loading to prevent CLS', () => {
+  it('reserves min-height while loading to prevent CLS (mobile + desktop)', () => {
     mockIsLoading = true;
     render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
     const skeleton = screen.getByTestId('more-from-club-skeleton');
     expect(skeleton).toBeInTheDocument();
-    expect((skeleton as HTMLElement).style.minHeight).toBe(
-      `${MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX}px`
+    // Responsive: mobile (default) reserves the taller stacked height, sm+
+    // collapses to the single-row height. We assert both Tailwind classes
+    // are present (verifying the constants haven't drifted from the class
+    // names).
+    expect(skeleton.className).toContain(
+      `min-h-[${MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_MOBILE_PX}px]`
     );
+    expect(skeleton.className).toContain(
+      `sm:min-h-[${MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX}px]`
+    );
+  });
+
+  it('does not render skeleton when data is loaded', () => {
+    mockIsLoading = false;
+    render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
+    expect(screen.queryByTestId('more-from-club-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText(/more from jayhawk ac/i)).toBeInTheDocument();
   });
 
   it('renders up to 3 shows from the same club', () => {

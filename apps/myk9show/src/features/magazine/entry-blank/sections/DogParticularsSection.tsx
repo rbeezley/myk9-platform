@@ -1,0 +1,44 @@
+import { View } from '@react-pdf/renderer';
+import type { EntryBlankProps } from '@/features/heritage/entry-blank';
+import { Field, MagazineSectionHeader } from './pdfPrimitives';
+
+type Dog = EntryBlankProps['dog'];
+
+export function DogParticularsSection({ dog }: { dog: Dog }) {
+  return (
+    <View>
+      <MagazineSectionHeader
+        numeral="i"
+        title="Particulars of the dog"
+        kicker="all fields required"
+      />
+
+      <View style={{ flexDirection: 'row' }}>
+        <Field label="Registered name (in full)" value={dog.registeredName} width="66%" />
+        <Field label="Call name" value={dog.callName} width="34%" />
+      </View>
+
+      <View style={{ flexDirection: 'row' }}>
+        <Field label="Breed" value={dog.breed} width="33%" />
+        <Field label="Variety / colour" value={dog.variety} width="33%" />
+        <Field label="Sex" value={dog.sex} hint="M · F · S · N" width="34%" />
+      </View>
+
+      <View style={{ flexDirection: 'row' }}>
+        <Field label="Date of birth" value={dog.dateOfBirth} width="33%" />
+        <Field label="Place of birth" value={dog.placeOfBirth} hint="U.S.A. · Foreign" width="33%" />
+        <Field label="A.K.C. registration №" value={dog.registrationNumber} width="34%" />
+      </View>
+
+      <View style={{ flexDirection: 'row' }}>
+        <Field label="Sire" value={dog.sire} variant="dotted" width="50%" />
+        <Field label="Dam" value={dog.dam} variant="dotted" width="50%" />
+      </View>
+
+      <View style={{ flexDirection: 'row' }}>
+        <Field label="Breeder" value={dog.breeder} variant="dotted" width="50%" />
+        <Field label="Actual owner(s)" value={dog.actualOwners} variant="dotted" width="50%" />
+      </View>
+    </View>
+  );
+}

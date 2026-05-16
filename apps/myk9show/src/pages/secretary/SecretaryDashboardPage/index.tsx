@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useMessageStore } from '@/store/messageStore';
 import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
@@ -17,7 +16,7 @@ import {
 } from '@/features/show-map/attention';
 import type { SecretaryTask } from './types';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
-import { MyShowsSection } from './MyShowsSection';
+import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
 import { MessagesTab } from './MessagesTab';
 
@@ -144,15 +143,7 @@ export function SecretaryDashboardPage() {
 
       {/* Phase-grouped show sections */}
       <div className="px-5 pb-2">
-        {showsLoading && shows.length === 0 && (
-          <div className="py-12 text-center" aria-busy="true">
-            <p className="text-sm text-muted-foreground">Loading your shows...</p>
-            <div className="mx-auto mt-5 grid max-w-3xl gap-3 sm:grid-cols-2">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          </div>
-        )}
+        {showsLoading && shows.length === 0 && <MyShowsSectionSkeleton />}
         {!showsLoading &&
           today.length === 0 &&
           upcoming.length === 0 &&

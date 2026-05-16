@@ -11,10 +11,18 @@ import { TaskRow } from './TaskRow';
 import { TaskAddForm } from './TaskAddForm';
 import { FilterChips } from './FilterChips';
 import { ViewToggle } from '@/components/common/ViewToggle';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TaskTimelineView } from './TaskTimelineView';
 import { useTaskViewPreference, TASK_VIEW_MODES } from './useTaskViewPreference';
 import { resolveTaskShowName } from './taskTimelineUtils';
 import type { SecretaryTask } from './types';
+
+// Reserve vertical space while the tasks query is in flight so deferred-load
+// shifts don't push the rest of the page down. ~280px matches the rendered
+// height of 3-4 task rows, which is the typical loaded state.
+// INTENT: prevent CLS on /secretary/dashboard — see PR "perf(shows): reserve
+// layout space for deferred panels (CLS)".
+export const TASKS_TAB_RESERVED_MIN_HEIGHT_PX = 280;
 
 interface Show {
   id: string;
@@ -115,7 +123,18 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
       )}
 
       {isLoading ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+        <div
+          data-testid="tasks-tab-skeleton"
+          className="flex flex-col gap-2"
+          style={{ minHeight: `${TASKS_TAB_RESERVED_MIN_HEIGHT_PX}px` }}
+          aria-busy="true"
+          aria-label="Loading tasks"
+        >
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+        </div>
       ) : viewMode === 'timeline' ? (
         <TaskTimelineView
           tasks={sorted}

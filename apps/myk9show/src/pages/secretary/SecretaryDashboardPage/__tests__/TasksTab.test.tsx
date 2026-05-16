@@ -5,7 +5,7 @@ import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import { TaskRow } from '../TaskRow';
-import { TasksTab } from '../TasksTab';
+import { TasksTab, TASKS_TAB_RESERVED_MIN_HEIGHT_PX } from '../TasksTab';
 import type { SecretaryTask } from '../types';
 
 vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
@@ -169,6 +169,32 @@ describe('TasksTab', () => {
 
     expect(screen.getByText('Unknown show')).toBeInTheDocument();
     expect(screen.queryByText('550e8400-e29b-41d4-a716-446655440000')).not.toBeInTheDocument();
+  });
+
+  it('reserves min-height in the loading skeleton to prevent CLS', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
+
+    const skeleton = screen.getByTestId('tasks-tab-skeleton');
+    expect(skeleton).toBeInTheDocument();
+    expect(skeleton.style.minHeight).toBe(`${TASKS_TAB_RESERVED_MIN_HEIGHT_PX}px`);
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('does not render skeleton when data is loaded', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
+
+    expect(screen.queryByTestId('tasks-tab-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('No open tasks.')).toBeInTheDocument();
   });
 
   it('renders the List/Timeline view toggle', () => {

@@ -1,7 +1,15 @@
 import { Card } from '@/components/ui/card';
 import { Mail } from 'lucide-react';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useShowOfficials, type ShowOfficial } from '@/hooks/queries/useShowOfficials';
+
+// Reserve vertical space while officials load so the rest of the page
+// (Judges, Share, More-from-club) doesn't get pushed down. ~200px matches
+// the typical rendered height of one chairman + one secretary card.
+// INTENT: prevent CLS on /shows/:id Overview tab — see PR "perf(shows): reserve
+// layout space for deferred panels (CLS)".
+export const SHOW_OFFICIALS_RESERVED_MIN_HEIGHT_PX = 200;
 
 interface OfficialCardProps {
   official: ShowOfficial;
@@ -37,7 +45,36 @@ interface ShowOfficialsProps {
 }
 
 export function ShowOfficials({ showId }: ShowOfficialsProps) {
-  const { data: officials } = useShowOfficials(showId);
+  const { data: officials, isLoading } = useShowOfficials(showId);
+
+  // Reserve space during the initial fetch so deferred content doesn't push
+  // the rest of the sidebar down once data arrives.
+  if (isLoading) {
+    return (
+      <Card
+        data-testid="show-officials-skeleton"
+        style={{ minHeight: `${SHOW_OFFICIALS_RESERVED_MIN_HEIGHT_PX}px` }}
+      >
+        <div className="p-4 border-b border-border/30">
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+            Show Officials
+          </h3>
+        </div>
+        <div className="p-4 space-y-3" aria-busy="true">
+          <div className="flex flex-col items-center gap-2">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-2.5 w-20" />
+          </div>
+          <div className="flex flex-col items-center gap-2 pt-3 border-t border-border/30">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-2.5 w-20" />
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   if (!officials) return null;
 

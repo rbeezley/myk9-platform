@@ -5,9 +5,15 @@ import { useMessageStore } from '@/store/messageStore';
 import { ThreadDetail } from '@/features/messages/components/ThreadDetail';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { MessageThread } from '@/features/messages/types';
 import { FilterChips } from './FilterChips';
+
+// Reserve vertical space while messages load so deferred content doesn't
+// push the page down. ~280px matches a typical loaded list with a few rows.
+// INTENT: prevent CLS on /secretary/dashboard.
+export const MESSAGES_TAB_RESERVED_MIN_HEIGHT_PX = 280;
 
 interface Show {
   id: string;
@@ -46,20 +52,26 @@ export function MessagesTab({ shows }: MessagesTabProps) {
     ? (showNameMap[selectedThread.show_id] ?? selectedThread.show_id)
     : '';
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-        Loading messages...
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
+      {/* FilterChips render in both loading and loaded branches so they don't
+          pop in and shift the thread list down when loading completes
+          (mirrors the TasksTab pattern). */}
       <FilterChips options={filterOptions} active={filter} onChange={setFilter} />
 
-      {/* Thread list */}
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div
+          data-testid="messages-tab-skeleton"
+          className="space-y-2"
+          style={{ minHeight: `${MESSAGES_TAB_RESERVED_MIN_HEIGHT_PX}px` }}
+          aria-busy="true"
+          aria-label="Loading messages"
+        >
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
           <MessageSquare className="h-8 w-8 opacity-40" />
           <p className="text-sm">No messages yet.</p>

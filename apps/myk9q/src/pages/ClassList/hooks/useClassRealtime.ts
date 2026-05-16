@@ -106,7 +106,22 @@ export function useClassRealtime(
       // swallow a secretary-side reorder — the local sort would keep showing
       // the stale order until the next manual refetch. Show-day reorders are
       // time-pressured, so fall through to a full refetch instead.
+      //
+      // PERF GUARD: Supabase realtime only includes the PK in `payload.old`
+      // unless the table is `REPLICA IDENTITY FULL`. The `classes` table is
+      // currently `REPLICA IDENTITY DEFAULT`, so `oldRecord.display_order` is
+      // always undefined. After migration 136 every row has a numeric
+      // `display_order`, which would make this branch fire on EVERY status
+      // update and refetch the ringside hot path. Gate on `oldRecord` actually
+      // carrying the column so we only fall through when the comparison is
+      // meaningful (i.e., once RI FULL is enabled). Until then, reorders
+      // propagate via the next replication / polling cycle rather than
+      // immediately — an acceptable tradeoff over a per-update refetch storm
+      // during scoring.
+      const oldHasDisplayOrder =
+        oldRecord != null && 'display_order' in oldRecord;
       const reorderChanged =
+        oldHasDisplayOrder &&
         typeof newRecord.display_order === 'number' &&
         newRecord.display_order !== oldRecord.display_order;
 

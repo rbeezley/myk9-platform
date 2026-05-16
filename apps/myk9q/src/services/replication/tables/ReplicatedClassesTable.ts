@@ -28,6 +28,15 @@ export interface Class {
   briefing_time?: string;
   break_until?: string;
   start_time?: string;
+  /**
+   * Class display order within a trial. Source of truth is `classes.display_order`
+   * in Supabase (migration 136); secretary-side reorders in myK9Show write this
+   * column via `replicatedClassesTable.updateClass({ displayOrder })`. myK9Q must
+   * sort by this — `class_order` is a legacy alias only present on
+   * `view_class_summary` and must not be used as the primary sort key.
+   */
+  display_order?: number;
+  /** Legacy alias from `view_class_summary`; kept for the Supabase fallback path. */
   class_order?: number;
   self_checkin_enabled?: boolean;
   realtime_results_enabled?: boolean;
@@ -43,6 +52,25 @@ export interface Class {
   last_result_at?: string; // Timestamp of last synced result (for stale data detection)
   created_at?: string;
   updated_at?: string;
+}
+
+/**
+ * Resolve the sort key for a class.
+ *
+ * Prefers `display_order` (the canonical column secretaries reorder against in
+ * myK9Show) and falls back to `class_order` (legacy view alias) when the
+ * canonical column is absent. Returns `Number.MAX_SAFE_INTEGER` for fully
+ * undefined values so unordered rows sink to the end rather than crowding 0.
+ *
+ * Exported so call sites that flatten this type (e.g. `useClassListFetch`)
+ * apply the same precedence and we don't drift again.
+ */
+export function getClassSortKey(
+  cls: Pick<Class, 'display_order' | 'class_order'>
+): number {
+  if (typeof cls.display_order === 'number') return cls.display_order;
+  if (typeof cls.class_order === 'number') return cls.class_order;
+  return Number.MAX_SAFE_INTEGER;
 }
 
 export class ReplicatedClassesTable extends ReplicatedTable<Class> {
@@ -233,8 +261,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
     // Use indexed query for much better performance
     const classes = await this.queryByField('trial_id', trialId);
 
-    // Sort by class_order
-    return classes.sort((a, b) => (a.class_order || 0) - (b.class_order || 0));
+    // Sort by display_order (canonical) with class_order fallback. See
+    // getClassSortKey() above for the rationale.
+    return classes.sort((a, b) => getClassSortKey(a) - getClassSortKey(b));
   }
 
   /**
@@ -252,7 +281,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
     const allClasses = await this.getAll();
     return allClasses
       .filter(cls => cls.element === element)
-      .sort((a, b) => (a.class_order || 0) - (b.class_order || 0));
+      .sort((a, b) => getClassSortKey(a) - getClassSortKey(b));
   }
 
   /**
@@ -262,7 +291,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
     const allClasses = await this.getAll();
     return allClasses
       .filter(cls => cls.level === level)
-      .sort((a, b) => (a.class_order || 0) - (b.class_order || 0));
+      .sort((a, b) => getClassSortKey(a) - getClassSortKey(b));
   }
 
   /**
@@ -272,7 +301,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
     const allClasses = await this.getAll();
     return allClasses
       .filter(cls => cls.self_checkin_enabled === true)
-      .sort((a, b) => (a.class_order || 0) - (b.class_order || 0));
+      .sort((a, b) => getClassSortKey(a) - getClassSortKey(b));
   }
 
   /**

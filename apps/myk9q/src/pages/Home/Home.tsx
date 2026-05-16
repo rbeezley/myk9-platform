@@ -8,6 +8,7 @@ import { usePrefetch } from '@/hooks/usePrefetch';
 import { supabase } from '../../lib/supabase';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
 import type { Class } from '@/services/replication';
+import { getClassSortKey } from '@/services/replication/tables/ReplicatedClassesTable';
 import { HamburgerMenu, CompactOfflineIndicator, ArmbandBadge, TrialDateBadge, RefreshIndicator, ErrorState, PullToRefresh, InstallPrompt, TabBar, FilterPanel, FilterTriggerButton } from '../../components/ui';
 import type { Tab, SortOption } from '../../components/ui';
 import { useHapticFeedback, useLongPress } from '@myk9/scoring-ui';
@@ -258,9 +259,13 @@ export const Home: React.FC = () => {
           const classesTable = manager.getTable('classes');
           if (classesTable) {
             const allClasses = await classesTable.getAll() as Class[];
+            // Sort via the shared helper so this prefetch cache uses the
+            // same display_order-first precedence as the live ClassList path.
+            // Replicated rows don't carry `class_order` (legacy view alias);
+            // routing through getClassSortKey() prevents drift.
             const trialClasses = allClasses
               .filter(c => String(c.trial_id) === String(trialId))
-              .sort((a, b) => (a.class_order || 0) - (b.class_order || 0));
+              .sort((a, b) => getClassSortKey(a) - getClassSortKey(b));
 
             if (trialClasses.length > 0) {
               logger.log('📡 Prefetched trial classes from cache:', trialId, trialClasses.length);

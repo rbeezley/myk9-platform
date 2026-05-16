@@ -6,6 +6,7 @@ import { logger } from '../../../utils/logger';
 import { prefetchCache } from '@/services/replication/PrefetchCacheManager';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
 import type { Class } from '@/services/replication/tables/ReplicatedClassesTable';
+import { getClassSortKey } from '@/services/replication/tables/ReplicatedClassesTable';
 import type { Entry } from '@/services/replication/tables/ReplicatedEntriesTable';
 
 // ============================================================
@@ -275,7 +276,14 @@ async function processClassesWithEntries(
       level: cls.level,
       section: cls.section || '',
       class_name: className,
-      class_order: cls.class_order || 999,
+      // Canonical secretary-controlled order is `display_order` (migration 136).
+      // `class_order` is the legacy alias exposed by `view_class_summary` only,
+      // so the replicated path must prefer display_order or myK9Show reorders
+      // won't reach ringside.
+      class_order: (() => {
+        const key = getClassSortKey(cls);
+        return key === Number.MAX_SAFE_INTEGER ? 999 : key;
+      })(),
       judge_name: cls.judge_name || 'TBA',
       entry_count: entryCount,
       completed_count: completedCount,

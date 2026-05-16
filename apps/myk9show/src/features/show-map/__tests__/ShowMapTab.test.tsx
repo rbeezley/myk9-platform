@@ -20,7 +20,7 @@ const trial = {
 } as SyncableTrial;
 
 describe('ShowMapTab', () => {
-  it('renders a show-map hub with counts, hierarchy, and capped entries', async () => {
+  it('renders counts, hierarchy, and capped entries', async () => {
     const entries = Array.from({ length: 27 }, (_, index) => ({
       id: `entry-${index}`,
       class_id: 'class-1',

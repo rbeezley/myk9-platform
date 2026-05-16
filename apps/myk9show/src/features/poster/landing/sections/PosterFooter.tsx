@@ -142,7 +142,7 @@ export function PosterFooter({
           color: 'rgba(243,237,224,0.5)',
         }}
       >
-        <span>© {new Date().getFullYear()} {clubName.toUpperCase() || 'BCKC'}</span>
+        <span>© {new Date().getFullYear()} {(clubName || 'BCKC').toUpperCase()}</span>
         <span>PUBLISHED VIA myK9Show</span>
       </div>
     </footer>

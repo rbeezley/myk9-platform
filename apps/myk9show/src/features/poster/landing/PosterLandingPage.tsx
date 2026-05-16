@@ -67,11 +67,13 @@ export function PosterLandingPage({ show, trial, allTrials }: PosterLandingPageP
     return data.showName.slice(0, 4).toUpperCase();
   })();
 
-  // Build a license label for the masthead — fall back to license language.
-  const trialYear = data.trialStartDate
-    ? new Date(data.trialStartDate).getFullYear()
-    : null;
-  const licenseLabel = trialYear ? `AKC LICENSE №\n${trialYear}—${(show?.id ?? '').slice(0, 4).toUpperCase()}` : null;
+  // Masthead license label: we deliberately do NOT synthesize a fake
+  // "AKC LICENSE № YYYY—XXXX" string from the show UUID — that misled
+  // readers into thinking the value was a real registry number. Until the
+  // data model carries an actual license number (e.g., a
+  // `shows.akc_license_number` column), the masthead slot stays empty.
+  // The footer + Particulars table already surface the license language.
+  const licenseLabel: string | null = null;
 
   return (
     <div data-poster style={{ background: posterColors.cream, color: posterColors.ink }}>

@@ -120,7 +120,12 @@ export function PosterEntryReceived({
             color: posterColors.inkSoft,
           }}
         >
-          {showName.toUpperCase()} · {clubName.toUpperCase()} · {dateRange.toUpperCase()}
+          {/* Defensive — HeritageEntryReceivedProps types these as `string`,
+              but the registration workflow can supply transient empty / nullish
+              values during step transitions. Coalesce before uppercasing so the
+              receipt never throws on a NPE during a re-render. */}
+          {(showName ?? '').toUpperCase()} · {(clubName ?? '').toUpperCase()} ·{' '}
+          {(dateRange ?? '').toUpperCase()}
         </p>
       </header>
 
@@ -156,7 +161,7 @@ export function PosterEntryReceived({
             color: posterColors.ink,
           }}
         >
-          {dogRegisteredName.toUpperCase()}
+          {(dogRegisteredName ?? '').toUpperCase()}
         </p>
         {dogCallName && (
           <p

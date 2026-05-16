@@ -60,7 +60,10 @@ export function PosterTitleStack({
           fontSize: Math.max(18, size),
           letterSpacing: '-0.045em',
           lineHeight: 0.82,
-          textWrap: 'nowrap',
+          // `whiteSpace: nowrap` is the long-supported equivalent of
+          // CSS-Text-4's `text-wrap: nowrap` and ships in every browser
+          // engine the rest of this app already targets.
+          whiteSpace: 'nowrap',
           display: 'block',
         };
 

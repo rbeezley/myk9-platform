@@ -209,6 +209,75 @@ export interface BannerConfirmationProps {
   showSlug: string | null;
 }
 
+// ─── Poster Confirmation Email ───────────────────────────────────────────────
+
+export interface PosterRunRow {
+  /** Zero-padded numeral from trial_number, e.g. "01", "03". */
+  trialNumeral: string;
+  /** Formatted date, e.g. "FRI JUN 12". */
+  dayLabel: string;
+  /** "EX · Containers" */
+  classLabel: string;
+  /** Judge display name. */
+  judgeName: string;
+  /** Armband number (may be null if not yet assigned). */
+  armband: string | null;
+}
+
+export interface PosterConfirmationProps {
+  // Header / masthead
+  clubName: string;
+  clubCity: string | null;
+  showTitle: string;
+  /** e.g. "Jun 12–14, 2026" */
+  dateRange: string;
+  /** Show abbreviation, e.g. "SS'26" — used in the top mono strip. */
+  showAbbreviation: string | null;
+
+  // Greeting
+  /** Full salutation name, e.g. "Sarah" */
+  salutation: string;
+
+  // Hero
+  /** Primary armband number for the headline. May be null. */
+  armband: string | null;
+
+  // Entry detail card
+  dogRegisteredName: string;
+  dogCallName: string | null;
+  dogBreed: string | null;
+  dogSex: string | null;
+  runs: PosterRunRow[];
+  runCount: number;
+  totalFeesFormatted: string;
+  /** e.g. "2026-0137" */
+  receiptNumber: string | null;
+
+  // On the day
+  doorsTime: string | null;
+  firstClassTime: string | null;
+  venueNameAndAddress: string | null;
+  parkingNotes: string | null;
+  hospitalityNotes: string | null;
+  cratingNotes: string | null;
+
+  // Withdraw / contact
+  secretaryEmail: string | null;
+  secretaryPhone: string | null;
+
+  // CTA
+  trialUrl: string | null;
+
+  // Signature
+  trialChairName: string | null;
+  trialChairTitle: string | null;
+
+  // Footer
+  memberClubLanguage: string;
+  licenseLanguage: string;
+  showSlug: string | null;
+}
+
 export interface RegistrationConfirmationProps {
   firstName: string;
   confirmationNumber: string;

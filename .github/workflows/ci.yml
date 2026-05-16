@@ -65,7 +65,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared packages
-        run: pnpm build --filter=@myk9/core --filter=@myk9/notifications --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/secretary --filter=@myk9/supabase --filter=@myk9/ui
+        # Build every package in ./packages/* automatically — new packages get
+        # picked up without a workflow edit. Previously enumerated by name,
+        # which rotted when @myk9/pwa-update and @myk9/email were added.
+        run: pnpm -r --filter='./packages/*' build
 
       - name: Test packages
         run: pnpm test:packages -- --coverage

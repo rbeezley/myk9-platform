@@ -1,4 +1,6 @@
 import {
+  ArrowUpCircle,
+  Ban,
   ClipboardCheck,
   ClipboardList,
   DoorOpen,
@@ -16,16 +18,21 @@ export const showMapBadgeTargets = {
   entry: ['armband', 'check-in status', 'move-up/scratch/absent status', 'score status'],
 } as const;
 
-export type ShowMapActionId =
-  | 'resolve-check-in-conflict'
-  | 'review-entry'
-  | 'score-class'
-  | 'open-class'
-  | 'print-check-in-sheet'
-  | 'open-schedule'
-  | 'print-trial-reports'
-  | 'message-handler'
-  | 'mark-checked-in';
+export const showMapActionIds = [
+  'resolve-check-in-conflict',
+  'review-entry',
+  'score-class',
+  'open-class',
+  'print-check-in-sheet',
+  'open-schedule',
+  'print-trial-reports',
+  'mark-checked-in',
+  'move-up-entry',
+  'scratch-entry',
+  'message-handler',
+] as const;
+
+export type ShowMapActionId = (typeof showMapActionIds)[number];
 
 export interface ShowMapAction {
   id: ShowMapActionId;
@@ -125,6 +132,28 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
           why: 'Prepare this entry for the gate',
           priority: 35,
           icon: ClipboardCheck,
+        },
+        undefined
+      ),
+      withHref(
+        {
+          id: 'move-up-entry',
+          nodeId: node.id,
+          label: 'Move up',
+          why: 'Move this entry to the next eligible class',
+          priority: 32,
+          icon: ArrowUpCircle,
+        },
+        undefined
+      ),
+      withHref(
+        {
+          id: 'scratch-entry',
+          nodeId: node.id,
+          label: 'Scratch / no-show',
+          why: 'Mark this entry absent for ring flow',
+          priority: 30,
+          icon: Ban,
         },
         undefined
       ),

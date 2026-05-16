@@ -10,22 +10,35 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getRankedActions, getRecommendedActions } from './showMapActions';
 import type { ShowMapAction } from './showMapActions';
+import {
+  resolveShowMapActionExecution,
+  type ExecutableShowMapActionExecution,
+} from './showMapActionExecution';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
 
 interface ShowMapRowActionsMenuProps {
   node: ShowMapNode;
   tree: ShowMapTree;
   onNavigate?: ((href: string) => void) | undefined;
+  onAction?:
+    | ((action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void)
+    | undefined;
   openSignal?: number | undefined;
 }
 
-function ActionContent({ action, showWhy = false }: { action: ShowMapAction; showWhy?: boolean }) {
+function ActionContent({
+  action,
+  subtext,
+}: {
+  action: ShowMapAction;
+  subtext?: string | undefined;
+}) {
   return (
     <>
       <action.icon className="mt-0.5 h-4 w-4 shrink-0" />
       <span className="min-w-0">
         <span className="block text-sm font-medium">{action.label}</span>
-        {showWhy && <span className="block text-xs text-muted-foreground">{action.why}</span>}
+        {subtext && <span className="block text-xs text-muted-foreground">{subtext}</span>}
       </span>
     </>
   );
@@ -35,6 +48,7 @@ export function ShowMapRowActionsMenu({
   node,
   tree,
   onNavigate,
+  onAction,
   openSignal,
 }: ShowMapRowActionsMenuProps) {
   const [manualOpen, setManualOpen] = useState(false);
@@ -49,6 +63,26 @@ export function ShowMapRowActionsMenu({
   const handleOpenChange = (open: boolean) => {
     setManualOpen(open);
     if (!open) setDismissedOpenSignal(openSignal ?? 0);
+  };
+  const handleAction = (action: ShowMapAction) => {
+    const execution = resolveShowMapActionExecution(action);
+    if (execution.kind === 'disabled') return;
+    if (execution.kind === 'navigate') {
+      onNavigate?.(execution.href);
+      return;
+    }
+    onAction?.(action, execution);
+  };
+  const getActionProps = (action: ShowMapAction, showWhy = false) => {
+    const execution = resolveShowMapActionExecution(action);
+    const isDisabled = execution.kind === 'disabled';
+    const subtext = isDisabled ? execution.disabledReason : showWhy ? action.why : undefined;
+
+    return {
+      disabled: isDisabled,
+      subtext,
+      onClick: isDisabled ? undefined : () => handleAction(action),
+    };
   };
 
   return (
@@ -70,29 +104,35 @@ export function ShowMapRowActionsMenu({
             <div className="px-2 py-1.5 text-xs font-semibold uppercase text-muted-foreground">
               Recommended
             </div>
-            {recommendedActions.map(action => (
-              <DropdownMenuItem
-                key={`${action.id}:${action.nodeId}:recommended`}
-                disabled={!action.href}
-                className="items-start gap-3 py-2"
-                {...(action.href ? { onClick: () => onNavigate?.(action.href!) } : {})}
-              >
-                <ActionContent action={action} showWhy />
-              </DropdownMenuItem>
-            ))}
+            {recommendedActions.map(action => {
+              const actionProps = getActionProps(action, true);
+              return (
+                <DropdownMenuItem
+                  key={`${action.id}:${action.nodeId}:recommended`}
+                  disabled={actionProps.disabled}
+                  className="items-start gap-3 py-2"
+                  {...(actionProps.onClick ? { onClick: actionProps.onClick } : {})}
+                >
+                  <ActionContent action={action} subtext={actionProps.subtext} />
+                </DropdownMenuItem>
+              );
+            })}
             <DropdownMenuSeparator />
           </>
         )}
-        {allActions.map(action => (
-          <DropdownMenuItem
-            key={`${action.id}:${action.nodeId}`}
-            disabled={!action.href}
-            className="gap-3"
-            {...(action.href ? { onClick: () => onNavigate?.(action.href!) } : {})}
-          >
-            <ActionContent action={action} />
-          </DropdownMenuItem>
-        ))}
+        {allActions.map(action => {
+          const actionProps = getActionProps(action);
+          return (
+            <DropdownMenuItem
+              key={`${action.id}:${action.nodeId}`}
+              disabled={actionProps.disabled}
+              className="items-start gap-3"
+              {...(actionProps.onClick ? { onClick: actionProps.onClick } : {})}
+            >
+              <ActionContent action={action} subtext={actionProps.subtext} />
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -4,9 +4,9 @@ import {
   classifyClassStatus,
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
-  hasEntryAttention,
   isEntryComplete,
 } from './showMapStatus';
+import { getEntryAttention } from './attention';
 import {
   getShowMapClassHref,
   getShowMapClassScoringHref,
@@ -175,7 +175,7 @@ export function buildShowMapTree({
     const completedClasses = trialClasses.filter(
       cls => classifyClassStatus(cls.status)?.kind === 'complete'
     ).length;
-    const attentionCount = trialEntries.filter(hasEntryAttention).length;
+    const attentionCount = trialEntries.filter(entry => getEntryAttention(entry) !== null).length;
     const trialNode: ShowMapNode = {
       id: getShowMapNodeId('trial', trial.id),
       type: 'trial',
@@ -195,7 +195,7 @@ export function buildShowMapTree({
 
     for (const cls of trialClasses) {
       const classEntries = sortEntries(entriesByClassId.get(cls.id) ?? []);
-      const attentionCountForClass = classEntries.filter(hasEntryAttention).length;
+      const attentionCountForClass = classEntries.filter(entry => getEntryAttention(entry) !== null).length;
       const classNode: ShowMapNode = {
         id: getShowMapNodeId('class', cls.id),
         type: 'class',
@@ -246,7 +246,7 @@ export function buildShowMapTree({
   tree.root.count = trials.length;
   tree.root.subtitle = `${trials.length} trials · ${totalClasses} classes · ${entries.length} entries`;
   tree.root.progress = buildProgress(completedEntries, entries.length, 'entries');
-  tree.root.attentionCount = entries.filter(hasEntryAttention).length;
+  tree.root.attentionCount = entries.filter(entry => getEntryAttention(entry) !== null).length;
 
   return tree;
 }

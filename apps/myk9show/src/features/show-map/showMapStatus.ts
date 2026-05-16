@@ -26,7 +26,6 @@ const SCRATCH_ENTRY_STATUSES = new Set([
   'cancelled',
   'canceled',
 ]);
-const ATTENTION_ENTRY_STATUSES = new Set(['conflict', 'failed', 'rejected']);
 
 function readString(record: ShowMapEntryInput, key: string): string | undefined {
   const value = record[key];
@@ -58,13 +57,6 @@ export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplay
   const entryStatus = readString(entry, 'entry_status')?.toLowerCase();
   const resultStatus = readString(entry, 'result_status')?.toLowerCase();
   const checkInStatus = readString(entry, 'check_in_status')?.toLowerCase();
-
-  if (
-    entryStatus &&
-    (ATTENTION_ENTRY_STATUSES.has(entryStatus) || entryStatus.includes('conflict'))
-  ) {
-    return { value: entryStatus, label: 'Needs attention', kind: 'attention' };
-  }
 
   if (checkInStatus === 'conflict') {
     return { value: checkInStatus, label: 'Needs attention', kind: 'attention' };
@@ -133,13 +125,6 @@ export function classifyEntryCheckInStatus(
 
 export function isEntryComplete(entry: ShowMapEntryInput): boolean {
   return classifyEntryRunStatus(entry)?.kind === 'complete';
-}
-
-export function hasEntryAttention(entry: ShowMapEntryInput): boolean {
-  return (
-    classifyEntryRunStatus(entry)?.kind === 'attention' ||
-    classifyEntryCheckInStatus(entry)?.kind === 'attention'
-  );
 }
 
 export function buildProgress(

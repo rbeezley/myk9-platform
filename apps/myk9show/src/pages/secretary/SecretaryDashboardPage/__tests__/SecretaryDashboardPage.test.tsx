@@ -13,6 +13,8 @@ let mockPendingEntries: Array<{
   handlerName: string;
   dogName: string;
   submittedAt: string;
+  entry_status: string | null;
+  check_in_status: string | null;
 }> = [];
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -111,6 +113,8 @@ describe('SecretaryDashboardPage', () => {
         handlerName: 'Ada Handler',
         dogName: 'Ace',
         submittedAt: '2026-05-11T12:00:00Z',
+        entry_status: 'submitted',
+        check_in_status: null,
       },
       {
         id: 'entry-2',
@@ -120,6 +124,8 @@ describe('SecretaryDashboardPage', () => {
         handlerName: 'Bea Handler',
         dogName: 'Bravo',
         submittedAt: '2026-05-11T12:01:00Z',
+        entry_status: 'submitted',
+        check_in_status: null,
       },
     ];
 

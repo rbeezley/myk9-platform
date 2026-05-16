@@ -31,6 +31,8 @@ const mockEntry: PendingEntry = {
   handlerName: 'John Smith',
   dogName: 'Buddy',
   submittedAt: '2026-04-15T10:00:00Z',
+  entry_status: 'submitted',
+  check_in_status: null,
 };
 
 describe('EntryDecisionRow', () => {

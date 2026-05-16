@@ -10,6 +10,11 @@ import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
 import { useMyShows } from '@/hooks/useMyShows';
+import {
+  emptyAttentionCounts,
+  getEntryAttention,
+  type AttentionCounts,
+} from '@/features/show-map/attention';
 import type { SecretaryTask } from './types';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
 import { MyShowsSection } from './MyShowsSection';
@@ -41,29 +46,58 @@ export function SecretaryDashboardPage() {
 
   const { data: pendingEntries = [] } = usePendingEntries();
 
-  const pendingByShow = useMemo(() => {
-    const map = new Map<string, { showName: string; count: number }>();
+  const attentionByShow = useMemo(() => {
+    const map = new Map<string, { showName: string; counts: AttentionCounts }>();
     const managedShowIds = new Set(shows.map(show => show.id));
     for (const entry of pendingEntries) {
       if (!managedShowIds.has(entry.showId)) continue;
-      const existing = map.get(entry.showId);
-      if (existing) {
-        existing.count++;
-      } else {
-        map.set(entry.showId, { showName: entry.showName, count: 1 });
+      let bucket = map.get(entry.showId);
+      if (!bucket) {
+        bucket = { showName: entry.showName, counts: emptyAttentionCounts() };
+        map.set(entry.showId, bucket);
+      }
+      const reason = getEntryAttention(entry);
+      if (reason) {
+        bucket.counts[reason]++;
+        bucket.counts.total++;
       }
     }
     return map;
   }, [pendingEntries, shows]);
 
   const attentionNeeded = [
-    ...[...pendingByShow.entries()].map(([showId, { showName, count }]) => ({
-      showId,
-      showName,
-      kind: 'info' as const,
-      text: `${count} ${count === 1 ? 'entry' : 'entries'} pending review`,
-      href: `/secretary/entries/${showId}`,
-    })),
+    ...[...attentionByShow.entries()].flatMap(([showId, { showName, counts }]) => {
+      const rows: Array<{
+        showId: string;
+        showName: string;
+        kind: 'info' | 'urgent';
+        text: string;
+        href: string;
+      }> = [];
+      if (counts.check_in_conflict > 0) {
+        rows.push({
+          showId,
+          showName,
+          kind: 'urgent',
+          text: `${counts.check_in_conflict} ${
+            counts.check_in_conflict === 1 ? 'entry' : 'entries'
+          } with check-in conflicts`,
+          href: `/secretary/entries/${showId}`,
+        });
+      }
+      if (counts.pending_review > 0) {
+        rows.push({
+          showId,
+          showName,
+          kind: 'info',
+          text: `${counts.pending_review} ${
+            counts.pending_review === 1 ? 'entry' : 'entries'
+          } pending review`,
+          href: `/secretary/entries/${showId}`,
+        });
+      }
+      return rows;
+    }),
     ...showAttentionItems,
   ];
 

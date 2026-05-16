@@ -65,6 +65,10 @@ export interface PendingEntry {
   handlerName: string;
   dogName: string;
   submittedAt: string;
+  /** Raw entry_status — consumed by getEntryAttention() for unified classification. */
+  entry_status: string | null;
+  /** Raw check_in_status — consumed by getEntryAttention() for unified classification. */
+  check_in_status: string | null;
 }
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -81,13 +85,17 @@ function toPendingEntry(row: Record<string, unknown>): PendingEntry {
     handlerName: person ? `${person.first_name} ${person.last_name}` : '',
     dogName: dog?.call_name ?? '',
     submittedAt: (row.submitted_at ?? row.created_at) as string,
+    entry_status: (row.entry_status as string | null) ?? null,
+    check_in_status: (row.check_in_status as string | null) ?? null,
   };
 }
 
 export const getPendingEntries = async (showIdFilter?: string): Promise<PendingEntry[]> => {
   let query = supabase
     .from('entries')
-    .select('id, show_id, submitted_at, dogs(call_name), people(first_name, last_name), classes(name), shows(name)')
+    .select(
+      'id, show_id, submitted_at, entry_status, check_in_status, dogs(call_name), people(first_name, last_name), classes(name), shows(name)'
+    )
     .eq('entry_status', 'submitted');
 
   if (showIdFilter && showIdFilter !== 'all') {

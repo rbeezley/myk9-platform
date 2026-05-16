@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  classifyEntryCheckInStatus,
-  classifyEntryRunStatus,
-  hasEntryAttention,
-} from '../showMapStatus';
+import { classifyEntryCheckInStatus, classifyEntryRunStatus } from '../showMapStatus';
 
 describe('showMapStatus', () => {
   it('keeps check-in and run status independent', () => {
@@ -17,7 +13,7 @@ describe('showMapStatus', () => {
     expect(classifyEntryCheckInStatus(entry)?.label).toBe('Checked in');
   });
 
-  it('prefers attention over other entry states', () => {
+  it('prefers check-in-conflict attention over other entry states', () => {
     const entry = {
       id: 'entry-1',
       entry_status: 'accepted',
@@ -26,7 +22,6 @@ describe('showMapStatus', () => {
     };
 
     expect(classifyEntryRunStatus(entry)?.label).toBe('Needs attention');
-    expect(hasEntryAttention(entry)).toBe(true);
   });
 
   it.each([

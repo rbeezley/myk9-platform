@@ -1,7 +1,10 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { MoreFromClub } from '@/components/shows/overview/MoreFromClub';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  MoreFromClub,
+  MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX,
+} from '@/components/shows/overview/MoreFromClub';
 
 // Mock React Router
 vi.mock('react-router-dom', () => ({
@@ -16,9 +19,14 @@ vi.mock('react-router-dom', () => ({
   }) => React.createElement('a', { href: to, ...props }, children),
 }));
 
+let mockIsLoading = false;
+
 // Mock useShowsByClubQuery — returns shows for the requested club
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsByClubQuery: (clubId: string) => {
+    if (mockIsLoading) {
+      return { data: undefined, isLoading: true };
+    }
     const allShows = [
       {
         id: 'show-1',
@@ -56,11 +64,25 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
         location: 'KC, MO',
       },
     ];
-    return { data: allShows.filter(s => s.clubId === clubId) };
+    return { data: allShows.filter(s => s.clubId === clubId), isLoading: false };
   },
 }));
 
 describe('MoreFromClub', () => {
+  beforeEach(() => {
+    mockIsLoading = false;
+  });
+
+  it('reserves min-height while loading to prevent CLS', () => {
+    mockIsLoading = true;
+    render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
+    const skeleton = screen.getByTestId('more-from-club-skeleton');
+    expect(skeleton).toBeInTheDocument();
+    expect((skeleton as HTMLElement).style.minHeight).toBe(
+      `${MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX}px`
+    );
+  });
+
   it('renders up to 3 shows from the same club', () => {
     render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
     expect(screen.getByText('Summer Trial')).toBeInTheDocument();

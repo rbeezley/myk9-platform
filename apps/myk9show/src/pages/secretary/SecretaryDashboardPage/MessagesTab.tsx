@@ -5,9 +5,15 @@ import { useMessageStore } from '@/store/messageStore';
 import { ThreadDetail } from '@/features/messages/components/ThreadDetail';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { MessageThread } from '@/features/messages/types';
 import { FilterChips } from './FilterChips';
+
+// Reserve vertical space while messages load so deferred content doesn't
+// push the page down. ~280px matches a typical loaded list with a few rows.
+// INTENT: prevent CLS on /secretary/dashboard.
+export const MESSAGES_TAB_RESERVED_MIN_HEIGHT_PX = 280;
 
 interface Show {
   id: string;
@@ -48,8 +54,19 @@ export function MessagesTab({ shows }: MessagesTabProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-        Loading messages...
+      <div
+        data-testid="messages-tab-skeleton"
+        className="space-y-4"
+        style={{ minHeight: `${MESSAGES_TAB_RESERVED_MIN_HEIGHT_PX}px` }}
+        aria-busy="true"
+        aria-label="Loading messages"
+      >
+        <Skeleton className="h-8 w-40" />
+        <div className="space-y-2">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
       </div>
     );
   }

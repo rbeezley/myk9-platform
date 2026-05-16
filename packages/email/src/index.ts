@@ -8,6 +8,8 @@ export type {
   MonogramRunRow,
   BannerConfirmationProps,
   BannerRunRow,
+  GazetteConfirmationProps,
+  GazetteRunRow,
 } from './types';
 export { HeritageConfirmationEmail } from './templates/HeritageConfirmationEmail';
 export { HC as HeritageTokens } from './heritageTokens';
@@ -17,6 +19,8 @@ export { MonogramConfirmationEmail } from './templates/MonogramConfirmationEmail
 export { MG as MonogramTokens } from './monogramTokens';
 export { BannerConfirmationEmail } from './templates/BannerConfirmationEmail';
 export { BN as BannerTokens } from './bannerTokens';
+export { GazetteConfirmationEmail } from './templates/GazetteConfirmationEmail';
+export { GZ as GazetteTokens } from './gazetteTokens';
 
 export { ConfirmEmail } from './templates/ConfirmEmail';
 export { ResetPassword } from './templates/ResetPassword';

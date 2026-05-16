@@ -209,6 +209,75 @@ export interface BannerConfirmationProps {
   showSlug: string | null;
 }
 
+// ─── Gazette Confirmation Email ──────────────────────────────────────────────
+//
+// Same shape as Heritage / Monogram / Banner — keeping props parallel
+// lets a future shared assembler (`buildConfirmationProps`) feed any of
+// the four templates without per-style branching.
+
+export interface GazetteRunRow {
+  /** Lowercase roman numeral from trial_number, e.g. "i", "iii". */
+  trialNumeral: string;
+  /** Formatted date, e.g. "Fri Jun 12". */
+  dayLabel: string;
+  /** "Excellent · Containers" */
+  classLabel: string;
+  /** Judge display name. */
+  judgeName: string;
+  /** Armband number (may be null if not yet assigned). */
+  armband: string | null;
+}
+
+export interface GazetteConfirmationProps {
+  // Masthead
+  clubName: string;
+  clubEstablished: string | null;
+  clubCity: string | null;
+  showTitle: string;
+  /** e.g. "Jun 12–14, 2026" */
+  dateRange: string;
+  /** Optional edition meta strip, e.g. "VOL LXXIX · NO 47". Omit on
+   *  Outlook-targeted sends per README §Open Questions Q5. */
+  editionLabel: string | null;
+
+  // Greeting
+  salutation: string;
+
+  // Entry detail card
+  dogRegisteredName: string;
+  dogCallName: string | null;
+  dogBreed: string | null;
+  dogSex: string | null;
+  runs: GazetteRunRow[];
+  runCount: number;
+  totalFeesFormatted: string;
+  /** e.g. "Receipt 2026-0137" */
+  receiptNumber: string | null;
+
+  // On the day
+  doorsTime: string | null;
+  firstClassTime: string | null;
+  venueNameAndAddress: string | null;
+  parkingNotes: string | null;
+  hospitalityNotes: string | null;
+  cratingNotes: string | null;
+
+  // Withdraw / contact
+  secretaryEmail: string | null;
+  secretaryPhone: string | null;
+
+  // CTA
+  trialUrl: string | null;
+
+  // Signature
+  trialChairName: string | null;
+  trialChairTitle: string | null;
+
+  // Footer
+  memberClubLanguage: string;
+  showSlug: string | null;
+}
+
 export interface RegistrationConfirmationProps {
   firstName: string;
   confirmationNumber: string;

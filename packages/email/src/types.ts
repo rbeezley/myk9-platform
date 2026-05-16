@@ -348,6 +348,79 @@ export interface GazetteConfirmationProps {
   showSlug: string | null;
 }
 
+// ─── Magazine Confirmation Email ─────────────────────────────────────────────
+
+export interface MagazineRunRow {
+  /** Lowercase Roman numeral from trial_number, e.g. "i", "iii". The
+   *  Magazine voice uses lowercase Roman numerals — "Trial i" reads like a
+   *  magazine plate caption, not a certificate. */
+  trialNumeral: string;
+  /** Formatted date, e.g. "Fri 12 Jun". */
+  dayLabel: string;
+  /** "Excellent · Containers" */
+  classLabel: string;
+  /** Judge display name. */
+  judgeName: string;
+  /** Armband number (may be null if not yet assigned). */
+  armband: string | null;
+}
+
+export interface MagazineConfirmationProps {
+  // Header
+  clubName: string;
+  clubEstablished: string | null;
+  clubCity: string | null;
+  showTitle: string;
+  /** e.g. "12–14 June 2026" */
+  dateRange: string;
+  /** e.g. "Vol LXXIX · Spring 2026" — edition kicker line at top of email. */
+  editionLabel: string;
+
+  // Greeting
+  /** Full salutation name, e.g. "Ms. Patricia Holloway" */
+  salutation: string;
+
+  // Entry detail card
+  dogRegisteredName: string;
+  dogCallName: string | null;
+  dogBreed: string | null;
+  dogSex: string | null;
+  runs: MagazineRunRow[];
+  runCount: number;
+  totalFeesFormatted: string;
+  /** e.g. "Receipt 2026-0137" */
+  receiptNumber: string | null;
+  /** Single armband number when all runs share one (typical AKC scent work).
+   *  Null when no armband is assigned or runs have different armbands. */
+  primaryArmband: string | null;
+
+  // On the day
+  doorsTime: string | null;
+  firstClassTime: string | null;
+  venueNameAndAddress: string | null;
+  parkingNotes: string | null;
+  hospitalityNotes: string | null;
+  cratingNotes: string | null;
+
+  // Withdraw / contact
+  secretaryEmail: string | null;
+  secretaryPhone: string | null;
+
+  // CTA
+  trialUrl: string | null;
+
+  // Signature
+  trialChairName: string | null;
+  trialChairTitle: string | null;
+
+  // Footer
+  memberClubLanguage: string;
+  showSlug: string | null;
+  /** e.g. "License № 2026-2841" — optional sanctioning ref for the footer
+   *  fine print. Null hides the line entirely. */
+  licenseReference: string | null;
+}
+
 // ─── Poster Confirmation Email ───────────────────────────────────────────────
 
 export interface PosterRunRow {

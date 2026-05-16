@@ -13,6 +13,10 @@ import { resolveEmailStyle, selectEmailBuilderKey } from './email-style-registry
 import { buildHeadlineHtml } from './headline-email.ts';
 import { buildMonogramHtml } from './monogram-email.ts';
 import { buildBannerHtml } from './banner-email.ts';
+import { buildFieldGuideHtml } from './fieldGuide-email.ts';
+import { buildGazetteHtml } from './gazette-email.ts';
+import { buildMagazineHtml } from './magazine-email.ts';
+import { buildPosterHtml } from './poster-email.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -96,6 +100,75 @@ function runsTable(runs: RunRow[]): string {
   <tr>${headerCells}</tr>
   ${rows}
 </table>`;
+}
+
+// ─── Per-style derivation helpers ────────────────────────────────────────────
+//
+// Field Guide / Gazette / Magazine / Poster each carry one or two
+// style-specific fields (showCode, editionLabel, showAbbreviation, etc.)
+// that aren't in the shared emailData shape. We derive them here rather
+// than make the dispatcher carry every per-style projection inline.
+//
+// These mirror the corresponding helpers on the app side
+// (apps/myk9show/src/features/<style>/.../*) but Deno can't import from
+// workspace packages, so the heuristics are duplicated. Keep them in
+// loose visual parity — exact-match is not required since both sides
+// derive from the same DB inputs.
+
+const NOISE_WORDS = new Set([
+  'the', 'and', 'of', 'at', 'a', 'an', 'for', 'in', 'on', 'to',
+]);
+
+/** Word-initials extractor used by deriveShowCode + deriveShowAbbreviation. */
+function initialsOf(text: string, maxChars: number): string {
+  const tokens = text
+    .replace(/[^A-Za-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(t => !NOISE_WORDS.has(t.toLowerCase()));
+  if (tokens.length === 0) return '';
+  if (tokens.length === 1) return tokens[0].slice(0, maxChars).toUpperCase();
+  return tokens.map(t => t[0]).join('').slice(0, maxChars).toUpperCase();
+}
+
+/** Compact ID for Field Guide top strip, e.g. "BCKC.2026.SS". Mirrors
+ *  apps/myk9show/src/features/fieldGuide/landing/utils/showCode.ts. */
+function deriveShowCode(clubName: string, showName: string, startDateIso: string | null): string {
+  const club = initialsOf(clubName, 6);
+  const show = initialsOf(showName, 2);
+  const year = startDateIso
+    ? String(new Date(startDateIso).getFullYear())
+    : String(new Date().getFullYear());
+  const parts = [club, year, show].filter(Boolean);
+  return parts.length > 0 ? parts.join('.') : 'TRIAL';
+}
+
+/** Short show abbreviation for Poster's mono strip, e.g. "SS'26". */
+function deriveShowAbbreviation(showName: string, startDateIso: string | null): string | null {
+  const initials = initialsOf(showName, 2);
+  if (!initials) return null;
+  const year = startDateIso ? new Date(startDateIso).getFullYear() : new Date().getFullYear();
+  return `${initials}'${String(year).slice(-2)}`;
+}
+
+/** Magazine kicker, e.g. "Vol I · Spring 2026". Derives a season from
+ *  the start month and a roman volume from year - established year (or
+ *  1 when established is unknown). Conservative default. */
+function deriveMagazineEditionLabel(startDateIso: string | null): string {
+  const date = startDateIso ? new Date(startDateIso) : new Date();
+  const month = date.getMonth(); // 0-11
+  const season =
+    month <= 1 || month === 11 ? 'Winter' :
+    month <= 4 ? 'Spring' :
+    month <= 7 ? 'Summer' : 'Autumn';
+  return `${season} ${date.getFullYear()}`;
+}
+
+/** Gazette edition strip, e.g. "VOL LXXIX · NO 47". Optional — return
+ *  null to suppress (per the Gazette README §Open Questions Q5, Outlook
+ *  renders the strip poorly). Null until we ship a real edition source. */
+function deriveGazetteEditionLabel(): string | null {
+  return null;
 }
 
 function buildHtml(data: {
@@ -534,6 +607,12 @@ Deno.serve(async (req: Request) => {
             .map(w => w[0]!.toUpperCase())
             .join('') || '?';
 
+        // Single armband across all runs for this entry (the dispatcher
+        // is per-entry per-trial with a single run in scope, so all four
+        // sibling styles that take a top-level armband field share the
+        // same value).
+        const primaryArmband = emailData.runs[0]?.armband ?? null;
+
         let html: string;
         if (emailBuilder === 'headline') {
           html = buildHeadlineHtml(emailData);
@@ -548,6 +627,38 @@ Deno.serve(async (req: Request) => {
           html = buildBannerHtml({
             ...emailData,
             brandColor: typeof brandColor === 'string' ? brandColor : '#0d4d4f',
+          });
+        } else if (emailBuilder === 'fieldGuide') {
+          // armbandNumber is optional — Field Guide's builder derives it
+          // from runs when omitted. We pass it through explicitly so the
+          // chip surfaces with the same value as the data row.
+          html = buildFieldGuideHtml({
+            ...emailData,
+            showCode: deriveShowCode(emailData.clubName, emailData.showTitle, show.start_date),
+            armbandNumber: primaryArmband,
+          });
+        } else if (emailBuilder === 'gazette') {
+          html = buildGazetteHtml({
+            ...emailData,
+            editionLabel: deriveGazetteEditionLabel(),
+          });
+        } else if (emailBuilder === 'magazine') {
+          html = buildMagazineHtml({
+            ...emailData,
+            editionLabel: deriveMagazineEditionLabel(show.start_date),
+            primaryArmband,
+            // No license-reference column yet — leave the footer line off
+            // until a `shows.license_reference` field lands.
+            licenseReference: null,
+          });
+        } else if (emailBuilder === 'poster') {
+          html = buildPosterHtml({
+            ...emailData,
+            showAbbreviation: deriveShowAbbreviation(emailData.showTitle, show.start_date),
+            armband: primaryArmband,
+            // Constant for now — every supported show is AKC-licensed.
+            // Promote to a column read once non-AKC trials land.
+            licenseLanguage: 'An AKC Licensed Trial',
           });
         } else {
           html = buildHtml(emailData);

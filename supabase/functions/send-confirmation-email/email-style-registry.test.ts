@@ -15,18 +15,18 @@ describe('confirmation email style registry', () => {
     ]);
   });
 
-  it('routes each style to its assigned builder (4-way dispatch)', () => {
-    // Headline, Monogram, and Banner have dedicated builders;
-    // magazine/poster/gazette/fieldGuide currently fall back to Heritage
-    // until their own builders ship.
+  it('routes each style to its own dedicated builder (8-way dispatch)', () => {
+    // All eight styles now have dedicated builders — Heritage is no
+    // longer the catch-all fallback. Any future style added without a
+    // builder must explicitly map to one (or extend this dispatch).
+    expect(selectEmailBuilderKey('heritage')).toBe('heritage');
     expect(selectEmailBuilderKey('headline')).toBe('headline');
     expect(selectEmailBuilderKey('monogram')).toBe('monogram');
     expect(selectEmailBuilderKey('banner')).toBe('banner');
-    expect(selectEmailBuilderKey('heritage')).toBe('heritage');
-    expect(selectEmailBuilderKey('magazine')).toBe('heritage');
-    expect(selectEmailBuilderKey('poster')).toBe('heritage');
-    expect(selectEmailBuilderKey('gazette')).toBe('heritage');
-    expect(selectEmailBuilderKey('fieldGuide')).toBe('heritage');
+    expect(selectEmailBuilderKey('fieldGuide')).toBe('fieldGuide');
+    expect(selectEmailBuilderKey('gazette')).toBe('gazette');
+    expect(selectEmailBuilderKey('magazine')).toBe('magazine');
+    expect(selectEmailBuilderKey('poster')).toBe('poster');
   });
 
   it('normalizes legacy and unknown style values safely', () => {

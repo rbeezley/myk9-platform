@@ -15,6 +15,10 @@ import { HeritageEntryReceived } from '@/features/heritage/wizard/HeritageEntryR
 import { HeadlineEntryReceived } from '@/features/headline/wizard/HeadlineEntryReceived';
 import { MonogramEntryReceived } from '@/features/monogram/wizard/MonogramEntryReceived';
 import { BannerEntryReceived } from '@/features/banner/wizard/BannerEntryReceived';
+import { FieldGuideEntryReceived } from '@/features/fieldGuide/wizard/FieldGuideEntryReceived';
+import { GazetteEntryReceived } from '@/features/gazette/wizard/GazetteEntryReceived';
+import { MagazineEntryReceived } from '@/features/magazine/wizard/MagazineEntryReceived';
+import { PosterEntryReceived } from '@/features/poster/wizard/PosterEntryReceived';
 import { buildMonogram } from '@/features/monogram/utils/buildMonogram';
 import {
   ClassSelectionData,
@@ -109,7 +113,16 @@ export function WorkflowStepContent({
     if (currentStepId !== 'confirmation') return null;
     const currentShow = shows.find(s => s.id === showId);
     const style = getShowStyle(currentShow);
-    if (style !== 'heritage' && style !== 'headline' && style !== 'monogram' && style !== 'banner')
+    if (
+      style !== 'heritage' &&
+      style !== 'headline' &&
+      style !== 'monogram' &&
+      style !== 'banner' &&
+      style !== 'fieldGuide' &&
+      style !== 'gazette' &&
+      style !== 'magazine' &&
+      style !== 'poster'
+    )
       return null;
 
     const firstTrial = allTrials.find(t => t.showId === showId);
@@ -300,6 +313,14 @@ export function WorkflowStepContent({
             {...styledReceiptProps}
             brandColor={styledReceipt.brandColor ?? undefined}
           />
+        ) : styledReceipt?.style === 'fieldGuide' && styledReceiptProps ? (
+          <FieldGuideEntryReceived {...styledReceiptProps} />
+        ) : styledReceipt?.style === 'gazette' && styledReceiptProps ? (
+          <GazetteEntryReceived {...styledReceiptProps} />
+        ) : styledReceipt?.style === 'magazine' && styledReceiptProps ? (
+          <MagazineEntryReceived {...styledReceiptProps} />
+        ) : styledReceipt?.style === 'poster' && styledReceiptProps ? (
+          <PosterEntryReceived {...styledReceiptProps} />
         ) : styledReceipt?.style === 'monogram' && styledReceiptProps ? (
           <MonogramEntryReceived
             {...styledReceiptProps}

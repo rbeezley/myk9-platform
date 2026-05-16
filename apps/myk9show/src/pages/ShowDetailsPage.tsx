@@ -5,6 +5,10 @@ import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLanding
 import { HeadlineLandingPage } from '@/features/headline/landing/HeadlineLandingPage';
 import { MonogramLandingPage } from '@/features/monogram/landing/MonogramLandingPage';
 import { BannerLandingPage } from '@/features/banner/landing/BannerLandingPage';
+import { FieldGuideLandingPage } from '@/features/fieldGuide/landing/FieldGuideLandingPage';
+import { GazetteLandingPage } from '@/features/gazette/landing/GazetteLandingPage';
+import { MagazineLandingPage } from '@/features/magazine/landing/MagazineLandingPage';
+import { PosterLandingPage } from '@/features/poster/landing/PosterLandingPage';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -408,7 +412,11 @@ const ShowDetailsPage: React.FC = () => {
     (publicShowStyle === 'heritage' ||
       publicShowStyle === 'headline' ||
       publicShowStyle === 'monogram' ||
-      publicShowStyle === 'banner');
+      publicShowStyle === 'banner' ||
+      publicShowStyle === 'fieldGuide' ||
+      publicShowStyle === 'gazette' ||
+      publicShowStyle === 'magazine' ||
+      publicShowStyle === 'poster');
   if (isStyledLanding && !isSecretary && !isAdmin && !hasRole('club_admin')) {
     const landingProps = {
       show: publicLandingShow,
@@ -424,9 +432,20 @@ const ShowDetailsPage: React.FC = () => {
     if (publicShowStyle === 'banner') {
       return <BannerLandingPage {...landingProps} />;
     }
-    // monogram falls through here. magazine/poster/gazette/fieldGuide are
-    // currently excluded by the `hasExplicitStyle` gate above; if they ever
-    // ship their own landing pages, add their branches before this fallback.
+    if (publicShowStyle === 'fieldGuide') {
+      return <FieldGuideLandingPage {...landingProps} />;
+    }
+    if (publicShowStyle === 'gazette') {
+      return <GazetteLandingPage {...landingProps} />;
+    }
+    if (publicShowStyle === 'magazine') {
+      return <MagazineLandingPage {...landingProps} />;
+    }
+    if (publicShowStyle === 'poster') {
+      return <PosterLandingPage {...landingProps} />;
+    }
+    // monogram falls through here as the catch-all for any explicit style
+    // not handled above (matches the historical default).
     return <MonogramLandingPage {...landingProps} />;
   }
 

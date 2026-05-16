@@ -10,6 +10,8 @@ export type {
   BannerRunRow,
   FieldGuideConfirmationProps,
   FieldGuideRunRow,
+  GazetteConfirmationProps,
+  GazetteRunRow,
 } from './types';
 export { HeritageConfirmationEmail } from './templates/HeritageConfirmationEmail';
 export { HC as HeritageTokens } from './heritageTokens';
@@ -21,6 +23,8 @@ export { BannerConfirmationEmail } from './templates/BannerConfirmationEmail';
 export { BN as BannerTokens } from './bannerTokens';
 export { FieldGuideConfirmationEmail } from './templates/FieldGuideConfirmationEmail';
 export { FG as FieldGuideTokens } from './fieldGuideTokens';
+export { GazetteConfirmationEmail } from './templates/GazetteConfirmationEmail';
+export { GZ as GazetteTokens } from './gazetteTokens';
 
 export { ConfirmEmail } from './templates/ConfirmEmail';
 export { ResetPassword } from './templates/ResetPassword';

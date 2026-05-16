@@ -12,6 +12,8 @@ export type {
   FieldGuideRunRow,
   GazetteConfirmationProps,
   GazetteRunRow,
+  PosterConfirmationProps,
+  PosterRunRow,
 } from './types';
 export { HeritageConfirmationEmail } from './templates/HeritageConfirmationEmail';
 export { HC as HeritageTokens } from './heritageTokens';
@@ -25,6 +27,8 @@ export { FieldGuideConfirmationEmail } from './templates/FieldGuideConfirmationE
 export { FG as FieldGuideTokens } from './fieldGuideTokens';
 export { GazetteConfirmationEmail } from './templates/GazetteConfirmationEmail';
 export { GZ as GazetteTokens } from './gazetteTokens';
+export { PosterConfirmationEmail } from './templates/PosterConfirmationEmail';
+export { PO as PosterTokens } from './posterTokens';
 
 export { ConfirmEmail } from './templates/ConfirmEmail';
 export { ResetPassword } from './templates/ResetPassword';

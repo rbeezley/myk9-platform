@@ -40,6 +40,21 @@ function shouldRenderNode(tree: ShowMapTree, node: ShowMapNode, filter: ShowMapF
   );
 }
 
+function getTreeItemAttrs(
+  node: ShowMapNode,
+  depth: number,
+  hasChildren: boolean,
+  isExpanded: boolean
+) {
+  return {
+    role: 'treeitem' as const,
+    'aria-level': depth + 1,
+    'aria-expanded': hasChildren ? isExpanded : undefined,
+    'data-node-id': node.id,
+    'data-node-type': node.type,
+  };
+}
+
 function ProgressCell({ node }: { node: ShowMapNode }) {
   if (!node.progress) return <span className="text-sm text-muted-foreground">-</span>;
   const value = Math.round((node.progress.completed / node.progress.total) * 100);
@@ -134,7 +149,7 @@ export function ShowMapStructureTable({
 
     if (node.type === 'entry') {
       return (
-        <li key={nodeId}>
+        <li key={nodeId} {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}>
           <div className="grid min-h-[72px] grid-cols-[minmax(300px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-background/60 px-3 py-2 pl-16 hover:bg-muted/20">
             <EntryIdentity node={node} onNavigate={onNavigate} />
             <StatusCell node={node} />
@@ -212,26 +227,30 @@ export function ShowMapStructureTable({
 
     if (node.type === 'trial') {
       return (
-        <li key={nodeId} className="overflow-hidden rounded-md border bg-card">
+        <li
+          key={nodeId}
+          {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
+          className="overflow-hidden rounded-md border bg-card"
+        >
           <div className="grid min-h-16 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-muted/25 px-3 py-3">
             {rowContent}
           </div>
 
           {isExpanded && hasChildren && (
-            <ul>{visibleChildIds.map(id => renderNode(id, depth + 1))}</ul>
+            <ul role="group">{visibleChildIds.map(id => renderNode(id, depth + 1))}</ul>
           )}
         </li>
       );
     }
 
     return (
-      <li key={nodeId}>
+      <li key={nodeId} {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}>
         <div className="grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20">
           {rowContent}
         </div>
 
         {isExpanded && hasChildren && (
-          <ul>{visibleChildIds.map(id => renderNode(id, depth + 1))}</ul>
+          <ul role="group">{visibleChildIds.map(id => renderNode(id, depth + 1))}</ul>
         )}
       </li>
     );
@@ -239,7 +258,7 @@ export function ShowMapStructureTable({
 
   return (
     <div className="overflow-x-auto">
-      <ul className="min-w-[900px] space-y-3">
+      <ul role="tree" className="min-w-[900px] space-y-3">
         {(tree.childIdsByParentId[tree.root.id] ?? []).map(id => renderNode(id, 0))}
       </ul>
     </div>

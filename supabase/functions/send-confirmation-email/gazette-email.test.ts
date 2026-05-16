@@ -181,4 +181,39 @@ describe('buildGazetteHtml', () => {
     expect(html).not.toContain('font-feature-settings');
     expect(html).not.toContain('"onum"');
   });
+
+  // ─── On-the-Day headline derivation (review fix #2) ──────────────────────
+
+  it('uses doorsTime in the "Be on site by" headline when supplied', () => {
+    const html = buildGazetteHtml(makeData({ doorsTime: '7:00 AM' }));
+    expect(html).toContain('Be on site by');
+    expect(html).toContain('7:00 AM');
+    // Hardcoded "half-past seven" string should NOT appear regardless of input.
+    expect(html).not.toContain('half-past seven');
+  });
+
+  it('falls back to firstClassTime when doorsTime is null', () => {
+    const html = buildGazetteHtml(
+      makeData({ doorsTime: null, firstClassTime: '8:30 AM' })
+    );
+    expect(html).toContain('Be on site by');
+    expect(html).toContain('8:30 AM');
+  });
+
+  it('renders the neutral "On the day" headline when no times are supplied', () => {
+    // Force the On-the-Day section to render via venue, but supply no times.
+    const html = buildGazetteHtml(
+      makeData({ doorsTime: null, firstClassTime: null, venue: 'Live Oak Civic Center' })
+    );
+    expect(html).toContain('On the');
+    expect(html).toContain('>day<');
+    expect(html).not.toContain('Be on site by');
+  });
+
+  it('escapes user-controllable arrival times in the headline', () => {
+    // doorsTime could be admin-edited copy. Defensive escape check.
+    const html = buildGazetteHtml(makeData({ doorsTime: '<b>7am</b>' }));
+    expect(html).toContain('&lt;b&gt;7am&lt;/b&gt;');
+    expect(html).not.toMatch(/<b>7am<\/b>/);
+  });
 });

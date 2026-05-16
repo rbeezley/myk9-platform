@@ -546,11 +546,23 @@ export function GazetteConfirmationEmail({
                           color: INK,
                         }}
                       >
-                        Be on site by{' '}
-                        <em style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>
-                          half-past seven
-                        </em>
-                        .
+                        {doorsTime || firstClassTime ? (
+                          <>
+                            Be on site by{' '}
+                            <em style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>
+                              {doorsTime ?? firstClassTime}
+                            </em>
+                            .
+                          </>
+                        ) : (
+                          <>
+                            On the{' '}
+                            <em style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>
+                              day
+                            </em>
+                            .
+                          </>
+                        )}
                       </h2>
                       <table
                         role="presentation"

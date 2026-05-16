@@ -38,4 +38,38 @@ describe('GazetteDropCap', () => {
     expect(container.querySelector('p')?.textContent).toContain('Lead sentence.');
     expect(container.querySelector('p')?.textContent).toContain('— Ed.');
   });
+
+  it('skips a leading quotation mark so the cap is the first letter', () => {
+    const { container } = render(
+      <GazetteDropCap>{'"For seventy-nine years."'}</GazetteDropCap>
+    );
+    // The cap glyph should be 'F', not '"'
+    expect(container.querySelector('.gz-dropcap')).toHaveTextContent('F');
+    // The opening quote still appears in the paragraph body before the cap
+    expect(container.querySelector('p')?.textContent).toMatch(/^"For seventy-nine/);
+  });
+
+  it('skips leading whitespace AND punctuation together', () => {
+    const { container } = render(
+      <GazetteDropCap>{'  …(Yes,) we begin.'}</GazetteDropCap>
+    );
+    expect(container.querySelector('.gz-dropcap')).toHaveTextContent('Y');
+  });
+
+  it('promotes a digit to the cap when the lead opens with a numeral', () => {
+    const { container } = render(<GazetteDropCap>{'1947 was the founding year.'}</GazetteDropCap>);
+    expect(container.querySelector('.gz-dropcap')).toHaveTextContent('1');
+  });
+
+  it('renders no cap when there are no letters or digits in the lead', () => {
+    const { container } = render(<GazetteDropCap>{'??? !!!'}</GazetteDropCap>);
+    expect(container.querySelector('.gz-dropcap')).toBeNull();
+    // Body still renders so the lead is not lost
+    expect(container.querySelector('p')?.textContent).toContain('???');
+  });
+
+  it('preserves accented letters as the cap (Unicode-aware)', () => {
+    const { container } = render(<GazetteDropCap>{'Étude in brown.'}</GazetteDropCap>);
+    expect(container.querySelector('.gz-dropcap')).toHaveTextContent('É');
+  });
 });

@@ -54,7 +54,7 @@ export function LeadArticleSection({
     reducedMotion ? '' : `gz-rise ${delay}`;
 
   return (
-    <>
+    <section id="welcome">
       <article
         className="mx-auto max-w-[1100px] border-b px-6 py-8 md:px-12 md:py-12"
         style={{ borderColor: 'var(--gz-ink)' }}
@@ -111,7 +111,7 @@ export function LeadArticleSection({
         )}
       </article>
 
-      <div id="welcome" className="mx-auto max-w-[1100px] px-6 pt-8 pb-6 md:px-12">
+      <div className="mx-auto max-w-[1100px] px-6 pt-8 pb-6 md:px-12">
         <div className="gz-columns">
           <GazetteDropCap>{lead}</GazetteDropCap>
           {rest.map((p, i) => (
@@ -136,10 +136,16 @@ export function LeadArticleSection({
           </a>
         </div>
       </div>
-    </>
+    </section>
   );
 }
 
+/**
+ * Fallback lead paragraph when no club-authored welcome text exists. Kept
+ * deliberately factual — no claims about past attendance, future fill rate,
+ * or anything not derivable from the show data — so it cannot lie about a
+ * brand-new club or a first-run trial.
+ */
 function defaultLeadParagraph(showName: string, subtitle: string): string {
-  return `${showName} returns this season. ${subtitle}. Exhibitors are advised to enter early; the trial committee has set the limit firmly and last spring's meeting filled well before the published close.`;
+  return `${showName} is now open for entries. ${subtitle}. The trial committee has set an entry limit; entrants are advised to submit early.`;
 }

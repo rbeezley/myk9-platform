@@ -72,4 +72,51 @@ describe('GazetteMasthead', () => {
     const title = container.querySelector('.gz-masthead__title');
     expect(title).not.toHaveClass('gz-rise');
   });
+
+  // ─── Word-split edge cases (review issue #10) ─────────────────────────────
+  // The auto-italic rule splits on any whitespace and italicizes the
+  // first + last *token*. These cases document the behavior for club
+  // names with hyphens, periods, possessives, and acronym embedding.
+
+  it('treats a hyphenated word as a single token', () => {
+    const { container } = render(
+      <GazetteMasthead clubName="Bexar-County Kennel Club" />
+    );
+    const ems = container.querySelectorAll('.gz-masthead__title em');
+    expect(ems.length).toBe(2);
+    expect(ems[0]).toHaveTextContent('Bexar-County');
+    expect(ems[1]).toHaveTextContent('Club');
+  });
+
+  it('keeps trailing punctuation attached to the italicized last word', () => {
+    const { container } = render(
+      <GazetteMasthead clubName="The Working Dog Co." />
+    );
+    const ems = container.querySelectorAll('.gz-masthead__title em');
+    expect(ems[1]).toHaveTextContent('Co.');
+  });
+
+  it('italicizes around an embedded apostrophe', () => {
+    const { container } = render(
+      <GazetteMasthead clubName="St. John's Kennel Club" />
+    );
+    const ems = container.querySelectorAll('.gz-masthead__title em');
+    expect(ems[0]).toHaveTextContent('St.');
+    expect(ems[1]).toHaveTextContent('Club');
+  });
+
+  it('does not italicize single-word names (e.g. acronyms)', () => {
+    const { container } = render(<GazetteMasthead clubName="AKC" />);
+    const ems = container.querySelectorAll('.gz-masthead__title em');
+    expect(ems.length).toBe(0);
+    expect(container.querySelector('.gz-masthead__title')).toHaveTextContent('AKC');
+  });
+
+  it('handles trailing whitespace gracefully', () => {
+    const { container } = render(<GazetteMasthead clubName="   Bexar County Gazette  " />);
+    const ems = container.querySelectorAll('.gz-masthead__title em');
+    expect(ems.length).toBe(2);
+    expect(ems[0]).toHaveTextContent('Bexar');
+    expect(ems[1]).toHaveTextContent('Gazette');
+  });
 });

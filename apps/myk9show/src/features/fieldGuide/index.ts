@@ -64,5 +64,12 @@ export {
 } from './components/FieldGuideTable';
 
 export { FieldGuideLandingPage } from './landing/FieldGuideLandingPage';
-// Wizard + entry-blank surface exports are added alongside their files in
-// subsequent phases.
+export {
+  FieldGuideEntryReceived,
+  type FieldGuideEntryReceivedProps,
+} from './wizard/FieldGuideEntryReceived';
+export {
+  FieldGuideEntryBlankDocument,
+  FieldGuideEntryBlankButton,
+  type FieldGuideEntryBlankProps,
+} from './entry-blank';

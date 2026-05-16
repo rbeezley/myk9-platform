@@ -347,7 +347,7 @@ describe('ShowMapStructureTable', () => {
     expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
   });
 
-  it('keeps placeholder entry actions disabled until dialogs ship', async () => {
+  it('keeps placeholder entry actions disabled behind clear reasons until adapters ship', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');
 
@@ -380,9 +380,21 @@ describe('ShowMapStructureTable', () => {
       'aria-disabled',
       'true'
     );
+    expect(screen.getByText(/check-in from show map is coming next/i)).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /move up/i })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByText(/move-ups from show map are coming next/i)).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /scratch \/ no-show/i })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByText(/scratches from show map are coming next/i)).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /message handler/i })).toHaveAttribute(
       'aria-disabled',
       'true'
     );
+    expect(screen.getByText(/messaging from show map is coming next/i)).toBeInTheDocument();
   });
 });

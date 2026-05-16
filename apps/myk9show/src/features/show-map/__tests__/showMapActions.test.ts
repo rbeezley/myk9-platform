@@ -109,6 +109,24 @@ describe('showMapActions', () => {
     });
   });
 
+  it('does not treat generic pending entry statuses as Attention lens work', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-pending',
+          class_id: 'class-future',
+          dog: { call_name: 'Scout' },
+          entry_status: 'pending',
+        },
+      ],
+    });
+
+    expect(getAttentionActions('root', { tree })).toEqual([]);
+  });
+
   it('uses Score Class only as the primary action for active classes', () => {
     const tree = buildShowMapTree({
       show,

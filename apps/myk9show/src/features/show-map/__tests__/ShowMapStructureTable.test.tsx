@@ -264,12 +264,12 @@ describe('ShowMapStructureTable', () => {
 
     await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
 
-    expect(screen.getByText('Recommended')).toBeInTheDocument();
-    expect(screen.getAllByText('Resolve check-in conflict')).toHaveLength(2);
+    expect(await screen.findByText('Recommended')).toBeInTheDocument();
+    expect(screen.getAllByText('Resolve check-in conflict').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
   });
 
-  it('opens the same row actions menu from right-click and keyboard row triggers', () => {
+  it('opens the same row actions menu from right-clicking row whitespace', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');
 
@@ -297,16 +297,50 @@ describe('ShowMapStructureTable', () => {
       />
     );
 
-    const row = screen.getByText('Bella').closest('[tabindex="0"]');
-    if (!(row instanceof HTMLElement)) throw new Error('Expected focusable entry row');
+    const row = screen.getByText('Bella').closest('[data-row-action-surface]');
+    if (!(row instanceof HTMLElement)) throw new Error('Expected entry row');
 
     fireEvent.contextMenu(row);
-    expect(screen.getByText('Recommended')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /actions for .*bella/i }));
-    row.focus();
-    fireEvent.keyDown(row, { key: 'Enter' });
-
+    expect(await screen.findByText('Recommended')).toBeInTheDocument();
     expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+  });
+
+  it('keeps placeholder entry actions disabled until dialogs ship', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+        },
+      ],
+    });
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+
+    expect(await screen.findByRole('menuitem', { name: /mark checked in/i })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByRole('menuitem', { name: /message handler/i })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
   });
 });

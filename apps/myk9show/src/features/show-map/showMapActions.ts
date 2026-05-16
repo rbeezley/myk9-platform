@@ -126,7 +126,7 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
           priority: 35,
           icon: ClipboardCheck,
         },
-        href
+        undefined
       ),
       withHref(
         {
@@ -137,7 +137,7 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
           priority: 25,
           icon: MessageSquare,
         },
-        href
+        undefined
       )
     );
     return actions;
@@ -242,11 +242,23 @@ export function getAttentionActions(
   return getRankedActions(scope, state).filter(action => action.createsAttention);
 }
 
+export function getAttentionNodeIds(tree: ShowMapTree): Set<string> {
+  const nodeIds = new Set<string>();
+  for (const action of getAttentionActions('root', { tree })) {
+    let node: ShowMapNode | undefined = tree.nodesById[action.nodeId];
+    while (node) {
+      nodeIds.add(node.id);
+      node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+    }
+  }
+  return nodeIds;
+}
+
 export function getPrimaryActionForNode(
   node: ShowMapNode | undefined,
   state: ShowMapActionState
 ): ShowMapAction | undefined {
   if (!node) return undefined;
   const actions = getRankedActions(node, state).filter(action => action.href);
-  return actions.find(action => action.id === 'score-class') ?? actions[0];
+  return actions[0];
 }

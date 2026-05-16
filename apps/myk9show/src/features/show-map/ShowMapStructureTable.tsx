@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
-import { getAttentionActions, getPrimaryActionForNode } from './showMapActions';
+import { getAttentionNodeIds, getPrimaryActionForNode } from './showMapActions';
 import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
-import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import type { ShowMapFilter, ShowMapNode, ShowMapTree } from './showMapTypes';
 
 interface ShowMapStructureTableProps {
@@ -16,31 +16,47 @@ interface ShowMapStructureTableProps {
   onNavigate?: (href: string) => void;
 }
 
-function nodeMatchesFilter(tree: ShowMapTree, node: ShowMapNode, filter: ShowMapFilter): boolean {
+function nodeMatchesFilter(
+  node: ShowMapNode,
+  filter: ShowMapFilter,
+  attentionNodeIds: Set<string>
+): boolean {
   if (filter === 'all') return true;
   if (filter === 'needs-attention') {
-    return getAttentionActions(node, { tree }).length > 0;
+    return attentionNodeIds.has(node.id);
   }
   if (filter === 'complete') return node.status?.kind === 'complete';
   return node.status?.kind === 'active';
 }
 
-function descendantsMatch(tree: ShowMapTree, nodeId: string, filter: ShowMapFilter): boolean {
+function descendantsMatch(
+  tree: ShowMapTree,
+  nodeId: string,
+  filter: ShowMapFilter,
+  attentionNodeIds: Set<string>
+): boolean {
   const childIds = tree.childIdsByParentId[nodeId] ?? [];
   return childIds.some(childId => {
     const child = tree.nodesById[childId];
     return (
-      !!child && (nodeMatchesFilter(tree, child, filter) || descendantsMatch(tree, childId, filter))
+      !!child &&
+      (nodeMatchesFilter(child, filter, attentionNodeIds) ||
+        descendantsMatch(tree, childId, filter, attentionNodeIds))
     );
   });
 }
 
-function shouldRenderNode(tree: ShowMapTree, node: ShowMapNode, filter: ShowMapFilter): boolean {
+function shouldRenderNode(
+  tree: ShowMapTree,
+  node: ShowMapNode,
+  filter: ShowMapFilter,
+  attentionNodeIds: Set<string>
+): boolean {
   return (
     filter === 'all' ||
     node.type === 'show' ||
-    nodeMatchesFilter(tree, node, filter) ||
-    descendantsMatch(tree, node.id, filter)
+    nodeMatchesFilter(node, filter, attentionNodeIds) ||
+    descendantsMatch(tree, node.id, filter, attentionNodeIds)
   );
 }
 
@@ -140,6 +156,7 @@ export function ShowMapStructureTable({
   onNavigate,
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
+  const attentionNodeIds = useMemo(() => getAttentionNodeIds(tree), [tree]);
   const openActionsForNode = (nodeId: string) => {
     setActionMenuOpenSignals(current => ({
       ...current,
@@ -147,14 +164,14 @@ export function ShowMapStructureTable({
     }));
   };
   const getRowActionOpenProps = (nodeId: string) => ({
-    tabIndex: 0,
+    'data-row-action-surface': nodeId,
     onContextMenu: (event: MouseEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      openActionsForNode(nodeId);
-    },
-    onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.currentTarget !== event.target) return;
-      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest('a,button,input,textarea,select,[role="button"],[role="menuitem"]')
+      ) {
+        return;
+      }
       event.preventDefault();
       openActionsForNode(nodeId);
     },
@@ -162,12 +179,12 @@ export function ShowMapStructureTable({
 
   const renderNode = (nodeId: string, depth: number): ReactNode => {
     const node = tree.nodesById[nodeId];
-    if (!node || !shouldRenderNode(tree, node, filter)) return null;
+    if (!node || !shouldRenderNode(tree, node, filter, attentionNodeIds)) return null;
 
     const childIds = tree.childIdsByParentId[nodeId] ?? [];
     const visibleChildIds = childIds.filter(childId => {
       const child = tree.nodesById[childId];
-      return child ? shouldRenderNode(tree, child, filter) : false;
+      return child ? shouldRenderNode(tree, child, filter, attentionNodeIds) : false;
     });
     const isExpanded = expandedNodeIds.has(nodeId);
     const hasChildren = visibleChildIds.length > 0;

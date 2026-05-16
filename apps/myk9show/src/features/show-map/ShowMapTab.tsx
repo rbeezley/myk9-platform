@@ -60,11 +60,11 @@ function NextBestAction({
   if (!action) return null;
 
   return (
-    <div className="border-b bg-amber-50/70 px-4 py-3 text-amber-950">
+    <div className="border-b bg-muted/20 px-4 py-3 text-foreground">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="text-sm font-semibold">Next: {action.label}</div>
-          <div className="mt-0.5 text-sm text-amber-900/80">{action.why}</div>
+          <div className="mt-0.5 text-sm text-muted-foreground">{action.why}</div>
         </div>
         {action.href && (
           <Button type="button" size="sm" onClick={() => onNavigate(action.href!)}>

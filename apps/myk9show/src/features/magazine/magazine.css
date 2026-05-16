@@ -1,0 +1,454 @@
+/*
+ * Magazine CSS — all selectors scoped under `[data-magazine]` so styles
+ * never leak into non-Magazine surfaces. Token values mirror tokens.ts and
+ * the design handoff (Magazine Landing Page.html). This file is the
+ * production port; it includes only what the React primitives + sections
+ * actually need.
+ *
+ * Naming convention: classes prefixed `mz-*` (matching the design handoff).
+ * Always scope rules under `[data-magazine]` to avoid bleed.
+ */
+
+[data-magazine] {
+  --mz-paper: #f6f1e8;
+  --mz-paper-deep: #ece4d3;
+  --mz-ink: #1a1a1a;
+  --mz-soft: #2e2820;
+  --mz-mute: #7a6e58;
+  --mz-quill: #5c4f3a;
+  --mz-gold-1: #c9a87c;
+  --mz-gold-2: #a8814f;
+  --mz-gold-3: #4a3826;
+  --mz-gold-rule: linear-gradient(90deg, #c9a87c, #a8814f);
+  --mz-cover-fallback: linear-gradient(135deg, #c9a87c 0%, #a8814f 45%, #4a3826 100%);
+  --mz-portrait-fallback: linear-gradient(160deg, #c9a87c 0%, #8a6a45 60%, #4a3826 100%);
+  --mz-final-band: linear-gradient(135deg, #4a3826 0%, #2e2820 60%, #1a1a1a 100%);
+  --mz-display: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  --mz-body: 'Source Serif 4', Georgia, serif;
+  --mz-meta: 'Inter Tight', system-ui, sans-serif;
+}
+
+/* ─── MagazineHeading ────────────────────────────────────────────────── */
+
+[data-magazine] .mz-heading {
+  font-family: var(--mz-display);
+  font-weight: 500;
+  color: var(--mz-ink);
+  margin: 0;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+[data-magazine] .mz-heading.italic {
+  font-style: italic;
+}
+
+[data-magazine] .mz-heading .em-gold {
+  font-style: italic;
+  color: var(--mz-gold-3);
+}
+
+[data-magazine] .mz-heading.h1 {
+  font-size: clamp(56px, 8vw, 112px);
+  line-height: 0.92;
+  letter-spacing: -0.015em;
+}
+
+[data-magazine] .mz-heading.h2 {
+  font-size: clamp(36px, 5vw, 72px);
+  line-height: 1.05;
+}
+
+[data-magazine] .mz-heading.h3 {
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.1;
+}
+
+[data-magazine] .mz-heading.h4 {
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.2;
+}
+
+/* ─── MagazineSectionFolio (smallcaps eyebrow + flanking rules) ───────── */
+
+[data-magazine] .mz-section-folio {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+[data-magazine] .mz-section-folio::before,
+[data-magazine] .mz-section-folio::after {
+  content: '';
+  height: 1px;
+  width: 32px;
+  background: var(--mz-gold-rule);
+}
+
+[data-magazine] .mz-section-folio__label {
+  font-family: var(--mz-meta);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--mz-gold-3);
+}
+
+/* ─── MagazineGoldRule ────────────────────────────────────────────────── */
+
+[data-magazine] .mz-gold-rule {
+  height: 1px;
+  background: var(--mz-gold-rule);
+  border: none;
+  margin: 0;
+  display: block;
+}
+
+[data-magazine] .mz-gold-rule--thick {
+  height: 2px;
+}
+
+/* ─── MagazineDropCap ─────────────────────────────────────────────────── */
+
+[data-magazine] .mz-drop-cap {
+  float: left;
+  font-family: var(--mz-display);
+  font-weight: 500;
+  font-size: 88px;
+  line-height: 0.85;
+  margin: 8px 12px -4px 0;
+  color: var(--mz-gold-3);
+}
+
+/* Collisions at narrow widths — drop the float so the lead letter sits
+   inline rather than colliding with the next paragraph. */
+@media (max-width: 640px) {
+  [data-magazine] .mz-drop-cap {
+    float: none;
+    display: inline-block;
+    font-size: 56px;
+    margin: 0 6px 0 0;
+    vertical-align: -2px;
+  }
+}
+
+/* ─── MagazinePullQuote ───────────────────────────────────────────────── */
+
+[data-magazine] .mz-pullquote {
+  position: relative;
+  max-width: 900px;
+  margin: 80px auto 0;
+  padding: 64px 48px;
+  border-top: 1px solid var(--mz-gold-2);
+  border-bottom: 1px solid var(--mz-gold-2);
+  text-align: center;
+}
+
+[data-magazine] .mz-pullquote::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 88px;
+  height: 3px;
+  background: var(--mz-gold-rule);
+}
+
+[data-magazine] .mz-pullquote__text {
+  font-family: var(--mz-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1.3;
+  color: var(--mz-ink);
+  margin: 0 0 24px;
+  text-wrap: pretty;
+}
+
+[data-magazine] .mz-pullquote__attrib {
+  font-family: var(--mz-meta);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--mz-gold-3);
+}
+
+/* ─── MagazineCover (4:5 photo slot + gradient fallback) ──────────────── */
+
+[data-magazine] .mz-cover {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+
+[data-magazine] .mz-cover--placeholder {
+  background: var(--mz-cover-fallback);
+}
+
+[data-magazine] .mz-cover--placeholder::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 30% 40%, rgba(255, 255, 255, 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 80% 80%, rgba(0, 0, 0, 0.32) 0%, transparent 60%);
+}
+
+[data-magazine] .mz-cover__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+[data-magazine] .mz-cover__caption {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  right: 24px;
+  font-family: var(--mz-display);
+  font-style: italic;
+  font-size: 14px;
+  color: rgba(246, 241, 232, 0.9);
+  line-height: 1.4;
+  z-index: 2;
+}
+
+[data-magazine] .mz-cover__placeholder-mark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px;
+  z-index: 1;
+}
+
+[data-magazine] .mz-cover__monogram {
+  font-family: var(--mz-display);
+  font-style: italic;
+  font-size: 64px;
+  line-height: 1;
+  color: rgba(246, 241, 232, 0.85);
+  margin-bottom: 18px;
+}
+
+[data-magazine] .mz-cover__placeholder-label {
+  font-family: var(--mz-meta);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(246, 241, 232, 0.6);
+}
+
+/* ─── MagazineJudgePortrait ───────────────────────────────────────────── */
+
+[data-magazine] .mz-judge-portrait {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+
+[data-magazine] .mz-judge-portrait--placeholder {
+  background: var(--mz-portrait-fallback);
+}
+
+[data-magazine] .mz-judge-portrait--placeholder::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 70% 50% at 35% 30%,
+    rgba(255, 255, 255, 0.18) 0%,
+    transparent 55%
+  );
+}
+
+[data-magazine] .mz-judge-portrait__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+[data-magazine] .mz-judge-portrait__caption {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 2;
+  font-family: var(--mz-meta);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(246, 241, 232, 0.85);
+}
+
+[data-magazine] .mz-judge-portrait__initials {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  z-index: 2;
+  font-family: var(--mz-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 56px;
+  line-height: 1;
+  color: rgba(246, 241, 232, 0.9);
+}
+
+/* ─── Section-head reveal on scroll ───────────────────────────────────── */
+
+[data-magazine] .mz-section-head {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 720ms ease-out,
+    transform 720ms ease-out;
+}
+
+[data-magazine] .mz-section-head.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── Roster capacity bar ─────────────────────────────────────────────── */
+
+[data-magazine] .mz-capacity-bar {
+  width: 0;
+  background: var(--mz-gold-rule);
+  transition: none;
+}
+
+[data-magazine] .mz-capacity.in .mz-capacity-bar {
+  width: var(--mz-bar-pct, 0%);
+  transition: width 1800ms cubic-bezier(0.22, 0.61, 0.36, 1) 400ms;
+}
+
+/* ─── Multi-column body (Welcome section) ─────────────────────────────── */
+
+[data-magazine] .mz-welcome {
+  column-count: 2;
+  column-gap: 56px;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: var(--mz-body);
+  font-size: 18px;
+  line-height: 1.75;
+  color: var(--mz-soft);
+}
+
+[data-magazine] .mz-welcome p {
+  margin: 0 0 1em;
+  break-inside: avoid-column;
+}
+
+[data-magazine] .mz-welcome em {
+  font-family: var(--mz-display);
+  font-style: italic;
+  color: var(--mz-gold-3);
+}
+
+[data-magazine] .mz-welcome strong {
+  color: var(--mz-ink);
+  font-weight: 500;
+}
+
+[data-magazine] .mz-welcome--single {
+  column-count: 1;
+}
+
+[data-magazine] .mz-signature {
+  text-align: center;
+  margin-top: 48px;
+  column-span: all;
+}
+
+/* ─── Particulars (definition list, 2-column) ─────────────────────────── */
+
+[data-magazine] .mz-particulars {
+  max-width: 1080px;
+  margin: 0 auto;
+  column-count: 2;
+  column-gap: 56px;
+}
+
+[data-magazine] .mz-particulars dl {
+  margin: 0;
+  column-count: 1;
+}
+
+[data-magazine] .mz-particulars__row {
+  padding: 18px 0;
+  border-bottom: 1px dotted var(--mz-gold-2);
+  break-inside: avoid-column;
+}
+
+[data-magazine] .mz-particulars__row:last-child {
+  border-bottom: none;
+}
+
+[data-magazine] .mz-particulars dt {
+  font-family: var(--mz-meta);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--mz-mute);
+  margin-bottom: 6px;
+}
+
+[data-magazine] .mz-particulars dd {
+  margin: 0;
+  font-family: var(--mz-display);
+  font-weight: 500;
+  font-size: 22px;
+  letter-spacing: -0.005em;
+  color: var(--mz-ink);
+  line-height: 1.3;
+}
+
+[data-magazine] .mz-particulars dd em {
+  font-style: italic;
+  color: var(--mz-gold-3);
+}
+
+[data-magazine] .mz-particulars dd .sub {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mz-body);
+  font-size: 14px;
+  color: var(--mz-quill);
+  line-height: 1.5;
+}
+
+/* ─── prefers-reduced-motion fallback ─────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-magazine] .mz-section-head {
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  [data-magazine] .mz-capacity-bar {
+    transition: none !important;
+    width: var(--mz-bar-pct, 0%) !important;
+  }
+}
+
+/* ─── Responsive collapses ────────────────────────────────────────────── */
+
+@media (max-width: 960px) {
+  [data-magazine] .mz-welcome {
+    column-count: 1;
+  }
+  [data-magazine] .mz-particulars {
+    column-count: 1;
+  }
+}

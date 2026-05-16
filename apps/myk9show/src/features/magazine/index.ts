@@ -15,15 +15,7 @@
  * live in sibling subdirectories that import from here.
  */
 
-export {
-  magazineColors,
-  magazineGradients,
-  magazineTypography,
-  magazineDurations,
-  magazineSpacing,
-  type MagazineColorToken,
-  type MagazineGradientToken,
-} from './tokens';
+export { magazineColors, type MagazineColorToken } from './tokens';
 
 export {
   MAGAZINE_GOOGLE_FONTS_HREF,

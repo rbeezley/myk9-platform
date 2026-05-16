@@ -81,9 +81,13 @@ export function MagazineEntryReceived({
     ? `Confirmed · Receipt ${registrationNumber}`
     : 'Confirmed';
 
+  // No `data-magazine` attribute here — this component renders inside the
+  // wizard's existing layout shell, which does not import `magazine.css`,
+  // so the scoped CSS selectors would not match. The visual contract is
+  // upheld entirely by inline `style` props below; adding `data-magazine`
+  // would be a misleading signal that scoped rules apply here.
   return (
     <div
-      data-magazine
       style={{
         background: PAPER,
         color: INK,

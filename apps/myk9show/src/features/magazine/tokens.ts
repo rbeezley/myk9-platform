@@ -34,63 +34,16 @@ export const magazineColors = {
 
 export type MagazineColorToken = keyof typeof magazineColors;
 
-/**
- * Gradient ramps. All named so sections + tests can assert them without
- * re-typing CSS strings.
- */
-export const magazineGradients = {
-  /** 1px hairline rule between columns and at section boundaries. */
-  goldRule: 'linear-gradient(90deg, #c9a87c, #a8814f)',
-  /** Italic emphasis text gradient. Identical to goldRule today; alias kept
-   *  for readability at call sites. */
-  goldEmphasis: 'linear-gradient(90deg, #c9a87c, #a8814f)',
-  /** Hero cover fallback when no club photograph is uploaded. */
-  coverFallback: 'linear-gradient(135deg, #c9a87c 0%, #a8814f 45%, #4a3826 100%)',
-  /** Judge portrait fallback (slightly different angle so it reads distinct
-   *  from the cover even when both render the placeholder). */
-  portraitFallback: 'linear-gradient(160deg, #c9a87c 0%, #8a6a45 60%, #4a3826 100%)',
-  /** Final CTA band — dark editorial gradient. */
-  finalBand: 'linear-gradient(135deg, #4a3826 0%, #2e2820 60%, #1a1a1a 100%)',
-} as const;
-
-export type MagazineGradientToken = keyof typeof magazineGradients;
-
-export const magazineTypography = {
-  /** Display face — Cormorant Garamond. Italic carries the editorial flair. */
-  display: "'Cormorant Garamond', 'EB Garamond', Georgia, serif",
-  /** Body — Source Serif 4 with variable optical sizing. */
-  body: "'Source Serif 4', Georgia, serif",
-  /** Meta / smallcaps labels — Inter Tight 500. The only sans, used sparingly. */
-  meta: "'Inter Tight', system-ui, sans-serif",
-} as const;
-
-/**
- * Animation durations in ms. Names mirror the README's motion table.
- * Slow and soft — the page composes itself like a printed page being lifted
- * into view.
- */
-export const magazineDurations = {
-  /** Stagger between hero text children. */
-  heroStagger: 150,
-  /** Hero text fade-up. */
-  heroFade: 900,
-  /** Cover photograph fade-in. */
-  coverFade: 1200,
-  /** Delay before cover starts fading. */
-  coverFadeDelay: 300,
-  /** Roster capacity-bar fill duration. */
-  capacityBarFill: 1800,
-  /** Delay before the bar starts filling once the section reveals. */
-  capacityBarDelay: 400,
-  /** Generic section-head reveal. */
-  sectionHeadReveal: 720,
-} as const;
-
-export const magazineSpacing = {
-  /** Section vertical padding desktop. */
-  sectionPaddingY: 96,
-  /** Page horizontal gutter desktop. */
-  pageGutterX: 64,
-  /** Multi-column body gap. */
-  columnGap: 56,
-} as const;
+// NOTE: gradients, typography, durations, and spacing are intentionally NOT
+// re-exported as JS constants. The Magazine surfaces consume those values
+// in three different ways:
+//
+//  - CSS rules: paint via `var(--mz-*)` custom properties in magazine.css
+//  - Deno email builder: duplicates the hex values locally (Deno cannot
+//    import workspace packages, see `supabase/functions/.../magazine-email.ts`)
+//  - PDF renderer: duplicates the hex values locally because @react-pdf
+//    cannot read CSS variables (see `entry-blank/sections/pdfPrimitives.tsx`)
+//
+// Adding JS bundles here would create a *fourth* source of truth with no
+// reader, and divergence is the failure mode this comment exists to
+// prevent. Re-add the bundles only when a real consumer needs them.

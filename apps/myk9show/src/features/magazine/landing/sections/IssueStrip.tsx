@@ -1,4 +1,6 @@
-import { formatShortDate } from '../utils/dateFormat';
+import { formatEditorialDateRange, formatShortDate } from '../utils/dateFormat';
+// formatShortDate retained for the "Closes" cell which needs the full
+// "Jun 3, 2026" form rather than a bare range.
 
 interface IssueStripProps {
   trialStartDate: string | null;
@@ -26,11 +28,7 @@ export function IssueStrip({
   licenseLanguage,
   timezone,
 }: IssueStripProps) {
-  const dateValue = trialStartDate
-    ? trialEndDate && trialEndDate !== trialStartDate
-      ? `${formatShortDate(trialStartDate, timezone).split(' ')[0]} ${formatShortDate(trialStartDate, timezone).split(' ')[1]?.replace(',', '')} – ${formatShortDate(trialEndDate, timezone).split(' ')[1]?.replace(',', '')}`
-      : formatShortDate(trialStartDate, timezone)
-    : null;
+  const dateValue = formatEditorialDateRange(trialStartDate, trialEndDate, timezone) || null;
 
   const closeValue = entryCloseDate ? formatShortDate(entryCloseDate, timezone) : null;
 

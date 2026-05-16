@@ -5,13 +5,30 @@ import { MZ } from '../magazineTokens';
 
 const { INK, SOFT, PAPER, MUTE, QUILL, GOLD1, GOLD2, GOLD3, PAGE, DISPLAY, BODY, META } = MZ;
 
-// ─── Outlook safety guarantee ────────────────────────────────────────────────
+// ─── Production renderer note ───────────────────────────────────────────────
+//
+// IMPORTANT: This React Email template is **not** the production renderer
+// for confirmation emails. The Supabase edge function (`magazine-email.ts`)
+// emits raw HTML strings and is what real recipients receive. This component
+// exists for:
+//   - React Email preview / local design review
+//   - Future use cases (PDF export, in-app rendering, etc.)
+//
+// Why the duplication: React's HTML typings forbid the `bgcolor` attribute
+// on `<td>` (deprecated), so the React template falls back to the gradient
+// `background` style only. Outlook strips the gradient and paints whatever
+// `background-color` resolves to — currently set, but more fragile than the
+// `bgcolor=""` HTML attribute that the Deno builder uses. Treat divergence
+// in Outlook rendering between this template and `magazine-email.ts` as
+// expected, not a bug.
+//
+// ─── Outlook safety guarantee (applies to both paths) ───────────────────────
 //
 // Per the reconciliation notes (§"Gradient text in email — Outlook caveat"),
 // this template never uses `-webkit-background-clip: text` or any gradient-on-
-// text trick. All gold-emphasis text uses solid `color: GOLD3` directly. The
-// only place we use a CSS gradient is the dark footer band, where it falls
-// back to a solid color via the `<td bgcolor>` attribute.
+// text trick. All gold-emphasis text uses solid `color: GOLD3` directly.
+// The only place we use a CSS gradient is the dark footer band, where it
+// falls back to a solid color via the `backgroundColor` style.
 
 /**
  * 600px email-body gold-gradient hairline. Implemented as a 2px-high `<div>`

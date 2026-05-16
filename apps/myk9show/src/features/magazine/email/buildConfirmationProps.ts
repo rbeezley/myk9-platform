@@ -179,8 +179,13 @@ export function buildMagazineConfirmationProps(
   const sortedTrials = [...allTrials].sort(
     (a, b) => (a.display_order ?? 999) - (b.display_order ?? 999)
   );
+  // Derive numerals from display_order (or sort index) and never from the
+  // stored `trial_number` string. Magazine's editorial voice is always
+  // lowercase Roman numerals — trusting upstream "I"/"II" strings would
+  // bleed certificate-style capitalization into the magazine voice and
+  // break visual parity with the landing page.
   const trialNumeralMap = new Map(
-    sortedTrials.map((t, i) => [t.id, t.trial_number ?? toLowerRoman(i + 1)])
+    sortedTrials.map((t, i) => [t.id, toLowerRoman(t.display_order ?? i + 1)])
   );
 
   const runs: MagazineRunRow[] = entries
@@ -191,13 +196,8 @@ export function buildMagazineConfirmationProps(
       const classLabel = cls
         ? [cls.level, cls.element ?? cls.name].filter(Boolean).join(' · ')
         : '—';
-      const rawNumeral = trial ? trialNumeralMap.get(trial.id) ?? '—' : '—';
-      // Force lowercase for the editorial voice — even if trial_number was
-      // stored uppercase, the magazine renders lowercase Roman numerals.
-      const numeral =
-        rawNumeral && rawNumeral !== '—' ? toLowerRoman(parseInt(rawNumeral, 10) || rawNumeral) : '—';
       return {
-        trialNumeral: numeral === '—' ? rawNumeral.toLowerCase() : numeral,
+        trialNumeral: trial ? trialNumeralMap.get(trial.id) ?? '—' : '—',
         dayLabel: trial ? formatTrialDay(trial.date) : '—',
         classLabel,
         judgeName: judge?.judgeName ?? '—',

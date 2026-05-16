@@ -228,6 +228,12 @@ describe('useMagazineLandingData', () => {
   });
 
   it('reads forward-compatible pullQuote/pullQuoteAttribution from supplemental when present', () => {
+    // `pullQuote` / `pullQuoteAttribution` are not declared on the
+    // PremiumSupplemental type today; the hook reads them via a runtime
+    // shape check. The whole `show` object is built with an `as unknown as Show`
+    // escape at the bottom anyway, so the fixture can just include the
+    // forward-typed fields without extra casts — the outer `Show` cast
+    // covers them.
     const show = {
       id: 'show-1',
       name: 'X',
@@ -239,9 +245,6 @@ describe('useMagazineLandingData', () => {
         style: 'magazine',
         generatedAt: '2026-04-01T00:00:00Z',
         narratives: { showHours: '', trialInformation: '' },
-        // Supplemental schema does not declare pullQuote today; the hook
-        // reads it via a forward-compatible optional path. Pass the field
-        // through a cast so future-typed shape lands the same way.
         supplemental: {
           vetClinic: null,
           accommodations: [],
@@ -251,11 +254,7 @@ describe('useMagazineLandingData', () => {
           additionalNotes: null,
           pullQuote: 'The point of a trial is the dog.',
           pullQuoteAttribution: 'Constitution, Article I',
-        } as unknown as Show['experiencePublishedContent'] extends infer T
-          ? T extends { supplemental: infer S }
-            ? S
-            : never
-          : never,
+        },
         outputs: { premiumUrl: null },
       },
     } as unknown as Show;

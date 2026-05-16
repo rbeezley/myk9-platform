@@ -27,13 +27,22 @@ const SECTIONS = [
  *   Magazine's voice is "consider this carefully," not "share this widely."
  */
 export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavProps) {
-  const [activeId, setActiveId] = useState<string>('welcome');
+  // `null` until the observer locks on to a section. Treated as "no active
+  // anchor" so the nav doesn't paint a misleading highlight on shows where
+  // every observable section has been omitted (a minimal show with only a
+  // hero + final CTA).
+  const [activeId, setActiveId] = useState<string | null>(null);
+  // Tracks which SECTIONS were actually present in the DOM — anchors for
+  // missing sections are dimmed rather than rendered hot.
+  const [presentIds, setPresentIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
-    const sectionEls = SECTIONS.map(s => document.getElementById(s.id)).filter(
-      Boolean
-    ) as HTMLElement[];
-    if (!sectionEls.length) return;
+    const found = SECTIONS.map(s => document.getElementById(s.id)).filter(
+      (el): el is HTMLElement => el !== null
+    );
+    if (!found.length) return;
+
+    setPresentIds(new Set(found.map(el => el.id)));
 
     const observer = new IntersectionObserver(
       entries => {
@@ -43,7 +52,7 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
       },
       { rootMargin: '-40% 0px -55% 0px', threshold: 0 }
     );
-    sectionEls.forEach(el => observer.observe(el));
+    found.forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, []);
 
@@ -77,25 +86,34 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
       </span>
 
       <div className="hidden items-center gap-6 lg:flex">
-        {SECTIONS.map(s => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className={cn('text-xs uppercase transition-colors')}
-            style={{
-              color: activeId === s.id ? 'var(--mz-gold-3)' : 'var(--mz-mute)',
-              fontFamily: 'var(--mz-meta)',
-              letterSpacing: '0.28em',
-              fontStyle: activeId === s.id ? 'italic' : 'normal',
-            }}
-            onClick={e => {
-              e.preventDefault();
-              document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth' });
-            }}
-          >
-            {s.label}
-          </a>
-        ))}
+        {SECTIONS.map(s => {
+          const present = presentIds.has(s.id);
+          const active = present && activeId === s.id;
+          return (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className={cn('text-xs uppercase transition-colors')}
+              style={{
+                color: active ? 'var(--mz-gold-3)' : 'var(--mz-mute)',
+                fontFamily: 'var(--mz-meta)',
+                letterSpacing: '0.28em',
+                fontStyle: active ? 'italic' : 'normal',
+                opacity: present ? 1 : 0.4,
+                pointerEvents: present ? 'auto' : 'none',
+              }}
+              onClick={e => {
+                e.preventDefault();
+                if (present) {
+                  document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              aria-disabled={!present}
+            >
+              {s.label}
+            </a>
+          );
+        })}
       </div>
 
       <a

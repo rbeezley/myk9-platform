@@ -86,7 +86,7 @@ Concrete observations from driving the secretary path against the Heritage fixtu
 
 ### Memory hygiene
 
-- [ ] **Update memory: Phase 2 reports shipped** — `~/.claude/projects/.../memory/project_report_generation.md` currently says "6 Phase 2 report stubs pending." Inventory on 2026-05-16 confirmed `ResultCatalog`, `JudgesCertification`, `TrialSecretaryReport`, `TrialSecretaryCertification`, `CheckInSheet`, `ScoresheetReport`, `ResultLabels` all shipped as HTML. The true remaining gap is the AKC/UKC PDF form-fill (covered above), not the report stubs.
+- [x] **Update memory: Phase 2 reports shipped** — Closed on 2026-05-16. The memory file `~/.claude/projects/.../memory/project_report_generation.md` was already updated to "Phase 1 + all 7 Phase 2 HTML reports shipped" with the verified-2026-05-16 component list (`ResultCatalog`, `JudgesCertification`, `TrialSecretaryReport`, `TrialSecretaryCertification`, `CheckInSheet`, `ScoresheetReport`, `ResultLabels`) all present under `apps/myk9show/src/components/reports/`. Remaining gap is the AKC/UKC PDF form-fill (tracked separately above).
 
 ---
 
@@ -96,7 +96,7 @@ Heritage and Headline shipped end-to-end. Monogram closed out via PR #187 (merge
 
 - [x] **Monogram — landing + wizard + entry-blank PDF** — Shipped via [PR #187](https://github.com/rbeezley/myk9-platform/pull/187), merged 2026-05-15.
 - [x] **Banner — full pipeline** — Shipped via [PR #188](https://github.com/rbeezley/myk9-platform/pull/188), merged 2026-05-15. All four artifacts plus the `shows.brand_color` migration bundled in one PR per the no-deferred-followups rule. Migration dry-run on 2026-05-16 reported the remote database up to date. Plan: [`docs/plan-banner-style.md`](docs/plan-banner-style.md).
-- [ ] **Magazine / Poster / Gazette / Field Guide — full pipelines** — Each needs a plan doc, the same 4-artifact build sequence Heritage/Headline/Monogram/Banner used. Premium-list PDF covers + bodies already shipped for all four. Schedule one style per work-week.
+- [x] **Magazine / Poster / Gazette / Field Guide — full pipelines** — Closed/verified on 2026-05-16. All four styles shipped end-to-end: dedicated landing pages, wizard entry-received pages, entry-blank PDF documents + buttons, style-specific components (covers, mastheads, drop caps, etc.), premium-list PDF covers + bodies, dedicated confirmation-email builders, and tests for each. Dispatch lives in `apps/myk9show/src/features/_shared/styledLandingRegistry.ts` and `apps/myk9show/src/features/_shared/styledReceiptRegistry.tsx`, both keyed off `getShowLandingStyle(show)`. Email registry routes each style to its own builder (`magazine-email.ts`, `poster-email.ts`, `gazette-email.ts`, `fieldGuide-email.ts`) — not Heritage fallback. Plan docs already on disk: `docs/plan-magazine-style.md`, `docs/plan-poster-style.md`, `docs/plan-gazette-style.md`, `docs/plan-fieldguide-style.md`.
 
 ---
 
@@ -243,7 +243,6 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ### Security / cosmetic
 
-- [ ] **myK9Q access codes are deterministically derived from the show UUID** — The success screen at the end of show creation displays four codes: Admin / Judge / Steward / Exhibitor. Inspecting Heritage's: show UUID `3b91e282-6e45-4a89-9446-f6ebeb0bf62c` produced codes `a6e45 / j4a89 / s9446 / ef6eb`. Each is `<role-letter> + 4 chars from the corresponding UUID segment`. If these codes are meant to be access secrets (Steward + Judge especially) anyone who can read the show URL can compute them. Either make them random per-role and stored in a row, or make them not be a secret at all (publish them and rely on role gates).
 - [x] **F30 — dog selection state desyncs across search filters** — Fixed on 2026-05-11 with the dog-selection cart helper used by `DogSelectionStepEnhanced`; selections now merge across filtered search results and visible bulk actions no longer discard hidden selected dogs.
 - [x] **F17 still observable on the new club path: host club briefly shows `Unknown Club` after `Add Club`** — Fixed on 2026-05-11 as part of Batch 1. Duplicate tracking entry resolved with the host-club picker label/cache fix above.
 
@@ -302,6 +301,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## Post-Fall (parked — do not pick up before Phase 3 exit)
 
+- [ ] **myK9Q access codes are deterministically derived from the show UUID** — Deferred from "Security / cosmetic" on 2026-05-16. **Original analysis:** The success screen at the end of show creation displays four codes: Admin / Judge / Steward / Exhibitor. Inspecting Heritage's: show UUID `3b91e282-6e45-4a89-9446-f6ebeb0bf62c` produced codes `a6e45 / j4a89 / s9446 / ef6eb`. Each is `<role-letter> + 4 chars from the corresponding UUID segment` (see `packages/core/src/utils/passcodes.ts`). The show UUID is in every public show URL and `shows_select FOR SELECT USING (true)` lets anonymous users read it directly, so anyone with a show URL can compute all four codes. **Deferral rationale:** Pre-launch with no real users, niche dog-show domain with a small realistic attacker pool, server-side `validate-passcode` Edge Function with rate limiting already in place, and existing prod shows use the legacy `myK9Q1-...` license-key format with ~32 hex chars of entropy that is not affected. Real fix requires schema migration for per-role secrets + rotation flow + migration of legacy-format shows + `MyK9QAccessCard` and `validate-passcode` updates + tests — roughly one full session. Revisit after Phase 3 / real-user testing, or sooner if a real incident makes it concrete. **Fix sketch when picked up:** add per-role random secret columns to `shows` (e.g., `admin_passcode`, `judge_passcode`, `steward_passcode`, `exhibitor_passcode`), generate at show creation, fall through to UUID derivation for legacy rows during a migration window, then drop the derivation path entirely.
 - [ ] **Prevent Duplicate Rows in Core Tables** — Add uniqueness constraints on people/dogs/clubs after a duplicate audit and merge migration.
 - [ ] **Configurable Exhibitor Convenience Fee** — Add site-admin default and per-show override for exhibitor convenience fees.
 - [ ] **Role-Mode Icon Switcher for Sidebar Nav** — Replace labelled section groups with an icon-mode switcher; brainstorm before implementing.

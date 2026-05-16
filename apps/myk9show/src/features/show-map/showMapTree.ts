@@ -19,10 +19,15 @@ import type {
   ShowMapEntryDisplay,
   ShowMapEntryInput,
   ShowMapNode,
+  ShowMapNodeType,
   ShowMapTree,
 } from './showMapTypes';
 
 const DEFAULT_ENTRY_PREVIEW_LIMIT = 25;
+
+export function getShowMapNodeId(type: ShowMapNodeType, id: string): string {
+  return `${type}:${id}`;
+}
 
 function readString(record: Record<string, unknown> | undefined, key: string): string | undefined {
   const value = record?.[key];
@@ -145,7 +150,7 @@ export function buildShowMapTree({
   }
 
   const root: ShowMapNode = {
-    id: `show:${show.id}`,
+    id: getShowMapNodeId('show', show.id),
     type: 'show',
     label: show.name || 'Untitled Show',
     subtitle: show.clubName || undefined,
@@ -172,7 +177,7 @@ export function buildShowMapTree({
     ).length;
     const attentionCount = trialEntries.filter(hasEntryAttention).length;
     const trialNode: ShowMapNode = {
-      id: `trial:${trial.id}`,
+      id: getShowMapNodeId('trial', trial.id),
       type: 'trial',
       label: trial.name || `Trial ${trial.trialNumber || trial.id.slice(-4)}`,
       subtitle: [trial.trialDate, trial.trialNumber ? `Trial ${trial.trialNumber}` : undefined]
@@ -192,7 +197,7 @@ export function buildShowMapTree({
       const classEntries = sortEntries(entriesByClassId.get(cls.id) ?? []);
       const attentionCountForClass = classEntries.filter(hasEntryAttention).length;
       const classNode: ShowMapNode = {
-        id: `class:${cls.id}`,
+        id: getShowMapNodeId('class', cls.id),
         type: 'class',
         label: cls.name || [cls.element, cls.level, cls.section].filter(Boolean).join(' '),
         subtitle: cls.section ? `Section ${cls.section}` : undefined,
@@ -212,7 +217,7 @@ export function buildShowMapTree({
         const entryId = readString(entry, 'id');
         if (!entryId) continue;
         addNode(tree, {
-          id: `entry:${entryId}`,
+          id: getShowMapNodeId('entry', entryId),
           type: 'entry',
           label: entryLabel(entry),
           entryDisplay: entryDisplay(entry, show.organization),
@@ -225,7 +230,7 @@ export function buildShowMapTree({
 
       if (classEntries.length > entryPreviewLimit) {
         addNode(tree, {
-          id: `more:${cls.id}`,
+          id: getShowMapNodeId('more', cls.id),
           type: 'more',
           label: `${classEntries.length - entryPreviewLimit} more entries`,
           parentId: classNode.id,

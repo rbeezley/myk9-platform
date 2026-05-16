@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ListTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/common/ErrorState';
-import { buildShowMapTree, getDefaultExpandedNodeIds } from './showMapTree';
+import { buildShowMapTree, getDefaultExpandedNodeIds, getShowMapNodeId } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { ShowMapToolbar } from './ShowMapToolbar';
 import type { BuildShowMapTreeInput, ShowMapFilter, ShowMapTree } from './showMapTypes';
@@ -102,7 +102,11 @@ export default function ShowMapTab({
             Scan the show by trial and class, then open the class you need.
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div
+          className="flex flex-wrap gap-3"
+          data-node-id={getShowMapNodeId('show', show.id)}
+          data-node-type="show"
+        >
           <SummaryItem label="Trials" value={trials.length} />
           <SummaryItem label="Classes" value={classes.length} />
           <SummaryItem label="Entries" value={entries.length} />

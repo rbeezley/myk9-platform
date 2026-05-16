@@ -118,6 +118,29 @@ Font.register({
   ],
 });
 
+// Field Guide style needs IBM Plex Sans + IBM Plex Serif. Both are TTF on
+// @fontsource so they parse cleanly through @react-pdf/fontkit (unlike IBM
+// Plex Mono, which had to be aliased to JetBrains Mono above). The serif is
+// used in exactly two PDF surfaces: the landing-page welcome prose and the
+// entry-blank agreement block. Keep weights minimal — only the ones the
+// Field Guide visual register actually calls for.
+Font.register({
+  family: 'IBM Plex Sans',
+  fonts: [
+    { src: `${FS}/ibm-plex-sans@5/files/ibm-plex-sans-latin-400-normal.woff`, fontWeight: 400 },
+    { src: `${FS}/ibm-plex-sans@5/files/ibm-plex-sans-latin-500-normal.woff`, fontWeight: 500 },
+    { src: `${FS}/ibm-plex-sans@5/files/ibm-plex-sans-latin-600-normal.woff`, fontWeight: 600 },
+    { src: `${FS}/ibm-plex-sans@5/files/ibm-plex-sans-latin-700-normal.woff`, fontWeight: 700 },
+  ],
+});
+Font.register({
+  family: 'IBM Plex Serif',
+  fonts: [
+    { src: `${FS}/ibm-plex-serif@5/files/ibm-plex-serif-latin-500-normal.woff`, fontWeight: 500 },
+    { src: `${FS}/ibm-plex-serif@5/files/ibm-plex-serif-latin-700-normal.woff`, fontWeight: 700 },
+  ],
+});
+
 Font.register({
   family: 'Source Serif 4',
   fonts: [

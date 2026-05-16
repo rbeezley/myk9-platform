@@ -209,6 +209,76 @@ export interface BannerConfirmationProps {
   showSlug: string | null;
 }
 
+// ─── Field Guide Confirmation Email ──────────────────────────────────────────
+
+export interface FieldGuideRunRow {
+  /** Two-digit numeral from trial_number, e.g. "01", "03". Field Guide
+   *  uses zero-padded digits everywhere — never roman numerals. */
+  trialNumeral: string;
+  /** Formatted date, e.g. "FRI JUN 12" (uppercase). */
+  dayLabel: string;
+  /** "EX · Containers" — level abbreviation + element. */
+  classLabel: string;
+  /** Judge display name. */
+  judgeName: string;
+  /** Armband number (may be null if not yet assigned). */
+  armband: string | null;
+}
+
+export interface FieldGuideConfirmationProps {
+  // Header / ID strip
+  /** Compact identifier — e.g. "BCKC.2026.SS". Derived upstream. */
+  showCode: string;
+  clubName: string;
+  clubCity: string | null;
+  showTitle: string;
+  /** e.g. "Jun 12–14, 2026" */
+  dateRange: string;
+
+  // Greeting
+  /** First-name salutation (Field Guide uses "Hi {first}" not "Dear ..."). */
+  salutation: string;
+
+  // Entry detail card
+  dogRegisteredName: string;
+  dogCallName: string | null;
+  dogBreed: string | null;
+  dogSex: string | null;
+  runs: FieldGuideRunRow[];
+  runCount: number;
+  totalFeesFormatted: string;
+  /** Pre-formatted "Receipt 2026-0137" — no abbreviation prefix here. */
+  receiptNumber: string | null;
+  /** Optional explicit override for the header armband chip. When
+   *  omitted, the template derives it from the first non-null run
+   *  armband (single dog, single armband per show). Pass `null` to
+   *  suppress the chip even when a run has an armband. */
+  armbandNumber?: string | null;
+
+  // On the day
+  doorsTime: string | null;
+  firstClassTime: string | null;
+  venueNameAndAddress: string | null;
+  parkingNotes: string | null;
+  hospitalityNotes: string | null;
+  cratingNotes: string | null;
+
+  // Withdraw / contact
+  secretaryEmail: string | null;
+  secretaryPhone: string | null;
+
+  // CTA
+  trialUrl: string | null;
+
+  // Signature
+  trialChairName: string | null;
+  trialChairTitle: string | null;
+
+  // Footer
+  memberClubLanguage: string;
+  showSlug: string | null;
+}
+
 // ─── Gazette Confirmation Email ──────────────────────────────────────────────
 //
 // Same shape as Heritage / Monogram / Banner — keeping props parallel

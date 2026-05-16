@@ -6,6 +6,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { buildShowMapTree, getDefaultExpandedNodeIds, getShowMapNodeId } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { ShowMapToolbar } from './ShowMapToolbar';
+import { countCatalogEntries } from './entryCounts';
 import type { BuildShowMapTreeInput, ShowMapFilter, ShowMapTree } from './showMapTypes';
 
 interface ShowMapTabProps extends BuildShowMapTreeInput {
@@ -63,6 +64,7 @@ export default function ShowMapTab({
   const { expandedNodeIds, toggleNode, collapseAll, expandTrials } = useExpandedNodes(tree);
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
   const attentionCount = tree.root.attentionCount ?? 0;
+  const catalogEntryCount = countCatalogEntries(entries);
 
   if (!canManageShow) {
     return <ErrorState message="Show Map is only available to show staff." />;
@@ -109,7 +111,7 @@ export default function ShowMapTab({
         >
           <SummaryItem label="Trials" value={trials.length} />
           <SummaryItem label="Classes" value={classes.length} />
-          <SummaryItem label="Entries" value={entries.length} />
+          <SummaryItem label="Entries" value={catalogEntryCount} />
           <SummaryItem label="Need Attention" value={attentionCount} />
         </div>
       </div>

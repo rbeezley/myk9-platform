@@ -3,10 +3,11 @@
 //
 // Drives the running app as the secretary, reads the "Needs Attention" strip
 // count on the dashboard and the "Need Attention" tile count on the show-map
-// tab for the same show, and asserts they match. Exists because the Phase 2
-// refactor (PR #203) unified the function answering both surfaces — this
-// script catches re-divergence at the rendered-DOM level, which the unit test
-// in attention-consistency.test.ts cannot.
+// tab for the same show, and asserts they match. It also checks the Show
+// Details "Entries" tab badge against the show-map "Entries" tile. Exists
+// because the Phase 2 refactors unified the functions answering those surfaces
+// — this script catches re-divergence at the rendered-DOM level, which the unit
+// tests cannot.
 //
 // Usage:
 //   node apps/myk9show/secretary-walk.mjs                  # uses defaults
@@ -89,23 +90,44 @@ async function readDashboardCounts(page) {
 async function readShowMapAttention(page, showId) {
   await page.goto(`${BASE_URL}/shows/${showId}?tab=map`);
   await page.waitForLoadState('networkidle');
+  return readSummaryTileValue(page, showId, 'Need Attention');
+}
 
+async function readSummaryTileValue(page, showId, label) {
   const tileContainer = page.locator(
     `[data-node-id="show:${showId}"][data-node-type="show"]`
   );
   await tileContainer.waitFor({ timeout: 15000 });
 
-  // SummaryItem renders: <div>{value}</div><div>{label}</div>. Find the label
-  // node, walk up to the tile, read the value child.
-  const labelNode = tileContainer.locator('div', { hasText: /^Need Attention$/i }).first();
+  const labelNode = tileContainer
+    .locator('div', { hasText: new RegExp(`^${label}$`, 'i') })
+    .first();
   await labelNode.waitFor({ timeout: 5000 });
   const tile = labelNode.locator('xpath=..');
   const valueText = (await tile.locator('div').first().innerText()).trim();
   const value = Number.parseInt(valueText, 10);
   if (!Number.isFinite(value)) {
-    fail(2, `[setup] show-map tile value not numeric: "${valueText}"`);
+    fail(2, `[setup] show-map ${label} tile value not numeric: "${valueText}"`);
   }
   return value;
+}
+
+async function readEntryCountParity(page, showId) {
+  await page.goto(`${BASE_URL}/shows/${showId}?tab=map`);
+  await page.waitForLoadState('networkidle');
+
+  const showMapEntries = await readSummaryTileValue(page, showId, 'Entries');
+  const entriesTab = page.getByRole('tab', { name: /entries/i }).first();
+  await entriesTab.waitFor({ timeout: 5000 });
+  const tabText = (await entriesTab.innerText()).trim();
+  const match = tabText.match(/\bEntries\b\s*(\d+)/i);
+  if (!match) {
+    fail(2, `[setup] entries tab count not readable: "${tabText}"`);
+  }
+  return {
+    showMapEntries,
+    tabEntries: Number(match[1]),
+  };
 }
 
 async function main() {
@@ -151,6 +173,19 @@ async function main() {
         exitCode = 1;
         process.stderr.write(
           `divergence: show ${showId} — dashboard total ${expected.total} vs show-map tile ${tileCount}\n`
+        );
+      }
+
+      const entryCounts = await readEntryCountParity(page, showId);
+      const entriesMatch = entryCounts.tabEntries === entryCounts.showMapEntries;
+      const entriesMarker = entriesMatch ? '✔' : '✘';
+      log(
+        `  ${entriesMarker} ${showId}  entries tab=${entryCounts.tabEntries}  show-map entries=${entryCounts.showMapEntries}`
+      );
+      if (!entriesMatch) {
+        exitCode = 1;
+        process.stderr.write(
+          `divergence: show ${showId} — entries tab ${entryCounts.tabEntries} vs show-map entries ${entryCounts.showMapEntries}\n`
         );
       }
     }

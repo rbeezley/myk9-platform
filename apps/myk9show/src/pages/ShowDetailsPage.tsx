@@ -63,6 +63,7 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
+import { countCatalogEntries } from '@/features/show-map/entryCounts';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -142,6 +143,7 @@ const ShowDetailsPage: React.FC = () => {
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
   const { data: showEntries = [] } = useEntriesByShowQuery(id || '', !!id);
+  const catalogEntryCount = countCatalogEntries(showEntries);
   const { dogs } = useDogStoreCompat();
 
   // Use fast show details loading with cache optimization
@@ -346,13 +348,13 @@ const ShowDetailsPage: React.FC = () => {
       { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
       ...(isAuthenticated
         ? [
-            { id: 'my-entries', label: 'Entries', icon: ClipboardList, count: userEntries.length },
+            { id: 'my-entries', label: 'Entries', icon: ClipboardList, count: catalogEntryCount },
             { id: 'my-stats', label: 'My Stats', icon: BarChart3 },
           ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
     ],
-    [isAuthenticated, canShowMap, associatedTrials.length, showClasses.length, userEntries.length]
+    [isAuthenticated, canShowMap, associatedTrials.length, showClasses.length, catalogEntryCount]
   );
 
   // Loading state

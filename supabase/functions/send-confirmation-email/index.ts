@@ -13,6 +13,16 @@ import { resolveEmailStyle, selectEmailBuilderKey } from './email-style-registry
 import { buildHeadlineHtml } from './headline-email.ts';
 import { buildMonogramHtml } from './monogram-email.ts';
 import { buildBannerHtml } from './banner-email.ts';
+import { buildFieldGuideHtml } from './fieldGuide-email.ts';
+import { buildGazetteHtml } from './gazette-email.ts';
+import { buildMagazineHtml } from './magazine-email.ts';
+import { buildPosterHtml } from './poster-email.ts';
+import {
+  deriveGazetteEditionLabel,
+  deriveMagazineEditionLabel,
+  deriveShowAbbreviation,
+  deriveShowCode,
+} from './dispatch-helpers.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -491,7 +501,11 @@ Deno.serve(async (req: Request) => {
             .join('\n') || null;
 
         const emailData: Parameters<typeof buildHtml>[0] = {
-          clubName: show.name,
+          // Prefer the org name from `shows.organization` (the real club
+          // identity) so per-style derivations like Field Guide's
+          // showCode get distinct club + show inputs. Falls back to
+          // `show.name` for legacy rows where organization is null.
+          clubName: show.organization ?? show.name,
           clubEstablished: null,
           clubCity: [show.city, show.state].filter(Boolean).join(', ') || null,
           showTitle: show.name,
@@ -534,6 +548,12 @@ Deno.serve(async (req: Request) => {
             .map(w => w[0]!.toUpperCase())
             .join('') || '?';
 
+        // Single armband across all runs for this entry (the dispatcher
+        // is per-entry per-trial with a single run in scope, so all four
+        // sibling styles that take a top-level armband field share the
+        // same value).
+        const primaryArmband = emailData.runs[0]?.armband ?? null;
+
         let html: string;
         if (emailBuilder === 'headline') {
           html = buildHeadlineHtml(emailData);
@@ -548,6 +568,40 @@ Deno.serve(async (req: Request) => {
           html = buildBannerHtml({
             ...emailData,
             brandColor: typeof brandColor === 'string' ? brandColor : '#0d4d4f',
+          });
+        } else if (emailBuilder === 'fieldGuide') {
+          // armbandNumber is optional — Field Guide's builder derives it
+          // from runs when omitted. We pass it through explicitly so the
+          // chip surfaces with the same value as the data row.
+          html = buildFieldGuideHtml({
+            ...emailData,
+            showCode: deriveShowCode(emailData.clubName, emailData.showTitle, show.start_date),
+            armbandNumber: primaryArmband,
+          });
+        } else if (emailBuilder === 'gazette') {
+          html = buildGazetteHtml({
+            ...emailData,
+            editionLabel: deriveGazetteEditionLabel(),
+          });
+        } else if (emailBuilder === 'magazine') {
+          html = buildMagazineHtml({
+            ...emailData,
+            editionLabel: deriveMagazineEditionLabel(show.start_date),
+            primaryArmband,
+            // No license-reference column yet — leave the footer line off
+            // until a `shows.license_reference` field lands.
+            licenseReference: null,
+          });
+        } else if (emailBuilder === 'poster') {
+          html = buildPosterHtml({
+            ...emailData,
+            showAbbreviation: deriveShowAbbreviation(emailData.showTitle, show.start_date),
+            armband: primaryArmband,
+            // Canonical string mirrored from
+            // apps/myk9show/src/features/registries/akc.ts so Poster's
+            // email matches Poster's landing page exactly. Promote to
+            // a registry lookup once non-AKC trials land.
+            licenseLanguage: 'An A.K.C. Licensed Trial',
           });
         } else {
           html = buildHtml(emailData);

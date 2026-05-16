@@ -8,7 +8,15 @@ export type EmailStyle =
   | 'fieldGuide'
   | 'heritage';
 
-export type EmailBuilderKey = 'heritage' | 'headline' | 'monogram' | 'banner';
+export type EmailBuilderKey =
+  | 'heritage'
+  | 'headline'
+  | 'monogram'
+  | 'banner'
+  | 'fieldGuide'
+  | 'gazette'
+  | 'magazine'
+  | 'poster';
 
 export const EMAIL_STYLES: readonly EmailStyle[] = [
   'monogram',
@@ -23,14 +31,15 @@ export const EMAIL_STYLES: readonly EmailStyle[] = [
 
 const VALID_EMAIL_STYLES = new Set<string>(EMAIL_STYLES);
 
+// All eight styles now have dedicated builders — none fall back to Heritage.
 const STYLE_TO_EMAIL_BUILDER: Record<EmailStyle, EmailBuilderKey> = {
   monogram: 'monogram',
   banner: 'banner',
   headline: 'headline',
-  magazine: 'heritage',
-  poster: 'heritage',
-  gazette: 'heritage',
-  fieldGuide: 'heritage',
+  magazine: 'magazine',
+  poster: 'poster',
+  gazette: 'gazette',
+  fieldGuide: 'fieldGuide',
   heritage: 'heritage',
 };
 

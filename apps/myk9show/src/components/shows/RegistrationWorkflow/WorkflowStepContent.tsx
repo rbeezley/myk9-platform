@@ -11,11 +11,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { getShowStyle } from '@/features/registries';
-import { HeritageEntryReceived } from '@/features/heritage/wizard/HeritageEntryReceived';
-import { HeadlineEntryReceived } from '@/features/headline/wizard/HeadlineEntryReceived';
-import { MonogramEntryReceived } from '@/features/monogram/wizard/MonogramEntryReceived';
-import { BannerEntryReceived } from '@/features/banner/wizard/BannerEntryReceived';
-import { buildMonogram } from '@/features/monogram/utils/buildMonogram';
+import { STYLED_RECEIPT_BY_STYLE } from '@/features/_shared/styledReceiptRegistry';
 import {
   ClassSelectionData,
   RegistrationFormData,
@@ -108,9 +104,13 @@ export function WorkflowStepContent({
   const styledReceipt = useMemo(() => {
     if (currentStepId !== 'confirmation') return null;
     const currentShow = shows.find(s => s.id === showId);
+    // getShowStyle always narrows to a known ShowStyle value, and the
+    // STYLED_RECEIPT_BY_STYLE registry is exhaustive over that union
+    // (typecheck-enforced) — every show resolves to a renderer. The
+    // earlier per-style allow-list was tautological once the registry
+    // landed; dropping it removes a class of "added a style but forgot
+    // to wire the gate" bugs.
     const style = getShowStyle(currentShow);
-    if (style !== 'heritage' && style !== 'headline' && style !== 'monogram' && style !== 'banner')
-      return null;
 
     const firstTrial = allTrials.find(t => t.showId === showId);
     const firstDogId = optimisticState.formData.selectedDogs[0];
@@ -291,21 +291,11 @@ export function WorkflowStepContent({
       )}
 
       {currentStepId === 'confirmation' &&
-        (styledReceipt?.style === 'heritage' && styledReceiptProps ? (
-          <HeritageEntryReceived {...styledReceiptProps} />
-        ) : styledReceipt?.style === 'headline' && styledReceiptProps ? (
-          <HeadlineEntryReceived {...styledReceiptProps} />
-        ) : styledReceipt?.style === 'banner' && styledReceiptProps ? (
-          <BannerEntryReceived
-            {...styledReceiptProps}
-            brandColor={styledReceipt.brandColor ?? undefined}
-          />
-        ) : styledReceipt?.style === 'monogram' && styledReceiptProps ? (
-          <MonogramEntryReceived
-            {...styledReceiptProps}
-            monogramLetters={buildMonogram(styledReceiptProps.clubName)}
-          />
-        ) : (
+        (styledReceipt && styledReceiptProps
+          ? STYLED_RECEIPT_BY_STYLE[styledReceipt.style](styledReceiptProps, {
+              brandColor: styledReceipt.brandColor,
+            })
+          : (
           <ConfirmationStep
             registrationNumber={registrationNumber}
             selectedDogs={optimisticState.formData.selectedDogs}

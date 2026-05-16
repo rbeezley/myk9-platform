@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 import {
   MonogramSectionFolio,
-  toLowerRoman,
 } from '../components/MonogramSectionFolio';
+import { toLowerRoman } from '../utils/roman';
 
 describe('MonogramSectionFolio', () => {
   it('renders the supplied numeral', () => {

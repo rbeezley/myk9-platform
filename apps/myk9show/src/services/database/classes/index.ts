@@ -18,3 +18,5 @@ export {
   restoreClass,
   getDeletedClasses,
 } from './reads';
+
+export { getClassRouteContext } from './routing';

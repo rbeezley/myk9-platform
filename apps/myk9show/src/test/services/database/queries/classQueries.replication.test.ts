@@ -48,6 +48,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 import {
   getAllClasses,
   getClassById,
+  getClassRouteContext,
   getClassesByTrialId,
   searchClasses,
   getClassStatistics,
@@ -281,6 +282,21 @@ describe('classQueries (replication)', () => {
       const dog = entries[0].dog as Record<string, unknown>;
       expect(dog.name).toBe('Rex');
       expect(dog.breed).toBe('Poodle');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // getClassRouteContext
+  // -----------------------------------------------------------------------
+  describe('getClassRouteContext', () => {
+    it('returns class route context from replicated class and trial data', async () => {
+      mockClassesTable.getClassById.mockResolvedValue(makeClass({ trialId: 'trial-1' }));
+      mockTrialsTable.getTrialById.mockResolvedValue(makeTrial({ id: 'trial-1', showId: 'show-1' }));
+
+      const result = await getClassRouteContext('class-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual({ trialId: 'trial-1', showId: 'show-1' });
     });
   });
 

@@ -42,7 +42,11 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
     );
     if (!found.length) return;
 
-    setPresentIds(new Set(found.map(el => el.id)));
+    // Defer the DOM-derived state one frame so the observer setup stays the
+    // only synchronous work in this effect.
+    const frame = window.requestAnimationFrame(() => {
+      setPresentIds(new Set(found.map(el => el.id)));
+    });
 
     const observer = new IntersectionObserver(
       entries => {
@@ -53,7 +57,10 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
       { rootMargin: '-40% 0px -55% 0px', threshold: 0 }
     );
     found.forEach(el => observer.observe(el));
-    return () => observer.disconnect();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, []);
 
   return (

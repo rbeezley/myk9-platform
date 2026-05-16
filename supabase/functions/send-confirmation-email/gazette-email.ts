@@ -159,7 +159,11 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
   // actually publishes: doors first, first-class as fallback, neutral copy
   // otherwise. Avoids the hardcoded "half-past seven" headline that would
   // be plain wrong for a 8 AM / 9 AM trial.
-  const arrivalAccent = data.doorsTime ?? data.firstClassTime;
+  //
+  // Use `||` rather than `??` so an admin-typed empty string is treated as
+  // "absent" and falls through, not as a valid arrival time that renders
+  // an empty <em>.
+  const arrivalAccent = data.doorsTime || data.firstClassTime || null;
   const onTheDayHeadline = arrivalAccent
     ? `Be on site by <em style="font-style:italic;font-weight:400;color:${GZ_BROWN};">${esc(arrivalAccent)}</em>.`
     : `On the <em style="font-style:italic;font-weight:400;color:${GZ_BROWN};">day</em>.`;

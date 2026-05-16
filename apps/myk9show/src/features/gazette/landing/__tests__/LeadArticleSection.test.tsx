@@ -71,16 +71,31 @@ describe('LeadArticleSection', () => {
   });
 
   it('splits welcomeText into paragraphs on blank-line boundaries', () => {
+    const welcomeText = 'First paragraph.\n\nSecond paragraph.\n\nThird paragraph.';
     const { container } = render(
-      <LeadArticleSection
-        {...BASE_PROPS}
-        welcomeText="First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
-      />
+      <LeadArticleSection {...BASE_PROPS} welcomeText={welcomeText} />
     );
-    // The first paragraph is consumed by the drop-cap component; remaining
-    // paragraphs render as siblings inside .gz-columns.
+    // The first paragraph is consumed by the drop-cap component (which emits
+    // its own <p>); the remaining two render as direct siblings inside
+    // .gz-columns. Total p count inside the column container: 3.
     const columnsParas = container.querySelectorAll('.gz-columns p');
-    expect(columnsParas.length).toBeGreaterThanOrEqual(1);
+    expect(columnsParas).toHaveLength(3);
+    // Verify each paragraph's content lands in the right slot — proves the
+    // split landed on the right boundaries, not just that the count matches.
+    expect(columnsParas[0].textContent).toContain('First paragraph.');
+    expect(columnsParas[1].textContent).toBe('Second paragraph.');
+    expect(columnsParas[2].textContent).toBe('Third paragraph.');
+  });
+
+  it('exposes the lead h2 id used by the welcome section\'s aria-labelledby', () => {
+    // Review fix A4 — <section id="welcome"> carries aria-labelledby pointing
+    // at the lead h2. The id contract must not silently drift.
+    const { container } = render(<LeadArticleSection {...BASE_PROPS} />);
+    const section = container.querySelector('#welcome');
+    expect(section?.getAttribute('aria-labelledby')).toBe('gz-lead-title');
+    const heading = container.querySelector('#gz-lead-title');
+    expect(heading?.tagName).toBe('H2');
+    expect(heading?.textContent).toContain('Spring Scent Work Trial');
   });
 
   it('falls back to a neutral default lead (no editorial fiction) when welcomeText is null', () => {

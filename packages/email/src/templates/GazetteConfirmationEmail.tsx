@@ -546,23 +546,36 @@ export function GazetteConfirmationEmail({
                           color: INK,
                         }}
                       >
-                        {doorsTime || firstClassTime ? (
-                          <>
-                            Be on site by{' '}
-                            <em style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>
-                              {doorsTime ?? firstClassTime}
-                            </em>
-                            .
-                          </>
-                        ) : (
-                          <>
-                            On the{' '}
-                            <em style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>
-                              day
-                            </em>
-                            .
-                          </>
-                        )}
+                        {/*
+                          Coalesce both candidates into a single variable so
+                          the condition and the rendered value share their
+                          truthiness semantics. Using `||` treats empty strings
+                          as absent — admin-typed blank fields should fall
+                          through to firstClassTime, then to the neutral
+                          headline. The earlier mixed `||` / `??` pair would
+                          have rendered an empty <em>…</em> when doorsTime was
+                          a literal empty string.
+                        */}
+                        {(() => {
+                          const arrival = doorsTime || firstClassTime || null;
+                          return arrival ? (
+                            <>
+                              Be on site by{' '}
+                              <em style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>
+                                {arrival}
+                              </em>
+                              .
+                            </>
+                          ) : (
+                            <>
+                              On the{' '}
+                              <em style={{ fontStyle: 'italic', fontWeight: 400, color: BROWN }}>
+                                day
+                              </em>
+                              .
+                            </>
+                          );
+                        })()}
                       </h2>
                       <table
                         role="presentation"

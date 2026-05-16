@@ -54,7 +54,7 @@ export function LeadArticleSection({
     reducedMotion ? '' : `gz-rise ${delay}`;
 
   return (
-    <section id="welcome">
+    <section id="welcome" aria-labelledby="gz-lead-title">
       <article
         className="mx-auto max-w-[1100px] border-b px-6 py-8 md:px-12 md:py-12"
         style={{ borderColor: 'var(--gz-ink)' }}
@@ -70,6 +70,7 @@ export function LeadArticleSection({
           Front Page · Trial Edition{dateRange ? ` · ${dateRange}` : ''}
         </div>
         <h2
+          id="gz-lead-title"
           className={`mx-auto mb-4 max-w-[18ch] text-center text-balance ${riseClass('delay-2')}`}
           style={{
             fontFamily: "'Playfair Display', Georgia, serif",
@@ -143,9 +144,11 @@ export function LeadArticleSection({
 /**
  * Fallback lead paragraph when no club-authored welcome text exists. Kept
  * deliberately factual — no claims about past attendance, future fill rate,
- * or anything not derivable from the show data — so it cannot lie about a
- * brand-new club or a first-run trial.
+ * entry limits, or anything else not derivable from the show data the
+ * section already receives. The previous draft claimed "the trial committee
+ * has set an entry limit" but a club may legitimately run with no cap; the
+ * current copy only restates the show name and subtitle.
  */
 function defaultLeadParagraph(showName: string, subtitle: string): string {
-  return `${showName} is now open for entries. ${subtitle}. The trial committee has set an entry limit; entrants are advised to submit early.`;
+  return `${showName} is now open for entries. ${subtitle}.`;
 }

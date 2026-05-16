@@ -216,4 +216,25 @@ describe('buildGazetteHtml', () => {
     expect(html).toContain('&lt;b&gt;7am&lt;/b&gt;');
     expect(html).not.toMatch(/<b>7am<\/b>/);
   });
+
+  // Regression for re-review finding A1: an admin-typed empty string for
+  // doorsTime should be treated as "absent" and fall through to
+  // firstClassTime, not render an empty <em></em> headline.
+  it('treats an empty-string doorsTime as absent and falls through to firstClassTime', () => {
+    const html = buildGazetteHtml(
+      makeData({ doorsTime: '', firstClassTime: '8:30 AM' })
+    );
+    expect(html).toContain('Be on site by');
+    expect(html).toContain('8:30 AM');
+    expect(html).not.toMatch(/Be on site by\s*<em[^>]*>\s*<\/em>/);
+  });
+
+  it('renders the neutral headline when both arrival times are empty strings', () => {
+    const html = buildGazetteHtml(
+      makeData({ doorsTime: '', firstClassTime: '', venue: 'Civic Center' })
+    );
+    expect(html).toContain('On the');
+    expect(html).toContain('>day<');
+    expect(html).not.toContain('Be on site by');
+  });
 });

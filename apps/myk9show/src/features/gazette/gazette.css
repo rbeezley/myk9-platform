@@ -427,6 +427,16 @@
   [data-gazette] .gz-columns {
     column-count: 1;
   }
+  /*
+   * Once the columns collapse, the floated drop cap can extend past a
+   * short lead paragraph and overlap whichever paragraph follows. Clearing
+   * the float on subsequent siblings keeps each paragraph rectangular.
+   * The cap itself remains floated within its own paragraph; only the
+   * sibling paragraphs are pushed below it.
+   */
+  [data-gazette] .gz-columns p + p {
+    clear: left;
+  }
 }
 
 /* ─── prefers-reduced-motion ──────────────────────────────────────────── */

@@ -28,17 +28,22 @@ interface GazetteDropCapProps {
  */
 export function GazetteDropCap({ children, rest }: GazetteDropCapProps) {
   const trimmed = children.trimStart();
-  if (!trimmed) {
-    return <p>{rest}</p>;
-  }
 
   // Walk forward until the first letter or digit. `\p{L}` matches any
   // Unicode letter so accented characters in club names render correctly.
+  // Empty input, whitespace-only input, and punctuation-only input all
+  // converge here: there is no cap character, so render the original
+  // content (whatever survives `trimStart`) plus `rest`, with no cap span.
+  // Unifies the two earlier separate fallback branches.
   const chars = Array.from(trimmed);
   const capIndex = chars.findIndex(c => /[\p{L}\p{N}]/u.test(c));
   if (capIndex === -1) {
-    // No letters or digits at all — emit body only, no cap.
-    return <p>{trimmed}{rest}</p>;
+    return (
+      <p>
+        {trimmed}
+        {rest}
+      </p>
+    );
   }
 
   const prefix = chars.slice(0, capIndex).join('');

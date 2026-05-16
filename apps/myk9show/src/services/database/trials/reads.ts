@@ -1,7 +1,4 @@
-// Trial-related database queries
-// SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
-// Mutation functions (create, update, delete) remain on PostgREST.
-import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import type { Database } from '@/types/supabase';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -14,19 +11,11 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 type DbTrialInsert = Database['public']['Tables']['trials']['Insert'];
 type DbTrialUpdate = Database['public']['Tables']['trials']['Update'];
 
-// ---------------------------------------------------------------------------
-// Helpers — batch-load related data into Maps to avoid N+1 reads
-// ---------------------------------------------------------------------------
-
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   const shows = await replicatedShowsTable.getAllShows();
   return buildMapFromArray(shows, s => s.id);
 }
 
-/**
- * Map an array of ReplicatedTrial to DB-row-shaped objects using a pre-loaded
- * shows lookup map.
- */
 function mapTrialsWithJoins(
   trials: ReplicatedTrial[],
   showsMap: Map<string, ReplicatedShow>
@@ -37,10 +26,6 @@ function mapTrialsWithJoins(
     })
   );
 }
-
-// ---------------------------------------------------------------------------
-// PostgREST fallback wrappers (original implementations)
-// ---------------------------------------------------------------------------
 
 async function postgrestGetAllTrials() {
   const { data, error } = await supabase

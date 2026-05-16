@@ -21,3 +21,5 @@ export {
   restoreTrial,
   getDeletedTrials,
 } from './reads';
+
+export { getShowScheduleTimelineRows, getTrialTimelineRows } from './timeline';

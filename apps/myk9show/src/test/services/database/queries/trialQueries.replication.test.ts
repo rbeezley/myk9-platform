@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 // ---------------------------------------------------------------------------
 // Mock the replication singletons using vi.hoisted so the variables are
 // available when vi.mock factories execute (vi.mock is hoisted above const).
 // ---------------------------------------------------------------------------
 
-const { mockTrialsTable, mockShowsTable } = vi.hoisted(() => ({
+const { mockTrialsTable, mockShowsTable, mockClassesTable, mockEntriesTable } = vi.hoisted(() => ({
   mockTrialsTable: {
     getAll: vi.fn(),
     getTrialById: vi.fn(),
@@ -17,6 +19,12 @@ const { mockTrialsTable, mockShowsTable } = vi.hoisted(() => ({
     getAllShows: vi.fn(),
     getShowById: vi.fn(),
   },
+  mockClassesTable: {
+    getClassesByTrial: vi.fn(),
+  },
+  mockEntriesTable: {
+    getAll: vi.fn(),
+  },
 }));
 
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
@@ -25,6 +33,14 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
   replicatedShowsTable: mockShowsTable,
+}));
+
+vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
+  replicatedClassesTable: mockClassesTable,
+}));
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: mockEntriesTable,
 }));
 
 // Now import the functions under test
@@ -37,6 +53,8 @@ import {
   getUpcomingTrials,
   getTrialsByDateRange,
   getTrialStatistics,
+  getShowScheduleTimelineRows,
+  getTrialTimelineRows,
 } from '@/services/database/trials';
 
 // ---------------------------------------------------------------------------
@@ -70,6 +88,30 @@ function makeShow(overrides: Partial<ReplicatedShow> = {}): ReplicatedShow {
   };
 }
 
+function makeClass(overrides: Partial<ReplicatedClass> = {}): ReplicatedClass {
+  return {
+    id: 'class-1',
+    trialId: 'trial-1',
+    name: 'Novice Containers',
+    element: 'Containers',
+    level: 'Novice',
+    startTime: '09:00',
+    classStatus: 'Scheduled',
+    judgeId: 'judge-1',
+    judgeName: 'Ada Lovelace',
+    ...overrides,
+  };
+}
+
+function makeEntry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
+  return {
+    id: 'entry-1',
+    classId: 'class-1',
+    showId: 'show-1',
+    ...overrides,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Helpers to set up default mocks for list queries
 // ---------------------------------------------------------------------------
@@ -82,6 +124,8 @@ function setupListMocks(
   mockTrialsTable.getTrialsByShow.mockResolvedValue(trials);
   mockShowsTable.getAllShows.mockResolvedValue(shows);
   mockShowsTable.getShowById.mockResolvedValue(shows[0] ?? null);
+  mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
+  mockEntriesTable.getAll.mockResolvedValue([makeEntry()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -388,6 +432,72 @@ describe('trialQueries (replication)', () => {
           upcoming: 1,
         },
       });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // timeline rows
+  // -----------------------------------------------------------------------
+  describe('getShowScheduleTimelineRows', () => {
+    it('returns schedule rows from replicated trials and classes', async () => {
+      const trial = makeTrial({ id: 'trial-1', plannedStartTime: '08:30' });
+      const cls = makeClass({ id: 'class-1', trialId: 'trial-1' });
+      setupListMocks([trial]);
+      mockClassesTable.getClassesByTrial.mockResolvedValue([cls]);
+      mockEntriesTable.getAll.mockResolvedValue([
+        makeEntry({ id: 'entry-1', classId: 'class-1' }),
+        makeEntry({ id: 'entry-2', classId: 'class-1' }),
+        makeEntry({ id: 'entry-3', classId: 'other-class' }),
+      ]);
+
+      const result = await getShowScheduleTimelineRows('show-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual([
+        {
+          trialId: 'trial-1',
+          trialDate: '2026-05-01',
+          trialNumber: '1',
+          trialPlannedStartTime: '08:30',
+          classId: 'class-1',
+          className: 'Novice Containers',
+          element: 'Containers',
+          level: 'Novice',
+          startTime: '09:00',
+          status: 'Scheduled',
+          totalEntriesCount: 2,
+        },
+      ]);
+    });
+  });
+
+  describe('getTrialTimelineRows', () => {
+    it('returns trial rows with judge metadata from replicated classes', async () => {
+      mockClassesTable.getClassesByTrial.mockResolvedValue([
+        makeClass({ id: 'class-1', judgeId: 'judge-1', judgeName: 'Ada Lovelace' }),
+      ]);
+      mockEntriesTable.getAll.mockResolvedValue([
+        makeEntry({ id: 'entry-1', classId: 'class-1' }),
+        makeEntry({ id: 'entry-2', classId: 'class-1' }),
+      ]);
+
+      const result = await getTrialTimelineRows('trial-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual([
+        {
+          classId: 'class-1',
+          className: 'Novice Containers',
+          element: 'Containers',
+          level: 'Novice',
+          startTime: '09:00',
+          status: 'Scheduled',
+          totalEntriesCount: 2,
+          judgePersonId: 'judge-1',
+          judgeFirstName: 'Ada',
+          judgeLastName: 'Lovelace',
+        },
+      ]);
     });
   });
 });

@@ -7,13 +7,13 @@
  *
  * Resolution order:
  *   1. Replication store (no network round-trip if app data is already loaded)
- *   2. Supabase query fallback (for direct navigation before stores hydrate)
+ *   2. Class data access module fallback (for direct navigation before stores hydrate)
  */
 
 import { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { useTrialStore } from '@/store/trialStore';
-import { supabase } from '@/services/database/supabaseClient';
+import { getClassRouteContext } from '@/services/database/classes';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { PageShell } from '@/components/common/PageShell';
 import { NotFoundState } from '@/components/common/NotFoundState';
@@ -47,21 +47,17 @@ export function ClassDetailsRedirect() {
     if (!classId || storeResolved) return;
 
     let cancelled = false;
-    supabase
-      .from('classes')
-      .select('trial_id, trials!inner(show_id)')
-      .eq('id', classId)
-      .is('deleted_at', null)
-      .single()
+    getClassRouteContext(classId)
       .then(({ data }) => {
         if (cancelled) return;
-        const showId = (data?.trials as { show_id: string } | null)?.show_id;
-        const trialId = data?.trial_id;
-        if (trialId && showId) {
-          setDbResult({ trialId, showId });
+        if (data) {
+          setDbResult(data);
         } else {
           setDbResult(false);
         }
+      })
+      .catch(() => {
+        if (!cancelled) setDbResult(false);
       });
 
     return () => {

@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { ListTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/common/ErrorState';
-import { buildShowMapTree, getDefaultExpandedNodeIds, getShowMapNodeId } from './showMapTree';
+import {
+  buildShowMapTree,
+  getDefaultExpandedNodeIds,
+  getShowMapNodeId,
+  getTrialsExpandedNodeIds,
+} from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { ShowMapToolbar } from './ShowMapToolbar';
 import { countCatalogEntries } from './entryCounts';
@@ -32,7 +37,7 @@ function useExpandedNodes(tree: ShowMapTree) {
     [tree.root.id]
   );
   const expandTrials = useCallback(
-    () => setExpandedNodeIds(getDefaultExpandedNodeIds(tree)),
+    () => setExpandedNodeIds(getTrialsExpandedNodeIds(tree)),
     [tree]
   );
 

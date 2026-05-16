@@ -102,6 +102,22 @@ export const ResultCatalog: React.FC<ReportProps> = ({
                 <p className="catalog-class-summary">
                   Entries: {classEntries.length} · Qualified: {qualifiedCount}
                 </p>
+                {/*
+                  INTENT: Each class section ends with a judge signature + date line.
+                  After the class wraps the printed catalog is handed to the judge to
+                  sign and date, confirming the recorded results. Matches the footer
+                  pattern used by JudgesCertification and TrialSecretaryCertification.
+                */}
+                <div className="form-signature-section catalog-class-signature">
+                  <div className="signature-line">
+                    <span className="signature-label">Judge&apos;s Signature:</span>
+                    <span className="signature-blank" />
+                  </div>
+                  <div className="signature-line">
+                    <span className="signature-label">Date:</span>
+                    <span className="signature-blank" />
+                  </div>
+                </div>
               </>
             )}
           </div>

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient } from '@/test/utils/testUtils';
-import { MessagesTab } from '../MessagesTab';
+import { MessagesTab, MESSAGES_TAB_RESERVED_MIN_HEIGHT_PX } from '../MessagesTab';
 import type { MessageThread } from '@/features/messages/types';
 
 // Mock the message store
@@ -94,6 +94,36 @@ describe('MessagesTab', () => {
     render(<MessagesTab shows={shows} />, { wrapper });
 
     expect(screen.getByText('No messages yet.')).toBeInTheDocument();
+  });
+
+  it('reserves min-height in the loading skeleton to prevent CLS', () => {
+    setupStore([], true);
+    render(<MessagesTab shows={shows} />, { wrapper });
+
+    const skeleton = screen.getByTestId('messages-tab-skeleton');
+    expect(skeleton).toBeInTheDocument();
+    expect(skeleton.style.minHeight).toBe(`${MESSAGES_TAB_RESERVED_MIN_HEIGHT_PX}px`);
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('renders FilterChips in the loading state so they do not pop in later', () => {
+    setupStore([], true);
+    render(<MessagesTab shows={shows} />, { wrapper });
+
+    // "All Shows" chip should be present alongside the skeleton.
+    expect(screen.getByTestId('messages-tab-skeleton')).toBeInTheDocument();
+    expect(screen.getByText('All Shows')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Spring Trial').some(el => el.closest('[aria-pressed]'))
+    ).toBe(true);
+  });
+
+  it('does not render skeleton when data is loaded', () => {
+    setupStore([makeThread()]);
+    render(<MessagesTab shows={shows} />, { wrapper });
+
+    expect(screen.queryByTestId('messages-tab-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
   });
 
   it('filters threads by show when chip is clicked', () => {

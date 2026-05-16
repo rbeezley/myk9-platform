@@ -1,8 +1,20 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ShowPhaseCard } from './ShowPhaseCard';
 import type { Show } from '@/types/show-types';
 import type { ShowPhase } from '@/hooks/useMyShows';
+
+// Reserve vertical space while the shows query is in flight so the rest of
+// the dashboard (tabs, task list, message list) doesn't get pushed down once
+// data arrives. The loaded state typically renders "Happening today" + an
+// "Upcoming" section with 1–2 ShowPhaseCard rows (~72px each) plus the
+// section headers (~56px each). 360px approximates that footprint and
+// covers the worst mobile-stacked case without leaving excessive whitespace
+// on a one-show account.
+// INTENT: prevent CLS on /secretary/dashboard — see PR "perf(shows): reserve
+// layout space for deferred panels (CLS)".
+export const MY_SHOWS_SECTION_RESERVED_MIN_HEIGHT_PX = 360;
 
 const PHASE_DOT_COLOR: Record<ShowPhase, string> = {
   today: 'bg-destructive',
@@ -77,5 +89,48 @@ export function MyShowsSection({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Loading-state placeholder for the stack of `MyShowsSection`s on the
+ * secretary dashboard. Mirrors the loaded layout (two section headers + a
+ * couple of card rows each) so the rest of the page doesn't shift when the
+ * shows query resolves.
+ */
+export function MyShowsSectionSkeleton() {
+  return (
+    <div
+      data-testid="my-shows-section-skeleton"
+      style={{ minHeight: `${MY_SHOWS_SECTION_RESERVED_MIN_HEIGHT_PX}px` }}
+      aria-busy="true"
+      aria-label="Loading your shows"
+    >
+      <section className="mb-6 border-b border-border pb-4">
+        <div className="flex items-center gap-2.5 mb-3">
+          <Skeleton className="h-3 w-3 rounded-full" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-[72px] w-full" />
+          <Skeleton className="h-[72px] w-full" />
+        </div>
+      </section>
+      <section className="mb-6 border-b border-border pb-4">
+        <div className="flex items-center gap-2.5 mb-3">
+          <Skeleton className="h-3 w-3 rounded-full" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-56" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-[72px] w-full" />
+        </div>
+      </section>
+    </div>
   );
 }

@@ -78,7 +78,7 @@ describe('SecretaryDashboardPage', () => {
 
     renderPage();
 
-    expect(screen.getByText('Loading your shows...')).toBeInTheDocument();
+    expect(screen.getByTestId('my-shows-section-skeleton')).toBeInTheDocument();
     expect(screen.queryByText('No shows yet.')).not.toBeInTheDocument();
   });
 

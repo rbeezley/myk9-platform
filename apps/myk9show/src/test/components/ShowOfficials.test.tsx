@@ -1,8 +1,11 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
+import {
+  ShowOfficials,
+  SHOW_OFFICIALS_RESERVED_MIN_HEIGHT_PX,
+} from '@/components/shows/overview/ShowOfficials';
 import type { ShowOfficials as ShowOfficialsData } from '@/hooks/queries/useShowOfficials';
 
 const fullData: ShowOfficialsData = {
@@ -30,9 +33,10 @@ const fullData: ShowOfficialsData = {
 const emptyData: ShowOfficialsData = { chairmen: [], secretaries: [], stewards: [] };
 
 let mockData: ShowOfficialsData | null = fullData;
+let mockIsLoading = false;
 
 vi.mock('@/hooks/queries/useShowOfficials', () => ({
-  useShowOfficials: () => ({ data: mockData }),
+  useShowOfficials: () => ({ data: mockData, isLoading: mockIsLoading }),
 }));
 
 function renderWithQuery(ui: React.ReactElement) {
@@ -41,11 +45,34 @@ function renderWithQuery(ui: React.ReactElement) {
 }
 
 describe('ShowOfficials', () => {
+  beforeEach(() => {
+    mockIsLoading = false;
+  });
+
   it('renders chairman and secretary with names', () => {
     mockData = fullData;
     renderWithQuery(<ShowOfficials showId="show-1" />);
     expect(screen.getByText('Sarah Johnson')).toBeInTheDocument();
     expect(screen.getByText('Mike Williams')).toBeInTheDocument();
+  });
+
+  it('reserves min-height while loading to prevent CLS', () => {
+    mockData = null;
+    mockIsLoading = true;
+    renderWithQuery(<ShowOfficials showId="show-1" />);
+    const skeleton = screen.getByTestId('show-officials-skeleton');
+    expect(skeleton).toBeInTheDocument();
+    expect((skeleton as HTMLElement).style.minHeight).toBe(
+      `${SHOW_OFFICIALS_RESERVED_MIN_HEIGHT_PX}px`
+    );
+  });
+
+  it('does not render skeleton when data is loaded', () => {
+    mockData = fullData;
+    mockIsLoading = false;
+    renderWithQuery(<ShowOfficials showId="show-1" />);
+    expect(screen.queryByTestId('show-officials-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('Sarah Johnson')).toBeInTheDocument();
   });
 
   it('renders role labels', () => {

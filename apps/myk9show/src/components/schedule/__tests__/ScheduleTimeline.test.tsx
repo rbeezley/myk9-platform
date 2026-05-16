@@ -1,8 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { ScheduleTimeline } from '../ScheduleTimeline';
+import {
+  ScheduleTimeline,
+  SCHEDULE_TIMELINE_RESERVED_MIN_HEIGHT_PX,
+} from '../ScheduleTimeline';
 import type { DayTimelineData } from '../schedule-timeline.types';
 import { CLASS_STATUS } from '@myk9/core';
 
@@ -39,8 +42,16 @@ const mockData: DayTimelineData[] = [
   },
 ];
 
+let mockIsLoading = false;
+let mockReturnData: DayTimelineData[] | undefined = mockData;
+
 vi.mock('@/hooks/queries/useScheduleTimeline', () => ({
-  useScheduleTimeline: () => ({ data: mockData, isLoading: false, error: null, refetch: vi.fn() }),
+  useScheduleTimeline: () => ({
+    data: mockIsLoading ? undefined : mockReturnData,
+    isLoading: mockIsLoading,
+    error: null,
+    refetch: vi.fn(),
+  }),
 }));
 
 function renderWithRouter(ui: React.ReactElement) {
@@ -48,6 +59,29 @@ function renderWithRouter(ui: React.ReactElement) {
 }
 
 describe('ScheduleTimeline', () => {
+  beforeEach(() => {
+    mockIsLoading = false;
+    mockReturnData = mockData;
+  });
+
+  it('reserves min-height in the loading skeleton to prevent CLS', () => {
+    mockIsLoading = true;
+    renderWithRouter(<ScheduleTimeline showId="show-1" />);
+    const skeleton = screen.getByTestId('schedule-timeline-skeleton');
+    expect(skeleton).toBeInTheDocument();
+    expect((skeleton as HTMLElement).style.minHeight).toBe(
+      `${SCHEDULE_TIMELINE_RESERVED_MIN_HEIGHT_PX}px`
+    );
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('does not render skeleton when data is loaded', () => {
+    mockIsLoading = false;
+    renderWithRouter(<ScheduleTimeline showId="show-1" />);
+    expect(screen.queryByTestId('schedule-timeline-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByText('Schedule')).toBeInTheDocument();
+  });
+
   it('renders the schedule heading', () => {
     renderWithRouter(<ScheduleTimeline showId="show-1" />);
     expect(screen.getByText('Schedule')).toBeInTheDocument();

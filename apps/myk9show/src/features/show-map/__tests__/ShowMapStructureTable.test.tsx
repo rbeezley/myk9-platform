@@ -1,7 +1,11 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { buildShowMapTree, getDefaultExpandedNodeIds } from '../showMapTree';
+import {
+  buildShowMapTree,
+  getDefaultExpandedNodeIds,
+  getTrialsExpandedNodeIds,
+} from '../showMapTree';
 import { ShowMapStructureTable } from '../ShowMapStructureTable';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
@@ -177,7 +181,9 @@ describe('ShowMapStructureTable', () => {
         },
       ],
     });
-    const expandedNodeIds = getDefaultExpandedNodeIds(tree);
+    // Simulate the secretary clicking "Expand trials" so the class row is
+    // visible but its entries are still collapsed.
+    const expandedNodeIds = getTrialsExpandedNodeIds(tree);
     const onToggle = vi.fn();
     const onNavigate = vi.fn();
 
@@ -221,7 +227,7 @@ describe('ShowMapStructureTable', () => {
     const { user } = render(
       <ShowMapStructureTable
         tree={tree}
-        expandedNodeIds={getDefaultExpandedNodeIds(tree)}
+        expandedNodeIds={getTrialsExpandedNodeIds(tree)}
         filter="all"
         onToggle={vi.fn()}
         onNavigate={onNavigate}
@@ -232,6 +238,42 @@ describe('ShowMapStructureTable', () => {
 
     await user.click(screen.getByRole('button', { name: /print check-in sheet/i }));
     expect(onNavigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1/classes/class-future');
+  });
+
+  it('defaults to root-only expansion so class rows are hidden until a trial is opened', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+        },
+      ],
+    });
+
+    // Default expansion: only the root. Trial rows are rendered (top-level
+    // children of root), but their class children remain hidden.
+    const expandedNodeIds = getDefaultExpandedNodeIds(tree);
+    expect(expandedNodeIds).toEqual(new Set([tree.root.id]));
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={expandedNodeIds}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
+    expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
+    expect(screen.queryByText('Exterior Advanced B')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Bella')).not.toBeInTheDocument();
   });
 
   it('shows recommended row actions from the shared ranked action contract', async () => {

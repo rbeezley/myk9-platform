@@ -72,6 +72,12 @@ function isClassReadyToScore(node: ShowMapNode): boolean {
   return node.type === 'class' && node.status?.kind === 'active' && Boolean(node.scoreHref);
 }
 
+function canMarkEntryCheckedIn(node: ShowMapNode): boolean {
+  if (node.type !== 'entry') return false;
+  if (node.status?.kind === 'complete' || node.status?.kind === 'muted') return false;
+  return !['checked-in', 'completed', 'pulled'].includes(node.checkInStatus?.value ?? '');
+}
+
 function withHref(action: Omit<ShowMapAction, 'href'>, href: string | undefined): ShowMapAction {
   return href ? { ...action, href } : action;
 }
@@ -123,18 +129,17 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
         )
       );
     }
+    if (canMarkEntryCheckedIn(node)) {
+      actions.push({
+        id: 'mark-checked-in',
+        nodeId: node.id,
+        label: 'Mark checked in',
+        why: 'Prepare this entry for the gate',
+        priority: 35,
+        icon: ClipboardCheck,
+      });
+    }
     actions.push(
-      withHref(
-        {
-          id: 'mark-checked-in',
-          nodeId: node.id,
-          label: 'Mark checked in',
-          why: 'Prepare this entry for the gate',
-          priority: 35,
-          icon: ClipboardCheck,
-        },
-        undefined
-      ),
       withHref(
         {
           id: 'move-up-entry',

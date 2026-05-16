@@ -51,12 +51,22 @@ describe('showMapActionExecution', () => {
     expect(isShowMapActionEnabled(action)).toBe(false);
   });
 
-  it('keeps planned action work disabled behind explicit reasons', () => {
+  it('enables mark checked-in as the first mutation action', () => {
     const markCheckedIn = makeAction({
       id: 'mark-checked-in',
       label: 'Mark checked in',
       href: null,
     });
+
+    expect(resolveShowMapActionExecution(markCheckedIn)).toEqual({
+      kind: 'mutation',
+      mutation: 'mark-checked-in',
+      successMessage: 'Entry checked in',
+    });
+    expect(isShowMapActionEnabled(markCheckedIn)).toBe(true);
+  });
+
+  it('keeps remaining planned action work disabled behind explicit reasons', () => {
     const moveUp = makeAction({
       id: 'move-up-entry',
       label: 'Move up',
@@ -73,11 +83,6 @@ describe('showMapActionExecution', () => {
       href: null,
     });
 
-    expect(resolveShowMapActionExecution(markCheckedIn)).toMatchObject({
-      kind: 'disabled',
-      futureKind: 'mutation',
-      disabledReason: expect.stringContaining('Check-In tab'),
-    });
     expect(resolveShowMapActionExecution(moveUp)).toMatchObject({
       kind: 'disabled',
       futureKind: 'dialog',

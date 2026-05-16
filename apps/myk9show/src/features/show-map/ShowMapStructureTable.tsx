@@ -6,6 +6,8 @@ import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { getAttentionNodeIds, getPrimaryActionForNode } from './showMapActions';
 import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
 import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
+import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
+import type { ShowMapAction } from './showMapActions';
 import type { ShowMapFilter, ShowMapNode, ShowMapTree } from './showMapTypes';
 
 interface ShowMapStructureTableProps {
@@ -14,6 +16,7 @@ interface ShowMapStructureTableProps {
   filter: ShowMapFilter;
   onToggle: (nodeId: string) => void;
   onNavigate?: (href: string) => void;
+  onAction?: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
 }
 
 function nodeMatchesFilter(
@@ -154,6 +157,7 @@ export function ShowMapStructureTable({
   filter,
   onToggle,
   onNavigate,
+  onAction,
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
   const attentionNodeIds = useMemo(() => getAttentionNodeIds(tree), [tree]);
@@ -204,6 +208,7 @@ export function ShowMapStructureTable({
                 node={node}
                 tree={tree}
                 onNavigate={onNavigate}
+                onAction={onAction}
                 openSignal={actionMenuOpenSignals[node.id]}
               />
             </div>
@@ -284,6 +289,7 @@ export function ShowMapStructureTable({
             node={node}
             tree={tree}
             onNavigate={onNavigate}
+            onAction={onAction}
             openSignal={actionMenuOpenSignals[node.id]}
           />
         </div>

@@ -53,9 +53,9 @@ export const showMapActionExecutionById = {
   'open-schedule': { kind: 'navigate' },
   'print-trial-reports': { kind: 'navigate' },
   'mark-checked-in': {
-    kind: 'disabled',
-    futureKind: 'mutation',
-    disabledReason: 'Check-in from Show Map is coming next. Use the Check-In tab for now.',
+    kind: 'mutation',
+    mutation: 'mark-checked-in',
+    successMessage: 'Entry checked in',
   },
   'move-up-entry': {
     kind: 'disabled',

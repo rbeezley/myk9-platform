@@ -13,8 +13,11 @@ import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { ShowMapToolbar } from './ShowMapToolbar';
 import { countCatalogEntries } from './entryCounts';
 import { getRankedActions, getRecommendedActions } from './showMapActions';
+import { resolveShowMapActionExecution } from './showMapActionExecution';
+import { useShowMapActionExecutor } from './useShowMapActionExecutor';
 import type { BuildShowMapTreeInput, ShowMapFilter, ShowMapTree } from './showMapTypes';
 import type { ShowMapAction } from './showMapActions';
+import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 
 interface ShowMapTabProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
@@ -58,11 +61,20 @@ function SummaryItem({ label, value }: { label: string; value: number }) {
 function NextBestAction({
   action,
   onNavigate,
+  onAction,
 }: {
   action: ShowMapAction | undefined;
   onNavigate: (href: string) => void;
+  onAction: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
 }) {
   if (!action) return null;
+  const execution = resolveShowMapActionExecution(action);
+  const canExecute = execution.kind !== 'disabled';
+  const execute = () => {
+    if (execution.kind === 'disabled') return;
+    if (execution.kind === 'navigate') onNavigate(execution.href);
+    else onAction(action, execution);
+  };
 
   return (
     <div className="border-b bg-muted/20 px-4 py-3 text-foreground">
@@ -71,8 +83,8 @@ function NextBestAction({
           <div className="text-sm font-semibold">Next: {action.label}</div>
           <div className="mt-0.5 text-sm text-muted-foreground">{action.why}</div>
         </div>
-        {action.href && (
-          <Button type="button" size="sm" onClick={() => onNavigate(action.href!)}>
+        {canExecute && (
+          <Button type="button" size="sm" onClick={execute}>
             <action.icon className="h-4 w-4" />
             Start
           </Button>
@@ -85,9 +97,11 @@ function NextBestAction({
 function PriorityQueue({
   actions,
   onNavigate,
+  onAction,
 }: {
   actions: ShowMapAction[];
   onNavigate: (href: string) => void;
+  onAction: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
 }) {
   const visibleActions = actions.slice(0, 4);
   if (visibleActions.length === 0) return null;
@@ -98,28 +112,33 @@ function PriorityQueue({
         Priority Queue
       </div>
       <div className="divide-y">
-        {visibleActions.map(action => (
-          <div
-            key={`${action.id}:${action.nodeId}`}
-            className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="min-w-0">
-              <div className="text-sm font-medium">{action.label}</div>
-              <div className="text-xs text-muted-foreground">{action.why}</div>
+        {visibleActions.map(action => {
+          const execution = resolveShowMapActionExecution(action);
+          const canExecute = execution.kind !== 'disabled';
+          const execute = () => {
+            if (execution.kind === 'disabled') return;
+            if (execution.kind === 'navigate') onNavigate(execution.href);
+            else onAction(action, execution);
+          };
+
+          return (
+            <div
+              key={`${action.id}:${action.nodeId}`}
+              className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="text-sm font-medium">{action.label}</div>
+                <div className="text-xs text-muted-foreground">{action.why}</div>
+              </div>
+              {canExecute && (
+                <Button type="button" variant="outline" size="sm" onClick={execute}>
+                  <action.icon className="h-4 w-4" />
+                  Open
+                </Button>
+              )}
             </div>
-            {action.href && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onNavigate(action.href!)}
-              >
-                <action.icon className="h-4 w-4" />
-                Open
-              </Button>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -140,6 +159,7 @@ export default function ShowMapTab({
   );
   const { expandedNodeIds, toggleNode, collapseAll, expandTrials } = useExpandedNodes(tree);
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
+  const { executeAction } = useShowMapActionExecutor({ showId: show.id });
   const attentionCount = tree.root.attentionCount ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
   const recommendedActions = useMemo(() => getRecommendedActions('root', { tree }), [tree]);
@@ -200,15 +220,20 @@ export default function ShowMapTab({
         onCollapseAll={collapseAll}
         onExpandTrials={expandTrials}
       />
-      <NextBestAction action={recommendedActions[0]} onNavigate={navigateTo} />
+      <NextBestAction
+        action={recommendedActions[0]}
+        onNavigate={navigateTo}
+        onAction={executeAction}
+      />
       <div className="p-3">
-        <PriorityQueue actions={priorityActions} onNavigate={navigateTo} />
+        <PriorityQueue actions={priorityActions} onNavigate={navigateTo} onAction={executeAction} />
         <ShowMapStructureTable
           tree={tree}
           expandedNodeIds={expandedNodeIds}
           filter={filter}
           onToggle={toggleNode}
           onNavigate={navigateTo}
+          onAction={executeAction}
         />
       </div>
     </div>

@@ -1,14 +1,7 @@
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
-import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
-import { HeadlineLandingPage } from '@/features/headline/landing/HeadlineLandingPage';
-import { MonogramLandingPage } from '@/features/monogram/landing/MonogramLandingPage';
-import { BannerLandingPage } from '@/features/banner/landing/BannerLandingPage';
-import { FieldGuideLandingPage } from '@/features/fieldGuide/landing/FieldGuideLandingPage';
-import { GazetteLandingPage } from '@/features/gazette/landing/GazetteLandingPage';
-import { MagazineLandingPage } from '@/features/magazine/landing/MagazineLandingPage';
-import { PosterLandingPage } from '@/features/poster/landing/PosterLandingPage';
+import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -407,46 +400,19 @@ const ShowDetailsPage: React.FC = () => {
     (publicLandingShow as { landing_style?: string | null }).landing_style;
   const hasExplicitStyle = !!rawShowStyle && rawShowStyle !== 'default';
   const publicShowStyle = getShowStyle(publicLandingShow);
-  const isStyledLanding =
-    hasExplicitStyle &&
-    (publicShowStyle === 'heritage' ||
-      publicShowStyle === 'headline' ||
-      publicShowStyle === 'monogram' ||
-      publicShowStyle === 'banner' ||
-      publicShowStyle === 'fieldGuide' ||
-      publicShowStyle === 'gazette' ||
-      publicShowStyle === 'magazine' ||
-      publicShowStyle === 'poster');
-  if (isStyledLanding && !isSecretary && !isAdmin && !hasRole('club_admin')) {
-    const landingProps = {
-      show: publicLandingShow,
-      trial: associatedTrials[0] ?? null,
-      allTrials: associatedTrials,
-    };
-    if (publicShowStyle === 'heritage') {
-      return <HeritageLandingPage {...landingProps} />;
-    }
-    if (publicShowStyle === 'headline') {
-      return <HeadlineLandingPage {...landingProps} />;
-    }
-    if (publicShowStyle === 'banner') {
-      return <BannerLandingPage {...landingProps} />;
-    }
-    if (publicShowStyle === 'fieldGuide') {
-      return <FieldGuideLandingPage {...landingProps} />;
-    }
-    if (publicShowStyle === 'gazette') {
-      return <GazetteLandingPage {...landingProps} />;
-    }
-    if (publicShowStyle === 'magazine') {
-      return <MagazineLandingPage {...landingProps} />;
-    }
-    if (publicShowStyle === 'poster') {
-      return <PosterLandingPage {...landingProps} />;
-    }
-    // monogram falls through here as the catch-all for any explicit style
-    // not handled above (matches the historical default).
-    return <MonogramLandingPage {...landingProps} />;
+  // The registry is exhaustive over every ShowStyle value (typecheck
+  // enforces it), so any explicit style is guaranteed to resolve to a
+  // component. The `hasExplicitStyle` gate skips the styled path
+  // entirely when no style is set.
+  if (hasExplicitStyle && !isSecretary && !isAdmin && !hasRole('club_admin')) {
+    const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
+    return (
+      <StyledLanding
+        show={publicLandingShow}
+        trial={associatedTrials[0] ?? null}
+        allTrials={associatedTrials}
+      />
+    );
   }
 
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries);

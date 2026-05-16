@@ -12,7 +12,9 @@ import {
 import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { ShowMapToolbar } from './ShowMapToolbar';
 import { countCatalogEntries } from './entryCounts';
+import { getRankedActions, getRecommendedActions } from './showMapActions';
 import type { BuildShowMapTreeInput, ShowMapFilter, ShowMapTree } from './showMapTypes';
+import type { ShowMapAction } from './showMapActions';
 
 interface ShowMapTabProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
@@ -53,6 +55,76 @@ function SummaryItem({ label, value }: { label: string; value: number }) {
   );
 }
 
+function NextBestAction({
+  action,
+  onNavigate,
+}: {
+  action: ShowMapAction | undefined;
+  onNavigate: (href: string) => void;
+}) {
+  if (!action) return null;
+
+  return (
+    <div className="border-b bg-muted/20 px-4 py-3 text-foreground">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold">Next: {action.label}</div>
+          <div className="mt-0.5 text-sm text-muted-foreground">{action.why}</div>
+        </div>
+        {action.href && (
+          <Button type="button" size="sm" onClick={() => onNavigate(action.href!)}>
+            <action.icon className="h-4 w-4" />
+            Start
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PriorityQueue({
+  actions,
+  onNavigate,
+}: {
+  actions: ShowMapAction[];
+  onNavigate: (href: string) => void;
+}) {
+  const visibleActions = actions.slice(0, 4);
+  if (visibleActions.length === 0) return null;
+
+  return (
+    <div className="mb-3 rounded-md border bg-muted/15">
+      <div className="border-b px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
+        Priority Queue
+      </div>
+      <div className="divide-y">
+        {visibleActions.map(action => (
+          <div
+            key={`${action.id}:${action.nodeId}`}
+            className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="min-w-0">
+              <div className="text-sm font-medium">{action.label}</div>
+              <div className="text-xs text-muted-foreground">{action.why}</div>
+            </div>
+            {action.href && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onNavigate(action.href!)}
+              >
+                <action.icon className="h-4 w-4" />
+                Open
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ShowMapTab({
   show,
   trials,
@@ -70,6 +142,8 @@ export default function ShowMapTab({
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
   const attentionCount = tree.root.attentionCount ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
+  const recommendedActions = useMemo(() => getRecommendedActions('root', { tree }), [tree]);
+  const priorityActions = useMemo(() => getRankedActions('root', { tree }), [tree]);
 
   if (!canManageShow) {
     return <ErrorState message="Show Map is only available to show staff." />;
@@ -126,7 +200,9 @@ export default function ShowMapTab({
         onCollapseAll={collapseAll}
         onExpandTrials={expandTrials}
       />
+      <NextBestAction action={recommendedActions[0]} onNavigate={navigateTo} />
       <div className="p-3">
+        <PriorityQueue actions={priorityActions} onNavigate={navigateTo} />
         <ShowMapStructureTable
           tree={tree}
           expandedNodeIds={expandedNodeIds}

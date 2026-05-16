@@ -12,7 +12,7 @@ interface ShowMapToolbarProps {
 const filters: Array<{ value: ShowMapFilter; label: string }> = [
   { value: 'all', label: 'All' },
   { value: 'in-progress', label: 'In progress' },
-  { value: 'needs-attention', label: 'Needs attention' },
+  { value: 'needs-attention', label: 'Attention' },
   { value: 'complete', label: 'Complete' },
 ];
 

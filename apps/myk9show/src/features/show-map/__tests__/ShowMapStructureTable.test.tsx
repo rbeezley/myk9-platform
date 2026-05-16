@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import {
@@ -96,6 +96,35 @@ describe('ShowMapStructureTable', () => {
     expect(screen.queryByText('Scout')).not.toBeInTheDocument();
   });
 
+  it('renders submitted entry leaves in the Attention lens through the action contract', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-submitted',
+          class_id: 'class-attention',
+          armband: '15',
+          dog: { call_name: 'Riley' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="needs-attention"
+        onToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+    expect(screen.getByText('Riley')).toBeInTheDocument();
+  });
+
   it('links expanded entry dog and handler names to their detail pages', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');
@@ -180,6 +209,37 @@ describe('ShowMapStructureTable', () => {
     expect(onToggle).toHaveBeenCalledWith('class:class-attention');
   });
 
+  it('uses the shared primary action instead of showing Score Class for future classes', async () => {
+    const futureClass = {
+      id: 'class-future',
+      trialId: 'trial-1',
+      name: 'Exterior Advanced B',
+      status: 'Not Started',
+    };
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [futureClass],
+      entries: [],
+    });
+    const onNavigate = vi.fn();
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={getTrialsExpandedNodeIds(tree)}
+        filter="all"
+        onToggle={vi.fn()}
+        onNavigate={onNavigate}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /print check-in sheet/i }));
+    expect(onNavigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1/classes/class-future');
+  });
+
   it('defaults to root-only expansion so class rows are hidden until a trial is opened', () => {
     const tree = buildShowMapTree({
       show,
@@ -214,5 +274,115 @@ describe('ShowMapStructureTable', () => {
     expect(screen.queryByText('Exterior Advanced B')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
+  });
+
+  it('shows recommended row actions from the shared ranked action contract', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+          check_in_status: 'conflict',
+        },
+      ],
+    });
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+
+    expect(await screen.findByText('Recommended')).toBeInTheDocument();
+    expect(screen.getAllByText('Resolve check-in conflict').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+  });
+
+  it('opens the same row actions menu from right-clicking row whitespace', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+          check_in_status: 'conflict',
+        },
+      ],
+    });
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    const row = screen.getByText('Bella').closest('[data-row-action-surface]');
+    if (!(row instanceof HTMLElement)) throw new Error('Expected entry row');
+
+    fireEvent.contextMenu(row);
+    expect(await screen.findByText('Recommended')).toBeInTheDocument();
+    expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+  });
+
+  it('keeps placeholder entry actions disabled until dialogs ship', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+        },
+      ],
+    });
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+
+    expect(await screen.findByRole('menuitem', { name: /mark checked in/i })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByRole('menuitem', { name: /message handler/i })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
   });
 });

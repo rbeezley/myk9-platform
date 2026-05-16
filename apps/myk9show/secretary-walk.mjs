@@ -85,12 +85,9 @@ async function readDashboardCounts(page) {
   return byShow;
 }
 
-// Reads the "Need Attention" summary tile on the show-map tab for the given
-// show. Scopes to the show's data-node-id container (added in PR #197).
-async function readShowMapAttention(page, showId) {
+async function goToShowMap(page, showId) {
   await page.goto(`${BASE_URL}/shows/${showId}?tab=map`);
   await page.waitForLoadState('networkidle');
-  return readSummaryTileValue(page, showId, 'Need Attention');
 }
 
 async function readSummaryTileValue(page, showId, label) {
@@ -113,9 +110,6 @@ async function readSummaryTileValue(page, showId, label) {
 }
 
 async function readEntryCountParity(page, showId) {
-  await page.goto(`${BASE_URL}/shows/${showId}?tab=map`);
-  await page.waitForLoadState('networkidle');
-
   const showMapEntries = await readSummaryTileValue(page, showId, 'Entries');
   const entriesTab = page.getByRole('tab', { name: /entries/i }).first();
   await entriesTab.waitFor({ timeout: 5000 });
@@ -165,7 +159,8 @@ async function main() {
         log(`  ⚠ ${showId} not in dashboard strip — skipping`);
         continue;
       }
-      const tileCount = await readShowMapAttention(page, showId);
+      await goToShowMap(page, showId);
+      const tileCount = await readSummaryTileValue(page, showId, 'Need Attention');
       const matches = tileCount === expected.total;
       const marker = matches ? '✔' : '✘';
       log(`  ${marker} ${showId}  dashboard=${expected.total}  show-map tile=${tileCount}`);

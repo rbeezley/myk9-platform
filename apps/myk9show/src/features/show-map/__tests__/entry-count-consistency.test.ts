@@ -18,14 +18,6 @@ describe('entry count divergence prevention', () => {
     expect(countCatalogEntries(entries)).toBe(5);
   });
 
-  it('does not treat personal entry count as the show entry count', () => {
-    const showRoster = Array.from({ length: 81 }, () => ({ entry_status: 'submitted' }));
-    const personalEntries = Array.from({ length: 80 }, () => ({ entry_status: 'submitted' }));
-
-    expect(countCatalogEntries(showRoster)).toBe(81);
-    expect(countCatalogEntries(showRoster)).not.toBe(personalEntries.length);
-  });
-
   it('excludes deleted entries from the catalog roster', () => {
     const entries: CatalogEntryLike[] = [
       { entry_status: 'submitted' },

@@ -44,6 +44,7 @@ import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
+import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
@@ -348,13 +349,26 @@ const ShowDetailsPage: React.FC = () => {
       { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
       ...(isAuthenticated
         ? [
-            { id: 'my-entries', label: 'Entries', icon: ClipboardList, count: catalogEntryCount },
+            {
+              id: 'my-entries',
+              label: 'Entries',
+              icon: ClipboardList,
+              count: canManageShow ? catalogEntryCount : userEntries.length,
+            },
             { id: 'my-stats', label: 'My Stats', icon: BarChart3 },
           ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
     ],
-    [isAuthenticated, canShowMap, associatedTrials.length, showClasses.length, catalogEntryCount]
+    [
+      isAuthenticated,
+      canShowMap,
+      canManageShow,
+      associatedTrials.length,
+      showClasses.length,
+      catalogEntryCount,
+      userEntries.length,
+    ]
   );
 
   // Loading state
@@ -536,7 +550,11 @@ const ShowDetailsPage: React.FC = () => {
 
           {isAuthenticated && (
             <TabsContent value="my-entries">
-              <MyEntriesTab showId={actualCurrentShow.id} />
+              {canManageShow ? (
+                <EntriesTab showId={actualCurrentShow.id} />
+              ) : (
+                <MyEntriesTab showId={actualCurrentShow.id} />
+              )}
             </TabsContent>
           )}
 

@@ -20,7 +20,7 @@ const trial = {
 } as SyncableTrial;
 
 describe('ShowMapTab', () => {
-  it('renders a show-list hub with counts, hierarchy, and capped entries', async () => {
+  it('renders a show-map hub with counts, hierarchy, and capped entries', async () => {
     const entries = Array.from({ length: 27 }, (_, index) => ({
       id: `entry-${index}`,
       class_id: 'class-1',
@@ -46,7 +46,7 @@ describe('ShowMapTab', () => {
       />
     );
 
-    expect(screen.getByText('Show List')).toBeInTheDocument();
+    expect(screen.getByText('Show Map')).toBeInTheDocument();
     expect(screen.getByText('Trials')).toBeInTheDocument();
     expect(screen.getByText('Classes')).toBeInTheDocument();
     expect(screen.getByText('Entries')).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe('ShowMapTab', () => {
       <ShowMapTab show={show} trials={[trial]} classes={[]} entries={[]} canManageShow={false} />
     );
 
-    expect(screen.queryByText('Show List')).not.toBeInTheDocument();
-    expect(screen.getByText(/show list is only available to show staff/i)).toBeInTheDocument();
+    expect(screen.queryByText('Show Map')).not.toBeInTheDocument();
+    expect(screen.getByText(/show map is only available to show staff/i)).toBeInTheDocument();
   });
 });

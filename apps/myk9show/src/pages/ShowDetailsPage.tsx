@@ -341,7 +341,7 @@ const ShowDetailsPage: React.FC = () => {
   const tabDefs: PrimaryTabDef[] = useMemo(
     () => [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-      ...(canShowMap ? [{ id: 'map', label: 'Show List', icon: ListTree }] : []),
+      ...(canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
       { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
       { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
       ...(isAuthenticated

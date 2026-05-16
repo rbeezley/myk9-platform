@@ -63,6 +63,6 @@ export {
   type FieldGuideTableRowProps,
 } from './components/FieldGuideTable';
 
-// Surface exports (FieldGuideLandingPage, FieldGuideEntryReceived,
-// FieldGuideEntryBlankDocument, FieldGuideEntryBlankButton) are added
-// alongside their files in subsequent phases.
+export { FieldGuideLandingPage } from './landing/FieldGuideLandingPage';
+// Wizard + entry-blank surface exports are added alongside their files in
+// subsequent phases.

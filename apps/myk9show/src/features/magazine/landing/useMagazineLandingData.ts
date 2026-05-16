@@ -78,8 +78,12 @@ export function deriveMonogram(clubName: string): string {
 
 /** Initials of a judge's display name — up to 3 chars, uppercase. */
 export function deriveJudgeInitials(name: string): string {
+  // Strip leading honorifics — longest alternatives first so "Mrs" matches
+  // before "Mr" when scanning "Mrs. Beagles" (regex tries alternatives in
+  // declared order). The wider claim is captured by `feedback_regex_alternation`
+  // patterns elsewhere: alternation should always go widest-first.
   const tokens = name
-    .replace(/\b(Mr|Mrs|Ms|Dr|Miss)\.?\s+/gi, '')
+    .replace(/\b(Miss|Mrs|Mr|Ms|Dr)\.?\s*/gi, '')
     .split(/\s+/)
     .filter(Boolean);
   if (!tokens.length) return '·';

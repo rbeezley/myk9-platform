@@ -1,0 +1,120 @@
+/*
+ * Field Guide surface styles.
+ *
+ * All rules are scoped under [data-field-guide] so importing this CSS at
+ * the root of a non-Field-Guide page is a no-op. Mirrors the heritage.css
+ * / banner.css pattern.
+ *
+ * Field Guide has no per-club configurability — every show that selects
+ * this style gets the same indicator-orange palette. The CSS vars below
+ * are fixed.
+ */
+
+[data-field-guide] {
+  --fg-paper: #f6f1e6;
+  --fg-paper-warm: #ebe4cf;
+  --fg-paper-deep: #1f2a24;
+  --fg-ink: #1f2a24;
+  --fg-soft: #3a4339;
+  --fg-mute: #6b6e5e;
+  --fg-hair: #c4bba0;
+  --fg-orange: #c96442;
+  --fg-orange-deep: #8a3e21;
+  --fg-cyan: #3a6e72;
+
+  background: var(--fg-paper);
+  color: var(--fg-ink);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-field-guide] * {
+  box-sizing: border-box;
+}
+
+[data-field-guide] a {
+  color: var(--fg-orange-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+[data-field-guide] a:hover {
+  color: var(--fg-orange);
+}
+
+/* Capacity bar — the single animated element on a Field Guide page.
+   Width fills from 0 to its target value over 1.1s with a 400ms delay. */
+@keyframes fg-capacity-fill {
+  from { width: 0; }
+}
+
+[data-field-guide] .fg-capacity-bar-fill {
+  animation: fg-capacity-fill 1100ms cubic-bezier(0.2, 0, 0, 1) 400ms forwards;
+}
+
+/* Section reveal — children get `.in` once the IntersectionObserver fires.
+   Field Guide reveal is more conservative than Banner — opacity only, no
+   translate, because the page is supposed to feel like it's already on the
+   page, not arriving. */
+[data-field-guide] .fg-reveal {
+  opacity: 0;
+  transition: opacity 600ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-field-guide] .fg-reveal.in {
+  opacity: 1;
+}
+
+/* Mobile collapse — under 960px the 6-cell quick-ref hero collapses to 3
+   columns; under 640px to 2 columns. Most other primitives carry their
+   responsive collapse inline since they're position-dependent. */
+@media (max-width: 960px) {
+  [data-field-guide] .fg-section {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  [data-field-guide] .fg-section-head {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  [data-field-guide] .fg-quickref {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  [data-field-guide] .fg-quickref > .fg-quickref-cell:nth-child(3n) {
+    border-right: none !important;
+  }
+  [data-field-guide] .fg-quickref > .fg-quickref-cell:nth-child(n + 4) {
+    border-top: 1px solid var(--fg-hair) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-field-guide] .fg-quickref {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  [data-field-guide] .fg-quickref > .fg-quickref-cell {
+    border-right: none !important;
+    border-top: none !important;
+  }
+  [data-field-guide] .fg-quickref > .fg-quickref-cell:nth-child(odd) {
+    border-right: 1px solid var(--fg-hair) !important;
+  }
+  [data-field-guide] .fg-quickref > .fg-quickref-cell:nth-child(n + 3) {
+    border-top: 1px solid var(--fg-hair) !important;
+  }
+}
+
+/* Honour reduced-motion: drop reveal transitions, freeze the capacity bar
+   at its target width. */
+@media (prefers-reduced-motion: reduce) {
+  [data-field-guide] .fg-reveal {
+    opacity: 1 !important;
+    transition: none !important;
+  }
+  [data-field-guide] .fg-capacity-bar-fill {
+    animation: none !important;
+  }
+}

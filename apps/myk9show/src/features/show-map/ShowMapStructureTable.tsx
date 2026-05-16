@@ -1,9 +1,11 @@
-import { ChevronDown, ChevronRight, ClipboardCheck } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
-import type { ReactNode } from 'react';
+import { getAttentionActions, getPrimaryActionForNode } from './showMapActions';
+import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
+import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { ShowMapFilter, ShowMapNode, ShowMapTree } from './showMapTypes';
 
 interface ShowMapStructureTableProps {
@@ -14,10 +16,10 @@ interface ShowMapStructureTableProps {
   onNavigate?: (href: string) => void;
 }
 
-function nodeMatchesFilter(node: ShowMapNode, filter: ShowMapFilter): boolean {
+function nodeMatchesFilter(tree: ShowMapTree, node: ShowMapNode, filter: ShowMapFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'needs-attention') {
-    return (node.attentionCount ?? 0) > 0 || node.status?.kind === 'attention';
+    return getAttentionActions(node, { tree }).length > 0;
   }
   if (filter === 'complete') return node.status?.kind === 'complete';
   return node.status?.kind === 'active';
@@ -27,7 +29,9 @@ function descendantsMatch(tree: ShowMapTree, nodeId: string, filter: ShowMapFilt
   const childIds = tree.childIdsByParentId[nodeId] ?? [];
   return childIds.some(childId => {
     const child = tree.nodesById[childId];
-    return !!child && (nodeMatchesFilter(child, filter) || descendantsMatch(tree, childId, filter));
+    return (
+      !!child && (nodeMatchesFilter(tree, child, filter) || descendantsMatch(tree, childId, filter))
+    );
   });
 }
 
@@ -35,7 +39,7 @@ function shouldRenderNode(tree: ShowMapTree, node: ShowMapNode, filter: ShowMapF
   return (
     filter === 'all' ||
     node.type === 'show' ||
-    nodeMatchesFilter(node, filter) ||
+    nodeMatchesFilter(tree, node, filter) ||
     descendantsMatch(tree, node.id, filter)
   );
 }
@@ -135,6 +139,27 @@ export function ShowMapStructureTable({
   onToggle,
   onNavigate,
 }: ShowMapStructureTableProps) {
+  const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
+  const openActionsForNode = (nodeId: string) => {
+    setActionMenuOpenSignals(current => ({
+      ...current,
+      [nodeId]: (current[nodeId] ?? 0) + 1,
+    }));
+  };
+  const getRowActionOpenProps = (nodeId: string) => ({
+    tabIndex: 0,
+    onContextMenu: (event: MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      openActionsForNode(nodeId);
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.currentTarget !== event.target) return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      openActionsForNode(nodeId);
+    },
+  });
+
   const renderNode = (nodeId: string, depth: number): ReactNode => {
     const node = tree.nodesById[nodeId];
     if (!node || !shouldRenderNode(tree, node, filter)) return null;
@@ -150,15 +175,27 @@ export function ShowMapStructureTable({
     if (node.type === 'entry') {
       return (
         <li key={nodeId} {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}>
-          <div className="grid min-h-[72px] grid-cols-[minmax(300px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-background/60 px-3 py-2 pl-16 hover:bg-muted/20">
+          <div
+            className="grid min-h-[72px] grid-cols-[minmax(300px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-background/60 px-3 py-2 pl-16 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            {...getRowActionOpenProps(node.id)}
+          >
             <EntryIdentity node={node} onNavigate={onNavigate} />
             <StatusCell node={node} />
             <ProgressCell node={node} />
-            <div />
+            <div className="flex justify-end">
+              <ShowMapRowActionsMenu
+                node={node}
+                tree={tree}
+                onNavigate={onNavigate}
+                openSignal={actionMenuOpenSignals[node.id]}
+              />
+            </div>
           </div>
         </li>
       );
     }
+
+    const primaryAction = getPrimaryActionForNode(node, { tree });
 
     const rowContent = (
       <>
@@ -215,12 +252,23 @@ export function ShowMapStructureTable({
         <ProgressCell node={node} />
 
         <div className="flex flex-wrap justify-end gap-2">
-          {node.type === 'class' && node.scoreHref && (
-            <Button type="button" size="sm" onClick={() => onNavigate?.(node.scoreHref!)}>
-              <ClipboardCheck className="h-4 w-4" />
-              Score Class
+          {node.type === 'class' && primaryAction?.href && (
+            <Button
+              type="button"
+              size="sm"
+              variant={primaryAction.id === 'score-class' ? 'default' : 'outline'}
+              onClick={() => onNavigate?.(primaryAction.href!)}
+            >
+              <primaryAction.icon className="h-4 w-4" />
+              {primaryAction.label}
             </Button>
           )}
+          <ShowMapRowActionsMenu
+            node={node}
+            tree={tree}
+            onNavigate={onNavigate}
+            openSignal={actionMenuOpenSignals[node.id]}
+          />
         </div>
       </>
     );
@@ -232,7 +280,10 @@ export function ShowMapStructureTable({
           {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
           className="overflow-hidden rounded-md border bg-card"
         >
-          <div className="grid min-h-16 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-muted/25 px-3 py-3">
+          <div
+            className="grid min-h-16 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-muted/25 px-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            {...getRowActionOpenProps(node.id)}
+          >
             {rowContent}
           </div>
 
@@ -245,7 +296,10 @@ export function ShowMapStructureTable({
 
     return (
       <li key={nodeId} {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}>
-        <div className="grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20">
+        <div
+          className="grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          {...getRowActionOpenProps(node.id)}
+        >
           {rowContent}
         </div>
 

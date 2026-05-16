@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { buildShowMapTree, getDefaultExpandedNodeIds } from '../showMapTree';
@@ -92,6 +92,35 @@ describe('ShowMapStructureTable', () => {
     expect(screen.queryByText('Scout')).not.toBeInTheDocument();
   });
 
+  it('renders submitted entry leaves in the Attention lens through the action contract', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-submitted',
+          class_id: 'class-attention',
+          armband: '15',
+          dog: { call_name: 'Riley' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="needs-attention"
+        onToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+    expect(screen.getByText('Riley')).toBeInTheDocument();
+  });
+
   it('links expanded entry dog and handler names to their detail pages', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');
@@ -172,5 +201,112 @@ describe('ShowMapStructureTable', () => {
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
 
     expect(onToggle).toHaveBeenCalledWith('class:class-attention');
+  });
+
+  it('uses the shared primary action instead of showing Score Class for future classes', async () => {
+    const futureClass = {
+      id: 'class-future',
+      trialId: 'trial-1',
+      name: 'Exterior Advanced B',
+      status: 'Not Started',
+    };
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [futureClass],
+      entries: [],
+    });
+    const onNavigate = vi.fn();
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={getDefaultExpandedNodeIds(tree)}
+        filter="all"
+        onToggle={vi.fn()}
+        onNavigate={onNavigate}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /print check-in sheet/i }));
+    expect(onNavigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1/classes/class-future');
+  });
+
+  it('shows recommended row actions from the shared ranked action contract', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+          check_in_status: 'conflict',
+        },
+      ],
+    });
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+
+    expect(screen.getByText('Recommended')).toBeInTheDocument();
+    expect(screen.getAllByText('Resolve check-in conflict')).toHaveLength(2);
+    expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+  });
+
+  it('opens the same row actions menu from right-click and keyboard row triggers', () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+          check_in_status: 'conflict',
+        },
+      ],
+    });
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+      />
+    );
+
+    const row = screen.getByText('Bella').closest('[tabindex="0"]');
+    if (!(row instanceof HTMLElement)) throw new Error('Expected focusable entry row');
+
+    fireEvent.contextMenu(row);
+    expect(screen.getByText('Recommended')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+    row.focus();
+    fireEvent.keyDown(row, { key: 'Enter' });
+
+    expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
   });
 });

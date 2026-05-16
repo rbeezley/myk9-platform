@@ -9,7 +9,12 @@
  * - Check-in status: local takes precedence (offline check-ins are authoritative)
  */
 
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
 import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
@@ -257,126 +262,70 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   async sync(licenseKey: string): Promise<SyncResult> {
-    const startTime = Date.now();
-    let rowsSynced = 0;
-    let conflictsResolved = 0;
+    logger.log(`[${this.getTableName()}] Starting sync`);
 
-    try {
-      const metadata = await this.getSyncMetadata();
-      const allCached = await this.getAll();
-      const isCacheEmpty = allCached.length === 0;
-      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
+    const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
+      fetchRemoteRows: async ({ scope, since }) => {
+        // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
+        let query = supabase
+          .from('entries')
+          .select('*')
+          .gt('updated_at', new Date(since).toISOString())
+          .order('updated_at', { ascending: true });
 
-      logger.log(`[${this.getTableName()}] Starting sync`);
+        if (scope.value) {
+          query = query.eq('show_id', scope.value);
+        }
 
-      // Filter by show_id if provided
-      let query = supabase
-        .from('entries')
-        .select('*')
-        .gt('updated_at', new Date(lastSync).toISOString())
-        .order('updated_at', { ascending: true });
+        const { data, error } = await query;
 
-      if (licenseKey) {
-        query = query.eq('show_id', licenseKey);
-      }
+        if (error) {
+          throw new Error(`Supabase query failed: ${error.message}`);
+        }
 
-      const { data: remoteEntries, error } = await query;
-
-      if (error) {
-        throw new Error(`Supabase query failed: ${error.message}`);
-      }
-
-      if (!remoteEntries || remoteEntries.length === 0) {
-        await this.updateSyncMetadata({
-          lastIncrementalSyncAt: Date.now(),
-          syncStatus: 'idle',
-        });
-
-        return {
-          tableName: this.getTableName(),
-          success: true,
-          operation: 'incremental-sync',
-          rowsAffected: 0,
-          conflictsResolved: 0,
-          duration: Date.now() - startTime,
-        };
-      }
-
-      const remoteIds = new Set<string>();
-
-      for (const remoteRow of remoteEntries) {
-        const entryId = String(remoteRow.id);
-        remoteIds.add(entryId);
-
-        // Skip entries the user deleted locally this session
-        if (this._deletedIds.has(entryId)) {
+        return data ?? [];
+      },
+      getRemoteId: remote => {
+        return String(remote.id);
+      },
+      toLocalRow: rowToEntry,
+      filterLocalRows: (rows, scope) =>
+        scope.value ? rows.filter(row => row.showId === scope.value) : rows,
+      resolveConflict: (local, remote) => this.resolveConflict(local, remote),
+      shouldSkipRemoteRow: remote => {
+        const entryId = String(remote.id);
+        const shouldSkip = this._deletedIds.has(entryId);
+        if (shouldSkip) {
           logger.log(`[${this.getTableName()}] Skipping deleted entry ${entryId} during sync`);
-          continue;
+        }
+        return shouldSkip;
+      },
+      afterSuccessfulSync: async ({ serverIds, localRows }) => {
+        const pendingCount = await this.getMutationPendingCount();
+        if (pendingCount > 0) {
+          return;
         }
 
-        const remoteEntry = rowToEntry(remoteRow);
-        const localEntry = await this.get(entryId);
-
-        if (localEntry) {
-          const resolved = this.resolveConflict(localEntry, remoteEntry);
-          // If we kept the local pending entry, preserve its dirty flag so subsequent
-          // sync cycles don't overwrite it before the mutation is uploaded.
-          const keepDirty = resolved === localEntry && localEntry._syncStatus === 'pending';
-          await this.set(entryId, resolved, keepDirty);
-          conflictsResolved++;
-        } else {
-          await this.set(entryId, remoteEntry);
-        }
-
-        rowsSynced++;
-      }
-
-      // Clean up orphan local-only entries whose INSERT mutations have
-      // permanently failed (not in Supabase, not pending upload).
-      // Uses allCached (pre-sync snapshot) to avoid a second getAll() scan.
-      // Skips cleanup entirely if mutations are still pending to avoid
-      // deleting entries whose INSERT hasn't been uploaded yet.
-      const pendingCount = await this.getMutationPendingCount();
-      if (pendingCount === 0) {
-        for (const local of allCached) {
-          if (local._localOnly && !remoteIds.has(local.id)) {
+        for (const local of localRows) {
+          if (local._localOnly && !serverIds.has(local.id)) {
             logger.log(`[${this.getTableName()}] Removing orphan local entry ${local.id}`);
             await this.delete(local.id);
           }
         }
-        // Safe to clear deleted IDs — all DELETEs have been uploaded
+
+        // Safe to clear deleted IDs — all DELETEs have been uploaded.
         this._deletedIds.clear();
-      }
+      },
+    };
 
-      await this.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now(),
-        syncStatus: 'idle',
-      });
+    const result = await syncReplicatedTable(this, adapter, { value: licenseKey });
 
-      return {
-        tableName: this.getTableName(),
-        success: true,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-      };
-    } catch (error) {
-      const errorMessage = getSyncErrorMessage(error);
-      if (!isAbortSyncError(error)) {
-        logger.error(`[${this.getTableName()}] Sync failed:`, error);
-      }
-
-      return {
-        tableName: this.getTableName(),
-        success: false,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-        error: errorMessage,
-      };
+    if (!result.success && result.error && !isAbortSyncError(result.error)) {
+      logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
+      return { ...result, error: getSyncErrorMessage(result.error) };
     }
+
+    return result;
   }
 
   /**

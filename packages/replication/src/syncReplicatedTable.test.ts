@@ -165,6 +165,40 @@ describe('syncReplicatedTable', () => {
     expect(vi.mocked(adapter.fetchRemoteRows).mock.calls[0]![0].since).toBe(5_000);
   });
 
+  it('lets adapters define local rows for a domain-specific scope', async () => {
+    await table.set('1', { id: '1', name: 'Rex', license_key: 'show-1' });
+    await table.set('2', { id: '2', name: 'Max', license_key: 'show-2' });
+    await table.updateSyncMetadata({ lastIncrementalSyncAt: 10_000 });
+    const adapter = makeAdapter([]);
+    adapter.filterLocalRows = (rows, scope) =>
+      rows.filter(row => row.license_key === scope.value);
+
+    const result = await syncReplicatedTable(table, adapter, { value: 'show-1' });
+
+    expect(result.operation).toBe('incremental-sync');
+    expect(vi.mocked(adapter.fetchRemoteRows).mock.calls[0]![0].localRows).toEqual([
+      expect.objectContaining({ id: '1' }),
+    ]);
+  });
+
+  it('runs adapter success cleanup with scoped local rows and server ids', async () => {
+    await table.set('1', { id: '1', name: 'Rex', license_key: 'show-1' });
+    await table.set('2', { id: '2', name: 'Max', license_key: 'show-2' });
+    const adapter = makeAdapter([{ id: 1, name: 'Server Rex', license_key: 'show-1' }]);
+    adapter.filterLocalRows = (rows, scope) =>
+      rows.filter(row => row.license_key === scope.value);
+    adapter.afterSuccessfulSync = vi.fn();
+
+    const result = await syncReplicatedTable(table, adapter, { value: 'show-1' });
+
+    expect(result.success).toBe(true);
+    expect(adapter.afterSuccessfulSync).toHaveBeenCalledWith({
+      scope: { value: 'show-1' },
+      serverIds: new Set(['1']),
+      localRows: [expect.objectContaining({ id: '1' })],
+    });
+  });
+
   it('records sync errors in metadata', async () => {
     const adapter = makeAdapter([]);
     vi.mocked(adapter.fetchRemoteRows).mockRejectedValue(new Error('network down'));

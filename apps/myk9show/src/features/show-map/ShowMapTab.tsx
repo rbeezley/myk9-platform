@@ -65,7 +65,7 @@ export default function ShowMapTab({
   const attentionCount = tree.root.attentionCount ?? 0;
 
   if (!canManageShow) {
-    return <ErrorState message="Show List is only available to show staff." />;
+    return <ErrorState message="Show Map is only available to show staff." />;
   }
 
   if (trials.length === 0) {
@@ -97,7 +97,7 @@ export default function ShowMapTab({
     <div className="mt-4 overflow-hidden rounded-md border bg-background">
       <div className="border-b bg-muted/20 p-4">
         <div className="mb-4">
-          <h3 className="text-base font-semibold text-foreground">Show List</h3>
+          <h3 className="text-base font-semibold text-foreground">Show Map</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Scan the show by trial and class, then open the class you need.
           </p>

@@ -18,6 +18,12 @@ interface ClassRecord {
   id: number;
   class_status?: string;
   is_scoring_finalized?: boolean;
+  /**
+   * Tracked so secretary-side reorders (which write `display_order`) trigger a
+   * refetch instead of being swallowed by the status-only optimistic path.
+   * See migration 136 for the column.
+   */
+  display_order?: number;
 }
 
 /**
@@ -96,6 +102,19 @@ export function useClassRealtime(
     const newRecord = payload.new as ClassRecord | undefined;
     const oldRecord = payload.old as ClassRecord | undefined;
     if (payload.eventType === 'UPDATE' && newRecord && oldRecord) {
+      // If display_order changed, the optimistic status-only path would silently
+      // swallow a secretary-side reorder — the local sort would keep showing
+      // the stale order until the next manual refetch. Show-day reorders are
+      // time-pressured, so fall through to a full refetch instead.
+      const reorderChanged =
+        typeof newRecord.display_order === 'number' &&
+        newRecord.display_order !== oldRecord.display_order;
+
+      if (reorderChanged) {
+        refetch();
+        return;
+      }
+
       setClasses(prev => prev.map(c =>
         c.id === newRecord.id
           ? {

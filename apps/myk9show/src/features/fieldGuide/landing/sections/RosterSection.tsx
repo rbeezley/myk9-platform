@@ -2,12 +2,17 @@ import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { FieldGuideSectionHead } from '../../components/FieldGuideSectionHead';
 import { FIELD_GUIDE_DISPLAY_FAMILY, FIELD_GUIDE_MONO_FAMILY } from '../../fonts';
 import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
+import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface RosterSectionProps {
   entryCount: number;
   entryLimit: number | null;
   entryOpenDate: string | null;
   entryCloseDate: string | null;
+  /** Trial timezone — required so the OPENED/CLOSES dates render in the
+   *  exhibitor's locale of record, not whatever timezone the browser
+   *  happens to be in. Matches the rest of Field Guide's date handling. */
+  timezone: string;
 }
 
 /**
@@ -21,10 +26,15 @@ export function RosterSection({
   entryLimit,
   entryOpenDate,
   entryCloseDate,
+  timezone,
 }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   if (entryLimit == null) return null;
   const pct = entryLimit > 0 ? Math.min(100, Math.round((entryCount / entryLimit) * 100)) : 0;
+  const openedLabel = entryOpenDate ? formatDateInTimezone(entryOpenDate, timezone, 'iso') : 'TBA';
+  const closesLabel = entryCloseDate
+    ? formatDateInTimezone(entryCloseDate, timezone, 'iso')
+    : 'TBA';
 
   return (
     <section
@@ -117,11 +127,11 @@ export function RosterSection({
           >
             <span>
               <strong style={{ color: fieldGuideColors.ink, fontWeight: 600 }}>OPENED</strong>{' '}
-              {entryOpenDate ? entryOpenDate.slice(0, 10) : 'TBA'}
+              {openedLabel}
             </span>
             <span>
               <strong style={{ color: fieldGuideColors.ink, fontWeight: 600 }}>CLOSES</strong>{' '}
-              {entryCloseDate ? entryCloseDate.slice(0, 10) : 'TBA'}
+              {closesLabel}
             </span>
           </div>
         </div>

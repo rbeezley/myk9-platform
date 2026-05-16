@@ -44,13 +44,19 @@ function initialsOf(text: string, maxChars: number): string {
     .toUpperCase();
 }
 
+/**
+ * Format: <CLUB_INITIALS>.<YEAR>.<SHOW_INITIALS>. Club allows up to 6
+ * chars (most kennel-club names have 3–5 significant words); show is
+ * capped at 2 to match the design-handoff convention "BCKC.2026.SS" —
+ * the show abbreviation reads as a category, not as a sentence summary.
+ */
 export function deriveShowCode(
   clubName: string,
   showName: string,
   startDateIso: string | null
 ): string {
   const club = initialsOf(clubName, 6);
-  const show = initialsOf(showName, 4);
+  const show = initialsOf(showName, 2);
   const year = startDateIso
     ? String(new Date(startDateIso).getFullYear())
     : String(new Date().getFullYear());

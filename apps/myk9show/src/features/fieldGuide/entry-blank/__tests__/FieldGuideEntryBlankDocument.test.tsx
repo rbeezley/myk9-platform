@@ -136,8 +136,9 @@ describe('FieldGuideEntryBlankDocument', () => {
   it('derives a showCode for the masthead when one is not supplied', () => {
     const props = buildEntryBlankProps(BASE_OPTS);
     render(<FieldGuideEntryBlankDocument {...props} />);
-    // BCKC.2026.SSWT — Bexar County Kennel Club + 2026 + Spring Scent Work Trial
-    expect(screen.getByText(/BCKC\.2026/)).toBeTruthy();
+    // BCKC.2026.SS — Bexar County Kennel Club + 2026 + 2-char show initials
+    // (deriveShowCode caps show-initials at 2 to match the design mock).
+    expect(screen.getByText(/BCKC\.2026\.SS/)).toBeTruthy();
   });
 
   it('honors a passed-in showCode override', () => {

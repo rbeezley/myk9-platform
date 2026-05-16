@@ -33,31 +33,35 @@ function makeTrial(overrides: Partial<Trial> = {}): Trial {
 }
 
 describe('useFieldGuideLandingData', () => {
-  it('derives a compact showCode from club initials + year + show initials', () => {
+  it('derives a compact showCode capped at 2 show-initial chars (matches mock)', () => {
     const show = makeShow();
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
-    expect(result.current.showCode).toBe('BCKC.2026.SSWT');
+    // BCKC + 2026 + first-two show-initials "SS" (from "Spring Scent ...").
+    expect(result.current.showCode).toBe('BCKC.2026.SS');
   });
 
   it('renders showSubtitle in the FIELD GUIDE · CODE · REV NN format', () => {
     const show = makeShow();
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
-    expect(result.current.showSubtitle).toBe('FIELD GUIDE · BCKC.2026.SSWT · REV 01');
+    expect(result.current.showSubtitle).toBe('FIELD GUIDE · BCKC.2026.SS · REV 01');
   });
 
-  it('builds the 6-cell quick-ref hero with CLOSES marked emphasis', () => {
+  it('builds the 5-cell quick-ref hero with CLOSES marked emphasis (no DRAW until draw_date column exists)', () => {
     const show = makeShow();
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
     const cells = result.current.quickRefCells;
-    expect(cells).toHaveLength(6);
+    expect(cells).toHaveLength(5);
     expect(cells.map(c => c.label)).toEqual([
       'DATES',
       'OPENS',
       'CLOSES',
-      'DRAW',
       'CONFIRM',
       'CAP',
     ]);
+    // Critically, no DRAW cell — the hook used to fabricate one from
+    // entryCloseDate which read as "draw the evening entries close",
+    // misleading exhibitors. Surfacing it again requires real data.
+    expect(cells.find(c => c.label === 'DRAW')).toBeUndefined();
     const closes = cells.find(c => c.label === 'CLOSES');
     expect(closes?.emphasis).toBe(true);
     // Sibling cells should not carry emphasis.

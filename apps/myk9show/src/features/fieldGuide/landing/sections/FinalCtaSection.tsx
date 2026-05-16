@@ -121,7 +121,10 @@ export function FinalCtaSection({
               wordBreak: 'break-all',
             }}
           >
-            myk9show.com{entryWizardUrl}
+            {/* Show origin + path so the URL is correct on every environment
+                (staging vercel host, prod, preview deploys). Falls back to
+                the relative path during SSR / tests where `window` is undef. */}
+            {(typeof window !== 'undefined' ? window.location.host : '') + entryWizardUrl}
           </div>
           <a
             href={entryWizardUrl}

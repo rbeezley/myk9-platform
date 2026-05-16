@@ -131,8 +131,15 @@ export function useFieldGuideLandingData(
       return max == null ? v : Math.max(max, v);
     }, null);
 
-    // Quick-ref hero — 6 cells. CLOSES is the emphasis cell since "when
-    // does this close?" is the most-asked-for fact on this surface.
+    // Quick-ref hero. CLOSES is the emphasis cell since "when does this
+    // close?" is the most-asked-for fact on this surface.
+    //
+    // No DRAW cell: there's no `trials.draw_date` column in the data
+    // model. Surfacing the close date as the draw date (as the design
+    // mock does for illustration) would mislead exhibitors into thinking
+    // the running order is set the same evening entries close. Add the
+    // cell back when a draw_date column lands; the data-grid primitive
+    // already handles arbitrary cell counts.
     const quickRefCells: FieldGuideQuickRefCell[] = [
       {
         label: 'DATES',
@@ -148,12 +155,6 @@ export function useFieldGuideLandingData(
           ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay')
           : 'TBA',
         emphasis: true,
-      },
-      {
-        label: 'DRAW',
-        value: entryCloseDate
-          ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay')
-          : 'TBA',
       },
       {
         label: 'CONFIRM',

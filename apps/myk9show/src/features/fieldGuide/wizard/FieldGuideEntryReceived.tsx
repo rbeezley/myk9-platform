@@ -10,6 +10,13 @@ import {
   FIELD_GUIDE_MONO_FAMILY,
 } from '../fonts';
 import { fieldGuideColors } from '../tokens';
+// The CSS is scoped under [data-field-guide] so importing it on the wizard
+// surface is a no-op for non-Field-Guide pages. Required so any primitive
+// that adopts a CSS class for responsive collapse (fg-quickref, fg-reveal,
+// fg-section-head) behaves the same way on the wizard as on the landing
+// page — the inline-styles-only approach we use today is otherwise easy
+// to silently regress.
+import '../fieldGuide.css';
 
 /**
  * Field Guide wizard completion props mirror Heritage 1:1, no extensions.

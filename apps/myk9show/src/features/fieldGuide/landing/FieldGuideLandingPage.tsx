@@ -95,6 +95,7 @@ export function FieldGuideLandingPage({ show, trial, allTrials }: FieldGuideLand
           entryLimit={data.entryLimit}
           entryOpenDate={data.entryOpenDate}
           entryCloseDate={data.entryCloseDate}
+          timezone={data.timezone}
         />
         <ScheduleSection items={data.onTheDay} hospitalityNotes={data.hospitalityNotes} />
         <PlanSection accommodations={data.accommodations} />

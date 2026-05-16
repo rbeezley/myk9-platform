@@ -55,8 +55,12 @@ export interface FieldGuideEmailData {
   runCount: number;
   totalFeesFormatted: string;
   receiptNumber: string | null;
-  /** Single armband to surface in the chip row (e.g. "247"). Null if not yet drawn. */
-  armbandNumber: string | null;
+  /** Optional explicit override for the header armband chip. When omitted
+   *  (the common case) the builder derives it from `runs` — single dog,
+   *  single armband per show — so the dispatcher in index.ts doesn't
+   *  have to know about Field-Guide-specific projections. Pass `null`
+   *  to suppress the chip even if a run has an armband. */
+  armbandNumber?: string | null;
   venue: string | null;
   doorsTime: string | null;
   firstClassTime: string | null;
@@ -139,8 +143,15 @@ export function buildFieldGuideHtml(data: FieldGuideEmailData): string {
   const hospitalityBlock = infoCell('Hospitality', data.hospitalityNotes);
   const cratingBlock = infoCell('Crating', data.cratingNotes);
 
-  const armbandChip = data.armbandNumber
-    ? ` · ARMBAND <strong style="color:${FG_ORANGE_DEEP};font-weight:600;">#${esc(data.armbandNumber)}</strong>`
+  // Resolve armband for the header chip. Explicit `null` suppresses the
+  // chip; explicit string forces it; omitted (undefined) falls back to
+  // the first non-null run armband.
+  const resolvedArmband =
+    data.armbandNumber === undefined
+      ? (data.runs.find(r => r.armband != null)?.armband ?? null)
+      : data.armbandNumber;
+  const armbandChip = resolvedArmband
+    ? ` · ARMBAND <strong style="color:${FG_ORANGE_DEEP};font-weight:600;">#${esc(resolvedArmband)}</strong>`
     : '';
 
   const contactPieces: string[] = [

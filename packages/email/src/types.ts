@@ -249,8 +249,11 @@ export interface FieldGuideConfirmationProps {
   totalFeesFormatted: string;
   /** Pre-formatted "Receipt 2026-0137" — no abbreviation prefix here. */
   receiptNumber: string | null;
-  /** Single armband number to surface in the chip row, e.g. "247". */
-  armbandNumber: string | null;
+  /** Optional explicit override for the header armband chip. When
+   *  omitted, the template derives it from the first non-null run
+   *  armband (single dog, single armband per show). Pass `null` to
+   *  suppress the chip even when a run has an armband. */
+  armbandNumber?: string | null;
 
   // On the day
   doorsTime: string | null;

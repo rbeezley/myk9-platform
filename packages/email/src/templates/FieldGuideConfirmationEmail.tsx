@@ -158,7 +158,7 @@ export function FieldGuideConfirmationEmail(props: FieldGuideConfirmationProps):
     runCount,
     totalFeesFormatted,
     receiptNumber,
-    armbandNumber,
+    armbandNumber: armbandOverride,
     doorsTime,
     firstClassTime,
     venueNameAndAddress,
@@ -178,6 +178,15 @@ export function FieldGuideConfirmationEmail(props: FieldGuideConfirmationProps):
     .join(' · ');
 
   const clubByline = [clubCity].filter(Boolean).join(' · ');
+
+  // Resolve armband for the header chip. Explicit `null` suppresses;
+  // explicit string forces; omitted (undefined) falls back to the first
+  // non-null run armband — keeps cross-style prop parity at the wiring
+  // layer and matches the Deno builder's contract.
+  const armbandNumber =
+    armbandOverride === undefined
+      ? (runs.find(r => r.armband != null)?.armband ?? null)
+      : armbandOverride;
 
   return (
     <Html lang="en">

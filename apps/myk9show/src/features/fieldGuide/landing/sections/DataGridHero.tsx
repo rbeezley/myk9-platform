@@ -78,7 +78,9 @@ export function DataGridHero({
         </p>
       )}
 
-      <FieldGuideDataGrid cells={cells} columns={6} />
+      {/* Cell count varies by data — let the grid use cells.length so adding
+          a DRAW cell later (when trials.draw_date lands) auto-fits. */}
+      <FieldGuideDataGrid cells={cells} />
     </header>
   );
 }

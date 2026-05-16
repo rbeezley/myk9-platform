@@ -122,8 +122,36 @@ describe('buildFieldGuideHtml', () => {
     expect(html).toContain('#247');
   });
 
-  it('omits the armband chip text when armbandNumber is null', () => {
+  it('omits the armband chip text when armbandNumber is explicitly null', () => {
     const html = buildFieldGuideHtml(makeData({ armbandNumber: null }));
+    expect(html).not.toContain('ARMBAND');
+  });
+
+  it('derives armbandNumber from the first non-null run armband when omitted', () => {
+    // The dispatcher in index.ts doesn't know Field-Guide-specific
+    // projections, so the builder pulls the chip value from `runs` by
+    // default. Single dog → single armband per show.
+    const data = makeData({
+      runs: [
+        { numeral: '01', dayLabel: 'FRI JUN 12', classLabel: 'EX · Containers', judgeName: 'CB', armband: '142' },
+        { numeral: '03', dayLabel: 'SAT JUN 13', classLabel: 'EX · Interiors', judgeName: 'CB', armband: '142' },
+      ],
+    });
+    // Strip the explicit override so the derivation path runs.
+    delete (data as Partial<FieldGuideEmailData>).armbandNumber;
+    const html = buildFieldGuideHtml(data);
+    expect(html).toContain('ARMBAND');
+    expect(html).toContain('#142');
+  });
+
+  it('skips the chip when armbandNumber is omitted and no run has an armband yet', () => {
+    const data = makeData({
+      runs: [
+        { numeral: '01', dayLabel: 'FRI JUN 12', classLabel: 'EX · Containers', judgeName: 'CB', armband: null },
+      ],
+    });
+    delete (data as Partial<FieldGuideEmailData>).armbandNumber;
+    const html = buildFieldGuideHtml(data);
     expect(html).not.toContain('ARMBAND');
   });
 

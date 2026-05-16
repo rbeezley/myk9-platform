@@ -8,6 +8,10 @@ export type {
   MonogramRunRow,
   BannerConfirmationProps,
   BannerRunRow,
+  FieldGuideConfirmationProps,
+  FieldGuideRunRow,
+  GazetteConfirmationProps,
+  GazetteRunRow,
   PosterConfirmationProps,
   PosterRunRow,
 } from './types';
@@ -19,6 +23,10 @@ export { MonogramConfirmationEmail } from './templates/MonogramConfirmationEmail
 export { MG as MonogramTokens } from './monogramTokens';
 export { BannerConfirmationEmail } from './templates/BannerConfirmationEmail';
 export { BN as BannerTokens } from './bannerTokens';
+export { FieldGuideConfirmationEmail } from './templates/FieldGuideConfirmationEmail';
+export { FG as FieldGuideTokens } from './fieldGuideTokens';
+export { GazetteConfirmationEmail } from './templates/GazetteConfirmationEmail';
+export { GZ as GazetteTokens } from './gazetteTokens';
 export { PosterConfirmationEmail } from './templates/PosterConfirmationEmail';
 export { PO as PosterTokens } from './posterTokens';
 

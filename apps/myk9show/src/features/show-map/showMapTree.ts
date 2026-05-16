@@ -251,6 +251,20 @@ export function buildShowMapTree({
   return tree;
 }
 
+// INTENT: Default to root-only expansion so the secretary lands on a calm
+// list of trial rows ("a clear checklist view — green checks, not a wall of
+// data"). Trials remain visible because the root is expanded, but their
+// class children stay collapsed until the secretary opens the trial they
+// care about. The toolbar's "Expand trials" button still expands every trial
+// on demand. See OPEN-TODOS / "Show Map default expansion creates a wall of
+// empty rows".
 export function getDefaultExpandedNodeIds(tree: ShowMapTree): Set<string> {
+  return new Set([tree.root.id]);
+}
+
+// "Expand trials" toolbar action — expands the root plus every trial so
+// every class row is visible at once. This is the previous default; it now
+// only fires when the secretary explicitly asks for it.
+export function getTrialsExpandedNodeIds(tree: ShowMapTree): Set<string> {
   return new Set([tree.root.id, ...(tree.childIdsByParentId[tree.root.id] ?? [])]);
 }

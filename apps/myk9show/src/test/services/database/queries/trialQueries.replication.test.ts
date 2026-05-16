@@ -24,6 +24,8 @@ const { mockTrialsTable, mockShowsTable, mockClassesTable, mockEntriesTable } = 
   },
   mockEntriesTable: {
     getAll: vi.fn(),
+    getEntriesByClass: vi.fn(),
+    getEntriesByShow: vi.fn(),
   },
 }));
 
@@ -126,6 +128,8 @@ function setupListMocks(
   mockShowsTable.getShowById.mockResolvedValue(shows[0] ?? null);
   mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
   mockEntriesTable.getAll.mockResolvedValue([makeEntry()]);
+  mockEntriesTable.getEntriesByClass.mockResolvedValue([makeEntry()]);
+  mockEntriesTable.getEntriesByShow.mockResolvedValue([makeEntry()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -441,10 +445,10 @@ describe('trialQueries (replication)', () => {
   describe('getShowScheduleTimelineRows', () => {
     it('returns schedule rows from replicated trials and classes', async () => {
       const trial = makeTrial({ id: 'trial-1', plannedStartTime: '08:30' });
-      const cls = makeClass({ id: 'class-1', trialId: 'trial-1' });
+      const cls = makeClass({ id: 'class-1', trialId: 'trial-1', totalEntriesCount: 99 });
       setupListMocks([trial]);
       mockClassesTable.getClassesByTrial.mockResolvedValue([cls]);
-      mockEntriesTable.getAll.mockResolvedValue([
+      mockEntriesTable.getEntriesByShow.mockResolvedValue([
         makeEntry({ id: 'entry-1', classId: 'class-1' }),
         makeEntry({ id: 'entry-2', classId: 'class-1' }),
         makeEntry({ id: 'entry-3', classId: 'other-class' }),
@@ -465,18 +469,54 @@ describe('trialQueries (replication)', () => {
           level: 'Novice',
           startTime: '09:00',
           status: 'Scheduled',
-          totalEntriesCount: 2,
+          totalEntriesCount: 99,
         },
       ]);
+    });
+
+    it('falls back to show-scoped entry counts when stored counts are absent', async () => {
+      setupListMocks([makeTrial()]);
+      mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
+      mockEntriesTable.getEntriesByShow.mockResolvedValue([
+        makeEntry({ id: 'entry-1', classId: 'class-1' }),
+        makeEntry({ id: 'entry-2', classId: 'class-1' }),
+        makeEntry({ id: 'entry-3', classId: 'other-class' }),
+      ]);
+
+      const result = await getShowScheduleTimelineRows('show-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data[0].totalEntriesCount).toBe(2);
+      expect(mockEntriesTable.getEntriesByShow).toHaveBeenCalledWith('show-1');
+      expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
+    });
+
+    it('omits soft-deleted replicated classes', async () => {
+      setupListMocks([makeTrial()]);
+      mockClassesTable.getClassesByTrial.mockResolvedValue([
+        makeClass({ id: 'deleted-class', deletedAt: '2026-05-01T00:00:00Z' }),
+      ]);
+
+      const result = await getShowScheduleTimelineRows('show-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual([]);
     });
   });
 
   describe('getTrialTimelineRows', () => {
     it('returns trial rows with judge metadata from replicated classes', async () => {
       mockClassesTable.getClassesByTrial.mockResolvedValue([
-        makeClass({ id: 'class-1', judgeId: 'judge-1', judgeName: 'Ada Lovelace' }),
+        makeClass({
+          id: 'class-1',
+          judgeId: 'judge-1',
+          judgeName: 'Mary Ann Smith',
+          judgeFirstName: 'Mary Ann',
+          judgeLastName: 'Smith',
+          totalEntriesCount: 12,
+        }),
       ]);
-      mockEntriesTable.getAll.mockResolvedValue([
+      mockEntriesTable.getEntriesByClass.mockResolvedValue([
         makeEntry({ id: 'entry-1', classId: 'class-1' }),
         makeEntry({ id: 'entry-2', classId: 'class-1' }),
       ]);
@@ -492,12 +532,14 @@ describe('trialQueries (replication)', () => {
           level: 'Novice',
           startTime: '09:00',
           status: 'Scheduled',
-          totalEntriesCount: 2,
+          totalEntriesCount: 12,
           judgePersonId: 'judge-1',
-          judgeFirstName: 'Ada',
-          judgeLastName: 'Lovelace',
+          judgeFirstName: 'Mary Ann',
+          judgeLastName: 'Smith',
         },
       ]);
+      expect(mockEntriesTable.getEntriesByClass).toHaveBeenCalledWith('class-1');
+      expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
     });
   });
 });

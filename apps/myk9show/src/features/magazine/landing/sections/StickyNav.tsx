@@ -42,6 +42,8 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
     );
     if (!found.length) return;
 
+    // Defer the DOM-derived state one frame so the observer setup stays the
+    // only synchronous work in this effect.
     const frame = window.requestAnimationFrame(() => {
       setPresentIds(new Set(found.map(el => el.id)));
     });

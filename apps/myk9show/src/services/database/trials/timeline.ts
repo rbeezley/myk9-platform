@@ -4,6 +4,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 
 export interface ShowScheduleTimelineRow {
@@ -33,8 +34,7 @@ export interface TrialTimelineRow {
   judgeLastName: string | null;
 }
 
-async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
-  const entries = await replicatedEntriesTable.getAll();
+function buildEntryCountsByClassMap(entries: ReplicatedEntry[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const entry of entries) {
     if (entry.classId) {
@@ -44,12 +44,30 @@ async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
   return map;
 }
 
-function splitJudgeName(judgeName: string | undefined): {
+async function loadEntryCountsByShowMap(showId: string): Promise<Map<string, number>> {
+  return buildEntryCountsByClassMap(await replicatedEntriesTable.getEntriesByShow(showId));
+}
+
+async function loadEntryCountsByClassIdsMap(classIds: string[]): Promise<Map<string, number>> {
+  const entryGroups = await Promise.all(
+    classIds.map(classId => replicatedEntriesTable.getEntriesByClass(classId))
+  );
+  return buildEntryCountsByClassMap(entryGroups.flat());
+}
+
+function getJudgeNameParts(cls: ReplicatedClass): {
   firstName: string | null;
   lastName: string | null;
 } {
-  if (!judgeName) return { firstName: null, lastName: null };
-  const [firstName = '', ...lastParts] = judgeName.trim().split(/\s+/);
+  if (cls.judgeFirstName || cls.judgeLastName) {
+    return {
+      firstName: cls.judgeFirstName ?? null,
+      lastName: cls.judgeLastName ?? null,
+    };
+  }
+
+  if (!cls.judgeName) return { firstName: null, lastName: null };
+  const [firstName = '', ...lastParts] = cls.judgeName.trim().split(/\s+/);
   return {
     firstName: firstName || null,
     lastName: lastParts.join(' ') || null,
@@ -72,7 +90,7 @@ function mapClassToShowScheduleTimelineRow(
     level: cls.level ?? null,
     startTime: cls.startTime ?? null,
     status: cls.classStatus ?? 'no-status',
-    totalEntriesCount: entryCountsMap.get(cls.id) ?? 0,
+    totalEntriesCount: cls.totalEntriesCount ?? entryCountsMap.get(cls.id) ?? 0,
   };
 }
 
@@ -80,7 +98,7 @@ function mapClassToTrialTimelineRow(
   cls: ReplicatedClass,
   entryCountsMap: Map<string, number>
 ): TrialTimelineRow {
-  const judgeName = splitJudgeName(cls.judgeName);
+  const judgeName = getJudgeNameParts(cls);
   return {
     classId: cls.id,
     className: cls.name,
@@ -88,7 +106,7 @@ function mapClassToTrialTimelineRow(
     level: cls.level ?? null,
     startTime: cls.startTime ?? null,
     status: cls.classStatus ?? 'no-status',
-    totalEntriesCount: entryCountsMap.get(cls.id) ?? 0,
+    totalEntriesCount: cls.totalEntriesCount ?? entryCountsMap.get(cls.id) ?? 0,
     judgePersonId: cls.judgeId ?? null,
     judgeFirstName: judgeName.firstName,
     judgeLastName: judgeName.lastName,
@@ -211,13 +229,15 @@ async function postgrestGetTrialTimelineRows(
   };
 }
 
-export const getShowScheduleTimelineRows = async (showId: string) => {
+export const getShowScheduleTimelineRows = async (
+  showId: string
+): Promise<{ data: ShowScheduleTimelineRow[]; error: DatabaseError | null }> => {
   try {
     return await withReplicationFallback(
       async () => {
         const [trials, entryCountsMap] = await Promise.all([
           replicatedTrialsTable.getTrialsByShow(showId),
-          loadEntryCountsByClassMap(),
+          loadEntryCountsByShowMap(showId),
         ]);
 
         if (trials.length === 0) {
@@ -228,9 +248,9 @@ export const getShowScheduleTimelineRows = async (showId: string) => {
           trials.map(trial => replicatedClassesTable.getClassesByTrial(trial.id))
         );
         const data = trials.flatMap((trial, index) =>
-          (classGroups[index] ?? []).map(cls =>
-            mapClassToShowScheduleTimelineRow(trial, cls, entryCountsMap)
-          )
+          (classGroups[index] ?? [])
+            .filter(cls => !cls.deletedAt)
+            .map(cls => mapClassToShowScheduleTimelineRow(trial, cls, entryCountsMap))
         );
 
         return { data, error: null };
@@ -244,14 +264,16 @@ export const getShowScheduleTimelineRows = async (showId: string) => {
   }
 };
 
-export const getTrialTimelineRows = async (trialId: string) => {
+export const getTrialTimelineRows = async (
+  trialId: string
+): Promise<{ data: TrialTimelineRow[]; error: DatabaseError | null }> => {
   try {
     return await withReplicationFallback(
       async () => {
-        const [classes, entryCountsMap] = await Promise.all([
-          replicatedClassesTable.getClassesByTrial(trialId),
-          loadEntryCountsByClassMap(),
-        ]);
+        const classes = (await replicatedClassesTable.getClassesByTrial(trialId)).filter(
+          cls => !cls.deletedAt
+        );
+        const entryCountsMap = await loadEntryCountsByClassIdsMap(classes.map(cls => cls.id));
 
         return {
           data: classes.map(cls => mapClassToTrialTimelineRow(cls, entryCountsMap)),

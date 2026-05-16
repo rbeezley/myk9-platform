@@ -36,7 +36,7 @@ export const getClassRouteContext = async (id: string): Promise<ClassRouteContex
     return await withReplicationFallback(
       async () => {
         const cls = await replicatedClassesTable.getClassById(id);
-        if (!cls?.trialId) {
+        if (!cls?.trialId || cls.deletedAt) {
           throw new Error('Class route context missing from replication cache');
         }
 

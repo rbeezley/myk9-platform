@@ -49,7 +49,10 @@ export interface ReplicatedClass {
   timeLimitArea3Seconds?: number | undefined;
   judgeName?: string | undefined;
   judgeId?: string | undefined;
+  judgeFirstName?: string | undefined;
+  judgeLastName?: string | undefined;
   classStatus?: string | undefined;
+  totalEntriesCount?: number | undefined;
   classOrder?: number | undefined;
   /** Secretary-controlled display order within a trial (per-column Kanban reorder). */
   displayOrder?: number | undefined;
@@ -74,6 +77,7 @@ export interface ReplicatedClass {
   // Timing fields (used for class completion tracking)
   actual_start_time?: string | undefined;
   actual_end_time?: string | undefined;
+  deletedAt?: string | undefined;
 
   // Sync metadata
   _version?: number | undefined;
@@ -130,7 +134,22 @@ function rowToClass(row: ClassRow): ReplicatedClass {
       const ja = (dbRow.judge_assignments as Array<{ person_id: string }>) || [];
       return ja[0]?.person_id;
     })(),
+    judgeFirstName: (() => {
+      const ja =
+        (dbRow.judge_assignments as Array<{
+          people: { first_name: string | null };
+        }>) || [];
+      return ja[0]?.people.first_name ?? undefined;
+    })(),
+    judgeLastName: (() => {
+      const ja =
+        (dbRow.judge_assignments as Array<{
+          people: { last_name: string | null };
+        }>) || [];
+      return ja[0]?.people.last_name ?? undefined;
+    })(),
     classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
+    totalEntriesCount: (dbRow.total_entries_count as number | undefined) ?? undefined,
     classOrder: (dbRow.class_order as number | undefined) ?? undefined,
     displayOrder: (dbRow.display_order as number | undefined) ?? undefined,
     isCompleted: (dbRow.is_completed as boolean | undefined) ?? false,
@@ -154,6 +173,7 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     // Timing fields
     actual_start_time: (dbRow.actual_start_time as string | undefined) ?? undefined,
     actual_end_time: (dbRow.actual_end_time as string | undefined) ?? undefined,
+    deletedAt: row.deleted_at ?? undefined,
   };
 }
 

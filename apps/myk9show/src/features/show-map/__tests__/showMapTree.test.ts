@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildShowMapTree } from '../showMapTree';
+import {
+  buildShowMapTree,
+  getDefaultExpandedNodeIds,
+  getTrialsExpandedNodeIds,
+} from '../showMapTree';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowMapClassInput } from '../showMapTypes';
@@ -88,6 +92,16 @@ describe('buildShowMapTree', () => {
 
     expect(tree.root.childrenCount).toBe(0);
     expect(tree.childIdsByParentId[tree.root.id]).toEqual([]);
+  });
+
+  it('defaults expansion to the root so trial rows render but class rows stay hidden', () => {
+    const tree = buildShowMapTree({ show, trials: [trial], classes, entries: [] });
+    expect(getDefaultExpandedNodeIds(tree)).toEqual(new Set([tree.root.id]));
+  });
+
+  it('exposes a "trials expanded" helper for the toolbar action', () => {
+    const tree = buildShowMapTree({ show, trials: [trial], classes, entries: [] });
+    expect(getTrialsExpandedNodeIds(tree)).toEqual(new Set([tree.root.id, 'trial:trial-1']));
   });
 
   it('adds a deterministic marker when entries are capped', () => {

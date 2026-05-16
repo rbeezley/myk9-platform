@@ -20,6 +20,7 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
   fetchRemoteRows(context: RemoteFetchContext<TLocal>): Promise<TRemote[]>;
   getRemoteId(remote: TRemote): string;
   toLocalRow(remote: TRemote): TLocal;
+  filterLocalRows?: (rows: TLocal[], scope: SyncScope) => TLocal[];
   resolveConflict?: (local: TLocal, remote: TLocal) => TLocal;
 
   /**
@@ -30,6 +31,11 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
 
   shouldSkipRemoteRow?: (remote: TRemote, context: { local: TLocal | null }) => boolean;
   shouldCleanupStaleRows?: boolean;
+  afterSuccessfulSync?: (context: {
+    scope: SyncScope;
+    serverIds: Set<string>;
+    localRows: TLocal[];
+  }) => Promise<void> | void;
 }
 
 export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
@@ -47,6 +53,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   let rowsAffected = 0;
   let conflictsResolved = 0;
 
+  const getLocalRowsForScope = async (): Promise<TLocal[]> => {
+    const rows = await table.getAll(adapter.filterLocalRows ? undefined : scope.value);
+    return adapter.filterLocalRows ? adapter.filterLocalRows(rows, scope) : rows;
+  };
+
   try {
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
 
@@ -55,7 +66,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     }
 
     const metadata = await table.getSyncMetadata();
-    const localRows = await table.getAll(scope.value);
+    const localRows = await getLocalRowsForScope();
     const forceFullSync = options.forceFullSync === true || localRows.length === 0;
     const rawSince = forceFullSync ? 0 : metadata?.lastIncrementalSyncAt || 0;
     const since =
@@ -115,12 +126,14 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       rowsAffected += await table.removeStaleEntries(serverIds);
     }
 
+    await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows });
+
     await table.updateSyncMetadata({
       lastIncrementalSyncAt: Date.now(),
       syncStatus: 'idle',
       errorMessage: undefined,
       conflictCount: conflictsResolved,
-      totalRows: (await table.getAll(scope.value)).length,
+      totalRows: (await getLocalRowsForScope()).length,
     });
 
     return {

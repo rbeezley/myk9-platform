@@ -444,7 +444,7 @@ describe('ReplicatedEntriesTable', () => {
       expect(result.success).toBe(true);
       expect(result.tableName).toBe('entries');
       expect(result.rowsAffected).toBe(0);
-      expect(result.operation).toBe('incremental-sync');
+      expect(result.operation).toBe('full-sync');
     });
 
     it('should sync new entries from remote', async () => {
@@ -490,7 +490,7 @@ describe('ReplicatedEntriesTable', () => {
 
       expect(result.success).toBe(true);
       expect(result.rowsAffected).toBe(1);
-      expect(result.operation).toBe('incremental-sync');
+      expect(result.operation).toBe('full-sync');
 
       // Verify entry was cached
       const entry = await table.get('entry-1');
@@ -616,8 +616,14 @@ describe('ReplicatedEntriesTable', () => {
 
     it('should perform incremental sync based on lastSyncedAt', async () => {
       // Set last sync time
+      const lastIncrementalSyncAt = Date.now() - 60000;
+      await table.set('entry-1', {
+        id: 'entry-1',
+        showId: TEST_LICENSE_KEY,
+        classId: 'class-1',
+      });
       await table.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now() - 60000, // 1 minute ago
+        lastIncrementalSyncAt,
         syncStatus: 'idle',
       });
 
@@ -641,6 +647,148 @@ describe('ReplicatedEntriesTable', () => {
       expect(mockGt).toHaveBeenCalled();
       const gtArg = mockGt.mock.calls[0][1];
       expect(typeof gtArg).toBe('string'); // ISO timestamp string
+      expect(new Date(gtArg).getTime()).toBe(lastIncrementalSyncAt);
+    });
+
+    it('should preserve dirty local entries when remote has the same entry', async () => {
+      await table.set(
+        'entry-1',
+        {
+          id: 'entry-1',
+          classId: 'class-1',
+          runOrder: 3,
+          _syncStatus: 'pending',
+        },
+        true
+      );
+
+      const remoteEntries = [
+        {
+          id: 'entry-1',
+          class_id: 'class-1',
+          run_order: 7,
+          updated_at: new Date(Date.now() + 1000).toISOString(),
+        },
+      ];
+
+      const mockQueryChain = {
+        data: remoteEntries,
+        error: null,
+      };
+
+      const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
+      const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+
+      vi.mocked(supabaseMock.from).mockReturnValue({
+        select: mockSelect,
+      });
+
+      const result = await table.sync(TEST_LICENSE_KEY);
+
+      expect(result.success).toBe(true);
+      expect(result.rowsAffected).toBe(0);
+
+      const entry = await table.get('entry-1');
+      expect(entry?.runOrder).toBe(3);
+      await expect(table.getReplicatedRow('entry-1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'pending',
+      });
+    });
+
+    it('should not resurrect an entry deleted locally during the same session', async () => {
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        armband: '101',
+      });
+      await table.deleteEntry('entry-1');
+
+      const remoteEntries = [
+        {
+          id: 'entry-1',
+          class_id: 'class-1',
+          armband: '101',
+          updated_at: new Date(Date.now() + 1000).toISOString(),
+        },
+      ];
+
+      const mockQueryChain = {
+        data: remoteEntries,
+        error: null,
+      };
+
+      const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
+      const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+
+      vi.mocked(supabaseMock.from).mockReturnValue({
+        select: mockSelect,
+      });
+
+      const result = await table.sync(TEST_LICENSE_KEY);
+
+      expect(result.success).toBe(true);
+      expect(await table.get('entry-1')).toBeNull();
+    });
+
+    it('should remove orphan local-only entries when no mutations are pending', async () => {
+      await table.set('entry-1', {
+        id: 'entry-1',
+        showId: TEST_LICENSE_KEY,
+        classId: 'class-1',
+        _localOnly: true,
+      });
+
+      const mockQueryChain = {
+        data: [],
+        error: null,
+      };
+
+      const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
+      const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+
+      vi.mocked(supabaseMock.from).mockReturnValue({
+        select: mockSelect,
+      });
+
+      const result = await table.sync(TEST_LICENSE_KEY);
+
+      expect(result.success).toBe(true);
+      expect(await table.get('entry-1')).toBeNull();
+    });
+
+    it('should keep orphan local-only entries outside the current show scope', async () => {
+      await table.set('entry-1', {
+        id: 'entry-1',
+        showId: 'other-show',
+        classId: 'class-1',
+        _localOnly: true,
+      });
+
+      const mockQueryChain = {
+        data: [],
+        error: null,
+      };
+
+      const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
+      const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+
+      vi.mocked(supabaseMock.from).mockReturnValue({
+        select: mockSelect,
+      });
+
+      const result = await table.sync(TEST_LICENSE_KEY);
+
+      expect(result.success).toBe(true);
+      expect(await table.get('entry-1')).toMatchObject({ showId: 'other-show' });
     });
   });
 

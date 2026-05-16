@@ -84,14 +84,16 @@ cd apps/myk9show && npx vitest run -t "pattern"
 
 ## Key Patterns
 
-### Offline-first data (myK9Q)
+### Offline-first data (both apps)
 
-Always use replicated tables — never bypass with direct Supabase calls (breaks offline):
+Both myK9Show and myK9Q are offline-first. Always use replicated tables / replication-backed query functions for persistent app data that must work offline — never bypass with direct Supabase reads in core flows (breaks offline):
 
 ```typescript
 import { replicatedClassesTable } from '@myk9/replication';
 await replicatedClassesTable.updateClassStatus(classId, status);
 ```
+
+For myK9Show, core reads should go through the replication-backed query/table layer. Direct PostGREST remains acceptable only for explicitly online-only or auth-adjacent paths documented in the migration design (for example user/auth queries, RPCs, checkout/promo flows, or other out-of-scope admin utilities). Mutations should use the established mutation manager / replication workflow for the area being changed.
 
 ### State Management
 
@@ -100,7 +102,7 @@ await replicatedClassesTable.updateClassStatus(classId, status);
 | **Zustand**           | Client/UI state shared across components | Modals, filters, selections, domain stores |
 | **React Query**       | Server state, async data fetching        | Lists, detail views, search results        |
 | **React Context**     | Cross-cutting concerns (rarely changes)  | Auth/RBAC, theme, app-wide config          |
-| **@myk9/replication** | Persistent data that must work offline   | Show data, class entries, scores (myK9Q)   |
+| **@myk9/replication** | Persistent data that must work offline   | Show data, class entries, scores (both apps) |
 | **Local `useState`**  | Ephemeral, component-scoped state        | Form inputs, timers, dialog open/close     |
 
 ## Testing

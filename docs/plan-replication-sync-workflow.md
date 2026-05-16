@@ -50,9 +50,9 @@ The table adapter owns:
 
 1. Done: Add package sync workflow types and tests around dirty-row preservation.
 2. Done: Port myK9Q Entry sync to the workflow with `license_key` scope.
-3. Port myK9Show Entry sync to the workflow with `show_id` scope, local delete
-   tombstones, and orphan cleanup behavior preserved.
-4. Remove duplicated Entry sync choreography from app adapters once tests pass.
+3. Done: Port myK9Show Entry sync to the workflow with `show_id` scope, local
+   delete tombstones, and orphan cleanup behavior preserved.
+4. Done: Remove duplicated Entry sync choreography from app adapters once tests pass.
 5. Evaluate Class/Trial/Show adapters after Entry proves the seam.
 
 ## Testing Phase
@@ -61,6 +61,6 @@ The table adapter owns:
   field-level server merge, stale cleanup, metadata updates, and sync errors.
 - myK9Q Entry sync tests for offline score preservation and server-authoritative
   scoring/placement merge.
-- myK9Show Entry sync tests for pending local Entry preservation, delete
+- Done: myK9Show Entry sync tests for pending local Entry preservation, delete
   tombstone non-resurrection, and orphan local-only cleanup.
 - Run targeted package and app tests before considering the phase complete.

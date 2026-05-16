@@ -65,6 +65,6 @@ Dependencies are injected (logger, TTL config) to keep the replication layer tes
 - The replication layer is the most complex shared package and currently has low test coverage (tracked as DEBT-015)
 
 ### Neutral
-- myK9Show does not currently use offline-first patterns (it assumes connectivity) but could adopt `@myk9/replication` in the future
+- myK9Show has since adopted the offline-first direction as well. Core myK9Show data reads should use replication-backed query functions / replicated tables instead of direct PostgREST reads, except for explicitly online-only or auth-adjacent paths documented in migration plans.
 - The `idb` library (v8) is the only runtime dependency of `@myk9/replication`
 - Slow queries (exceeding a configurable threshold) are logged for performance monitoring

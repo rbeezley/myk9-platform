@@ -109,6 +109,14 @@ describe('secretary show phase redirects', () => {
     );
   });
 
+  it('redirects the secretary index to the active show workbench', async () => {
+    renderSecretaryRoutes('/secretary');
+
+    expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
+      '/secretary/shows/show-1'
+    );
+  });
+
   it('redirects check-in to Today with the check-in focus', async () => {
     renderSecretaryRoutes('/secretary/check-in');
 

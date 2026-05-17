@@ -16,6 +16,9 @@ interface ShowPhaseCardProps {
   closedCount?: number | undefined;
 }
 
+const workbenchHref = (showId: string, phase: 'setup' | 'today' | 'wrap-up') =>
+  `/secretary/shows/${showId}?phase=${phase}`;
+
 function TodayCard({
   show,
   liveClassCount = 0,
@@ -36,7 +39,7 @@ function TodayCard({
         </p>
       </div>
       <Button asChild size="sm" className="shrink-0">
-        <Link to={`/shows/${show.id}`}>
+        <Link to={workbenchHref(show.id, 'today')}>
           <Play className="mr-1.5 h-3.5 w-3.5" />
           Go to show
         </Link>
@@ -62,7 +65,9 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
           <Chip color="green" size="sm">
             {entriesOpen ? 'Entries open' : 'Entries closed'}
           </Chip>
-          <span className="text-xs text-muted-foreground">In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}</span>
+          <span className="text-xs text-muted-foreground">
+            In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
+          </span>
           {deadlineUrgent && (
             <Chip color="amber" size="sm">
               Closes in {daysUntilClose}d
@@ -83,7 +88,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
         </p>
       </div>
       <Button asChild variant="outline" size="sm" className="shrink-0">
-        <Link to={`/shows/${show.id}`}>
+        <Link to={workbenchHref(show.id, 'setup')}>
           Manage
           <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
         </Link>
@@ -114,7 +119,7 @@ function DraftCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
         </p>
       </div>
       <Button asChild size="sm" className="shrink-0">
-        <Link to={`/shows/${show.id}`}>
+        <Link to={workbenchHref(show.id, 'setup')}>
           <Pencil className="mr-1.5 h-3.5 w-3.5" />
           Continue setup
         </Link>
@@ -133,7 +138,7 @@ function PastCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
         </p>
       </div>
       <Button asChild variant="ghost" size="sm" className="shrink-0 text-muted-foreground">
-        <Link to={`/shows/${show.id}`}>
+        <Link to={workbenchHref(show.id, 'wrap-up')}>
           View
           <ArrowRight className="ml-1 h-3.5 w-3.5" />
         </Link>

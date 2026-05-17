@@ -104,10 +104,27 @@ const SecretaryShowPhaseRedirect = ({
   return <Navigate to={`/secretary/shows/${showId}?${params.toString()}`} replace />;
 };
 
+const SecretaryIndexRedirect = () => {
+  const selectedShowId = useShowStore(s => s.selectedShowId);
+  const shows = useShowStore(s => s.shows);
+  const onlyShowId = shows.length === 1 ? shows[0]?.id : undefined;
+  const showId = selectedShowId || onlyShowId;
+
+  return <Navigate to={showId ? `/secretary/shows/${showId}` : '/secretary/dashboard'} replace />;
+};
+
 /** All secretary routes — rendered inside UnifiedAppLayout */
 export const SecretaryRoutes = () => (
   <>
     {/* Secretary management pages */}
+    <Route
+      path="/secretary"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SecretaryIndexRedirect />
+        </ProtectedRoute>
+      }
+    />
     <Route
       path="/secretary/dashboard"
       element={

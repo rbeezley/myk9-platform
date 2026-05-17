@@ -105,6 +105,7 @@ export async function getShowMapHandlerMessageTarget(
       `
       id,
       handler,
+      handler_id,
       handler_person:people!entries_handler_id_fkey (
         id,
         auth_user_id,
@@ -132,6 +133,15 @@ export async function getShowMapHandlerMessageTarget(
   }
 
   const record = entry as Record<string, unknown>;
+  const handlerId = readNestedString(record, 'handler_id');
+  if (!handlerId) {
+    throw createDatabaseError(
+      new Error('This entry does not have a handler assigned.'),
+      'entries',
+      'show_map_message_handler_fetch'
+    );
+  }
+
   const handler = readMaybeRelatedObject(record.handler_person);
   const participantAuthUserId = readNestedString(handler, 'auth_user_id');
 

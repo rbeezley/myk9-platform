@@ -317,6 +317,7 @@ describe('ShowMapTab', () => {
     const targetChain = makeSelectSingleChain({
       data: {
         handler: 'Jane Handler',
+        handler_id: 'person-1',
         handler_person: {
           auth_user_id: 'handler-auth-1',
           first_name: 'Jane',

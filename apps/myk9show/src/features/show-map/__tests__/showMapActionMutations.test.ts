@@ -112,6 +112,7 @@ describe('showMapActionMutations', () => {
     const chain = makeSelectSingleChain({
       data: {
         handler: 'Jane Handler',
+        handler_id: 'person-1',
         handler_person: {
           auth_user_id: 'handler-auth-1',
           first_name: 'Jane',
@@ -140,6 +141,7 @@ describe('showMapActionMutations', () => {
     const chain = makeSelectSingleChain({
       data: {
         handler: 'Jane Handler',
+        handler_id: 'person-1',
         handler_person: {
           auth_user_id: null,
           first_name: 'Jane',
@@ -151,6 +153,22 @@ describe('showMapActionMutations', () => {
     mockFrom.mockReturnValue(chain);
 
     await expect(getShowMapHandlerMessageTarget('entry-1')).rejects.toThrow('messaging account');
+  });
+
+  it('fails clearly when an entry has no handler assigned', async () => {
+    const chain = makeSelectSingleChain({
+      data: {
+        handler: null,
+        handler_id: null,
+        handler_person: null,
+      },
+      error: null,
+    });
+    mockFrom.mockReturnValue(chain);
+
+    await expect(getShowMapHandlerMessageTarget('entry-1')).rejects.toThrow(
+      'does not have a handler assigned'
+    );
   });
 
   it('moves an entry up through the day-of move-up operation and returns undo data', async () => {

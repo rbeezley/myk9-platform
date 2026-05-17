@@ -70,6 +70,10 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: mockShowEntries }),
 }));
 
+vi.mock('@/hooks/queries/useShowJudges', () => ({
+  useShowJudges: () => ({ data: [] }),
+}));
+
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
@@ -78,6 +82,40 @@ vi.mock('@/store/trialStore', () => ({
       loadTrials: vi.fn(),
       loadTrialClasses: vi.fn(),
     }),
+}));
+
+vi.mock('@/features/premium/PremiumDownloadCard', () => ({
+  PremiumDownloadCard: ({ showId }: { showId: string }) => (
+    <div data-testid="premium-download-card">{showId}</div>
+  ),
+}));
+
+vi.mock('@/features/premium/LandingPageCard', () => ({
+  LandingPageCard: ({ showId }: { showId: string }) => (
+    <div data-testid="landing-page-card">{showId}</div>
+  ),
+}));
+
+vi.mock('@/components/shows/overview/ScheduleSummary', () => ({
+  ScheduleSummary: ({ showId }: { showId: string }) => (
+    <div data-testid="schedule-summary">{showId}</div>
+  ),
+}));
+
+vi.mock('@/components/shows/overview/VenueMap', () => ({
+  VenueMap: ({ location }: { location: string }) => <div data-testid="venue-map">{location}</div>,
+}));
+
+vi.mock('@/components/shows/overview/ShowOfficials', () => ({
+  ShowOfficials: ({ showId }: { showId: string }) => (
+    <div data-testid="show-officials">{showId}</div>
+  ),
+}));
+
+vi.mock('@/components/shows/overview/JudgesList', () => ({
+  JudgesList: ({ judges }: { judges?: unknown[] }) => (
+    <div data-testid="judges-list">{judges?.length ?? 0} judges</div>
+  ),
 }));
 
 vi.mock('@/components/secretary/MyK9QAccessCard', () => ({
@@ -298,6 +336,18 @@ describe('ShowWorkbenchPage', () => {
     await user.click(await screen.findByRole('tab', { name: /Wrap-up/ }));
 
     expect(screen.getByRole('tab', { name: /Wrap-up/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('renders Setup panels without public-discovery panels', async () => {
+    renderWorkbench('/secretary/shows/show-1');
+
+    expect(await screen.findByTestId('premium-download-card')).toHaveTextContent('show-1');
+    expect(screen.getByTestId('landing-page-card')).toHaveTextContent('show-1');
+    expect(screen.getByTestId('schedule-summary')).toHaveTextContent('show-1');
+    expect(screen.getByTestId('venue-map')).toHaveTextContent('Louisville, KY');
+    expect(screen.getByTestId('show-officials')).toHaveTextContent('show-1');
+    expect(screen.getByTestId('judges-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('myk9q-access')).not.toBeInTheDocument();
   });
 
   it('renders Today operational surfaces with show-map data', async () => {

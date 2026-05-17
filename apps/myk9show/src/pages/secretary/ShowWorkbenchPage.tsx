@@ -17,12 +17,21 @@ import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
+import { JudgesList } from '@/components/shows/overview/JudgesList';
+import { ScheduleSummary } from '@/components/shows/overview/ScheduleSummary';
+import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
+import { VenueMap } from '@/components/shows/overview/VenueMap';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
+import { useShowJudges } from '@/hooks/queries/useShowJudges';
+import { LandingPageCard } from '@/features/premium/LandingPageCard';
+import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
+import { getShowStyle } from '@/features/registries';
 import { isShowWorkbenchPhase, useActivePhase } from '@/hooks/useActivePhase';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
+import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 
 const ShowMapTab = lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -53,6 +62,7 @@ export function ShowWorkbenchPage() {
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
   const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
+  const { data: showJudgeRoster = [] } = useShowJudges(showId);
 
   useEffect(() => {
     if (!showId) return;
@@ -109,6 +119,12 @@ export function ShowWorkbenchPage() {
         }));
       }),
     [associatedTrials, showEntries, trialClasses]
+  );
+
+  const effectiveJudges = useMemo(
+    () =>
+      resolveOverviewJudgesWithRoster(currentShow?.assignedJudges, showJudgeRoster, showClasses),
+    [currentShow?.assignedJudges, showClasses, showJudgeRoster]
   );
 
   if (isLoading) {
@@ -187,6 +203,23 @@ export function ShowWorkbenchPage() {
       <PrimaryTabs tabs={PHASE_TABS} value={activePhase} onValueChange={handlePhaseChange}>
         <PrimaryTabsContent value="setup">
           <PhaseShell title="Setup" kicker="Before the show" />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <PremiumDownloadCard showId={currentShow.id} showStaleBadge />
+              <LandingPageCard showId={currentShow.id} showStyle={getShowStyle(currentShow)} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr,340px]">
+              <div className="space-y-6">
+                <ScheduleSummary showId={currentShow.id} />
+                <VenueMap location={currentShow.location} />
+              </div>
+              <div className="space-y-6">
+                <ShowOfficials showId={currentShow.id} />
+                <JudgesList judges={effectiveJudges} />
+              </div>
+            </div>
+          </div>
         </PrimaryTabsContent>
         <PrimaryTabsContent value="today">
           <PhaseShell title="Today" kicker="Live operations" />

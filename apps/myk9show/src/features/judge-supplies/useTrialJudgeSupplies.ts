@@ -97,6 +97,19 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
     onSuccess: invalidate,
   });
 
+  /** Renumber sort_order on the given rows according to position in the array.
+   * Issued as parallel single-row updates; small N keeps this cheap. */
+  const reorder = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await Promise.all(
+        orderedIds.map((id, idx) =>
+          trialJudgeSuppliesService.updateRow(id, { sort_order: (idx + 1) * 10 })
+        )
+      );
+    },
+    onSuccess: invalidate,
+  });
+
   return {
     groups,
     rows: query.data ?? [],
@@ -106,5 +119,6 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
     updateRow,
     addCustomRow,
     deleteCustomRow,
+    reorder,
   };
 }

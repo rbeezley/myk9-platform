@@ -40,6 +40,9 @@ export interface ShowMapNode {
   scoreHref?: string | undefined;
   trialDate?: string | undefined;
   timezone?: string | null | undefined;
+  ringLabel?: string | undefined;
+  judgeName?: string | undefined;
+  startTime?: string | undefined;
   entryDisplay?: ShowMapEntryDisplay | undefined;
   parentId?: string | undefined;
   childrenCount: number;
@@ -69,9 +72,13 @@ export interface ShowMapClassInput {
   element?: string | undefined;
   level?: string | undefined;
   section?: string | undefined;
+  judgeName?: string | undefined;
+  time?: string | undefined;
   status?: string | undefined;
   entryCount?: number | undefined;
   scoredCount?: number | undefined;
+  ring?: string | number | null | undefined;
+  ringName?: string | undefined;
   trialDate?: string | undefined;
   trialNumber?: string | undefined;
   trialName?: string | undefined;

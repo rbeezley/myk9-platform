@@ -110,10 +110,10 @@ describe('ShowMapTab', () => {
     expect(screen.getByText('Need Attention')).toBeInTheDocument();
     expect(screen.getByText('Trial 1')).toBeInTheDocument();
     // Class rows are collapsed by default — the secretary opens the trial to drill in.
-    expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-node-id="class:class-1"]')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
-    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+    expect(document.querySelector('[data-node-id="class:class-1"]')).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
 
@@ -230,6 +230,41 @@ describe('ShowMapTab', () => {
     await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
 
     expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+  });
+
+  it('renders Running Now cards and opens the active class when selected', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+            judgeName: 'Judge Smith',
+            time: '09:00',
+            ring: 1,
+            entryCount: 4,
+            scoredCount: 1,
+          },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={new Date('2026-05-11T15:00:00.000Z')}
+      />
+    );
+
+    expect(screen.getByRole('region', { name: /running now/i })).toBeInTheDocument();
+    expect(screen.getByText('Ring 1')).toBeInTheDocument();
+    expect(screen.getByText('25% scored')).toBeInTheDocument();
+    expect(screen.queryByText('Interior Novice A')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /ring 1.*interior novice a/i }));
+
+    expect(screen.getByRole('button', { name: /collapse trial 1/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
   });
 
   it('renders a calm empty state for shows without trials', () => {

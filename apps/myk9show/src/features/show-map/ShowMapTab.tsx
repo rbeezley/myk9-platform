@@ -14,9 +14,11 @@ import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDi
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { ShowMapToolbar } from './ShowMapToolbar';
+import { ShowMapRunningNowStrip } from './ShowMapRunningNowStrip';
 import { countCatalogEntries } from './entryCounts';
 import { getRankedActions, getRecommendedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
+import { getRunningNowItems } from './showMapRunningNow';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
 import type {
   BuildShowMapTreeInput,
@@ -55,8 +57,23 @@ function useExpandedNodes(tree: ShowMapTree) {
     () => setExpandedNodeIds(getTrialsExpandedNodeIds(tree)),
     [tree]
   );
+  const expandPathToNode = useCallback(
+    (nodeId: string) => {
+      setExpandedNodeIds(current => {
+        const next = new Set(current);
+        next.add(tree.root.id);
+        let parentId = tree.nodesById[nodeId]?.parentId;
+        while (parentId) {
+          next.add(parentId);
+          parentId = tree.nodesById[parentId]?.parentId;
+        }
+        return next;
+      });
+    },
+    [tree]
+  );
 
-  return { expandedNodeIds, toggleNode, collapseAll, expandTrials };
+  return { expandedNodeIds, toggleNode, collapseAll, expandTrials, expandPathToNode };
 }
 
 function SummaryItem({ label, value }: { label: string; value: number }) {
@@ -220,7 +237,8 @@ export default function ShowMapTab({
   );
   const scope = useMemo(() => ({ dayScope, completionScope }), [completionScope, dayScope]);
   const effectiveScopeNow = useMemo(() => scopeNow ?? new Date(), [scopeNow]);
-  const { expandedNodeIds, toggleNode, collapseAll, expandTrials } = useExpandedNodes(tree);
+  const { expandedNodeIds, toggleNode, collapseAll, expandTrials, expandPathToNode } =
+    useExpandedNodes(tree);
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
   const {
     executeAction,
@@ -242,6 +260,27 @@ export default function ShowMapTab({
   const catalogEntryCount = countCatalogEntries(entries);
   const recommendedActions = useMemo(() => getRecommendedActions('root', { tree }), [tree]);
   const priorityActions = useMemo(() => getRankedActions('root', { tree }), [tree]);
+  const runningNowItems = useMemo(
+    () => getRunningNowItems(tree, scope, effectiveScopeNow),
+    [effectiveScopeNow, scope, tree]
+  );
+  const selectRunningNowClass = useCallback(
+    (nodeId: string) => {
+      expandPathToNode(nodeId);
+      const scrollToNode = () => {
+        const row = document.querySelector(`[data-node-id="${nodeId}"]`);
+        if (row instanceof HTMLElement && typeof row.scrollIntoView === 'function') {
+          row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      };
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(scrollToNode);
+      } else {
+        window.setTimeout(scrollToNode, 0);
+      }
+    },
+    [expandPathToNode]
+  );
   const moveUpTargets = useMemo(
     () => buildMoveUpTargets(classes, moveUpAction?.classId),
     [classes, moveUpAction?.classId]
@@ -315,6 +354,7 @@ export default function ShowMapTab({
         onAction={executeAction}
       />
       <div className="p-3">
+        <ShowMapRunningNowStrip items={runningNowItems} onSelect={selectRunningNowClass} />
         <PriorityQueue actions={priorityActions} onNavigate={navigateTo} onAction={executeAction} />
         <MoveUpUndoBanner moveUp={lastMoveUp} isUndoing={isUndoingMoveUp} onUndo={undoLastMoveUp} />
         <ShowMapStructureTable

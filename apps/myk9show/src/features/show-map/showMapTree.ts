@@ -39,6 +39,18 @@ function readNumber(record: Record<string, unknown>, key: string): number | unde
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function classRingLabel(cls: {
+  ring?: string | number | null | undefined;
+  ringName?: string | undefined;
+}) {
+  if (cls.ringName?.trim()) return cls.ringName;
+  if (typeof cls.ring === 'number' && cls.ring > 0) return `Ring ${cls.ring}`;
+  if (typeof cls.ring === 'string' && cls.ring.trim() && cls.ring !== '0') {
+    return cls.ring.trim().toLowerCase().startsWith('ring') ? cls.ring.trim() : `Ring ${cls.ring}`;
+  }
+  return undefined;
+}
+
 function entryClassId(entry: ShowMapEntryInput): string | undefined {
   return readString(entry, 'class_id');
 }
@@ -214,6 +226,9 @@ export function buildShowMapTree({
         scoreHref: getShowMapClassScoringHref(cls.id),
         trialDate: trial.trialDate || undefined,
         timezone: trial.timezone,
+        ringLabel: classRingLabel(cls),
+        judgeName: cls.judgeName || undefined,
+        startTime: cls.time || undefined,
         parentId: trialNode.id,
         childrenCount: classEntries.length,
       };

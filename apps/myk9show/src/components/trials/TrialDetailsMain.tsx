@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Users, Trophy, Gavel } from 'lucide-react';
 import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
 import { TrialTimeline } from '@/components/schedule';
+import { JudgeSuppliesSection } from '@/features/judge-supplies/JudgeSuppliesSection';
 import '@/styles/myk9-show-details.css';
 
 interface TrialDetailsMainProps {
@@ -128,6 +129,9 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
           onDeleteClass={onDeleteClass}
         />
       </div>
+
+      {/* Judge Supplies Section */}
+      <JudgeSuppliesSection trialId={trial.id} />
     </div>
   );
 };

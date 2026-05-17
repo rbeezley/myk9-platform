@@ -20,6 +20,7 @@ import { StewardReport } from '@/components/reports/StewardReport';
 import { ResultLabels } from '@/components/reports/ResultLabels';
 import { AKCJudgeReport } from '@/components/reports/AKCJudgeReport';
 import { TrialSecretaryCertification } from '@/components/reports/TrialSecretaryCertification';
+import { JudgeSupplyChecklistReport } from '@/components/reports/JudgeSupplyChecklistReport';
 import type React from 'react';
 
 const PlaceholderReport: React.FC<ReportProps> = () => null;
@@ -285,6 +286,16 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: TrialSecretaryCertification,
+    enabled: true,
+  },
+  {
+    id: 'judge-supply-checklist',
+    name: 'Judge Supply Checklists',
+    category: 'operational',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: JudgeSupplyChecklistReport,
     enabled: true,
   },
 ];

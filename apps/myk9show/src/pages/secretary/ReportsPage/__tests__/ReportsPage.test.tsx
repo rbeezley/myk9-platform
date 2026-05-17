@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import ReportsPage from '../index';
+import ReportsPage, { resolveInitialReportId } from '../index';
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
@@ -48,5 +48,24 @@ describe('ReportsPage', () => {
   it('renders show name', () => {
     render(<ReportsPage />);
     expect(screen.getAllByText('Spring Scent Trial 2026').length).toBeGreaterThan(0);
+  });
+
+});
+
+describe('resolveInitialReportId', () => {
+  it('returns the default report when no query param is provided', () => {
+    expect(resolveInitialReportId(null)).toBe('check-in-sheet');
+  });
+
+  it('returns the default report when query param is empty', () => {
+    expect(resolveInitialReportId('')).toBe('check-in-sheet');
+  });
+
+  it('returns the requested report when it exists and is enabled', () => {
+    expect(resolveInitialReportId('judge-supply-checklist')).toBe('judge-supply-checklist');
+  });
+
+  it('falls back to default when the report id is unknown', () => {
+    expect(resolveInitialReportId('not-a-real-report')).toBe('check-in-sheet');
   });
 });

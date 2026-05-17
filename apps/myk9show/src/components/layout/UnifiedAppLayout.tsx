@@ -17,6 +17,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole, ScopeType } from '@/types/auth-types';
 import type { RoleScope } from '@/types/auth-types';
 import { useClubStore } from '@/store/clubStore';
+import { useShowStore } from '@/store/showStore';
 import { AskQPanel } from '@/components/askq/AskQPanel';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
 import type { ClubContext } from './sidebar/unifiedSidebarConfig';
@@ -46,12 +47,15 @@ export const UnifiedAppLayout: React.FC = () => {
   const { user, getUserRoles, userWithRoles } = useAuthContext();
   const roles = getUserRoles();
   const clubs = useClubStore(s => s.clubs);
+  const selectedShowId = useShowStore(s => s.selectedShowId);
+  const shows = useShowStore(s => s.shows);
   const scopes = userWithRoles?.scopes ?? EMPTY_SCOPES;
   const clubContext = useClubContext(roles, scopes, clubs);
+  const activeShowId = selectedShowId || (shows.length === 1 ? shows[0]?.id : undefined);
 
   const sidebarConfig = useMemo(
-    () => buildUnifiedSidebarConfig(roles, clubContext),
-    [roles, clubContext]
+    () => buildUnifiedSidebarConfig(roles, clubContext, activeShowId),
+    [roles, clubContext, activeShowId]
   );
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
 

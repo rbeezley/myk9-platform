@@ -49,7 +49,8 @@ function hasAnyRole(userRoles: UserRole[], required: UserRole[]): boolean {
 
 export function buildUnifiedSidebarConfig(
   userRoles: UserRole[],
-  clubContext?: ClubContext
+  clubContext?: ClubContext,
+  activeShowId?: string
 ): SidebarConfig {
   const groups: NavGroup[] = [];
 
@@ -128,6 +129,12 @@ export function buildUnifiedSidebarConfig(
       const manageDashboardHref = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])
         ? '/secretary/dashboard'
         : '/club-admin/members';
+      const setupHref = activeShowId
+        ? `/secretary/shows/${activeShowId}?phase=setup`
+        : '/secretary/run-order';
+      const todayHref = activeShowId
+        ? `/secretary/shows/${activeShowId}?phase=today`
+        : '/secretary/day-of';
 
       groups.push({
         title: 'Manage',
@@ -147,13 +154,13 @@ export function buildUnifiedSidebarConfig(
 
           {
             title: 'Schedule',
-            href: '/secretary/run-order',
+            href: setupHref,
             icon: List,
             description: 'Class and ring scheduling',
           },
           {
             title: 'Day of Show',
-            href: '/secretary/day-of',
+            href: todayHref,
             icon: ClipboardCheck,
             description: 'Walk-ins, pulled entries, move-ups',
           },

@@ -11,6 +11,7 @@ import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
+import { useShowStore } from '@/store/showStore';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
 const SecretaryDashboardPage = lazy(() =>
@@ -29,10 +30,6 @@ const ClassCreationPage = lazy(() =>
 const ClassManagementPage = lazy(() =>
   import('@/pages/secretary/ClassManagementPage').then(m => ({ default: m.ClassManagementPage }))
 );
-const RunOrderPage = lazy(() =>
-  import('@/pages/secretary/RunOrderPage').then(m => ({ default: m.RunOrderPage }))
-);
-
 // Secretary components
 const SecretaryClassDashboard = lazy(() =>
   import('@/components/secretary/SecretaryClassDashboard').then(m => ({
@@ -50,7 +47,6 @@ const EntryManagementPage = lazy(() =>
   }))
 );
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
-const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
 const ShowWorkbenchPage = lazy(() =>
   import('@/pages/secretary/ShowWorkbenchPage').then(m => ({
     default: m.ShowWorkbenchPage,
@@ -61,8 +57,6 @@ const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage')
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
-const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSchedulingPage'));
-
 // Scoring pages
 const PaperScoresheetPage = lazy(() =>
   import('@/pages/scoring/PaperScoresheetPage').then(m => ({ default: m.PaperScoresheetPage }))
@@ -83,6 +77,31 @@ const ShowEditRedirect = () => {
 const UserDetailRedirect = () => {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={id ? `/people/${id}` : '/people'} replace />;
+};
+
+const SecretaryShowPhaseRedirect = ({
+  phase,
+  focus,
+  section,
+}: {
+  phase: 'setup' | 'today' | 'wrap-up';
+  focus?: string;
+  section?: string;
+}) => {
+  const selectedShowId = useShowStore(s => s.selectedShowId);
+  const shows = useShowStore(s => s.shows);
+  const onlyShowId = shows.length === 1 ? shows[0]?.id : undefined;
+  const showId = selectedShowId || onlyShowId;
+
+  if (!showId) {
+    return <Navigate to="/secretary/dashboard" replace />;
+  }
+
+  const params = new URLSearchParams({ phase });
+  if (focus) params.set('focus', focus);
+  if (section) params.set('section', section);
+
+  return <Navigate to={`/secretary/shows/${showId}?${params.toString()}`} replace />;
 };
 
 /** All secretary routes — rendered inside UnifiedAppLayout */
@@ -137,11 +156,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/run-order"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <RunOrderPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <SecretaryShowPhaseRedirect phase="setup" section="run-order" />
         </ProtectedRoute>
       }
     />
@@ -181,11 +196,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/day-of"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <DayOfOperationsPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <SecretaryShowPhaseRedirect phase="today" />
         </ProtectedRoute>
       }
     />
@@ -193,7 +204,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/check-in"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <Navigate to="/secretary/day-of?tab=check-in" replace />
+          <SecretaryShowPhaseRedirect phase="today" focus="check-in" />
         </ProtectedRoute>
       }
     />
@@ -201,11 +212,15 @@ export const SecretaryRoutes = () => (
       path="/secretary/volunteers"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <VolunteerSchedulingPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <SecretaryShowPhaseRedirect phase="setup" section="personnel" />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/volunteer-scheduling"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SecretaryShowPhaseRedirect phase="setup" section="personnel" />
         </ProtectedRoute>
       }
     />

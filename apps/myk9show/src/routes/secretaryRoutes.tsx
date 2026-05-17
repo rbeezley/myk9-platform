@@ -51,6 +51,11 @@ const EntryManagementPage = lazy(() =>
 );
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
+const ShowWorkbenchPage = lazy(() =>
+  import('@/pages/secretary/ShowWorkbenchPage').then(m => ({
+    default: m.ShowWorkbenchPage,
+  }))
+);
 
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
@@ -205,6 +210,18 @@ export const SecretaryRoutes = () => (
       }
     />
     <Route path="/secretary/tasks" element={<Navigate to="/secretary/dashboard" replace />} />
+    <Route
+      path="/secretary/shows/:showId"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ShowWorkbenchPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
     <Route
       path="/secretary/settings"
       element={

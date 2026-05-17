@@ -150,6 +150,88 @@ describe('ShowMapTab', () => {
     expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
   });
 
+  it('defaults to today scope when requested and dims tomorrow rows in All dates', async () => {
+    const todayTrial = {
+      ...trial,
+      id: 'trial-today',
+      trialDate: '2026-05-17',
+      trialNumber: '1',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+    const tomorrowTrial = {
+      ...trial,
+      id: 'trial-tomorrow',
+      trialDate: '2026-05-18',
+      trialNumber: '2',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[todayTrial, tomorrowTrial]}
+        classes={[
+          {
+            id: 'class-today',
+            trialId: 'trial-today',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+          {
+            id: 'class-tomorrow',
+            trialId: 'trial-tomorrow',
+            name: 'Exterior Advanced',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[]}
+        canManageShow
+        initialDayScope="today"
+        scopeNow={new Date('2026-05-17T15:00:00.000Z')}
+      />
+    );
+
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
+    expect(screen.queryByText('Trial 2')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /all dates/i }));
+
+    const tomorrowRow = screen
+      .getByText('Trial 2')
+      .closest('[data-node-id="trial:trial-tomorrow"]');
+    expect(tomorrowRow).not.toBeNull();
+    expect(tomorrowRow).toHaveAttribute('data-day-bucket', 'tomorrow');
+    expect(tomorrowRow?.querySelector('[data-row-action-surface]')).toHaveClass('opacity-60');
+  });
+
+  it('keeps completed classes out of Active view and reachable from Completed', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-complete',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'Complete',
+          },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={new Date('2026-05-11T15:00:00.000Z')}
+      />
+    );
+
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
+    expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^completed$/i }));
+    await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
+
+    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+  });
+
   it('renders a calm empty state for shows without trials', () => {
     render(<ShowMapTab show={show} trials={[]} classes={[]} entries={[]} canManageShow />);
 

@@ -189,6 +189,8 @@ export function buildShowMapTree({
       progress: buildProgress(completedClasses, trialClasses.length, 'classes'),
       attentionCount,
       href: getShowMapTrialHref(show.id, trial.id),
+      trialDate: trial.trialDate || undefined,
+      timezone: trial.timezone,
       parentId: root.id,
       childrenCount: trialClasses.length,
     };
@@ -210,6 +212,8 @@ export function buildShowMapTree({
         attentionCount: attentionCountForClass,
         href: getShowMapClassHref(show.id, trial.id, cls.id),
         scoreHref: getShowMapClassScoringHref(cls.id),
+        trialDate: trial.trialDate || undefined,
+        timezone: trial.timezone,
         parentId: trialNode.id,
         childrenCount: classEntries.length,
       };
@@ -226,6 +230,8 @@ export function buildShowMapTree({
           entryDisplay: entryDisplay(entry, show.organization),
           status: classifyEntryRunStatus(entry),
           checkInStatus: classifyEntryCheckInStatus(entry),
+          trialDate: trial.trialDate || undefined,
+          timezone: trial.timezone,
           parentId: classNode.id,
           childrenCount: 0,
         });

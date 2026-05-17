@@ -6,6 +6,13 @@ export type ShowMapNodeType = 'show' | 'trial' | 'class' | 'entry' | 'more';
 export type ShowMapStatusKind = 'neutral' | 'active' | 'complete' | 'muted' | 'attention';
 
 export type ShowMapFilter = 'all' | 'in-progress' | 'needs-attention' | 'complete';
+export type ShowMapDayScope = 'today' | 'tomorrow' | 'all';
+export type ShowMapCompletionScope = 'active' | 'completed';
+
+export interface ShowMapScopeState {
+  dayScope: ShowMapDayScope;
+  completionScope: ShowMapCompletionScope;
+}
 
 export interface ShowMapProgress {
   completed: number;
@@ -31,6 +38,8 @@ export interface ShowMapNode {
   attentionCount?: number | undefined;
   href?: string | undefined;
   scoreHref?: string | undefined;
+  trialDate?: string | undefined;
+  timezone?: string | null | undefined;
   entryDisplay?: ShowMapEntryDisplay | undefined;
   parentId?: string | undefined;
   childrenCount: number;

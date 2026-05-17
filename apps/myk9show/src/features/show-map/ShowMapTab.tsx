@@ -18,13 +18,21 @@ import { countCatalogEntries } from './entryCounts';
 import { getRankedActions, getRecommendedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
-import type { BuildShowMapTreeInput, ShowMapFilter, ShowMapTree } from './showMapTypes';
+import type {
+  BuildShowMapTreeInput,
+  ShowMapCompletionScope,
+  ShowMapDayScope,
+  ShowMapFilter,
+  ShowMapTree,
+} from './showMapTypes';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import type { LastShowMapMoveUp } from './useShowMapActionExecutor';
 
 interface ShowMapTabProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
+  initialDayScope?: ShowMapDayScope | undefined;
+  scopeNow?: Date | undefined;
 }
 
 function useExpandedNodes(tree: ShowMapTree) {
@@ -199,13 +207,19 @@ export default function ShowMapTab({
   classes,
   entries,
   canManageShow,
+  initialDayScope = 'all',
+  scopeNow,
 }: ShowMapTabProps) {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<ShowMapFilter>('all');
+  const [dayScope, setDayScope] = useState<ShowMapDayScope>(initialDayScope);
+  const [completionScope, setCompletionScope] = useState<ShowMapCompletionScope>('active');
   const tree = useMemo(
     () => buildShowMapTree({ show, trials, classes, entries }),
     [show, trials, classes, entries]
   );
+  const scope = useMemo(() => ({ dayScope, completionScope }), [completionScope, dayScope]);
+  const effectiveScopeNow = useMemo(() => scopeNow ?? new Date(), [scopeNow]);
   const { expandedNodeIds, toggleNode, collapseAll, expandTrials } = useExpandedNodes(tree);
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
   const {
@@ -287,7 +301,11 @@ export default function ShowMapTab({
       </div>
       <ShowMapToolbar
         filter={filter}
+        dayScope={dayScope}
+        completionScope={completionScope}
         onFilterChange={setFilter}
+        onDayScopeChange={setDayScope}
+        onCompletionScopeChange={setCompletionScope}
         onCollapseAll={collapseAll}
         onExpandTrials={expandTrials}
       />
@@ -303,6 +321,8 @@ export default function ShowMapTab({
           tree={tree}
           expandedNodeIds={expandedNodeIds}
           filter={filter}
+          scope={scope}
+          scopeNow={effectiveScopeNow}
           onToggle={toggleNode}
           onNavigate={navigateTo}
           onAction={executeAction}

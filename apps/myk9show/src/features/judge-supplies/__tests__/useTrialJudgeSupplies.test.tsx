@@ -64,10 +64,9 @@ describe('useTrialJudgeSupplies', () => {
     });
     expect(mockService.listForTrial).not.toHaveBeenCalled();
     expect(result.current.rows).toEqual([]);
-    expect(result.current.groups).toEqual([]);
   });
 
-  it('fetches rows for a trial and groups them by judge', async () => {
+  it('returns the raw rows from the service for a trial', async () => {
     mockService.listForTrial.mockResolvedValue([
       row({ id: 'a', person_id: 'p1', judge_name: 'Alice', sort_order: 10, item_label: 'Pen' }),
       row({ id: 'b', person_id: 'p1', judge_name: 'Alice', sort_order: 20, item_label: 'Water' }),
@@ -81,30 +80,8 @@ describe('useTrialJudgeSupplies', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockService.listForTrial).toHaveBeenCalledWith('trial-1');
-    expect(result.current.groups).toHaveLength(2);
-    expect(result.current.groups[0].judge.judge_name).toBe('Alice');
-    expect(result.current.groups[0].rows.map(r => r.item_label)).toEqual(['Pen', 'Water']);
-    expect(result.current.groups[1].judge.judge_name).toBe('Bob');
-    expect(result.current.groups[1].judge.person_id).toBeNull();
-  });
-
-  it('sorts rows within a group by sort_order ascending', async () => {
-    mockService.listForTrial.mockResolvedValue([
-      row({ id: 'a', person_id: 'p1', judge_name: 'Alice', sort_order: 30, item_label: 'Last' }),
-      row({ id: 'b', person_id: 'p1', judge_name: 'Alice', sort_order: 10, item_label: 'First' }),
-      row({ id: 'c', person_id: 'p1', judge_name: 'Alice', sort_order: 20, item_label: 'Middle' }),
-    ]);
-
-    const { result } = renderHook(() => useTrialJudgeSupplies('trial-1'), {
-      wrapper: wrapper(makeClient()),
-    });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.groups[0].rows.map(r => r.item_label)).toEqual([
-      'First',
-      'Middle',
-      'Last',
-    ]);
+    expect(result.current.rows).toHaveLength(3);
+    expect(result.current.rows.map(r => r.judge_name)).toEqual(['Alice', 'Alice', 'Bob']);
   });
 
   it('ensureSeeded mutation calls the service and invalidates the query', async () => {

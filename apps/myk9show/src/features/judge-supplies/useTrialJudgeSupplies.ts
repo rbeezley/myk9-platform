@@ -1,42 +1,8 @@
-import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { trialJudgeSuppliesService } from './trialJudgeSuppliesService';
-import type { JudgeKey, RegistryId, TrialJudgeSupplyRow } from './types';
+import type { RegistryId, TrialJudgeSupplyRow } from './types';
 
 const queryKey = (trialId: string) => ['trial-judge-supplies', trialId] as const;
-
-export interface JudgeSuppliesGroup {
-  key: string;
-  judge: JudgeKey;
-  rows: TrialJudgeSupplyRow[];
-}
-
-function groupKey(row: TrialJudgeSupplyRow): string {
-  return row.person_id ?? `name:${row.judge_name}`;
-}
-
-function groupByJudge(rows: TrialJudgeSupplyRow[]): JudgeSuppliesGroup[] {
-  const map = new Map<string, JudgeSuppliesGroup>();
-  for (const row of rows) {
-    const key = groupKey(row);
-    let group = map.get(key);
-    if (!group) {
-      group = {
-        key,
-        judge: { person_id: row.person_id, judge_name: row.judge_name },
-        rows: [],
-      };
-      map.set(key, group);
-    }
-    group.rows.push(row);
-  }
-  for (const group of map.values()) {
-    group.rows.sort((a, b) => a.sort_order - b.sort_order);
-  }
-  return Array.from(map.values()).sort((a, b) =>
-    a.judge.judge_name.localeCompare(b.judge.judge_name)
-  );
-}
 
 export function useTrialJudgeSupplies(trialId: string | null | undefined) {
   const queryClient = useQueryClient();
@@ -46,8 +12,6 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
     enabled: !!trialId,
     queryFn: () => trialJudgeSuppliesService.listForTrial(trialId!),
   });
-
-  const groups = useMemo(() => groupByJudge(query.data ?? []), [query.data]);
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: queryKey(trialId ?? '') });
@@ -111,7 +75,6 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
   });
 
   return {
-    groups,
     rows: query.data ?? [],
     isLoading: query.isLoading,
     error: query.error,

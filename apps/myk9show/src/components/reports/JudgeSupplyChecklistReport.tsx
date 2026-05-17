@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ReportProps } from '@/lib/reports/types';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
-import type { TrialJudgeSupplyRow } from '@/features/judge-supplies/types';
+import { judgeKey, type TrialJudgeSupplyRow } from '@/features/judge-supplies/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 
 interface JudgePage {
@@ -12,10 +12,6 @@ interface JudgePage {
   judgeName: string;
   judgeKey: string;
   rows: TrialJudgeSupplyRow[];
-}
-
-function judgeKey(row: TrialJudgeSupplyRow): string {
-  return row.person_id ?? `name:${row.judge_name}`;
 }
 
 function buildPages(

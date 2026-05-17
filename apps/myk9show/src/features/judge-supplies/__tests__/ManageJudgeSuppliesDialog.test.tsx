@@ -62,7 +62,6 @@ function setupHook(rows: TrialJudgeSupplyRow[] = []) {
   const reorder = mutation();
   mockHook.mockReturnValue({
     rows,
-    groups: [],
     isLoading: false,
     error: null,
     ensureSeeded,

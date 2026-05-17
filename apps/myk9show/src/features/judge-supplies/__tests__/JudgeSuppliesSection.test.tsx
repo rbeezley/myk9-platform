@@ -6,6 +6,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('../useTrialJudges', () => ({
   useTrialJudges: vi.fn(),
+}));
+
+vi.mock('../useTrialRegistry', () => ({
   useTrialRegistry: vi.fn(),
 }));
 
@@ -26,11 +29,12 @@ vi.mock('../ManageJudgeSuppliesDialog', () => ({
 
 import { JudgeSuppliesSection } from '../JudgeSuppliesSection';
 import * as useTrialJudgesMod from '../useTrialJudges';
+import * as useTrialRegistryMod from '../useTrialRegistry';
 import * as useTrialJudgeSuppliesMod from '../useTrialJudgeSupplies';
 import type { TrialJudgeSupplyRow } from '../types';
 
 const mockUseTrialJudges = vi.mocked(useTrialJudgesMod.useTrialJudges);
-const mockUseTrialRegistry = vi.mocked(useTrialJudgesMod.useTrialRegistry);
+const mockUseTrialRegistry = vi.mocked(useTrialRegistryMod.useTrialRegistry);
 const mockUseTrialJudgeSupplies = vi.mocked(useTrialJudgeSuppliesMod.useTrialJudgeSupplies);
 
 function row(overrides: Partial<TrialJudgeSupplyRow>): TrialJudgeSupplyRow {
@@ -59,11 +63,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 beforeEach(() => {
   vi.clearAllMocks();
   mockUseTrialRegistry.mockReturnValue({ data: 'AKC' } as unknown as ReturnType<
-    typeof useTrialJudgesMod.useTrialRegistry
+    typeof useTrialRegistryMod.useTrialRegistry
   >);
   mockUseTrialJudgeSupplies.mockReturnValue({
     rows: [],
-    groups: [],
     isLoading: false,
     error: null,
   } as unknown as ReturnType<typeof useTrialJudgeSuppliesMod.useTrialJudgeSupplies>);
@@ -104,7 +107,6 @@ describe('JudgeSuppliesSection', () => {
         row({ id: 'a', person_id: 'p1', judge_name: 'Alice', is_custom: false, included: true }),
         row({ id: 'b', person_id: 'p1', judge_name: 'Alice', is_custom: true, included: false }),
       ],
-      groups: [],
       isLoading: false,
       error: null,
     } as unknown as ReturnType<typeof useTrialJudgeSuppliesMod.useTrialJudgeSupplies>);
@@ -140,7 +142,6 @@ describe('JudgeSuppliesSection', () => {
     } as unknown as ReturnType<typeof useTrialJudgesMod.useTrialJudges>);
     mockUseTrialJudgeSupplies.mockReturnValue({
       rows: [row({ id: 'a', person_id: 'p1', judge_name: 'Alice' })],
-      groups: [],
       isLoading: false,
       error: null,
     } as unknown as ReturnType<typeof useTrialJudgeSuppliesMod.useTrialJudgeSupplies>);

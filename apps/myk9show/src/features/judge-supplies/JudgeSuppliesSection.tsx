@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTrialJudges, useTrialRegistry } from './useTrialJudges';
+import { useTrialJudges } from './useTrialJudges';
+import { useTrialRegistry } from './useTrialRegistry';
 import { useTrialJudgeSupplies } from './useTrialJudgeSupplies';
 import { ManageJudgeSuppliesDialog } from './ManageJudgeSuppliesDialog';
-import type { JudgeKey, TrialJudgeSupplyRow } from './types';
+import { judgeKey, type JudgeKey, type TrialJudgeSupplyRow } from './types';
 
 export interface JudgeSuppliesSectionProps {
   trialId: string;
@@ -94,14 +95,10 @@ export function JudgeSuppliesSection({ trialId }: JudgeSuppliesSectionProps) {
   );
 }
 
-function judgeKey(judge: JudgeKey): string {
-  return judge.person_id ?? `name:${judge.judge_name}`;
-}
-
 function indexByJudge(rows: TrialJudgeSupplyRow[]): Map<string, TrialJudgeSupplyRow[]> {
   const map = new Map<string, TrialJudgeSupplyRow[]>();
   for (const row of rows) {
-    const key = row.person_id ?? `name:${row.judge_name}`;
+    const key = judgeKey(row);
     const list = map.get(key);
     if (list) list.push(row);
     else map.set(key, [row]);

@@ -29,7 +29,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { notifications } from '@/lib/notifications';
 import { useTrialJudgeSupplies } from './useTrialJudgeSupplies';
-import type { JudgeKey, RegistryId, TrialJudgeSupplyRow } from './types';
+import { judgeKey, type JudgeKey, type RegistryId, type TrialJudgeSupplyRow } from './types';
 
 const MAX_LABEL = 200;
 const MAX_NOTE = 500;
@@ -50,15 +50,15 @@ export function ManageJudgeSuppliesDialog({
   registryId,
 }: ManageJudgeSuppliesDialogProps) {
   const supplies = useTrialJudgeSupplies(trialId);
-  const judgeKey = useMemo(
-    () => judgeMatchKey(judge),
+  const thisJudgeKey = useMemo(
+    () => judgeKey(judge),
     [judge.person_id, judge.judge_name] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const judgeRows = useMemo(() => {
     return supplies.rows
-      .filter(row => judgeMatchKey(row) === judgeKey)
+      .filter(row => judgeKey(row) === thisJudgeKey)
       .sort((a, b) => a.sort_order - b.sort_order);
-  }, [supplies.rows, judgeKey]);
+  }, [supplies.rows, thisJudgeKey]);
 
   // Idempotent seed on open.
   useEffect(() => {
@@ -80,7 +80,7 @@ export function ManageJudgeSuppliesDialog({
     // intentionally not depending on supplies.ensureSeeded or judgeRows.length
     // changing every render — we only want to fire on open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, judgeKey, registryId]);
+  }, [open, thisJudgeKey, registryId]);
 
   const isSeeding = supplies.ensureSeeded.isPending && judgeRows.length === 0;
 
@@ -150,10 +150,6 @@ export function ManageJudgeSuppliesDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function judgeMatchKey(row: { person_id: string | null; judge_name: string }): string {
-  return row.person_id ?? `name:${row.judge_name}`;
 }
 
 function toMessage(err: unknown, fallback: string): string {

@@ -67,22 +67,3 @@ export function useTrialJudges(trialId: string | null | undefined) {
     enabled: !!trialId,
   });
 }
-
-async function fetchTrialRegistry(trialId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('trials')
-    .select('registry_id')
-    .eq('id', trialId)
-    .single();
-  if (error) throw error;
-  return (data as { registry_id?: string | null } | null)?.registry_id ?? null;
-}
-
-export function useTrialRegistry(trialId: string | null | undefined) {
-  return useQuery({
-    queryKey: ['trial-registry', trialId ?? ''] as const,
-    queryFn: () => fetchTrialRegistry(trialId!),
-    enabled: !!trialId,
-    staleTime: 5 * 60 * 1000,
-  });
-}

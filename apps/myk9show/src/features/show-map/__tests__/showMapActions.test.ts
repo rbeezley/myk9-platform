@@ -144,4 +144,37 @@ describe('showMapActions', () => {
       label: 'Print Check-In Sheet',
     });
   });
+
+  it('emits mark checked-in only for entries that still need check-in', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-needs-check-in',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          check_in_status: 'no-status',
+        },
+        {
+          id: 'entry-already-checked-in',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+          check_in_status: 'checked-in',
+        },
+      ],
+    });
+
+    const actions = getRankedActions('root', { tree }).filter(
+      action => action.id === 'mark-checked-in'
+    );
+
+    expect(actions).toEqual([
+      expect.objectContaining({
+        nodeId: 'entry:entry-needs-check-in',
+        classId: 'class-active',
+      }),
+    ]);
+  });
 });

@@ -42,6 +42,7 @@ Testing:
 These PRs may start after the shared contract merges.
 
 1. Mark checked-in action
+   - Status: implemented on `codex-show-day-mark-checked-in`.
    - Owns check-in action mutation wiring and row-action success/error handling.
    - Should not edit menu rendering except to flip registry behavior from `disabled` to `mutation`.
 

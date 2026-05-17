@@ -5,7 +5,14 @@ export type ShowMapNodeType = 'show' | 'trial' | 'class' | 'entry' | 'more';
 
 export type ShowMapStatusKind = 'neutral' | 'active' | 'complete' | 'muted' | 'attention';
 
-export type ShowMapFilter = 'all' | 'in-progress' | 'needs-attention' | 'complete';
+export type ShowMapFilter = 'all' | 'in-progress' | 'needs-attention';
+export type ShowMapDayScope = 'today' | 'tomorrow' | 'all';
+export type ShowMapCompletionScope = 'active' | 'completed';
+
+export interface ShowMapScopeState {
+  dayScope: ShowMapDayScope;
+  completionScope: ShowMapCompletionScope;
+}
 
 export interface ShowMapProgress {
   completed: number;
@@ -31,6 +38,11 @@ export interface ShowMapNode {
   attentionCount?: number | undefined;
   href?: string | undefined;
   scoreHref?: string | undefined;
+  trialDate?: string | undefined;
+  timezone?: string | null | undefined;
+  ringLabel?: string | undefined;
+  judgeName?: string | undefined;
+  startTime?: string | undefined;
   entryDisplay?: ShowMapEntryDisplay | undefined;
   parentId?: string | undefined;
   childrenCount: number;
@@ -60,9 +72,13 @@ export interface ShowMapClassInput {
   element?: string | undefined;
   level?: string | undefined;
   section?: string | undefined;
+  judgeName?: string | undefined;
+  time?: string | undefined;
   status?: string | undefined;
   entryCount?: number | undefined;
   scoredCount?: number | undefined;
+  ring?: string | number | null | undefined;
+  ringName?: string | undefined;
   trialDate?: string | undefined;
   trialNumber?: string | undefined;
   trialName?: string | undefined;

@@ -1,7 +1,7 @@
 # Plan — Show-Day Workflow Sequencing
 
 **Date:** 2026-05-16
-**Status:** Active sequencing roadmap. Current phase: Phase B — IA consolidation.
+**Status:** Active sequencing roadmap. Current phase: Phase C — Tree extensions + guided UX.
 **Scope:** Defines the order in which remaining items from the 2026-05-16 show-day brainstorm are picked up. This doc is the source of truth for _what's next_ when a PR lands; granular item tracking continues to live in `OPEN-TODOS.md`. Implementation details per phase land in their own dedicated plan docs as each phase begins.
 
 ## How to use this doc
@@ -56,7 +56,7 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 ## Phase B — IA consolidation
 
-**Status:** Current phase. Implementation specifics live in [`docs/plan-phase-b-ia-consolidation.md`](plan-phase-b-ia-consolidation.md).
+**Status:** Complete as of 2026-05-17. Implementation specifics live in [`docs/plan-phase-b-ia-consolidation.md`](plan-phase-b-ia-consolidation.md).
 
 **Entry trigger:** Met. Specifically: the row-action workstream is complete enough that migrating those surfaces into a new IA does not require simultaneous mid-flight changes to the actions themselves.
 
@@ -75,7 +75,13 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 - "Today-tab flat priority queue rendering"
 - "Overview tab redistribution plan" (already-shipped plan doc executes here)
 
-**Exit criterion:** New routes live; old routes redirect; one real-show walk confirms a secretary can complete a setup → live → wrap-up cycle entirely within the workbench. Estimated 6-10 PRs.
+**Exit criterion:** Met for the initial workbench consolidation:
+
+- `/secretary/shows/:showId` shipped via [PR #223](https://github.com/rbeezley/myk9-platform/pull/223).
+- Setup / Today / Wrap-up phase tabs are live.
+- Legacy day-of, check-in, run-order, volunteer, and volunteer-scheduling routes redirect into the workbench or calmly fall back to the dashboard.
+- Setup owns the redistributed setup panels, Today owns MyK9Q access + Show Map, and Wrap-up links to results/report/submission surfaces.
+- `PipelineDashboard` was removed after consumers migrated.
 
 **Why this phase second:** Every feature shipping into the current IA accumulates retrofit cost. The longer Phase B waits, the larger the migration becomes. Doing it after Phase A — but _before_ Phase C tree extensions and guided-UX surfaces — means Phase C's new surfaces are built directly into the new IA, not retrofitted twice.
 
@@ -83,12 +89,14 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 ## Phase C — Tree extensions + guided UX (inside the new IA)
 
+**Status:** Current phase. Implementation specifics live in [`docs/plan-phase-c-tree-guided-ux.md`](plan-phase-c-tree-guided-ux.md).
+
 **Entry trigger:** Phase B exit criterion met. The workbench exists and is the default secretary entry point.
 
 **Scope:**
 
 - **Tree extensions:** time scoping (Today/Tomorrow/All) with myK9Q-style Completed view + dim treatment for non-today trials; Running Now pinned strip; wrap-up status taxonomy (signed-by-judge, submitted-to-AKC); Attention-only filter as task-tracker lens.
-- **Guided-UX surfaces:** Next Best Action card promoted to a first-class workbench element (already shipped in v1 form per the audit — extend it here); phase checklists on Setup/Today/Wrap-up; contextual "About this page" strips; "What do I do if…" help panel.
+- **Guided-UX surfaces:** Next Best Action card promoted to a first-class workbench element (already shipped in v1 form per the audit — extend it here); phase checklists on Setup/Today/Wrap-up; contextual "About this page" strips; "What do I do if…" entry points into the existing AskQ help panel.
 
 **OPEN-TODOS items covered:**
 

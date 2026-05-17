@@ -3,12 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { cn } from '@/lib/utils';
 import { getAttentionNodeIds, getPrimaryActionForNode } from './showMapActions';
 import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
+import {
+  DEFAULT_SHOW_MAP_SCOPE,
+  getNodeDayBucket,
+  isDimmedByDayScope,
+  nodeMatchesCompletionScope,
+  nodeMatchesDayScope,
+} from './showMapTimeScope';
 import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import type { ShowMapAction } from './showMapActions';
-import type { ShowMapFilter, ShowMapNode, ShowMapTree } from './showMapTypes';
+import type { ShowMapFilter, ShowMapNode, ShowMapScopeState, ShowMapTree } from './showMapTypes';
 
 interface ShowMapStructureTableProps {
   tree: ShowMapTree;
@@ -17,6 +25,8 @@ interface ShowMapStructureTableProps {
   onToggle: (nodeId: string) => void;
   onNavigate?: (href: string) => void;
   onAction?: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
+  scope?: ShowMapScopeState | undefined;
+  scopeNow?: Date | undefined;
 }
 
 function nodeMatchesFilter(
@@ -28,23 +38,39 @@ function nodeMatchesFilter(
   if (filter === 'needs-attention') {
     return attentionNodeIds.has(node.id);
   }
-  if (filter === 'complete') return node.status?.kind === 'complete';
   return node.status?.kind === 'active';
+}
+
+function nodeMatchesScopeAndFilter(
+  tree: ShowMapTree,
+  node: ShowMapNode,
+  filter: ShowMapFilter,
+  attentionNodeIds: Set<string>,
+  scope: ShowMapScopeState,
+  scopeNow: Date
+): boolean {
+  return (
+    nodeMatchesDayScope(tree, node, scope.dayScope, scopeNow) &&
+    nodeMatchesCompletionScope(node, scope.completionScope) &&
+    nodeMatchesFilter(node, filter, attentionNodeIds)
+  );
 }
 
 function descendantsMatch(
   tree: ShowMapTree,
   nodeId: string,
   filter: ShowMapFilter,
-  attentionNodeIds: Set<string>
+  attentionNodeIds: Set<string>,
+  scope: ShowMapScopeState,
+  scopeNow: Date
 ): boolean {
   const childIds = tree.childIdsByParentId[nodeId] ?? [];
   return childIds.some(childId => {
     const child = tree.nodesById[childId];
     return (
       !!child &&
-      (nodeMatchesFilter(child, filter, attentionNodeIds) ||
-        descendantsMatch(tree, childId, filter, attentionNodeIds))
+      (nodeMatchesScopeAndFilter(tree, child, filter, attentionNodeIds, scope, scopeNow) ||
+        descendantsMatch(tree, childId, filter, attentionNodeIds, scope, scopeNow))
     );
   });
 }
@@ -53,13 +79,14 @@ function shouldRenderNode(
   tree: ShowMapTree,
   node: ShowMapNode,
   filter: ShowMapFilter,
-  attentionNodeIds: Set<string>
+  attentionNodeIds: Set<string>,
+  scope: ShowMapScopeState,
+  scopeNow: Date
 ): boolean {
   return (
-    filter === 'all' ||
     node.type === 'show' ||
-    nodeMatchesFilter(node, filter, attentionNodeIds) ||
-    descendantsMatch(tree, node.id, filter, attentionNodeIds)
+    nodeMatchesScopeAndFilter(tree, node, filter, attentionNodeIds, scope, scopeNow) ||
+    descendantsMatch(tree, node.id, filter, attentionNodeIds, scope, scopeNow)
   );
 }
 
@@ -158,6 +185,8 @@ export function ShowMapStructureTable({
   onToggle,
   onNavigate,
   onAction,
+  scope = DEFAULT_SHOW_MAP_SCOPE,
+  scopeNow = new Date(),
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
   const attentionNodeIds = useMemo(() => getAttentionNodeIds(tree), [tree]);
@@ -183,21 +212,37 @@ export function ShowMapStructureTable({
 
   const renderNode = (nodeId: string, depth: number): ReactNode => {
     const node = tree.nodesById[nodeId];
-    if (!node || !shouldRenderNode(tree, node, filter, attentionNodeIds)) return null;
+    if (!node || !shouldRenderNode(tree, node, filter, attentionNodeIds, scope, scopeNow)) {
+      return null;
+    }
 
     const childIds = tree.childIdsByParentId[nodeId] ?? [];
     const visibleChildIds = childIds.filter(childId => {
       const child = tree.nodesById[childId];
-      return child ? shouldRenderNode(tree, child, filter, attentionNodeIds) : false;
+      return child
+        ? shouldRenderNode(tree, child, filter, attentionNodeIds, scope, scopeNow)
+        : false;
     });
     const isExpanded = expandedNodeIds.has(nodeId);
     const hasChildren = visibleChildIds.length > 0;
+    const isDimmed = isDimmedByDayScope(tree, node, scope, scopeNow);
+    const scopeAttrs = {
+      'data-day-bucket': getNodeDayBucket(tree, node, scopeNow),
+      'data-completion-view': scope.completionScope,
+    };
 
     if (node.type === 'entry') {
       return (
-        <li key={nodeId} {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}>
+        <li
+          key={nodeId}
+          {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
+          {...scopeAttrs}
+        >
           <div
-            className="grid min-h-[72px] grid-cols-[minmax(300px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-background/60 px-3 py-2 pl-16 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              'grid min-h-[72px] grid-cols-[minmax(300px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-background/60 px-3 py-2 pl-16 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              isDimmed && 'opacity-60'
+            )}
             {...getRowActionOpenProps(node.id)}
           >
             <EntryIdentity node={node} onNavigate={onNavigate} />
@@ -301,10 +346,14 @@ export function ShowMapStructureTable({
         <li
           key={nodeId}
           {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
+          {...scopeAttrs}
           className="overflow-hidden rounded-md border bg-card"
         >
           <div
-            className="grid min-h-16 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-muted/25 px-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              'grid min-h-16 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b bg-muted/25 px-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              isDimmed && 'opacity-60'
+            )}
             {...getRowActionOpenProps(node.id)}
           >
             {rowContent}
@@ -318,9 +367,12 @@ export function ShowMapStructureTable({
     }
 
     return (
-      <li key={nodeId} {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}>
+      <li key={nodeId} {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)} {...scopeAttrs}>
         <div
-          className="grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(
+            'grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            isDimmed && 'opacity-60'
+          )}
           {...getRowActionOpenProps(node.id)}
         >
           {rowContent}

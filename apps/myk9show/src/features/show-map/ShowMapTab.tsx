@@ -14,17 +14,28 @@ import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDi
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { ShowMapToolbar } from './ShowMapToolbar';
+import { ShowMapRunningNowStrip } from './ShowMapRunningNowStrip';
+import { ShowMapGuidanceCard } from './ShowMapGuidanceCard';
 import { countCatalogEntries } from './entryCounts';
-import { getRankedActions, getRecommendedActions } from './showMapActions';
+import { getAllRecommendedActions, getRankedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
+import { getRunningNowItems } from './showMapRunningNow';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
-import type { BuildShowMapTreeInput, ShowMapFilter, ShowMapTree } from './showMapTypes';
+import type {
+  BuildShowMapTreeInput,
+  ShowMapCompletionScope,
+  ShowMapDayScope,
+  ShowMapFilter,
+  ShowMapTree,
+} from './showMapTypes';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import type { LastShowMapMoveUp } from './useShowMapActionExecutor';
 
 interface ShowMapTabProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
+  initialDayScope?: ShowMapDayScope | undefined;
+  scopeNow?: Date | undefined;
 }
 
 function useExpandedNodes(tree: ShowMapTree) {
@@ -47,8 +58,23 @@ function useExpandedNodes(tree: ShowMapTree) {
     () => setExpandedNodeIds(getTrialsExpandedNodeIds(tree)),
     [tree]
   );
+  const expandPathToNode = useCallback(
+    (nodeId: string) => {
+      setExpandedNodeIds(current => {
+        const next = new Set(current);
+        next.add(tree.root.id);
+        let parentId = tree.nodesById[nodeId]?.parentId;
+        while (parentId) {
+          next.add(parentId);
+          parentId = tree.nodesById[parentId]?.parentId;
+        }
+        return next;
+      });
+    },
+    [tree]
+  );
 
-  return { expandedNodeIds, toggleNode, collapseAll, expandTrials };
+  return { expandedNodeIds, toggleNode, collapseAll, expandTrials, expandPathToNode };
 }
 
 function SummaryItem({ label, value }: { label: string; value: number }) {
@@ -62,40 +88,8 @@ function SummaryItem({ label, value }: { label: string; value: number }) {
   );
 }
 
-function NextBestAction({
-  action,
-  onNavigate,
-  onAction,
-}: {
-  action: ShowMapAction | undefined;
-  onNavigate: (href: string) => void;
-  onAction: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
-}) {
-  if (!action) return null;
-  const execution = resolveShowMapActionExecution(action);
-  const canExecute = execution.kind !== 'disabled';
-  const execute = () => {
-    if (execution.kind === 'disabled') return;
-    if (execution.kind === 'navigate') onNavigate(execution.href);
-    else onAction(action, execution);
-  };
-
-  return (
-    <div className="border-b bg-muted/20 px-4 py-3 text-foreground">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold">Next: {action.label}</div>
-          <div className="mt-0.5 text-sm text-muted-foreground">{action.why}</div>
-        </div>
-        {canExecute && (
-          <Button type="button" size="sm" onClick={execute}>
-            <action.icon className="h-4 w-4" />
-            Start
-          </Button>
-        )}
-      </div>
-    </div>
-  );
+function actionKey(action: ShowMapAction): string {
+  return `${action.id}:${action.nodeId}`;
 }
 
 function PriorityQueue({
@@ -199,14 +193,23 @@ export default function ShowMapTab({
   classes,
   entries,
   canManageShow,
+  initialDayScope = 'all',
+  scopeNow,
 }: ShowMapTabProps) {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<ShowMapFilter>('all');
+  const [dayScope, setDayScope] = useState<ShowMapDayScope>(initialDayScope);
+  const [completionScope, setCompletionScope] = useState<ShowMapCompletionScope>('active');
+  // INTENT: Guidance dismissals are session-local noise control, not a permanent action mute.
+  const [dismissedGuidanceKeys, setDismissedGuidanceKeys] = useState<Set<string>>(() => new Set());
   const tree = useMemo(
     () => buildShowMapTree({ show, trials, classes, entries }),
     [show, trials, classes, entries]
   );
-  const { expandedNodeIds, toggleNode, collapseAll, expandTrials } = useExpandedNodes(tree);
+  const scope = useMemo(() => ({ dayScope, completionScope }), [completionScope, dayScope]);
+  const effectiveScopeNow = useMemo(() => scopeNow ?? new Date(), [scopeNow]);
+  const { expandedNodeIds, toggleNode, collapseAll, expandTrials, expandPathToNode } =
+    useExpandedNodes(tree);
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
   const {
     executeAction,
@@ -226,8 +229,49 @@ export default function ShowMapTab({
   } = useShowMapActionExecutor({ showId: show.id });
   const attentionCount = tree.root.attentionCount ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
-  const recommendedActions = useMemo(() => getRecommendedActions('root', { tree }), [tree]);
+  const recommendedActions = useMemo(
+    () => getAllRecommendedActions('root', { tree }),
+    [tree]
+  );
+  const guidanceAction = recommendedActions.find(
+    action => !dismissedGuidanceKeys.has(actionKey(action))
+  );
+  const guidanceExecution = guidanceAction
+    ? resolveShowMapActionExecution(guidanceAction)
+    : undefined;
+  const startGuidanceAction = useCallback(() => {
+    if (!guidanceAction || !guidanceExecution || guidanceExecution.kind === 'disabled') return;
+    if (guidanceExecution.kind === 'navigate') navigateTo(guidanceExecution.href);
+    else executeAction(guidanceAction, guidanceExecution);
+  }, [executeAction, guidanceAction, guidanceExecution, navigateTo]);
+  const dismissGuidanceAction = useCallback(() => {
+    if (!guidanceAction) return;
+    setDismissedGuidanceKeys(current => new Set(current).add(actionKey(guidanceAction)));
+  }, [guidanceAction]);
   const priorityActions = useMemo(() => getRankedActions('root', { tree }), [tree]);
+  const runningNowItems = useMemo(
+    () => getRunningNowItems(tree, scope, effectiveScopeNow),
+    [effectiveScopeNow, scope, tree]
+  );
+  const selectRunningNowClass = useCallback(
+    (nodeId: string) => {
+      expandPathToNode(nodeId);
+      const scrollToNode = () => {
+        // INTENT: Running Now uses stable row data attributes to focus recursive tree rows
+        // without threading one-off refs through the whole structure table.
+        const row = document.querySelector(`[data-node-id="${nodeId}"]`);
+        if (row instanceof HTMLElement && typeof row.scrollIntoView === 'function') {
+          row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      };
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(scrollToNode);
+      } else {
+        window.setTimeout(scrollToNode, 0);
+      }
+    },
+    [expandPathToNode]
+  );
   const moveUpTargets = useMemo(
     () => buildMoveUpTargets(classes, moveUpAction?.classId),
     [classes, moveUpAction?.classId]
@@ -287,22 +331,30 @@ export default function ShowMapTab({
       </div>
       <ShowMapToolbar
         filter={filter}
+        dayScope={dayScope}
+        completionScope={completionScope}
         onFilterChange={setFilter}
+        onDayScopeChange={setDayScope}
+        onCompletionScopeChange={setCompletionScope}
         onCollapseAll={collapseAll}
         onExpandTrials={expandTrials}
       />
-      <NextBestAction
-        action={recommendedActions[0]}
-        onNavigate={navigateTo}
-        onAction={executeAction}
-      />
       <div className="p-3">
+        <ShowMapGuidanceCard
+          action={guidanceAction}
+          canExecute={Boolean(guidanceExecution && guidanceExecution.kind !== 'disabled')}
+          onStart={startGuidanceAction}
+          onDismiss={dismissGuidanceAction}
+        />
+        <ShowMapRunningNowStrip items={runningNowItems} onSelect={selectRunningNowClass} />
         <PriorityQueue actions={priorityActions} onNavigate={navigateTo} onAction={executeAction} />
         <MoveUpUndoBanner moveUp={lastMoveUp} isUndoing={isUndoingMoveUp} onUndo={undoLastMoveUp} />
         <ShowMapStructureTable
           tree={tree}
           expandedNodeIds={expandedNodeIds}
           filter={filter}
+          scope={scope}
+          scopeNow={effectiveScopeNow}
           onToggle={toggleNode}
           onNavigate={navigateTo}
           onAction={executeAction}

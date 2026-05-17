@@ -39,6 +39,20 @@ function readNumber(record: Record<string, unknown>, key: string): number | unde
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function classRingLabel(cls: {
+  ring?: string | number | null | undefined;
+  ringName?: string | undefined;
+}) {
+  if (cls.ringName?.trim()) return cls.ringName.trim();
+  if (typeof cls.ring === 'number' && cls.ring > 0) return `Ring ${cls.ring}`;
+  if (typeof cls.ring === 'string') {
+    const ring = cls.ring.trim();
+    if (!ring || ring === '0') return undefined;
+    return ring.toLowerCase().startsWith('ring') ? ring : `Ring ${ring}`;
+  }
+  return undefined;
+}
+
 function entryClassId(entry: ShowMapEntryInput): string | undefined {
   return readString(entry, 'class_id');
 }
@@ -189,6 +203,8 @@ export function buildShowMapTree({
       progress: buildProgress(completedClasses, trialClasses.length, 'classes'),
       attentionCount,
       href: getShowMapTrialHref(show.id, trial.id),
+      trialDate: trial.trialDate || undefined,
+      timezone: trial.timezone,
       parentId: root.id,
       childrenCount: trialClasses.length,
     };
@@ -210,6 +226,11 @@ export function buildShowMapTree({
         attentionCount: attentionCountForClass,
         href: getShowMapClassHref(show.id, trial.id, cls.id),
         scoreHref: getShowMapClassScoringHref(cls.id),
+        trialDate: trial.trialDate || undefined,
+        timezone: trial.timezone,
+        ringLabel: classRingLabel(cls),
+        judgeName: cls.judgeName || undefined,
+        startTime: cls.time || undefined,
         parentId: trialNode.id,
         childrenCount: classEntries.length,
       };
@@ -226,6 +247,8 @@ export function buildShowMapTree({
           entryDisplay: entryDisplay(entry, show.organization),
           status: classifyEntryRunStatus(entry),
           checkInStatus: classifyEntryCheckInStatus(entry),
+          trialDate: trial.trialDate || undefined,
+          timezone: trial.timezone,
           parentId: classNode.id,
           childrenCount: 0,
         });

@@ -110,10 +110,10 @@ describe('ShowMapTab', () => {
     expect(screen.getByText('Need Attention')).toBeInTheDocument();
     expect(screen.getByText('Trial 1')).toBeInTheDocument();
     // Class rows are collapsed by default — the secretary opens the trial to drill in.
-    expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-node-id="class:class-1"]')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
-    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+    expect(document.querySelector('[data-node-id="class:class-1"]')).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
 
@@ -148,6 +148,161 @@ describe('ShowMapTab', () => {
     // No class-level "Score Class" buttons should render either, since no
     // class rows are visible.
     expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
+  });
+
+  it('defaults to today scope when requested and dims tomorrow rows in All dates', async () => {
+    const todayTrial = {
+      ...trial,
+      id: 'trial-today',
+      trialDate: '2026-05-17',
+      trialNumber: '1',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+    const tomorrowTrial = {
+      ...trial,
+      id: 'trial-tomorrow',
+      trialDate: '2026-05-18',
+      trialNumber: '2',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[todayTrial, tomorrowTrial]}
+        classes={[
+          {
+            id: 'class-today',
+            trialId: 'trial-today',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+          {
+            id: 'class-tomorrow',
+            trialId: 'trial-tomorrow',
+            name: 'Exterior Advanced',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[]}
+        canManageShow
+        initialDayScope="today"
+        scopeNow={new Date('2026-05-17T15:00:00.000Z')}
+      />
+    );
+
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
+    expect(screen.queryByText('Trial 2')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /all dates/i }));
+
+    const tomorrowRow = screen
+      .getByText('Trial 2')
+      .closest('[data-node-id="trial:trial-tomorrow"]');
+    expect(tomorrowRow).not.toBeNull();
+    expect(tomorrowRow).toHaveAttribute('data-day-bucket', 'tomorrow');
+    expect(tomorrowRow?.querySelector('[data-row-action-surface]')).toHaveClass('opacity-60');
+  });
+
+  it('keeps completed classes out of Active view and reachable from Completed', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-complete',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'Complete',
+          },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={new Date('2026-05-11T15:00:00.000Z')}
+      />
+    );
+
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
+    expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^completed$/i }));
+    await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
+
+    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+  });
+
+  it('renders Running Now cards and opens the active class when selected', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+            judgeName: 'Judge Smith',
+            time: '09:00',
+            ring: 1,
+            entryCount: 4,
+            scoredCount: 1,
+          },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={new Date('2026-05-11T15:00:00.000Z')}
+      />
+    );
+
+    expect(screen.getByRole('region', { name: /running now/i })).toBeInTheDocument();
+    expect(screen.getByText('Ring 1')).toBeInTheDocument();
+    expect(screen.getByText('25% scored')).toBeInTheDocument();
+    expect(screen.queryByText('Interior Novice A')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /ring 1.*interior novice a/i }));
+
+    expect(screen.getByRole('button', { name: /collapse trial 1/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
+  });
+
+  it('dismisses the guidance card and rotates to the next recommended action', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            armband: '12',
+            dog: { call_name: 'Bella' },
+            check_in_status: 'conflict',
+          },
+        ]}
+        canManageShow
+      />
+    );
+
+    const guidance = screen.getByRole('region', { name: /next best action/i });
+    expect(within(guidance).getByText('Next: Resolve check-in conflict')).toBeInTheDocument();
+
+    await user.click(within(guidance).getByRole('button', { name: /dismiss/i }));
+
+    expect(
+      within(screen.getByRole('region', { name: /next best action/i })).getByText(
+        'Next: Score Class'
+      )
+    ).toBeInTheDocument();
   });
 
   it('renders a calm empty state for shows without trials', () => {

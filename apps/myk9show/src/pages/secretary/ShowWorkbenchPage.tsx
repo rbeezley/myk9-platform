@@ -242,6 +242,7 @@ export function ShowWorkbenchPage() {
                 classes={showClasses}
                 entries={showEntries}
                 canManageShow
+                initialDayScope="today"
               />
             </Suspense>
           </div>

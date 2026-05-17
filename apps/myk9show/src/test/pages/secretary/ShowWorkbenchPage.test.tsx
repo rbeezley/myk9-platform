@@ -311,6 +311,7 @@ describe('ShowWorkbenchPage', () => {
     mockTrials = [];
     mockTrialClasses = {};
     mockShowEntries = [];
+    window.localStorage.clear();
   });
 
   it('renders the workbench shell for a secretary', async () => {
@@ -345,6 +346,8 @@ describe('ShowWorkbenchPage', () => {
     renderWorkbench('/secretary/shows/show-1');
 
     expect(await screen.findByTestId('premium-download-card')).toHaveTextContent('show-1');
+    expect(screen.getByRole('heading', { name: '1 of 5 handled' })).toBeInTheDocument();
+    expect(screen.getByText('Trials are added')).toBeInTheDocument();
     expect(screen.getByTestId('landing-page-card')).toHaveTextContent('show-1');
     expect(screen.getByTestId('schedule-summary')).toHaveTextContent('show-1');
     expect(screen.getByTestId('venue-map')).toHaveTextContent('Louisville, KY');
@@ -379,6 +382,7 @@ describe('ShowWorkbenchPage', () => {
 
     renderWorkbench('/secretary/shows/show-1?phase=today');
 
+    expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
     expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
     const showMap = await screen.findByTestId('show-map-tab');
     expect(showMap).toHaveAttribute('data-show-id', 'show-1');
@@ -392,6 +396,7 @@ describe('ShowWorkbenchPage', () => {
   it('renders Wrap-up links to existing closeout surfaces', async () => {
     renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
 
+    expect(await screen.findByText('Classes are complete')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(
       'href',
       '/secretary/results-control'

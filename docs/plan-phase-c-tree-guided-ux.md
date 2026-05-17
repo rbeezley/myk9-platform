@@ -49,6 +49,8 @@ Avoid parallel edits to `ShowMapTab.tsx` by extracting helpers/components first,
 
 ### PR 1 — Time scope foundation + Completed view
 
+**Status:** Shipped 2026-05-17 in [PR #225](https://github.com/rbeezley/myk9-platform/pull/225).
+
 Files likely touched:
 
 - `apps/myk9show/src/features/show-map/showMapTimeScope.ts`
@@ -73,6 +75,8 @@ Tests:
 
 ### PR 2 — Running Now pinned strip
 
+**Status:** Shipped 2026-05-17 in [PR #225](https://github.com/rbeezley/myk9-platform/pull/225).
+
 Files likely touched:
 
 - `apps/myk9show/src/features/show-map/showMapRunningNow.ts`
@@ -92,6 +96,8 @@ Tests:
 
 ### PR 3 — Workbench-grade Next Best Action
 
+**Status:** Shipped 2026-05-17 in [PR #225](https://github.com/rbeezley/myk9-platform/pull/225).
+
 Files likely touched:
 
 - `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx`
@@ -110,6 +116,8 @@ Tests:
 - Workbench test proving Today shows the guidance card above the map.
 
 ### PR 4 — Phase checklists
+
+**Status:** Implemented in the Phase C checklist branch; pending PR.
 
 Files likely touched:
 

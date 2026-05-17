@@ -28,6 +28,12 @@ import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { getShowStyle } from '@/features/registries';
+import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
+import type {
+  PhaseChecklistContext,
+  ShowWorkbenchClassSummary,
+  ShowWorkbenchEntrySummary,
+} from '@/features/show-workbench/phaseChecklistDefinitions';
 import { isShowWorkbenchPhase, useActivePhase } from '@/hooks/useActivePhase';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -51,6 +57,20 @@ function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
       </div>
     </section>
   );
+}
+
+function toChecklistEntrySummary(entry: {
+  id?: string | null | undefined;
+  class_id?: string | null | undefined;
+  entry_status?: string | null | undefined;
+  check_in_status?: string | null | undefined;
+}): ShowWorkbenchEntrySummary {
+  const summary: ShowWorkbenchEntrySummary = {};
+  if (entry.id) summary.id = entry.id;
+  if (entry.class_id) summary.class_id = entry.class_id;
+  if (entry.entry_status !== undefined) summary.entry_status = entry.entry_status;
+  if (entry.check_in_status !== undefined) summary.check_in_status = entry.check_in_status;
+  return summary;
 }
 
 export function ShowWorkbenchPage() {
@@ -101,7 +121,7 @@ export function ShowWorkbenchPage() {
     [showId, trials]
   );
 
-  const showClasses = useMemo(
+  const showClasses = useMemo<ShowWorkbenchClassSummary[]>(
     () =>
       associatedTrials.flatMap(trial => {
         const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
@@ -123,6 +143,25 @@ export function ShowWorkbenchPage() {
         }));
       }),
     [associatedTrials, showEntries, trialClasses]
+  );
+
+  const checklistEntries = useMemo(
+    () => showEntries.map(entry => toChecklistEntrySummary(entry)),
+    [showEntries]
+  );
+
+  const checklistContext = useMemo<PhaseChecklistContext | null>(
+    () =>
+      currentShow
+        ? {
+            show: currentShow,
+            trials: associatedTrials,
+            classes: showClasses,
+            entries: checklistEntries,
+            judges: showJudgeRoster,
+          }
+        : null,
+    [associatedTrials, checklistEntries, currentShow, showClasses, showJudgeRoster]
   );
 
   const effectiveJudges = useMemo(
@@ -210,6 +249,9 @@ export function ShowWorkbenchPage() {
         <PrimaryTabsContent value="setup">
           <PhaseShell title="Setup" kicker="Before the show" />
           <div className="space-y-6">
+            {checklistContext && (
+              <PhaseChecklist phase="setup" showId={currentShow.id} context={checklistContext} />
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PremiumDownloadCard showId={currentShow.id} showStaleBadge />
               <LandingPageCard showId={currentShow.id} showStyle={getShowStyle(currentShow)} />
@@ -230,6 +272,9 @@ export function ShowWorkbenchPage() {
         <PrimaryTabsContent value="today">
           <PhaseShell title="Today" kicker="Live operations" />
           <div className="space-y-4">
+            {checklistContext && (
+              <PhaseChecklist phase="today" showId={currentShow.id} context={checklistContext} />
+            )}
             <MyK9QAccessCard
               showId={currentShow.id}
               showName={currentShow.name}
@@ -249,34 +294,39 @@ export function ShowWorkbenchPage() {
         </PrimaryTabsContent>
         <PrimaryTabsContent value="wrap-up">
           <PhaseShell title="Wrap-up" kicker="After the show" />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-              <Link to="/secretary/results-control">
-                <ListChecks className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-medium">Results Control</span>
-                  <span className="block text-xs text-muted-foreground">Verify results</span>
-                </span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-              <Link to="/secretary/reports">
-                <FileBarChart className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-medium">Reports</span>
-                  <span className="block text-xs text-muted-foreground">Print and export</span>
-                </span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-              <Link to="/secretary/results-submission">
-                <Send className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-medium">Submit Results</span>
-                  <span className="block text-xs text-muted-foreground">Send final files</span>
-                </span>
-              </Link>
-            </Button>
+          <div className="space-y-4">
+            {checklistContext && (
+              <PhaseChecklist phase="wrap-up" showId={currentShow.id} context={checklistContext} />
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to="/secretary/results-control">
+                  <ListChecks className="h-5 w-5" />
+                  <span className="text-left">
+                    <span className="block font-medium">Results Control</span>
+                    <span className="block text-xs text-muted-foreground">Verify results</span>
+                  </span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to="/secretary/reports">
+                  <FileBarChart className="h-5 w-5" />
+                  <span className="text-left">
+                    <span className="block font-medium">Reports</span>
+                    <span className="block text-xs text-muted-foreground">Print and export</span>
+                  </span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to="/secretary/results-submission">
+                  <Send className="h-5 w-5" />
+                  <span className="text-left">
+                    <span className="block font-medium">Submit Results</span>
+                    <span className="block text-xs text-muted-foreground">Send final files</span>
+                  </span>
+                </Link>
+              </Button>
+            </div>
           </div>
         </PrimaryTabsContent>
       </PrimaryTabs>

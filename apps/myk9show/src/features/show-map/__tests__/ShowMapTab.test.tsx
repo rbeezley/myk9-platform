@@ -1,9 +1,27 @@
-import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import ShowMapTab from '../ShowMapTab';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
+
+const mockEq = vi.fn();
+const mockUpdate = vi.fn();
+const mockFrom = vi.fn();
+
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: {
+    from: (...args: unknown[]) => mockFrom(...args),
+  },
+  createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 const show = { id: 'show-1', name: 'Spring Trial', clubName: 'Calm Canine Club' } as Show;
 const trial = {
@@ -20,6 +38,13 @@ const trial = {
 } as SyncableTrial;
 
 describe('ShowMapTab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEq.mockResolvedValue({ error: null });
+    mockUpdate.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ update: mockUpdate });
+  });
+
   it('renders counts, hierarchy, and capped entries', async () => {
     const entries = Array.from({ length: 27 }, (_, index) => ({
       id: `entry-${index}`,
@@ -109,5 +134,43 @@ describe('ShowMapTab', () => {
 
     expect(screen.queryByText('Show Map')).not.toBeInTheDocument();
     expect(screen.getByText(/show map is only available to show staff/i)).toBeInTheDocument();
+  });
+
+  it('executes mark checked-in from the Priority Queue', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            armband: '12',
+            dog: { call_name: 'Bella' },
+            check_in_status: 'no-status',
+          },
+        ]}
+        canManageShow
+      />
+    );
+
+    const label = screen.getByText('Mark checked in');
+    const queueRow = label.closest('div')?.parentElement?.parentElement;
+    if (!(queueRow instanceof HTMLElement)) throw new Error('Expected priority queue row');
+
+    await user.click(within(queueRow).getByRole('button', { name: /^open$/i }));
+
+    expect(queueRow).toContainElement(label);
+    expect(mockFrom).toHaveBeenCalledWith('entries');
+    expect(mockUpdate).toHaveBeenCalledWith({ check_in_status: 'checked-in' });
+    expect(mockEq).toHaveBeenCalledWith('id', 'entry-1');
   });
 });

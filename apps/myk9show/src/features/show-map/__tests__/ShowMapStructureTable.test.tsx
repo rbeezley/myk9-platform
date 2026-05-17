@@ -383,6 +383,7 @@ describe('ShowMapStructureTable', () => {
       expect.objectContaining({
         id: 'mark-checked-in',
         nodeId: 'entry:entry-1',
+        classId: 'class-attention',
       }),
       {
         kind: 'mutation',

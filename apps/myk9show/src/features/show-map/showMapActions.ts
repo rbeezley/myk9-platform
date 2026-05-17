@@ -41,6 +41,7 @@ export interface ShowMapAction {
   why: string;
   priority: number;
   href?: string;
+  classId?: string | undefined;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   recommended?: boolean;
   createsAttention?: boolean;
@@ -76,6 +77,13 @@ function canMarkEntryCheckedIn(node: ShowMapNode): boolean {
   if (node.type !== 'entry') return false;
   if (node.status?.kind === 'complete' || node.status?.kind === 'muted') return false;
   return !['checked-in', 'completed', 'pulled'].includes(node.checkInStatus?.value ?? '');
+}
+
+function sourceIdFromNodeId(nodeId: string | undefined, expectedType: string): string | undefined {
+  const prefix = `${expectedType}:`;
+  if (!nodeId?.startsWith(prefix)) return undefined;
+  const sourceId = nodeId.slice(prefix.length);
+  return sourceId.length > 0 ? sourceId : undefined;
 }
 
 function withHref(action: Omit<ShowMapAction, 'href'>, href: string | undefined): ShowMapAction {
@@ -130,6 +138,7 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
       );
     }
     if (canMarkEntryCheckedIn(node)) {
+      const classId = sourceIdFromNodeId(node.parentId, 'class');
       actions.push({
         id: 'mark-checked-in',
         nodeId: node.id,
@@ -137,6 +146,7 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
         why: 'Prepare this entry for the gate',
         priority: 35,
         icon: ClipboardCheck,
+        ...(classId ? { classId } : {}),
       });
     }
     actions.push(

@@ -8,6 +8,8 @@ export function sourceIdFromShowMapNodeId(nodeId: string, expectedType: string):
 }
 
 export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> {
+  // Secretary/staff Show Map path mirrors CheckInReportPage: staff can update
+  // check_in_status directly, while exhibitor self-check-in uses the RPC path.
   const { error } = await supabase
     .from('entries')
     .update({ check_in_status: 'checked-in' } as Record<string, unknown>)

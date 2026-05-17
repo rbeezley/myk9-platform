@@ -9,6 +9,7 @@ import { lazy, useEffect } from 'react';
 import { Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { useShowStore } from '@/store/showStore';
@@ -79,36 +80,51 @@ const UserDetailRedirect = () => {
   return <Navigate to={id ? `/people/${id}` : '/people'} replace />;
 };
 
-const SecretaryShowPhaseRedirect = ({
-  phase,
-  focus,
-  section,
-}: {
-  phase: 'setup' | 'today' | 'wrap-up';
-  focus?: string;
-  section?: string;
-}) => {
+const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
+
+function getLastShowId(): string {
+  try {
+    return localStorage.getItem(LAST_SHOW_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function useSecretaryRedirectShowId(): { showId: string; isResolving: boolean } {
   const selectedShowId = useShowStore(s => s.selectedShowId);
   const shows = useShowStore(s => s.shows);
+  const isLoading = useShowStore(s => s.isLoading);
   const onlyShowId = shows.length === 1 ? shows[0]?.id : undefined;
-  const showId = selectedShowId || onlyShowId;
+  const showId = selectedShowId || onlyShowId || getLastShowId();
+
+  return {
+    showId,
+    isResolving: !showId && isLoading,
+  };
+}
+
+const SecretaryShowPhaseRedirect = ({ phase }: { phase: 'setup' | 'today' | 'wrap-up' }) => {
+  const { showId, isResolving } = useSecretaryRedirectShowId();
+
+  if (isResolving) {
+    return <LoadingSkeleton variant="cards" count={2} />;
+  }
 
   if (!showId) {
     return <Navigate to="/secretary/dashboard" replace />;
   }
 
   const params = new URLSearchParams({ phase });
-  if (focus) params.set('focus', focus);
-  if (section) params.set('section', section);
 
   return <Navigate to={`/secretary/shows/${showId}?${params.toString()}`} replace />;
 };
 
 const SecretaryIndexRedirect = () => {
-  const selectedShowId = useShowStore(s => s.selectedShowId);
-  const shows = useShowStore(s => s.shows);
-  const onlyShowId = shows.length === 1 ? shows[0]?.id : undefined;
-  const showId = selectedShowId || onlyShowId;
+  const { showId, isResolving } = useSecretaryRedirectShowId();
+
+  if (isResolving) {
+    return <LoadingSkeleton variant="cards" count={2} />;
+  }
 
   return <Navigate to={showId ? `/secretary/shows/${showId}` : '/secretary/dashboard'} replace />;
 };
@@ -173,7 +189,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/run-order"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="setup" section="run-order" />
+          <SecretaryShowPhaseRedirect phase="setup" />
         </ProtectedRoute>
       }
     />
@@ -221,7 +237,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/check-in"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="today" focus="check-in" />
+          <SecretaryShowPhaseRedirect phase="today" />
         </ProtectedRoute>
       }
     />
@@ -229,7 +245,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/volunteers"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="setup" section="personnel" />
+          <SecretaryShowPhaseRedirect phase="setup" />
         </ProtectedRoute>
       }
     />
@@ -237,7 +253,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/volunteer-scheduling"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="setup" section="personnel" />
+          <SecretaryShowPhaseRedirect phase="setup" />
         </ProtectedRoute>
       }
     />

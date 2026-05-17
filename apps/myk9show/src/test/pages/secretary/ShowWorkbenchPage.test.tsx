@@ -145,6 +145,9 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
       data-show-id={show.id}
       data-trial-count={trials.length}
       data-class-count={classes.length}
+      data-has-ring={String(
+        classes.some(cls => typeof cls === 'object' && cls !== null && 'ring' in cls)
+      )}
       data-entry-count={entries.length}
       data-can-manage={String(canManageShow)}
     />
@@ -381,8 +384,26 @@ describe('ShowWorkbenchPage', () => {
     expect(showMap).toHaveAttribute('data-show-id', 'show-1');
     expect(showMap).toHaveAttribute('data-trial-count', '1');
     expect(showMap).toHaveAttribute('data-class-count', '1');
+    expect(showMap).toHaveAttribute('data-has-ring', 'false');
     expect(showMap).toHaveAttribute('data-entry-count', '1');
     expect(showMap).toHaveAttribute('data-can-manage', 'true');
+  });
+
+  it('renders Wrap-up links to existing closeout surfaces', async () => {
+    renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
+
+    expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(
+      'href',
+      '/secretary/results-control'
+    );
+    expect(screen.getByRole('link', { name: /Reports/ })).toHaveAttribute(
+      'href',
+      '/secretary/reports'
+    );
+    expect(screen.getByRole('link', { name: /Submit Results/ })).toHaveAttribute(
+      'href',
+      '/secretary/results-submission'
+    );
   });
 
   it('navigates to the existing edit surface', async () => {

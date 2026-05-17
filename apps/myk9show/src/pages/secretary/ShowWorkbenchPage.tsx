@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo } from 'react';
-import { ClipboardCheck, ListChecks, Medal, Pencil } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { ClipboardCheck, FileBarChart, ListChecks, Medal, Pencil, Send } from 'lucide-react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -57,10 +58,14 @@ export function ShowWorkbenchPage() {
   const navigate = useNavigate();
   const [activePhase, setActivePhase] = useActivePhase();
   const { show: currentShow, isLoading, isError, refetch } = useFastShowDetails(showId);
-  const trials = useTrialStore(s => s.trials);
-  const trialClasses = useTrialStore(s => s.trialClasses);
-  const loadTrials = useTrialStore(s => s.loadTrials);
-  const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
+  const { trials, trialClasses, loadTrials, loadTrialClasses } = useTrialStore(
+    useShallow(s => ({
+      trials: s.trials,
+      trialClasses: s.trialClasses,
+      loadTrials: s.loadTrials,
+      loadTrialClasses: s.loadTrialClasses,
+    }))
+  );
   const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
 
@@ -109,7 +114,6 @@ export function ShowWorkbenchPage() {
           judgeName: cls.judgeName || '',
           trialId: trial.id,
           time: cls.startTime || '',
-          ring: 0,
           status: cls.status || CLASS_STATUS.SCHEDULED,
           entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
           scoredCount: cls.completedEntries ?? 0,
@@ -177,6 +181,8 @@ export function ShowWorkbenchPage() {
             size="sm"
             onClick={() => navigate(`/shows/${currentShow.id}?edit=true`)}
           >
+            {/* INTENT: full show editing stays on the existing show detail edit panel
+                until the Setup phase owns every edit surface. */}
             <Pencil className="h-4 w-4 mr-2" />
             Edit
           </Button>
@@ -242,6 +248,35 @@ export function ShowWorkbenchPage() {
         </PrimaryTabsContent>
         <PrimaryTabsContent value="wrap-up">
           <PhaseShell title="Wrap-up" kicker="After the show" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+              <Link to="/secretary/results-control">
+                <ListChecks className="h-5 w-5" />
+                <span className="text-left">
+                  <span className="block font-medium">Results Control</span>
+                  <span className="block text-xs text-muted-foreground">Verify results</span>
+                </span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+              <Link to="/secretary/reports">
+                <FileBarChart className="h-5 w-5" />
+                <span className="text-left">
+                  <span className="block font-medium">Reports</span>
+                  <span className="block text-xs text-muted-foreground">Print and export</span>
+                </span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+              <Link to="/secretary/results-submission">
+                <Send className="h-5 w-5" />
+                <span className="text-left">
+                  <span className="block font-medium">Submit Results</span>
+                  <span className="block text-xs text-muted-foreground">Send final files</span>
+                </span>
+              </Link>
+            </Button>
+          </div>
         </PrimaryTabsContent>
       </PrimaryTabs>
     </PageShell>

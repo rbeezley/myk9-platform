@@ -25,6 +25,10 @@ vi.mock('@/pages/secretary/SecretaryDashboardPage', () => ({
   SecretaryDashboardPage: () => <div data-testid="secretary-dashboard">Dashboard</div>,
 }));
 
+vi.mock('@/components/common/LoadingSkeleton', () => ({
+  LoadingSkeleton: () => <div data-testid="redirect-loading" />,
+}));
+
 vi.mock('@/pages/secretary/ShowWorkbenchPage', async () => {
   const { useLocation } =
     await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -95,9 +99,11 @@ function renderSecretaryRoutes(initialPath: string) {
 describe('secretary show phase redirects', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     useShowStore.setState({
       selectedShowId: 'show-1',
       shows: [makeShow('show-1')],
+      isLoading: false,
     });
   });
 
@@ -117,34 +123,63 @@ describe('secretary show phase redirects', () => {
     );
   });
 
-  it('redirects check-in to Today with the check-in focus', async () => {
+  it('redirects check-in to Today', async () => {
     renderSecretaryRoutes('/secretary/check-in');
 
     expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
-      '/secretary/shows/show-1?phase=today&focus=check-in'
+      '/secretary/shows/show-1?phase=today'
     );
   });
 
-  it('redirects run-order to Setup with the run-order section', async () => {
+  it('redirects run-order to Setup', async () => {
     renderSecretaryRoutes('/secretary/run-order');
 
     expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
-      '/secretary/shows/show-1?phase=setup&section=run-order'
+      '/secretary/shows/show-1?phase=setup'
     );
   });
 
-  it('redirects volunteers to Setup with the personnel section', async () => {
+  it('redirects volunteers to Setup', async () => {
     renderSecretaryRoutes('/secretary/volunteers');
 
     expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
-      '/secretary/shows/show-1?phase=setup&section=personnel'
+      '/secretary/shows/show-1?phase=setup'
     );
+  });
+
+  it('uses the last selected show from localStorage before the store hydrates', async () => {
+    useShowStore.setState({
+      selectedShowId: '',
+      shows: [],
+      isLoading: false,
+    });
+    localStorage.setItem('myk9show:entryMgmt:lastShowId', 'stored-show');
+
+    renderSecretaryRoutes('/secretary/day-of');
+
+    expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
+      '/secretary/shows/stored-show?phase=today'
+    );
+  });
+
+  it('waits while show selection is still loading', () => {
+    useShowStore.setState({
+      selectedShowId: '',
+      shows: [],
+      isLoading: true,
+    });
+
+    renderSecretaryRoutes('/secretary/day-of');
+
+    expect(screen.getByTestId('redirect-loading')).toBeInTheDocument();
+    expect(screen.queryByTestId('secretary-dashboard')).not.toBeInTheDocument();
   });
 
   it('falls back to dashboard when multiple shows exist and none is selected', async () => {
     useShowStore.setState({
       selectedShowId: '',
       shows: [makeShow('show-1'), makeShow('show-2')],
+      isLoading: false,
     });
 
     renderSecretaryRoutes('/secretary/day-of');

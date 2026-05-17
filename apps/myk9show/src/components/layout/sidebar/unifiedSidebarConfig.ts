@@ -131,10 +131,10 @@ export function buildUnifiedSidebarConfig(
         : '/club-admin/members';
       const setupHref = activeShowId
         ? `/secretary/shows/${activeShowId}?phase=setup`
-        : '/secretary/run-order';
+        : '/secretary/dashboard';
       const todayHref = activeShowId
         ? `/secretary/shows/${activeShowId}?phase=today`
-        : '/secretary/day-of';
+        : '/secretary/dashboard';
 
       groups.push({
         title: 'Manage',

@@ -2,7 +2,7 @@ import React, { startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Download, Shuffle } from 'lucide-react';
+import { ArrowLeft, Download, Printer, Shuffle } from 'lucide-react';
 
 interface RunOrderHeaderProps {
   trialId: string | undefined;
@@ -48,6 +48,15 @@ export const RunOrderHeader: React.FC<RunOrderHeaderProps> = ({
         <Button onClick={onOptimize} variant="outline">
           <Shuffle className="h-4 w-4 mr-2" />
           Optimize
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() =>
+            startTransition(() => navigate('/secretary/reports?report=judge-supply-checklist'))
+          }
+        >
+          <Printer className="h-4 w-4 mr-2" />
+          Print Supplies
         </Button>
         <Button onClick={() => onExport('pdf')}>
           <Download className="h-4 w-4 mr-2" />

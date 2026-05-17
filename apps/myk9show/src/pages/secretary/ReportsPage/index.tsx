@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Select,
   SelectContent,
@@ -16,9 +17,25 @@ import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 
+const DEFAULT_REPORT_ID = 'check-in-sheet';
+
+// Exported for unit testing — keeps the deep-link logic verifiable without
+// asserting against shadcn SelectValue render internals.
+// eslint-disable-next-line react-refresh/only-export-components
+export function resolveInitialReportId(queryParam: string | null): string {
+  if (!queryParam) return DEFAULT_REPORT_ID;
+  const candidate = getReportById(queryParam);
+  return candidate?.enabled ? queryParam : DEFAULT_REPORT_ID;
+}
+
 export default function ReportsPage() {
   const { selectedShowId, shows, selectShow } = useShowStore();
-  const [reportType, setReportType] = useState('check-in-sheet');
+  const [searchParams] = useSearchParams();
+  // Resolve once on mount so subsequent ?report= changes don't fight the
+  // user's manual dropdown selection.
+  const [reportType, setReportType] = useState(() =>
+    resolveInitialReportId(searchParams.get('report'))
+  );
   const [trialId, setTrialId] = useState<string>('all');
   const [classId, setClassId] = useState<string>('all');
   const [dogId, setDogId] = useState<string>('all');

@@ -105,6 +105,20 @@ describe('secretaryEntryQueries — entry_status updates', () => {
       );
       expect(chain.in).toHaveBeenCalledWith('id', ['e1', 'e2', 'e3']);
     });
+
+    it('marks bulk-scratched entries pulled for ringside propagation', async () => {
+      const chain = chainMock({
+        select: vi.fn().mockResolvedValue({ data: [{ id: 'e1' }], error: null }),
+      });
+      mockFrom.mockReturnValue(chain);
+
+      await bulkUpdateEntryStatus(['e1'], 'scratched');
+
+      expect(chain.update).toHaveBeenCalledWith(
+        expect.objectContaining({ entry_status: 'scratched', check_in_status: 'pulled' })
+      );
+      expect(chain.in).toHaveBeenCalledWith('id', ['e1']);
+    });
   });
 
   describe('named Entry transitions', () => {

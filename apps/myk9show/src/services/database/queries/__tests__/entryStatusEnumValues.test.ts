@@ -135,7 +135,7 @@ describe('entry_status enum values used by query layer', () => {
       );
     });
 
-    it('approveScratchRequest matches "scratch-requested" and writes "scratched"', async () => {
+    it('approveScratchRequest matches "scratch-requested" and writes scratched/pulled', async () => {
       const chain = chainMock({
         single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
       });
@@ -144,7 +144,7 @@ describe('entry_status enum values used by query layer', () => {
       await approveScratchRequest('entry-1');
 
       expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'scratched' })
+        expect.objectContaining({ entry_status: 'scratched', check_in_status: 'pulled' })
       );
       expect(chain.eq).toHaveBeenCalledWith('entry_status', 'scratch-requested');
     });

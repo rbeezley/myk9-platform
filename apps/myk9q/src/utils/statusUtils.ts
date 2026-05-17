@@ -316,7 +316,7 @@ export function getCheckInStatusIcon(
 export function determineEntryStatus(entryStatus?: string | null, isInRing?: boolean): EntryStatus {
   // If entry_status exists, use it directly
   if (entryStatus) {
-    if (PULLED_ENTRY_STATUSES.has(entryStatus.toLowerCase())) return 'pulled' as EntryStatus;
+    if (PULLED_ENTRY_STATUSES.has(entryStatus.toLowerCase())) return 'pulled';
     return entryStatus as EntryStatus;
   }
 

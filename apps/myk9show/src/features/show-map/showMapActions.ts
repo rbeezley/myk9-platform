@@ -79,6 +79,10 @@ function canMarkEntryCheckedIn(node: ShowMapNode): boolean {
   return !['checked-in', 'completed', 'pulled'].includes(node.checkInStatus?.value ?? '');
 }
 
+function canMessageEntryHandler(node: ShowMapNode): boolean {
+  return node.type === 'entry' && Boolean(node.entryDisplay?.handlerId);
+}
+
 function sourceIdFromNodeId(nodeId: string | undefined, expectedType: string): string | undefined {
   const prefix = `${expectedType}:`;
   if (!nodeId?.startsWith(prefix)) return undefined;
@@ -161,7 +165,10 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
           ...(classId ? { classId } : {}),
         },
         undefined
-      ),
+      )
+    );
+
+    actions.push(
       withHref(
         {
           id: 'scratch-entry',
@@ -173,19 +180,23 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
           ...(classId ? { classId } : {}),
         },
         undefined
-      ),
-      withHref(
-        {
-          id: 'message-handler',
-          nodeId: node.id,
-          label: 'Message handler',
-          why: 'Contact the handler about this entry',
-          priority: 25,
-          icon: MessageSquare,
-        },
-        undefined
       )
     );
+    if (canMessageEntryHandler(node)) {
+      actions.push(
+        withHref(
+          {
+            id: 'message-handler',
+            nodeId: node.id,
+            label: 'Message handler',
+            why: 'Contact the handler about this entry',
+            priority: 25,
+            icon: MessageSquare,
+          },
+          undefined
+        )
+      );
+    }
     return actions;
   }
 

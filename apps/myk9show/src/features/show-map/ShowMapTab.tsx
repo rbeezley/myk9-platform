@@ -11,6 +11,7 @@ import {
 } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
+import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { ShowMapToolbar } from './ShowMapToolbar';
 import { countCatalogEntries } from './entryCounts';
@@ -218,6 +219,9 @@ export default function ShowMapTab({
     scratchAction,
     closeScratchDialog,
     confirmScratchNoShow,
+    messageAction,
+    closeMessageDialog,
+    confirmMessageHandler,
     isExecuting,
   } = useShowMapActionExecutor({ showId: show.id });
   const attentionCount = tree.root.attentionCount ?? 0;
@@ -325,6 +329,16 @@ export default function ShowMapTab({
           if (!open) closeScratchDialog();
         }}
         onConfirm={confirmScratchNoShow}
+      />
+      <ShowMapMessageHandlerDialog
+        key={messageAction?.nodeId ?? 'message-handler-dialog'}
+        open={Boolean(messageAction)}
+        node={messageAction ? tree.nodesById[messageAction.nodeId] : undefined}
+        isSubmitting={isExecuting}
+        onOpenChange={open => {
+          if (!open) closeMessageDialog();
+        }}
+        onConfirm={body => confirmMessageHandler({ body })}
       />
     </div>
   );

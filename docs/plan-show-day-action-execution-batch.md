@@ -47,7 +47,7 @@ These PRs may start after the shared contract merges.
    - Should not edit menu rendering except to flip registry behavior from `disabled` to `mutation`.
 
 2. Move-up dialog + undo last move-up
-   - Status: implemented on `codex-show-day-move-up-undo`.
+   - Status: merged via PR #220.
    - Owns move-up dialog adapter, undo operation, and related tests.
    - May reuse existing `MoveUpDialog`; should keep state local to an action executor/provider.
 
@@ -58,6 +58,7 @@ These PRs may start after the shared contract merges.
    - Also normalizes scratched/no-show entries to `check_in_status = pulled` so myK9Q ringside stops waiting on the dog.
 
 4. Message handler + canned replies
+   - Status: implemented on `codex-show-map-message-handler`.
    - Owns message-handler dialog/sheet and canned reply template data.
    - Should not change scratch or move-up execution.
 

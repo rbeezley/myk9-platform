@@ -81,6 +81,7 @@ describe('buildShowMapTree', () => {
       dogName: 'Bella',
       breed: 'Labrador Retriever',
       handler: 'Jane Handler',
+      handlerId: 'person-1',
       dogHref: '/dogs/dog-1',
       handlerHref: '/people/person-1',
     });

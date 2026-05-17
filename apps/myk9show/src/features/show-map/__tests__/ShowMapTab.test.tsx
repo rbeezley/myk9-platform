@@ -9,6 +9,10 @@ const mockEq = vi.fn();
 const mockUpdate = vi.fn();
 const mockFrom = vi.fn();
 const mockProcessMoveUp = vi.fn();
+const mockMessageStore = vi.hoisted(() => ({
+  getOrCreateThread: vi.fn(),
+  sendMessage: vi.fn(),
+}));
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -19,6 +23,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 vi.mock('@/services/database/day-of-operations', () => ({
   processMoveUp: (...args: unknown[]) => mockProcessMoveUp(...args),
+}));
+
+vi.mock('@/store/messageStore', () => ({
+  useMessageStore: (selector: (state: typeof mockMessageStore) => unknown) =>
+    selector(mockMessageStore),
 }));
 
 vi.mock('sonner', () => ({
@@ -64,6 +73,8 @@ describe('ShowMapTab', () => {
       data: { id: 'new-entry-1', class: { name: 'Exterior Advanced' } },
       error: null,
     });
+    mockMessageStore.getOrCreateThread.mockResolvedValue({ id: 'thread-1' });
+    mockMessageStore.sendMessage.mockResolvedValue(undefined);
   });
 
   it('renders counts, hierarchy, and capped entries', async () => {
@@ -299,6 +310,72 @@ describe('ShowMapTab', () => {
 
     await waitFor(() => {
       expect(mockProcessMoveUp).toHaveBeenCalledWith('entry-1', 'class-2', 'Qualified today');
+    });
+  });
+
+  it('opens the message handler dialog and sends a canned reply', async () => {
+    const targetChain = makeSelectSingleChain({
+      data: {
+        handler: 'Jane Handler',
+        handler_id: 'person-1',
+        handler_person: {
+          auth_user_id: 'handler-auth-1',
+          first_name: 'Jane',
+          last_name: 'Handler',
+        },
+        dog: { call_name: 'Bella' },
+        class: { name: 'Interior Novice A' },
+      },
+      error: null,
+    });
+    mockFrom.mockReset().mockReturnValueOnce(targetChain);
+
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            armband: '12',
+            handler: 'Jane Handler',
+            handler_id: 'person-1',
+            dog: { call_name: 'Bella' },
+            check_in_status: 'checked-in',
+          },
+        ]}
+        canManageShow
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
+    await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /message handler/i }));
+
+    expect(screen.getByRole('dialog', { name: /message handler/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^message$/i, { selector: 'textarea' })).toHaveValue(
+      'Please stop by the secretary table about #12 Bella.'
+    );
+
+    await user.click(screen.getByRole('button', { name: /^send$/i }));
+
+    await waitFor(() => {
+      expect(mockMessageStore.getOrCreateThread).toHaveBeenCalledWith('show-1', 'handler-auth-1');
+      expect(mockMessageStore.sendMessage).toHaveBeenCalledWith(
+        'thread-1',
+        'show-1',
+        'Please stop by the secretary table about #12 Bella.'
+      );
     });
   });
 });

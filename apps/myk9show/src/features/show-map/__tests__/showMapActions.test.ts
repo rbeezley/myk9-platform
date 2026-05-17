@@ -177,4 +177,36 @@ describe('showMapActions', () => {
       }),
     ]);
   });
+
+  it('emits message handler only when the entry has a handler id', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-with-handler',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          handler: 'Jane Handler',
+          handler_id: 'person-1',
+        },
+        {
+          id: 'entry-without-handler',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+        },
+      ],
+    });
+
+    const actions = getRankedActions('root', { tree }).filter(
+      action => action.id === 'message-handler'
+    );
+
+    expect(actions).toEqual([
+      expect.objectContaining({
+        nodeId: 'entry:entry-with-handler',
+      }),
+    ]);
+  });
 });

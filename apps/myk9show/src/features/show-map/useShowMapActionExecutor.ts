@@ -3,11 +3,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
+  getShowMapHandlerMessageTarget,
   markShowMapEntryCheckedIn,
   moveUpShowMapEntry,
   scratchShowMapEntry,
@@ -29,6 +31,10 @@ interface MutationInput {
 export interface ConfirmShowMapMoveUpInput {
   targetClassId: string;
   reason?: string | undefined;
+}
+
+export interface ConfirmShowMapMessageInput {
+  body: string;
 }
 
 export interface LastShowMapMoveUp extends ShowMapMoveUpUndoInput {
@@ -86,7 +92,10 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   const queryClient = useQueryClient();
   const [scratchAction, setScratchAction] = useState<ShowMapAction | null>(null);
   const [moveUpAction, setMoveUpAction] = useState<ShowMapAction | null>(null);
+  const [messageAction, setMessageAction] = useState<ShowMapAction | null>(null);
   const [lastMoveUp, setLastMoveUp] = useState<LastShowMapMoveUp | null>(null);
+  const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
+  const sendMessage = useMessageStore(s => s.sendMessage);
 
   const invalidateShowMapActionQueries = useCallback(
     (classId?: string | undefined) => {
@@ -301,6 +310,27 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
   });
 
+  const messageHandlerMutation = useMutation({
+    mutationFn: async ({ action, body }: { action: ShowMapAction; body: string }) => {
+      const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
+      if (!entryId) throw new Error('Unable to find the entry for this action.');
+
+      const target = await getShowMapHandlerMessageTarget(entryId);
+      const thread = await getOrCreateThread(showId, target.participantAuthUserId);
+      if (!thread) throw new Error('Unable to open the message thread.');
+
+      await sendMessage(thread.id, showId, body);
+      return target;
+    },
+    onSuccess: target => {
+      toast.success(target.handlerName ? `Message sent to ${target.handlerName}` : 'Message sent');
+      setMessageAction(null);
+    },
+    onError: error => {
+      toast.error(getUserFriendlyError(error));
+    },
+  });
+
   const executeAction = useCallback(
     (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => {
       if (execution.kind === 'dialog' && execution.dialog === 'move-up-entry') {
@@ -309,6 +339,10 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       }
       if (execution.kind === 'dialog' && execution.dialog === 'scratch-entry') {
         setScratchAction(action);
+        return;
+      }
+      if (execution.kind === 'dialog' && execution.dialog === 'message-handler') {
+        setMessageAction(action);
         return;
       }
       if (execution.kind === 'mutation') {
@@ -335,6 +369,15 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     confirmScratchNoShow: (reason: string | undefined) => {
       if (scratchAction) scratchMutation.mutate({ action: scratchAction, reason });
     },
-    isExecuting: mutation.isPending || scratchMutation.isPending || moveUpMutation.isPending,
+    messageAction,
+    closeMessageDialog: () => setMessageAction(null),
+    confirmMessageHandler: ({ body }: ConfirmShowMapMessageInput) => {
+      if (messageAction) messageHandlerMutation.mutate({ action: messageAction, body });
+    },
+    isExecuting:
+      mutation.isPending ||
+      scratchMutation.isPending ||
+      moveUpMutation.isPending ||
+      messageHandlerMutation.isPending,
   };
 }

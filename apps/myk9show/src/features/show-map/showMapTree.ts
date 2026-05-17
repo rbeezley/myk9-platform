@@ -94,6 +94,7 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
     dogName: entryDogName(entry) ?? 'Unknown',
     breed: entryRegisteredBreed(entry, organization),
     handler: entryHandlerName(entry),
+    handlerId,
     dogHref: dogId ? `/dogs/${dogId}` : undefined,
     handlerHref: handlerId ? `/people/${handlerId}` : undefined,
   };
@@ -195,7 +196,9 @@ export function buildShowMapTree({
 
     for (const cls of trialClasses) {
       const classEntries = sortEntries(entriesByClassId.get(cls.id) ?? []);
-      const attentionCountForClass = classEntries.filter(entry => getEntryAttention(entry) !== null).length;
+      const attentionCountForClass = classEntries.filter(
+        entry => getEntryAttention(entry) !== null
+      ).length;
       const classNode: ShowMapNode = {
         id: getShowMapNodeId('class', cls.id),
         type: 'class',

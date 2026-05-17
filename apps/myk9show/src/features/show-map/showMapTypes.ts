@@ -42,6 +42,7 @@ export interface ShowMapEntryDisplay {
   dogName: string;
   breed?: string | undefined;
   handler?: string | undefined;
+  handlerId?: string | undefined;
   dogHref?: string | undefined;
   handlerHref?: string | undefined;
 }

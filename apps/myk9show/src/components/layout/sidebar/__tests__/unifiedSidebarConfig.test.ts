@@ -80,18 +80,32 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(config.dashboardHref).toBe('/club-admin/members');
   });
 
-  it('manage Schedule href is /secretary/run-order', () => {
+  it('manage Schedule href falls back to dashboard without an active show', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Schedule');
-    expect(item?.href).toBe('/secretary/run-order');
+    expect(item?.href).toBe('/secretary/dashboard');
   });
 
-  it('manage Day of Show href is /secretary/day-of', () => {
+  it('manage Schedule href points to Setup when an active show is known', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, 'show-1');
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Schedule');
+    expect(item?.href).toBe('/secretary/shows/show-1?phase=setup');
+  });
+
+  it('manage Day of Show href falls back to dashboard without an active show', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Day of Show');
-    expect(item?.href).toBe('/secretary/day-of');
+    expect(item?.href).toBe('/secretary/dashboard');
+  });
+
+  it('manage Day of Show href points to Today when an active show is known', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, 'show-1');
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Day of Show');
+    expect(item?.href).toBe('/secretary/shows/show-1?phase=today');
   });
 
   it('manage Results Control href is /secretary/results-control', () => {

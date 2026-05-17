@@ -94,7 +94,11 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
 // Secretary route components (these would be defined in secretaryRoutes.tsx)
 export const secretaryRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for secretary routes - would be populated by actual secretary routes
-  '/secretary/dashboard': () => import('@/features/pipeline/components/PipelineDashboard'),
+  '/secretary/dashboard': () =>
+    import('@/pages/secretary/SecretaryDashboardPage').then(m => ({
+      default: m.SecretaryDashboardPage,
+    })),
+  '/secretary/shows/:showId': () => import('@/pages/secretary/ShowWorkbenchPage'),
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/secretary/create-show/wizard': () => import('@/pages/secretary/ShowCreationWizardPage'),
   '/secretary/results-control': () => import('@/pages/secretary/ResultsControlPage'),

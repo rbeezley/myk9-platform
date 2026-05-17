@@ -15,6 +15,7 @@ import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { ShowMapToolbar } from './ShowMapToolbar';
 import { ShowMapRunningNowStrip } from './ShowMapRunningNowStrip';
+import { ShowMapGuidanceCard } from './ShowMapGuidanceCard';
 import { countCatalogEntries } from './entryCounts';
 import { getRankedActions, getRecommendedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
@@ -87,40 +88,8 @@ function SummaryItem({ label, value }: { label: string; value: number }) {
   );
 }
 
-function NextBestAction({
-  action,
-  onNavigate,
-  onAction,
-}: {
-  action: ShowMapAction | undefined;
-  onNavigate: (href: string) => void;
-  onAction: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
-}) {
-  if (!action) return null;
-  const execution = resolveShowMapActionExecution(action);
-  const canExecute = execution.kind !== 'disabled';
-  const execute = () => {
-    if (execution.kind === 'disabled') return;
-    if (execution.kind === 'navigate') onNavigate(execution.href);
-    else onAction(action, execution);
-  };
-
-  return (
-    <div className="border-b bg-muted/20 px-4 py-3 text-foreground">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold">Next: {action.label}</div>
-          <div className="mt-0.5 text-sm text-muted-foreground">{action.why}</div>
-        </div>
-        {canExecute && (
-          <Button type="button" size="sm" onClick={execute}>
-            <action.icon className="h-4 w-4" />
-            Start
-          </Button>
-        )}
-      </div>
-    </div>
-  );
+function actionKey(action: ShowMapAction): string {
+  return `${action.id}:${action.nodeId}`;
 }
 
 function PriorityQueue({
@@ -231,6 +200,7 @@ export default function ShowMapTab({
   const [filter, setFilter] = useState<ShowMapFilter>('all');
   const [dayScope, setDayScope] = useState<ShowMapDayScope>(initialDayScope);
   const [completionScope, setCompletionScope] = useState<ShowMapCompletionScope>('active');
+  const [dismissedGuidanceKeys, setDismissedGuidanceKeys] = useState<Set<string>>(() => new Set());
   const tree = useMemo(
     () => buildShowMapTree({ show, trials, classes, entries }),
     [show, trials, classes, entries]
@@ -258,7 +228,25 @@ export default function ShowMapTab({
   } = useShowMapActionExecutor({ showId: show.id });
   const attentionCount = tree.root.attentionCount ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
-  const recommendedActions = useMemo(() => getRecommendedActions('root', { tree }), [tree]);
+  const recommendedActions = useMemo(
+    () => getRecommendedActions('root', { tree }, Number.MAX_SAFE_INTEGER),
+    [tree]
+  );
+  const guidanceAction = recommendedActions.find(
+    action => !dismissedGuidanceKeys.has(actionKey(action))
+  );
+  const guidanceExecution = guidanceAction
+    ? resolveShowMapActionExecution(guidanceAction)
+    : undefined;
+  const startGuidanceAction = useCallback(() => {
+    if (!guidanceAction || !guidanceExecution || guidanceExecution.kind === 'disabled') return;
+    if (guidanceExecution.kind === 'navigate') navigateTo(guidanceExecution.href);
+    else executeAction(guidanceAction, guidanceExecution);
+  }, [executeAction, guidanceAction, guidanceExecution, navigateTo]);
+  const dismissGuidanceAction = useCallback(() => {
+    if (!guidanceAction) return;
+    setDismissedGuidanceKeys(current => new Set(current).add(actionKey(guidanceAction)));
+  }, [guidanceAction]);
   const priorityActions = useMemo(() => getRankedActions('root', { tree }), [tree]);
   const runningNowItems = useMemo(
     () => getRunningNowItems(tree, scope, effectiveScopeNow),
@@ -348,12 +336,13 @@ export default function ShowMapTab({
         onCollapseAll={collapseAll}
         onExpandTrials={expandTrials}
       />
-      <NextBestAction
-        action={recommendedActions[0]}
-        onNavigate={navigateTo}
-        onAction={executeAction}
-      />
       <div className="p-3">
+        <ShowMapGuidanceCard
+          action={guidanceAction}
+          canExecute={Boolean(guidanceExecution && guidanceExecution.kind !== 'disabled')}
+          onStart={startGuidanceAction}
+          onDismiss={dismissGuidanceAction}
+        />
         <ShowMapRunningNowStrip items={runningNowItems} onSelect={selectRunningNowClass} />
         <PriorityQueue actions={priorityActions} onNavigate={navigateTo} onAction={executeAction} />
         <MoveUpUndoBanner moveUp={lastMoveUp} isUndoing={isUndoingMoveUp} onUndo={undoLastMoveUp} />

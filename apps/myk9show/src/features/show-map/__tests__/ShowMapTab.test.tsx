@@ -267,6 +267,44 @@ describe('ShowMapTab', () => {
     expect(screen.getByRole('button', { name: /score class/i })).toBeInTheDocument();
   });
 
+  it('dismisses the guidance card and rotates to the next recommended action', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            armband: '12',
+            dog: { call_name: 'Bella' },
+            check_in_status: 'conflict',
+          },
+        ]}
+        canManageShow
+      />
+    );
+
+    const guidance = screen.getByRole('region', { name: /next best action/i });
+    expect(within(guidance).getByText('Next: Resolve check-in conflict')).toBeInTheDocument();
+
+    await user.click(within(guidance).getByRole('button', { name: /dismiss/i }));
+
+    expect(
+      within(screen.getByRole('region', { name: /next best action/i })).getByText(
+        'Next: Score Class'
+      )
+    ).toBeInTheDocument();
+  });
+
   it('renders a calm empty state for shows without trials', () => {
     render(<ShowMapTab show={show} trials={[]} classes={[]} entries={[]} canManageShow />);
 

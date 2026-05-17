@@ -13,6 +13,7 @@ import type { Class } from '@/services/replication/tables/ReplicatedClassesTable
 import type { Entry as ReplicatedEntry } from '@/services/replication/tables/ReplicatedEntriesTable';
 import type { Trial } from '@/services/replication/tables/ReplicatedTrialsTable';
 import { logger } from '@/utils/logger';
+import { determineEntryStatus } from '@/utils/statusUtils';
 import { getVisibleResultFields } from '@/services/resultVisibilityService';
 import type { VisibleResultFields } from '@myk9/secretary';
 import type { UserRole } from '@/utils/auth';
@@ -264,7 +265,7 @@ export function buildCombinedClassInfo(
  * Transform replicated entry to Entry format
  */
 export function transformReplicatedEntry(entry: ReplicatedEntry, classData?: Class): Entry {
-  const status = entry.entry_status || 'pending';
+  const status = determineEntryStatus(entry.entry_status || 'pending');
   const sectionPart =
     classData?.section && classData.section !== '-' ? ` ${classData.section}` : '';
 

@@ -236,6 +236,19 @@ export const getEntryCountsByStatus = async (showId: string) => {
 /**
  * Update entry status (accept, reject, waitlist, withdraw, scratch)
  */
+function buildEntryStatusUpdate(status: EntryStatus): Record<string, unknown> {
+  const updateData: Record<string, unknown> = {
+    entry_status: status,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (status === 'scratched') {
+    updateData.check_in_status = 'pulled';
+  }
+
+  return updateData;
+}
+
 export const updateEntryStatus = async (
   entryId: string,
   status: EntryStatus,
@@ -244,10 +257,7 @@ export const updateEntryStatus = async (
   const startTime = Date.now();
 
   try {
-    const updateData: Record<string, unknown> = {
-      entry_status: status,
-      updated_at: new Date().toISOString(),
-    };
+    const updateData = buildEntryStatusUpdate(status);
     if (withdrawalReason !== undefined) {
       updateData.withdrawal_reason = withdrawalReason;
     }
@@ -284,10 +294,7 @@ export const bulkUpdateEntryStatus = async (entryIds: string[], status: EntrySta
   try {
     const { data, error } = await supabase
       .from('entries')
-      .update({
-        entry_status: status,
-        updated_at: new Date().toISOString(),
-      })
+      .update(buildEntryStatusUpdate(status))
       .in('id', entryIds)
       .select();
 

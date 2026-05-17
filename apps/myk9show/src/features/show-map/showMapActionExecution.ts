@@ -1,9 +1,6 @@
 import type { ShowMapAction, ShowMapActionId } from './showMapActions';
 
-export type ShowMapActionDialogKey =
-  | 'move-up-entry'
-  | 'scratch-entry'
-  | 'message-handler';
+export type ShowMapActionDialogKey = 'move-up-entry' | 'scratch-entry' | 'message-handler';
 
 export type ShowMapActionMutationKey = 'mark-checked-in';
 
@@ -63,9 +60,8 @@ export const showMapActionExecutionById = {
     disabledReason: 'Move-ups from Show Map are coming next. Use Day of Show > Move-Ups for now.',
   },
   'scratch-entry': {
-    kind: 'disabled',
-    futureKind: 'dialog',
-    disabledReason: 'Scratches from Show Map are coming next. Use Day of Show > Pulled for now.',
+    kind: 'dialog',
+    dialog: 'scratch-entry',
   },
   'message-handler': {
     kind: 'disabled',

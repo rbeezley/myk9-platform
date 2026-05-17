@@ -149,6 +149,7 @@ describe('secretaryEntryQueries — entry_status updates', () => {
       expect(chain.update).toHaveBeenCalledWith(
         expect.objectContaining({
           entry_status: 'scratched',
+          check_in_status: 'pulled',
           withdrawal_reason: 'Dog is absent',
         })
       );

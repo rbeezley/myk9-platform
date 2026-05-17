@@ -38,6 +38,14 @@ describe('determineEntryStatus', () => {
     expect(determineEntryStatus('pulled', false)).toBe('pulled');
   });
 
+  test('should normalize scratch and absence statuses to pulled', () => {
+    expect(determineEntryStatus('scratch')).toBe('pulled');
+    expect(determineEntryStatus('scratched')).toBe('pulled');
+    expect(determineEntryStatus('withdrawn')).toBe('pulled');
+    expect(determineEntryStatus('absent')).toBe('pulled');
+    expect(determineEntryStatus('Scratched')).toBe('pulled');
+  });
+
   test('should handle empty string as falsy', () => {
     expect(determineEntryStatus('', false)).toBe('no-status');
     expect(determineEntryStatus('', true)).toBe('in-ring');

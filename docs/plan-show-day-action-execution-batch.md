@@ -42,7 +42,7 @@ Testing:
 These PRs may start after the shared contract merges.
 
 1. Mark checked-in action
-   - Status: implemented on `codex-show-day-mark-checked-in`.
+   - Status: merged via PR #217.
    - Owns check-in action mutation wiring and row-action success/error handling.
    - Should not edit menu rendering except to flip registry behavior from `disabled` to `mutation`.
 
@@ -51,8 +51,10 @@ These PRs may start after the shared contract merges.
    - May reuse existing `MoveUpDialog`; should keep state local to an action executor/provider.
 
 3. Scratch / no-show + refund boundary
+   - Status: implemented on `codex-show-day-scratch-no-show`.
    - Owns scratch dialog adapter, no-show wording, and explicit manual-refund boundary.
    - If Stripe refunds are not ready, ship the manual-refund affordance rather than implying automatic refunding.
+   - Also normalizes scratched/no-show entries to `check_in_status = pulled` so myK9Q ringside stops waiting on the dog.
 
 4. Message handler + canned replies
    - Owns message-handler dialog/sheet and canned reply template data.

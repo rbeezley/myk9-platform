@@ -22,6 +22,8 @@ export const scratchEntry = async (entryId: string, reason?: string) => {
       .from('entries')
       .update({
         entry_status: 'scratched',
+        check_in_status: 'pulled',
+        withdrawal_reason: reason || 'Pulled day-of',
         special_requests: reason || 'Pulled day-of',
         updated_at: new Date().toISOString(),
       })

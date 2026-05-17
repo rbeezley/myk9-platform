@@ -103,6 +103,7 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
   if (node.type === 'entry') {
     const actions: ShowMapAction[] = [];
     const href = nearestHref(tree, node);
+    const classId = sourceIdFromNodeId(node.parentId, 'class');
     if (node.status?.kind === 'attention' || node.checkInStatus?.kind === 'attention') {
       actions.push(
         withHref(
@@ -138,7 +139,6 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
       );
     }
     if (canMarkEntryCheckedIn(node)) {
-      const classId = sourceIdFromNodeId(node.parentId, 'class');
       actions.push({
         id: 'mark-checked-in',
         nodeId: node.id,
@@ -169,6 +169,7 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
           why: 'Mark this entry absent for ring flow',
           priority: 30,
           icon: Ban,
+          ...(classId ? { classId } : {}),
         },
         undefined
       ),
@@ -260,7 +261,10 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
   return [];
 }
 
-export function getRankedActions(scope: ShowMapActionScope, state: ShowMapActionState): ShowMapAction[] {
+export function getRankedActions(
+  scope: ShowMapActionScope,
+  state: ShowMapActionState
+): ShowMapAction[] {
   return scopedNodes(scope, state.tree)
     .flatMap(node => actionsForNode(node, state.tree))
     .sort((a, b) => {

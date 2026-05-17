@@ -109,7 +109,7 @@ describe('entry_status enum values used by query layer', () => {
       expect(chain.in).toHaveBeenCalledWith('entry_status', ['confirmed', 'checked-in']);
     });
 
-    it('scratchEntry writes entry_status = "scratched"', async () => {
+    it('scratchEntry writes entry_status = "scratched" and check_in_status = "pulled"', async () => {
       const chain = chainMock({
         single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
       });
@@ -118,7 +118,7 @@ describe('entry_status enum values used by query layer', () => {
       await scratchEntry('entry-1', 'withdrew');
 
       expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'scratched' })
+        expect.objectContaining({ entry_status: 'scratched', check_in_status: 'pulled' })
       );
     });
 

@@ -37,6 +37,9 @@ let mockShow: Record<string, unknown> | null = {
 };
 let mockLoading = false;
 let mockError = false;
+let mockTrials: Array<Record<string, unknown>> = [];
+let mockTrialClasses: Record<string, Array<Record<string, unknown>>> = {};
+let mockShowEntries: Array<Record<string, unknown>> = [];
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
@@ -61,6 +64,53 @@ vi.mock('@/hooks/useFastShowDetails', () => ({
     loadTime: 0,
     hasData: !!mockShow,
   }),
+}));
+
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useEntriesByShowQuery: () => ({ data: mockShowEntries }),
+}));
+
+vi.mock('@/store/trialStore', () => ({
+  useTrialStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      trials: mockTrials,
+      trialClasses: mockTrialClasses,
+      loadTrials: vi.fn(),
+      loadTrialClasses: vi.fn(),
+    }),
+}));
+
+vi.mock('@/components/secretary/MyK9QAccessCard', () => ({
+  MyK9QAccessCard: ({ showId, showName }: { showId: string; showName?: string }) => (
+    <div data-testid="myk9q-access" data-show-id={showId}>
+      {showName}
+    </div>
+  ),
+}));
+
+vi.mock('@/features/show-map/ShowMapTab', () => ({
+  default: ({
+    show,
+    trials,
+    classes,
+    entries,
+    canManageShow,
+  }: {
+    show: { id: string };
+    trials: unknown[];
+    classes: unknown[];
+    entries: unknown[];
+    canManageShow: boolean;
+  }) => (
+    <div
+      data-testid="show-map-tab"
+      data-show-id={show.id}
+      data-trial-count={trials.length}
+      data-class-count={classes.length}
+      data-entry-count={entries.length}
+      data-can-manage={String(canManageShow)}
+    />
+  ),
 }));
 
 vi.mock('react-router-dom', async importOriginal => {
@@ -217,6 +267,9 @@ describe('ShowWorkbenchPage', () => {
     };
     mockLoading = false;
     mockError = false;
+    mockTrials = [];
+    mockTrialClasses = {};
+    mockShowEntries = [];
   });
 
   it('renders the workbench shell for a secretary', async () => {
@@ -245,6 +298,41 @@ describe('ShowWorkbenchPage', () => {
     await user.click(await screen.findByRole('tab', { name: /Wrap-up/ }));
 
     expect(screen.getByRole('tab', { name: /Wrap-up/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('renders Today operational surfaces with show-map data', async () => {
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        order: '1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [
+        {
+          id: 'class-1',
+          element: 'Container',
+          level: 'Novice A',
+          section: 'A',
+          status: 'scheduled',
+        },
+      ],
+    };
+    mockShowEntries = [{ id: 'entry-1', class_id: 'class-1' }];
+
+    renderWorkbench('/secretary/shows/show-1?phase=today');
+
+    expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
+    const showMap = await screen.findByTestId('show-map-tab');
+    expect(showMap).toHaveAttribute('data-show-id', 'show-1');
+    expect(showMap).toHaveAttribute('data-trial-count', '1');
+    expect(showMap).toHaveAttribute('data-class-count', '1');
+    expect(showMap).toHaveAttribute('data-entry-count', '1');
+    expect(showMap).toHaveAttribute('data-can-manage', 'true');
   });
 
   it('navigates to the existing edit surface', async () => {

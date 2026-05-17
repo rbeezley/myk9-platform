@@ -34,6 +34,7 @@ import { PublicRoutes } from './routes/publicRoutes';
 
 // Unified layout
 import { UnifiedAppLayout } from './components/layout/UnifiedAppLayout';
+import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 
 // Components
 import AppHeader from './components/layout/AppHeader';
@@ -257,6 +258,10 @@ function App() {
                           <AppHeader />
                           <NotificationCenter />
                           <Routes>
+                            {/* Surface gate — when VITE_PUBLIC_SURFACE=wizard,
+                                only the show-creation wizard surface is
+                                reachable for non-admins. No-op otherwise. */}
+                            <Route element={<WizardSurfaceGate />}>
                             {/* Public routes */}
                             <Route
                               path="/"
@@ -355,6 +360,7 @@ function App() {
                                 </PageTransition>
                               }
                             />
+                            </Route>
                           </Routes>
                         </div>
                       </ErrorBoundary>

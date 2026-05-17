@@ -23,7 +23,7 @@ interface WaitlistFormLandingProps {
 type SubmitState =
   | { kind: 'idle' }
   | { kind: 'submitting' }
-  | { kind: 'success' }
+  | { kind: 'success'; invited: boolean }
   | { kind: 'error'; message: string };
 
 const ROLE_DB_VALUE: Record<Role, string> = {
@@ -31,6 +31,12 @@ const ROLE_DB_VALUE: Record<Role, string> = {
   club_official: 'club_official',
   judge: 'judge',
 };
+
+// Which form-role triggers the early-access auto-invite. The "Club /
+// secretary" tag in the radio group already maps to club_official in the
+// DB — we treat that selection as the signal that they want to set up
+// shows, so they get a magic-link invite to the wizard surface.
+const EARLY_ACCESS_ROLE: Role = 'club_official';
 
 export function WaitlistFormLanding({
   source = 'myk9show.com',
@@ -72,9 +78,11 @@ export function WaitlistFormLanding({
 
     if (error) {
       // 23505 = unique-violation on email. They're already on the list —
-      // that's a successful outcome from the user's perspective.
+      // that's a successful outcome from the user's perspective. Don't
+      // re-trigger an invite; the original send (if any) already happened
+      // and send-waitlist-invite is idempotent on access_invite_sent_at.
       if (error.code === '23505') {
-        setState({ kind: 'success' });
+        setState({ kind: 'success', invited: false });
         return;
       }
       setState({
@@ -84,10 +92,34 @@ export function WaitlistFormLanding({
       return;
     }
 
-    setState({ kind: 'success' });
+    // Auto-grant path: "Club / secretary" signups get an immediate
+    // magic-link invite so they can try the show wizard right away.
+    // Fire-and-forget — the email arrives within seconds. The edge
+    // function is idempotent on access_invite_sent_at, so a duplicate
+    // insert (handled above as 23505) won't double-send.
+    const triggersInvite = role === EARLY_ACCESS_ROLE;
+    if (triggersInvite) {
+      void supabase.functions.invoke('send-waitlist-invite', {
+        body: { email: email.trim().toLowerCase() },
+      });
+    }
+
+    setState({ kind: 'success', invited: triggersInvite });
   };
 
   if (state.kind === 'success') {
+    if (state.invited) {
+      return (
+        <div className="l-waitlist-success" role="status" aria-live="polite">
+          <p className="l-success-title">Check your email.</p>
+          <p>
+            You're in — we've sent a sign-in link to <strong>{email.trim().toLowerCase()}</strong>.
+            Click it to start building your first show. (Give it a minute; if it doesn't show,
+            check your spam folder.)
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="l-waitlist-success" role="status" aria-live="polite">
         {/* Same a11y reasoning as the form-title <p>: no <h*> here, since

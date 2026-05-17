@@ -55,9 +55,8 @@ export const showMapActionExecutionById = {
     successMessage: 'Entry checked in',
   },
   'move-up-entry': {
-    kind: 'disabled',
-    futureKind: 'dialog',
-    disabledReason: 'Move-ups from Show Map are coming next. Use Day of Show > Move-Ups for now.',
+    kind: 'dialog',
+    dialog: 'move-up-entry',
   },
   'scratch-entry': {
     kind: 'dialog',

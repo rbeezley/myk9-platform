@@ -8,6 +8,7 @@ import type { SyncableTrial } from '@/store/trial-store-types';
 const mockEq = vi.fn();
 const mockUpdate = vi.fn();
 const mockFrom = vi.fn();
+const mockProcessMoveUp = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -16,12 +17,28 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
 }));
 
+vi.mock('@/services/database/day-of-operations', () => ({
+  processMoveUp: (...args: unknown[]) => mockProcessMoveUp(...args),
+}));
+
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
   },
 }));
+
+function makeSelectSingleChain(result: {
+  data: Record<string, unknown> | null;
+  error: Error | null;
+}) {
+  const chain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue(result),
+  };
+  return chain;
+}
 
 const show = { id: 'show-1', name: 'Spring Trial', clubName: 'Calm Canine Club' } as Show;
 const trial = {
@@ -43,6 +60,10 @@ describe('ShowMapTab', () => {
     mockEq.mockResolvedValue({ error: null });
     mockUpdate.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ update: mockUpdate });
+    mockProcessMoveUp.mockResolvedValue({
+      data: { id: 'new-entry-1', class: { name: 'Exterior Advanced' } },
+      error: null,
+    });
   });
 
   it('renders counts, hierarchy, and capped entries', async () => {
@@ -220,5 +241,64 @@ describe('ShowMapTab', () => {
       );
     });
     expect(mockEq).toHaveBeenCalledWith('id', 'entry-1');
+  });
+
+  it('opens the move-up dialog and saves the move-up', async () => {
+    const fetchChain = makeSelectSingleChain({
+      data: {
+        entry_status: 'checked-in',
+        check_in_status: 'checked-in',
+        special_requests: null,
+      },
+      error: null,
+    });
+    mockFrom.mockReset().mockReturnValueOnce(fetchChain);
+
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+          {
+            id: 'class-2',
+            trialId: 'trial-1',
+            name: 'Exterior Advanced',
+            status: 'Not Started',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            armband: '12',
+            dog: { call_name: 'Bella' },
+            check_in_status: 'checked-in',
+          },
+        ]}
+        canManageShow
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
+    await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /move up/i }));
+
+    expect(screen.getByRole('dialog', { name: /move up entry/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: /exterior advanced/i }));
+    await user.type(screen.getByLabelText(/reason/i), 'Qualified today');
+    await user.click(screen.getByRole('button', { name: /move entry/i }));
+
+    await waitFor(() => {
+      expect(mockProcessMoveUp).toHaveBeenCalledWith('entry-1', 'class-2', 'Qualified today');
+    });
   });
 });

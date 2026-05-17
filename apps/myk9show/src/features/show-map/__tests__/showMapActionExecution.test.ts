@@ -80,23 +80,27 @@ describe('showMapActionExecution', () => {
     expect(isShowMapActionEnabled(scratch)).toBe(true);
   });
 
-  it('keeps remaining planned action work disabled behind explicit reasons', () => {
+  it('enables move-up through the shared dialog lane', () => {
     const moveUp = makeAction({
       id: 'move-up-entry',
       label: 'Move up',
       href: null,
     });
+
+    expect(resolveShowMapActionExecution(moveUp)).toEqual({
+      kind: 'dialog',
+      dialog: 'move-up-entry',
+    });
+    expect(isShowMapActionEnabled(moveUp)).toBe(true);
+  });
+
+  it('keeps remaining planned action work disabled behind explicit reasons', () => {
     const messageHandler = makeAction({
       id: 'message-handler',
       label: 'Message handler',
       href: null,
     });
 
-    expect(resolveShowMapActionExecution(moveUp)).toMatchObject({
-      kind: 'disabled',
-      futureKind: 'dialog',
-      disabledReason: expect.stringContaining('Move-Ups'),
-    });
     expect(resolveShowMapActionExecution(messageHandler)).toMatchObject({
       kind: 'disabled',
       futureKind: 'dialog',

@@ -1,23 +1,48 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   markShowMapEntryCheckedIn,
+  moveUpShowMapEntry,
   scratchShowMapEntry,
   sourceIdFromShowMapNodeId,
+  undoShowMapMoveUp,
 } from '../showMapActionMutations';
 
 const mockFrom = vi.fn();
+const mockProcessMoveUp = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
-  createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
+  createDatabaseError: (err: unknown) => {
+    if (err instanceof Error) return err;
+    if (err && typeof err === 'object' && 'message' in err) {
+      return new Error(String((err as { message: unknown }).message));
+    }
+    return new Error(String(err));
+  },
+}));
+
+vi.mock('@/services/database/day-of-operations', () => ({
+  processMoveUp: (...args: unknown[]) => mockProcessMoveUp(...args),
 }));
 
 function makeUpdateChain(result: { error: Error | null } = { error: null }) {
   const chain = {
     update: vi.fn().mockReturnThis(),
     eq: vi.fn().mockResolvedValue(result),
+  };
+  return chain;
+}
+
+function makeSelectSingleChain(result: {
+  data: Record<string, unknown> | null;
+  error: Error | null;
+}) {
+  const chain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue(result),
   };
   return chain;
 }
@@ -80,5 +105,128 @@ describe('showMapActionMutations', () => {
         withdrawal_reason: 'Marked no-show from Show Map',
       })
     );
+  });
+
+  it('moves an entry up through the day-of move-up operation and returns undo data', async () => {
+    const chain = makeSelectSingleChain({
+      data: {
+        entry_status: 'checked-in',
+        check_in_status: 'checked-in',
+        special_requests: 'Bring paper form',
+      },
+      error: null,
+    });
+    mockFrom.mockReturnValue(chain);
+    mockProcessMoveUp.mockResolvedValue({
+      data: { id: 'new-entry-1', class: { name: 'Advanced A' } },
+      error: null,
+    });
+
+    await expect(
+      moveUpShowMapEntry({
+        entryId: 'entry-1',
+        targetClassId: 'class-2',
+        reason: 'Qualified today',
+      })
+    ).resolves.toEqual({
+      originalEntryId: 'entry-1',
+      newEntryId: 'new-entry-1',
+      previousEntryStatus: 'checked-in',
+      previousCheckInStatus: 'checked-in',
+      previousSpecialRequests: 'Bring paper form',
+      targetClassName: 'Advanced A',
+    });
+
+    expect(chain.select).toHaveBeenCalledWith(
+      'id, entry_status, check_in_status, special_requests'
+    );
+    expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
+    expect(mockProcessMoveUp).toHaveBeenCalledWith('entry-1', 'class-2', 'Qualified today');
+  });
+
+  it('surfaces a day-of move-up operation error', async () => {
+    const chain = makeSelectSingleChain({
+      data: {
+        entry_status: 'checked-in',
+        check_in_status: 'checked-in',
+        special_requests: null,
+      },
+      error: null,
+    });
+    mockFrom.mockReturnValue(chain);
+    mockProcessMoveUp.mockResolvedValue({
+      data: null,
+      error: { message: 'Target class is full' },
+    });
+
+    await expect(
+      moveUpShowMapEntry({
+        entryId: 'entry-1',
+        targetClassId: 'class-2',
+      })
+    ).rejects.toThrow('Target class is full');
+  });
+
+  it('undoes a move-up by soft-deleting the new entry before restoring the original entry', async () => {
+    const removeChain = makeUpdateChain();
+    const restoreChain = makeUpdateChain();
+    mockFrom.mockReturnValueOnce(removeChain).mockReturnValueOnce(restoreChain);
+
+    await undoShowMapMoveUp({
+      originalEntryId: 'entry-1',
+      newEntryId: 'new-entry-1',
+      previousEntryStatus: 'checked-in',
+      previousCheckInStatus: 'checked-in',
+      previousSpecialRequests: null,
+    });
+
+    expect(removeChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deleted_at: expect.any(String),
+        updated_at: expect.any(String),
+      })
+    );
+    expect(removeChain.eq).toHaveBeenCalledWith('id', 'new-entry-1');
+    expect(restoreChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entry_status: 'checked-in',
+        check_in_status: 'checked-in',
+        special_requests: null,
+        updated_at: expect.any(String),
+      })
+    );
+    expect(restoreChain.eq).toHaveBeenCalledWith('id', 'entry-1');
+  });
+
+  it('does not restore the original entry when undo cannot soft-delete the move-up entry', async () => {
+    const removeChain = makeUpdateChain({ error: new Error('permission denied') });
+    mockFrom.mockReturnValueOnce(removeChain);
+
+    await expect(
+      undoShowMapMoveUp({
+        originalEntryId: 'entry-1',
+        newEntryId: 'new-entry-1',
+        previousEntryStatus: 'checked-in',
+        previousCheckInStatus: 'checked-in',
+        previousSpecialRequests: null,
+      })
+    ).rejects.toThrow('permission denied');
+
+    expect(removeChain.eq).toHaveBeenCalledWith('id', 'new-entry-1');
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails loudly when undo did not capture the original entry status', async () => {
+    await expect(
+      undoShowMapMoveUp({
+        originalEntryId: 'entry-1',
+        newEntryId: 'new-entry-1',
+        previousEntryStatus: null,
+        previousCheckInStatus: 'checked-in',
+        previousSpecialRequests: null,
+      })
+    ).rejects.toThrow('original entry status was not captured');
+
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });

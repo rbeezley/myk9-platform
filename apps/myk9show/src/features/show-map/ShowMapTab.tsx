@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ListTree } from 'lucide-react';
+import { ListTree, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/common/ErrorState';
 import {
@@ -10,6 +10,7 @@ import {
   getTrialsExpandedNodeIds,
 } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
+import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { ShowMapToolbar } from './ShowMapToolbar';
 import { countCatalogEntries } from './entryCounts';
@@ -19,6 +20,7 @@ import { useShowMapActionExecutor } from './useShowMapActionExecutor';
 import type { BuildShowMapTreeInput, ShowMapFilter, ShowMapTree } from './showMapTypes';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
+import type { LastShowMapMoveUp } from './useShowMapActionExecutor';
 
 interface ShowMapTabProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
@@ -145,6 +147,51 @@ function PriorityQueue({
   );
 }
 
+function MoveUpUndoBanner({
+  moveUp,
+  isUndoing,
+  onUndo,
+}: {
+  moveUp: LastShowMapMoveUp | null;
+  isUndoing: boolean;
+  onUndo: () => void;
+}) {
+  if (!moveUp) return null;
+
+  return (
+    <div className="mb-3 rounded-md border bg-muted/20 px-3 py-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 text-sm">
+          <span className="font-medium">Last move-up saved.</span>
+          {moveUp.targetClassName && (
+            <span className="text-muted-foreground"> Moved to {moveUp.targetClassName}.</span>
+          )}
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={onUndo} disabled={isUndoing}>
+          <RotateCcw className="h-4 w-4" />
+          {isUndoing ? 'Undoing...' : 'Undo'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function buildMoveUpTargets(
+  classes: BuildShowMapTreeInput['classes'],
+  currentClassId: string | undefined
+): ShowMapMoveUpTarget[] {
+  return classes
+    .filter(cls => cls.id !== currentClassId)
+    .map(cls => ({
+      id: cls.id,
+      label: cls.name || [cls.element, cls.level, cls.section].filter(Boolean).join(' '),
+      detail: [cls.trialDate, cls.trialNumber ? `Trial ${cls.trialNumber}` : undefined]
+        .filter(Boolean)
+        .join(' · '),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 export default function ShowMapTab({
   show,
   trials,
@@ -160,12 +207,30 @@ export default function ShowMapTab({
   );
   const { expandedNodeIds, toggleNode, collapseAll, expandTrials } = useExpandedNodes(tree);
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
-  const { executeAction, scratchAction, closeScratchDialog, confirmScratchNoShow, isExecuting } =
-    useShowMapActionExecutor({ showId: show.id });
+  const {
+    executeAction,
+    moveUpAction,
+    closeMoveUpDialog,
+    confirmMoveUp,
+    lastMoveUp,
+    undoLastMoveUp,
+    isUndoingMoveUp,
+    scratchAction,
+    closeScratchDialog,
+    confirmScratchNoShow,
+    isExecuting,
+  } = useShowMapActionExecutor({ showId: show.id });
   const attentionCount = tree.root.attentionCount ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
   const recommendedActions = useMemo(() => getRecommendedActions('root', { tree }), [tree]);
   const priorityActions = useMemo(() => getRankedActions('root', { tree }), [tree]);
+  const moveUpTargets = useMemo(
+    () => buildMoveUpTargets(classes, moveUpAction?.classId),
+    [classes, moveUpAction?.classId]
+  );
+  const moveUpCurrentClass = moveUpAction?.classId
+    ? tree.nodesById[`class:${moveUpAction.classId}`]
+    : undefined;
 
   if (!canManageShow) {
     return <ErrorState message="Show Map is only available to show staff." />;
@@ -229,6 +294,7 @@ export default function ShowMapTab({
       />
       <div className="p-3">
         <PriorityQueue actions={priorityActions} onNavigate={navigateTo} onAction={executeAction} />
+        <MoveUpUndoBanner moveUp={lastMoveUp} isUndoing={isUndoingMoveUp} onUndo={undoLastMoveUp} />
         <ShowMapStructureTable
           tree={tree}
           expandedNodeIds={expandedNodeIds}
@@ -238,6 +304,18 @@ export default function ShowMapTab({
           onAction={executeAction}
         />
       </div>
+      <ShowMapMoveUpDialog
+        key={moveUpAction?.nodeId ?? 'move-up-dialog'}
+        open={Boolean(moveUpAction)}
+        node={moveUpAction ? tree.nodesById[moveUpAction.nodeId] : undefined}
+        currentClass={moveUpCurrentClass}
+        targets={moveUpTargets}
+        isSubmitting={isExecuting}
+        onOpenChange={open => {
+          if (!open) closeMoveUpDialog();
+        }}
+        onConfirm={confirmMoveUp}
+      />
       <ShowMapScratchNoShowDialog
         key={scratchAction?.nodeId ?? 'scratch-dialog'}
         open={Boolean(scratchAction)}

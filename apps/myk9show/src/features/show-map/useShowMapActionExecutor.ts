@@ -9,8 +9,12 @@ import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
   markShowMapEntryCheckedIn,
+  moveUpShowMapEntry,
   scratchShowMapEntry,
   sourceIdFromShowMapNodeId,
+  undoShowMapMoveUp,
+  type ShowMapMoveUpResult,
+  type ShowMapMoveUpUndoInput,
 } from './showMapActionMutations';
 
 interface UseShowMapActionExecutorInput {
@@ -20,6 +24,18 @@ interface UseShowMapActionExecutorInput {
 interface MutationInput {
   action: ShowMapAction;
   execution: Extract<ExecutableShowMapActionExecution, { kind: 'mutation' }>;
+}
+
+export interface ConfirmShowMapMoveUpInput {
+  targetClassId: string;
+  reason?: string | undefined;
+}
+
+export interface LastShowMapMoveUp extends ShowMapMoveUpUndoInput {
+  entryLabel: string;
+  targetClassName: string | null;
+  targetClassId: string;
+  classId?: string | undefined;
 }
 
 function markRowCheckedIn<T extends Record<string, unknown>>(
@@ -69,6 +85,22 @@ function markCheckInReportCheckedIn(
 export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInput) {
   const queryClient = useQueryClient();
   const [scratchAction, setScratchAction] = useState<ShowMapAction | null>(null);
+  const [moveUpAction, setMoveUpAction] = useState<ShowMapAction | null>(null);
+  const [lastMoveUp, setLastMoveUp] = useState<LastShowMapMoveUp | null>(null);
+
+  const invalidateShowMapActionQueries = useCallback(
+    (classId?: string | undefined) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(showId) });
+      queryClient.invalidateQueries({ queryKey: ['show-day'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.entries });
+      if (classId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.classEntries(classId) });
+        queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
+      }
+    },
+    [queryClient, showId]
+  );
 
   const mutation = useMutation({
     mutationFn: async ({ action, execution }: MutationInput) => {
@@ -185,18 +217,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       toast.error(getUserFriendlyError(error));
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(showId) });
-      queryClient.invalidateQueries({ queryKey: ['show-day'] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.entries });
-      if (variables?.action.classId) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.classEntries(variables.action.classId),
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['classes', variables.action.classId, 'entries'],
-        });
-      }
+      invalidateShowMapActionQueries(variables?.action.classId);
     },
   });
 
@@ -221,23 +242,71 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       toast.error(getUserFriendlyError(error));
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(showId) });
-      queryClient.invalidateQueries({ queryKey: ['show-day'] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.entries });
-      if (variables?.action.classId) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.classEntries(variables.action.classId),
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['classes', variables.action.classId, 'entries'],
-        });
-      }
+      invalidateShowMapActionQueries(variables?.action.classId);
+    },
+  });
+
+  const undoMoveUpMutation = useMutation({
+    mutationFn: async (input: LastShowMapMoveUp) => undoShowMapMoveUp(input),
+    onSuccess: () => {
+      toast.success('Move-up undone');
+      setLastMoveUp(null);
+    },
+    onError: error => {
+      toast.error(getUserFriendlyError(error));
+    },
+    onSettled: (_data, _error, variables) => {
+      invalidateShowMapActionQueries(variables?.classId);
+      invalidateShowMapActionQueries(variables?.targetClassId);
+    },
+  });
+
+  const moveUpMutation = useMutation({
+    mutationFn: async ({
+      action,
+      targetClassId,
+      reason,
+    }: {
+      action: ShowMapAction;
+      targetClassId: string;
+      reason?: string | undefined;
+    }): Promise<ShowMapMoveUpResult> => {
+      const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
+      if (!entryId) throw new Error('Unable to find the entry for this action.');
+
+      return moveUpShowMapEntry({ entryId, targetClassId, reason });
+    },
+    onSuccess: (result, { action, targetClassId }) => {
+      const nextLastMoveUp = {
+        originalEntryId: result.originalEntryId,
+        newEntryId: result.newEntryId,
+        previousEntryStatus: result.previousEntryStatus,
+        previousCheckInStatus: result.previousCheckInStatus,
+        previousSpecialRequests: result.previousSpecialRequests,
+        entryLabel: action.label,
+        targetClassName: result.targetClassName,
+        targetClassId,
+        classId: action.classId,
+      };
+      setLastMoveUp(nextLastMoveUp);
+      setMoveUpAction(null);
+      toast.success('Entry moved up');
+    },
+    onError: error => {
+      toast.error(getUserFriendlyError(error));
+    },
+    onSettled: (_data, _error, variables) => {
+      invalidateShowMapActionQueries(variables?.action.classId);
+      invalidateShowMapActionQueries(variables?.targetClassId);
     },
   });
 
   const executeAction = useCallback(
     (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => {
+      if (execution.kind === 'dialog' && execution.dialog === 'move-up-entry') {
+        setMoveUpAction(action);
+        return;
+      }
       if (execution.kind === 'dialog' && execution.dialog === 'scratch-entry') {
         setScratchAction(action);
         return;
@@ -251,11 +320,21 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
 
   return {
     executeAction,
+    moveUpAction,
+    closeMoveUpDialog: () => setMoveUpAction(null),
+    confirmMoveUp: ({ targetClassId, reason }: ConfirmShowMapMoveUpInput) => {
+      if (moveUpAction) moveUpMutation.mutate({ action: moveUpAction, targetClassId, reason });
+    },
+    lastMoveUp,
+    undoLastMoveUp: () => {
+      if (lastMoveUp) undoMoveUpMutation.mutate(lastMoveUp);
+    },
+    isUndoingMoveUp: undoMoveUpMutation.isPending,
     scratchAction,
     closeScratchDialog: () => setScratchAction(null),
     confirmScratchNoShow: (reason: string | undefined) => {
       if (scratchAction) scratchMutation.mutate({ action: scratchAction, reason });
     },
-    isExecuting: mutation.isPending || scratchMutation.isPending,
+    isExecuting: mutation.isPending || scratchMutation.isPending || moveUpMutation.isPending,
   };
 }

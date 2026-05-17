@@ -107,6 +107,11 @@ describe('phaseChecklistDefinitions', () => {
     expect(itemStatus('today-run-order-ready', context)).toBe(false);
   });
 
+  it('requires trials and classes before marking the Show Map ready', () => {
+    expect(itemStatus('today-tools-ready', baseContext({ classes: [] }))).toBe(false);
+    expect(itemStatus('today-tools-ready', baseContext())).toBe(true);
+  });
+
   it('marks wrap-up scoring complete only when all entries are scored', () => {
     const incomplete = baseContext({
       classes: [

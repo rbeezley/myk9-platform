@@ -75,7 +75,11 @@ function classesAreScored(classes: ShowWorkbenchClassSummary[]): boolean {
   );
 }
 
-export const phaseChecklistDefinitions: PhaseChecklistDefinition[] = [
+// INTENT: Manual-only checks are local guidance for now, not audit records.
+// Promote these to a server-backed checklist table only after real-user validation.
+const manualOnly = () => false;
+
+const phaseChecklistDefinitions: PhaseChecklistDefinition[] = [
   {
     id: 'setup-show-details',
     phase: 'setup',
@@ -120,9 +124,9 @@ export const phaseChecklistDefinitions: PhaseChecklistDefinition[] = [
   {
     id: 'today-tools-ready',
     phase: 'today',
-    title: 'Show-day tools are open',
-    detail: 'MyK9Q access and the Show Map are available for the active show.',
-    autoComplete: ({ show }) => hasText(show.id),
+    title: 'Show Map is built',
+    detail: 'Trials and classes are loaded so the desk can work from the map.',
+    autoComplete: ({ trials, classes }) => trials.length > 0 && classes.length > 0,
   },
   {
     id: 'today-entries-loaded',
@@ -154,7 +158,7 @@ export const phaseChecklistDefinitions: PhaseChecklistDefinition[] = [
     phase: 'today',
     title: 'Attention queue has been reviewed',
     detail: 'Use the priority queue and Show Map attention lens before closing the day.',
-    autoComplete: () => false,
+    autoComplete: manualOnly,
   },
   {
     id: 'wrap-classes-complete',
@@ -175,21 +179,21 @@ export const phaseChecklistDefinitions: PhaseChecklistDefinition[] = [
     phase: 'wrap-up',
     title: 'Results are reviewed',
     detail: 'Open Results Control and confirm placements before publishing or filing.',
-    autoComplete: () => false,
+    autoComplete: manualOnly,
   },
   {
     id: 'wrap-reports-printed',
     phase: 'wrap-up',
     title: 'Reports are printed or exported',
     detail: 'Judge certification, secretary reports, and labels are ready for records.',
-    autoComplete: () => false,
+    autoComplete: manualOnly,
   },
   {
     id: 'wrap-submission-ready',
     phase: 'wrap-up',
     title: 'Submission packet is ready',
     detail: 'Final files are ready for registry submission from the closeout tools.',
-    autoComplete: () => false,
+    autoComplete: manualOnly,
   },
 ];
 

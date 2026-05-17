@@ -65,12 +65,12 @@ function toChecklistEntrySummary(entry: {
   entry_status?: string | null | undefined;
   check_in_status?: string | null | undefined;
 }): ShowWorkbenchEntrySummary {
-  const summary: ShowWorkbenchEntrySummary = {};
-  if (entry.id) summary.id = entry.id;
-  if (entry.class_id) summary.class_id = entry.class_id;
-  if (entry.entry_status !== undefined) summary.entry_status = entry.entry_status;
-  if (entry.check_in_status !== undefined) summary.check_in_status = entry.check_in_status;
-  return summary;
+  return {
+    id: entry.id ?? undefined,
+    class_id: entry.class_id ?? undefined,
+    entry_status: entry.entry_status ?? undefined,
+    check_in_status: entry.check_in_status ?? undefined,
+  };
 }
 
 export function ShowWorkbenchPage() {
@@ -250,7 +250,12 @@ export function ShowWorkbenchPage() {
           <PhaseShell title="Setup" kicker="Before the show" />
           <div className="space-y-6">
             {checklistContext && (
-              <PhaseChecklist phase="setup" showId={currentShow.id} context={checklistContext} />
+              <PhaseChecklist
+                key={`${currentShow.id}:setup`}
+                phase="setup"
+                showId={currentShow.id}
+                context={checklistContext}
+              />
             )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PremiumDownloadCard showId={currentShow.id} showStaleBadge />
@@ -273,7 +278,12 @@ export function ShowWorkbenchPage() {
           <PhaseShell title="Today" kicker="Live operations" />
           <div className="space-y-4">
             {checklistContext && (
-              <PhaseChecklist phase="today" showId={currentShow.id} context={checklistContext} />
+              <PhaseChecklist
+                key={`${currentShow.id}:today`}
+                phase="today"
+                showId={currentShow.id}
+                context={checklistContext}
+              />
             )}
             <MyK9QAccessCard
               showId={currentShow.id}
@@ -296,7 +306,12 @@ export function ShowWorkbenchPage() {
           <PhaseShell title="Wrap-up" kicker="After the show" />
           <div className="space-y-4">
             {checklistContext && (
-              <PhaseChecklist phase="wrap-up" showId={currentShow.id} context={checklistContext} />
+              <PhaseChecklist
+                key={`${currentShow.id}:wrap-up`}
+                phase="wrap-up"
+                showId={currentShow.id}
+                context={checklistContext}
+              />
             )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">

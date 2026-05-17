@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import {
   getPhaseChecklistDefinitions,
   type PhaseChecklistContext,
+  type PhaseChecklistDefinition,
 } from './phaseChecklistDefinitions';
 import type { ShowWorkbenchPhase } from '@/hooks/useActivePhase';
 
@@ -21,11 +22,22 @@ interface PhaseChecklistProps {
   context: PhaseChecklistContext;
 }
 
+interface PhaseChecklistBodyProps {
+  phase: ShowWorkbenchPhase;
+  showId: string;
+  autoCompleteIds: string[];
+  definitions: PhaseChecklistDefinition[];
+}
+
 function storageKey(showId: string, phase: ShowWorkbenchPhase): string {
   return `myk9show:workbench-checklist:${showId}:${phase}`;
 }
 
-function readStoredState(showId: string, phase: ShowWorkbenchPhase): ManualChecklistState {
+function readStoredState(
+  showId: string,
+  phase: ShowWorkbenchPhase,
+  ignoredIds: Set<string>
+): ManualChecklistState {
   if (typeof window === 'undefined') return {};
   const raw = window.localStorage.getItem(storageKey(showId, phase));
   if (!raw) return {};
@@ -34,12 +46,21 @@ function readStoredState(showId: string, phase: ShowWorkbenchPhase): ManualCheck
     return Object.fromEntries(
       Object.entries(parsed).filter(
         (entry): entry is [string, ManualChecklistValue] =>
-          entry[1] === 'checked' || entry[1] === 'skipped'
+          (entry[1] === 'checked' || entry[1] === 'skipped') && !ignoredIds.has(entry[0])
       )
     );
   } catch {
     return {};
   }
+}
+
+function writeStoredState(
+  showId: string,
+  phase: ShowWorkbenchPhase,
+  state: ManualChecklistState
+) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(storageKey(showId, phase), JSON.stringify(state));
 }
 
 function statusForItem(
@@ -64,23 +85,19 @@ function StatusIcon({ status }: { status: ResolvedChecklistStatus }) {
   return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
 }
 
-export function PhaseChecklist({ phase, showId, context }: PhaseChecklistProps) {
-  const definitions = useMemo(() => getPhaseChecklistDefinitions(phase), [phase]);
+function PhaseChecklistBody({
+  phase,
+  showId,
+  autoCompleteIds,
+  definitions,
+}: PhaseChecklistBodyProps) {
+  const autoCompleteIdSet = useMemo(() => new Set(autoCompleteIds), [autoCompleteIds]);
   const [manualState, setManualState] = useState<ManualChecklistState>(() =>
-    readStoredState(showId, phase)
+    readStoredState(showId, phase, autoCompleteIdSet)
   );
 
-  useEffect(() => {
-    setManualState(readStoredState(showId, phase));
-  }, [phase, showId]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(storageKey(showId, phase), JSON.stringify(manualState));
-  }, [manualState, phase, showId]);
-
   const items = definitions.map(definition => {
-    const autoComplete = definition.autoComplete(context);
+    const autoComplete = autoCompleteIdSet.has(definition.id);
     return {
       ...definition,
       autoComplete,
@@ -90,11 +107,16 @@ export function PhaseChecklist({ phase, showId, context }: PhaseChecklistProps) 
   const handledCount = items.filter(item => item.status !== 'open').length;
   const progress = items.length > 0 ? Math.round((handledCount / items.length) * 100) : 0;
 
+  useEffect(() => {
+    writeStoredState(showId, phase, manualState);
+  }, [manualState, phase, showId]);
+
   function setManualItem(itemId: string, value: ManualChecklistValue | null) {
     setManualState(current => {
       const next = { ...current };
       if (value === null) delete next[itemId];
       else next[itemId] = value;
+      writeStoredState(showId, phase, next);
       return next;
     });
   }
@@ -121,6 +143,8 @@ export function PhaseChecklist({ phase, showId, context }: PhaseChecklistProps) 
         {items.map(item => {
           const isHandled = item.status !== 'open';
           const isAutoComplete = item.status === 'auto';
+          const titleId = `${item.id}-title`;
+          const statusId = `${item.id}-status`;
           return (
             <div
               key={item.id}
@@ -130,7 +154,8 @@ export function PhaseChecklist({ phase, showId, context }: PhaseChecklistProps) 
               <Checkbox
                 checked={isHandled}
                 disabled={isAutoComplete}
-                aria-label={`${item.title}: ${statusLabel(item.status)}`}
+                aria-labelledby={titleId}
+                aria-describedby={statusId}
                 className={cn('mt-0.5', isAutoComplete && 'opacity-100')}
                 onCheckedChange={checked =>
                   setManualItem(item.id, checked ? 'checked' : null)
@@ -140,11 +165,18 @@ export function PhaseChecklist({ phase, showId, context }: PhaseChecklistProps) 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-2">
                     <StatusIcon status={item.status} />
-                    <p className="font-medium text-foreground">{item.title}</p>
+                    <p id={titleId} className="font-medium text-foreground">
+                      {item.title}
+                    </p>
                   </div>
                   <Badge
+                    id={statusId}
                     variant={item.status === 'open' ? 'outline' : 'secondary'}
-                    className="w-fit"
+                    className={cn(
+                      'w-fit',
+                      item.status === 'auto' &&
+                        'bg-emerald-50 text-emerald-700 hover:bg-emerald-50'
+                    )}
                   >
                     {statusLabel(item.status)}
                   </Badge>
@@ -190,5 +222,24 @@ export function PhaseChecklist({ phase, showId, context }: PhaseChecklistProps) 
         })}
       </div>
     </section>
+  );
+}
+
+export function PhaseChecklist({ phase, showId, context }: PhaseChecklistProps) {
+  const definitions = useMemo(() => getPhaseChecklistDefinitions(phase), [phase]);
+  const autoCompleteIds = useMemo(
+    () => definitions.filter(definition => definition.autoComplete(context)).map(item => item.id),
+    [context, definitions]
+  );
+  const autoCompleteKey = autoCompleteIds.join('|');
+
+  return (
+    <PhaseChecklistBody
+      key={`${showId}:${phase}:${autoCompleteKey}`}
+      phase={phase}
+      showId={showId}
+      autoCompleteIds={autoCompleteIds}
+      definitions={definitions}
+    />
   );
 }

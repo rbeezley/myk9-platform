@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
@@ -9,6 +9,7 @@ import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
   markShowMapEntryCheckedIn,
+  scratchShowMapEntry,
   sourceIdFromShowMapNodeId,
 } from './showMapActionMutations';
 
@@ -21,7 +22,10 @@ interface MutationInput {
   execution: Extract<ExecutableShowMapActionExecution, { kind: 'mutation' }>;
 }
 
-function markRowCheckedIn<T extends Record<string, unknown>>(rows: T[] | undefined, entryId: string) {
+function markRowCheckedIn<T extends Record<string, unknown>>(
+  rows: T[] | undefined,
+  entryId: string
+) {
   if (!rows) return rows;
   return rows.map(row =>
     row.id === entryId ? { ...row, check_in_status: 'checked-in' } : row
@@ -33,9 +37,7 @@ function markShowDayDetailsCheckedIn(
   entryId: string
 ): ShowDayDetailRow[] | undefined {
   if (!rows) return rows;
-  return rows.map(row =>
-    row.id === entryId ? { ...row, check_in_status: 'checked-in' } : row
-  );
+  return rows.map(row => (row.id === entryId ? { ...row, check_in_status: 'checked-in' } : row));
 }
 
 function markCheckInReportCheckedIn(
@@ -66,6 +68,7 @@ function markCheckInReportCheckedIn(
 
 export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInput) {
   const queryClient = useQueryClient();
+  const [scratchAction, setScratchAction] = useState<ShowMapAction | null>(null);
 
   const mutation = useMutation({
     mutationFn: async ({ action, execution }: MutationInput) => {
@@ -117,26 +120,21 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
           })
         : [];
 
-      queryClient.setQueryData<Record<string, unknown>[]>(
-        queryKeys.showEntries(showId),
-        rows => markRowCheckedIn(rows, entryId)
+      queryClient.setQueryData<Record<string, unknown>[]>(queryKeys.showEntries(showId), rows =>
+        markRowCheckedIn(rows, entryId)
       );
-      queryClient.setQueriesData<Record<string, unknown>[]>(
-        { queryKey: queryKeys.entries },
-        rows => markRowCheckedIn(rows, entryId)
+      queryClient.setQueriesData<Record<string, unknown>[]>({ queryKey: queryKeys.entries }, rows =>
+        markRowCheckedIn(rows, entryId)
       );
-      queryClient.setQueryData<ExhibitorCheckInGroup[]>(
-        queryKeys.checkInReport(showId),
-        groups => markCheckInReportCheckedIn(groups, entryId)
+      queryClient.setQueryData<ExhibitorCheckInGroup[]>(queryKeys.checkInReport(showId), groups =>
+        markCheckInReportCheckedIn(groups, entryId)
       );
-      queryClient.setQueriesData<ShowDayDetailRow[]>(
-        { queryKey: ['show-day', 'details'] },
-        rows => markShowDayDetailsCheckedIn(rows, entryId)
+      queryClient.setQueriesData<ShowDayDetailRow[]>({ queryKey: ['show-day', 'details'] }, rows =>
+        markShowDayDetailsCheckedIn(rows, entryId)
       );
       if (classId) {
-        queryClient.setQueryData<Record<string, unknown>[]>(
-          queryKeys.classEntries(classId),
-          rows => markRowCheckedIn(rows, entryId)
+        queryClient.setQueryData<Record<string, unknown>[]>(queryKeys.classEntries(classId), rows =>
+          markRowCheckedIn(rows, entryId)
         );
         queryClient.setQueriesData<Record<string, unknown>[]>(
           { queryKey: ['classes', classId, 'entries'] },
@@ -192,7 +190,45 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       queryClient.invalidateQueries({ queryKey: ['show-day'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.entries });
       if (variables?.action.classId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.classEntries(variables.action.classId) });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.classEntries(variables.action.classId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['classes', variables.action.classId, 'entries'],
+        });
+      }
+    },
+  });
+
+  const scratchMutation = useMutation({
+    mutationFn: async ({
+      action,
+      reason,
+    }: {
+      action: ShowMapAction;
+      reason?: string | undefined;
+    }) => {
+      const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
+      if (!entryId) throw new Error('Unable to find the entry for this action.');
+
+      await scratchShowMapEntry(entryId, reason);
+    },
+    onSuccess: () => {
+      toast.success('Entry marked pulled');
+      setScratchAction(null);
+    },
+    onError: error => {
+      toast.error(getUserFriendlyError(error));
+    },
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(showId) });
+      queryClient.invalidateQueries({ queryKey: ['show-day'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.entries });
+      if (variables?.action.classId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.classEntries(variables.action.classId),
+        });
         queryClient.invalidateQueries({
           queryKey: ['classes', variables.action.classId, 'entries'],
         });
@@ -202,6 +238,10 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
 
   const executeAction = useCallback(
     (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => {
+      if (execution.kind === 'dialog' && execution.dialog === 'scratch-entry') {
+        setScratchAction(action);
+        return;
+      }
       if (execution.kind === 'mutation') {
         mutation.mutate({ action, execution });
       }
@@ -211,6 +251,11 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
 
   return {
     executeAction,
-    isExecuting: mutation.isPending,
+    scratchAction,
+    closeScratchDialog: () => setScratchAction(null),
+    confirmScratchNoShow: (reason: string | undefined) => {
+      if (scratchAction) scratchMutation.mutate({ action: scratchAction, reason });
+    },
+    isExecuting: mutation.isPending || scratchMutation.isPending,
   };
 }

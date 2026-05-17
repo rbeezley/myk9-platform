@@ -19,3 +19,22 @@ export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> 
     throw createDatabaseError(error, 'entries', 'show_map_mark_checked_in');
   }
 }
+
+export async function scratchShowMapEntry(
+  entryId: string,
+  reason: string | undefined
+): Promise<void> {
+  const { error } = await supabase
+    .from('entries')
+    .update({
+      entry_status: 'scratched',
+      check_in_status: 'pulled',
+      withdrawal_reason: reason?.trim() || 'Marked no-show from Show Map',
+      updated_at: new Date().toISOString(),
+    } as Record<string, unknown>)
+    .eq('id', entryId);
+
+  if (error) {
+    throw createDatabaseError(error, 'entries', 'show_map_scratch_entry');
+  }
+}

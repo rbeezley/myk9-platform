@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import ShowMapTab from '../ShowMapTab';
@@ -106,9 +106,7 @@ describe('ShowMapTab', () => {
       }))
     );
 
-    render(
-      <ShowMapTab show={show} trials={trials} classes={classes} entries={[]} canManageShow />
-    );
+    render(<ShowMapTab show={show} trials={trials} classes={classes} entries={[]} canManageShow />);
 
     // Trial rows render (root is expanded). Class rows do not (trials are collapsed).
     expect(screen.getByText('Trial 1')).toBeInTheDocument();
@@ -171,6 +169,56 @@ describe('ShowMapTab', () => {
     expect(queueRow).toContainElement(label);
     expect(mockFrom).toHaveBeenCalledWith('entries');
     expect(mockUpdate).toHaveBeenCalledWith({ check_in_status: 'checked-in' });
+    expect(mockEq).toHaveBeenCalledWith('id', 'entry-1');
+  });
+
+  it('opens the scratch / no-show dialog and writes pulled status', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            armband: '12',
+            dog: { call_name: 'Bella' },
+            check_in_status: 'checked-in',
+          },
+        ]}
+        canManageShow
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
+    await user.click(screen.getByRole('button', { name: /expand interior novice a/i }));
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /scratch \/ no-show/i }));
+
+    expect(screen.getByRole('dialog', { name: /mark scratch \/ no-show/i })).toBeInTheDocument();
+    expect(screen.getByText(/refunds are not automatic/i)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/reason/i), 'Dog absent');
+    await user.click(screen.getByRole('button', { name: /mark pulled/i }));
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entry_status: 'scratched',
+          check_in_status: 'pulled',
+          withdrawal_reason: 'Dog absent',
+          updated_at: expect.any(String),
+        })
+      );
+    });
     expect(mockEq).toHaveBeenCalledWith('id', 'entry-1');
   });
 });

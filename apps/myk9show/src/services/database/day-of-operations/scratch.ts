@@ -22,6 +22,8 @@ export const scratchEntry = async (entryId: string, reason?: string) => {
       .from('entries')
       .update({
         entry_status: 'scratched',
+        check_in_status: 'pulled',
+        withdrawal_reason: reason || 'Pulled day-of',
         special_requests: reason || 'Pulled day-of',
         updated_at: new Date().toISOString(),
       })
@@ -294,6 +296,7 @@ export const approveScratchRequest = async (
       .from('entries')
       .update({
         entry_status: 'scratched',
+        check_in_status: 'pulled',
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
@@ -302,6 +305,7 @@ export const approveScratchRequest = async (
         `
         id,
         entry_status,
+        check_in_status,
         entry_fee,
         handler,
         armband,

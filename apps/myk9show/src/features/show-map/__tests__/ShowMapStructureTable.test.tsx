@@ -393,6 +393,51 @@ describe('ShowMapStructureTable', () => {
     );
   });
 
+  it('executes scratch / no-show through the shared dialog executor', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+        },
+      ],
+    });
+    const onAction = vi.fn();
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+        onAction={onAction}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /scratch \/ no-show/i }));
+
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'scratch-entry',
+        nodeId: 'entry:entry-1',
+        classId: 'class-attention',
+      }),
+      {
+        kind: 'dialog',
+        dialog: 'scratch-entry',
+      }
+    );
+  });
+
   it('keeps remaining placeholder entry actions disabled behind clear reasons until adapters ship', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');
@@ -427,11 +472,6 @@ describe('ShowMapStructureTable', () => {
       'true'
     );
     expect(screen.getByText(/move-ups from show map are coming next/i)).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /scratch \/ no-show/i })).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
-    expect(screen.getByText(/scratches from show map are coming next/i)).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /message handler/i })).toHaveAttribute(
       'aria-disabled',
       'true'

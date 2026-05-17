@@ -10,6 +10,7 @@ import {
   getTrialsExpandedNodeIds,
 } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
+import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { ShowMapToolbar } from './ShowMapToolbar';
 import { countCatalogEntries } from './entryCounts';
 import { getRankedActions, getRecommendedActions } from './showMapActions';
@@ -159,7 +160,8 @@ export default function ShowMapTab({
   );
   const { expandedNodeIds, toggleNode, collapseAll, expandTrials } = useExpandedNodes(tree);
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
-  const { executeAction } = useShowMapActionExecutor({ showId: show.id });
+  const { executeAction, scratchAction, closeScratchDialog, confirmScratchNoShow, isExecuting } =
+    useShowMapActionExecutor({ showId: show.id });
   const attentionCount = tree.root.attentionCount ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
   const recommendedActions = useMemo(() => getRecommendedActions('root', { tree }), [tree]);
@@ -236,6 +238,16 @@ export default function ShowMapTab({
           onAction={executeAction}
         />
       </div>
+      <ShowMapScratchNoShowDialog
+        key={scratchAction?.nodeId ?? 'scratch-dialog'}
+        open={Boolean(scratchAction)}
+        node={scratchAction ? tree.nodesById[scratchAction.nodeId] : undefined}
+        isSubmitting={isExecuting}
+        onOpenChange={open => {
+          if (!open) closeScratchDialog();
+        }}
+        onConfirm={confirmScratchNoShow}
+      />
     </div>
   );
 }

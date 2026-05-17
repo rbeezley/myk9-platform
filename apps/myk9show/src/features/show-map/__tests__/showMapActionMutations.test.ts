@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   markShowMapEntryCheckedIn,
+  scratchShowMapEntry,
   sourceIdFromShowMapNodeId,
 } from '../showMapActionMutations';
 
@@ -48,5 +49,36 @@ describe('showMapActionMutations', () => {
     mockFrom.mockReturnValue(chain);
 
     await expect(markShowMapEntryCheckedIn('entry-1')).rejects.toThrow('permission denied');
+  });
+
+  it('marks a scratch / no-show as pulled for ringside propagation', async () => {
+    const chain = makeUpdateChain();
+    mockFrom.mockReturnValue(chain);
+
+    await scratchShowMapEntry('entry-1', 'Dog absent');
+
+    expect(mockFrom).toHaveBeenCalledWith('entries');
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entry_status: 'scratched',
+        check_in_status: 'pulled',
+        withdrawal_reason: 'Dog absent',
+        updated_at: expect.any(String),
+      })
+    );
+    expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
+  });
+
+  it('uses a plain default reason when scratch / no-show has no typed reason', async () => {
+    const chain = makeUpdateChain();
+    mockFrom.mockReturnValue(chain);
+
+    await scratchShowMapEntry('entry-1', '  ');
+
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        withdrawal_reason: 'Marked no-show from Show Map',
+      })
+    );
   });
 });

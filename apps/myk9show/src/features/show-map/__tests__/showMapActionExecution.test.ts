@@ -66,15 +66,24 @@ describe('showMapActionExecution', () => {
     expect(isShowMapActionEnabled(markCheckedIn)).toBe(true);
   });
 
+  it('enables scratch / no-show through the shared dialog lane', () => {
+    const scratch = makeAction({
+      id: 'scratch-entry',
+      label: 'Scratch / no-show',
+      href: null,
+    });
+
+    expect(resolveShowMapActionExecution(scratch)).toEqual({
+      kind: 'dialog',
+      dialog: 'scratch-entry',
+    });
+    expect(isShowMapActionEnabled(scratch)).toBe(true);
+  });
+
   it('keeps remaining planned action work disabled behind explicit reasons', () => {
     const moveUp = makeAction({
       id: 'move-up-entry',
       label: 'Move up',
-      href: null,
-    });
-    const scratch = makeAction({
-      id: 'scratch-entry',
-      label: 'Scratch / no-show',
       href: null,
     });
     const messageHandler = makeAction({
@@ -87,11 +96,6 @@ describe('showMapActionExecution', () => {
       kind: 'disabled',
       futureKind: 'dialog',
       disabledReason: expect.stringContaining('Move-Ups'),
-    });
-    expect(resolveShowMapActionExecution(scratch)).toMatchObject({
-      kind: 'disabled',
-      futureKind: 'dialog',
-      disabledReason: expect.stringContaining('Pulled'),
     });
     expect(resolveShowMapActionExecution(messageHandler)).toMatchObject({
       kind: 'disabled',

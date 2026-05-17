@@ -28,6 +28,8 @@ export type EntryCheckInStatus =
   | 'pending';
 export type EntryResultStatus = 'qualified' | 'not-qualified' | 'excused' | 'pending';
 
+const PULLED_ENTRY_STATUSES = new Set(['pulled', 'scratch', 'scratched', 'withdrawn', 'absent']);
+
 /**
  * Represents a dog/entry in a class with minimal required fields
  */
@@ -314,6 +316,7 @@ export function getCheckInStatusIcon(
 export function determineEntryStatus(entryStatus?: string | null, isInRing?: boolean): EntryStatus {
   // If entry_status exists, use it directly
   if (entryStatus) {
+    if (PULLED_ENTRY_STATUSES.has(entryStatus.toLowerCase())) return 'pulled';
     return entryStatus as EntryStatus;
   }
 

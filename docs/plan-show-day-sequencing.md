@@ -96,7 +96,7 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 **Scope:**
 
 - **Tree extensions:** time scoping (Today/Tomorrow/All) with myK9Q-style Completed view + dim treatment for non-today trials; Running Now pinned strip; wrap-up status taxonomy (signed-by-judge, submitted-to-AKC); Attention-only filter as task-tracker lens.
-- **Guided-UX surfaces:** Next Best Action card promoted to a first-class workbench element (already shipped in v1 form per the audit — extend it here); phase checklists on Setup/Today/Wrap-up; contextual "About this page" strips; "What do I do if…" help panel.
+- **Guided-UX surfaces:** Next Best Action card promoted to a first-class workbench element (already shipped in v1 form per the audit — extend it here); phase checklists on Setup/Today/Wrap-up; contextual "About this page" strips; "What do I do if…" entry points into the existing AskQ help panel.
 
 **OPEN-TODOS items covered:**
 

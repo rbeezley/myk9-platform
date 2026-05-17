@@ -18,7 +18,7 @@ In scope:
 - Extend `ShowMapTab` inside the Today phase with time scoping, a Completed view, and a Running Now strip.
 - Promote the existing Next Best Action / Priority Queue concepts into first-class workbench guidance.
 - Add phase checklists for Setup, Today, and Wrap-up.
-- Add dismissible "About this page" guidance and a searchable "What do I do if..." help panel.
+- Add dismissible "About this page" guidance and secretary-specific "What do I do if..." entry points into the existing AskQ help panel.
 - Extend wrap-up classification so the tree can surface report/signature/submission attention.
 
 Out of scope:
@@ -31,7 +31,7 @@ Out of scope:
 
 1. **One priority source.** Next Best Action, Priority Queue, Recommended row actions, and Attention filtering continue to derive from `getRankedActions(scope, state)` / attention helpers in `features/show-map`.
 2. **One time-scope contract.** Today/Tomorrow/All and Active/Completed filtering live in a shared show-map helper, not scattered through toolbar and tree rendering.
-3. **Guidance is advisory.** Checklists, about strips, and help panels never block the secretary from doing the work out of order.
+3. **Guidance is advisory.** Checklists, about strips, and AskQ help entry points never block the secretary from doing the work out of order.
 4. **Workbench first.** New guided surfaces are authored for `/secretary/shows/:showId` phases, not for legacy dashboard/day-of pages.
 
 ## Parallel Tracks
@@ -40,7 +40,7 @@ These can run in parallel after PR 1 defines the shared time-scope shape:
 
 - **Tree track:** time scope, Completed view, Running Now strip.
 - **Guidance track:** Next Best Action workbench placement, phase checklists, contextual strips.
-- **Help track:** "What do I do if..." content/search panel.
+- **Help track:** "What do I do if..." content/search entry points that reuse `AskQPanel`.
 - **Wrap-up track:** report/signature/submission taxonomy and attention actions.
 
 Avoid parallel edits to `ShowMapTab.tsx` by extracting helpers/components first, then assigning later PRs to disjoint files.
@@ -147,25 +147,28 @@ Tests:
 - Component test for dismiss behavior.
 - Workbench test for phase-specific copy.
 
-### PR 6 — "What do I do if..." help panel
+### PR 6 — "What do I do if..." AskQ entry points
 
 Files likely touched:
 
-- `apps/myk9show/src/features/show-workbench/helpTopics.ts`
-- `apps/myk9show/src/features/show-workbench/ShowDayHelpPanel.tsx`
+- `apps/myk9show/src/components/askq/askq-config.ts`
+- `apps/myk9show/src/components/askq/AskQPanel.tsx`
+- `apps/myk9show/src/components/askq/AskQExampleQueries.tsx`
+- `apps/myk9show/src/store/useAskQPanelStore.ts`
 - `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx`
 
 Deliverables:
 
-- Searchable slide-out help surface.
-- Decision-tree topics for common secretary questions: scratch/no-show, move-up, handler message, late entry, ring running behind, results submission.
-- Recommendations link to existing workbench panels/actions where possible.
+- Reuse the existing `AskQPanel` slide-over instead of creating a second help panel.
+- Add secretary show-day example prompts / quick actions for common questions: scratch/no-show, move-up, handler message, late entry, ring running behind, results submission.
+- Open AskQ from the workbench with a prefilled prompt or selected example when the secretary clicks "What do I do if...".
+- Preserve AskQ's existing rules, show-data, app-help categories and `showId` context inference.
 
 Tests:
 
-- Search/filter tests.
-- Topic rendering tests.
-- Workbench smoke test for opening the panel.
+- AskQ config/example tests for secretary show-day prompts.
+- AskQ panel/store tests for opening with a suggested prompt if a store extension is needed.
+- Workbench smoke test for opening AskQ from the "What do I do if..." entry point.
 
 ### PR 7 — Wrap-up status taxonomy
 
@@ -205,6 +208,6 @@ Phase C is done when:
 
 - A secretary opening Today can see what is running now, what needs attention, and what completed work is still reachable.
 - Setup, Today, and Wrap-up each provide a concise checklist and contextual guidance.
-- The help panel answers common "what do I do if..." questions without leaving the workbench.
+- AskQ answers common "what do I do if..." questions without leaving the workbench.
 - Wrap-up rows identify report/signature/submission gaps.
 - `OPEN-TODOS.md` and this plan are updated with shipped PR numbers.

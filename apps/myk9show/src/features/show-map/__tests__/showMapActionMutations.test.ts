@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  getShowMapHandlerMessageTarget,
   markShowMapEntryCheckedIn,
   moveUpShowMapEntry,
   scratchShowMapEntry,
@@ -105,6 +106,51 @@ describe('showMapActionMutations', () => {
         withdrawal_reason: 'Marked no-show from Show Map',
       })
     );
+  });
+
+  it('resolves a handler messaging target from the entry handler account', async () => {
+    const chain = makeSelectSingleChain({
+      data: {
+        handler: 'Jane Handler',
+        handler_person: {
+          auth_user_id: 'handler-auth-1',
+          first_name: 'Jane',
+          last_name: 'Handler',
+        },
+        dog: { call_name: 'Bella' },
+        class: { name: 'Interior Novice A' },
+      },
+      error: null,
+    });
+    mockFrom.mockReturnValue(chain);
+
+    await expect(getShowMapHandlerMessageTarget('entry-1')).resolves.toEqual({
+      participantAuthUserId: 'handler-auth-1',
+      handlerName: 'Jane Handler',
+      dogName: 'Bella',
+      className: 'Interior Novice A',
+    });
+
+    expect(mockFrom).toHaveBeenCalledWith('entries');
+    expect(chain.select).toHaveBeenCalledWith(expect.stringContaining('handler_person'));
+    expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
+  });
+
+  it('fails clearly when a handler does not have a messaging account', async () => {
+    const chain = makeSelectSingleChain({
+      data: {
+        handler: 'Jane Handler',
+        handler_person: {
+          auth_user_id: null,
+          first_name: 'Jane',
+          last_name: 'Handler',
+        },
+      },
+      error: null,
+    });
+    mockFrom.mockReturnValue(chain);
+
+    await expect(getShowMapHandlerMessageTarget('entry-1')).rejects.toThrow('messaging account');
   });
 
   it('moves an entry up through the day-of move-up operation and returns undo data', async () => {

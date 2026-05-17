@@ -94,17 +94,17 @@ describe('showMapActionExecution', () => {
     expect(isShowMapActionEnabled(moveUp)).toBe(true);
   });
 
-  it('keeps remaining planned action work disabled behind explicit reasons', () => {
+  it('enables message handler through the shared dialog lane', () => {
     const messageHandler = makeAction({
       id: 'message-handler',
       label: 'Message handler',
       href: null,
     });
 
-    expect(resolveShowMapActionExecution(messageHandler)).toMatchObject({
-      kind: 'disabled',
-      futureKind: 'dialog',
-      disabledReason: expect.stringContaining('Messages'),
+    expect(resolveShowMapActionExecution(messageHandler)).toEqual({
+      kind: 'dialog',
+      dialog: 'message-handler',
     });
+    expect(isShowMapActionEnabled(messageHandler)).toBe(true);
   });
 });

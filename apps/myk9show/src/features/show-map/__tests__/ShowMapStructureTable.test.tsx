@@ -483,7 +483,7 @@ describe('ShowMapStructureTable', () => {
     );
   });
 
-  it('keeps remaining placeholder entry actions disabled behind clear reasons until adapters ship', async () => {
+  it('executes message handler through the shared dialog executor', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');
 
@@ -501,21 +501,29 @@ describe('ShowMapStructureTable', () => {
       ],
     });
 
+    const onAction = vi.fn();
     const { user } = render(
       <ShowMapStructureTable
         tree={tree}
         expandedNodeIds={new Set(Object.keys(tree.nodesById))}
         filter="all"
         onToggle={vi.fn()}
+        onAction={onAction}
       />
     );
 
     await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /message handler/i }));
 
-    expect(await screen.findByRole('menuitem', { name: /message handler/i })).toHaveAttribute(
-      'aria-disabled',
-      'true'
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'message-handler',
+        nodeId: 'entry:entry-1',
+      }),
+      {
+        kind: 'dialog',
+        dialog: 'message-handler',
+      }
     );
-    expect(screen.getByText(/messaging from show map is coming next/i)).toBeInTheDocument();
   });
 });

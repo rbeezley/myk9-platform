@@ -63,9 +63,8 @@ export const showMapActionExecutionById = {
     dialog: 'scratch-entry',
   },
   'message-handler': {
-    kind: 'disabled',
-    futureKind: 'dialog',
-    disabledReason: 'Messaging from Show Map is coming next. Use Messages for now.',
+    kind: 'dialog',
+    dialog: 'message-handler',
   },
 } satisfies Record<ShowMapActionId, ShowMapActionExecution>;
 

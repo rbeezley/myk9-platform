@@ -52,17 +52,18 @@ These PRs may start after the shared contract merges.
    - May reuse existing `MoveUpDialog`; should keep state local to an action executor/provider.
 
 3. Scratch / no-show + refund boundary
-   - Status: implemented on `codex-show-day-scratch-no-show`.
+   - Status: merged via PR #219.
    - Owns scratch dialog adapter, no-show wording, and explicit manual-refund boundary.
    - If Stripe refunds are not ready, ship the manual-refund affordance rather than implying automatic refunding.
    - Also normalizes scratched/no-show entries to `check_in_status = pulled` so myK9Q ringside stops waiting on the dog.
 
 4. Message handler + canned replies
-   - Status: implemented on `codex-show-map-message-handler`.
+   - Status: merged via PR #221.
    - Owns message-handler dialog/sheet and canned reply template data.
    - Should not change scratch or move-up execution.
 
 5. Schedule-slip communication
+   - Status: deferred to Phase D in `docs/plan-show-day-sequencing.md`.
    - Owns schedule-slip action surface, exhibitor broadcast draft, and PA-script generator.
    - May add new action ids later through the same registry.
 

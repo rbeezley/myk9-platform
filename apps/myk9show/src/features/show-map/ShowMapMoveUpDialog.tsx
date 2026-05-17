@@ -77,7 +77,7 @@ export function ShowMapMoveUpDialog({
             <ArrowUpCircle className="h-5 w-5 text-primary" />
             Move up entry
           </DialogTitle>
-          <DialogDescription>Move this dog into another class.</DialogDescription>
+          <DialogDescription>Move this entry into another class.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

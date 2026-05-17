@@ -290,12 +290,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       };
       setLastMoveUp(nextLastMoveUp);
       setMoveUpAction(null);
-      toast.success('Entry moved up', {
-        action: {
-          label: 'Undo',
-          onClick: () => undoMoveUpMutation.mutate(nextLastMoveUp),
-        },
-      });
+      toast.success('Entry moved up');
     },
     onError: error => {
       toast.error(getUserFriendlyError(error));

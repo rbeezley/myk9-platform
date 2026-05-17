@@ -111,21 +111,15 @@ export async function moveUpShowMapEntry({
 }
 
 export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<void> {
-  const now = new Date().toISOString();
-  const { error: restoreError } = await supabase
-    .from('entries')
-    .update({
-      entry_status: input.previousEntryStatus ?? 'confirmed',
-      check_in_status: input.previousCheckInStatus,
-      special_requests: input.previousSpecialRequests,
-      updated_at: now,
-    } as Record<string, unknown>)
-    .eq('id', input.originalEntryId);
-
-  if (restoreError) {
-    throw createDatabaseError(restoreError, 'entries', 'show_map_undo_move_up_restore');
+  if (!input.previousEntryStatus) {
+    throw createDatabaseError(
+      new Error('Cannot undo move-up because the original entry status was not captured.'),
+      'entries',
+      'show_map_undo_move_up_restore'
+    );
   }
 
+  const now = new Date().toISOString();
   const { error: removeError } = await supabase
     .from('entries')
     .update({
@@ -136,5 +130,19 @@ export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<
 
   if (removeError) {
     throw createDatabaseError(removeError, 'entries', 'show_map_undo_move_up_remove');
+  }
+
+  const { error: restoreError } = await supabase
+    .from('entries')
+    .update({
+      entry_status: input.previousEntryStatus,
+      check_in_status: input.previousCheckInStatus,
+      special_requests: input.previousSpecialRequests,
+      updated_at: now,
+    } as Record<string, unknown>)
+    .eq('id', input.originalEntryId);
+
+  if (restoreError) {
+    throw createDatabaseError(restoreError, 'entries', 'show_map_undo_move_up_restore');
   }
 }

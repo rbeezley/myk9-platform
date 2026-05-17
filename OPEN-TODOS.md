@@ -298,6 +298,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 - [ ] **Require PRs to merge into main** — Enable branch protection on `main` with CI as required status check. No direct pushes to main in production.
 - [ ] **Make E2E CI jobs blocking** — Skipped historically due to billing issues + unstable test suite. Revisit once tests are stable.
 - [ ] **Pre-load AKC & UKC Judge Directory** — Import judge directories into `people` + `judge_qualifications` before launch. Format TBD; check akc.org and ukc.org for CSV/XML export.
+- [ ] **Regenerate `src/types/supabase.ts` to remove `db as any` casts** — Several services (`pipeline/services/checklistService.ts`, `judge-supplies/trialJudgeSuppliesService.ts`, and likely others) carry an `// eslint-disable-next-line @typescript-eslint/no-explicit-any` + `const db = supabase as any` workaround for tables not present in the generated `Database` type. Run `npx supabase gen types typescript --project-id sojmvhhwsjxmfistvzbe --schema public > apps/myk9show/src/types/supabase.ts`, then drop the `db as any` cast in every service that uses it. Grep `db = supabase as any` to find all callers in one pass. Worth doing before each launch so the cast doesn't metastasize.
 
 ## Post-Fall (parked — do not pick up before Phase 3 exit)
 

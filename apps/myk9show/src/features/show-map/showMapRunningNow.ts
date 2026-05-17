@@ -16,6 +16,16 @@ function percentScored(completed: number, total: number): number | undefined {
   return Math.round((completed / total) * 100);
 }
 
+function startTimeSortValue(startTime: string | undefined): number {
+  if (!startTime) return Number.POSITIVE_INFINITY;
+  const match = startTime.trim().match(/^(\d{1,2})(?::(\d{2}))?/);
+  if (!match) return Number.POSITIVE_INFINITY;
+  const hour = Number(match[1] ?? Number.NaN);
+  const minute = Number(match[2] ?? 0);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return Number.POSITIVE_INFINITY;
+  return hour * 60 + minute;
+}
+
 export function getRunningNowItems(
   tree: ShowMapTree,
   scope: ShowMapScopeState,
@@ -39,7 +49,7 @@ export function getRunningNowItems(
         : {}),
     }))
     .sort((a, b) => {
-      const start = (a.startTime ?? '').localeCompare(b.startTime ?? '');
+      const start = startTimeSortValue(a.startTime) - startTimeSortValue(b.startTime);
       if (start !== 0) return start;
       return a.label.localeCompare(b.label);
     });

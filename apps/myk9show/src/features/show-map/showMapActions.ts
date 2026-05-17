@@ -295,6 +295,13 @@ export function getRecommendedActions(
     .slice(0, limit);
 }
 
+export function getAllRecommendedActions(
+  scope: ShowMapActionScope,
+  state: ShowMapActionState
+): ShowMapAction[] {
+  return getRecommendedActions(scope, state, Number.POSITIVE_INFINITY);
+}
+
 export function getAttentionActions(
   scope: ShowMapActionScope,
   state: ShowMapActionState

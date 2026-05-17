@@ -45,6 +45,21 @@ describe('showMapTimeScope', () => {
     expect(nodeMatchesDayScope(tree, trialNode, 'tomorrow', now)).toBe(false);
   });
 
+  it('honors non-eastern trial timezones', () => {
+    const now = new Date('2026-05-18T06:30:00.000Z');
+    const tree = buildShowMapTree({
+      show,
+      trials: [makeTrial({ trialDate: '2026-05-17', timezone: 'America/Los_Angeles' })],
+      classes: [],
+      entries: [],
+    });
+    const trialNode = tree.nodesById['trial:trial-1'];
+    if (!trialNode) throw new Error('Expected trial node');
+
+    expect(getNodeDayBucket(tree, trialNode, now)).toBe('today');
+    expect(nodeMatchesDayScope(tree, trialNode, 'today', now)).toBe(true);
+  });
+
   it('matches tomorrow and dims non-today rows in All dates scope', () => {
     const now = new Date('2026-05-17T15:00:00.000Z');
     const tree = buildShowMapTree({

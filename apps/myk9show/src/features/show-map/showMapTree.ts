@@ -43,10 +43,12 @@ function classRingLabel(cls: {
   ring?: string | number | null | undefined;
   ringName?: string | undefined;
 }) {
-  if (cls.ringName?.trim()) return cls.ringName;
+  if (cls.ringName?.trim()) return cls.ringName.trim();
   if (typeof cls.ring === 'number' && cls.ring > 0) return `Ring ${cls.ring}`;
-  if (typeof cls.ring === 'string' && cls.ring.trim() && cls.ring !== '0') {
-    return cls.ring.trim().toLowerCase().startsWith('ring') ? cls.ring.trim() : `Ring ${cls.ring}`;
+  if (typeof cls.ring === 'string') {
+    const ring = cls.ring.trim();
+    if (!ring || ring === '0') return undefined;
+    return ring.toLowerCase().startsWith('ring') ? ring : `Ring ${ring}`;
   }
   return undefined;
 }

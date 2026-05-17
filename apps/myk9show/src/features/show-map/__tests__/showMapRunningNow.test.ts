@@ -41,7 +41,7 @@ describe('getRunningNowItems', () => {
         name: 'Interior Novice A',
         status: 'In Progress',
         judgeName: 'Judge A',
-        time: '09:00',
+        time: '9:00',
         ring: 1,
         entryCount: 8,
         scoredCount: 2,
@@ -68,7 +68,7 @@ describe('getRunningNowItems', () => {
         label: 'Interior Novice A',
         ringLabel: 'Ring 1',
         judgeName: 'Judge A',
-        startTime: '09:00',
+        startTime: '9:00',
         percentScored: 25,
       }),
       expect.objectContaining({
@@ -102,6 +102,40 @@ describe('getRunningNowItems', () => {
         new Date('2026-05-17T15:00:00.000Z')
       )[0]?.ringLabel
     ).toBe('Now');
+  });
+
+  it('trims string ring labels before display', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-number-ring',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+          time: '8:00',
+          ring: ' 1 ',
+        },
+        {
+          id: 'class-named-ring',
+          trialId: 'trial-1',
+          name: 'Interior Novice B',
+          status: 'In Progress',
+          time: '9:00',
+          ring: ' Ring 2 ',
+        },
+      ],
+      entries: [],
+    });
+
+    expect(
+      getRunningNowItems(
+        tree,
+        { dayScope: 'today', completionScope: 'active' },
+        new Date('2026-05-17T15:00:00.000Z')
+      ).map(item => item.ringLabel)
+    ).toEqual(['Ring 1', 'Ring 2']);
   });
 
   it('does not show running cards in the Completed view', () => {

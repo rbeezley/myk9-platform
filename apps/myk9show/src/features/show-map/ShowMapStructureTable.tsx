@@ -38,7 +38,6 @@ function nodeMatchesFilter(
   if (filter === 'needs-attention') {
     return attentionNodeIds.has(node.id);
   }
-  if (filter === 'complete') return node.status?.kind === 'complete';
   return node.status?.kind === 'active';
 }
 

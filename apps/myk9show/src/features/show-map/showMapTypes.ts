@@ -5,7 +5,7 @@ export type ShowMapNodeType = 'show' | 'trial' | 'class' | 'entry' | 'more';
 
 export type ShowMapStatusKind = 'neutral' | 'active' | 'complete' | 'muted' | 'attention';
 
-export type ShowMapFilter = 'all' | 'in-progress' | 'needs-attention' | 'complete';
+export type ShowMapFilter = 'all' | 'in-progress' | 'needs-attention';
 export type ShowMapDayScope = 'today' | 'tomorrow' | 'all';
 export type ShowMapCompletionScope = 'active' | 'completed';
 

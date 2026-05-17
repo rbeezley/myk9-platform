@@ -17,7 +17,7 @@ import { ShowMapToolbar } from './ShowMapToolbar';
 import { ShowMapRunningNowStrip } from './ShowMapRunningNowStrip';
 import { ShowMapGuidanceCard } from './ShowMapGuidanceCard';
 import { countCatalogEntries } from './entryCounts';
-import { getRankedActions, getRecommendedActions } from './showMapActions';
+import { getAllRecommendedActions, getRankedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { getRunningNowItems } from './showMapRunningNow';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
@@ -200,6 +200,7 @@ export default function ShowMapTab({
   const [filter, setFilter] = useState<ShowMapFilter>('all');
   const [dayScope, setDayScope] = useState<ShowMapDayScope>(initialDayScope);
   const [completionScope, setCompletionScope] = useState<ShowMapCompletionScope>('active');
+  // INTENT: Guidance dismissals are session-local noise control, not a permanent action mute.
   const [dismissedGuidanceKeys, setDismissedGuidanceKeys] = useState<Set<string>>(() => new Set());
   const tree = useMemo(
     () => buildShowMapTree({ show, trials, classes, entries }),
@@ -229,7 +230,7 @@ export default function ShowMapTab({
   const attentionCount = tree.root.attentionCount ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
   const recommendedActions = useMemo(
-    () => getRecommendedActions('root', { tree }, Number.MAX_SAFE_INTEGER),
+    () => getAllRecommendedActions('root', { tree }),
     [tree]
   );
   const guidanceAction = recommendedActions.find(
@@ -256,6 +257,8 @@ export default function ShowMapTab({
     (nodeId: string) => {
       expandPathToNode(nodeId);
       const scrollToNode = () => {
+        // INTENT: Running Now uses stable row data attributes to focus recursive tree rows
+        // without threading one-off refs through the whole structure table.
         const row = document.querySelector(`[data-node-id="${nodeId}"]`);
         if (row instanceof HTMLElement && typeof row.scrollIntoView === 'function') {
           row.scrollIntoView({ block: 'center', behavior: 'smooth' });

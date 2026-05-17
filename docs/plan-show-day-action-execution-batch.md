@@ -47,6 +47,7 @@ These PRs may start after the shared contract merges.
    - Should not edit menu rendering except to flip registry behavior from `disabled` to `mutation`.
 
 2. Move-up dialog + undo last move-up
+   - Status: implemented on `codex-show-day-move-up-undo`.
    - Owns move-up dialog adapter, undo operation, and related tests.
    - May reuse existing `MoveUpDialog`; should keep state local to an action executor/provider.
 

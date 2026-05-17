@@ -438,6 +438,51 @@ describe('ShowMapStructureTable', () => {
     );
   });
 
+  it('executes move-up through the shared dialog executor', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+        },
+      ],
+    });
+    const onAction = vi.fn();
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+        onAction={onAction}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /move up/i }));
+
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'move-up-entry',
+        nodeId: 'entry:entry-1',
+        classId: 'class-attention',
+      }),
+      {
+        kind: 'dialog',
+        dialog: 'move-up-entry',
+      }
+    );
+  });
+
   it('keeps remaining placeholder entry actions disabled behind clear reasons until adapters ship', async () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');
@@ -467,12 +512,7 @@ describe('ShowMapStructureTable', () => {
 
     await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
 
-    expect(await screen.findByRole('menuitem', { name: /move up/i })).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
-    expect(screen.getByText(/move-ups from show map are coming next/i)).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /message handler/i })).toHaveAttribute(
+    expect(await screen.findByRole('menuitem', { name: /message handler/i })).toHaveAttribute(
       'aria-disabled',
       'true'
     );

@@ -158,6 +158,7 @@ function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
           why: 'Move this entry to the next eligible class',
           priority: 32,
           icon: ArrowUpCircle,
+          ...(classId ? { classId } : {}),
         },
         undefined
       ),

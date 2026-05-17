@@ -1,4 +1,23 @@
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
+import { processMoveUp } from '@/services/database/day-of-operations';
+
+export interface ShowMapMoveUpInput {
+  entryId: string;
+  targetClassId: string;
+  reason?: string | undefined;
+}
+
+export interface ShowMapMoveUpUndoInput {
+  originalEntryId: string;
+  newEntryId: string;
+  previousEntryStatus: string | null;
+  previousCheckInStatus: string | null;
+  previousSpecialRequests: string | null;
+}
+
+export interface ShowMapMoveUpResult extends ShowMapMoveUpUndoInput {
+  targetClassName: string | null;
+}
 
 export function sourceIdFromShowMapNodeId(nodeId: string, expectedType: string): string | null {
   const prefix = `${expectedType}:`;
@@ -36,5 +55,86 @@ export async function scratchShowMapEntry(
 
   if (error) {
     throw createDatabaseError(error, 'entries', 'show_map_scratch_entry');
+  }
+}
+
+function readNestedName(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null;
+  const name = (value as Record<string, unknown>).name;
+  return typeof name === 'string' && name.trim() ? name : null;
+}
+
+export async function moveUpShowMapEntry({
+  entryId,
+  targetClassId,
+  reason,
+}: ShowMapMoveUpInput): Promise<ShowMapMoveUpResult> {
+  const { data: currentEntry, error: fetchError } = await supabase
+    .from('entries')
+    .select('id, entry_status, check_in_status, special_requests')
+    .eq('id', entryId)
+    .single();
+
+  if (fetchError || !currentEntry) {
+    throw createDatabaseError(
+      fetchError || new Error('Entry not found'),
+      'entries',
+      'show_map_move_up_fetch'
+    );
+  }
+
+  const { data, error } = await processMoveUp(entryId, targetClassId, reason);
+  if (error) {
+    throw createDatabaseError(error, 'entries', 'show_map_move_up');
+  }
+
+  const newEntryId = data?.id ? String(data.id) : null;
+  if (!newEntryId) {
+    throw createDatabaseError(
+      new Error('Move-up did not return the new entry.'),
+      'entries',
+      'show_map_move_up'
+    );
+  }
+
+  return {
+    originalEntryId: entryId,
+    newEntryId,
+    previousEntryStatus:
+      typeof currentEntry.entry_status === 'string' ? currentEntry.entry_status : null,
+    previousCheckInStatus:
+      typeof currentEntry.check_in_status === 'string' ? currentEntry.check_in_status : null,
+    previousSpecialRequests:
+      typeof currentEntry.special_requests === 'string' ? currentEntry.special_requests : null,
+    targetClassName: readNestedName(data?.class),
+  };
+}
+
+export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<void> {
+  const now = new Date().toISOString();
+  const { error: restoreError } = await supabase
+    .from('entries')
+    .update({
+      entry_status: input.previousEntryStatus ?? 'confirmed',
+      check_in_status: input.previousCheckInStatus,
+      special_requests: input.previousSpecialRequests,
+      updated_at: now,
+    } as Record<string, unknown>)
+    .eq('id', input.originalEntryId);
+
+  if (restoreError) {
+    throw createDatabaseError(restoreError, 'entries', 'show_map_undo_move_up_restore');
+  }
+
+  const { error: removeError } = await supabase
+    .from('entries')
+    .update({
+      deleted_at: now,
+      updated_at: now,
+    } as Record<string, unknown>)
+    .eq('id', input.newEntryId);
+
+  if (removeError) {
+    throw createDatabaseError(removeError, 'entries', 'show_map_undo_move_up_remove');
   }
 }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -464,11 +464,34 @@ describe('ShowWorkbenchPage', () => {
         status: 'sent',
       },
     ];
+    mockShowEntries = [
+      {
+        id: 'late-cash',
+        class_id: 'class-1',
+        is_day_of_show: true,
+        entry_fee: 35,
+        payment_status: 'paid',
+        payment_method: 'cash',
+      },
+      {
+        id: 'early-online',
+        class_id: 'class-1',
+        is_day_of_show: false,
+        entry_fee: 30,
+        payment_status: 'paid',
+        payment_method: 'online',
+      },
+    ];
 
     renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
 
     expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
     expect(screen.getByText(/submit final files/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Late entry reconciliation' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
+    ).toBeInTheDocument();
+    expect(screen.getByText('1 late entry')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Submit results' })).toBeInTheDocument();
     expect(await screen.findByText('Classes are complete')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(

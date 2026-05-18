@@ -1500,6 +1500,7 @@ export type Database = {
           local_id: string | null
           move_up_requested: boolean | null
           no_finish_count: number | null
+          payment_method: string | null
           payment_status: string | null
           penalty_points: number | null
           points_earned: number | null
@@ -1574,6 +1575,7 @@ export type Database = {
           local_id?: string | null
           move_up_requested?: boolean | null
           no_finish_count?: number | null
+          payment_method?: string | null
           payment_status?: string | null
           penalty_points?: number | null
           points_earned?: number | null
@@ -1648,6 +1650,7 @@ export type Database = {
           local_id?: string | null
           move_up_requested?: boolean | null
           no_finish_count?: number | null
+          payment_method?: string | null
           payment_status?: string | null
           penalty_points?: number | null
           points_earned?: number | null

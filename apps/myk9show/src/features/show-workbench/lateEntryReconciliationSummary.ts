@@ -1,0 +1,78 @@
+export const LATE_ENTRY_PAYMENT_METHODS = [
+  { id: 'cash', label: 'Cash' },
+  { id: 'check', label: 'Check' },
+  { id: 'waived', label: 'Waived' },
+  { id: 'paid', label: 'Paid' },
+  { id: 'unknown', label: 'Unspecified' },
+] as const;
+
+export type LateEntryPaymentMethod = (typeof LATE_ENTRY_PAYMENT_METHODS)[number]['id'];
+
+export interface LateEntryReconciliationEntry {
+  id?: string | null;
+  is_day_of_show?: boolean | null;
+  entry_fee?: number | string | null;
+  payment_status?: string | null;
+  payment_method?: string | null;
+}
+
+export interface LateEntryReconciliationSummary {
+  entryCount: number;
+  collectedAmount: number;
+  waivedCount: number;
+  byMethod: Record<LateEntryPaymentMethod, { count: number; amount: number }>;
+}
+
+function emptyBreakdown(): LateEntryReconciliationSummary['byMethod'] {
+  return LATE_ENTRY_PAYMENT_METHODS.reduce(
+    (acc, method) => {
+      acc[method.id] = { count: 0, amount: 0 };
+      return acc;
+    },
+    {} as LateEntryReconciliationSummary['byMethod']
+  );
+}
+
+function amount(value: LateEntryReconciliationEntry['entry_fee']): number {
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  return Number.isFinite(parsed) ? Number(parsed) : 0;
+}
+
+function normalizeMethod(entry: LateEntryReconciliationEntry): LateEntryPaymentMethod {
+  const method = entry.payment_method?.toLowerCase();
+  if (method === 'cash' || method === 'check' || method === 'waived') return method;
+  if (entry.payment_status === 'waived') return 'waived';
+  if (entry.payment_status === 'paid') return 'paid';
+  return 'unknown';
+}
+
+export function summarizeLateEntryReconciliation(
+  entries: LateEntryReconciliationEntry[]
+): LateEntryReconciliationSummary {
+  const summary: LateEntryReconciliationSummary = {
+    entryCount: 0,
+    collectedAmount: 0,
+    waivedCount: 0,
+    byMethod: emptyBreakdown(),
+  };
+
+  for (const entry of entries) {
+    // is_day_of_show was historically present but not populated by the
+    // late-entry dialog; only explicitly flagged rows belong in Wrap-up totals.
+    if (entry.is_day_of_show !== true) continue;
+
+    const fee = amount(entry.entry_fee);
+    const method = normalizeMethod(entry);
+    summary.entryCount += 1;
+    summary.byMethod[method].count += 1;
+    summary.byMethod[method].amount += fee;
+
+    if (method === 'waived') {
+      summary.waivedCount += 1;
+    } else if (entry.payment_status === 'paid') {
+      summary.collectedAmount += fee;
+    }
+  }
+
+  return summary;
+}

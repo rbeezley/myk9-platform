@@ -48,6 +48,8 @@ export interface ReplicatedEntry {
   entryFee?: number | undefined;
   totalFees?: number | undefined;
   paymentStatus?: string | undefined;
+  paymentMethod?: string | undefined;
+  isDayOfShow?: boolean | undefined;
   runOrder?: number | undefined;
   moveUpRequested?: boolean | undefined;
   preferredJudge?: string | undefined;
@@ -132,6 +134,8 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     entryFee: row.entry_fee ?? undefined,
     totalFees: (dbRow.total_fees as number | undefined) ?? undefined,
     paymentStatus: row.payment_status ?? undefined,
+    paymentMethod: (dbRow.payment_method as string | undefined) ?? undefined,
+    isDayOfShow: row.is_day_of_show ?? undefined,
     runOrder: row.run_order ?? undefined,
     moveUpRequested: row.move_up_requested ?? undefined,
     preferredJudge: row.preferred_judge ?? undefined,
@@ -232,6 +236,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       jump_height: entry.jumpHeight ?? null,
       entry_fee: entry.entryFee ?? null,
       payment_status: entry.paymentStatus ?? null,
+      payment_method: entry.paymentMethod ?? null,
+      is_day_of_show: entry.isDayOfShow ?? null,
       run_order: entry.runOrder ?? null,
       move_up_requested: entry.moveUpRequested ?? null,
       preferred_judge: entry.preferredJudge ?? null,

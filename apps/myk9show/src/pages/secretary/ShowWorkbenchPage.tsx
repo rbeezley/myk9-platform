@@ -29,6 +29,7 @@ import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { getShowStyle } from '@/features/registries';
 import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
+import { LateEntryReconciliation } from '@/features/show-workbench/LateEntryReconciliation';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
@@ -336,6 +337,7 @@ export function ShowWorkbenchPage() {
               />
             )}
             <ShowWorkbenchAskQHelp phase="wrap-up" />
+            <LateEntryReconciliation entries={showEntries} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
                 <Link to="/secretary/results-control">

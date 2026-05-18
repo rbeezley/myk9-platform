@@ -37,21 +37,14 @@ function readBoolean(record: ShowMapEntryInput, key: string): boolean {
   return record[key] === true;
 }
 
-function classHasSubmission(cls: ShowMapClassInput): boolean {
-  return Boolean(
-    cls.resultsSubmittedAt || cls.registrySubmittedAt || cls.submittedToAkcAt || cls.akcSubmittedAt
-  );
+interface ClassWrapUpStatusOptions {
+  resultSubmittedAt?: string | null | undefined;
 }
 
-function classSignatureState(cls: ShowMapClassInput): 'signed' | 'unsigned' | 'unknown' {
-  if (cls.judgeSigned === true || cls.judgeSignedAt) return 'signed';
-  if (cls.judgeSigned === false) return 'unsigned';
-
-  const status = cls.judgeSignatureStatus?.trim().toLowerCase();
-  if (!status) return 'unknown';
-  if (['signed', 'complete', 'completed'].includes(status)) return 'signed';
-  if (['unsigned', 'missing', 'needed', 'needs-signature'].includes(status)) return 'unsigned';
-  return 'unknown';
+function entryHasJudgeSignature(entry: ShowMapEntryInput): boolean {
+  return Boolean(
+    readString(entry, 'judge_signature_timestamp') || readString(entry, 'judge_signature')
+  );
 }
 
 export function classifyClassStatus(status?: string): ShowMapDisplayStatus | undefined {
@@ -73,7 +66,8 @@ export function classifyClassStatus(status?: string): ShowMapDisplayStatus | und
 
 export function classifyClassWrapUpStatus(
   cls: ShowMapClassInput,
-  entries: ShowMapEntryInput[]
+  entries: ShowMapEntryInput[],
+  options: ClassWrapUpStatusOptions = {}
 ): ShowMapDisplayStatus | undefined {
   const baseStatus = classifyClassStatus(cls.status);
   const progress = buildClassProgress(cls, entries);
@@ -83,7 +77,7 @@ export function classifyClassWrapUpStatus(
 
   if (!isComplete) return undefined;
 
-  if (classHasSubmission(cls)) {
+  if (options.resultSubmittedAt) {
     return {
       value: SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY,
       label: 'Submitted to registry',
@@ -91,24 +85,24 @@ export function classifyClassWrapUpStatus(
     };
   }
 
-  const signatureState = classSignatureState(cls);
-  if (signatureState === 'unsigned') {
+  if (entries.length > 0) {
+    if (entries.every(entryHasJudgeSignature)) {
+      return {
+        value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
+        label: 'Signed by judge',
+        kind: 'neutral',
+      };
+    }
+
     return {
       value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
       label: 'Needs judge signature',
       kind: 'attention',
     };
   }
-  if (signatureState === 'signed') {
-    return {
-      value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
-      label: 'Signed by judge',
-      kind: 'neutral',
-    };
-  }
 
   return {
-    value: SHOW_MAP_WRAP_UP_STATUS.READY_FOR_WRAP_UP,
+    value: SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
     label: 'Ready for wrap-up',
     kind: 'neutral',
   };

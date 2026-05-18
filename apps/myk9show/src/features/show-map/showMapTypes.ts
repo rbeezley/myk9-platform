@@ -29,23 +29,17 @@ export interface ShowMapDisplayStatus {
 export const SHOW_MAP_WRAP_UP_STATUS = {
   NEEDS_JUDGE_SIGNATURE: 'needs-judge-signature',
   SIGNED_BY_JUDGE: 'signed-by-judge',
-  READY_FOR_WRAP_UP: 'ready-for-wrap-up',
+  CLASS_READY_FOR_WRAP_UP: 'class-ready-for-wrap-up',
   SUBMITTED_TO_REGISTRY: 'submitted-to-registry',
   NEEDS_WRAP_UP: 'needs-wrap-up',
-  WRAP_UP_READY: 'wrap-up-ready',
+  TRIAL_READY_TO_SUBMIT: 'trial-ready-to-submit',
 } as const;
 
 export type ShowMapWrapUpStatusValue =
   (typeof SHOW_MAP_WRAP_UP_STATUS)[keyof typeof SHOW_MAP_WRAP_UP_STATUS];
 
-export interface ShowMapWrapUpClassFields {
-  judgeSigned?: boolean | null | undefined;
-  judgeSignedAt?: string | null | undefined;
-  judgeSignatureStatus?: string | null | undefined;
-  resultsSubmittedAt?: string | null | undefined;
-  registrySubmittedAt?: string | null | undefined;
-  submittedToAkcAt?: string | null | undefined;
-  akcSubmittedAt?: string | null | undefined;
+export interface ShowMapTrialInput extends SyncableTrial {
+  resultSubmittedAt?: string | null | undefined;
 }
 
 export interface ShowMapNode {
@@ -88,7 +82,7 @@ export interface ShowMapTree {
   childIdsByParentId: Record<string, string[]>;
 }
 
-export interface ShowMapClassInput extends ShowMapWrapUpClassFields {
+export interface ShowMapClassInput {
   id: string;
   trialId: string;
   name: string;
@@ -111,7 +105,7 @@ export type ShowMapEntryInput = Record<string, unknown>;
 
 export interface BuildShowMapTreeInput {
   show: Show;
-  trials: SyncableTrial[];
+  trials: ShowMapTrialInput[];
   classes: ShowMapClassInput[];
   entries: ShowMapEntryInput[];
   entryPreviewLimit?: number;

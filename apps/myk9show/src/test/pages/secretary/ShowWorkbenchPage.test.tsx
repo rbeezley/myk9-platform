@@ -41,6 +41,7 @@ let mockError = false;
 let mockTrials: Array<Record<string, unknown>> = [];
 let mockTrialClasses: Record<string, Array<Record<string, unknown>>> = {};
 let mockShowEntries: Array<Record<string, unknown>> = [];
+let mockResultSubmissions: Array<Record<string, unknown>> = [];
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
@@ -73,6 +74,10 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
 
 vi.mock('@/hooks/queries/useShowJudges', () => ({
   useShowJudges: () => ({ data: [] }),
+}));
+
+vi.mock('@/hooks/mutations/useResultSubmission', () => ({
+  useResultSubmissions: () => ({ data: mockResultSubmissions }),
 }));
 
 vi.mock('@/store/trialStore', () => ({
@@ -151,6 +156,12 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
       data-testid="show-map-tab"
       data-show-id={show.id}
       data-trial-count={trials.length}
+      data-submitted-trial-count={
+        trials.filter(trial => {
+          if (!trial || typeof trial !== 'object') return false;
+          return Boolean((trial as { resultSubmittedAt?: unknown }).resultSubmittedAt);
+        }).length
+      }
       data-class-count={classes.length}
       data-has-ring={String(
         classes.some(cls => typeof cls === 'object' && cls !== null && 'ring' in cls)
@@ -321,6 +332,7 @@ describe('ShowWorkbenchPage', () => {
     mockTrials = [];
     mockTrialClasses = {};
     mockShowEntries = [];
+    mockResultSubmissions = [];
     useAskQPanelStore.getState().close();
     window.localStorage.clear();
   });
@@ -434,6 +446,15 @@ describe('ShowWorkbenchPage', () => {
         },
       ],
     };
+    mockResultSubmissions = [
+      {
+        id: 'submission-1',
+        show_id: 'show-1',
+        trial_id: null,
+        submitted_at: '2026-03-22T20:00:00Z',
+        status: 'sent',
+      },
+    ];
 
     renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
 
@@ -458,6 +479,7 @@ describe('ShowWorkbenchPage', () => {
     expect(showMap).toHaveAttribute('data-initial-day-scope', 'all');
     expect(showMap).toHaveAttribute('data-initial-completion-scope', 'completed');
     expect(showMap).toHaveAttribute('data-action-phase', 'wrap-up');
+    expect(showMap).toHaveAttribute('data-submitted-trial-count', '1');
   });
 
   it('opens AskQ with a selected show-day prompt', async () => {

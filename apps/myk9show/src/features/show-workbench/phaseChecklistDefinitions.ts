@@ -1,10 +1,9 @@
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowWorkbenchPhase } from '@/hooks/useActivePhase';
-import type { ShowMapWrapUpClassFields } from '@/features/show-map/showMapTypes';
 import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 
-export interface ShowWorkbenchClassSummary extends ShowMapWrapUpClassFields {
+export interface ShowWorkbenchClassSummary {
   id: string;
   name: string;
   element: string;

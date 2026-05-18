@@ -129,7 +129,7 @@ function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
     }
 
     if (
-      node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.READY_FOR_WRAP_UP ||
+      node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP ||
       node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE
     ) {
       return [
@@ -148,7 +148,10 @@ function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
     }
   }
 
-  if (node.type === 'trial' && node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.WRAP_UP_READY) {
+  if (
+    node.type === 'trial' &&
+    node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.TRIAL_READY_TO_SUBMIT
+  ) {
     return [
       {
         id: 'submit-final-results',

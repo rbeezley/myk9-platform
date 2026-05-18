@@ -13,15 +13,15 @@ describe('showMapStatus', () => {
 
     it('marks completed classes without closeout metadata as ready for wrap-up', () => {
       expect(classifyClassWrapUpStatus({ status: 'Complete' }, [])).toMatchObject({
-        value: 'ready-for-wrap-up',
+        value: 'class-ready-for-wrap-up',
         label: 'Ready for wrap-up',
         kind: 'neutral',
       });
     });
 
-    it('marks explicit missing judge signatures as attention', () => {
+    it('marks completed classes with unsigned entries as attention', () => {
       expect(
-        classifyClassWrapUpStatus({ status: 'Complete', judgeSigned: false }, [])
+        classifyClassWrapUpStatus({ status: 'Complete' }, [{ judge_signature_timestamp: null }])
       ).toMatchObject({
         value: 'needs-judge-signature',
         label: 'Needs judge signature',
@@ -31,7 +31,9 @@ describe('showMapStatus', () => {
 
     it('marks signed completed classes before submission', () => {
       expect(
-        classifyClassWrapUpStatus({ status: 'Complete', judgeSignedAt: '2026-05-18' }, [])
+        classifyClassWrapUpStatus({ status: 'Complete' }, [
+          { judge_signature_timestamp: '2026-05-18' },
+        ])
       ).toMatchObject({
         value: 'signed-by-judge',
         label: 'Signed by judge',
@@ -41,11 +43,25 @@ describe('showMapStatus', () => {
 
     it('marks submitted completed classes as complete', () => {
       expect(
-        classifyClassWrapUpStatus({ status: 'Complete', registrySubmittedAt: '2026-05-18' }, [])
+        classifyClassWrapUpStatus({ status: 'Complete' }, [], {
+          resultSubmittedAt: '2026-05-18',
+        })
       ).toMatchObject({
         value: 'submitted-to-registry',
         label: 'Submitted to registry',
         kind: 'complete',
+      });
+    });
+
+    it('uses completed entry progress as the completion fallback', () => {
+      expect(
+        classifyClassWrapUpStatus({ status: 'Scheduled' }, [
+          { is_scored: true, judge_signature_timestamp: '2026-05-18' },
+        ])
+      ).toMatchObject({
+        value: 'signed-by-judge',
+        label: 'Signed by judge',
+        kind: 'neutral',
       });
     });
   });

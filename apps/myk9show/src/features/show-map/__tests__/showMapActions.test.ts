@@ -220,10 +220,15 @@ describe('showMapActions', () => {
           trialId: 'trial-1',
           name: 'Container Novice A',
           status: 'Complete',
-          judgeSigned: false,
         },
       ],
-      entries: [],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          is_scored: true,
+        },
+      ],
     });
 
     expect(getRankedActions('root', { tree }).map(action => action.id)).not.toContain(
@@ -249,10 +254,16 @@ describe('showMapActions', () => {
           trialId: 'trial-1',
           name: 'Container Novice A',
           status: 'Complete',
-          judgeSigned: true,
         },
       ],
-      entries: [],
+      entries: [
+        {
+          id: 'entry-signed',
+          class_id: 'class-signed',
+          is_scored: true,
+          judge_signature_timestamp: '2026-05-18',
+        },
+      ],
     });
 
     expect(getAttentionActions('root', { tree, phase: 'wrap-up' })).toEqual([

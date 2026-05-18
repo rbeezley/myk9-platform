@@ -31,7 +31,7 @@ import { getShowStyle } from '@/features/registries';
 import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
-import type { ShowMapWrapUpClassFields } from '@/features/show-map/showMapTypes';
+import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import type {
   PhaseChecklistContext,
   ShowWorkbenchClassSummary,
@@ -91,6 +91,7 @@ export function ShowWorkbenchPage() {
   );
   const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
+  const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
 
   useEffect(() => {
     if (!showId) return;
@@ -124,37 +125,37 @@ export function ShowWorkbenchPage() {
     [showId, trials]
   );
 
+  const showMapTrials = useMemo(() => {
+    const sentSubmissions = resultSubmissions.filter(row => row.status === 'sent');
+    const showSubmittedAt = sentSubmissions.find(row => !row.trial_id)?.submitted_at;
+
+    return associatedTrials.map(trial => ({
+      ...trial,
+      resultSubmittedAt:
+        sentSubmissions.find(row => row.trial_id === trial.id)?.submitted_at ?? showSubmittedAt,
+    }));
+  }, [associatedTrials, resultSubmissions]);
+
   const showClasses = useMemo<ShowWorkbenchClassSummary[]>(
     () =>
       associatedTrials.flatMap(trial => {
         const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
-        return classes.map(cls => {
-          const wrapUpFields = cls as SyncableTrialClass & ShowMapWrapUpClassFields;
-
-          return {
-            id: cls.id,
-            name: `${cls.element} ${cls.level}`,
-            element: cls.element,
-            level: cls.level,
-            section: cls.section || '',
-            judgeName: cls.judgeName || '',
-            trialId: trial.id,
-            time: cls.startTime || '',
-            status: cls.status || CLASS_STATUS.SCHEDULED,
-            entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
-            scoredCount: cls.completedEntries ?? 0,
-            trialDate: trial.trialDate || '',
-            trialNumber: trial.trialNumber || '',
-            trialName: trial.name || '',
-            judgeSigned: wrapUpFields.judgeSigned,
-            judgeSignedAt: wrapUpFields.judgeSignedAt,
-            judgeSignatureStatus: wrapUpFields.judgeSignatureStatus,
-            resultsSubmittedAt: wrapUpFields.resultsSubmittedAt,
-            registrySubmittedAt: wrapUpFields.registrySubmittedAt,
-            submittedToAkcAt: wrapUpFields.submittedToAkcAt,
-            akcSubmittedAt: wrapUpFields.akcSubmittedAt,
-          };
-        });
+        return classes.map(cls => ({
+          id: cls.id,
+          name: `${cls.element} ${cls.level}`,
+          element: cls.element,
+          level: cls.level,
+          section: cls.section || '',
+          judgeName: cls.judgeName || '',
+          trialId: trial.id,
+          time: cls.startTime || '',
+          status: cls.status || CLASS_STATUS.SCHEDULED,
+          entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
+          scoredCount: cls.completedEntries ?? 0,
+          trialDate: trial.trialDate || '',
+          trialNumber: trial.trialNumber || '',
+          trialName: trial.name || '',
+        }));
       }),
     [associatedTrials, showEntries, trialClasses]
   );
@@ -311,7 +312,7 @@ export function ShowWorkbenchPage() {
             <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
               <ShowMapTab
                 show={currentShow}
-                trials={associatedTrials}
+                trials={showMapTrials}
                 classes={showClasses}
                 entries={showEntries}
                 canManageShow
@@ -365,7 +366,7 @@ export function ShowWorkbenchPage() {
             <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
               <ShowMapTab
                 show={currentShow}
-                trials={associatedTrials}
+                trials={showMapTrials}
                 classes={showClasses}
                 entries={showEntries}
                 canManageShow

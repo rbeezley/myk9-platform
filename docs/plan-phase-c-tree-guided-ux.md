@@ -184,7 +184,7 @@ Tests:
 
 ### PR 7 — Wrap-up status taxonomy
 
-**Status:** Implemented in the Phase C wrap-up taxonomy branch; pending PR.
+**Status:** In review in [PR #231](https://github.com/rbeezley/myk9-platform/pull/231).
 
 Files likely touched:
 

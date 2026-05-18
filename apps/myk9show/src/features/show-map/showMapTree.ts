@@ -193,10 +193,11 @@ export function buildShowMapTree({
     const completedClasses = trialClasses.filter(
       cls => classifyClassStatus(cls.status)?.kind === 'complete'
     ).length;
+    const resultSubmittedAt = trial.resultSubmittedAt ?? undefined;
     const classWrapUpStatusesById = new Map(
       trialClasses.map(cls => [
         cls.id,
-        classifyClassWrapUpStatus(cls, entriesByClassId.get(cls.id) ?? []),
+        classifyClassWrapUpStatus(cls, entriesByClassId.get(cls.id) ?? [], { resultSubmittedAt }),
       ])
     );
     const classWrapUpStatuses = Array.from(classWrapUpStatusesById.values()).filter(
@@ -220,7 +221,7 @@ export function buildShowMapTree({
                 kind: 'complete' as const,
               }
             : {
-                value: SHOW_MAP_WRAP_UP_STATUS.WRAP_UP_READY,
+                value: SHOW_MAP_WRAP_UP_STATUS.TRIAL_READY_TO_SUBMIT,
                 label: 'Wrap-up ready',
                 kind: 'neutral' as const,
               };

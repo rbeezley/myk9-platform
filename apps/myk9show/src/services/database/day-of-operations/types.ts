@@ -18,6 +18,30 @@ export interface DayOfEntry {
   notes?: string;
 }
 
+export interface DayOfEntryDogOwner {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+export interface DayOfEntryDogResult {
+  id: string;
+  name: string;
+  call_name: string | null;
+  breed: string | null;
+  owner: DayOfEntryDogOwner | null;
+}
+
+export interface CreateDayOfEntryDogInput {
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  dogName: string;
+  dogCallName?: string;
+  dogBreed?: string;
+}
+
 export interface MoveUpRequest {
   id: string;
   fromClassId: string;

@@ -21,7 +21,7 @@ This preserves the Trial Secretary intent from [`docs/INTENT.md`](INTENT.md): th
 
 ### PR 1 — Workbench entry point
 
-**Status:** Current slice.
+**Status:** Shipped 2026-05-18 in [PR #232](https://github.com/rbeezley/myk9-platform/pull/232).
 
 Deliverables:
 
@@ -36,6 +36,8 @@ Tests:
 - Workbench integration test proving the Today phase exposes the operational late-entry action.
 
 ### PR 2 — New exhibitor + dog path
+
+**Status:** Current slice.
 
 Deliverables:
 

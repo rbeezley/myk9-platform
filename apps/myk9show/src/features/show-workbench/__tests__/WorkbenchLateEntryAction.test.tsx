@@ -109,4 +109,13 @@ describe('WorkbenchLateEntryAction', () => {
     expect(await screen.findByText('No classes with space')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add late entry' })).toBeDisabled();
   });
+
+  it('disables the action when class availability cannot load', async () => {
+    getClassesWithCapacityMock.mockRejectedValueOnce(new Error('capacity unavailable'));
+
+    render(<WorkbenchLateEntryAction showId="show-1" />);
+
+    expect(await screen.findByText('Class availability is unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add late entry' })).toBeDisabled();
+  });
 });

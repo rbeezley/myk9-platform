@@ -52,7 +52,7 @@ Tests:
 
 ### PR 3 — Payment and reconciliation
 
-**Status:** Current slice.
+**Status:** Shipped 2026-05-18 in [PR #234](https://github.com/rbeezley/myk9-platform/pull/234).
 
 Deliverables:
 
@@ -66,6 +66,8 @@ Tests:
 - Wrap-up page test for late-entry totals.
 
 ### PR 4 — Show-day walk
+
+**Status:** Current slice.
 
 Deliverables:
 

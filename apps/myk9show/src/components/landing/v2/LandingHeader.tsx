@@ -1,4 +1,5 @@
 import { LAUNCH_YEAR } from './constants';
+import { MyK9ShowMark } from '@/components/brand/MyK9ShowMark';
 
 interface LandingHeaderProps {
   onJoinWaitlistClick: () => void;
@@ -10,32 +11,7 @@ export function LandingHeader({ onJoinWaitlistClick }: LandingHeaderProps) {
       <div className="l-hdr-inner">
         <a href="#top" className="l-brand">
           <span className="l-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 120 160" fill="currentColor">
-              <path
-                className="ribbon"
-                d="M48 78 L38 150 L52 140 L60 152 L68 140 L82 150 L72 78 Z"
-                opacity="0.92"
-              />
-              <circle cx="60" cy="60" r="36" />
-              <circle
-                cx="60"
-                cy="60"
-                r="36"
-                fill="none"
-                stroke="#faf9f5"
-                strokeWidth="2"
-                opacity="0.95"
-              />
-              <circle
-                cx="60"
-                cy="60"
-                r="26"
-                fill="none"
-                stroke="#faf9f5"
-                strokeWidth="1"
-                opacity="0.7"
-              />
-            </svg>
+            <MyK9ShowMark />
           </span>
           myK9Show
         </a>

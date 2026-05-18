@@ -8,6 +8,19 @@
    - --teal-50/500/700, --purple-500 (literal hexes — not in production palette)
    ===================================================================== */
 
+:root {
+  --myk9-logo-accent: var(--terra-500);
+  --myk9-logo-dog: var(--terra-600);
+  --myk9-logo-node: var(--terra-500);
+}
+
+.dark,
+.theme-dark {
+  --myk9-logo-accent: #d98a68;
+  --myk9-logo-dog: #f7efe6;
+  --myk9-logo-node: #d98a68;
+}
+
 .landing-v2 {
   /* Aliases — bridge prototype names to production tokens */
   --terracotta-50: var(--terra-50);
@@ -109,6 +122,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  --myk9-logo-accent: var(--terracotta-500);
+  --myk9-logo-dog: var(--terracotta-600);
+  --myk9-logo-node: var(--terracotta-500);
   font-family: var(--font-serif);
   font-size: 22px;
   font-weight: 500;
@@ -120,16 +136,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  color: var(--primary);
+  width: 34px;
+  height: 34px;
+  color: var(--terracotta-500);
 }
 .landing-v2 .l-brand-mark svg {
   width: 100%;
   height: 100%;
-}
-.landing-v2 .l-brand-mark .ribbon {
-  color: var(--terracotta-500);
 }
 .landing-v2 .l-status-chip {
   display: inline-flex;

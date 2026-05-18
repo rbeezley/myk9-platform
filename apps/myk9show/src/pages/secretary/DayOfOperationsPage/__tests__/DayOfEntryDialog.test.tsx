@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { toast } from 'sonner';
 import {
   createDayOfEntry,
   createDayOfEntryDog,
@@ -24,6 +25,7 @@ vi.mock('@/services/database/day-of-operations', () => ({
 const createDayOfEntryMock = vi.mocked(createDayOfEntry);
 const createDayOfEntryDogMock = vi.mocked(createDayOfEntryDog);
 const searchDogsMock = vi.mocked(searchDogs);
+const toastErrorMock = vi.mocked(toast.error);
 
 const classes: ClassWithCapacity[] = [
   {
@@ -123,5 +125,37 @@ describe('DayOfEntryDialog', () => {
       );
     });
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it('keeps new dog fields open when dog creation fails', async () => {
+    createDayOfEntryDogMock.mockResolvedValueOnce({
+      data: null,
+      error: new Error('Unable to create dog.'),
+    });
+    const { user } = render(
+      <DayOfEntryDialog
+        open
+        onOpenChange={vi.fn()}
+        showId="show-1"
+        userId="secretary-auth-1"
+        classes={classes}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    await user.type(screen.getByLabelText('Search for Dog'), 'Rocket');
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByRole('button', { name: 'Create new dog' }));
+    await user.type(await screen.findByLabelText(/Exhibitor First Name/), 'Jamie');
+    await user.type(screen.getByLabelText(/Exhibitor Last Name/), 'Walker');
+    await user.click(screen.getByRole('button', { name: 'Add dog' }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalled();
+    });
+    expect(screen.getByRole('heading', { name: 'New exhibitor and dog' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Exhibitor First Name/)).toHaveValue('Jamie');
+    expect(screen.getByLabelText(/Dog Name/)).toHaveValue('Rocket');
+    expect(screen.queryByText('Rocket Fuel')).not.toBeInTheDocument();
   });
 });

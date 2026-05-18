@@ -80,6 +80,7 @@ export function DayOfEntryDialog({
     setDogSearchResults([]);
     setSelectedDog(null);
     setHasSearchedDogs(false);
+    setIsCreatingDog(false);
     setShowNewDogFields(false);
     setNewOwnerFirstName('');
     setNewOwnerLastName('');
@@ -96,8 +97,9 @@ export function DayOfEntryDialog({
   };
 
   const handleDogSearch = async () => {
-    if (dogSearch.length < 2) return;
-    const { data } = await searchDogs(dogSearch);
+    const searchTerm = dogSearch.trim();
+    if (searchTerm.length < 2) return;
+    const { data } = await searchDogs(searchTerm);
     setHasSearchedDogs(true);
     if (data) {
       setDogSearchResults(data);
@@ -209,10 +211,17 @@ export function DayOfEntryDialog({
                 onChange={e => setDogSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleDogSearch()}
               />
-              <Button variant="outline" onClick={handleDogSearch}>
+              <Button
+                variant="outline"
+                onClick={handleDogSearch}
+                disabled={dogSearch.trim().length < 2}
+              >
                 <Search className="h-4 w-4" />
               </Button>
             </div>
+            {dogSearch.trim().length > 0 && dogSearch.trim().length < 2 && (
+              <p className="text-sm text-muted-foreground">Enter at least 2 characters.</p>
+            )}
             {dogSearchResults.length > 0 && !selectedDog && (
               <div className="border rounded-md max-h-40 overflow-y-auto">
                 {dogSearchResults.map(dog => (
@@ -314,20 +323,33 @@ export function DayOfEntryDialog({
                   value={newDogBreed}
                   onChange={e => setNewDogBreed(e.target.value)}
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Blank breed is saved as Mixed Breed.
+                </p>
               </FormField>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCreateDog}
-                disabled={
-                  isCreatingDog ||
-                  !newOwnerFirstName.trim() ||
-                  !newOwnerLastName.trim() ||
-                  !newDogName.trim()
-                }
-              >
-                {isCreatingDog ? 'Adding...' : 'Add dog'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCreateDog}
+                  disabled={
+                    isCreatingDog ||
+                    !newOwnerFirstName.trim() ||
+                    !newOwnerLastName.trim() ||
+                    !newDogName.trim()
+                  }
+                >
+                  {isCreatingDog ? 'Adding...' : 'Add dog'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowNewDogFields(false)}
+                  disabled={isCreatingDog}
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
           )}
 

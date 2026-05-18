@@ -1,18 +1,24 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
 
 interface AskQInputProps {
   onSubmit: (query: string) => void;
   disabled: boolean;
   placeholder?: string;
+  initialValue?: string;
 }
 
 export function AskQInput({
   onSubmit,
   disabled,
   placeholder = 'Ask about rules, your results, or the app...',
+  initialValue = '',
 }: AskQInputProps) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
 
   const handleSubmit = () => {
     const trimmed = value.trim();

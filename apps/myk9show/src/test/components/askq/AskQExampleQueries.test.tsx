@@ -15,6 +15,9 @@ describe('AskQExampleQueries', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
     expect(screen.getByText('What are the time limits for Excellent?')).toBeInTheDocument();
     expect(screen.getByText('How did my dog do today?')).toBeInTheDocument();
+    expect(
+      screen.getByText('What should I do if one ring is running behind schedule?')
+    ).toBeInTheDocument();
   });
 
   it('calls onSelectQuery when a chip is clicked', async () => {
@@ -25,8 +28,11 @@ describe('AskQExampleQueries', () => {
     expect(onSelect).toHaveBeenCalledWith('How did my dog do today?');
   });
 
-  it('shows App Help as coming soon', () => {
+  it('renders App Help chips', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
-    expect(screen.getByText('Coming soon...')).toBeInTheDocument();
+    expect(screen.queryByText('Coming soon...')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('What should I check before submitting final results after the show?')
+    ).toBeInTheDocument();
   });
 });

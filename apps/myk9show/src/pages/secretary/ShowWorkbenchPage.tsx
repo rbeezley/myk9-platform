@@ -30,6 +30,7 @@ import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { getShowStyle } from '@/features/registries';
 import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
+import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
 import type {
   PhaseChecklistContext,
   ShowWorkbenchClassSummary,
@@ -259,6 +260,7 @@ export function ShowWorkbenchPage() {
                 context={checklistContext}
               />
             )}
+            <ShowWorkbenchAskQHelp />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PremiumDownloadCard showId={currentShow.id} showStaleBadge />
               <LandingPageCard showId={currentShow.id} showStyle={getShowStyle(currentShow)} />
@@ -288,6 +290,7 @@ export function ShowWorkbenchPage() {
                 context={checklistContext}
               />
             )}
+            <ShowWorkbenchAskQHelp />
             <MyK9QAccessCard
               showId={currentShow.id}
               showName={currentShow.name}
@@ -317,6 +320,7 @@ export function ShowWorkbenchPage() {
                 context={checklistContext}
               />
             )}
+            <ShowWorkbenchAskQHelp />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
                 <Link to="/secretary/results-control">

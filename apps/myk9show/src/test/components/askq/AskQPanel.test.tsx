@@ -36,4 +36,17 @@ describe('AskQPanel', () => {
       screen.getByPlaceholderText('Ask about rules, your results, or the app...')
     ).toBeInTheDocument();
   });
+
+  it('prefills the input from a workbench prompt', () => {
+    act(() =>
+      useAskQPanelStore
+        .getState()
+        .openWithPrompt('What should I do if one ring is running behind schedule?')
+    );
+    render(<AskQPanel />);
+
+    expect(screen.getByPlaceholderText('Ask about rules, your results, or the app...')).toHaveValue(
+      'What should I do if one ring is running behind schedule?'
+    );
+  });
 });

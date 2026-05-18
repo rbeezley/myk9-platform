@@ -13,7 +13,7 @@ import { AskQFeedback } from './AskQFeedback';
 import { RATE_LIMIT_DEFAULTS } from './askq-config';
 
 export function AskQPanel() {
-  const { isOpen, close } = useAskQPanelStore();
+  const { isOpen, close, suggestedPrompt, clearSuggestedPrompt } = useAskQPanelStore();
   const { isPremium } = useSubscriptionGate();
   const location = useLocation();
   const askq = useAskQ();
@@ -29,8 +29,9 @@ export function AskQPanel() {
   const handleSubmit = useCallback(
     (query: string) => {
       askq.submitQuery(query, showId);
+      clearSuggestedPrompt();
     },
-    [askq, showId]
+    [askq, clearSuggestedPrompt, showId]
   );
 
   const isInputDisabled = askq.status === 'streaming' || askq.status === 'rate-limited';
@@ -50,6 +51,7 @@ export function AskQPanel() {
         <AskQInput
           onSubmit={handleSubmit}
           disabled={isInputDisabled}
+          initialValue={suggestedPrompt ?? ''}
           {...(askq.status === 'rate-limited'
             ? { placeholder: 'Daily limit reached. Resets at midnight.' }
             : askq.status === 'done'

@@ -1,19 +1,12 @@
 import { cn, formatCurrency } from '@/lib/utils';
 import {
+  LATE_ENTRY_PAYMENT_METHODS,
   summarizeLateEntryReconciliation,
   type LateEntryReconciliationEntry,
 } from './lateEntryReconciliationSummary';
 
 interface LateEntryReconciliationProps {
   entries: LateEntryReconciliationEntry[];
-}
-
-function methodLabel(method: string): string {
-  if (method === 'cash') return 'Cash';
-  if (method === 'check') return 'Check';
-  if (method === 'waived') return 'Waived';
-  if (method === 'paid') return 'Paid';
-  return 'Unspecified';
 }
 
 export function LateEntryReconciliation({ entries }: LateEntryReconciliationProps) {
@@ -47,7 +40,7 @@ export function LateEntryReconciliation({ entries }: LateEntryReconciliationProp
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div>
+        <div role="group" aria-label="Collected late-entry fees">
           <p className="text-xs font-medium uppercase text-muted-foreground">Collected</p>
           <p className="text-xl font-semibold">{formatCurrency(summary.collectedAmount)}</p>
         </div>
@@ -65,16 +58,19 @@ export function LateEntryReconciliation({ entries }: LateEntryReconciliationProp
 
       {hasEntries && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {Object.entries(summary.byMethod)
-            .filter(([, value]) => value.count > 0)
-            .map(([method, value]) => (
+          {LATE_ENTRY_PAYMENT_METHODS.map(method => ({
+            ...method,
+            value: summary.byMethod[method.id],
+          }))
+            .filter(method => method.value.count > 0)
+            .map(method => (
               <span
-                key={method}
+                key={method.id}
                 className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium"
               >
-                <span>{methodLabel(method)}</span>
-                <span>{value.count}</span>
-                <span>{formatCurrency(value.amount)}</span>
+                <span>{method.label}</span>
+                <span>{method.value.count}</span>
+                <span>{formatCurrency(method.value.amount)}</span>
               </span>
             ))}
         </div>

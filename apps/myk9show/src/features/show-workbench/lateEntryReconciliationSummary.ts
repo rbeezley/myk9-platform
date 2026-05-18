@@ -1,4 +1,12 @@
-export type LateEntryPaymentMethod = 'cash' | 'check' | 'waived' | 'paid' | 'unknown';
+export const LATE_ENTRY_PAYMENT_METHODS = [
+  { id: 'cash', label: 'Cash' },
+  { id: 'check', label: 'Check' },
+  { id: 'waived', label: 'Waived' },
+  { id: 'paid', label: 'Paid' },
+  { id: 'unknown', label: 'Unspecified' },
+] as const;
+
+export type LateEntryPaymentMethod = (typeof LATE_ENTRY_PAYMENT_METHODS)[number]['id'];
 
 export interface LateEntryReconciliationEntry {
   id?: string | null;
@@ -16,12 +24,10 @@ export interface LateEntryReconciliationSummary {
   byMethod: Record<LateEntryPaymentMethod, { count: number; amount: number }>;
 }
 
-const PAYMENT_METHODS: LateEntryPaymentMethod[] = ['cash', 'check', 'waived', 'paid', 'unknown'];
-
 function emptyBreakdown(): LateEntryReconciliationSummary['byMethod'] {
-  return PAYMENT_METHODS.reduce(
+  return LATE_ENTRY_PAYMENT_METHODS.reduce(
     (acc, method) => {
-      acc[method] = { count: 0, amount: 0 };
+      acc[method.id] = { count: 0, amount: 0 };
       return acc;
     },
     {} as LateEntryReconciliationSummary['byMethod']

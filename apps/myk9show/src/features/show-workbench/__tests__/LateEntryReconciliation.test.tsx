@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { within } from '@testing-library/react';
 import { LateEntryReconciliation } from '../LateEntryReconciliation';
 
 describe('LateEntryReconciliation', () => {
@@ -20,7 +21,9 @@ describe('LateEntryReconciliation', () => {
 
     expect(screen.getByRole('heading', { name: 'Late entry reconciliation' })).toBeInTheDocument();
     expect(screen.getByText('1 late entry')).toBeInTheDocument();
-    expect(screen.getAllByText('$35.00')).toHaveLength(2);
+    expect(
+      within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
+    ).toBeInTheDocument();
     expect(screen.getByText('Cash')).toBeInTheDocument();
   });
 });

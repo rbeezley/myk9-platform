@@ -18,6 +18,13 @@ export interface ShowWorkbenchClassSummary {
   trialDate: string;
   trialNumber: string;
   trialName: string;
+  judgeSigned?: boolean | null | undefined;
+  judgeSignedAt?: string | null | undefined;
+  judgeSignatureStatus?: string | null | undefined;
+  resultsSubmittedAt?: string | null | undefined;
+  registrySubmittedAt?: string | null | undefined;
+  submittedToAkcAt?: string | null | undefined;
+  akcSubmittedAt?: string | null | undefined;
 }
 
 export interface ShowWorkbenchEntrySummary {

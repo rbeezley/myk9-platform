@@ -33,6 +33,7 @@ export interface ShowMapNode {
   subtitle?: string | undefined;
   count?: number | undefined;
   status?: ShowMapDisplayStatus | undefined;
+  wrapUpStatus?: ShowMapDisplayStatus | undefined;
   checkInStatus?: ShowMapDisplayStatus | undefined;
   progress?: ShowMapProgress | undefined;
   attentionCount?: number | undefined;
@@ -82,6 +83,13 @@ export interface ShowMapClassInput {
   trialDate?: string | undefined;
   trialNumber?: string | undefined;
   trialName?: string | undefined;
+  judgeSigned?: boolean | null | undefined;
+  judgeSignedAt?: string | null | undefined;
+  judgeSignatureStatus?: string | null | undefined;
+  resultsSubmittedAt?: string | null | undefined;
+  registrySubmittedAt?: string | null | undefined;
+  submittedToAkcAt?: string | null | undefined;
+  akcSubmittedAt?: string | null | undefined;
 }
 
 export type ShowMapEntryInput = Record<string, unknown>;

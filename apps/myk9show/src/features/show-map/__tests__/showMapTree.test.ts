@@ -128,4 +128,30 @@ describe('buildShowMapTree', () => {
     ]);
     expect(tree.nodesById['more:class-1']?.label).toBe('1 more entries');
   });
+
+  it('adds wrap-up statuses to completed class and trial nodes', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          ...classes[0]!,
+          status: 'Complete',
+          judgeSigned: false,
+        },
+      ],
+      entries: [],
+    });
+
+    expect(tree.nodesById['class:class-1']?.wrapUpStatus).toMatchObject({
+      value: 'needs-judge-signature',
+      label: 'Needs judge signature',
+      kind: 'attention',
+    });
+    expect(tree.nodesById['trial:trial-1']?.wrapUpStatus).toMatchObject({
+      value: 'needs-wrap-up',
+      label: 'Needs wrap-up',
+      kind: 'attention',
+    });
+  });
 });

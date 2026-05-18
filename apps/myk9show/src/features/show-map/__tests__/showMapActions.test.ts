@@ -209,4 +209,63 @@ describe('showMapActions', () => {
       }),
     ]);
   });
+
+  it('keeps wrap-up attention actions out of the default Today action set', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+          judgeSigned: false,
+        },
+      ],
+      entries: [],
+    });
+
+    expect(getRankedActions('root', { tree }).map(action => action.id)).not.toContain(
+      'collect-judge-signature'
+    );
+    expect(getRankedActions('root', { tree, phase: 'wrap-up' })).toEqual([
+      expect.objectContaining({
+        id: 'collect-judge-signature',
+        nodeId: 'class:class-needs-signature',
+        href: '/secretary/reports',
+        createsAttention: true,
+      }),
+    ]);
+  });
+
+  it('treats unsigned and unsubmitted completed classes as wrap-up attention work', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-signed',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+          judgeSigned: true,
+        },
+      ],
+      entries: [],
+    });
+
+    expect(getAttentionActions('root', { tree, phase: 'wrap-up' })).toEqual([
+      expect.objectContaining({
+        id: 'review-results',
+        nodeId: 'class:class-signed',
+        href: '/secretary/results-control',
+      }),
+      expect.objectContaining({
+        id: 'submit-final-results',
+        nodeId: 'trial:trial-1',
+        href: '/secretary/results-submission',
+      }),
+    ]);
+  });
 });

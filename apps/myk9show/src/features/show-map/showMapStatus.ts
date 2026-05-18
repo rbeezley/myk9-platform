@@ -36,6 +36,23 @@ function readBoolean(record: ShowMapEntryInput, key: string): boolean {
   return record[key] === true;
 }
 
+function classHasSubmission(cls: ShowMapClassInput): boolean {
+  return Boolean(
+    cls.resultsSubmittedAt || cls.registrySubmittedAt || cls.submittedToAkcAt || cls.akcSubmittedAt
+  );
+}
+
+function classSignatureState(cls: ShowMapClassInput): 'signed' | 'unsigned' | 'unknown' {
+  if (cls.judgeSigned === true || cls.judgeSignedAt) return 'signed';
+  if (cls.judgeSigned === false) return 'unsigned';
+
+  const status = cls.judgeSignatureStatus?.trim().toLowerCase();
+  if (!status) return 'unknown';
+  if (['signed', 'complete', 'completed'].includes(status)) return 'signed';
+  if (['unsigned', 'missing', 'needed', 'needs-signature'].includes(status)) return 'unsigned';
+  return 'unknown';
+}
+
 export function classifyClassStatus(status?: string): ShowMapDisplayStatus | undefined {
   if (!status) return undefined;
   const normalized = normalizeClassStatus(status);
@@ -51,6 +68,33 @@ export function classifyClassStatus(status?: string): ShowMapDisplayStatus | und
     return { value: normalized, label: display.label, kind: 'muted' };
   }
   return { value: normalized, label: 'Not started', kind: 'neutral' };
+}
+
+export function classifyClassWrapUpStatus(
+  cls: ShowMapClassInput,
+  entries: ShowMapEntryInput[]
+): ShowMapDisplayStatus | undefined {
+  const baseStatus = classifyClassStatus(cls.status);
+  const progress = buildClassProgress(cls, entries);
+  const isComplete =
+    baseStatus?.kind === 'complete' ||
+    (progress ? progress.completed >= progress.total && progress.total > 0 : false);
+
+  if (!isComplete) return undefined;
+
+  if (classHasSubmission(cls)) {
+    return { value: 'submitted-to-registry', label: 'Submitted to registry', kind: 'complete' };
+  }
+
+  const signatureState = classSignatureState(cls);
+  if (signatureState === 'unsigned') {
+    return { value: 'needs-judge-signature', label: 'Needs judge signature', kind: 'attention' };
+  }
+  if (signatureState === 'signed') {
+    return { value: 'signed-by-judge', label: 'Signed by judge', kind: 'neutral' };
+  }
+
+  return { value: 'ready-for-wrap-up', label: 'Ready for wrap-up', kind: 'neutral' };
 }
 
 export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplayStatus | undefined {

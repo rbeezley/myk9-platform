@@ -44,6 +44,16 @@ import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/ove
 
 const ShowMapTab = lazy(() => import('@/features/show-map/ShowMapTab'));
 
+type WrapUpClassFields = {
+  judgeSigned?: boolean | null | undefined;
+  judgeSignedAt?: string | null | undefined;
+  judgeSignatureStatus?: string | null | undefined;
+  resultsSubmittedAt?: string | null | undefined;
+  registrySubmittedAt?: string | null | undefined;
+  submittedToAkcAt?: string | null | undefined;
+  akcSubmittedAt?: string | null | undefined;
+};
+
 const PHASE_TABS: PrimaryTabDef[] = [
   { id: 'setup', label: 'Setup', icon: ListChecks },
   { id: 'today', label: 'Today', icon: ClipboardCheck },
@@ -127,22 +137,33 @@ export function ShowWorkbenchPage() {
     () =>
       associatedTrials.flatMap(trial => {
         const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
-        return classes.map(cls => ({
-          id: cls.id,
-          name: `${cls.element} ${cls.level}`,
-          element: cls.element,
-          level: cls.level,
-          section: cls.section || '',
-          judgeName: cls.judgeName || '',
-          trialId: trial.id,
-          time: cls.startTime || '',
-          status: cls.status || CLASS_STATUS.SCHEDULED,
-          entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
-          scoredCount: cls.completedEntries ?? 0,
-          trialDate: trial.trialDate || '',
-          trialNumber: trial.trialNumber || '',
-          trialName: trial.name || '',
-        }));
+        return classes.map(cls => {
+          const wrapUpFields = cls as SyncableTrialClass & WrapUpClassFields;
+
+          return {
+            id: cls.id,
+            name: `${cls.element} ${cls.level}`,
+            element: cls.element,
+            level: cls.level,
+            section: cls.section || '',
+            judgeName: cls.judgeName || '',
+            trialId: trial.id,
+            time: cls.startTime || '',
+            status: cls.status || CLASS_STATUS.SCHEDULED,
+            entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
+            scoredCount: cls.completedEntries ?? 0,
+            trialDate: trial.trialDate || '',
+            trialNumber: trial.trialNumber || '',
+            trialName: trial.name || '',
+            judgeSigned: wrapUpFields.judgeSigned,
+            judgeSignedAt: wrapUpFields.judgeSignedAt,
+            judgeSignatureStatus: wrapUpFields.judgeSignatureStatus,
+            resultsSubmittedAt: wrapUpFields.resultsSubmittedAt,
+            registrySubmittedAt: wrapUpFields.registrySubmittedAt,
+            submittedToAkcAt: wrapUpFields.submittedToAkcAt,
+            akcSubmittedAt: wrapUpFields.akcSubmittedAt,
+          };
+        });
       }),
     [associatedTrials, showEntries, trialClasses]
   );
@@ -350,6 +371,18 @@ export function ShowWorkbenchPage() {
                 </Link>
               </Button>
             </div>
+            <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+              <ShowMapTab
+                show={currentShow}
+                trials={associatedTrials}
+                classes={showClasses}
+                entries={showEntries}
+                canManageShow
+                initialDayScope="all"
+                initialCompletionScope="completed"
+                actionPhase="wrap-up"
+              />
+            </Suspense>
           </div>
         </PrimaryTabsContent>
       </PrimaryTabs>

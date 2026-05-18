@@ -159,7 +159,7 @@ Tests:
 
 ### PR 6 — "What do I do if..." AskQ entry points
 
-**Status:** Implemented in the Phase C AskQ entry-points branch; pending PR.
+**Status:** Shipped 2026-05-17 in [PR #230](https://github.com/rbeezley/myk9-platform/pull/230).
 
 Files likely touched:
 
@@ -183,6 +183,8 @@ Tests:
 - Workbench smoke test for opening AskQ from the "What do I do if..." entry point.
 
 ### PR 7 — Wrap-up status taxonomy
+
+**Status:** Implemented in the Phase C wrap-up taxonomy branch; pending PR.
 
 Files likely touched:
 

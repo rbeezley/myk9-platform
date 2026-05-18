@@ -134,12 +134,18 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
     classes,
     entries,
     canManageShow,
+    initialDayScope,
+    initialCompletionScope,
+    actionPhase,
   }: {
     show: { id: string };
     trials: unknown[];
     classes: unknown[];
     entries: unknown[];
     canManageShow: boolean;
+    initialDayScope?: string;
+    initialCompletionScope?: string;
+    actionPhase?: string;
   }) => (
     <div
       data-testid="show-map-tab"
@@ -151,6 +157,9 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
       )}
       data-entry-count={entries.length}
       data-can-manage={String(canManageShow)}
+      data-initial-day-scope={initialDayScope ?? ''}
+      data-initial-completion-scope={initialCompletionScope ?? ''}
+      data-action-phase={actionPhase ?? ''}
     />
   ),
 }));
@@ -404,6 +413,28 @@ describe('ShowWorkbenchPage', () => {
   });
 
   it('renders Wrap-up links to existing closeout surfaces', async () => {
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        order: '1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [
+        {
+          id: 'class-1',
+          element: 'Container',
+          level: 'Novice A',
+          section: 'A',
+          status: 'completed',
+        },
+      ],
+    };
+
     renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
 
     expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
@@ -422,6 +453,11 @@ describe('ShowWorkbenchPage', () => {
       'href',
       '/secretary/results-submission'
     );
+    const showMap = await screen.findByTestId('show-map-tab');
+    expect(showMap).toHaveAttribute('data-show-id', 'show-1');
+    expect(showMap).toHaveAttribute('data-initial-day-scope', 'all');
+    expect(showMap).toHaveAttribute('data-initial-completion-scope', 'completed');
+    expect(showMap).toHaveAttribute('data-action-phase', 'wrap-up');
   });
 
   it('opens AskQ with a selected show-day prompt', async () => {

@@ -2,6 +2,7 @@ import {
   buildClassProgress,
   buildProgress,
   classifyClassStatus,
+  classifyClassWrapUpStatus,
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
   isEntryComplete,
@@ -190,6 +191,21 @@ export function buildShowMapTree({
     const completedClasses = trialClasses.filter(
       cls => classifyClassStatus(cls.status)?.kind === 'complete'
     ).length;
+    const classWrapUpStatuses = trialClasses
+      .map(cls => classifyClassWrapUpStatus(cls, entriesByClassId.get(cls.id) ?? []))
+      .filter((status): status is NonNullable<typeof status> => Boolean(status));
+    const trialWrapUpStatus =
+      classWrapUpStatuses.length === 0
+        ? undefined
+        : classWrapUpStatuses.some(status => status.kind === 'attention')
+          ? { value: 'needs-wrap-up', label: 'Needs wrap-up', kind: 'attention' as const }
+          : classWrapUpStatuses.every(status => status.value === 'submitted-to-registry')
+            ? {
+                value: 'submitted-to-registry',
+                label: 'Submitted to registry',
+                kind: 'complete' as const,
+              }
+            : { value: 'wrap-up-ready', label: 'Wrap-up ready', kind: 'neutral' as const };
     const attentionCount = trialEntries.filter(entry => getEntryAttention(entry) !== null).length;
     const trialNode: ShowMapNode = {
       id: getShowMapNodeId('trial', trial.id),
@@ -200,6 +216,7 @@ export function buildShowMapTree({
         .join(' · '),
       count: trialClasses.length,
       status: classifyClassStatus(trial.status),
+      wrapUpStatus: trialWrapUpStatus,
       progress: buildProgress(completedClasses, trialClasses.length, 'classes'),
       attentionCount,
       href: getShowMapTrialHref(show.id, trial.id),
@@ -222,6 +239,7 @@ export function buildShowMapTree({
         subtitle: cls.section ? `Section ${cls.section}` : undefined,
         count: classEntries.length,
         status: classifyClassStatus(cls.status),
+        wrapUpStatus: classifyClassWrapUpStatus(cls, classEntries),
         progress: buildClassProgress(cls, classEntries),
         attentionCount: attentionCountForClass,
         href: getShowMapClassHref(show.id, trial.id, cls.id),

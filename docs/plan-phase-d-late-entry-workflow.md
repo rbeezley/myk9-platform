@@ -15,7 +15,7 @@ This preserves the Trial Secretary intent from [`docs/INTENT.md`](INTENT.md): th
 - `DayOfEntryDialog` already creates day-of entries for an existing dog and supports class selection, handler name, cash/check/waived payment, jump height, and notes.
 - `createDayOfEntry` already assigns the next armband and writes one confirmed entry per selected class.
 - The dialog currently lives only in the legacy Day-of Operations page, while the active IA sends secretaries to `/secretary/shows/:showId?phase=today`.
-- The current dialog does not create a brand-new exhibitor/person or dog. That remains a required follow-up for true walk-ins.
+- PR #233 added the brand-new exhibitor/person + dog path inside the late-entry dialog.
 
 ## PR Slices
 
@@ -37,7 +37,7 @@ Tests:
 
 ### PR 2 — New exhibitor + dog path
 
-**Status:** Current slice.
+**Status:** Shipped 2026-05-18 in [PR #233](https://github.com/rbeezley/myk9-platform/pull/233).
 
 Deliverables:
 
@@ -52,10 +52,12 @@ Tests:
 
 ### PR 3 — Payment and reconciliation
 
+**Status:** Current slice.
+
 Deliverables:
 
 - Make collected late-entry fees visible in Wrap-up reconciliation.
-- Preserve cash/check/waived payment method on the entry or associated payment record using the canonical schema.
+- Preserve cash/check/waived payment method on the entry using `entries.payment_method`.
 - Avoid Stripe refund/payment automation unless the payment lane is deliberately expanded.
 
 Tests:
@@ -88,4 +90,4 @@ Do not mark the late-entry workflow complete until:
 
 - `createDayOfEntry` is a legacy online-only direct Supabase path. It should be hardened or replaced before treating late entries as fully offline-capable.
 - The current service passes `userId` into the `handler_id` column. Before expanding the flow, verify whether that column expects an auth user ID or a `people.id`.
-- New exhibitor/new dog creation is not included in PR 1, so the main OPEN-TODOS item remains open until PR 2 ships.
+- The late-entry workflow remains open until PR 4 adds the show-day walk and confirms tree/count refresh end to end.

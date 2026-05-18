@@ -464,11 +464,32 @@ describe('ShowWorkbenchPage', () => {
         status: 'sent',
       },
     ];
+    mockShowEntries = [
+      {
+        id: 'late-cash',
+        class_id: 'class-1',
+        is_day_of_show: true,
+        entry_fee: 35,
+        payment_status: 'paid',
+        payment_method: 'cash',
+      },
+      {
+        id: 'early-online',
+        class_id: 'class-1',
+        is_day_of_show: false,
+        entry_fee: 30,
+        payment_status: 'paid',
+        payment_method: 'online',
+      },
+    ];
 
     renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
 
     expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
     expect(screen.getByText(/submit final files/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Late entry reconciliation' })).toBeInTheDocument();
+    expect(screen.getAllByText('$35.00')).toHaveLength(2);
+    expect(screen.getByText('1 late entry')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Submit results' })).toBeInTheDocument();
     expect(await screen.findByText('Classes are complete')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(

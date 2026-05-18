@@ -144,6 +144,8 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
         ...(classInfo?.trial_id !== undefined && { trial_id: classInfo.trial_id }),
         handler: entryData.handler,
         handler_id: userId, // Track who created the day-of entry
+        is_day_of_show: true,
+        payment_method: entryData.paymentMethod,
         payment_status: entryData.paymentMethod === 'waived' ? 'waived' : 'paid',
         entry_status: 'confirmed',
         entry_fee: entryData.paymentMethod === 'waived' ? 0 : classInfo?.entry_fee || defaultFee,

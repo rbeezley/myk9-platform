@@ -24,8 +24,8 @@ Cross-cutting principle that informs every other todo in this section. Secretari
 
 - [ ] **Guided next-action surfaces (cross-cutting)** — Four pieces that compose, not a single feature:
   - [x] **"Next Best Action" card** at the top of the show workbench. Shipped 2026-05-17 via [PR #225](https://github.com/rbeezley/myk9-platform/pull/225): the Today Show Map now surfaces a promoted, dismissible guidance card sourced from the shared ranked-action contract and rotates to the next recommendation after dismissal.
-  - [x] **Phase checklists** on Setup / Today / Wrap-up tabs. Implemented in the Phase C checklist branch: each phase has canonical auto-complete predicates where data exists, local manual done/skip state, and glanceable progress.
-  - [ ] **Contextual one-liner on every screen** — Small, dismissable "About this page" strip describing what a secretary typically uses this screen for. New secretaries lean on it; experienced ones dismiss globally in settings. Cheap to add; high payoff for onboarding.
+  - [x] **Phase checklists** on Setup / Today / Wrap-up tabs. Shipped 2026-05-17 via [PR #227](https://github.com/rbeezley/myk9-platform/pull/227): each phase has canonical auto-complete predicates where data exists, local manual done/skip state, and glanceable progress.
+  - [ ] **Contextual one-liner on every screen** — Implemented in the Phase C about-strips branch: Setup, Today, and Wrap-up now show a dismissible "About this phase" strip scoped by show + phase. New secretaries lean on it; experienced ones can dismiss it locally.
   - [ ] **Searchable "What do I do if…" AskQ entry points** — Reuse the existing AskQ slide-out help surface for the unpredictable input flow (exhibitor questions, edge cases like "an exhibitor wants to move up after entries closed"). Add secretary show-day prompts / quick actions that open AskQ with show context, instead of creating a second help panel. This is the only one of the four that does not derive from the data model, because it answers questions that come from outside the system.
 
 ### Information architecture

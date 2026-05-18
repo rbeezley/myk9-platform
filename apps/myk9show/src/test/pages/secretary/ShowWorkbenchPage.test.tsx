@@ -481,17 +481,30 @@ describe('ShowWorkbenchPage', () => {
         payment_status: 'paid',
         payment_method: 'online',
       },
+      {
+        id: 'paid-scratch',
+        class_id: 'class-1',
+        entry_fee: 35,
+        entry_status: 'scratched',
+        check_in_status: 'pulled',
+        payment_status: 'paid',
+      },
     ];
 
     renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
 
     expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
     expect(screen.getByText(/submit final files/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Late entry reconciliation' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Show-day reconciliation' })).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
     ).toBeInTheDocument();
-    expect(screen.getByText('1 late entry')).toBeInTheDocument();
+    expect(screen.getByText('1 late · 1 pulled')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Manual refund review' })).getByText(
+        '$35.00 paid entries'
+      )
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Submit results' })).toBeInTheDocument();
     expect(await screen.findByText('Classes are complete')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(

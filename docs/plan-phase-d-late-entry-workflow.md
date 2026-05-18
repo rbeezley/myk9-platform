@@ -1,7 +1,7 @@
 # Plan — Phase D Late-Entry Workflow
 
 **Date:** 2026-05-18
-**Status:** In progress.
+**Status:** Complete as of 2026-05-18.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal
@@ -67,7 +67,7 @@ Tests:
 
 ### PR 4 — Show-day walk
 
-**Status:** Current slice.
+**Status:** Shipped 2026-05-18 in [PR #235](https://github.com/rbeezley/myk9-platform/pull/235).
 
 Deliverables:
 
@@ -92,4 +92,3 @@ Do not mark the late-entry workflow complete until:
 
 - `createDayOfEntry` is a legacy online-only direct Supabase path. It should be hardened or replaced before treating late entries as fully offline-capable.
 - The current service passes `userId` into the `handler_id` column. Before expanding the flow, verify whether that column expects an auth user ID or a `people.id`.
-- The late-entry workflow remains open until PR 4 adds the show-day walk and confirms tree/count refresh end to end.

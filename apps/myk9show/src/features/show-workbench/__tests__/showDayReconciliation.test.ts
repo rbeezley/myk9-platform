@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeLateEntryReconciliation } from '../lateEntryReconciliationSummary';
+import { summarizeShowDayReconciliation } from '../showDayReconciliationSummary';
 
-describe('summarizeLateEntryReconciliation', () => {
+describe('summarizeShowDayReconciliation', () => {
   it('totals day-of paid, check, cash, and waived entries', () => {
-    const summary = summarizeLateEntryReconciliation([
+    const summary = summarizeShowDayReconciliation([
       {
         id: 'early-entry',
         is_day_of_show: false,
@@ -34,7 +34,7 @@ describe('summarizeLateEntryReconciliation', () => {
       },
     ]);
 
-    expect(summary.entryCount).toBe(3);
+    expect(summary.lateEntryCount).toBe(3);
     expect(summary.collectedAmount).toBe(75);
     expect(summary.waivedCount).toBe(1);
     expect(summary.byMethod.cash).toEqual({ count: 1, amount: 35 });
@@ -43,7 +43,7 @@ describe('summarizeLateEntryReconciliation', () => {
   });
 
   it('falls back to payment status when old day-of rows have no method', () => {
-    const summary = summarizeLateEntryReconciliation([
+    const summary = summarizeShowDayReconciliation([
       {
         id: 'old-paid-entry',
         is_day_of_show: true,
@@ -53,13 +53,13 @@ describe('summarizeLateEntryReconciliation', () => {
       },
     ]);
 
-    expect(summary.entryCount).toBe(1);
+    expect(summary.lateEntryCount).toBe(1);
     expect(summary.collectedAmount).toBe(25);
     expect(summary.byMethod.paid).toEqual({ count: 1, amount: 25 });
   });
 
   it('does not count cash or check entries as collected until payment is marked paid', () => {
-    const summary = summarizeLateEntryReconciliation([
+    const summary = summarizeShowDayReconciliation([
       {
         id: 'cash-pending-entry',
         is_day_of_show: true,
@@ -69,8 +69,46 @@ describe('summarizeLateEntryReconciliation', () => {
       },
     ]);
 
-    expect(summary.entryCount).toBe(1);
+    expect(summary.lateEntryCount).toBe(1);
     expect(summary.collectedAmount).toBe(0);
     expect(summary.byMethod.cash).toEqual({ count: 1, amount: 35 });
+  });
+
+  it('totals pulled entries that need manual refund review', () => {
+    const summary = summarizeShowDayReconciliation([
+      {
+        id: 'paid-scratch',
+        entry_fee: 35,
+        entry_status: 'scratched',
+        check_in_status: 'pulled',
+        payment_status: 'paid',
+      },
+      {
+        id: 'pending-pull',
+        entry_fee: 30,
+        check_in_status: 'pulled',
+        payment_status: 'pending',
+      },
+    ]);
+
+    expect(summary.pulledCount).toBe(2);
+    expect(summary.refundReviewCount).toBe(1);
+    expect(summary.refundReviewAmount).toBe(35);
+  });
+
+  it('totals already-refunded pulled entries separately', () => {
+    const summary = summarizeShowDayReconciliation([
+      {
+        id: 'refunded-scratch',
+        entry_fee: '40',
+        entry_status: 'withdrawn',
+        payment_status: 'refunded',
+      },
+    ]);
+
+    expect(summary.pulledCount).toBe(1);
+    expect(summary.refundedCount).toBe(1);
+    expect(summary.refundedAmount).toBe(40);
+    expect(summary.refundReviewCount).toBe(0);
   });
 });

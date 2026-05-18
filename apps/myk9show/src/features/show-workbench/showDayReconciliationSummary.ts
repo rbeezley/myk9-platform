@@ -8,37 +8,45 @@ export const LATE_ENTRY_PAYMENT_METHODS = [
 
 export type LateEntryPaymentMethod = (typeof LATE_ENTRY_PAYMENT_METHODS)[number]['id'];
 
-export interface LateEntryReconciliationEntry {
+export interface ShowDayReconciliationEntry {
   id?: string | null;
   is_day_of_show?: boolean | null;
   entry_fee?: number | string | null;
+  entry_status?: string | null;
+  check_in_status?: string | null;
   payment_status?: string | null;
   payment_method?: string | null;
+  withdrawal_reason?: string | null;
 }
 
-export interface LateEntryReconciliationSummary {
-  entryCount: number;
+export interface ShowDayReconciliationSummary {
+  lateEntryCount: number;
   collectedAmount: number;
   waivedCount: number;
+  pulledCount: number;
+  refundReviewCount: number;
+  refundReviewAmount: number;
+  refundedCount: number;
+  refundedAmount: number;
   byMethod: Record<LateEntryPaymentMethod, { count: number; amount: number }>;
 }
 
-function emptyBreakdown(): LateEntryReconciliationSummary['byMethod'] {
+function emptyBreakdown(): ShowDayReconciliationSummary['byMethod'] {
   return LATE_ENTRY_PAYMENT_METHODS.reduce(
     (acc, method) => {
       acc[method.id] = { count: 0, amount: 0 };
       return acc;
     },
-    {} as LateEntryReconciliationSummary['byMethod']
+    {} as ShowDayReconciliationSummary['byMethod']
   );
 }
 
-function amount(value: LateEntryReconciliationEntry['entry_fee']): number {
+function amount(value: ShowDayReconciliationEntry['entry_fee']): number {
   const parsed = typeof value === 'string' ? Number(value) : value;
   return Number.isFinite(parsed) ? Number(parsed) : 0;
 }
 
-function normalizeMethod(entry: LateEntryReconciliationEntry): LateEntryPaymentMethod {
+function normalizeMethod(entry: ShowDayReconciliationEntry): LateEntryPaymentMethod {
   const method = entry.payment_method?.toLowerCase();
   if (method === 'cash' || method === 'check' || method === 'waived') return method;
   if (entry.payment_status === 'waived') return 'waived';
@@ -46,24 +54,54 @@ function normalizeMethod(entry: LateEntryReconciliationEntry): LateEntryPaymentM
   return 'unknown';
 }
 
-export function summarizeLateEntryReconciliation(
-  entries: LateEntryReconciliationEntry[]
-): LateEntryReconciliationSummary {
-  const summary: LateEntryReconciliationSummary = {
-    entryCount: 0,
+function isPulledEntry(entry: ShowDayReconciliationEntry): boolean {
+  const entryStatus = entry.entry_status?.toLowerCase();
+  const checkInStatus = entry.check_in_status?.toLowerCase();
+
+  return (
+    checkInStatus === 'pulled' ||
+    entryStatus === 'scratched' ||
+    entryStatus === 'withdrawn' ||
+    entryStatus === 'absent'
+  );
+}
+
+export function summarizeShowDayReconciliation(
+  entries: ShowDayReconciliationEntry[]
+): ShowDayReconciliationSummary {
+  const summary: ShowDayReconciliationSummary = {
+    lateEntryCount: 0,
     collectedAmount: 0,
     waivedCount: 0,
+    pulledCount: 0,
+    refundReviewCount: 0,
+    refundReviewAmount: 0,
+    refundedCount: 0,
+    refundedAmount: 0,
     byMethod: emptyBreakdown(),
   };
 
   for (const entry of entries) {
+    const fee = amount(entry.entry_fee);
+
+    if (isPulledEntry(entry)) {
+      summary.pulledCount += 1;
+
+      if (entry.payment_status === 'refunded') {
+        summary.refundedCount += 1;
+        summary.refundedAmount += fee;
+      } else if (entry.payment_status === 'paid') {
+        summary.refundReviewCount += 1;
+        summary.refundReviewAmount += fee;
+      }
+    }
+
     // is_day_of_show was historically present but not populated by the
     // late-entry dialog; only explicitly flagged rows belong in Wrap-up totals.
     if (entry.is_day_of_show !== true) continue;
 
-    const fee = amount(entry.entry_fee);
     const method = normalizeMethod(entry);
-    summary.entryCount += 1;
+    summary.lateEntryCount += 1;
     summary.byMethod[method].count += 1;
     summary.byMethod[method].amount += fee;
 

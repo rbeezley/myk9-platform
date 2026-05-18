@@ -57,4 +57,20 @@ describe('summarizeLateEntryReconciliation', () => {
     expect(summary.collectedAmount).toBe(25);
     expect(summary.byMethod.paid).toEqual({ count: 1, amount: 25 });
   });
+
+  it('does not count cash or check entries as collected until payment is marked paid', () => {
+    const summary = summarizeLateEntryReconciliation([
+      {
+        id: 'cash-pending-entry',
+        is_day_of_show: true,
+        entry_fee: 35,
+        payment_status: 'pending',
+        payment_method: 'cash',
+      },
+    ]);
+
+    expect(summary.entryCount).toBe(1);
+    expect(summary.collectedAmount).toBe(0);
+    expect(summary.byMethod.cash).toEqual({ count: 1, amount: 35 });
+  });
 });

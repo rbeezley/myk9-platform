@@ -3,6 +3,8 @@
 -- Enrollments can describe a handler's overall show payment, but late-entry
 -- add-ons are per-entry desk transactions. Keeping the method on entries lets
 -- Wrap-up reconciliation separate cash/check/waived without Stripe automation.
+-- secretary_paid is allowed for parity with enrollment payment methods, even
+-- though the late-entry dialog currently writes only cash/check/waived.
 
 ALTER TABLE public.entries
   ADD COLUMN IF NOT EXISTS payment_method TEXT;

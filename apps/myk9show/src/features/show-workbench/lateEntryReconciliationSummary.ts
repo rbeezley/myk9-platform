@@ -20,7 +20,6 @@ export interface LateEntryReconciliationSummary {
   entryCount: number;
   collectedAmount: number;
   waivedCount: number;
-  waivedAmount: number;
   byMethod: Record<LateEntryPaymentMethod, { count: number; amount: number }>;
 }
 
@@ -54,11 +53,12 @@ export function summarizeLateEntryReconciliation(
     entryCount: 0,
     collectedAmount: 0,
     waivedCount: 0,
-    waivedAmount: 0,
     byMethod: emptyBreakdown(),
   };
 
   for (const entry of entries) {
+    // is_day_of_show was historically present but not populated by the
+    // late-entry dialog; only explicitly flagged rows belong in Wrap-up totals.
     if (entry.is_day_of_show !== true) continue;
 
     const fee = amount(entry.entry_fee);
@@ -69,8 +69,7 @@ export function summarizeLateEntryReconciliation(
 
     if (method === 'waived') {
       summary.waivedCount += 1;
-      summary.waivedAmount += fee;
-    } else if (entry.payment_status === 'paid' || method === 'cash' || method === 'check') {
+    } else if (entry.payment_status === 'paid') {
       summary.collectedAmount += fee;
     }
   }

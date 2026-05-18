@@ -499,7 +499,7 @@ describe('ShowWorkbenchPage', () => {
     expect(
       within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
     ).toBeInTheDocument();
-    expect(screen.getByText('3 entries')).toBeInTheDocument();
+    expect(screen.getByText('1 pulled · 1 review')).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 day-of')
     ).toBeInTheDocument();

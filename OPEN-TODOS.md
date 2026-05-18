@@ -69,7 +69,7 @@ Cross-cutting principle that informs every other todo in this section. Secretari
 - [ ] **Incident logging** — Bite / complaint / DQ record with AKC-friendly schema. Permanent, attached to trial + exhibitor + dog + judge. Needed for downstream AKC reporting.
 - [ ] **Schedule-slip communication** — When a ring runs 30+ min behind, auto-emit an exhibitor notification + PA-script generator the secretary can read at the desk.
 - [ ] **Hospitality tracking** — Judge lunch order capture, water/coffee reminders. Probably belongs in the personnel manager.
-- [ ] **End-of-day reconciliation** — Totals view: entries, no-shows, refunds, fees collected. Natural landing screen for the Wrap-up tab. PR #234 and PR #236 shipped day-of additions, collected/waived desk fees, pulled/no-show totals, manual refund review, and already-refunded totals; the current entry-total slice closes the remaining entry-count gap. Plan: [`docs/plan-phase-d-show-day-reconciliation.md`](docs/plan-phase-d-show-day-reconciliation.md).
+- [x] **End-of-day reconciliation** — Totals view: entries, no-shows, refunds, fees collected. Natural landing screen for the Wrap-up tab. Shipped across PR #234, PR #236, and PR #238: Wrap-up now shows total entries, day-of additions, collected/waived desk fees, pulled/no-show totals, manual refund review, and already-refunded totals. Plan: [`docs/plan-phase-d-show-day-reconciliation.md`](docs/plan-phase-d-show-day-reconciliation.md).
 
 ### Live-walk findings (2026-05-16, Heritage fixture, Chromium headless 1440×900)
 

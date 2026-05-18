@@ -1,7 +1,7 @@
 # Plan — Phase D Show-Day Reconciliation
 
 **Date:** 2026-05-18
-**Status:** In progress.
+**Status:** Shipped 2026-05-18 in PR #238.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal
@@ -30,7 +30,7 @@ Tests:
 
 ## PR 2 — Entry Totals Closeout
 
-**Status:** Current slice.
+**Status:** Shipped 2026-05-18 in PR #238.
 
 Deliverables:
 

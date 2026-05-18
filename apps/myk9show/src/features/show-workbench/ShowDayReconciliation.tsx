@@ -13,7 +13,7 @@ export function ShowDayReconciliation({ entries }: ShowDayReconciliationProps) {
   const summary = summarizeShowDayReconciliation(entries);
   const hasLateEntries = summary.lateEntryCount > 0;
   const hasEntries = summary.totalEntryCount > 0;
-  const entryLabel = summary.totalEntryCount === 1 ? 'entry' : 'entries';
+  const needsReview = summary.pulledCount > 0 || summary.refundReviewCount > 0;
   const refundReviewText =
     summary.refundReviewCount > 0
       ? `${formatCurrency(summary.refundReviewAmount)} paid entries`
@@ -38,12 +38,16 @@ export function ShowDayReconciliation({ entries }: ShowDayReconciliationProps) {
         <span
           className={cn(
             'inline-flex w-fit items-center rounded-md px-2 py-1 text-xs font-medium',
-            hasEntries
+            needsReview
               ? 'bg-primary text-primary-foreground'
               : 'bg-secondary text-secondary-foreground'
           )}
         >
-          {hasEntries ? `${summary.totalEntryCount} ${entryLabel}` : 'No entries'}
+          {needsReview
+            ? `${summary.pulledCount} pulled · ${summary.refundReviewCount} review`
+            : hasEntries
+              ? 'Ready to review'
+              : 'No entries'}
         </span>
       </div>
 

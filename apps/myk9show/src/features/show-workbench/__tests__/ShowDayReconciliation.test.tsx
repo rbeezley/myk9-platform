@@ -27,7 +27,7 @@ describe('ShowDayReconciliation', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Show-day reconciliation' })).toBeInTheDocument();
-    expect(screen.getByText('2 entries')).toBeInTheDocument();
+    expect(screen.getByText('1 pulled · 1 review')).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 day-of')
     ).toBeInTheDocument();

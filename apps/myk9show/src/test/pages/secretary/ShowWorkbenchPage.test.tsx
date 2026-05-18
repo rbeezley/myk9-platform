@@ -175,6 +175,14 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
   ),
 }));
 
+vi.mock('@/features/show-workbench/WorkbenchLateEntryAction', () => ({
+  WorkbenchLateEntryAction: ({ showId }: { showId: string }) => (
+    <button type="button" data-testid="late-entry-action">
+      Add late entry for {showId}
+    </button>
+  ),
+}));
+
 vi.mock('react-router-dom', async importOriginal => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
   return {
@@ -412,7 +420,8 @@ describe('ShowWorkbenchPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'About Today' })).toBeInTheDocument();
     expect(screen.getByText(/keep rings moving/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Late entry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Late entry help' })).toBeInTheDocument();
+    expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
     expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
     expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
     const showMap = await screen.findByTestId('show-map-tab');

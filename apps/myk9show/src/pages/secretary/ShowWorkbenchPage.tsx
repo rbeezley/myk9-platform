@@ -31,6 +31,7 @@ import { getShowStyle } from '@/features/registries';
 import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
+import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import type {
   PhaseChecklistContext,
@@ -304,6 +305,7 @@ export function ShowWorkbenchPage() {
               />
             )}
             <ShowWorkbenchAskQHelp phase="today" />
+            <WorkbenchLateEntryAction showId={currentShow.id} />
             <MyK9QAccessCard
               showId={currentShow.id}
               showName={currentShow.name}

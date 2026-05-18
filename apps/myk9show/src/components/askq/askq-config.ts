@@ -21,7 +21,7 @@ export const SECRETARY_SHOW_DAY_PROMPTS: SecretaryShowDayPrompt[] = [
     phases: ['today'],
   },
   {
-    label: 'Late entry',
+    label: 'Late entry help',
     prompt: 'What should I do if someone walks up and wants to enter on show day?',
     phases: ['setup', 'today'],
   },

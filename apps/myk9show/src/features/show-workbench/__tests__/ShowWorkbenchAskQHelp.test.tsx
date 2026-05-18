@@ -12,7 +12,7 @@ describe('ShowWorkbenchAskQHelp', () => {
     const { rerender } = render(<ShowWorkbenchAskQHelp phase="setup" />);
 
     expect(screen.getByRole('heading', { name: 'What do I do if...' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Late entry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Late entry help' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Submit results' })).not.toBeInTheDocument();
 
     rerender(<ShowWorkbenchAskQHelp phase="today" />);

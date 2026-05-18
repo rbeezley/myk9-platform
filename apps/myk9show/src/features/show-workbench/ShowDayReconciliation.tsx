@@ -12,7 +12,8 @@ interface ShowDayReconciliationProps {
 export function ShowDayReconciliation({ entries }: ShowDayReconciliationProps) {
   const summary = summarizeShowDayReconciliation(entries);
   const hasLateEntries = summary.lateEntryCount > 0;
-  const hasPulledEntries = summary.pulledCount > 0;
+  const hasEntries = summary.totalEntryCount > 0;
+  const entryLabel = summary.totalEntryCount === 1 ? 'entry' : 'entries';
   const refundReviewText =
     summary.refundReviewCount > 0
       ? `${formatCurrency(summary.refundReviewAmount)} paid entries`
@@ -37,16 +38,21 @@ export function ShowDayReconciliation({ entries }: ShowDayReconciliationProps) {
         <span
           className={cn(
             'inline-flex w-fit items-center rounded-md px-2 py-1 text-xs font-medium',
-            hasLateEntries || hasPulledEntries
+            hasEntries
               ? 'bg-primary text-primary-foreground'
               : 'bg-secondary text-secondary-foreground'
           )}
         >
-          {summary.lateEntryCount} late · {summary.pulledCount} pulled
+          {hasEntries ? `${summary.totalEntryCount} ${entryLabel}` : 'No entries'}
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div role="group" aria-label="Show entries">
+          <p className="text-xs font-medium uppercase text-muted-foreground">Entries</p>
+          <p className="text-xl font-semibold">{summary.totalEntryCount}</p>
+          <p className="text-xs text-muted-foreground">{summary.lateEntryCount} day-of</p>
+        </div>
         <div role="group" aria-label="Collected late-entry fees">
           <p className="text-xs font-medium uppercase text-muted-foreground">Collected</p>
           <p className="text-xl font-semibold">{formatCurrency(summary.collectedAmount)}</p>

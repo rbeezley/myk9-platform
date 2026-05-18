@@ -27,7 +27,10 @@ describe('ShowDayReconciliation', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Show-day reconciliation' })).toBeInTheDocument();
-    expect(screen.getByText('1 late · 1 pulled')).toBeInTheDocument();
+    expect(screen.getByText('2 entries')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 day-of')
+    ).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
     ).toBeInTheDocument();

@@ -30,7 +30,6 @@ export function WorkbenchLateEntryAction({ showId }: WorkbenchLateEntryActionPro
     data: classes = [],
     isLoading,
     isError,
-    refetch,
   } = useQuery({
     queryKey: classCapacityKey(showId),
     queryFn: () => loadClassesWithCapacity(showId),
@@ -48,7 +47,7 @@ export function WorkbenchLateEntryAction({ showId }: WorkbenchLateEntryActionPro
         : 'No classes with space';
 
   function handleSuccess() {
-    void refetch();
+    void queryClient.invalidateQueries({ queryKey: classCapacityKey(showId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(showId) });
   }
@@ -84,4 +83,3 @@ export function WorkbenchLateEntryAction({ showId }: WorkbenchLateEntryActionPro
     </section>
   );
 }
-

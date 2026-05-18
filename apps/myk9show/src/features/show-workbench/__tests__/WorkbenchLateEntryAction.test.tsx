@@ -80,7 +80,11 @@ describe('WorkbenchLateEntryAction', () => {
     await user.click(await screen.findByRole('button', { name: 'Add late entry' }));
     await user.click(screen.getByRole('button', { name: 'Complete late entry' }));
 
-    await waitFor(() => expect(getClassesWithCapacityMock).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['show-workbench', 'show-1', 'class-capacity'],
+      })
+    );
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.showEntries('show-1') });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.checkInReport('show-1') });
   });
@@ -106,4 +110,3 @@ describe('WorkbenchLateEntryAction', () => {
     expect(screen.getByRole('button', { name: 'Add late entry' })).toBeDisabled();
   });
 });
-

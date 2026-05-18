@@ -82,14 +82,15 @@ export function summarizeShowDayReconciliation(
 
   for (const entry of entries) {
     const fee = amount(entry.entry_fee);
+    const paymentStatus = entry.payment_status?.toLowerCase();
 
     if (isPulledEntry(entry)) {
       summary.pulledCount += 1;
 
-      if (entry.payment_status === 'refunded') {
+      if (paymentStatus === 'refunded') {
         summary.refundedCount += 1;
         summary.refundedAmount += fee;
-      } else if (entry.payment_status === 'paid') {
+      } else if (paymentStatus === 'paid') {
         summary.refundReviewCount += 1;
         summary.refundReviewAmount += fee;
       }
@@ -106,7 +107,7 @@ export function summarizeShowDayReconciliation(
 
     if (method === 'waived') {
       summary.waivedCount += 1;
-    } else if (entry.payment_status === 'paid') {
+    } else if (paymentStatus === 'paid') {
       summary.collectedAmount += fee;
     }
   }

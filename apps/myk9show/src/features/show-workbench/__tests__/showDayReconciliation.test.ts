@@ -102,7 +102,7 @@ describe('summarizeShowDayReconciliation', () => {
         id: 'refunded-scratch',
         entry_fee: '40',
         entry_status: 'withdrawn',
-        payment_status: 'refunded',
+        payment_status: 'Refunded',
       },
     ]);
 
@@ -110,5 +110,26 @@ describe('summarizeShowDayReconciliation', () => {
     expect(summary.refundedCount).toBe(1);
     expect(summary.refundedAmount).toBe(40);
     expect(summary.refundReviewCount).toBe(0);
+  });
+
+  it('normalizes payment status case for collected and refund-review totals', () => {
+    const summary = summarizeShowDayReconciliation([
+      {
+        id: 'paid-pull',
+        entry_fee: 35,
+        check_in_status: 'pulled',
+        payment_status: 'Paid',
+      },
+      {
+        id: 'paid-late-entry',
+        is_day_of_show: true,
+        entry_fee: 40,
+        payment_status: 'Paid',
+      },
+    ]);
+
+    expect(summary.refundReviewCount).toBe(1);
+    expect(summary.refundReviewAmount).toBe(35);
+    expect(summary.collectedAmount).toBe(40);
   });
 });

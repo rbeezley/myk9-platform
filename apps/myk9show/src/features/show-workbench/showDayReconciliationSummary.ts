@@ -6,7 +6,7 @@ export const LATE_ENTRY_PAYMENT_METHODS = [
   { id: 'unknown', label: 'Unspecified' },
 ] as const;
 
-export type LateEntryPaymentMethod = (typeof LATE_ENTRY_PAYMENT_METHODS)[number]['id'];
+export type ReconciliationPaymentMethod = (typeof LATE_ENTRY_PAYMENT_METHODS)[number]['id'];
 
 export interface ShowDayReconciliationEntry {
   id?: string | null;
@@ -16,7 +16,6 @@ export interface ShowDayReconciliationEntry {
   check_in_status?: string | null;
   payment_status?: string | null;
   payment_method?: string | null;
-  withdrawal_reason?: string | null;
 }
 
 export interface ShowDayReconciliationSummary {
@@ -28,7 +27,7 @@ export interface ShowDayReconciliationSummary {
   refundReviewAmount: number;
   refundedCount: number;
   refundedAmount: number;
-  byMethod: Record<LateEntryPaymentMethod, { count: number; amount: number }>;
+  byMethod: Record<ReconciliationPaymentMethod, { count: number; amount: number }>;
 }
 
 function emptyBreakdown(): ShowDayReconciliationSummary['byMethod'] {
@@ -46,7 +45,7 @@ function amount(value: ShowDayReconciliationEntry['entry_fee']): number {
   return Number.isFinite(parsed) ? Number(parsed) : 0;
 }
 
-function normalizeMethod(entry: ShowDayReconciliationEntry): LateEntryPaymentMethod {
+function normalizeMethod(entry: ShowDayReconciliationEntry): ReconciliationPaymentMethod {
   const method = entry.payment_method?.toLowerCase();
   if (method === 'cash' || method === 'check' || method === 'waived') return method;
   if (entry.payment_status === 'waived') return 'waived';

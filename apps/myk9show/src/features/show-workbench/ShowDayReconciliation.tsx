@@ -13,6 +13,12 @@ export function ShowDayReconciliation({ entries }: ShowDayReconciliationProps) {
   const summary = summarizeShowDayReconciliation(entries);
   const hasLateEntries = summary.lateEntryCount > 0;
   const hasPulledEntries = summary.pulledCount > 0;
+  const refundReviewText =
+    summary.refundReviewCount > 0
+      ? `${formatCurrency(summary.refundReviewAmount)} paid entries`
+      : summary.refundedCount > 0
+        ? `${summary.refundedCount} already refunded`
+        : 'No paid pulls flagged';
 
   return (
     <section
@@ -56,13 +62,7 @@ export function ShowDayReconciliation({ entries }: ShowDayReconciliationProps) {
         <div role="group" aria-label="Manual refund review">
           <p className="text-xs font-medium uppercase text-muted-foreground">Refund review</p>
           <p className="text-xl font-semibold">{summary.refundReviewCount}</p>
-          <p className="text-xs text-muted-foreground">
-            {summary.refundReviewCount > 0
-              ? `${formatCurrency(summary.refundReviewAmount)} paid entries`
-              : summary.refundedCount > 0
-                ? `${summary.refundedCount} already refunded`
-                : 'No paid pulls flagged'}
-          </p>
+          <p className="text-xs text-muted-foreground">{refundReviewText}</p>
         </div>
       </div>
 

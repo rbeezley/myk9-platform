@@ -1,7 +1,7 @@
 # Plan — Phase D Show-Day Reconciliation
 
 **Date:** 2026-05-18
-**Status:** In progress.
+**Status:** Pending PR #236.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal

@@ -33,21 +33,34 @@ const createDayOfEntryDogMock = vi.mocked(createDayOfEntryDog);
 const getClassesWithCapacityMock = vi.mocked(getClassesWithCapacity);
 const searchDogsMock = vi.mocked(searchDogs);
 
+type CapacityClass = {
+  id: string;
+  name: string;
+  class_number: string;
+  max_entries: number;
+  trial_id: string;
+  accepted_count: number;
+  available_spots: number;
+};
+
+function makeCapacityClass(overrides: Partial<CapacityClass> = {}): CapacityClass {
+  return {
+    id: 'class-1',
+    name: 'Container Novice A',
+    class_number: '101',
+    max_entries: 25,
+    trial_id: 'trial-1',
+    accepted_count: 10,
+    available_spots: 15,
+    ...overrides,
+  };
+}
+
 describe('WorkbenchLateEntryAction late-entry walk', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getClassesWithCapacityMock.mockResolvedValue({
-      data: [
-        {
-          id: 'class-1',
-          name: 'Container Novice A',
-          class_number: '101',
-          max_entries: 25,
-          trial_id: 'trial-1',
-          accepted_count: 10,
-          available_spots: 15,
-        },
-      ],
+      data: [makeCapacityClass()],
       error: null,
     });
     searchDogsMock.mockResolvedValue({ data: [], error: null });
@@ -84,6 +97,10 @@ describe('WorkbenchLateEntryAction late-entry walk', () => {
     await user.click(await screen.findByRole('button', { name: 'Add late entry' }));
     await user.type(screen.getByLabelText('Search for Dog'), 'Rocket');
     await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(searchDogsMock).toHaveBeenCalledWith('Rocket');
+    });
     await user.click(await screen.findByRole('button', { name: 'Create new dog' }));
 
     await user.type(await screen.findByLabelText(/Exhibitor First Name/), 'Jamie');
@@ -122,10 +139,10 @@ describe('WorkbenchLateEntryAction late-entry walk', () => {
     });
     await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.showEntries('show-1') });
-    });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.checkInReport('show-1') });
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ['show-workbench', 'show-1', 'class-capacity'],
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.checkInReport('show-1') });
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['show-workbench', 'show-1', 'class-capacity'],
+      });
     });
   });
 });

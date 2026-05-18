@@ -41,21 +41,33 @@ vi.mock('@/pages/secretary/DayOfOperationsPage/DayOfEntryDialog', () => ({
     ) : null,
 }));
 
+type CapacityClass = {
+  id: string;
+  name: string;
+  class_number: string;
+  max_entries: number;
+  accepted_count: number;
+  available_spots: number;
+};
+
+function makeCapacityClass(overrides: Partial<CapacityClass> = {}): CapacityClass {
+  return {
+    id: 'class-1',
+    name: 'Container Novice A',
+    class_number: '101',
+    max_entries: 25,
+    accepted_count: 10,
+    available_spots: 15,
+    ...overrides,
+  };
+}
+
 describe('WorkbenchLateEntryAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
     getClassesWithCapacityMock.mockResolvedValue({
-      data: [
-        {
-          id: 'class-1',
-          name: 'Container Novice A',
-          class_number: '101',
-          max_entries: 25,
-          accepted_count: 10,
-          available_spots: 15,
-        },
-      ],
+      data: [makeCapacityClass()],
       error: null,
     });
   });
@@ -80,27 +92,18 @@ describe('WorkbenchLateEntryAction', () => {
     await user.click(await screen.findByRole('button', { name: 'Add late entry' }));
     await user.click(screen.getByRole('button', { name: 'Complete late entry' }));
 
-    await waitFor(() =>
+    await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: ['show-workbench', 'show-1', 'class-capacity'],
-      })
-    );
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.showEntries('show-1') });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.checkInReport('show-1') });
+      });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.showEntries('show-1') });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.checkInReport('show-1') });
+    });
   });
 
   it('disables the action when no class has space', async () => {
     getClassesWithCapacityMock.mockResolvedValueOnce({
-      data: [
-        {
-          id: 'class-1',
-          name: 'Container Novice A',
-          class_number: '101',
-          max_entries: 25,
-          accepted_count: 25,
-          available_spots: 0,
-        },
-      ],
+      data: [makeCapacityClass({ accepted_count: 25, available_spots: 0 })],
       error: null,
     });
 

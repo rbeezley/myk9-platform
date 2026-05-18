@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import ShowWorkbenchPage from '@/pages/secretary/ShowWorkbenchPage';
+import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { UserRole } from '@/types/auth-types';
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -40,6 +41,7 @@ let mockError = false;
 let mockTrials: Array<Record<string, unknown>> = [];
 let mockTrialClasses: Record<string, Array<Record<string, unknown>>> = {};
 let mockShowEntries: Array<Record<string, unknown>> = [];
+let mockResultSubmissions: Array<Record<string, unknown>> = [];
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
@@ -72,6 +74,10 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
 
 vi.mock('@/hooks/queries/useShowJudges', () => ({
   useShowJudges: () => ({ data: [] }),
+}));
+
+vi.mock('@/hooks/mutations/useResultSubmission', () => ({
+  useResultSubmissions: () => ({ data: mockResultSubmissions }),
 }));
 
 vi.mock('@/store/trialStore', () => ({
@@ -133,24 +139,47 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
     classes,
     entries,
     canManageShow,
+    initialDayScope,
+    initialCompletionScope,
+    actionPhase,
   }: {
     show: { id: string };
     trials: unknown[];
     classes: unknown[];
     entries: unknown[];
     canManageShow: boolean;
+    initialDayScope?: string;
+    initialCompletionScope?: string;
+    actionPhase?: string;
   }) => (
     <div
       data-testid="show-map-tab"
       data-show-id={show.id}
       data-trial-count={trials.length}
+      data-submitted-trial-count={
+        trials.filter(trial => {
+          if (!trial || typeof trial !== 'object') return false;
+          return Boolean((trial as { resultSubmittedAt?: unknown }).resultSubmittedAt);
+        }).length
+      }
       data-class-count={classes.length}
       data-has-ring={String(
         classes.some(cls => typeof cls === 'object' && cls !== null && 'ring' in cls)
       )}
       data-entry-count={entries.length}
       data-can-manage={String(canManageShow)}
+      data-initial-day-scope={initialDayScope ?? ''}
+      data-initial-completion-scope={initialCompletionScope ?? ''}
+      data-action-phase={actionPhase ?? ''}
     />
+  ),
+}));
+
+vi.mock('@/features/show-workbench/WorkbenchLateEntryAction', () => ({
+  WorkbenchLateEntryAction: ({ showId }: { showId: string }) => (
+    <button type="button" data-testid="late-entry-action">
+      Add late entry for {showId}
+    </button>
   ),
 }));
 
@@ -311,6 +340,9 @@ describe('ShowWorkbenchPage', () => {
     mockTrials = [];
     mockTrialClasses = {};
     mockShowEntries = [];
+    mockResultSubmissions = [];
+    useAskQPanelStore.getState().close();
+    window.localStorage.clear();
   });
 
   it('renders the workbench shell for a secretary', async () => {
@@ -344,7 +376,14 @@ describe('ShowWorkbenchPage', () => {
   it('renders Setup panels without public-discovery panels', async () => {
     renderWorkbench('/secretary/shows/show-1');
 
+    expect(await screen.findByRole('heading', { name: 'About Setup' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/confirm the schedule, judges, show page, and materials/i)
+    ).toBeInTheDocument();
     expect(await screen.findByTestId('premium-download-card')).toHaveTextContent('show-1');
+    expect(screen.getByRole('heading', { name: '1 of 5 handled' })).toBeInTheDocument();
+    expect(screen.getByText('Trials are added')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'What do I do if...' })).toBeInTheDocument();
     expect(screen.getByTestId('landing-page-card')).toHaveTextContent('show-1');
     expect(screen.getByTestId('schedule-summary')).toHaveTextContent('show-1');
     expect(screen.getByTestId('venue-map')).toHaveTextContent('Louisville, KY');
@@ -379,6 +418,11 @@ describe('ShowWorkbenchPage', () => {
 
     renderWorkbench('/secretary/shows/show-1?phase=today');
 
+    expect(await screen.findByRole('heading', { name: 'About Today' })).toBeInTheDocument();
+    expect(screen.getByText(/keep rings moving/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Late entry help' })).toBeInTheDocument();
+    expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
+    expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
     expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
     const showMap = await screen.findByTestId('show-map-tab');
     expect(showMap).toHaveAttribute('data-show-id', 'show-1');
@@ -390,8 +434,66 @@ describe('ShowWorkbenchPage', () => {
   });
 
   it('renders Wrap-up links to existing closeout surfaces', async () => {
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        order: '1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [
+        {
+          id: 'class-1',
+          element: 'Container',
+          level: 'Novice A',
+          section: 'A',
+          status: 'completed',
+        },
+      ],
+    };
+    mockResultSubmissions = [
+      {
+        id: 'submission-1',
+        show_id: 'show-1',
+        trial_id: null,
+        submitted_at: '2026-03-22T20:00:00Z',
+        status: 'sent',
+      },
+    ];
+    mockShowEntries = [
+      {
+        id: 'late-cash',
+        class_id: 'class-1',
+        is_day_of_show: true,
+        entry_fee: 35,
+        payment_status: 'paid',
+        payment_method: 'cash',
+      },
+      {
+        id: 'early-online',
+        class_id: 'class-1',
+        is_day_of_show: false,
+        entry_fee: 30,
+        payment_status: 'paid',
+        payment_method: 'online',
+      },
+    ];
+
     renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
 
+    expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
+    expect(screen.getByText(/submit final files/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Late entry reconciliation' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
+    ).toBeInTheDocument();
+    expect(screen.getByText('1 late entry')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Submit results' })).toBeInTheDocument();
+    expect(await screen.findByText('Classes are complete')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(
       'href',
       '/secretary/results-control'
@@ -403,6 +505,24 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByRole('link', { name: /Submit Results/ })).toHaveAttribute(
       'href',
       '/secretary/results-submission'
+    );
+    const showMap = await screen.findByTestId('show-map-tab');
+    expect(showMap).toHaveAttribute('data-show-id', 'show-1');
+    expect(showMap).toHaveAttribute('data-initial-day-scope', 'all');
+    expect(showMap).toHaveAttribute('data-initial-completion-scope', 'completed');
+    expect(showMap).toHaveAttribute('data-action-phase', 'wrap-up');
+    expect(showMap).toHaveAttribute('data-submitted-trial-count', '1');
+  });
+
+  it('opens AskQ with a selected show-day prompt', async () => {
+    const user = userEvent.setup();
+    renderWorkbench('/secretary/shows/show-1?phase=today');
+
+    await user.click(await screen.findByRole('button', { name: 'Scratch or no-show' }));
+
+    expect(useAskQPanelStore.getState().isOpen).toBe(true);
+    expect(useAskQPanelStore.getState().suggestedPrompt).toBe(
+      'What should I do if an exhibitor says their dog is a scratch or no-show today?'
     );
   });
 

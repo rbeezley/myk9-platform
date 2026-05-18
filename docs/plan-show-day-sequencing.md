@@ -1,7 +1,7 @@
 # Plan — Show-Day Workflow Sequencing
 
 **Date:** 2026-05-16
-**Status:** Active sequencing roadmap. Current phase: Phase C — Tree extensions + guided UX.
+**Status:** Active sequencing roadmap. Current phase: Phase D — Day-of operational gaps.
 **Scope:** Defines the order in which remaining items from the 2026-05-16 show-day brainstorm are picked up. This doc is the source of truth for _what's next_ when a PR lands; granular item tracking continues to live in `OPEN-TODOS.md`. Implementation details per phase land in their own dedicated plan docs as each phase begins.
 
 ## How to use this doc
@@ -89,7 +89,7 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 ## Phase C — Tree extensions + guided UX (inside the new IA)
 
-**Status:** Current phase. Implementation specifics live in [`docs/plan-phase-c-tree-guided-ux.md`](plan-phase-c-tree-guided-ux.md).
+**Status:** Complete as of 2026-05-18. Implementation specifics live in [`docs/plan-phase-c-tree-guided-ux.md`](plan-phase-c-tree-guided-ux.md).
 
 **Entry trigger:** Phase B exit criterion met. The workbench exists and is the default secretary entry point.
 
@@ -106,13 +106,21 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 - All four "Guided next-action surfaces" sub-items
 - "Per-row badge target spec" extensions
 
-**Exit criterion:** Secretary can answer "what now?" without leaving the Today tab; a new secretary can complete a full show without external guidance. Estimated 8-12 PRs.
+**Exit criterion:** Met for the initial guided workbench:
+
+- Time scoping, Completed view, Running Now, and workbench-grade Next Best Action shipped via PR #225.
+- Phase checklists shipped via PR #227.
+- Contextual about strips shipped via PR #229.
+- AskQ "What do I do if..." entry points shipped via PR #230.
+- Wrap-up status taxonomy shipped via PR #231.
 
 **Why this phase third:** These surfaces depend on the workbench being the home. Building a Running Now strip inside `SecretaryDashboardPage` (the current home) means rebuilding it inside the workbench later. The contextual help and FAQ panel are similarly easier to author once their permanent home is known.
 
 ---
 
 ## Phase D — Day-of operational gaps
+
+**Status:** Current phase. Initial late-entry plan lives in [`docs/plan-phase-d-late-entry-workflow.md`](plan-phase-d-late-entry-workflow.md).
 
 **Entry trigger:** Phase C exit criterion met _or_ a specific operational gap becomes urgent before then (e.g., real users requesting incident logging). Phase D can also overlap with Phase C if items don't compete for the same UI surface.
 

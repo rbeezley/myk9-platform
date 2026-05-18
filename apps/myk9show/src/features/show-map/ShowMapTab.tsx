@@ -35,6 +35,8 @@ import type { LastShowMapMoveUp } from './useShowMapActionExecutor';
 interface ShowMapTabProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
   initialDayScope?: ShowMapDayScope | undefined;
+  initialCompletionScope?: ShowMapCompletionScope | undefined;
+  actionPhase?: 'today' | 'wrap-up' | undefined;
   scopeNow?: Date | undefined;
 }
 
@@ -194,12 +196,15 @@ export default function ShowMapTab({
   entries,
   canManageShow,
   initialDayScope = 'all',
+  initialCompletionScope = 'active',
+  actionPhase,
   scopeNow,
 }: ShowMapTabProps) {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<ShowMapFilter>('all');
   const [dayScope, setDayScope] = useState<ShowMapDayScope>(initialDayScope);
-  const [completionScope, setCompletionScope] = useState<ShowMapCompletionScope>('active');
+  const [completionScope, setCompletionScope] =
+    useState<ShowMapCompletionScope>(initialCompletionScope);
   // INTENT: Guidance dismissals are session-local noise control, not a permanent action mute.
   const [dismissedGuidanceKeys, setDismissedGuidanceKeys] = useState<Set<string>>(() => new Set());
   const tree = useMemo(
@@ -230,8 +235,8 @@ export default function ShowMapTab({
   const attentionCount = tree.root.attentionCount ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
   const recommendedActions = useMemo(
-    () => getAllRecommendedActions('root', { tree }),
-    [tree]
+    () => getAllRecommendedActions('root', { tree, phase: actionPhase }),
+    [actionPhase, tree]
   );
   const guidanceAction = recommendedActions.find(
     action => !dismissedGuidanceKeys.has(actionKey(action))
@@ -248,7 +253,10 @@ export default function ShowMapTab({
     if (!guidanceAction) return;
     setDismissedGuidanceKeys(current => new Set(current).add(actionKey(guidanceAction)));
   }, [guidanceAction]);
-  const priorityActions = useMemo(() => getRankedActions('root', { tree }), [tree]);
+  const priorityActions = useMemo(
+    () => getRankedActions('root', { tree, phase: actionPhase }),
+    [actionPhase, tree]
+  );
   const runningNowItems = useMemo(
     () => getRunningNowItems(tree, scope, effectiveScopeNow),
     [effectiveScopeNow, scope, tree]
@@ -358,6 +366,7 @@ export default function ShowMapTab({
           onToggle={toggleNode}
           onNavigate={navigateTo}
           onAction={executeAction}
+          actionPhase={actionPhase}
         />
       </div>
       <ShowMapMoveUpDialog

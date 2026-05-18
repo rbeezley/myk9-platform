@@ -49,6 +49,9 @@ export const showMapActionExecutionById = {
   'print-check-in-sheet': { kind: 'navigate' },
   'open-schedule': { kind: 'navigate' },
   'print-trial-reports': { kind: 'navigate' },
+  'collect-judge-signature': { kind: 'navigate' },
+  'review-results': { kind: 'navigate' },
+  'submit-final-results': { kind: 'navigate' },
   'mark-checked-in': {
     kind: 'mutation',
     mutation: 'mark-checked-in',

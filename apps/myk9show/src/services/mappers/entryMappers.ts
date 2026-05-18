@@ -333,6 +333,8 @@ export const mapReplicatedEntryToDbRow = (
       entry_fee: 'entryFee',
       total_fees: 'totalFees',
       payment_status: 'paymentStatus',
+      payment_method: 'paymentMethod',
+      is_day_of_show: 'isDayOfShow',
       run_order: 'runOrder',
       move_up_requested: 'moveUpRequested',
       preferred_judge: 'preferredJudge',

@@ -26,6 +26,22 @@ export interface ShowMapDisplayStatus {
   kind: ShowMapStatusKind;
 }
 
+export const SHOW_MAP_WRAP_UP_STATUS = {
+  NEEDS_JUDGE_SIGNATURE: 'needs-judge-signature',
+  SIGNED_BY_JUDGE: 'signed-by-judge',
+  CLASS_READY_FOR_WRAP_UP: 'class-ready-for-wrap-up',
+  SUBMITTED_TO_REGISTRY: 'submitted-to-registry',
+  NEEDS_WRAP_UP: 'needs-wrap-up',
+  TRIAL_READY_TO_SUBMIT: 'trial-ready-to-submit',
+} as const;
+
+export type ShowMapWrapUpStatusValue =
+  (typeof SHOW_MAP_WRAP_UP_STATUS)[keyof typeof SHOW_MAP_WRAP_UP_STATUS];
+
+export interface ShowMapTrialInput extends SyncableTrial {
+  resultSubmittedAt?: string | null | undefined;
+}
+
 export interface ShowMapNode {
   id: string;
   type: ShowMapNodeType;
@@ -33,6 +49,7 @@ export interface ShowMapNode {
   subtitle?: string | undefined;
   count?: number | undefined;
   status?: ShowMapDisplayStatus | undefined;
+  wrapUpStatus?: ShowMapDisplayStatus | undefined;
   checkInStatus?: ShowMapDisplayStatus | undefined;
   progress?: ShowMapProgress | undefined;
   attentionCount?: number | undefined;
@@ -88,7 +105,7 @@ export type ShowMapEntryInput = Record<string, unknown>;
 
 export interface BuildShowMapTreeInput {
   show: Show;
-  trials: SyncableTrial[];
+  trials: ShowMapTrialInput[];
   classes: ShowMapClassInput[];
   entries: ShowMapEntryInput[];
   entryPreviewLimit?: number;

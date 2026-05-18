@@ -28,6 +28,17 @@ import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { getShowStyle } from '@/features/registries';
+import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
+import { LateEntryReconciliation } from '@/features/show-workbench/LateEntryReconciliation';
+import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
+import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
+import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
+import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
+import type {
+  PhaseChecklistContext,
+  ShowWorkbenchClassSummary,
+  ShowWorkbenchEntrySummary,
+} from '@/features/show-workbench/phaseChecklistDefinitions';
 import { isShowWorkbenchPhase, useActivePhase } from '@/hooks/useActivePhase';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -53,6 +64,20 @@ function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
   );
 }
 
+function toChecklistEntrySummary(entry: {
+  id?: string | null | undefined;
+  class_id?: string | null | undefined;
+  entry_status?: string | null | undefined;
+  check_in_status?: string | null | undefined;
+}): ShowWorkbenchEntrySummary {
+  return {
+    id: entry.id ?? undefined,
+    class_id: entry.class_id ?? undefined,
+    entry_status: entry.entry_status ?? undefined,
+    check_in_status: entry.check_in_status ?? undefined,
+  };
+}
+
 export function ShowWorkbenchPage() {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
@@ -68,6 +93,7 @@ export function ShowWorkbenchPage() {
   );
   const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
+  const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
 
   useEffect(() => {
     if (!showId) return;
@@ -101,7 +127,18 @@ export function ShowWorkbenchPage() {
     [showId, trials]
   );
 
-  const showClasses = useMemo(
+  const showMapTrials = useMemo(() => {
+    const sentSubmissions = resultSubmissions.filter(row => row.status === 'sent');
+    const showSubmittedAt = sentSubmissions.find(row => !row.trial_id)?.submitted_at;
+
+    return associatedTrials.map(trial => ({
+      ...trial,
+      resultSubmittedAt:
+        sentSubmissions.find(row => row.trial_id === trial.id)?.submitted_at ?? showSubmittedAt,
+    }));
+  }, [associatedTrials, resultSubmissions]);
+
+  const showClasses = useMemo<ShowWorkbenchClassSummary[]>(
     () =>
       associatedTrials.flatMap(trial => {
         const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
@@ -123,6 +160,25 @@ export function ShowWorkbenchPage() {
         }));
       }),
     [associatedTrials, showEntries, trialClasses]
+  );
+
+  const checklistEntries = useMemo(
+    () => showEntries.map(entry => toChecklistEntrySummary(entry)),
+    [showEntries]
+  );
+
+  const checklistContext = useMemo<PhaseChecklistContext | null>(
+    () =>
+      currentShow
+        ? {
+            show: currentShow,
+            trials: associatedTrials,
+            classes: showClasses,
+            entries: checklistEntries,
+            judges: showJudgeRoster,
+          }
+        : null,
+    [associatedTrials, checklistEntries, currentShow, showClasses, showJudgeRoster]
   );
 
   const effectiveJudges = useMemo(
@@ -210,6 +266,16 @@ export function ShowWorkbenchPage() {
         <PrimaryTabsContent value="setup">
           <PhaseShell title="Setup" kicker="Before the show" />
           <div className="space-y-6">
+            <AboutThisPhase phase="setup" showId={currentShow.id} />
+            {checklistContext && (
+              <PhaseChecklist
+                key={`${currentShow.id}:setup`}
+                phase="setup"
+                showId={currentShow.id}
+                context={checklistContext}
+              />
+            )}
+            <ShowWorkbenchAskQHelp phase="setup" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PremiumDownloadCard showId={currentShow.id} showStaleBadge />
               <LandingPageCard showId={currentShow.id} showStyle={getShowStyle(currentShow)} />
@@ -230,6 +296,17 @@ export function ShowWorkbenchPage() {
         <PrimaryTabsContent value="today">
           <PhaseShell title="Today" kicker="Live operations" />
           <div className="space-y-4">
+            <AboutThisPhase phase="today" showId={currentShow.id} />
+            {checklistContext && (
+              <PhaseChecklist
+                key={`${currentShow.id}:today`}
+                phase="today"
+                showId={currentShow.id}
+                context={checklistContext}
+              />
+            )}
+            <ShowWorkbenchAskQHelp phase="today" />
+            <WorkbenchLateEntryAction showId={currentShow.id} />
             <MyK9QAccessCard
               showId={currentShow.id}
               showName={currentShow.name}
@@ -238,7 +315,7 @@ export function ShowWorkbenchPage() {
             <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
               <ShowMapTab
                 show={currentShow}
-                trials={associatedTrials}
+                trials={showMapTrials}
                 classes={showClasses}
                 entries={showEntries}
                 canManageShow
@@ -249,34 +326,59 @@ export function ShowWorkbenchPage() {
         </PrimaryTabsContent>
         <PrimaryTabsContent value="wrap-up">
           <PhaseShell title="Wrap-up" kicker="After the show" />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-              <Link to="/secretary/results-control">
-                <ListChecks className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-medium">Results Control</span>
-                  <span className="block text-xs text-muted-foreground">Verify results</span>
-                </span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-              <Link to="/secretary/reports">
-                <FileBarChart className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-medium">Reports</span>
-                  <span className="block text-xs text-muted-foreground">Print and export</span>
-                </span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-              <Link to="/secretary/results-submission">
-                <Send className="h-5 w-5" />
-                <span className="text-left">
-                  <span className="block font-medium">Submit Results</span>
-                  <span className="block text-xs text-muted-foreground">Send final files</span>
-                </span>
-              </Link>
-            </Button>
+          <div className="space-y-4">
+            <AboutThisPhase phase="wrap-up" showId={currentShow.id} />
+            {checklistContext && (
+              <PhaseChecklist
+                key={`${currentShow.id}:wrap-up`}
+                phase="wrap-up"
+                showId={currentShow.id}
+                context={checklistContext}
+              />
+            )}
+            <ShowWorkbenchAskQHelp phase="wrap-up" />
+            <LateEntryReconciliation entries={showEntries} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to="/secretary/results-control">
+                  <ListChecks className="h-5 w-5" />
+                  <span className="text-left">
+                    <span className="block font-medium">Results Control</span>
+                    <span className="block text-xs text-muted-foreground">Verify results</span>
+                  </span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to="/secretary/reports">
+                  <FileBarChart className="h-5 w-5" />
+                  <span className="text-left">
+                    <span className="block font-medium">Reports</span>
+                    <span className="block text-xs text-muted-foreground">Print and export</span>
+                  </span>
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                <Link to="/secretary/results-submission">
+                  <Send className="h-5 w-5" />
+                  <span className="text-left">
+                    <span className="block font-medium">Submit Results</span>
+                    <span className="block text-xs text-muted-foreground">Send final files</span>
+                  </span>
+                </Link>
+              </Button>
+            </div>
+            <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+              <ShowMapTab
+                show={currentShow}
+                trials={showMapTrials}
+                classes={showClasses}
+                entries={showEntries}
+                canManageShow
+                initialDayScope="all"
+                initialCompletionScope="completed"
+                actionPhase="wrap-up"
+              />
+            </Suspense>
           </div>
         </PrimaryTabsContent>
       </PrimaryTabs>

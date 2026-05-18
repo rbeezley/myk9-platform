@@ -11,6 +11,7 @@ import type {
   ShowMapEntryInput,
   ShowMapProgress,
 } from './showMapTypes';
+import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 
 const COMPLETE_RESULT_STATUSES = new Set([
   'qualified',
@@ -36,6 +37,16 @@ function readBoolean(record: ShowMapEntryInput, key: string): boolean {
   return record[key] === true;
 }
 
+interface ClassWrapUpStatusOptions {
+  resultSubmittedAt?: string | null | undefined;
+}
+
+function entryHasJudgeSignature(entry: ShowMapEntryInput): boolean {
+  return Boolean(
+    readString(entry, 'judge_signature_timestamp') || readString(entry, 'judge_signature')
+  );
+}
+
 export function classifyClassStatus(status?: string): ShowMapDisplayStatus | undefined {
   if (!status) return undefined;
   const normalized = normalizeClassStatus(status);
@@ -51,6 +62,50 @@ export function classifyClassStatus(status?: string): ShowMapDisplayStatus | und
     return { value: normalized, label: display.label, kind: 'muted' };
   }
   return { value: normalized, label: 'Not started', kind: 'neutral' };
+}
+
+export function classifyClassWrapUpStatus(
+  cls: ShowMapClassInput,
+  entries: ShowMapEntryInput[],
+  options: ClassWrapUpStatusOptions = {}
+): ShowMapDisplayStatus | undefined {
+  const baseStatus = classifyClassStatus(cls.status);
+  const progress = buildClassProgress(cls, entries);
+  const isComplete =
+    baseStatus?.kind === 'complete' ||
+    (progress ? progress.completed >= progress.total && progress.total > 0 : false);
+
+  if (!isComplete) return undefined;
+
+  if (options.resultSubmittedAt) {
+    return {
+      value: SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY,
+      label: 'Submitted to registry',
+      kind: 'complete',
+    };
+  }
+
+  if (entries.length > 0) {
+    if (entries.every(entryHasJudgeSignature)) {
+      return {
+        value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
+        label: 'Signed by judge',
+        kind: 'neutral',
+      };
+    }
+
+    return {
+      value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
+      label: 'Needs judge signature',
+      kind: 'attention',
+    };
+  }
+
+  return {
+    value: SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
+    label: 'Ready for wrap-up',
+    kind: 'neutral',
+  };
 }
 
 export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplayStatus | undefined {

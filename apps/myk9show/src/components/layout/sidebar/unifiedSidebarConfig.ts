@@ -36,6 +36,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
+import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem } from './types';
 
 export interface ClubContext {
@@ -301,8 +302,22 @@ export function buildUnifiedSidebarConfig(
           ? '/exhibitor/entries'
           : '/shows';
 
+  // When the wizard surface is active, hide nav items that point at routes
+  // the WizardSurfaceGate would 404. Site admins keep the full sidebar
+  // because the gate already bypasses them. Empty groups are dropped so we
+  // don't render orphan section headers.
+  const filteredGroups: NavGroup[] =
+    isWizardSurface && !isAdmin
+      ? groups
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => isPathInWizardAllowlist(item.href)),
+          }))
+          .filter((group) => group.items.length > 0)
+      : groups;
+
   return {
-    groups,
+    groups: filteredGroups,
     dashboardHref,
     headerIcon,
     headerTitle,

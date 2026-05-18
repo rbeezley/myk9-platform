@@ -8,10 +8,16 @@ import { supabase } from '@/lib/supabase';
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
+    functions: {
+      invoke: vi.fn(),
+    },
   },
 }));
 
-const mockSupabase = supabase as unknown as { from: Mock };
+const mockSupabase = supabase as unknown as {
+  from: Mock;
+  functions: { invoke: Mock };
+};
 
 describe('WaitlistFormLanding', () => {
   const insertMock = vi.fn();
@@ -20,6 +26,8 @@ describe('WaitlistFormLanding', () => {
     insertMock.mockReset();
     mockSupabase.from.mockReset();
     mockSupabase.from.mockReturnValue({ insert: insertMock });
+    mockSupabase.functions.invoke.mockReset();
+    mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: null });
   });
 
   it('inserts the lower-cased email and selected role into platform_waitlist', async () => {
@@ -42,6 +50,38 @@ describe('WaitlistFormLanding', () => {
     expect(await screen.findByText(/you're on the list/i)).toBeInTheDocument();
   });
 
+  it('triggers send-waitlist-invite and shows the check-your-email success when "Club / secretary" is picked', async () => {
+    const user = userEvent.setup();
+    insertMock.mockResolvedValueOnce({ error: null });
+
+    render(<WaitlistFormLanding source="myk9show.com" />);
+
+    await user.type(screen.getByLabelText(/email/i), 'SECRETARY@Example.com');
+    await user.click(screen.getByRole('radio', { name: /club \/ secretary/i }));
+    await user.click(screen.getByRole('button', { name: /join the waitlist/i }));
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'secretary@example.com', role: 'club_official' }),
+    );
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('send-waitlist-invite', {
+      body: { email: 'secretary@example.com' },
+    });
+    expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
+  });
+
+  it('does NOT invoke send-waitlist-invite for exhibitor or judge roles', async () => {
+    const user = userEvent.setup();
+    insertMock.mockResolvedValueOnce({ error: null });
+
+    render(<WaitlistFormLanding source="myk9show.com" />);
+
+    await user.type(screen.getByLabelText(/email/i), 'judge@example.com');
+    await user.click(screen.getByRole('radio', { name: /judge/i }));
+    await user.click(screen.getByRole('button', { name: /join the waitlist/i }));
+
+    expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
+  });
+
   it('treats Postgres unique-violation (23505) as success — the user is on the list either way', async () => {
     const user = userEvent.setup();
     insertMock.mockResolvedValueOnce({ error: { code: '23505' } });
@@ -52,6 +92,9 @@ describe('WaitlistFormLanding', () => {
     await user.click(screen.getByRole('button', { name: /join the waitlist/i }));
 
     expect(await screen.findByText(/you're on the list/i)).toBeInTheDocument();
+    // Duplicate inserts must NOT re-fire the invite (it would resend the
+    // email on every form submit attempt).
+    expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
     // The form must NOT remain visible, since the user would otherwise
     // think their submit was lost and try again.
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();

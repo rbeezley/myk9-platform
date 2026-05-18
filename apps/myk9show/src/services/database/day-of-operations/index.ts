@@ -1,9 +1,17 @@
 // Authoritative data access module for day-of-show operations.
 // All callers import from here — never from supabaseClient directly.
 
-export type { DayOfEntry, MoveUpRequest, ClassWithCapacity, ScratchRequest } from './types';
+export type {
+  DayOfEntry,
+  DayOfEntryDogResult,
+  MoveUpRequest,
+  ClassWithCapacity,
+  ScratchRequest,
+  CreateDayOfEntryDogInput,
+} from './types';
 
 export { getClassesWithCapacity, createDayOfEntry, getShowDogs, searchDogs } from './entries';
+export { createDayOfEntryDog } from './late-entry-dog';
 
 export {
   processMoveUp,

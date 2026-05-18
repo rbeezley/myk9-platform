@@ -22,6 +22,20 @@ describe('AskQInput', () => {
     expect(onSubmit).toHaveBeenCalledWith('What is the time limit?');
   });
 
+  it('prefills the input with a suggested query', () => {
+    render(
+      <AskQInput
+        onSubmit={vi.fn()}
+        disabled={false}
+        initialValue="What should I do if a dog scratches?"
+      />
+    );
+
+    expect(screen.getByPlaceholderText('Ask about rules, your results, or the app...')).toHaveValue(
+      'What should I do if a dog scratches?'
+    );
+  });
+
   it('submits on Enter key', async () => {
     const onSubmit = vi.fn();
     const { user } = render(<AskQInput onSubmit={onSubmit} disabled={false} />);

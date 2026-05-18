@@ -1,7 +1,7 @@
 # Plan — Phase C Tree Extensions + Guided UX
 
 **Date:** 2026-05-17
-**Status:** Ready for implementation.
+**Status:** Complete as of 2026-05-18.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 **Dependency:** Phase B workbench IA shipped in [PR #223](https://github.com/rbeezley/myk9-platform/pull/223).
 
@@ -49,6 +49,8 @@ Avoid parallel edits to `ShowMapTab.tsx` by extracting helpers/components first,
 
 ### PR 1 — Time scope foundation + Completed view
 
+**Status:** Shipped 2026-05-17 in [PR #225](https://github.com/rbeezley/myk9-platform/pull/225).
+
 Files likely touched:
 
 - `apps/myk9show/src/features/show-map/showMapTimeScope.ts`
@@ -73,6 +75,8 @@ Tests:
 
 ### PR 2 — Running Now pinned strip
 
+**Status:** Shipped 2026-05-17 in [PR #225](https://github.com/rbeezley/myk9-platform/pull/225).
+
 Files likely touched:
 
 - `apps/myk9show/src/features/show-map/showMapRunningNow.ts`
@@ -92,6 +96,8 @@ Tests:
 
 ### PR 3 — Workbench-grade Next Best Action
 
+**Status:** Shipped 2026-05-17 in [PR #225](https://github.com/rbeezley/myk9-platform/pull/225).
+
 Files likely touched:
 
 - `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx`
@@ -110,6 +116,8 @@ Tests:
 - Workbench test proving Today shows the guidance card above the map.
 
 ### PR 4 — Phase checklists
+
+**Status:** Shipped 2026-05-17 in [PR #227](https://github.com/rbeezley/myk9-platform/pull/227).
 
 Files likely touched:
 
@@ -131,6 +139,8 @@ Tests:
 
 ### PR 5 — Contextual about strips
 
+**Status:** Shipped 2026-05-17 in [PR #229](https://github.com/rbeezley/myk9-platform/pull/229).
+
 Files likely touched:
 
 - `apps/myk9show/src/features/show-workbench/AboutThisPhase.tsx`
@@ -148,6 +158,8 @@ Tests:
 - Workbench test for phase-specific copy.
 
 ### PR 6 — "What do I do if..." AskQ entry points
+
+**Status:** Shipped 2026-05-17 in [PR #230](https://github.com/rbeezley/myk9-platform/pull/230).
 
 Files likely touched:
 
@@ -171,6 +183,8 @@ Tests:
 - Workbench smoke test for opening AskQ from the "What do I do if..." entry point.
 
 ### PR 7 — Wrap-up status taxonomy
+
+**Status:** Shipped 2026-05-18 in [PR #231](https://github.com/rbeezley/myk9-platform/pull/231).
 
 Files likely touched:
 

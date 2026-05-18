@@ -11,7 +11,6 @@ export function AskQExampleQueries({ onSelectQuery }: AskQExampleQueriesProps) {
     <div className="space-y-4">
       {CATEGORIES.map(category => {
         const queries = EXAMPLE_QUERIES.filter(q => q.category === category);
-        const isAppHelp = category === 'app-help';
 
         return (
           <div key={category}>
@@ -19,7 +18,7 @@ export function AskQExampleQueries({ onSelectQuery }: AskQExampleQueriesProps) {
               {CATEGORY_LABELS[category]}
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {isAppHelp ? (
+              {queries.length === 0 ? (
                 <span className="px-3 py-1.5 rounded-full text-xs bg-muted/50 text-muted-foreground/50">
                   Coming soon...
                 </span>

@@ -18,15 +18,21 @@ export function AskQExampleQueries({ onSelectQuery }: AskQExampleQueriesProps) {
               {CATEGORY_LABELS[category]}
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {queries.map(query => (
-                <button
-                  key={query.text}
-                  onClick={() => onSelectQuery(query.text)}
-                  className="px-3 py-1.5 rounded-full text-xs bg-muted hover:bg-muted/80 text-muted-foreground transition-colors cursor-pointer text-left"
-                >
-                  {query.text}
-                </button>
-              ))}
+              {queries.length === 0 ? (
+                <span className="px-3 py-1.5 rounded-full text-xs bg-muted/50 text-muted-foreground/50">
+                  Coming soon...
+                </span>
+              ) : (
+                queries.map(query => (
+                  <button
+                    key={query.text}
+                    onClick={() => onSelectQuery(query.text)}
+                    className="px-3 py-1.5 rounded-full text-xs bg-muted hover:bg-muted/80 text-muted-foreground transition-colors cursor-pointer text-left"
+                  >
+                    {query.text}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         );

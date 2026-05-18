@@ -13,7 +13,8 @@ import { AskQFeedback } from './AskQFeedback';
 import { RATE_LIMIT_DEFAULTS } from './askq-config';
 
 export function AskQPanel() {
-  const { isOpen, close, suggestedPrompt, clearSuggestedPrompt } = useAskQPanelStore();
+  const { isOpen, close, suggestedPrompt, promptRequestId, clearSuggestedPrompt } =
+    useAskQPanelStore();
   const { isPremium } = useSubscriptionGate();
   const location = useLocation();
   const askq = useAskQ();
@@ -49,6 +50,7 @@ export function AskQPanel() {
       }
       footer={
         <AskQInput
+          key={promptRequestId}
           onSubmit={handleSubmit}
           disabled={isInputDisabled}
           initialValue={suggestedPrompt ?? ''}

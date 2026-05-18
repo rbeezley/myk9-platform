@@ -49,4 +49,17 @@ describe('AskQPanel', () => {
       'What should I do if one ring is running behind schedule?'
     );
   });
+
+  it('clears the suggested prompt after submit', async () => {
+    act(() =>
+      useAskQPanelStore
+        .getState()
+        .openWithPrompt('What should I do if one ring is running behind schedule?')
+    );
+    const { user } = render(<AskQPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    expect(useAskQPanelStore.getState().suggestedPrompt).toBeNull();
+  });
 });

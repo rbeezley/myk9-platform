@@ -260,7 +260,7 @@ export function ShowWorkbenchPage() {
                 context={checklistContext}
               />
             )}
-            <ShowWorkbenchAskQHelp />
+            <ShowWorkbenchAskQHelp phase="setup" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PremiumDownloadCard showId={currentShow.id} showStaleBadge />
               <LandingPageCard showId={currentShow.id} showStyle={getShowStyle(currentShow)} />
@@ -290,7 +290,7 @@ export function ShowWorkbenchPage() {
                 context={checklistContext}
               />
             )}
-            <ShowWorkbenchAskQHelp />
+            <ShowWorkbenchAskQHelp phase="today" />
             <MyK9QAccessCard
               showId={currentShow.id}
               showName={currentShow.name}
@@ -320,7 +320,7 @@ export function ShowWorkbenchPage() {
                 context={checklistContext}
               />
             )}
-            <ShowWorkbenchAskQHelp />
+            <ShowWorkbenchAskQHelp phase="wrap-up" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
                 <Link to="/secretary/results-control">

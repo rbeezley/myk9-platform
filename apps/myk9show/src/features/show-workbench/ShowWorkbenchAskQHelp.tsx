@@ -1,10 +1,16 @@
 import { HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SECRETARY_SHOW_DAY_PROMPTS } from '@/components/askq/askq-config';
+import type { ShowWorkbenchPhase } from '@/hooks/useActivePhase';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 
-export function ShowWorkbenchAskQHelp() {
+interface ShowWorkbenchAskQHelpProps {
+  phase: ShowWorkbenchPhase;
+}
+
+export function ShowWorkbenchAskQHelp({ phase }: ShowWorkbenchAskQHelpProps) {
   const openWithPrompt = useAskQPanelStore(state => state.openWithPrompt);
+  const prompts = SECRETARY_SHOW_DAY_PROMPTS.filter(prompt => prompt.phases.includes(phase));
 
   return (
     <section className="rounded-md border bg-card p-4" aria-labelledby="workbench-askq-title">
@@ -21,7 +27,7 @@ export function ShowWorkbenchAskQHelp() {
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {SECRETARY_SHOW_DAY_PROMPTS.map(prompt => (
+        {prompts.map(prompt => (
           <Button
             key={prompt.label}
             type="button"

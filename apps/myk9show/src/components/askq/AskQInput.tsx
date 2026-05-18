@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
 
 interface AskQInputProps {
@@ -15,10 +15,6 @@ export function AskQInput({
   initialValue = '',
 }: AskQInputProps) {
   const [value, setValue] = useState(initialValue);
-
-  useEffect(() => {
-    setValue(initialValue);
-  }, [initialValue]);
 
   const handleSubmit = () => {
     const trimmed = value.trim();

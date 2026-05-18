@@ -3,6 +3,7 @@ import { create } from 'zustand';
 interface AskQPanelState {
   isOpen: boolean;
   suggestedPrompt: string | null;
+  promptRequestId: number;
   open: (suggestedPrompt?: string) => void;
   openWithPrompt: (suggestedPrompt: string) => void;
   clearSuggestedPrompt: () => void;
@@ -13,8 +14,19 @@ interface AskQPanelState {
 export const useAskQPanelStore = create<AskQPanelState>()(set => ({
   isOpen: false,
   suggestedPrompt: null,
-  open: suggestedPrompt => set({ isOpen: true, suggestedPrompt: suggestedPrompt ?? null }),
-  openWithPrompt: suggestedPrompt => set({ isOpen: true, suggestedPrompt }),
+  promptRequestId: 0,
+  open: suggestedPrompt =>
+    set(state => ({
+      isOpen: true,
+      suggestedPrompt: suggestedPrompt ?? null,
+      promptRequestId: suggestedPrompt ? state.promptRequestId + 1 : state.promptRequestId,
+    })),
+  openWithPrompt: suggestedPrompt =>
+    set(state => ({
+      isOpen: true,
+      suggestedPrompt,
+      promptRequestId: state.promptRequestId + 1,
+    })),
   clearSuggestedPrompt: () => set({ suggestedPrompt: null }),
   close: () => set({ isOpen: false, suggestedPrompt: null }),
   toggle: () =>

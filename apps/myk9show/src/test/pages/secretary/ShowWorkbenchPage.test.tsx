@@ -345,6 +345,10 @@ describe('ShowWorkbenchPage', () => {
   it('renders Setup panels without public-discovery panels', async () => {
     renderWorkbench('/secretary/shows/show-1');
 
+    expect(await screen.findByRole('heading', { name: 'About Setup' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/confirm the schedule, judges, show page, and materials/i)
+    ).toBeInTheDocument();
     expect(await screen.findByTestId('premium-download-card')).toHaveTextContent('show-1');
     expect(screen.getByRole('heading', { name: '1 of 5 handled' })).toBeInTheDocument();
     expect(screen.getByText('Trials are added')).toBeInTheDocument();
@@ -382,6 +386,8 @@ describe('ShowWorkbenchPage', () => {
 
     renderWorkbench('/secretary/shows/show-1?phase=today');
 
+    expect(await screen.findByRole('heading', { name: 'About Today' })).toBeInTheDocument();
+    expect(screen.getByText(/keep rings moving/i)).toBeInTheDocument();
     expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
     expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
     const showMap = await screen.findByTestId('show-map-tab');
@@ -396,6 +402,8 @@ describe('ShowWorkbenchPage', () => {
   it('renders Wrap-up links to existing closeout surfaces', async () => {
     renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
 
+    expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
+    expect(screen.getByText(/submit final files/i)).toBeInTheDocument();
     expect(await screen.findByText('Classes are complete')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(
       'href',

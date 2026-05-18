@@ -28,6 +28,7 @@ import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { getShowStyle } from '@/features/registries';
+import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import type {
   PhaseChecklistContext,
@@ -249,6 +250,7 @@ export function ShowWorkbenchPage() {
         <PrimaryTabsContent value="setup">
           <PhaseShell title="Setup" kicker="Before the show" />
           <div className="space-y-6">
+            <AboutThisPhase phase="setup" showId={currentShow.id} />
             {checklistContext && (
               <PhaseChecklist
                 key={`${currentShow.id}:setup`}
@@ -277,6 +279,7 @@ export function ShowWorkbenchPage() {
         <PrimaryTabsContent value="today">
           <PhaseShell title="Today" kicker="Live operations" />
           <div className="space-y-4">
+            <AboutThisPhase phase="today" showId={currentShow.id} />
             {checklistContext && (
               <PhaseChecklist
                 key={`${currentShow.id}:today`}
@@ -305,6 +308,7 @@ export function ShowWorkbenchPage() {
         <PrimaryTabsContent value="wrap-up">
           <PhaseShell title="Wrap-up" kicker="After the show" />
           <div className="space-y-4">
+            <AboutThisPhase phase="wrap-up" showId={currentShow.id} />
             {checklistContext && (
               <PhaseChecklist
                 key={`${currentShow.id}:wrap-up`}

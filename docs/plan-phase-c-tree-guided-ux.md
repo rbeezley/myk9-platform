@@ -117,7 +117,7 @@ Tests:
 
 ### PR 4 — Phase checklists
 
-**Status:** Implemented in the Phase C checklist branch; pending PR.
+**Status:** Shipped 2026-05-17 in [PR #227](https://github.com/rbeezley/myk9-platform/pull/227).
 
 Files likely touched:
 
@@ -138,6 +138,8 @@ Tests:
 - Workbench tests proving each phase renders the right checklist.
 
 ### PR 5 — Contextual about strips
+
+**Status:** Implemented in the Phase C about-strips branch; pending PR.
 
 Files likely touched:
 

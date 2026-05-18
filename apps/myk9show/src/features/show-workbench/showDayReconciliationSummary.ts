@@ -19,6 +19,7 @@ export interface ShowDayReconciliationEntry {
 }
 
 export interface ShowDayReconciliationSummary {
+  totalEntryCount: number;
   lateEntryCount: number;
   collectedAmount: number;
   waivedCount: number;
@@ -69,6 +70,7 @@ export function summarizeShowDayReconciliation(
   entries: ShowDayReconciliationEntry[]
 ): ShowDayReconciliationSummary {
   const summary: ShowDayReconciliationSummary = {
+    totalEntryCount: 0,
     lateEntryCount: 0,
     collectedAmount: 0,
     waivedCount: 0,
@@ -83,6 +85,7 @@ export function summarizeShowDayReconciliation(
   for (const entry of entries) {
     const fee = amount(entry.entry_fee);
     const paymentStatus = entry.payment_status?.toLowerCase();
+    summary.totalEntryCount += 1;
 
     if (isPulledEntry(entry)) {
       summary.pulledCount += 1;

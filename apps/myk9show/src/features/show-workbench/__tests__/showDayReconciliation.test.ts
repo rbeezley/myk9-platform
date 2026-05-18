@@ -34,6 +34,7 @@ describe('summarizeShowDayReconciliation', () => {
       },
     ]);
 
+    expect(summary.totalEntryCount).toBe(4);
     expect(summary.lateEntryCount).toBe(3);
     expect(summary.collectedAmount).toBe(75);
     expect(summary.waivedCount).toBe(1);
@@ -53,6 +54,7 @@ describe('summarizeShowDayReconciliation', () => {
       },
     ]);
 
+    expect(summary.totalEntryCount).toBe(1);
     expect(summary.lateEntryCount).toBe(1);
     expect(summary.collectedAmount).toBe(25);
     expect(summary.byMethod.paid).toEqual({ count: 1, amount: 25 });

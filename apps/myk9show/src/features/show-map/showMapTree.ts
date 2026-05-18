@@ -2,6 +2,7 @@ import {
   buildClassProgress,
   buildProgress,
   classifyClassStatus,
+  classifyClassWrapUpStatus,
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
   isEntryComplete,
@@ -16,12 +17,14 @@ import {
 import { getRegisteredBreedForOrganization } from '@/lib/dogRegistrationBreed';
 import type {
   BuildShowMapTreeInput,
+  ShowMapDisplayStatus,
   ShowMapEntryDisplay,
   ShowMapEntryInput,
   ShowMapNode,
   ShowMapNodeType,
   ShowMapTree,
 } from './showMapTypes';
+import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 
 const DEFAULT_ENTRY_PREVIEW_LIMIT = 25;
 
@@ -190,6 +193,38 @@ export function buildShowMapTree({
     const completedClasses = trialClasses.filter(
       cls => classifyClassStatus(cls.status)?.kind === 'complete'
     ).length;
+    const resultSubmittedAt = trial.resultSubmittedAt ?? undefined;
+    const classWrapUpStatusesById = new Map(
+      trialClasses.map(cls => [
+        cls.id,
+        classifyClassWrapUpStatus(cls, entriesByClassId.get(cls.id) ?? [], { resultSubmittedAt }),
+      ])
+    );
+    const classWrapUpStatuses = Array.from(classWrapUpStatusesById.values()).filter(
+      (status): status is ShowMapDisplayStatus => Boolean(status)
+    );
+    const trialWrapUpStatus =
+      classWrapUpStatuses.length === 0
+        ? undefined
+        : classWrapUpStatuses.some(status => status.kind === 'attention')
+          ? {
+              value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_WRAP_UP,
+              label: 'Needs wrap-up',
+              kind: 'attention' as const,
+            }
+          : classWrapUpStatuses.every(
+                status => status.value === SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY
+              )
+            ? {
+                value: SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY,
+                label: 'Submitted to registry',
+                kind: 'complete' as const,
+              }
+            : {
+                value: SHOW_MAP_WRAP_UP_STATUS.TRIAL_READY_TO_SUBMIT,
+                label: 'Wrap-up ready',
+                kind: 'neutral' as const,
+              };
     const attentionCount = trialEntries.filter(entry => getEntryAttention(entry) !== null).length;
     const trialNode: ShowMapNode = {
       id: getShowMapNodeId('trial', trial.id),
@@ -200,6 +235,7 @@ export function buildShowMapTree({
         .join(' · '),
       count: trialClasses.length,
       status: classifyClassStatus(trial.status),
+      wrapUpStatus: trialWrapUpStatus,
       progress: buildProgress(completedClasses, trialClasses.length, 'classes'),
       attentionCount,
       href: getShowMapTrialHref(show.id, trial.id),
@@ -222,6 +258,7 @@ export function buildShowMapTree({
         subtitle: cls.section ? `Section ${cls.section}` : undefined,
         count: classEntries.length,
         status: classifyClassStatus(cls.status),
+        wrapUpStatus: classWrapUpStatusesById.get(cls.id),
         progress: buildClassProgress(cls, classEntries),
         attentionCount: attentionCountForClass,
         href: getShowMapClassHref(show.id, trial.id, cls.id),

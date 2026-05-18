@@ -7,9 +7,12 @@ import {
   FileText,
   FolderOpen,
   MessageSquare,
+  PenLine,
+  Send,
   UserCheck,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
+import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
 
 export const showMapBadgeTargets = {
@@ -30,6 +33,9 @@ export const showMapActionIds = [
   'move-up-entry',
   'scratch-entry',
   'message-handler',
+  'collect-judge-signature',
+  'review-results',
+  'submit-final-results',
 ] as const;
 
 export type ShowMapActionId = (typeof showMapActionIds)[number];
@@ -49,6 +55,7 @@ export interface ShowMapAction {
 
 export interface ShowMapActionState {
   tree: ShowMapTree;
+  phase?: 'today' | 'wrap-up' | undefined;
 }
 
 export type ShowMapActionScope = 'root' | ShowMapNode;
@@ -103,7 +110,75 @@ function nearestHref(tree: ShowMapTree, node: ShowMapNode): string | undefined {
   return undefined;
 }
 
-function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
+function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
+  if (node.type === 'class') {
+    if (node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE) {
+      return [
+        {
+          id: 'collect-judge-signature',
+          nodeId: node.id,
+          label: 'Collect judge signature',
+          why: 'Completed class still needs judge sign-off',
+          priority: 95,
+          href: '/secretary/reports',
+          icon: PenLine,
+          recommended: true,
+          createsAttention: true,
+        },
+      ];
+    }
+
+    if (
+      node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP ||
+      node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE
+    ) {
+      return [
+        {
+          id: 'review-results',
+          nodeId: node.id,
+          label: 'Review results',
+          why: 'Confirm placements before final submission',
+          priority: 60,
+          href: '/secretary/results-control',
+          icon: FileText,
+          recommended: true,
+          createsAttention: true,
+        },
+      ];
+    }
+  }
+
+  if (
+    node.type === 'trial' &&
+    node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.TRIAL_READY_TO_SUBMIT
+  ) {
+    return [
+      {
+        id: 'submit-final-results',
+        nodeId: node.id,
+        label: 'Submit final results',
+        why: 'Completed trial is ready for closeout submission',
+        priority: 50,
+        href: '/secretary/results-submission',
+        icon: Send,
+        recommended: true,
+        createsAttention: true,
+      },
+    ];
+  }
+
+  return [];
+}
+
+function actionsForNode(
+  node: ShowMapNode,
+  tree: ShowMapTree,
+  phase: ShowMapActionState['phase']
+): ShowMapAction[] {
+  if (phase === 'wrap-up') {
+    return wrapUpActionsForNode(node);
+  }
+
   if (node.type === 'entry') {
     const actions: ShowMapAction[] = [];
     const href = nearestHref(tree, node);
@@ -278,7 +353,7 @@ export function getRankedActions(
   state: ShowMapActionState
 ): ShowMapAction[] {
   return scopedNodes(scope, state.tree)
-    .flatMap(node => actionsForNode(node, state.tree))
+    .flatMap(node => actionsForNode(node, state.tree, state.phase))
     .sort((a, b) => {
       if (b.priority !== a.priority) return b.priority - a.priority;
       return a.label.localeCompare(b.label);
@@ -309,9 +384,12 @@ export function getAttentionActions(
   return getRankedActions(scope, state).filter(action => action.createsAttention);
 }
 
-export function getAttentionNodeIds(tree: ShowMapTree): Set<string> {
+export function getAttentionNodeIds(
+  tree: ShowMapTree,
+  phase?: ShowMapActionState['phase']
+): Set<string> {
   const nodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree })) {
+  for (const action of getAttentionActions('root', { tree, phase })) {
     let node: ShowMapNode | undefined = tree.nodesById[action.nodeId];
     while (node) {
       nodeIds.add(node.id);

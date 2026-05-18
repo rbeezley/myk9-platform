@@ -31,6 +31,7 @@ import { getShowStyle } from '@/features/registries';
 import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
+import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import type {
   PhaseChecklistContext,
   ShowWorkbenchClassSummary,
@@ -90,6 +91,7 @@ export function ShowWorkbenchPage() {
   );
   const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
+  const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
 
   useEffect(() => {
     if (!showId) return;
@@ -122,6 +124,17 @@ export function ShowWorkbenchPage() {
         : [],
     [showId, trials]
   );
+
+  const showMapTrials = useMemo(() => {
+    const sentSubmissions = resultSubmissions.filter(row => row.status === 'sent');
+    const showSubmittedAt = sentSubmissions.find(row => !row.trial_id)?.submitted_at;
+
+    return associatedTrials.map(trial => ({
+      ...trial,
+      resultSubmittedAt:
+        sentSubmissions.find(row => row.trial_id === trial.id)?.submitted_at ?? showSubmittedAt,
+    }));
+  }, [associatedTrials, resultSubmissions]);
 
   const showClasses = useMemo<ShowWorkbenchClassSummary[]>(
     () =>
@@ -299,7 +312,7 @@ export function ShowWorkbenchPage() {
             <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
               <ShowMapTab
                 show={currentShow}
-                trials={associatedTrials}
+                trials={showMapTrials}
                 classes={showClasses}
                 entries={showEntries}
                 canManageShow
@@ -350,6 +363,18 @@ export function ShowWorkbenchPage() {
                 </Link>
               </Button>
             </div>
+            <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+              <ShowMapTab
+                show={currentShow}
+                trials={showMapTrials}
+                classes={showClasses}
+                entries={showEntries}
+                canManageShow
+                initialDayScope="all"
+                initialCompletionScope="completed"
+                actionPhase="wrap-up"
+              />
+            </Suspense>
           </div>
         </PrimaryTabsContent>
       </PrimaryTabs>

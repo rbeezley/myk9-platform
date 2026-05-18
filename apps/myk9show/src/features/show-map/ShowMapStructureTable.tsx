@@ -27,6 +27,7 @@ interface ShowMapStructureTableProps {
   onAction?: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
   scope?: ShowMapScopeState | undefined;
   scopeNow?: Date | undefined;
+  actionPhase?: 'today' | 'wrap-up' | undefined;
 }
 
 function nodeMatchesFilter(
@@ -120,11 +121,16 @@ function StatusCell({ node }: { node: ShowMapNode }) {
   return (
     <div className="flex flex-wrap gap-1">
       {node.status && <Badge variant="secondary">{node.status.label}</Badge>}
+      {node.wrapUpStatus && (
+        <Badge variant={node.wrapUpStatus.kind === 'attention' ? 'destructive' : 'outline'}>
+          {node.wrapUpStatus.label}
+        </Badge>
+      )}
       {node.checkInStatus && <Badge variant="outline">{node.checkInStatus.label}</Badge>}
       {!!node.attentionCount && (
         <Badge variant="outline">{node.attentionCount} need attention</Badge>
       )}
-      {!node.status && !node.checkInStatus && !node.attentionCount && (
+      {!node.status && !node.wrapUpStatus && !node.checkInStatus && !node.attentionCount && (
         <span className="text-sm text-muted-foreground">-</span>
       )}
     </div>
@@ -187,9 +193,13 @@ export function ShowMapStructureTable({
   onAction,
   scope = DEFAULT_SHOW_MAP_SCOPE,
   scopeNow = new Date(),
+  actionPhase,
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
-  const attentionNodeIds = useMemo(() => getAttentionNodeIds(tree), [tree]);
+  const attentionNodeIds = useMemo(
+    () => getAttentionNodeIds(tree, actionPhase),
+    [actionPhase, tree]
+  );
   const openActionsForNode = (nodeId: string) => {
     setActionMenuOpenSignals(current => ({
       ...current,
@@ -255,6 +265,7 @@ export function ShowMapStructureTable({
                 onNavigate={onNavigate}
                 onAction={onAction}
                 openSignal={actionMenuOpenSignals[node.id]}
+                actionPhase={actionPhase}
               />
             </div>
           </div>
@@ -262,7 +273,7 @@ export function ShowMapStructureTable({
       );
     }
 
-    const primaryAction = getPrimaryActionForNode(node, { tree });
+    const primaryAction = getPrimaryActionForNode(node, { tree, phase: actionPhase });
 
     const rowContent = (
       <>
@@ -336,6 +347,7 @@ export function ShowMapStructureTable({
             onNavigate={onNavigate}
             onAction={onAction}
             openSignal={actionMenuOpenSignals[node.id]}
+            actionPhase={actionPhase}
           />
         </div>
       </>

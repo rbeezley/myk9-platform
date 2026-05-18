@@ -128,4 +128,67 @@ describe('buildShowMapTree', () => {
     ]);
     expect(tree.nodesById['more:class-1']?.label).toBe('1 more entries');
   });
+
+  it('adds wrap-up statuses to completed class and trial nodes', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          ...classes[0]!,
+          status: 'Complete',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-1',
+          is_scored: true,
+        },
+      ],
+    });
+
+    expect(tree.nodesById['class:class-1']?.wrapUpStatus).toMatchObject({
+      value: 'needs-judge-signature',
+      label: 'Needs judge signature',
+      kind: 'attention',
+    });
+    expect(tree.nodesById['trial:trial-1']?.wrapUpStatus).toMatchObject({
+      value: 'needs-wrap-up',
+      label: 'Needs wrap-up',
+      kind: 'attention',
+    });
+  });
+
+  it('rolls up submitted trials from result submission state', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [{ ...trial, resultSubmittedAt: '2026-05-18T12:00:00Z' }],
+      classes: [
+        {
+          ...classes[0]!,
+          status: 'Complete',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-signed',
+          class_id: 'class-1',
+          is_scored: true,
+          judge_signature_timestamp: '2026-05-18T11:00:00Z',
+        },
+      ],
+    });
+
+    expect(tree.nodesById['class:class-1']?.wrapUpStatus).toMatchObject({
+      value: 'submitted-to-registry',
+      label: 'Submitted to registry',
+      kind: 'complete',
+    });
+    expect(tree.nodesById['trial:trial-1']?.wrapUpStatus).toMatchObject({
+      value: 'submitted-to-registry',
+      label: 'Submitted to registry',
+      kind: 'complete',
+    });
+  });
 });

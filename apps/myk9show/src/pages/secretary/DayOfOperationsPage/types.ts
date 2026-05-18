@@ -33,16 +33,4 @@ export interface DayOfOperationEntry {
 
 export type PullableEntry = DayOfOperationEntry;
 
-export interface DogSearchResult {
-  id: string;
-  name: string;
-  call_name: string | null;
-  breed: string | null;
-  owner: {
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-  } | null;
-}
-
 export type PaymentMethod = 'cash' | 'check' | 'waived';

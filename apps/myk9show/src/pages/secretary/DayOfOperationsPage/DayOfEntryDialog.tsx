@@ -30,10 +30,12 @@ import { toast } from 'sonner';
 import { Search } from 'lucide-react';
 import {
   createDayOfEntry,
+  createDayOfEntryDog,
   searchDogs,
-  ClassWithCapacity,
+  type ClassWithCapacity,
+  type DayOfEntryDogResult,
 } from '@/services/database/day-of-operations';
-import type { DogSearchResult, PaymentMethod } from './types';
+import type { PaymentMethod } from './types';
 
 interface DayOfEntryDialogProps {
   open: boolean;
@@ -54,8 +56,18 @@ export function DayOfEntryDialog({
 }: DayOfEntryDialogProps) {
   // Form state
   const [dogSearch, setDogSearch] = useState('');
-  const [dogSearchResults, setDogSearchResults] = useState<DogSearchResult[]>([]);
-  const [selectedDog, setSelectedDog] = useState<DogSearchResult | null>(null);
+  const [dogSearchResults, setDogSearchResults] = useState<DayOfEntryDogResult[]>([]);
+  const [selectedDog, setSelectedDog] = useState<DayOfEntryDogResult | null>(null);
+  const [hasSearchedDogs, setHasSearchedDogs] = useState(false);
+  const [isCreatingDog, setIsCreatingDog] = useState(false);
+  const [showNewDogFields, setShowNewDogFields] = useState(false);
+  const [newOwnerFirstName, setNewOwnerFirstName] = useState('');
+  const [newOwnerLastName, setNewOwnerLastName] = useState('');
+  const [newOwnerEmail, setNewOwnerEmail] = useState('');
+  const [newOwnerPhone, setNewOwnerPhone] = useState('');
+  const [newDogName, setNewDogName] = useState('');
+  const [newDogCallName, setNewDogCallName] = useState('');
+  const [newDogBreed, setNewDogBreed] = useState('');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [handler, setHandler] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -67,6 +79,16 @@ export function DayOfEntryDialog({
     setDogSearch('');
     setDogSearchResults([]);
     setSelectedDog(null);
+    setHasSearchedDogs(false);
+    setIsCreatingDog(false);
+    setShowNewDogFields(false);
+    setNewOwnerFirstName('');
+    setNewOwnerLastName('');
+    setNewOwnerEmail('');
+    setNewOwnerPhone('');
+    setNewDogName('');
+    setNewDogCallName('');
+    setNewDogBreed('');
     setSelectedClasses([]);
     setHandler('');
     setPaymentMethod('cash');
@@ -75,18 +97,53 @@ export function DayOfEntryDialog({
   };
 
   const handleDogSearch = async () => {
-    if (dogSearch.length < 2) return;
-    const { data } = await searchDogs(dogSearch);
+    const searchTerm = dogSearch.trim();
+    if (searchTerm.length < 2) return;
+    const { data } = await searchDogs(searchTerm);
+    setHasSearchedDogs(true);
     if (data) {
       setDogSearchResults(data);
     }
   };
 
-  const handleSelectDog = (dog: DogSearchResult) => {
+  const handleSelectDog = (dog: DayOfEntryDogResult) => {
     setSelectedDog(dog);
     setDogSearchResults([]);
+    setShowNewDogFields(false);
     if (dog.owner) {
       setHandler(`${dog.owner.first_name || ''} ${dog.owner.last_name || ''}`.trim());
+    }
+  };
+
+  const openNewDogFields = () => {
+    setShowNewDogFields(true);
+    if (!newDogName && dogSearch.trim()) {
+      setNewDogName(dogSearch.trim());
+    }
+  };
+
+  const handleCreateDog = async () => {
+    setIsCreatingDog(true);
+    try {
+      const { data, error } = await createDayOfEntryDog({
+        ownerFirstName: newOwnerFirstName,
+        ownerLastName: newOwnerLastName,
+        ownerEmail: newOwnerEmail,
+        ownerPhone: newOwnerPhone,
+        dogName: newDogName,
+        dogCallName: newDogCallName,
+        dogBreed: newDogBreed,
+      });
+
+      if (error || !data) {
+        toast.error(getUserFriendlyError(error || new Error('Unable to create dog.')));
+        return;
+      }
+
+      toast.success('Dog added for this entry');
+      handleSelectDog(data);
+    } finally {
+      setIsCreatingDog(false);
     }
   };
 
@@ -154,10 +211,17 @@ export function DayOfEntryDialog({
                 onChange={e => setDogSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleDogSearch()}
               />
-              <Button variant="outline" onClick={handleDogSearch}>
+              <Button
+                variant="outline"
+                onClick={handleDogSearch}
+                disabled={dogSearch.trim().length < 2}
+              >
                 <Search className="h-4 w-4" />
               </Button>
             </div>
+            {dogSearch.trim().length > 0 && dogSearch.trim().length < 2 && (
+              <p className="text-sm text-muted-foreground">Enter at least 2 characters.</p>
+            )}
             {dogSearchResults.length > 0 && !selectedDog && (
               <div className="border rounded-md max-h-40 overflow-y-auto">
                 {dogSearchResults.map(dog => (
@@ -176,6 +240,14 @@ export function DayOfEntryDialog({
                 ))}
               </div>
             )}
+            {hasSearchedDogs && dogSearchResults.length === 0 && !selectedDog && (
+              <div className="rounded-md border border-dashed p-3 text-sm">
+                <p className="text-muted-foreground">No matching dog found.</p>
+                <Button type="button" variant="outline" size="sm" onClick={openNewDogFields}>
+                  Create new dog
+                </Button>
+              </div>
+            )}
             {selectedDog && (
               <div className="flex items-center justify-between bg-muted p-2 rounded-md">
                 <div>
@@ -190,6 +262,96 @@ export function DayOfEntryDialog({
               </div>
             )}
           </FormField>
+
+          {showNewDogFields && !selectedDog && (
+            <div className="rounded-md border p-3 space-y-3">
+              <div>
+                <h3 className="text-sm font-medium">New exhibitor and dog</h3>
+                <p className="text-sm text-muted-foreground">
+                  Add just enough information to enter them today.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <FormField label="Exhibitor First Name" fieldId="new-owner-first-name" required>
+                  <Input
+                    id="new-owner-first-name"
+                    value={newOwnerFirstName}
+                    onChange={e => setNewOwnerFirstName(e.target.value)}
+                  />
+                </FormField>
+                <FormField label="Exhibitor Last Name" fieldId="new-owner-last-name" required>
+                  <Input
+                    id="new-owner-last-name"
+                    value={newOwnerLastName}
+                    onChange={e => setNewOwnerLastName(e.target.value)}
+                  />
+                </FormField>
+                <FormField label="Email (optional)" fieldId="new-owner-email">
+                  <Input
+                    id="new-owner-email"
+                    type="email"
+                    value={newOwnerEmail}
+                    onChange={e => setNewOwnerEmail(e.target.value)}
+                  />
+                </FormField>
+                <FormField label="Phone (optional)" fieldId="new-owner-phone">
+                  <Input
+                    id="new-owner-phone"
+                    value={newOwnerPhone}
+                    onChange={e => setNewOwnerPhone(e.target.value)}
+                  />
+                </FormField>
+                <FormField label="Dog Name" fieldId="new-dog-name" required>
+                  <Input
+                    id="new-dog-name"
+                    value={newDogName}
+                    onChange={e => setNewDogName(e.target.value)}
+                  />
+                </FormField>
+                <FormField label="Call Name (optional)" fieldId="new-dog-call-name">
+                  <Input
+                    id="new-dog-call-name"
+                    value={newDogCallName}
+                    onChange={e => setNewDogCallName(e.target.value)}
+                  />
+                </FormField>
+              </div>
+              <FormField label="Breed (optional)" fieldId="new-dog-breed">
+                <Input
+                  id="new-dog-breed"
+                  placeholder="Mixed Breed"
+                  value={newDogBreed}
+                  onChange={e => setNewDogBreed(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Blank breed is saved as Mixed Breed.
+                </p>
+              </FormField>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCreateDog}
+                  disabled={
+                    isCreatingDog ||
+                    !newOwnerFirstName.trim() ||
+                    !newOwnerLastName.trim() ||
+                    !newDogName.trim()
+                  }
+                >
+                  {isCreatingDog ? 'Adding...' : 'Add dog'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowNewDogFields(false)}
+                  disabled={isCreatingDog}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Handler */}
           <FormField label="Handler Name" fieldId="handler-name" required>

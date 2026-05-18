@@ -1,7 +1,7 @@
 # Plan — Phase C Tree Extensions + Guided UX
 
 **Date:** 2026-05-17
-**Status:** Ready for implementation.
+**Status:** Complete as of 2026-05-18.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 **Dependency:** Phase B workbench IA shipped in [PR #223](https://github.com/rbeezley/myk9-platform/pull/223).
 
@@ -184,7 +184,7 @@ Tests:
 
 ### PR 7 — Wrap-up status taxonomy
 
-**Status:** In review in [PR #231](https://github.com/rbeezley/myk9-platform/pull/231).
+**Status:** Shipped 2026-05-18 in [PR #231](https://github.com/rbeezley/myk9-platform/pull/231).
 
 Files likely touched:
 

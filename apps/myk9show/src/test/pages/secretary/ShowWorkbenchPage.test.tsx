@@ -422,6 +422,10 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByText(/keep rings moving/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Late entry help' })).toBeInTheDocument();
     expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
+    expect(screen.getByRole('heading', { name: 'Schedule delay script' })).toBeInTheDocument();
+    expect((screen.getByLabelText('PA script') as HTMLTextAreaElement).value).toContain(
+      'Container Novice A will start later than the posted schedule.'
+    );
     expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
     expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
     const showMap = await screen.findByTestId('show-map-tab');

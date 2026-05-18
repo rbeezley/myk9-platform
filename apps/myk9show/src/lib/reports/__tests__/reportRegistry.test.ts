@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { reportRegistry, getReportById, getEnabledReports } from '@/lib/reports/reportRegistry';
 
 describe('reportRegistry', () => {
-  it('has 22 total entries', () => {
-    expect(reportRegistry).toHaveLength(22);
+  it('has 23 total entries', () => {
+    expect(reportRegistry).toHaveLength(23);
   });
 
-  it('has exactly 22 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(22);
+  it('has exactly 23 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(23);
   });
 
   it('has all unique IDs', () => {

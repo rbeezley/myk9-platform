@@ -51,6 +51,18 @@ vi.mock('@/lib/supabase', () => ({
   default: mockSupabase,
 }));
 
+// canvas-confetti schedules requestAnimationFrame callbacks that keep firing
+// after the triggering test finishes; in jsdom getContext('2d') returns null,
+// so the async callback throws "Cannot read 'clearRect' of null" and crashes
+// whichever test file vitest loads next in the same worker. Mock to a no-op.
+vi.mock('canvas-confetti', () => {
+  const confetti = Object.assign(vi.fn(), {
+    reset: vi.fn(),
+    create: vi.fn(() => vi.fn()),
+  });
+  return { default: confetti };
+});
+
 // @react-pdf/renderer needs fonts/buffers/PDF runtime that don't exist in JSDOM.
 // All premium-PDF tests render templates to inspect their tree, so mock the
 // primitives down to plain DOM. Tests that need richer behavior can override.

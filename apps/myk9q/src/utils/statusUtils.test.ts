@@ -103,12 +103,16 @@ describe('class status utilities', () => {
       )
     ).toBe('in-progress');
     expect(getClassDisplayStatus(makeClassEntry({ completed_count: 1 }))).toBe('in-progress');
+  });
+
+  test('keeps manual setup status from being overridden by progress counts', () => {
     expect(
       getClassDisplayStatus(makeClassEntry({ class_status: 'setup', completed_count: 1 }))
     ).toBe('not-started');
   });
 
   test('maps class statuses to colors with smart fallbacks', () => {
+    // completed_count === entry_count would normally return 'completed'; offline-scoring wins.
     expect(getClassStatusColor('offline-scoring', makeClassEntry({ completed_count: 3 }))).toBe(
       'offline-scoring'
     );
@@ -191,6 +195,9 @@ describe('entry status display utilities', () => {
     expect(getEntryStatusColor({ is_scored: true, result_text: 'ABS' })).toBe('absent');
     expect(getEntryStatusColor({ is_scored: true, result_text: 'WD' })).toBe('withdrawn');
     expect(getEntryStatusLabel({ is_scored: true, result_text: 'custom' })).toBe('Custom');
+    expect(getEntryStatusLabel({ is_scored: true, result_text: 'abs' })).toBe('Abs');
+    expect(getEntryStatusLabel({ is_scored: true, result_text: 'wd' })).toBe('Wd');
+    expect(getEntryStatusLabel({ is_scored: true, result_text: 'e' })).toBe('E');
   });
 
   test('returns default status displays when no status applies', () => {

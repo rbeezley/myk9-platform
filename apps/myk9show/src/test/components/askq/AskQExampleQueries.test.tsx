@@ -25,8 +25,11 @@ describe('AskQExampleQueries', () => {
     expect(onSelect).toHaveBeenCalledWith('How did my dog do today?');
   });
 
-  it('shows App Help as coming soon', () => {
+  it('keeps App Help empty state general-purpose', () => {
     render(<AskQExampleQueries onSelectQuery={vi.fn()} />);
     expect(screen.getByText('Coming soon...')).toBeInTheDocument();
+    expect(
+      screen.queryByText('What should I check before submitting final results after the show?')
+    ).not.toBeInTheDocument();
   });
 });

@@ -139,7 +139,7 @@ Tests:
 
 ### PR 5 — Contextual about strips
 
-**Status:** Implemented in the Phase C about-strips branch; pending PR.
+**Status:** Shipped 2026-05-17 in [PR #229](https://github.com/rbeezley/myk9-platform/pull/229).
 
 Files likely touched:
 
@@ -158,6 +158,8 @@ Tests:
 - Workbench test for phase-specific copy.
 
 ### PR 6 — "What do I do if..." AskQ entry points
+
+**Status:** Implemented in the Phase C AskQ entry-points branch; pending PR.
 
 Files likely touched:
 

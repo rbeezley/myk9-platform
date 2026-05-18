@@ -3,6 +3,45 @@ export interface ExampleQuery {
   category: 'rules' | 'show-data' | 'app-help';
 }
 
+export interface SecretaryShowDayPrompt {
+  label: string;
+  prompt: string;
+  phases: Array<'setup' | 'today' | 'wrap-up'>;
+}
+
+export const SECRETARY_SHOW_DAY_PROMPTS: SecretaryShowDayPrompt[] = [
+  {
+    label: 'Scratch or no-show',
+    prompt: 'What should I do if an exhibitor says their dog is a scratch or no-show today?',
+    phases: ['today'],
+  },
+  {
+    label: 'Move-up request',
+    prompt: 'What should I do if an exhibitor asks to move up after entries have closed?',
+    phases: ['today'],
+  },
+  {
+    label: 'Late entry',
+    prompt: 'What should I do if someone walks up and wants to enter on show day?',
+    phases: ['setup', 'today'],
+  },
+  {
+    label: 'Ring running behind',
+    prompt: 'What should I do if one ring is running behind schedule?',
+    phases: ['today'],
+  },
+  {
+    label: 'Message handler',
+    prompt: 'What should I say to a handler who has not checked in yet?',
+    phases: ['today'],
+  },
+  {
+    label: 'Submit results',
+    prompt: 'What should I check before submitting final results after the show?',
+    phases: ['wrap-up'],
+  },
+];
+
 export const EXAMPLE_QUERIES: ExampleQuery[] = [
   { text: 'What are the time limits for Excellent?', category: 'rules' },
   { text: 'Ring size requirements for Novice', category: 'rules' },

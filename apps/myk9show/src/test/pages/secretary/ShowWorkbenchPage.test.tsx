@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import ShowWorkbenchPage from '@/pages/secretary/ShowWorkbenchPage';
+import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { UserRole } from '@/types/auth-types';
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -311,6 +312,7 @@ describe('ShowWorkbenchPage', () => {
     mockTrials = [];
     mockTrialClasses = {};
     mockShowEntries = [];
+    useAskQPanelStore.getState().close();
     window.localStorage.clear();
   });
 
@@ -352,6 +354,7 @@ describe('ShowWorkbenchPage', () => {
     expect(await screen.findByTestId('premium-download-card')).toHaveTextContent('show-1');
     expect(screen.getByRole('heading', { name: '1 of 5 handled' })).toBeInTheDocument();
     expect(screen.getByText('Trials are added')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'What do I do if...' })).toBeInTheDocument();
     expect(screen.getByTestId('landing-page-card')).toHaveTextContent('show-1');
     expect(screen.getByTestId('schedule-summary')).toHaveTextContent('show-1');
     expect(screen.getByTestId('venue-map')).toHaveTextContent('Louisville, KY');
@@ -388,6 +391,7 @@ describe('ShowWorkbenchPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'About Today' })).toBeInTheDocument();
     expect(screen.getByText(/keep rings moving/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Late entry' })).toBeInTheDocument();
     expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
     expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
     const showMap = await screen.findByTestId('show-map-tab');
@@ -404,6 +408,7 @@ describe('ShowWorkbenchPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
     expect(screen.getByText(/submit final files/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Submit results' })).toBeInTheDocument();
     expect(await screen.findByText('Classes are complete')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(
       'href',
@@ -416,6 +421,18 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByRole('link', { name: /Submit Results/ })).toHaveAttribute(
       'href',
       '/secretary/results-submission'
+    );
+  });
+
+  it('opens AskQ with a selected show-day prompt', async () => {
+    const user = userEvent.setup();
+    renderWorkbench('/secretary/shows/show-1?phase=today');
+
+    await user.click(await screen.findByRole('button', { name: 'Scratch or no-show' }));
+
+    expect(useAskQPanelStore.getState().isOpen).toBe(true);
+    expect(useAskQPanelStore.getState().suggestedPrompt).toBe(
+      'What should I do if an exhibitor says their dog is a scratch or no-show today?'
     );
   });
 

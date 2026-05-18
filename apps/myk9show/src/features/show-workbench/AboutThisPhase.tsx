@@ -44,17 +44,15 @@ function writeDismissed(showId: string, phase: ShowWorkbenchPhase) {
 
 export function AboutThisPhase({ phase, showId }: AboutThisPhaseProps) {
   const key = storageKey(showId, phase);
-  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() =>
-    readDismissed(showId, phase) ? new Set([key]) : new Set()
-  );
+  const [dismissedInSessionKey, setDismissedInSessionKey] = useState<string | null>(null);
   const copy = PHASE_ABOUT_COPY[phase];
-  const dismissed = dismissedKeys.has(key) || readDismissed(showId, phase);
+  const dismissed = dismissedInSessionKey === key || readDismissed(showId, phase);
 
   if (dismissed) return null;
 
   function handleDismiss() {
     writeDismissed(showId, phase);
-    setDismissedKeys(current => new Set(current).add(key));
+    setDismissedInSessionKey(key);
   }
 
   return (

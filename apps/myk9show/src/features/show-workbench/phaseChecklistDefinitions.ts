@@ -1,9 +1,10 @@
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowWorkbenchPhase } from '@/hooks/useActivePhase';
+import type { ShowMapWrapUpClassFields } from '@/features/show-map/showMapTypes';
 import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 
-export interface ShowWorkbenchClassSummary {
+export interface ShowWorkbenchClassSummary extends ShowMapWrapUpClassFields {
   id: string;
   name: string;
   element: string;
@@ -18,13 +19,6 @@ export interface ShowWorkbenchClassSummary {
   trialDate: string;
   trialNumber: string;
   trialName: string;
-  judgeSigned?: boolean | null | undefined;
-  judgeSignedAt?: string | null | undefined;
-  judgeSignatureStatus?: string | null | undefined;
-  resultsSubmittedAt?: string | null | undefined;
-  registrySubmittedAt?: string | null | undefined;
-  submittedToAkcAt?: string | null | undefined;
-  akcSubmittedAt?: string | null | undefined;
 }
 
 export interface ShowWorkbenchEntrySummary {

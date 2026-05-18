@@ -31,6 +31,7 @@ import { getShowStyle } from '@/features/registries';
 import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
+import type { ShowMapWrapUpClassFields } from '@/features/show-map/showMapTypes';
 import type {
   PhaseChecklistContext,
   ShowWorkbenchClassSummary,
@@ -43,16 +44,6 @@ import { CLASS_STATUS } from '@myk9/core';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 
 const ShowMapTab = lazy(() => import('@/features/show-map/ShowMapTab'));
-
-type WrapUpClassFields = {
-  judgeSigned?: boolean | null | undefined;
-  judgeSignedAt?: string | null | undefined;
-  judgeSignatureStatus?: string | null | undefined;
-  resultsSubmittedAt?: string | null | undefined;
-  registrySubmittedAt?: string | null | undefined;
-  submittedToAkcAt?: string | null | undefined;
-  akcSubmittedAt?: string | null | undefined;
-};
 
 const PHASE_TABS: PrimaryTabDef[] = [
   { id: 'setup', label: 'Setup', icon: ListChecks },
@@ -138,7 +129,7 @@ export function ShowWorkbenchPage() {
       associatedTrials.flatMap(trial => {
         const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
         return classes.map(cls => {
-          const wrapUpFields = cls as SyncableTrialClass & WrapUpClassFields;
+          const wrapUpFields = cls as SyncableTrialClass & ShowMapWrapUpClassFields;
 
           return {
             id: cls.id,

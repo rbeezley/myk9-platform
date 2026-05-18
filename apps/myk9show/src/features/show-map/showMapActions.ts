@@ -12,6 +12,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
+import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
 
 export const showMapBadgeTargets = {
@@ -111,7 +112,7 @@ function nearestHref(tree: ShowMapTree, node: ShowMapNode): string | undefined {
 
 function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
   if (node.type === 'class') {
-    if (node.wrapUpStatus?.value === 'needs-judge-signature') {
+    if (node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE) {
       return [
         {
           id: 'collect-judge-signature',
@@ -128,8 +129,8 @@ function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
     }
 
     if (
-      node.wrapUpStatus?.value === 'ready-for-wrap-up' ||
-      node.wrapUpStatus?.value === 'signed-by-judge'
+      node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.READY_FOR_WRAP_UP ||
+      node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE
     ) {
       return [
         {
@@ -147,7 +148,7 @@ function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
     }
   }
 
-  if (node.type === 'trial' && node.wrapUpStatus?.value === 'wrap-up-ready') {
+  if (node.type === 'trial' && node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.WRAP_UP_READY) {
     return [
       {
         id: 'submit-final-results',

@@ -11,6 +11,7 @@ import type {
   ShowMapEntryInput,
   ShowMapProgress,
 } from './showMapTypes';
+import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 
 const COMPLETE_RESULT_STATUSES = new Set([
   'qualified',
@@ -83,18 +84,34 @@ export function classifyClassWrapUpStatus(
   if (!isComplete) return undefined;
 
   if (classHasSubmission(cls)) {
-    return { value: 'submitted-to-registry', label: 'Submitted to registry', kind: 'complete' };
+    return {
+      value: SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY,
+      label: 'Submitted to registry',
+      kind: 'complete',
+    };
   }
 
   const signatureState = classSignatureState(cls);
   if (signatureState === 'unsigned') {
-    return { value: 'needs-judge-signature', label: 'Needs judge signature', kind: 'attention' };
+    return {
+      value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
+      label: 'Needs judge signature',
+      kind: 'attention',
+    };
   }
   if (signatureState === 'signed') {
-    return { value: 'signed-by-judge', label: 'Signed by judge', kind: 'neutral' };
+    return {
+      value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
+      label: 'Signed by judge',
+      kind: 'neutral',
+    };
   }
 
-  return { value: 'ready-for-wrap-up', label: 'Ready for wrap-up', kind: 'neutral' };
+  return {
+    value: SHOW_MAP_WRAP_UP_STATUS.READY_FOR_WRAP_UP,
+    label: 'Ready for wrap-up',
+    kind: 'neutral',
+  };
 }
 
 export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplayStatus | undefined {

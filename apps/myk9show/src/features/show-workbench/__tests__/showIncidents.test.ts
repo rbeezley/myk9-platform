@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildShowIncidentPayload } from '../showIncidents';
+import { buildShowIncidentPayload, summarizeShowIncidents } from '../showIncidents';
 
 describe('buildShowIncidentPayload', () => {
   it('builds the exact insert payload with linked entry and judge context', () => {
@@ -70,5 +70,59 @@ describe('buildShowIncidentPayload', () => {
         summary: '   ',
       })
     ).toThrow('Add a short incident summary before saving');
+  });
+
+  it('summarizes reportable and urgent incident closeout counts', () => {
+    expect(
+      summarizeShowIncidents([
+        {
+          id: 'incident-urgent',
+          incident_type: 'bite',
+          severity: 'urgent',
+          occurred_at: '2026-05-19T15:30:00.000Z',
+          summary: 'Dog bite at gate',
+          description: null,
+          action_taken: null,
+          dog_name: 'Rocket',
+          handler_name: 'Jamie Walker',
+          judge_name: 'Pat Judge',
+          created_by_name: 'Jane Secretary',
+          created_at: '2026-05-19T15:30:00.000Z',
+        },
+        {
+          id: 'incident-reportable',
+          incident_type: 'dq',
+          severity: 'reportable',
+          occurred_at: '2026-05-19T14:30:00.000Z',
+          summary: 'Dog excused by judge',
+          description: null,
+          action_taken: null,
+          dog_name: 'Scout',
+          handler_name: 'Alex Handler',
+          judge_name: 'Pat Judge',
+          created_by_name: 'Jane Secretary',
+          created_at: '2026-05-19T14:30:00.000Z',
+        },
+        {
+          id: 'incident-note',
+          incident_type: 'complaint',
+          severity: 'note',
+          occurred_at: '2026-05-19T13:30:00.000Z',
+          summary: 'Parking complaint handled',
+          description: null,
+          action_taken: null,
+          dog_name: null,
+          handler_name: null,
+          judge_name: null,
+          created_by_name: 'Jane Secretary',
+          created_at: '2026-05-19T13:30:00.000Z',
+        },
+      ])
+    ).toEqual({
+      totalCount: 3,
+      reportableCount: 2,
+      urgentCount: 1,
+      latestReportable: expect.objectContaining({ id: 'incident-urgent' }),
+    });
   });
 });

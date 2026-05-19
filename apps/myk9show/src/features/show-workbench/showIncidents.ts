@@ -84,6 +84,13 @@ export interface ShowIncidentInsertPayload {
   trial_id: string | null;
 }
 
+export interface ShowIncidentSummary {
+  totalCount: number;
+  reportableCount: number;
+  urgentCount: number;
+  latestReportable: ShowIncidentRecord | null;
+}
+
 function requiredText(value: string, fallback: string): string {
   const cleaned = value.trim();
   if (!cleaned) throw new Error(fallback);
@@ -130,4 +137,26 @@ export function buildShowIncidentPayload(input: ShowIncidentFormInput): ShowInci
 
 export function formatIncidentType(type: ShowIncidentType): string {
   return SHOW_INCIDENT_TYPES.find(item => item.id === type)?.label ?? 'Incident';
+}
+
+export function summarizeShowIncidents(incidents: ShowIncidentRecord[]): ShowIncidentSummary {
+  const summary: ShowIncidentSummary = {
+    totalCount: incidents.length,
+    reportableCount: 0,
+    urgentCount: 0,
+    latestReportable: null,
+  };
+
+  for (const incident of incidents) {
+    if (incident.severity === 'urgent') {
+      summary.urgentCount += 1;
+    }
+
+    if (incident.severity === 'reportable' || incident.severity === 'urgent') {
+      summary.reportableCount += 1;
+      summary.latestReportable ??= incident;
+    }
+  }
+
+  return summary;
 }

@@ -32,11 +32,13 @@ import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
 import { ClassBroadcastCard } from '@/features/show-workbench/ClassBroadcastCard';
 import { buildClassBroadcastClassLabel } from '@/features/show-workbench/classBroadcast';
+import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { QuickBroadcastCard } from '@/features/show-workbench/QuickBroadcastCard';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
 import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
+import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import type {
   PhaseChecklistContext,
@@ -48,6 +50,7 @@ import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
+import { isValidUUID } from '@/utils/validation';
 
 const ShowMapTab = lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -79,6 +82,53 @@ function toChecklistEntrySummary(entry: {
     class_id: entry.class_id ?? undefined,
     entry_status: entry.entry_status ?? undefined,
     check_in_status: entry.check_in_status ?? undefined,
+  };
+}
+
+function textField(source: Record<string, unknown> | null | undefined, key: string): string | null {
+  const value = source?.[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function relatedObject(source: Record<string, unknown>, key: string): Record<string, unknown> | null {
+  const value = source[key];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function toIncidentEntryOption(
+  entry: Record<string, unknown>,
+  classById: Map<string, ShowWorkbenchClassSummary>
+): IncidentEntryOption | null {
+  const dog = relatedObject(entry, 'dog');
+  const id = textField(entry, 'id');
+  if (!id) return null;
+
+  const classId = textField(entry, 'class_id');
+  const classSummary = classId ? classById.get(classId) : undefined;
+  const dogName = textField(dog, 'call_name') ?? textField(dog, 'name');
+  const handlerName = textField(entry, 'handler');
+  const armband = textField(entry, 'armband');
+  const classLabel = classSummary?.name;
+  const label = [
+    armband ? `#${armband}` : null,
+    dogName ?? 'Unknown dog',
+    handlerName ? `(${handlerName})` : null,
+    classLabel ? `- ${classLabel}` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return {
+    classId,
+    dogId: textField(entry, 'dog_id') ?? textField(dog, 'id'),
+    dogName,
+    handlerId: textField(entry, 'handler_id'),
+    handlerName,
+    id,
+    label,
+    trialId: classSummary?.trialId ?? null,
   };
 }
 
@@ -170,6 +220,13 @@ export function ShowWorkbenchPage() {
     () => showEntries.map(entry => toChecklistEntrySummary(entry)),
     [showEntries]
   );
+
+  const incidentEntryOptions = useMemo(() => {
+    const classById = new Map(showClasses.map(cls => [cls.id, cls]));
+    return showEntries
+      .map(entry => toIncidentEntryOption(entry, classById))
+      .filter((entry): entry is IncidentEntryOption => entry !== null);
+  }, [showClasses, showEntries]);
 
   const checklistContext = useMemo<PhaseChecklistContext | null>(
     () =>
@@ -321,6 +378,15 @@ export function ShowWorkbenchPage() {
                   section: cls.section,
                 }),
                 entryCount: cls.entryCount,
+              }))}
+            />
+            <IncidentLogCard
+              showId={currentShow.id}
+              entries={incidentEntryOptions}
+              judges={effectiveJudges.map(judge => ({
+                id: judge.judgeId,
+                name: judge.judgeName,
+                personId: isValidUUID(judge.judgeId.trim()) ? judge.judgeId.trim() : null,
               }))}
             />
             <ScheduleSlipScriptCard

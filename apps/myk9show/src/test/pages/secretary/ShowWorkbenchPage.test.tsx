@@ -183,6 +183,22 @@ vi.mock('@/features/show-workbench/WorkbenchLateEntryAction', () => ({
   ),
 }));
 
+vi.mock('@/features/show-workbench/IncidentLogCard', () => ({
+  IncidentLogCard: ({
+    entries,
+    judges,
+    showId,
+  }: {
+    entries: unknown[];
+    judges: unknown[];
+    showId: string;
+  }) => (
+    <section data-testid="incident-log-card" data-entry-count={entries.length} data-judge-count={judges.length}>
+      Incident log for {showId}
+    </section>
+  ),
+}));
+
 vi.mock('react-router-dom', async importOriginal => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
   return {
@@ -424,6 +440,8 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
     expect(screen.getByRole('heading', { name: 'Quick broadcast' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Message a class' })).toBeInTheDocument();
+    expect(screen.getByTestId('incident-log-card')).toHaveTextContent('Incident log for show-1');
+    expect(screen.getByTestId('incident-log-card')).toHaveAttribute('data-entry-count', '1');
     expect(screen.getByRole('heading', { name: 'Schedule delay script' })).toBeInTheDocument();
     expect((screen.getByLabelText('PA script') as HTMLTextAreaElement).value).toContain(
       'Container Novice A will start later than the posted schedule.'

@@ -30,6 +30,8 @@ import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { getShowStyle } from '@/features/registries';
 import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
+import { ClassBroadcastCard } from '@/features/show-workbench/ClassBroadcastCard';
+import { buildClassBroadcastClassLabel } from '@/features/show-workbench/classBroadcast';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { QuickBroadcastCard } from '@/features/show-workbench/QuickBroadcastCard';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
@@ -310,6 +312,17 @@ export function ShowWorkbenchPage() {
             <ShowWorkbenchAskQHelp phase="today" />
             <WorkbenchLateEntryAction showId={currentShow.id} />
             <QuickBroadcastCard showId={currentShow.id} />
+            <ClassBroadcastCard
+              showId={currentShow.id}
+              classes={showClasses.map(cls => ({
+                id: cls.id,
+                label: buildClassBroadcastClassLabel({
+                  name: cls.name,
+                  section: cls.section,
+                }),
+                entryCount: cls.entryCount,
+              }))}
+            />
             <ScheduleSlipScriptCard
               showId={currentShow.id}
               showName={currentShow.name}

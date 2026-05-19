@@ -28,4 +28,21 @@ Tests:
 ## Later
 
 - Push delivery remains gated until target audience and RLS behavior are verified.
-- Class-targeted broadcast can be added after the show-wide lane is reviewed.
+
+## PR 2 — Today Class Message Card
+
+Deliverables:
+
+- Add a Today workbench card for canned direct messages to one selected class.
+- Reuse the existing `send-targeted-message` edge function instead of adding a new delivery path.
+- Keep push delivery gated; this slice sends in-app class messages only.
+
+Tests:
+
+- Pure helper test for class-specific canned copy.
+- Component test for selecting canned copy and sending the targeted message payload.
+- Workbench integration test proving the Today phase exposes the card.
+
+## Later
+
+- Push delivery remains gated until target audience and RLS behavior are verified.

@@ -10,6 +10,9 @@ export interface ScheduleSlipScriptInput {
 
 export const DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES = 30;
 export const DEFAULT_SCHEDULE_SLIP_RING = 'Ring 1';
+const SCHEDULE_SLIP_ANNOUNCEMENT_EXPIRY_HOURS = 2;
+const HOUR_MS = 60 * 60 * 1000;
+// INTENT: Keep schedule-slip announcements normal until push audience and RLS rules are verified.
 export const SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY = 'normal' satisfies AnnouncementPriority;
 
 function clean(value: string | null | undefined): string {
@@ -50,4 +53,10 @@ export function buildScheduleSlipScript(input: ScheduleSlipScriptInput): string 
 
 export function buildScheduleSlipAnnouncementTitle(input: Pick<ScheduleSlipScriptInput, 'ring'>) {
   return `Schedule delay: ${ringLabel(input.ring)}`;
+}
+
+export function buildScheduleSlipAnnouncementExpiresAt(now = new Date()): string {
+  return new Date(
+    now.getTime() + SCHEDULE_SLIP_ANNOUNCEMENT_EXPIRY_HOURS * HOUR_MS
+  ).toISOString();
 }

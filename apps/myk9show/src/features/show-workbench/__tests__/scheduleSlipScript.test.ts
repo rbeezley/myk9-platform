@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildScheduleSlipAnnouncementExpiresAt,
   buildScheduleSlipAnnouncementTitle,
   buildScheduleSlipScript,
 } from '../scheduleSlipScript';
@@ -48,6 +49,12 @@ describe('buildScheduleSlipScript', () => {
     );
     expect(buildScheduleSlipAnnouncementTitle({ ring: '' })).toBe(
       'Schedule delay: this ring'
+    );
+  });
+
+  it('expires schedule announcements two hours after posting', () => {
+    expect(buildScheduleSlipAnnouncementExpiresAt(new Date('2026-05-19T12:00:00.000Z'))).toBe(
+      '2026-05-19T14:00:00.000Z'
     );
   });
 });

@@ -12,6 +12,7 @@ import {
   DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
   DEFAULT_SCHEDULE_SLIP_RING,
   SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
+  buildScheduleSlipAnnouncementExpiresAt,
   buildScheduleSlipAnnouncementTitle,
   buildScheduleSlipScript,
 } from './scheduleSlipScript';
@@ -29,6 +30,7 @@ export function ScheduleSlipScriptCard({
 }: ScheduleSlipScriptCardProps) {
   const { user, userWithRoles } = useAuthContext();
   const createAnnouncement = useAnnouncementStore(s => s.createAnnouncement);
+  const deleteAnnouncement = useAnnouncementStore(s => s.deleteAnnouncement);
   const [ring, setRing] = useState(DEFAULT_SCHEDULE_SLIP_RING);
   const [delayMinutes, setDelayMinutes] = useState(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
   const [affectedClass, setAffectedClass] = useState(defaultClassName);
@@ -64,25 +66,35 @@ export function ScheduleSlipScriptCard({
 
   async function handlePostAnnouncement() {
     if (!author.id) {
-      toast.error('Sign in again before posting an announcement');
+      toast.error('Hang on — still loading your account');
       return;
     }
 
     setIsPosting(true);
     try {
-      await createAnnouncement(
+      const announcement = await createAnnouncement(
         {
           show_id: showId,
           title: announcementTitle,
           content: script,
           priority: SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
-          expires_at: null,
+          expires_at: buildScheduleSlipAnnouncementExpiresAt(),
         },
         author.id,
         author.role,
         author.name
       );
-      toast.success('Schedule announcement posted');
+      toast.success('Schedule announcement posted', {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void deleteAnnouncement(announcement.id)
+              .then(() => toast.success('Schedule announcement removed'))
+              .catch(() => toast.error('Could not remove schedule announcement'));
+          },
+        },
+      });
+      handleReset();
     } catch {
       toast.error('Could not post schedule announcement');
     } finally {

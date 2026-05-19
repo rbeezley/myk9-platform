@@ -4,6 +4,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import { ScheduleSlipScriptCard } from '../ScheduleSlipScriptCard';
 
 const mockCreateAnnouncement = vi.hoisted(() => vi.fn());
+const mockDeleteAnnouncement = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
 
@@ -28,15 +29,22 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 vi.mock('@/store/announcementStore', () => ({
   useAnnouncementStore: (
-    selector: (state: { createAnnouncement: typeof mockCreateAnnouncement }) => unknown
+    selector: (state: {
+      createAnnouncement: typeof mockCreateAnnouncement;
+      deleteAnnouncement: typeof mockDeleteAnnouncement;
+    }) => unknown
   ) =>
-    selector({ createAnnouncement: mockCreateAnnouncement }),
+    selector({
+      createAnnouncement: mockCreateAnnouncement,
+      deleteAnnouncement: mockDeleteAnnouncement,
+    }),
 }));
 
 describe('ScheduleSlipScriptCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateAnnouncement.mockResolvedValue(undefined);
+    mockCreateAnnouncement.mockResolvedValue({ id: 'announcement-1' });
+    mockDeleteAnnouncement.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -119,13 +127,67 @@ describe('ScheduleSlipScriptCard', () => {
           title: 'Schedule delay: Ring 3',
           content: expect.stringContaining('Ring 3 is running about 30 minutes behind.'),
           priority: 'normal',
-          expires_at: null,
+          expires_at: expect.any(String),
         },
         'user-1',
         'secretary',
         'Jane Secretary'
       );
     });
-    expect(mockToastSuccess).toHaveBeenCalledWith('Schedule announcement posted');
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      'Schedule announcement posted',
+      expect.objectContaining({
+        action: expect.objectContaining({ label: 'Undo' }),
+      })
+    );
+    expect(screen.getByLabelText('Ring or area')).toHaveValue('Ring 1');
+  });
+
+  it('can undo a posted schedule announcement from the success toast', async () => {
+    const { user } = render(
+      <ScheduleSlipScriptCard
+        showId="show-1"
+        showName="Bluegrass Classic"
+        defaultClassName="Container Novice A"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Post announcement' }));
+
+    await waitFor(() => {
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        'Schedule announcement posted',
+        expect.objectContaining({
+          action: expect.objectContaining({ label: 'Undo' }),
+        })
+      );
+    });
+
+    const undoOptions = mockToastSuccess.mock.calls.find(
+      ([message]) => message === 'Schedule announcement posted'
+    )?.[1] as { action: { onClick: () => void } };
+    undoOptions.action.onClick();
+
+    await waitFor(() => {
+      expect(mockDeleteAnnouncement).toHaveBeenCalledWith('announcement-1');
+    });
+  });
+
+  it('shows an error and re-enables posting when announcement creation fails', async () => {
+    mockCreateAnnouncement.mockRejectedValueOnce(new Error('boom'));
+    const { user } = render(
+      <ScheduleSlipScriptCard
+        showId="show-1"
+        showName="Bluegrass Classic"
+        defaultClassName="Container Novice A"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Post announcement' }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Could not post schedule announcement');
+    });
+    expect(screen.getByRole('button', { name: 'Post announcement' })).not.toBeDisabled();
   });
 });

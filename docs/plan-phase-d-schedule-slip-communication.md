@@ -32,6 +32,8 @@ Tests:
 
 - Reuse the announcements / notification substrate already present in the repo.
 - Persist the generated message as an announcement for the selected show.
+- Auto-expire schedule-delay announcements so stale ring-delay copy does not live in the feed forever.
+- Provide an undo affordance after posting so accidental broadcasts are recoverable.
 - Leave push delivery gated until target audience and RLS behavior are verified.
 
 Tests:

@@ -19,12 +19,12 @@ export function AnnouncementsCard({ showId, showEndDate }: AnnouncementsCardProp
   const unreadCount = useAnnouncementStore(s => s.unreadCount);
   const markRead = useAnnouncementStore(s => s.markRead);
   const deleteAnnouncement = useAnnouncementStore(s => s.deleteAnnouncement);
-  const { userWithRoles } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<ShowAnnouncement | null>(null);
 
-  const author = getAnnouncementAuthor(null, userWithRoles);
+  const author = getAnnouncementAuthor(user, userWithRoles);
 
   const showAnnouncements = announcements.filter(a => a.show_id === showId);
 

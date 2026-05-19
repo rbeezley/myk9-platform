@@ -34,7 +34,7 @@ interface AnnouncementState {
     authorId: string,
     authorRole: AnnouncementAuthorRole,
     authorName: string
-  ) => Promise<void>;
+  ) => Promise<ShowAnnouncement>;
   updateAnnouncement: (id: string, updates: UpdateAnnouncementInput) => Promise<void>;
   deleteAnnouncement: (id: string) => Promise<void>;
   markRead: (id: string, userId: string) => Promise<void>;
@@ -202,12 +202,12 @@ export const useAnnouncementStore = create<AnnouncementState>()((set, get) => ({
 
     try {
       const created = await createAnnouncementQuery(input, authorId, authorRole, authorName);
+      const createdAnnouncement = { ...created, is_read: true };
       // Replace optimistic with real data (realtime may also fire — dedup by replacing temp)
       set(state => ({
-        announcements: state.announcements.map(a =>
-          a.id === tempId ? { ...created, is_read: true } : a
-        ),
+        announcements: state.announcements.map(a => (a.id === tempId ? createdAnnouncement : a)),
       }));
+      return createdAnnouncement;
     } catch (err) {
       // Rollback optimistic
       set(state => {

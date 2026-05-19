@@ -52,12 +52,9 @@ export function SubscriptionManager() {
           'stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
         )
         .eq('customer_id', user?.id || '')
-        .single();
+        .maybeSingle();
 
-      if (subError && subError.code !== 'PGRST116') {
-        // PGRST116 = no rows returned
-        throw subError;
-      }
+      if (subError) throw subError;
 
       if (subData) {
         setSubscription({

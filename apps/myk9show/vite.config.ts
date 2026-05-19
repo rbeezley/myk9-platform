@@ -9,6 +9,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
     __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
   },
   plugins: [
@@ -93,6 +94,7 @@ export default defineConfig({
       '@base-ui/react',
       'react-day-picker',
       'lucide-react',
+      'canvas-confetti',
     ],
     // Force dependency optimization to prevent chunk errors
     force: true,
@@ -230,11 +232,6 @@ export default defineConfig({
   preview: {
     port: 4173,
     host: true,
-  },
-  // Environment variables
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
-    __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
   },
   // Worker configuration for compression worker
   worker: {

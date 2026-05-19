@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-19
+
+- **Playwright command:** pass after low-risk local fixes
+- **Route sweep:** pass
+- **Active specs:** Vitest 18/18; Playwright 46/46
+- **Failures:** Initial Playwright run failed before app assertions were reliable because Vite served an outdated optimized dependency for `canvas-confetti`, causing route-level dynamic import failures. After fixing Vite dependency optimization, the rerun exposed duplicate React sidebar keys on secretary routes and stale secretary entry-walk confirmation copy. Route sweep found `/subscription` returned Supabase 406 for free users with no subscription row. All were fixed and re-proven in this run.
+- **Fixes made:** `apps/myk9show/vite.config.ts`, `apps/myk9show/src/components/layout/sidebar/RoleSidebar.tsx`, `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`, `apps/myk9show/src/components/subscription/SubscriptionManager.tsx`
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`, then created local branch `codex/nightly-qa-2026-05-19` before edits. Proofs passed: promoted Vitest Nightly (`18 passed`), sidebar focused Vitest (`25 passed`), focused Playwright for secretary entry-walk and QA regression proof (`4 passed`), full active Playwright Nightly (`46 passed`, retries disabled), focused `/subscription` desktop/mobile route proof, and final route sweep across public, exhibitor, secretary, judge, club-admin, and admin groups (`65/66` clean by heuristic plus focused `/exhibitor/dashboard` render proof showing the remaining heuristic item was not a real skeleton).
+
 ### 2026-05-15
 
 - **Playwright command:** pass

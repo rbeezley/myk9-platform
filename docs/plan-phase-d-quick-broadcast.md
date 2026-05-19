@@ -1,7 +1,7 @@
 # Plan — Phase D Quick Broadcast
 
 **Date:** 2026-05-18
-**Status:** In progress.
+**Status:** In progress; PR 1 and PR 2 shipped, PR 3 current.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal
@@ -11,6 +11,8 @@ Give the secretary a calm, fast way to send common show-day announcements to the
 This follows the Trial Secretary intent in [`docs/INTENT.md`](INTENT.md): during show-day chaos, the software should make the next message feel handled.
 
 ## PR 1 — Today Quick Broadcast Card
+
+**Status:** Shipped 2026-05-18 in PR #243.
 
 Deliverables:
 
@@ -25,11 +27,9 @@ Tests:
 - Component test for selecting a template, editing copy, and posting the announcement payload.
 - Workbench integration test proving the Today phase exposes the card.
 
-## Later
-
-- Push delivery remains gated until target audience and RLS behavior are verified.
-
 ## PR 2 — Today Class Message Card
+
+**Status:** Shipped 2026-05-18 in PR #244.
 
 Deliverables:
 
@@ -43,6 +43,19 @@ Tests:
 - Component test for selecting canned copy and sending the targeted message payload.
 - Workbench integration test proving the Today phase exposes the card.
 
-## Later
+## PR 3 — Opt-In Push Alert Lane
 
-- Push delivery remains gated until target audience and RLS behavior are verified.
+**Status:** Current slice.
+
+Deliverables:
+
+- Add an explicit Send push alert checkbox to the Today quick-broadcast card.
+- Keep regular broadcasts on the normal in-app announcement lane.
+- Use high priority only when the secretary opts into push delivery.
+- Reuse the existing announcement push trigger and require the service-role bearer before any push send.
+
+Tests:
+
+- Pure helper test proving default workbench announcements stay `normal` and opted-in alerts use `high`.
+- Component test asserting checked quick broadcasts post with `priority: 'high'`.
+- Function contract test proving the announcement push function checks the service-role bearer before sending push notifications.

@@ -1,5 +1,3 @@
-import type { AnnouncementPriority } from '@/types/announcement-types';
-
 export interface ScheduleSlipScriptInput {
   showName?: string | null;
   ring: string;
@@ -12,9 +10,6 @@ export const DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES = 30;
 export const DEFAULT_SCHEDULE_SLIP_RING = 'Ring 1';
 const SCHEDULE_SLIP_ANNOUNCEMENT_EXPIRY_HOURS = 2;
 const HOUR_MS = 60 * 60 * 1000;
-// INTENT: Keep schedule-slip announcements normal until push audience and RLS rules are verified.
-export const SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY = 'normal' satisfies AnnouncementPriority;
-
 function clean(value: string | null | undefined): string {
   return value?.trim() ?? '';
 }

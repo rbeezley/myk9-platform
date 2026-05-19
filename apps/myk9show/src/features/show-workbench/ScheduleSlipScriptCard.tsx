@@ -8,11 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
   DEFAULT_SCHEDULE_SLIP_RING,
-  SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
   buildScheduleSlipAnnouncementExpiresAt,
   buildScheduleSlipAnnouncementTitle,
   buildScheduleSlipScript,
 } from './scheduleSlipScript';
+import { WorkbenchPushAlertToggle } from './WorkbenchPushAlertToggle';
+import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
 
 interface ScheduleSlipScriptCardProps {
@@ -31,6 +32,7 @@ export function ScheduleSlipScriptCard({
   const [delayMinutes, setDelayMinutes] = useState(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
   const [affectedClass, setAffectedClass] = useState(defaultClassName);
   const [note, setNote] = useState('');
+  const [sendPushAlert, setSendPushAlert] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
 
   const delayValue = delayMinutes.trim() === '' ? Number.NaN : Number(delayMinutes);
@@ -65,9 +67,11 @@ export function ScheduleSlipScriptCard({
         showId,
         title: announcementTitle,
         content: script,
-        priority: SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
+        priority: getWorkbenchAnnouncementPriority(sendPushAlert),
         expiresAt: buildScheduleSlipAnnouncementExpiresAt(),
-        successMessage: 'Schedule announcement posted',
+        successMessage: sendPushAlert
+          ? 'Schedule announcement posted and push alert queued'
+          : 'Schedule announcement posted',
         errorMessage: 'Could not post schedule announcement',
         undoSuccessMessage: 'Schedule announcement removed',
         undoErrorMessage: 'Could not remove schedule announcement',
@@ -83,6 +87,7 @@ export function ScheduleSlipScriptCard({
     setDelayMinutes(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
     setAffectedClass(defaultClassName);
     setNote('');
+    setSendPushAlert(false);
   }
 
   return (
@@ -111,6 +116,13 @@ export function ScheduleSlipScriptCard({
           </Button>
         </div>
       </div>
+
+      <WorkbenchPushAlertToggle
+        id="schedule-slip-push"
+        checked={sendPushAlert}
+        onCheckedChange={setSendPushAlert}
+        description="Use when exhibitors need the delay update now. Otherwise this posts quietly in the show feed."
+      />
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="space-y-2">

@@ -1,7 +1,7 @@
 # Plan — Phase D Schedule-Slip Communication
 
 **Date:** 2026-05-18
-**Status:** In progress.
+**Status:** In progress; PR 1 and PR 2 shipped, PR 3 current.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal
@@ -28,7 +28,7 @@ Tests:
 
 ## PR 2 — Announcement Broadcast Wiring
 
-**Status:** Current slice.
+**Status:** Shipped 2026-05-18 in PR #242.
 
 - Reuse the announcements / notification substrate already present in the repo.
 - Persist the generated message as an announcement for the selected show.
@@ -41,3 +41,18 @@ Tests:
 - Pure helper test for announcement title generation.
 - Component test asserting the generated script is posted to `show_announcements` as a normal-priority announcement.
 - Existing workbench integration test continues to prove the Today phase exposes the schedule-delay card.
+
+## PR 3 — Opt-In Push Alert Lane
+
+**Status:** Current slice.
+
+- Add an explicit Send push alert checkbox to the schedule-delay card.
+- Keep regular schedule announcements on the normal in-app announcement lane.
+- Use high priority only when the secretary opts into push delivery.
+- Reuse the existing announcement push trigger and require the service-role bearer before any push send.
+
+Tests:
+
+- Pure helper test proving default workbench announcements stay `normal` and opted-in alerts use `high`.
+- Component test asserting checked schedule announcements post with `priority: 'high'`.
+- Function contract test proving the announcement push function checks the service-role bearer before sending push notifications.

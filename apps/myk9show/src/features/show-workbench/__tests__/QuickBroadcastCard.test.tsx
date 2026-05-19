@@ -113,6 +113,30 @@ describe('QuickBroadcastCard', () => {
     });
   });
 
+  it('posts a checked push alert on the high-priority announcement lane', async () => {
+    const { user } = render(<QuickBroadcastCard showId="show-1" />);
+
+    await user.click(screen.getByLabelText('Send push alert'));
+    await user.click(screen.getByRole('button', { name: 'Post broadcast' }));
+
+    await waitFor(() => {
+      expect(mockCreateAnnouncement).toHaveBeenCalledWith(
+        expect.objectContaining({
+          priority: 'high',
+        }),
+        'user-1',
+        'secretary',
+        'Jane Secretary'
+      );
+    });
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      'Broadcast posted and push alert queued',
+      expect.objectContaining({
+        action: expect.objectContaining({ label: 'Undo' }),
+      })
+    );
+  });
+
   it('does not post blank copy', async () => {
     const { user } = render(<QuickBroadcastCard showId="show-1" />);
 

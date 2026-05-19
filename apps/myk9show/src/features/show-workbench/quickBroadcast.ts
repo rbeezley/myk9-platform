@@ -1,5 +1,3 @@
-import type { AnnouncementPriority } from '@/types/announcement-types';
-
 export interface QuickBroadcastTemplate {
   id: string;
   label: string;
@@ -9,9 +7,6 @@ export interface QuickBroadcastTemplate {
 
 const QUICK_BROADCAST_EXPIRY_HOURS = 2;
 const HOUR_MS = 60 * 60 * 1000;
-
-// INTENT: Keep quick broadcasts normal until push audience and RLS rules are verified.
-export const QUICK_BROADCAST_PRIORITY = 'normal' satisfies AnnouncementPriority;
 
 export const QUICK_BROADCAST_TEMPLATES: readonly QuickBroadcastTemplate[] = [
   {

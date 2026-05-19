@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 import { ScheduleSlipScriptCard } from '../ScheduleSlipScriptCard';
@@ -13,6 +13,10 @@ vi.mock('sonner', () => ({
 describe('ScheduleSlipScriptCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('updates the generated PA script and copies it', async () => {

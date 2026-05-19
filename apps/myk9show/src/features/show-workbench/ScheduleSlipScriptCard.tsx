@@ -5,21 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { buildScheduleSlipScript } from './scheduleSlipScript';
+import {
+  DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
+  DEFAULT_SCHEDULE_SLIP_RING,
+  buildScheduleSlipScript,
+} from './scheduleSlipScript';
 
 interface ScheduleSlipScriptCardProps {
   showName?: string | null;
   defaultClassName?: string;
 }
 
-const DEFAULT_DELAY_MINUTES = 30;
-
 export function ScheduleSlipScriptCard({
   showName,
   defaultClassName = '',
 }: ScheduleSlipScriptCardProps) {
-  const [ring, setRing] = useState('Ring 1');
-  const [delayMinutes, setDelayMinutes] = useState(String(DEFAULT_DELAY_MINUTES));
+  const [ring, setRing] = useState(DEFAULT_SCHEDULE_SLIP_RING);
+  const [delayMinutes, setDelayMinutes] = useState(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
   const [affectedClass, setAffectedClass] = useState(defaultClassName);
   const [note, setNote] = useState('');
 
@@ -27,9 +29,11 @@ export function ScheduleSlipScriptCard({
   const script = useMemo(
     () =>
       buildScheduleSlipScript({
-        showName,
+        showName: showName ?? null,
         ring,
-        delayMinutes: Number.isFinite(delayValue) ? delayValue : DEFAULT_DELAY_MINUTES,
+        delayMinutes: Number.isFinite(delayValue)
+          ? delayValue
+          : DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
         affectedClass,
         note,
       }),
@@ -46,8 +50,8 @@ export function ScheduleSlipScriptCard({
   }
 
   function handleReset() {
-    setRing('Ring 1');
-    setDelayMinutes(String(DEFAULT_DELAY_MINUTES));
+    setRing(DEFAULT_SCHEDULE_SLIP_RING);
+    setDelayMinutes(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
     setAffectedClass(defaultClassName);
     setNote('');
   }

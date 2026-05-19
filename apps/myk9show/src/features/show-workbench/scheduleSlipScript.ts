@@ -1,10 +1,13 @@
 export interface ScheduleSlipScriptInput {
-  showName?: string | null | undefined;
+  showName?: string | null;
   ring: string;
   delayMinutes: number;
   affectedClass: string;
-  note?: string | undefined;
+  note?: string;
 }
+
+export const DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES = 30;
+export const DEFAULT_SCHEDULE_SLIP_RING = 'Ring 1';
 
 function clean(value: string | null | undefined): string {
   return value?.trim() ?? '';
@@ -20,7 +23,7 @@ export function buildScheduleSlipScript(input: ScheduleSlipScriptInput): string 
   const affectedClass = clean(input.affectedClass) || 'The affected class';
   const delayMinutes = Number.isFinite(input.delayMinutes)
     ? Math.max(1, Math.round(input.delayMinutes))
-    : 30;
+    : DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES;
   const note = clean(input.note);
 
   const lines = [

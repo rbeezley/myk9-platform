@@ -18,7 +18,7 @@ interface WebhookPayload {
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@myk9show.com';
@@ -34,6 +34,11 @@ function truncate(text: string, maxLength: number): string {
 }
 
 Deno.serve(async (req: Request) => {
+  if (!supabaseServiceKey) {
+    console.error('push-trigger-announcement: missing SUPABASE_SERVICE_ROLE_KEY');
+    return new Response('Push trigger is not configured', { status: 503 });
+  }
+
   const authHeader = req.headers.get('Authorization');
   if (!authHeader || authHeader !== `Bearer ${supabaseServiceKey}`) {
     return new Response('Unauthorized', { status: 401 });

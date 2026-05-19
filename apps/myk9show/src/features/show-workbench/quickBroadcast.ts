@@ -1,5 +1,3 @@
-export { WORKBENCH_IN_APP_ANNOUNCEMENT_PRIORITY as QUICK_BROADCAST_PRIORITY } from './workbenchAnnouncementPriority';
-
 export interface QuickBroadcastTemplate {
   id: string;
   label: string;

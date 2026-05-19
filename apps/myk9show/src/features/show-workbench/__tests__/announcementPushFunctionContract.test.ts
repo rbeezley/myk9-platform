@@ -1,16 +1,19 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+const testDir = dirname(fileURLToPath(import.meta.url));
 const functionPath = resolve(
-  process.cwd(),
-  '../../supabase/functions/push-trigger-announcement/index.ts'
+  testDir,
+  '../../../../../../supabase/functions/push-trigger-announcement/index.ts'
 );
 
 describe('push-trigger-announcement function contract', () => {
   it('requires the service-role bearer before sending announcement push notifications', () => {
     const source = readFileSync(functionPath, 'utf8');
 
+    expect(source).toContain('if (!supabaseServiceKey)');
     expect(source).toContain("req.headers.get('Authorization')");
     expect(source).toContain('Bearer ${supabaseServiceKey}');
     expect(source).toContain("new Response('Unauthorized', { status: 401 })");

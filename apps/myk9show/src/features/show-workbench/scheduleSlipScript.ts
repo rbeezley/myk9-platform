@@ -1,5 +1,3 @@
-export { WORKBENCH_IN_APP_ANNOUNCEMENT_PRIORITY as SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY } from './workbenchAnnouncementPriority';
-
 export interface ScheduleSlipScriptInput {
   showName?: string | null;
   ring: string;

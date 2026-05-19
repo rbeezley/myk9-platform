@@ -150,8 +150,10 @@ test.describe('Secretary Entry Walk', () => {
     const rpcResp = await rpcPromise;
     expect(rpcResp.status()).toBe(200);
 
-    await page.waitForSelector('text=Registration Confirmed', { timeout: 10000 });
-    await expect(page.getByText(/confirmation #:/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your entry is received.' })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByText(/^Receipt\b/i)).toBeVisible();
     expect(errors).toHaveLength(0);
   });
 });

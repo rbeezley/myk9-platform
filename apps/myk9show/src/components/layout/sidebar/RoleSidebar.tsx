@@ -87,10 +87,15 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                   // Messages items show a live unread count badge
                   const isMessagesItem = item.href.endsWith('/messages');
                   const dynamicBadgeCount = isMessagesItem ? messageUnreadCount : 0;
-                  const badgeLabel = item.badge ?? (dynamicBadgeCount > 0 ? String(dynamicBadgeCount > 99 ? '99+' : dynamicBadgeCount) : undefined);
+                  const badgeLabel =
+                    item.badge ??
+                    (dynamicBadgeCount > 0
+                      ? String(dynamicBadgeCount > 99 ? '99+' : dynamicBadgeCount)
+                      : undefined);
                   return (
                     <Link
-                      key={item.href}
+                      // Multiple static nav items can intentionally share the same fallback href.
+                      key={`${groupIndex}:${item.title}:${item.href}`}
                       to={item.href}
                       onClick={onCloseMobile}
                       aria-label={isCollapsed ? item.title : undefined}
@@ -108,9 +113,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                           className={cn(
                             'transition-colors',
                             isCollapsed ? 'h-5 w-5' : 'h-4 w-4',
-                            active
-                              ? 'text-primary'
-                              : 'text-[#a09f98] group-hover:text-foreground'
+                            active ? 'text-primary' : 'text-[#a09f98] group-hover:text-foreground'
                           )}
                         />
                         {isCollapsed && dynamicBadgeCount > 0 && (

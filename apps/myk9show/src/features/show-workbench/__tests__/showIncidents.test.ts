@@ -72,23 +72,9 @@ describe('buildShowIncidentPayload', () => {
     ).toThrow('Add a short incident summary before saving');
   });
 
-  it('summarizes reportable and urgent incident closeout counts', () => {
+  it('summarizes reportable and urgent incident closeout counts by latest occurred time', () => {
     expect(
       summarizeShowIncidents([
-        {
-          id: 'incident-urgent',
-          incident_type: 'bite',
-          severity: 'urgent',
-          occurred_at: '2026-05-19T15:30:00.000Z',
-          summary: 'Dog bite at gate',
-          description: null,
-          action_taken: null,
-          dog_name: 'Rocket',
-          handler_name: 'Jamie Walker',
-          judge_name: 'Pat Judge',
-          created_by_name: 'Jane Secretary',
-          created_at: '2026-05-19T15:30:00.000Z',
-        },
         {
           id: 'incident-reportable',
           incident_type: 'dq',
@@ -116,6 +102,20 @@ describe('buildShowIncidentPayload', () => {
           judge_name: null,
           created_by_name: 'Jane Secretary',
           created_at: '2026-05-19T13:30:00.000Z',
+        },
+        {
+          id: 'incident-urgent',
+          incident_type: 'bite',
+          severity: 'urgent',
+          occurred_at: '2026-05-19T15:30:00.000Z',
+          summary: 'Dog bite at gate',
+          description: null,
+          action_taken: null,
+          dog_name: 'Rocket',
+          handler_name: 'Jamie Walker',
+          judge_name: 'Pat Judge',
+          created_by_name: 'Jane Secretary',
+          created_at: '2026-05-19T15:30:00.000Z',
         },
       ])
     ).toEqual({

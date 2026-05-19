@@ -36,6 +36,7 @@ const db = supabase as unknown as {
 const SHOW_INCIDENT_SELECT_COLUMNS =
   'id, incident_type, severity, occurred_at, summary, description, action_taken, dog_name, handler_name, judge_name, created_by_name, created_at';
 const RECENT_INCIDENT_LIMIT = 5;
+// Expected ceiling for one show; replace with aggregate counts if live shows exceed this.
 const CLOSEOUT_INCIDENT_LIMIT = 100;
 
 export const showIncidentsQueryKey = (showId: string) => ['show-incidents', showId] as const;

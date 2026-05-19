@@ -140,14 +140,17 @@ export function formatIncidentType(type: ShowIncidentType): string {
 }
 
 export function summarizeShowIncidents(incidents: ShowIncidentRecord[]): ShowIncidentSummary {
+  const orderedIncidents = [...incidents].sort(
+    (a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at)
+  );
   const summary: ShowIncidentSummary = {
-    totalCount: incidents.length,
+    totalCount: orderedIncidents.length,
     reportableCount: 0,
     urgentCount: 0,
     latestReportable: null,
   };
 
-  for (const incident of incidents) {
+  for (const incident of orderedIncidents) {
     if (incident.severity === 'urgent') {
       summary.urgentCount += 1;
     }

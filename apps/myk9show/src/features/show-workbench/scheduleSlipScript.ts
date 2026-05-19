@@ -13,13 +13,17 @@ function clean(value: string | null | undefined): string {
   return value?.trim() ?? '';
 }
 
+function ringLabel(ring: string): string {
+  return clean(ring) || 'this ring';
+}
+
 function minutesLabel(minutes: number): string {
   return `${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
 
 export function buildScheduleSlipScript(input: ScheduleSlipScriptInput): string {
   const showName = clean(input.showName);
-  const ring = clean(input.ring) || 'this ring';
+  const ring = ringLabel(input.ring);
   const affectedClass = clean(input.affectedClass) || 'The affected class';
   const delayMinutes = Number.isFinite(input.delayMinutes)
     ? Math.max(1, Math.round(input.delayMinutes))
@@ -39,4 +43,8 @@ export function buildScheduleSlipScript(input: ScheduleSlipScriptInput): string 
   lines.push('Thank you for your patience.');
 
   return lines.join(' ');
+}
+
+export function buildScheduleSlipAnnouncementTitle(input: Pick<ScheduleSlipScriptInput, 'ring'>) {
+  return `Schedule delay: ${ringLabel(input.ring)}`;
 }

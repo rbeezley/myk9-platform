@@ -309,6 +309,7 @@ export function ShowWorkbenchPage() {
             <ShowWorkbenchAskQHelp phase="today" />
             <WorkbenchLateEntryAction showId={currentShow.id} />
             <ScheduleSlipScriptCard
+              showId={currentShow.id}
               showName={currentShow.name}
               defaultClassName={showClasses[0]?.name ?? ''}
             />

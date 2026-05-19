@@ -1,29 +1,41 @@
 import { useMemo, useState } from 'react';
-import { ClipboardCopy, RotateCcw } from 'lucide-react';
+import { ClipboardCopy, Megaphone, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { useAnnouncementStore } from '@/store/announcementStore';
+import {
+  ANNOUNCEMENT_OFFICIAL_ROLES,
+  type AnnouncementAuthorRole,
+} from '@/types/announcement-types';
 import {
   DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
   DEFAULT_SCHEDULE_SLIP_RING,
+  buildScheduleSlipAnnouncementTitle,
   buildScheduleSlipScript,
 } from './scheduleSlipScript';
 
 interface ScheduleSlipScriptCardProps {
+  showId: string;
   showName?: string | null;
   defaultClassName?: string;
 }
 
 export function ScheduleSlipScriptCard({
+  showId,
   showName,
   defaultClassName = '',
 }: ScheduleSlipScriptCardProps) {
+  const { user, userWithRoles } = useAuthContext();
+  const createAnnouncement = useAnnouncementStore(s => s.createAnnouncement);
   const [ring, setRing] = useState(DEFAULT_SCHEDULE_SLIP_RING);
   const [delayMinutes, setDelayMinutes] = useState(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
   const [affectedClass, setAffectedClass] = useState(defaultClassName);
   const [note, setNote] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
 
   const delayValue =
     delayMinutes.trim() === '' ? Number.NaN : Number(delayMinutes);
@@ -40,6 +52,17 @@ export function ScheduleSlipScriptCard({
       }),
     [affectedClass, delayValue, note, ring, showName]
   );
+  const announcementTitle = useMemo(() => buildScheduleSlipAnnouncementTitle({ ring }), [ring]);
+  const userRole = (userWithRoles?.roles ?? []).find(role =>
+    (ANNOUNCEMENT_OFFICIAL_ROLES as readonly string[]).includes(role)
+  ) as AnnouncementAuthorRole | undefined;
+  const authorId = userWithRoles?.id ?? user?.id ?? '';
+  const authorRole = userRole ?? 'secretary';
+  const authorName =
+    (userWithRoles?.user_metadata?.full_name as string | undefined) ??
+    userWithRoles?.email ??
+    user?.email ??
+    'Secretary';
 
   async function handleCopy() {
     try {
@@ -47,6 +70,34 @@ export function ScheduleSlipScriptCard({
       toast.success('Schedule update copied');
     } catch {
       toast.error('Could not copy schedule update');
+    }
+  }
+
+  async function handlePostAnnouncement() {
+    if (!authorId) {
+      toast.error('Sign in again before posting an announcement');
+      return;
+    }
+
+    setIsPosting(true);
+    try {
+      await createAnnouncement(
+        {
+          show_id: showId,
+          title: announcementTitle,
+          content: script,
+          priority: 'normal',
+          expires_at: null,
+        },
+        authorId,
+        authorRole,
+        authorName
+      );
+      toast.success('Schedule announcement posted');
+    } catch {
+      toast.error('Could not post schedule announcement');
+    } finally {
+      setIsPosting(false);
     }
   }
 
@@ -76,6 +127,10 @@ export function ScheduleSlipScriptCard({
           <Button type="button" size="sm" onClick={handleCopy}>
             <ClipboardCopy className="mr-2 h-4 w-4" aria-hidden="true" />
             Copy script
+          </Button>
+          <Button type="button" size="sm" onClick={handlePostAnnouncement} disabled={isPosting}>
+            <Megaphone className="mr-2 h-4 w-4" aria-hidden="true" />
+            {isPosting ? 'Posting...' : 'Post announcement'}
           </Button>
         </div>
       </div>

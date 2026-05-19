@@ -67,4 +67,26 @@ describe('IncidentCloseoutSummary', () => {
     expect(await screen.findByText('No reportable incidents')).toBeInTheDocument();
     expect(screen.getByText('No reportable incident follow-up is waiting in this show.')).toBeInTheDocument();
   });
+
+  it('renders a loading state without empty-state copy', () => {
+    mockListShowIncidentCloseout.mockReturnValueOnce(new Promise(() => undefined));
+
+    render(<IncidentCloseoutSummary showId="show-1" />);
+
+    expect(screen.getByText('Checking incidents')).toBeInTheDocument();
+    expect(screen.getByText('Checking the incident log...')).toBeInTheDocument();
+    expect(screen.queryByText('No reportable incident follow-up is waiting in this show.')).not.toBeInTheDocument();
+  });
+
+  it('renders an error state without empty-state copy', async () => {
+    mockListShowIncidentCloseout.mockRejectedValueOnce(new Error('network failed'));
+
+    render(<IncidentCloseoutSummary showId="show-1" />);
+
+    expect(await screen.findByText('Could not check incidents')).toBeInTheDocument();
+    expect(
+      screen.getByText('Could not load the incident closeout. Try the Today incident log before filing reports.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('No reportable incident follow-up is waiting in this show.')).not.toBeInTheDocument();
+  });
 });

@@ -19,6 +19,13 @@ export function IncidentCloseoutSummary({ showId }: IncidentCloseoutSummaryProps
   const incidents = incidentsQuery.data ?? [];
   const summary = summarizeShowIncidents(incidents);
   const needsReview = summary.reportableCount > 0;
+  const statusLabel = incidentsQuery.isLoading
+    ? 'Checking incidents'
+    : incidentsQuery.isError
+      ? 'Could not check incidents'
+      : needsReview
+        ? `${summary.reportableCount} reportable`
+        : 'No reportable incidents';
 
   return (
     <section className="rounded-md border bg-card p-4" aria-labelledby="incident-closeout-title">
@@ -37,49 +44,51 @@ export function IncidentCloseoutSummary({ showId }: IncidentCloseoutSummaryProps
             needsReview ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
           )}
         >
-          {incidentsQuery.isLoading
-            ? 'Checking incidents'
-            : needsReview
-              ? `${summary.reportableCount} reportable`
-              : 'No reportable incidents'}
+          {statusLabel}
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div role="group" aria-label="All incidents">
-          <p className="text-xs font-medium uppercase text-muted-foreground">All incidents</p>
-          <p className="text-xl font-semibold">{summary.totalCount}</p>
-        </div>
-        <div role="group" aria-label="Reportable incidents">
-          <p className="text-xs font-medium uppercase text-muted-foreground">Reportable</p>
-          <p className="text-xl font-semibold">{summary.reportableCount}</p>
-        </div>
-        <div role="group" aria-label="Urgent incidents">
-          <p className="text-xs font-medium uppercase text-muted-foreground">Urgent</p>
-          <p className="text-xl font-semibold">{summary.urgentCount}</p>
-        </div>
-      </div>
-
-      {incidentsQuery.isError ? (
+      {incidentsQuery.isLoading ? (
+        <p className="mt-3 text-sm text-muted-foreground">Checking the incident log...</p>
+      ) : incidentsQuery.isError ? (
         <p className="mt-3 text-sm text-destructive">
           Could not load the incident closeout. Try the Today incident log before filing reports.
         </p>
-      ) : summary.latestReportable ? (
-        <p className="mt-3 inline-flex items-start gap-2 text-sm text-muted-foreground">
-          {summary.urgentCount > 0 ? (
-            <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" aria-hidden="true" />
-          ) : (
-            <FileText className="mt-0.5 h-4 w-4" aria-hidden="true" />
-          )}
-          <span>
-            Latest reportable: {formatIncidentType(summary.latestReportable.incident_type)} -{' '}
-            {summary.latestReportable.summary}
-          </span>
-        </p>
       ) : (
-        <p className="mt-3 text-sm text-muted-foreground">
-          No reportable incident follow-up is waiting in this show.
-        </p>
+        <>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div role="group" aria-label="All incidents">
+              <p className="text-xs font-medium uppercase text-muted-foreground">All incidents</p>
+              <p className="text-xl font-semibold">{summary.totalCount}</p>
+            </div>
+            <div role="group" aria-label="Reportable incidents">
+              <p className="text-xs font-medium uppercase text-muted-foreground">Reportable</p>
+              <p className="text-xl font-semibold">{summary.reportableCount}</p>
+            </div>
+            <div role="group" aria-label="Urgent incidents">
+              <p className="text-xs font-medium uppercase text-muted-foreground">Urgent</p>
+              <p className="text-xl font-semibold">{summary.urgentCount}</p>
+            </div>
+          </div>
+
+          {summary.latestReportable ? (
+            <p className="mt-3 inline-flex items-start gap-2 text-sm text-muted-foreground">
+              {summary.urgentCount > 0 ? (
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" aria-hidden="true" />
+              ) : (
+                <FileText className="mt-0.5 h-4 w-4" aria-hidden="true" />
+              )}
+              <span>
+                Latest reportable: {formatIncidentType(summary.latestReportable.incident_type)} -{' '}
+                {summary.latestReportable.summary}
+              </span>
+            </p>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              No reportable incident follow-up is waiting in this show.
+            </p>
+          )}
+        </>
       )}
     </section>
   );

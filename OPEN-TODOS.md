@@ -11,6 +11,7 @@ Active work items only. Resolved historical context lives in git history and dat
 - [ ] **Fix `react-hooks/set-state-in-effect` in `StickyNav.tsx:45`** — `setPresentIds(new Set(found.map(el => el.id)))` is called synchronously inside `useEffect`, triggering a cascading render. Refactor: either move into the IntersectionObserver callback below (which is the canonical pattern for this rule), or derive `presentIds` rather than storing it. File: `apps/myk9show/src/features/magazine/landing/sections/StickyNav.tsx`.
 - [ ] **Fix `react-refresh/only-export-components` warning in `MonogramSectionFolio.tsx:50`** — A non-component export is colocated with a component, breaking fast refresh. Move the constant/function to a sibling module. File: `apps/myk9show/src/features/monogram/components/MonogramSectionFolio.tsx`.
 - [ ] **Restore GHA CI gating** — Both issues above would have been caught by CI lint before merge. Re-enable billing / unblock the pipeline so trunk doesn't accumulate undetected lint debt; see `project_gha_billing_paused.md`.
+- [ ] **Speed up local `@myk9/show` typecheck/lint feedback** — Even narrow PR cleanup runs spend about 60-70 seconds in `pnpm --filter @myk9/show typecheck` and `pnpm --filter @myk9/show lint`, with little output while running. Investigate whether we can add changed-file linting for local loops, optimize TypeScript project references, and identify slow type-aware ESLint rules without weakening full CI validation.
 
 ---
 

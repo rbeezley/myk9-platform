@@ -42,28 +42,27 @@ export const showIncidentsQueryKey = (showId: string) => ['show-incidents', show
 export const showIncidentCloseoutQueryKey = (showId: string) =>
   ['show-incidents', showId, 'closeout'] as const;
 
-export async function listShowIncidents(showId: string): Promise<ShowIncidentRecord[]> {
+async function listShowIncidentsForShow(
+  showId: string,
+  limit: number
+): Promise<ShowIncidentRecord[]> {
   const { data, error } = await db
     .from('show_incidents')
     .select(SHOW_INCIDENT_SELECT_COLUMNS)
     .eq('show_id', showId)
     .order('occurred_at', { ascending: false })
-    .limit(RECENT_INCIDENT_LIMIT);
+    .limit(limit);
 
   if (error) throw error;
   return (data ?? []) as ShowIncidentRecord[];
 }
 
-export async function listShowIncidentCloseout(showId: string): Promise<ShowIncidentRecord[]> {
-  const { data, error } = await db
-    .from('show_incidents')
-    .select(SHOW_INCIDENT_SELECT_COLUMNS)
-    .eq('show_id', showId)
-    .order('occurred_at', { ascending: false })
-    .limit(CLOSEOUT_INCIDENT_LIMIT);
+export async function listShowIncidents(showId: string): Promise<ShowIncidentRecord[]> {
+  return listShowIncidentsForShow(showId, RECENT_INCIDENT_LIMIT);
+}
 
-  if (error) throw error;
-  return (data ?? []) as ShowIncidentRecord[];
+export async function listShowIncidentCloseout(showId: string): Promise<ShowIncidentRecord[]> {
+  return listShowIncidentsForShow(showId, CLOSEOUT_INCIDENT_LIMIT);
 }
 
 export async function createShowIncident(input: ShowIncidentFormInput): Promise<ShowIncidentRecord> {

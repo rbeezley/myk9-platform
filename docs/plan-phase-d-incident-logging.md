@@ -1,7 +1,7 @@
 # Plan — Phase D Incident Logging
 
 **Date:** 2026-05-19
-**Status:** In progress; PR 1 current.
+**Status:** PR 1 shipped in [PR #247](https://github.com/rbeezley/myk9-platform/pull/247); PR 2 current.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal
@@ -12,7 +12,7 @@ This follows the Trial Secretary intent in [`docs/INTENT.md`](INTENT.md): during
 
 ## PR 1 — Workbench Incident Log
 
-**Status:** Current slice.
+**Status:** Shipped 2026-05-19 in [PR #247](https://github.com/rbeezley/myk9-platform/pull/247).
 
 Deliverables:
 
@@ -27,8 +27,23 @@ Tests:
 - Component test for saving an incident from the workbench card and refreshing the recent list.
 - Workbench integration test proving the Today phase exposes the incident log.
 
+## PR 2 — Wrap-up Incident Closeout
+
+**Status:** Current slice.
+
+Deliverables:
+
+- Add a Wrap-up workbench card that summarizes all incidents, reportable incidents, and urgent incidents for closeout.
+- Surface the latest reportable incident so the secretary has a clear final-file reminder.
+- Keep the incident log append path in Today and the review path in Wrap-up.
+
+Tests:
+
+- Pure helper test for reportable/urgent closeout counts.
+- Component test for the Wrap-up closeout card.
+- Workbench integration test proving Wrap-up exposes the incident closeout.
+
 ## Later
 
-- Surface incident counts in Wrap-up closeout.
 - Feed AKC/UKC PDF form-fill once the official templates are wired.
 - Add report export/download after the schema has been exercised in one live walk.

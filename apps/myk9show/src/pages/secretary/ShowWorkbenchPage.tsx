@@ -32,6 +32,7 @@ import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
 import { ClassBroadcastCard } from '@/features/show-workbench/ClassBroadcastCard';
 import { buildClassBroadcastClassLabel } from '@/features/show-workbench/classBroadcast';
+import { IncidentCloseoutSummary } from '@/features/show-workbench/IncidentCloseoutSummary';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { QuickBroadcastCard } from '@/features/show-workbench/QuickBroadcastCard';
@@ -425,6 +426,7 @@ export function ShowWorkbenchPage() {
             )}
             <ShowWorkbenchAskQHelp phase="wrap-up" />
             <ShowDayReconciliation entries={showEntries} />
+            <IncidentCloseoutSummary showId={currentShow.id} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
                 <Link to="/secretary/results-control">

@@ -199,6 +199,12 @@ vi.mock('@/features/show-workbench/IncidentLogCard', () => ({
   ),
 }));
 
+vi.mock('@/features/show-workbench/IncidentCloseoutSummary', () => ({
+  IncidentCloseoutSummary: ({ showId }: { showId: string }) => (
+    <section data-testid="incident-closeout-summary">Incident closeout for {showId}</section>
+  ),
+}));
+
 vi.mock('react-router-dom', async importOriginal => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
   return {
@@ -520,6 +526,9 @@ describe('ShowWorkbenchPage', () => {
     expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
     expect(screen.getByText(/submit final files/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Show-day reconciliation' })).toBeInTheDocument();
+    expect(screen.getByTestId('incident-closeout-summary')).toHaveTextContent(
+      'Incident closeout for show-1'
+    );
     expect(
       within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
     ).toBeInTheDocument();

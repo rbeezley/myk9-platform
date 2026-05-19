@@ -34,9 +34,35 @@ git worktree list
   ```
   Claude Code will automatically recover the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
 - **Always ask before removing any worktree** — another agent may be actively using it even if the branch looks merged or clean. List all stale candidates and ask the user to confirm which (if any) to remove. Never auto-remove.
+- **Reap dev servers first.** Before removing a worktree, run §2 scoped to that worktree path and kill any survivors — otherwise they keep listening on their ports as zombies after the directory is gone.
 - Report how many were found; only remove after explicit user confirmation.
 
-### 2. Uncommitted Changes
+### 2. Orphan Dev Servers
+
+Dev servers spawned from a worktree don't get killed when `git worktree remove` runs — they keep their sockets bound with no live files behind them. Symptom: a dev server URL that returns 404 for every path (including `/@vite/client`), or "port already in use" when you start a fresh server. They also confuse `localhost` resolution: an IPv4-bound zombie and an IPv6-bound fresh Vite can both claim the same port, and the browser silently routes to whichever family the OS prefers.
+
+Scan for `node`/`vite`/`next`/`tsx`/`nodemon` processes whose `cwd` lives under `.claude/worktrees/`:
+
+```bash
+for pid in $(pgrep -f 'vite|next|webpack|tsx|nodemon' 2>/dev/null); do
+  cwd=$(lsof -p "$pid" -d cwd -Fn 2>/dev/null | awk '/^n/{print substr($0,2)}' | head -1)
+  case "$cwd" in
+    *"/.claude/worktrees/"*) echo "$pid	$cwd";;
+  esac
+done
+```
+
+For each match, extract the worktree name (the segment after `.claude/worktrees/`) and check whether it still appears in `git worktree list`. If it doesn't, the process is orphaned. Confirm the port it's holding before reporting:
+
+```bash
+lsof -nP -p <pid> -iTCP -sTCP:LISTEN
+```
+
+- **Always ask before `kill <pid>`** — the process may belong to another live agent session, especially if the worktree path still appears under `git worktree list`. Only auto-kill candidates whose worktree directory is gone AND not in `git worktree list`.
+- Prefer `kill` (SIGTERM) over `kill -9`. Vite writes its shutdown line and flushes `node_modules/.vite` on SIGTERM; a SIGKILL can leave the dep cache half-written and wedge the next start.
+- **Diagnostic shortcut:** if a Vite URL returns 404 for `/@vite/client` (a built-in endpoint that always exists when Vite is alive), you're not talking to Vite — you're talking to a zombie. That single probe collapses the diagnostic tree before you start digging into config.
+
+### 3. Uncommitted Changes
 
 ```bash
 git status
@@ -46,7 +72,7 @@ git diff --stat
 - If there are unstaged or staged changes, report what files are dirty
 - Do NOT auto-commit -- ask the user what to do
 
-### 3. Unpushed Commits
+### 4. Unpushed Commits
 
 ```bash
 git log @{u}..HEAD --oneline 2>/dev/null
@@ -55,7 +81,7 @@ git log @{u}..HEAD --oneline 2>/dev/null
 - If there are local commits not on the remote, warn the user
 - Do NOT auto-push -- ask the user
 
-### 4. Unpushed Database Migrations
+### 5. Unpushed Database Migrations
 
 ```bash
 # Find local migrations
@@ -69,7 +95,7 @@ source supabase/.env 2>/dev/null && supabase db push --password "$SUPABASE_DB_PA
 - If unapplied migrations exist, report them and ask if user wants to push now
 - If user confirms, invoke the `/db-push` skill
 
-### 5. TO-DOS.md Sync
+### 6. TO-DOS.md Sync
 
 ```bash
 # Check for items marked done in this session's commit
@@ -82,7 +108,7 @@ Also scan for staleness:
 - Items still marked `[ ]` whose referenced PRs or files already exist (done but not updated)
 - Items marked `[x]` that reference "Deploy: `supabase db push`" -- cross-check with migration push status
 
-### 6. Stale Branches
+### 7. Stale Branches
 
 ```bash
 git branch --merged main | grep -v '^\*\|main' | head -10
@@ -91,7 +117,7 @@ git branch --merged main | grep -v '^\*\|main' | head -10
 - Report branches already merged into main that can be deleted
 - Ask user before deleting: `git branch -d <branch>`
 
-### 7. Edge Function Deploys
+### 8. Edge Function Deploys
 
 Check if any edge functions were modified but not deployed:
 
@@ -109,6 +135,7 @@ Session Cleanup Report
 ======================
 
 Worktrees:     2 stale worktrees cleaned up
+Dev servers:   1 orphan killed (PID 83484, was bound to :5173 from removed worktree zealous-carson-15859a)
 Git:           Working tree clean, all pushed
 Migrations:    109_restrict_subscription_columns.sql already applied
 TO-DOS:        3 items marked done, all consistent
@@ -130,6 +157,8 @@ Action needed:
 
 - Run all checks even if early ones find issues
 - NEVER auto-remove worktrees — always ask first (another agent may be using it)
+- NEVER auto-kill dev servers whose worktree still exists — ask first (another agent may be using it). Auto-killing IS allowed when both the worktree directory is gone AND its name is absent from `git worktree list`.
+- **Reap dev servers before removing their worktree** — `git worktree remove` does not kill child processes, so dev servers outlive their source tree and become 404-serving zombies
 - Always ask before: committing, pushing, deploying, deleting unmerged branches
 - **Worktree removal goes last** — if the current session CWD is a stale worktree, defer its removal to the final Bash call after all other checks are done
 - Be concise -- one line per check in the report unless action is needed

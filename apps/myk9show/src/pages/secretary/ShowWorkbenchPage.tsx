@@ -34,6 +34,7 @@ import { ClassBroadcastCard } from '@/features/show-workbench/ClassBroadcastCard
 import { buildClassBroadcastClassLabel } from '@/features/show-workbench/classBroadcast';
 import { IncidentCloseoutSummary } from '@/features/show-workbench/IncidentCloseoutSummary';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
+import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { QuickBroadcastCard } from '@/features/show-workbench/QuickBroadcastCard';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
@@ -369,6 +370,13 @@ export function ShowWorkbenchPage() {
             )}
             <ShowWorkbenchAskQHelp phase="today" />
             <WorkbenchLateEntryAction showId={currentShow.id} />
+            <JudgeHospitalityCard
+              showId={currentShow.id}
+              judges={effectiveJudges.map(judge => ({
+                id: judge.judgeId,
+                name: judge.judgeName,
+              }))}
+            />
             <QuickBroadcastCard showId={currentShow.id} />
             <ClassBroadcastCard
               showId={currentShow.id}

@@ -9,8 +9,7 @@ import { useAnnouncementStore } from '@/store/announcementStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { CreateAnnouncementDialog } from '@/components/announcements/CreateAnnouncementDialog';
-import { ANNOUNCEMENT_OFFICIAL_ROLES } from '@/types/announcement-types';
-import type { AnnouncementAuthorRole } from '@/types/announcement-types';
+import { getAnnouncementAuthor } from '@/types/announcement-types';
 
 type FilterTab = 'all' | 'dogs' | 'announcements';
 
@@ -133,22 +132,13 @@ export function NotificationCenter() {
   const currentShowIds = useAnnouncementStore(s => s.currentShowIds);
   const annMarkRead = useAnnouncementStore(s => s.markRead);
   const annMarkAllRead = useAnnouncementStore(s => s.markAllRead);
-  const { userWithRoles } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
 
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const userRole = (userWithRoles?.roles ?? []).find(r =>
-    (ANNOUNCEMENT_OFFICIAL_ROLES as readonly string[]).includes(r)
-  );
-  const isOfficial = !!userRole;
-  const authorRole: AnnouncementAuthorRole = (userRole as AnnouncementAuthorRole) ?? 'secretary';
-  const authorId = userWithRoles?.id ?? '';
-  const authorName =
-    (userWithRoles?.user_metadata?.full_name as string | undefined) ??
-    userWithRoles?.email ??
-    'Unknown';
+  const author = getAnnouncementAuthor(user, userWithRoles);
 
   const totalUnread = unreadCount + announcementUnread;
 
@@ -226,8 +216,8 @@ export function NotificationCenter() {
 
   const handleMarkAllRead = () => {
     markAllRead();
-    if (authorId) {
-      void annMarkAllRead(authorId);
+    if (author.id) {
+      void annMarkAllRead(author.id);
     }
   };
 
@@ -331,7 +321,7 @@ export function NotificationCenter() {
           ) : (
             <>
               {/* Officials see "+ New" on Announcements tab */}
-              {activeTab === 'announcements' && isOfficial && (
+              {activeTab === 'announcements' && author.isOfficial && (
                 <div className="border-b border-border/50 p-2">
                   <button
                     onClick={() => setIsCreateOpen(true)}
@@ -349,7 +339,7 @@ export function NotificationCenter() {
                   key={`ann-${ann.id}`}
                   announcement={ann}
                   onMarkRead={id => {
-                    if (authorId) void annMarkRead(id, authorId);
+                    if (author.id) void annMarkRead(id, author.id);
                   }}
                 />
               ))}
@@ -371,9 +361,9 @@ export function NotificationCenter() {
           isOpen={isCreateOpen}
           onClose={() => setIsCreateOpen(false)}
           showId={currentShowIds[0]}
-          authorId={authorId}
-          authorRole={authorRole}
-          authorName={authorName}
+          authorId={author.id}
+          authorRole={author.role}
+          authorName={author.name}
         />
       )}
     </>

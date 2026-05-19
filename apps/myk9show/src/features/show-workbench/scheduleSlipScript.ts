@@ -1,3 +1,5 @@
+import type { AnnouncementPriority } from '@/types/announcement-types';
+
 export interface ScheduleSlipScriptInput {
   showName?: string | null;
   ring: string;
@@ -8,9 +10,17 @@ export interface ScheduleSlipScriptInput {
 
 export const DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES = 30;
 export const DEFAULT_SCHEDULE_SLIP_RING = 'Ring 1';
+const SCHEDULE_SLIP_ANNOUNCEMENT_EXPIRY_HOURS = 2;
+const HOUR_MS = 60 * 60 * 1000;
+// INTENT: Keep schedule-slip announcements normal until push audience and RLS rules are verified.
+export const SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY = 'normal' satisfies AnnouncementPriority;
 
 function clean(value: string | null | undefined): string {
   return value?.trim() ?? '';
+}
+
+function ringLabel(ring: string): string {
+  return clean(ring) || 'this ring';
 }
 
 function minutesLabel(minutes: number): string {
@@ -19,7 +29,7 @@ function minutesLabel(minutes: number): string {
 
 export function buildScheduleSlipScript(input: ScheduleSlipScriptInput): string {
   const showName = clean(input.showName);
-  const ring = clean(input.ring) || 'this ring';
+  const ring = ringLabel(input.ring);
   const affectedClass = clean(input.affectedClass) || 'The affected class';
   const delayMinutes = Number.isFinite(input.delayMinutes)
     ? Math.max(1, Math.round(input.delayMinutes))
@@ -39,4 +49,14 @@ export function buildScheduleSlipScript(input: ScheduleSlipScriptInput): string 
   lines.push('Thank you for your patience.');
 
   return lines.join(' ');
+}
+
+export function buildScheduleSlipAnnouncementTitle(input: Pick<ScheduleSlipScriptInput, 'ring'>) {
+  return `Schedule delay: ${ringLabel(input.ring)}`;
+}
+
+export function buildScheduleSlipAnnouncementExpiresAt(now = new Date()): string {
+  return new Date(
+    now.getTime() + SCHEDULE_SLIP_ANNOUNCEMENT_EXPIRY_HOURS * HOUR_MS
+  ).toISOString();
 }

@@ -1,29 +1,41 @@
 import { useMemo, useState } from 'react';
-import { ClipboardCopy, RotateCcw } from 'lucide-react';
+import { ClipboardCopy, Megaphone, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { useAnnouncementStore } from '@/store/announcementStore';
+import { getAnnouncementAuthor } from '@/types/announcement-types';
 import {
   DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
   DEFAULT_SCHEDULE_SLIP_RING,
+  SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
+  buildScheduleSlipAnnouncementExpiresAt,
+  buildScheduleSlipAnnouncementTitle,
   buildScheduleSlipScript,
 } from './scheduleSlipScript';
 
 interface ScheduleSlipScriptCardProps {
+  showId: string;
   showName?: string | null;
   defaultClassName?: string;
 }
 
 export function ScheduleSlipScriptCard({
+  showId,
   showName,
   defaultClassName = '',
 }: ScheduleSlipScriptCardProps) {
+  const { user, userWithRoles } = useAuthContext();
+  const createAnnouncement = useAnnouncementStore(s => s.createAnnouncement);
+  const deleteAnnouncement = useAnnouncementStore(s => s.deleteAnnouncement);
   const [ring, setRing] = useState(DEFAULT_SCHEDULE_SLIP_RING);
   const [delayMinutes, setDelayMinutes] = useState(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
   const [affectedClass, setAffectedClass] = useState(defaultClassName);
   const [note, setNote] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
 
   const delayValue =
     delayMinutes.trim() === '' ? Number.NaN : Number(delayMinutes);
@@ -40,6 +52,8 @@ export function ScheduleSlipScriptCard({
       }),
     [affectedClass, delayValue, note, ring, showName]
   );
+  const announcementTitle = buildScheduleSlipAnnouncementTitle({ ring });
+  const author = getAnnouncementAuthor(user, userWithRoles, 'Secretary');
 
   async function handleCopy() {
     try {
@@ -47,6 +61,44 @@ export function ScheduleSlipScriptCard({
       toast.success('Schedule update copied');
     } catch {
       toast.error('Could not copy schedule update');
+    }
+  }
+
+  async function handlePostAnnouncement() {
+    if (!author.id) {
+      toast.error('Hang on — still loading your account');
+      return;
+    }
+
+    setIsPosting(true);
+    try {
+      const announcement = await createAnnouncement(
+        {
+          show_id: showId,
+          title: announcementTitle,
+          content: script,
+          priority: SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
+          expires_at: buildScheduleSlipAnnouncementExpiresAt(),
+        },
+        author.id,
+        author.role,
+        author.name
+      );
+      toast.success('Schedule announcement posted', {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void deleteAnnouncement(announcement.id)
+              .then(() => toast.success('Schedule announcement removed'))
+              .catch(() => toast.error('Could not remove schedule announcement'));
+          },
+        },
+      });
+      handleReset();
+    } catch {
+      toast.error('Could not post schedule announcement');
+    } finally {
+      setIsPosting(false);
     }
   }
 
@@ -68,7 +120,7 @@ export function ScheduleSlipScriptCard({
             Ready-to-read PA copy when a ring is running behind.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={handleReset}>
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
             Reset
@@ -76,6 +128,10 @@ export function ScheduleSlipScriptCard({
           <Button type="button" size="sm" onClick={handleCopy}>
             <ClipboardCopy className="mr-2 h-4 w-4" aria-hidden="true" />
             Copy script
+          </Button>
+          <Button type="button" size="sm" onClick={handlePostAnnouncement} disabled={isPosting}>
+            <Megaphone className="mr-2 h-4 w-4" aria-hidden="true" />
+            {isPosting ? 'Posting...' : 'Post announcement'}
           </Button>
         </div>
       </div>

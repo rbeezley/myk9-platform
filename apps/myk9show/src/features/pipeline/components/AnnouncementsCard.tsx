@@ -6,8 +6,8 @@ import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { CreateAnnouncementDialog } from '@/components/announcements/CreateAnnouncementDialog';
 import { Button } from '@/components/ui/button';
 import { notifications } from '@/lib/notifications';
-import { ANNOUNCEMENT_OFFICIAL_ROLES } from '@/types/announcement-types';
-import type { AnnouncementAuthorRole, ShowAnnouncement } from '@/types/announcement-types';
+import { getAnnouncementAuthor } from '@/types/announcement-types';
+import type { ShowAnnouncement } from '@/types/announcement-types';
 
 interface AnnouncementsCardProps {
   showId: string;
@@ -19,28 +19,17 @@ export function AnnouncementsCard({ showId, showEndDate }: AnnouncementsCardProp
   const unreadCount = useAnnouncementStore(s => s.unreadCount);
   const markRead = useAnnouncementStore(s => s.markRead);
   const deleteAnnouncement = useAnnouncementStore(s => s.deleteAnnouncement);
-  const { userWithRoles } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<ShowAnnouncement | null>(null);
 
-  // Determine if user is an official who can create announcements
-  // UserWithRoles.roles is UserRole[] (string enum values like 'secretary', 'judge', 'club_admin')
-  const userRole = (userWithRoles?.roles ?? []).find(r =>
-    (ANNOUNCEMENT_OFFICIAL_ROLES as readonly string[]).includes(r)
-  );
-  const isOfficial = !!userRole;
-  const authorRole: AnnouncementAuthorRole = (userRole as AnnouncementAuthorRole) ?? 'secretary';
-  const authorId = userWithRoles?.id ?? '';
-  const authorName =
-    (userWithRoles?.user_metadata?.full_name as string | undefined) ??
-    userWithRoles?.email ??
-    'Unknown';
+  const author = getAnnouncementAuthor(user, userWithRoles);
 
   const showAnnouncements = announcements.filter(a => a.show_id === showId);
 
   const canEditOrDelete = (ann: ShowAnnouncement) =>
-    ann.author_id === authorId || authorRole === 'secretary';
+    ann.author_id === author.id || author.role === 'secretary';
 
   const handleDelete = async (id: string) => {
     try {
@@ -64,7 +53,7 @@ export function AnnouncementsCard({ showId, showEndDate }: AnnouncementsCardProp
             </span>
           )}
         </div>
-        {isOfficial && (
+        {author.isOfficial && (
           <Button
             size="sm"
             variant="ghost"
@@ -92,7 +81,7 @@ export function AnnouncementsCard({ showId, showEndDate }: AnnouncementsCardProp
                 key={ann.id}
                 announcement={ann}
                 onMarkRead={id => {
-                  void markRead(id, authorId);
+                  void markRead(id, author.id);
                 }}
                 {...(canEdit
                   ? {
@@ -116,9 +105,9 @@ export function AnnouncementsCard({ showId, showEndDate }: AnnouncementsCardProp
         }}
         showId={showId}
         {...(showEndDate != null ? { showEndDate } : {})}
-        authorId={authorId}
-        authorRole={authorRole}
-        authorName={authorName}
+        authorId={author.id}
+        authorRole={author.role}
+        authorName={author.name}
       />
     </div>
   );

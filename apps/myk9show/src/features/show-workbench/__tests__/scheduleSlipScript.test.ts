@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildScheduleSlipScript } from '../scheduleSlipScript';
+import {
+  buildScheduleSlipAnnouncementExpiresAt,
+  buildScheduleSlipAnnouncementTitle,
+  buildScheduleSlipScript,
+} from '../scheduleSlipScript';
 
 describe('buildScheduleSlipScript', () => {
   it('builds calm PA copy from the schedule delay inputs', () => {
@@ -37,5 +41,20 @@ describe('buildScheduleSlipScript', () => {
         affectedClass: 'Container Novice A',
       })
     ).toContain('Ring 1 is running about 1 minute behind.');
+  });
+
+  it('builds an announcement title from the ring label', () => {
+    expect(buildScheduleSlipAnnouncementTitle({ ring: 'Ring 3' })).toBe(
+      'Schedule delay: Ring 3'
+    );
+    expect(buildScheduleSlipAnnouncementTitle({ ring: '' })).toBe(
+      'Schedule delay: this ring'
+    );
+  });
+
+  it('expires schedule announcements two hours after posting', () => {
+    expect(buildScheduleSlipAnnouncementExpiresAt(new Date('2026-05-19T12:00:00.000Z'))).toBe(
+      '2026-05-19T14:00:00.000Z'
+    );
   });
 });

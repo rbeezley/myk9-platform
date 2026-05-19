@@ -32,6 +32,7 @@ import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
+import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import type {
@@ -307,6 +308,10 @@ export function ShowWorkbenchPage() {
             )}
             <ShowWorkbenchAskQHelp phase="today" />
             <WorkbenchLateEntryAction showId={currentShow.id} />
+            <ScheduleSlipScriptCard
+              showName={currentShow.name}
+              defaultClassName={showClasses[0]?.name ?? ''}
+            />
             <MyK9QAccessCard
               showId={currentShow.id}
               showName={currentShow.name}

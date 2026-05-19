@@ -2,17 +2,18 @@ import { useMemo, useState } from 'react';
 import { ClipboardCopy, Megaphone, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
   DEFAULT_SCHEDULE_SLIP_RING,
-  SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
   buildScheduleSlipAnnouncementExpiresAt,
   buildScheduleSlipAnnouncementTitle,
   buildScheduleSlipScript,
 } from './scheduleSlipScript';
+import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
 
 interface ScheduleSlipScriptCardProps {
@@ -31,6 +32,7 @@ export function ScheduleSlipScriptCard({
   const [delayMinutes, setDelayMinutes] = useState(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
   const [affectedClass, setAffectedClass] = useState(defaultClassName);
   const [note, setNote] = useState('');
+  const [sendPushAlert, setSendPushAlert] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
 
   const delayValue = delayMinutes.trim() === '' ? Number.NaN : Number(delayMinutes);
@@ -65,9 +67,11 @@ export function ScheduleSlipScriptCard({
         showId,
         title: announcementTitle,
         content: script,
-        priority: SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
+        priority: getWorkbenchAnnouncementPriority(sendPushAlert),
         expiresAt: buildScheduleSlipAnnouncementExpiresAt(),
-        successMessage: 'Schedule announcement posted',
+        successMessage: sendPushAlert
+          ? 'Schedule announcement posted and push alert queued'
+          : 'Schedule announcement posted',
         errorMessage: 'Could not post schedule announcement',
         undoSuccessMessage: 'Schedule announcement removed',
         undoErrorMessage: 'Could not remove schedule announcement',
@@ -83,6 +87,7 @@ export function ScheduleSlipScriptCard({
     setDelayMinutes(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
     setAffectedClass(defaultClassName);
     setNote('');
+    setSendPushAlert(false);
   }
 
   return (
@@ -109,6 +114,23 @@ export function ScheduleSlipScriptCard({
             <Megaphone className="mr-2 h-4 w-4" aria-hidden="true" />
             {isPosting ? 'Posting...' : 'Post announcement'}
           </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-start gap-2 rounded-md border bg-muted/35 px-3 py-2">
+        <Checkbox
+          id="schedule-slip-push"
+          checked={sendPushAlert}
+          onCheckedChange={setSendPushAlert}
+        />
+        <div className="space-y-1">
+          <Label htmlFor="schedule-slip-push" className="text-sm font-medium">
+            Send push alert
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Use when exhibitors need the delay update now. Otherwise this posts quietly in the show
+            feed.
+          </p>
         </div>
       </div>
 

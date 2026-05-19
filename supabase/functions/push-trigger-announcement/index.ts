@@ -34,6 +34,11 @@ function truncate(text: string, maxLength: number): string {
 }
 
 Deno.serve(async (req: Request) => {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || authHeader !== `Bearer ${supabaseServiceKey}`) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   try {
     const payload: WebhookPayload = await req.json();
     const announcement = payload.record;
@@ -68,6 +73,7 @@ Deno.serve(async (req: Request) => {
           .from('user_roles')
           .select('person:people!user_id(auth_user_id)')
           .eq('show_id', announcement.show_id)
+          .eq('is_active', true)
           .or('expires_at.is.null,expires_at.gt.now()'),
       ]);
 

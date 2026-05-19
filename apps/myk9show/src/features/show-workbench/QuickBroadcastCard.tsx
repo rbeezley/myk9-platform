@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { Megaphone, RotateCcw, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   DEFAULT_QUICK_BROADCAST_TEMPLATE,
-  QUICK_BROADCAST_PRIORITY,
   QUICK_BROADCAST_TEMPLATES,
   buildQuickBroadcastExpiresAt,
   getQuickBroadcastTemplate,
 } from './quickBroadcast';
+import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
 
 interface QuickBroadcastCardProps {
@@ -24,6 +25,7 @@ export function QuickBroadcastCard({ showId }: QuickBroadcastCardProps) {
   );
   const [title, setTitle] = useState(DEFAULT_QUICK_BROADCAST_TEMPLATE.title);
   const [message, setMessage] = useState(DEFAULT_QUICK_BROADCAST_TEMPLATE.content);
+  const [sendPushAlert, setSendPushAlert] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const { postAnnouncement } = useWorkbenchAnnouncementPost();
 
@@ -36,6 +38,7 @@ export function QuickBroadcastCard({ showId }: QuickBroadcastCardProps) {
 
   function reset() {
     selectTemplate(DEFAULT_QUICK_BROADCAST_TEMPLATE.id);
+    setSendPushAlert(false);
   }
 
   async function handlePost() {
@@ -50,9 +53,11 @@ export function QuickBroadcastCard({ showId }: QuickBroadcastCardProps) {
         showId,
         title: title.trim(),
         content: message.trim(),
-        priority: QUICK_BROADCAST_PRIORITY,
+        priority: getWorkbenchAnnouncementPriority(sendPushAlert),
         expiresAt: buildQuickBroadcastExpiresAt(),
-        successMessage: 'Broadcast posted',
+        successMessage: sendPushAlert
+          ? 'Broadcast posted and push alert queued'
+          : 'Broadcast posted',
         errorMessage: 'Could not post broadcast',
         undoSuccessMessage: 'Broadcast removed',
         undoErrorMessage: 'Could not remove broadcast',
@@ -83,6 +88,22 @@ export function QuickBroadcastCard({ showId }: QuickBroadcastCardProps) {
             <Send className="mr-2 h-4 w-4" aria-hidden="true" />
             {isPosting ? 'Posting...' : 'Post broadcast'}
           </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-start gap-2 rounded-md border bg-muted/35 px-3 py-2">
+        <Checkbox
+          id="quick-broadcast-push"
+          checked={sendPushAlert}
+          onCheckedChange={setSendPushAlert}
+        />
+        <div className="space-y-1">
+          <Label htmlFor="quick-broadcast-push" className="text-sm font-medium">
+            Send push alert
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Use for time-sensitive updates. Otherwise this posts quietly in the show feed.
+          </p>
         </div>
       </div>
 

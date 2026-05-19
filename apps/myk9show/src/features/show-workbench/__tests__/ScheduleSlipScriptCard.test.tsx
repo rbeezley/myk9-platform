@@ -173,6 +173,36 @@ describe('ScheduleSlipScriptCard', () => {
     });
   });
 
+  it('posts a checked push alert on the high-priority announcement lane', async () => {
+    const { user } = render(
+      <ScheduleSlipScriptCard
+        showId="show-1"
+        showName="Bluegrass Classic"
+        defaultClassName="Container Novice A"
+      />
+    );
+
+    await user.click(screen.getByLabelText('Send push alert'));
+    await user.click(screen.getByRole('button', { name: 'Post announcement' }));
+
+    await waitFor(() => {
+      expect(mockCreateAnnouncement).toHaveBeenCalledWith(
+        expect.objectContaining({
+          priority: 'high',
+        }),
+        'user-1',
+        'secretary',
+        'Jane Secretary'
+      );
+    });
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      'Schedule announcement posted and push alert queued',
+      expect.objectContaining({
+        action: expect.objectContaining({ label: 'Undo' }),
+      })
+    );
+  });
+
   it('shows an error and re-enables posting when announcement creation fails', async () => {
     mockCreateAnnouncement.mockRejectedValueOnce(new Error('boom'));
     const { user } = render(

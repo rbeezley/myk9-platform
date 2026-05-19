@@ -1,15 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildShowIncidentPayload } from '../showIncidents';
 
 describe('buildShowIncidentPayload', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('builds the exact insert payload with linked entry and judge context', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-05-19T15:30:00.000Z'));
-
     expect(
       buildShowIncidentPayload({
         actionTaken: ' Judge excused the dog and secretary notified handler. ',
@@ -28,6 +21,7 @@ describe('buildShowIncidentPayload', () => {
         },
         incidentType: 'bite',
         judge: { id: '11111111-1111-4111-8111-111111111111', name: ' Pat Judge ' },
+        occurredAt: '2026-05-19T15:30:00.000Z',
         severity: 'urgent',
         showId: 'show-1',
         summary: ' Dog bite at gate ',
@@ -52,6 +46,18 @@ describe('buildShowIncidentPayload', () => {
       summary: 'Dog bite at gate',
       trial_id: 'trial-1',
     });
+  });
+
+  it('omits occurred_at when no explicit time is supplied so the DB clock is used', () => {
+    expect(
+      buildShowIncidentPayload({
+        createdBy: 'auth-user-1',
+        incidentType: 'dq',
+        severity: 'reportable',
+        showId: 'show-1',
+        summary: 'Dog excused by judge',
+      })
+    ).not.toHaveProperty('occurred_at');
   });
 
   it('rejects a blank summary before insert', () => {

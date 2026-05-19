@@ -34,6 +34,12 @@ const DEFAULT_INCIDENT_TYPE: ShowIncidentType = 'dq';
 const DEFAULT_INCIDENT_SEVERITY: ShowIncidentSeverity = 'reportable';
 const NO_SELECTION_VALUE = 'none';
 
+const SEVERITY_TEXT_CLASS: Record<ShowIncidentSeverity, string> = {
+  note: 'text-muted-foreground',
+  reportable: 'font-medium text-amber-700',
+  urgent: 'font-semibold text-destructive',
+};
+
 interface IncidentLogCardProps {
   entries: IncidentEntryOption[];
   judges: IncidentJudgeOption[];
@@ -86,6 +92,9 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
       await queryClient.invalidateQueries({ queryKey: showIncidentsQueryKey(showId) });
     },
     onError: error => {
+      if (!(error instanceof Error && error.message === 'account-loading')) {
+        console.error('[show-incidents] create failed', error);
+      }
       toast.error(
         error instanceof Error && error.message === 'account-loading'
           ? 'Hang on — still loading your account'
@@ -251,13 +260,16 @@ export function IncidentLogCard({ entries, judges, showId }: IncidentLogCardProp
           <p className="mt-2 text-sm text-muted-foreground">No incidents logged for this show.</p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {incidents.slice(0, 5).map(incident => (
+            {incidents.map(incident => (
               <li key={incident.id} className="rounded-md border px-3 py-2">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-sm font-medium">{incident.summary}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatIncidentType(incident.incident_type)} · {incident.severity}
+                      {formatIncidentType(incident.incident_type)} ·{' '}
+                      <span className={SEVERITY_TEXT_CLASS[incident.severity]}>
+                        {incident.severity}
+                      </span>
                       {incident.dog_name ? ` · ${incident.dog_name}` : ''}
                     </p>
                   </div>

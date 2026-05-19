@@ -77,7 +77,7 @@ export interface ShowIncidentInsertPayload {
   incident_type: ShowIncidentType;
   judge_id: string | null;
   judge_name: string | null;
-  occurred_at: string;
+  occurred_at?: string;
   severity: ShowIncidentSeverity;
   show_id: string;
   summary: string;
@@ -104,6 +104,7 @@ export function buildShowIncidentPayload(input: ShowIncidentFormInput): ShowInci
   const summary = requiredText(input.summary, 'Add a short incident summary before saving');
   const entry = input.entry ?? null;
   const judge = input.judge ?? null;
+  const occurredAt = optionalText(input.occurredAt);
 
   return {
     action_taken: optionalText(input.actionTaken),
@@ -119,7 +120,7 @@ export function buildShowIncidentPayload(input: ShowIncidentFormInput): ShowInci
     incident_type: input.incidentType,
     judge_id: optionalUuid(judge?.personId) ?? optionalUuid(judge?.id),
     judge_name: optionalText(judge?.name),
-    occurred_at: input.occurredAt ?? new Date().toISOString(),
+    ...(occurredAt ? { occurred_at: occurredAt } : {}),
     severity: input.severity,
     show_id: input.showId,
     summary,

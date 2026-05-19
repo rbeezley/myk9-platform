@@ -57,18 +57,8 @@ create policy "show_incidents_insert" on public.show_incidents
     and (select public.can_manage_show(show_id))
   );
 
-drop policy if exists "show_incidents_update" on public.show_incidents;
-create policy "show_incidents_update" on public.show_incidents
-  for update to authenticated
-  using ((select public.can_manage_show(show_id)))
-  with check ((select public.can_manage_show(show_id)));
-
-drop policy if exists "show_incidents_delete" on public.show_incidents;
-create policy "show_incidents_delete" on public.show_incidents
-  for delete to authenticated
-  using ((select public.can_manage_show(show_id)));
-
-grant select, insert, update, delete on public.show_incidents to authenticated;
+-- Append-only until the workbench has an audited correction flow for incident records.
+grant select, insert on public.show_incidents to authenticated;
 
 drop trigger if exists update_show_incidents_updated_at on public.show_incidents;
 create trigger update_show_incidents_updated_at

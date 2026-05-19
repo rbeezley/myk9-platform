@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 import { IncidentLogCard } from '../IncidentLogCard';
@@ -7,6 +7,15 @@ const mockListShowIncidents = vi.hoisted(() => vi.fn());
 const mockCreateShowIncident = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
+const mockAuthContext = vi.hoisted(() => ({
+  user: { id: 'auth-user-1', email: 'secretary@example.com' },
+  userWithRoles: {
+    id: 'auth-user-1',
+    email: 'secretary@example.com',
+    roles: ['secretary'],
+    user_metadata: { full_name: 'Jane Secretary' },
+  },
+}));
 
 vi.mock('sonner', () => ({
   toast: {
@@ -16,15 +25,7 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({
-    user: { id: 'auth-user-1', email: 'secretary@example.com' },
-    userWithRoles: {
-      id: 'auth-user-1',
-      email: 'secretary@example.com',
-      roles: ['secretary'],
-      user_metadata: { full_name: 'Jane Secretary' },
-    },
-  }),
+  useAuthContext: () => mockAuthContext,
 }));
 
 vi.mock('@/services/database/show-incidents', () => ({
@@ -49,8 +50,18 @@ const entries = [
 const judges = [{ id: '11111111-1111-4111-8111-111111111111', name: 'Pat Judge' }];
 
 describe('IncidentLogCard', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mockAuthContext.user = { id: 'auth-user-1', email: 'secretary@example.com' };
+    mockAuthContext.userWithRoles = {
+      id: 'auth-user-1',
+      email: 'secretary@example.com',
+      roles: ['secretary'],
+      user_metadata: { full_name: 'Jane Secretary' },
+    };
     mockListShowIncidents.mockResolvedValue([]);
     mockCreateShowIncident.mockResolvedValue({
       id: 'incident-1',
@@ -66,6 +77,10 @@ describe('IncidentLogCard', () => {
       created_by_name: 'Jane Secretary',
       created_at: '2026-05-19T15:30:00.000Z',
     });
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   it('saves a linked incident and refreshes the recent log', async () => {
@@ -128,7 +143,9 @@ describe('IncidentLogCard', () => {
     render(<IncidentLogCard showId="show-1" entries={entries} judges={judges} />);
 
     expect(await screen.findByText('Dog bite at gate')).toBeInTheDocument();
-    expect(screen.getByText(/Bite \/ aggression · urgent · Rocket/)).toBeInTheDocument();
+    expect(screen.getByText(/Bite \/ aggression/)).toBeInTheDocument();
+    expect(screen.getByText('urgent')).toHaveClass('text-destructive');
+    expect(screen.getByText(/Rocket/)).toBeInTheDocument();
     expect(screen.getByText(/Urgent incident logged/)).toBeInTheDocument();
   });
 
@@ -140,5 +157,37 @@ describe('IncidentLogCard', () => {
     await user.click(screen.getByRole('button', { name: 'Save incident' }));
 
     expect(mockCreateShowIncident).not.toHaveBeenCalled();
+  });
+
+  it('logs and toasts create failures', async () => {
+    const error = new Error('RLS denied');
+    mockCreateShowIncident.mockRejectedValueOnce(error);
+    const { user } = render(
+      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
+    );
+
+    await user.type(screen.getByLabelText('Short summary'), 'Dog excused by judge');
+    await user.click(screen.getByRole('button', { name: 'Save incident' }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Could not log incident');
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[show-incidents] create failed', error);
+  });
+
+  it('shows an account-loading toast without logging an error', async () => {
+    mockAuthContext.user = { id: '', email: 'secretary@example.com' };
+    mockAuthContext.userWithRoles = null;
+    const { user } = render(
+      <IncidentLogCard showId="show-1" entries={entries} judges={judges} />
+    );
+
+    await user.type(screen.getByLabelText('Short summary'), 'Dog excused by judge');
+    await user.click(screen.getByRole('button', { name: 'Save incident' }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Hang on — still loading your account');
+    });
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 });

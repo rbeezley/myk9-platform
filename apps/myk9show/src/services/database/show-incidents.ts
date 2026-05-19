@@ -28,12 +28,14 @@ interface ShowIncidentsTable {
   select(columns: string): ShowIncidentsSelectQuery;
 }
 
+// TODO: Replace this narrow table shape after Supabase generated types include show_incidents.
 const db = supabase as unknown as {
   from(table: 'show_incidents'): ShowIncidentsTable;
 };
 
 const SHOW_INCIDENT_SELECT_COLUMNS =
   'id, incident_type, severity, occurred_at, summary, description, action_taken, dog_name, handler_name, judge_name, created_by_name, created_at';
+const RECENT_INCIDENT_LIMIT = 5;
 
 export const showIncidentsQueryKey = (showId: string) => ['show-incidents', showId] as const;
 
@@ -43,7 +45,7 @@ export async function listShowIncidents(showId: string): Promise<ShowIncidentRec
     .select(SHOW_INCIDENT_SELECT_COLUMNS)
     .eq('show_id', showId)
     .order('occurred_at', { ascending: false })
-    .limit(20);
+    .limit(RECENT_INCIDENT_LIMIT);
 
   if (error) throw error;
   return (data ?? []) as ShowIncidentRecord[];

@@ -7,13 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useAnnouncementStore } from '@/store/announcementStore';
-import {
-  ANNOUNCEMENT_OFFICIAL_ROLES,
-  type AnnouncementAuthorRole,
-} from '@/types/announcement-types';
+import { getAnnouncementAuthor } from '@/types/announcement-types';
 import {
   DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
   DEFAULT_SCHEDULE_SLIP_RING,
+  SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
   buildScheduleSlipAnnouncementTitle,
   buildScheduleSlipScript,
 } from './scheduleSlipScript';
@@ -52,17 +50,8 @@ export function ScheduleSlipScriptCard({
       }),
     [affectedClass, delayValue, note, ring, showName]
   );
-  const announcementTitle = useMemo(() => buildScheduleSlipAnnouncementTitle({ ring }), [ring]);
-  const userRole = (userWithRoles?.roles ?? []).find(role =>
-    (ANNOUNCEMENT_OFFICIAL_ROLES as readonly string[]).includes(role)
-  ) as AnnouncementAuthorRole | undefined;
-  const authorId = userWithRoles?.id ?? user?.id ?? '';
-  const authorRole = userRole ?? 'secretary';
-  const authorName =
-    (userWithRoles?.user_metadata?.full_name as string | undefined) ??
-    userWithRoles?.email ??
-    user?.email ??
-    'Secretary';
+  const announcementTitle = buildScheduleSlipAnnouncementTitle({ ring });
+  const author = getAnnouncementAuthor(user, userWithRoles, 'Secretary');
 
   async function handleCopy() {
     try {
@@ -74,7 +63,7 @@ export function ScheduleSlipScriptCard({
   }
 
   async function handlePostAnnouncement() {
-    if (!authorId) {
+    if (!author.id) {
       toast.error('Sign in again before posting an announcement');
       return;
     }
@@ -86,12 +75,12 @@ export function ScheduleSlipScriptCard({
           show_id: showId,
           title: announcementTitle,
           content: script,
-          priority: 'normal',
+          priority: SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY,
           expires_at: null,
         },
-        authorId,
-        authorRole,
-        authorName
+        author.id,
+        author.role,
+        author.name
       );
       toast.success('Schedule announcement posted');
     } catch {
@@ -119,7 +108,7 @@ export function ScheduleSlipScriptCard({
             Ready-to-read PA copy when a ring is running behind.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={handleReset}>
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
             Reset

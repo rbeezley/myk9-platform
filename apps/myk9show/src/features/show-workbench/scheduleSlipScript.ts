@@ -1,3 +1,5 @@
+import type { AnnouncementPriority } from '@/types/announcement-types';
+
 export interface ScheduleSlipScriptInput {
   showName?: string | null;
   ring: string;
@@ -8,6 +10,7 @@ export interface ScheduleSlipScriptInput {
 
 export const DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES = 30;
 export const DEFAULT_SCHEDULE_SLIP_RING = 'Ring 1';
+export const SCHEDULE_SLIP_ANNOUNCEMENT_PRIORITY = 'normal' satisfies AnnouncementPriority;
 
 function clean(value: string | null | undefined): string {
   return value?.trim() ?? '';

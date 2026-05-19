@@ -1,3 +1,6 @@
+import type { User } from '@supabase/supabase-js';
+import type { UserWithRoles } from './auth-types';
+
 /** Database row shape for show_announcements */
 export interface DbShowAnnouncement {
   id: string;
@@ -31,6 +34,34 @@ export const ANNOUNCEMENT_OFFICIAL_ROLES: readonly AnnouncementAuthorRole[] = [
   'judge',
   'club_admin',
 ] as const;
+
+export interface AnnouncementAuthor {
+  id: string;
+  role: AnnouncementAuthorRole;
+  name: string;
+  isOfficial: boolean;
+}
+
+export function getAnnouncementAuthor(
+  user: User | null | undefined,
+  userWithRoles: UserWithRoles | null | undefined,
+  fallbackName = 'Unknown'
+): AnnouncementAuthor {
+  const role = (userWithRoles?.roles ?? []).find(candidate =>
+    (ANNOUNCEMENT_OFFICIAL_ROLES as readonly string[]).includes(candidate)
+  ) as AnnouncementAuthorRole | undefined;
+
+  return {
+    id: userWithRoles?.id ?? user?.id ?? '',
+    role: role ?? 'secretary',
+    name:
+      (userWithRoles?.user_metadata?.full_name as string | undefined) ??
+      userWithRoles?.email ??
+      user?.email ??
+      fallbackName,
+    isOfficial: Boolean(role),
+  };
+}
 
 /** Input for creating an announcement */
 export interface CreateAnnouncementInput {

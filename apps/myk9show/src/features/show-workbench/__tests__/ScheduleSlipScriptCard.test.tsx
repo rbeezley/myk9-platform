@@ -54,4 +54,16 @@ describe('ScheduleSlipScriptCard', () => {
       expect(writeTextSpy).toHaveBeenCalledWith(expectedScript);
     });
   });
+
+  it('uses the default delay when the delay field is empty', async () => {
+    const { user } = render(
+      <ScheduleSlipScriptCard showName="Bluegrass Classic" defaultClassName="Container Novice A" />
+    );
+
+    await user.clear(screen.getByLabelText('Delay minutes'));
+
+    expect((screen.getByLabelText('PA script') as HTMLTextAreaElement).value).toContain(
+      'Ring 1 is running about 30 minutes behind.'
+    );
+  });
 });

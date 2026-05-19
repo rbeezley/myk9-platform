@@ -28,4 +28,14 @@ describe('buildScheduleSlipScript', () => {
       'Attention exhibitors: this ring is running about 30 minutes behind. The affected class will start later than the posted schedule. Please stay near the ring and listen for your class call. We will share another update if the schedule changes. Thank you for your patience.'
     );
   });
+
+  it('uses singular minutes for a one-minute delay', () => {
+    expect(
+      buildScheduleSlipScript({
+        ring: 'Ring 1',
+        delayMinutes: 1,
+        affectedClass: 'Container Novice A',
+      })
+    ).toContain('Ring 1 is running about 1 minute behind.');
+  });
 });

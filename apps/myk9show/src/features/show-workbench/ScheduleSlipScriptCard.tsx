@@ -25,7 +25,8 @@ export function ScheduleSlipScriptCard({
   const [affectedClass, setAffectedClass] = useState(defaultClassName);
   const [note, setNote] = useState('');
 
-  const delayValue = Number(delayMinutes);
+  const delayValue =
+    delayMinutes.trim() === '' ? Number.NaN : Number(delayMinutes);
   const script = useMemo(
     () =>
       buildScheduleSlipScript({
@@ -93,8 +94,7 @@ export function ScheduleSlipScriptCard({
           <Input
             id="schedule-slip-delay"
             inputMode="numeric"
-            min={1}
-            type="number"
+            pattern="[0-9]*"
             value={delayMinutes}
             onChange={event => setDelayMinutes(event.target.value)}
           />

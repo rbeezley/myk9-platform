@@ -31,6 +31,7 @@ import { getShowStyle } from '@/features/registries';
 import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
 import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
+import { QuickBroadcastCard } from '@/features/show-workbench/QuickBroadcastCard';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
 import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
@@ -308,6 +309,7 @@ export function ShowWorkbenchPage() {
             )}
             <ShowWorkbenchAskQHelp phase="today" />
             <WorkbenchLateEntryAction showId={currentShow.id} />
+            <QuickBroadcastCard showId={currentShow.id} />
             <ScheduleSlipScriptCard
               showId={currentShow.id}
               showName={currentShow.name}

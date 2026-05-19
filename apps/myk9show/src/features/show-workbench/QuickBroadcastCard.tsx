@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Megaphone, RotateCcw, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +11,7 @@ import {
   buildQuickBroadcastExpiresAt,
   getQuickBroadcastTemplate,
 } from './quickBroadcast';
+import { WorkbenchPushAlertToggle } from './WorkbenchPushAlertToggle';
 import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
 
@@ -91,21 +91,12 @@ export function QuickBroadcastCard({ showId }: QuickBroadcastCardProps) {
         </div>
       </div>
 
-      <div className="mt-4 flex items-start gap-2 rounded-md border bg-muted/35 px-3 py-2">
-        <Checkbox
-          id="quick-broadcast-push"
-          checked={sendPushAlert}
-          onCheckedChange={setSendPushAlert}
-        />
-        <div className="space-y-1">
-          <Label htmlFor="quick-broadcast-push" className="text-sm font-medium">
-            Send push alert
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Use for time-sensitive updates. Otherwise this posts quietly in the show feed.
-          </p>
-        </div>
-      </div>
+      <WorkbenchPushAlertToggle
+        id="quick-broadcast-push"
+        checked={sendPushAlert}
+        onCheckedChange={setSendPushAlert}
+        description="Use for time-sensitive updates. Otherwise this posts quietly in the show feed."
+      />
 
       <div className="mt-4 flex flex-wrap gap-2">
         {QUICK_BROADCAST_TEMPLATES.map(template => (

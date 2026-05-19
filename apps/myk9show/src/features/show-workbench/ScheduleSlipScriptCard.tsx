@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { ClipboardCopy, Megaphone, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +12,7 @@ import {
   buildScheduleSlipAnnouncementTitle,
   buildScheduleSlipScript,
 } from './scheduleSlipScript';
+import { WorkbenchPushAlertToggle } from './WorkbenchPushAlertToggle';
 import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
 
@@ -117,22 +117,12 @@ export function ScheduleSlipScriptCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-start gap-2 rounded-md border bg-muted/35 px-3 py-2">
-        <Checkbox
-          id="schedule-slip-push"
-          checked={sendPushAlert}
-          onCheckedChange={setSendPushAlert}
-        />
-        <div className="space-y-1">
-          <Label htmlFor="schedule-slip-push" className="text-sm font-medium">
-            Send push alert
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Use when exhibitors need the delay update now. Otherwise this posts quietly in the show
-            feed.
-          </p>
-        </div>
-      </div>
+      <WorkbenchPushAlertToggle
+        id="schedule-slip-push"
+        checked={sendPushAlert}
+        onCheckedChange={setSendPushAlert}
+        description="Use when exhibitors need the delay update now. Otherwise this posts quietly in the show feed."
+      />
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="space-y-2">

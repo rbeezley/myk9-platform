@@ -1,7 +1,7 @@
 # Plan — Phase D Schedule-Slip Communication
 
 **Date:** 2026-05-18
-**Status:** In progress; PR 1 and PR 2 shipped, PR 3 current.
+**Status:** Shipped 2026-05-19 in PR #246.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal
@@ -44,7 +44,7 @@ Tests:
 
 ## PR 3 — Opt-In Push Alert Lane
 
-**Status:** Current slice.
+**Status:** Shipped 2026-05-19 in PR #246.
 
 - Add an explicit Send push alert checkbox to the schedule-delay card.
 - Keep regular schedule announcements on the normal in-app announcement lane.

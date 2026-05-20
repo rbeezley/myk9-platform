@@ -279,17 +279,16 @@ const ShowCreationWizardPage: React.FC = () => {
 
         getShowOfficials(existingShow.id)
           .then(o => {
-            loadDraft({
-              ...draft,
+            useWizardStore.setState(state => ({
               show: {
-                ...draft.show,
+                ...state.show,
                 officials: {
                   secretary: o.secretaries.map(s => s.personId),
                   chairman: o.chairmen.map(c => c.personId),
                   steward: o.stewards.map(s => s.personId),
                 },
               },
-            });
+            }));
           })
           .catch(() => {
             // Officials fetch failed — keep empty defaults

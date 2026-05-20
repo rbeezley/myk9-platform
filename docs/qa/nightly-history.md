@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-20
+
+- **Playwright command:** pass after low-risk local fixes
+- **Route sweep:** partial
+- **Active specs:** Vitest 18/18; Playwright 45/45
+- **Failures:** Initial full Playwright Nightly failed `41/46`. Focused reruns showed transient failures in registration smoke, show-creation style options, and secretary evidence, plus two actionable issues: `entryCreationCore.spec.ts` had a reproducible browser-side bulk-entry timeout already covered by promoted Vitest Nightly, and the QA regression proof exposed a real Add Trials wizard bug where async officials backfill reloaded the original draft and wiped an in-progress trial row.
+- **Fixes made:** `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx`, `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`, `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts`
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`, then created local branch `codex/nightly-qa-2026-05-20` before edits. Kept bulk-entry coverage in promoted Vitest Nightly (`entryStore.multiClass.test.ts`) and removed the duplicated browser-side Playwright assertion. Proofs passed: promoted Vitest Nightly (`18 passed`), focused entry-store Vitest (`4 passed`), focused `entryCreationCore` Playwright (`5 passed`), focused QA regression proof (`1 passed`), full active Playwright Nightly (`45 passed`, retries disabled), `pnpm qa:e2e-map:check`, and Prettier check. `pnpm --filter @myk9/show typecheck` is blocked by existing `pdf-lib` resolution errors in `src/features/organization-forms/pdfForm.ts`. The temporary route-sweep probe was stopped after 60 seconds without output per the QA timeout rule; no route finding was opened because it did not produce durable route-level evidence.
+
 ### 2026-05-19
 
 - **Playwright command:** pass after low-risk local fixes

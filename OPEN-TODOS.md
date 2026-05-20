@@ -6,11 +6,11 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ## Lint debt from PR #196 — 2026-05-16
 
-`pnpm lint` is failing on `main` as of 2026-05-16. Both findings landed via [PR #196](https://github.com/rbeezley/myk9-platform/pull/196) (refactor(show): route core reads through data modules), which merged without CI gating due to the paused GHA billing (see `project_gha_billing_paused.md`). Pre-existing on main; not introduced or worsened by the 2026-05-16 show-map data-attr PR.
+`pnpm lint` is failing on `main` as of 2026-05-16. Both findings landed via [PR #196](https://github.com/rbeezley/myk9-platform/pull/196) (refactor(show): route core reads through data modules), which merged before GHA Quality Checks were running. GHA is unblocked again as of 2026-05-18 (repo flipped public) and Quality Checks runs on every PR, so these are now visible. Branch protection enforcement is tracked separately in `Pre-Launch Housekeeping` below.
 
 - [ ] **Fix `react-hooks/set-state-in-effect` in `StickyNav.tsx:45`** — `setPresentIds(new Set(found.map(el => el.id)))` is called synchronously inside `useEffect`, triggering a cascading render. Refactor: either move into the IntersectionObserver callback below (which is the canonical pattern for this rule), or derive `presentIds` rather than storing it. File: `apps/myk9show/src/features/magazine/landing/sections/StickyNav.tsx`.
 - [ ] **Fix `react-refresh/only-export-components` warning in `MonogramSectionFolio.tsx:50`** — A non-component export is colocated with a component, breaking fast refresh. Move the constant/function to a sibling module. File: `apps/myk9show/src/features/monogram/components/MonogramSectionFolio.tsx`.
-- [ ] **Restore GHA CI gating** — Both issues above would have been caught by CI lint before merge. Re-enable billing / unblock the pipeline so trunk doesn't accumulate undetected lint debt; see `project_gha_billing_paused.md`.
+
 ---
 
 ## Show-Day Secretary Workflow Brainstorm — 2026-05-16

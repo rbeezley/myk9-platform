@@ -29,7 +29,7 @@ Tests:
 
 ## PR 2 — AKC Trial Secretary PDF Download
 
-**Status:** Current slice.
+**Status:** Shipped in PR #253.
 
 Deliverables:
 
@@ -44,8 +44,23 @@ Tests:
 - Assert trial-scoped report props are shared by preview and PDF generation.
 - Assert the AKC Trial Secretary PDF filename contract.
 
+## PR 3 — AKC Judge + Trial Chairman Field Builders
+
+**Status:** Current slice.
+
+Deliverables:
+
+- Add typed field constants for `SW-JudgeReport.pdf` and `SW-TCReport.pdf`.
+- Add value builders for safe, already-known metadata: event number, event date, club name, judge names, and the Judge Report event type.
+- Keep human-completed contact, comment, reportable-problem, and signature fields untouched until the missing-data warning/download slice.
+
+Tests:
+
+- Assert AKC Judge Report values map to exact field names and fill the real official PDF.
+- Assert AKC Trial Chairman Report values map to exact field names and fill the real official PDF.
+- Keep the template inventory test backed by the new field constants.
+
 ## Next PRs
 
-- Add AKC Judge Report and Trial Chairman Report field builders.
 - Add UKC Nosework Trial Report field builder.
 - Surface missing-data warnings before download when a required official field cannot be populated.

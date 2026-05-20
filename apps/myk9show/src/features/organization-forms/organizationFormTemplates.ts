@@ -1,4 +1,6 @@
+import { AKC_JUDGE_REPORT_REQUIRED_FIELDS } from './akcJudgeReportFields';
 import { AKC_TRIAL_SECRETARY_REPORT_REQUIRED_FIELDS } from './akcTrialSecretaryReportFields';
+import { AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS } from './akcTrialChairmanReportFields';
 
 export type OrganizationFormRegistry = 'AKC' | 'UKC';
 
@@ -30,21 +32,14 @@ export const ORGANIZATION_FORM_TEMPLATES = [
     label: 'AKC Scent Work Judge Report',
     registry: 'AKC',
     sourcePath: 'docs/AKC-forms/SW-JudgeReport.pdf',
-    requiredFields: [
-      'Location',
-      'EventNumbers',
-      'EventDates',
-      'ClubName',
-      'JudgeName',
-      'JudgeEmail',
-    ],
+    requiredFields: AKC_JUDGE_REPORT_REQUIRED_FIELDS,
   },
   {
     id: 'akc-scent-work-trial-chairman-report',
     label: 'AKC Scent Work Trial Chairman Report',
     registry: 'AKC',
     sourcePath: 'docs/AKC-forms/SW-TCReport.pdf',
-    requiredFields: ['TrialDates', 'EventNumbers', 'ClubName', 'TrialChair'],
+    requiredFields: AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS,
   },
   {
     id: 'ukc-nosework-trial-report',

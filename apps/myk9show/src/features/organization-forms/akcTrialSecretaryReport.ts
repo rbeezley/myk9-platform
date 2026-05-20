@@ -1,8 +1,8 @@
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
-import { formatReportDate } from '@/lib/reports/reportUtils';
 import { AKC_SCENT_WORK_REPORT_FEE_PER_RUN } from '@/lib/reports/reportConstants';
 import { AKC_TRIAL_SECRETARY_REPORT_FIELDS } from './akcTrialSecretaryReportFields';
 import type { PdfFormFillValues } from './pdfForm';
+import { formattedTrialDate, textOrUndefined, trialEventNumber } from './reportValueHelpers';
 
 const WITHDRAWN_RUN_STATUS_CODES = new Set([
   'pulled',
@@ -22,13 +22,8 @@ function isWithdrawn(entry: ReportEntry): boolean {
   return statuses.some(status => WITHDRAWN_RUN_STATUS_CODES.has(status));
 }
 
-function textOrUndefined(value: string | null | undefined): string | undefined {
-  const text = value?.trim();
-  return text ? text : undefined;
-}
-
 export function buildAKCTrialSecretaryReportValues(props: ReportProps): PdfFormFillValues {
-  const trialDate = props.trial?.date ? formatReportDate(props.trial.date) : '';
+  const trialDate = formattedTrialDate(props);
   const withdrawn = props.entries.filter(isWithdrawn).length;
   const runsPaid = Math.max(0, props.entries.length - withdrawn);
   const totalFee = (runsPaid * AKC_SCENT_WORK_REPORT_FEE_PER_RUN).toFixed(2);
@@ -42,7 +37,7 @@ export function buildAKCTrialSecretaryReportValues(props: ReportProps): PdfFormF
   const clubName = textOrUndefined(props.clubName);
   if (clubName) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.club] = clubName;
 
-  const eventNumber = textOrUndefined(props.trial?.trialNumber);
+  const eventNumber = trialEventNumber(props);
   if (eventNumber) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.eventNumber] = eventNumber;
 
   if (trialDate) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate] = trialDate;

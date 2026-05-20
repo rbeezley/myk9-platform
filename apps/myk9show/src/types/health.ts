@@ -151,6 +151,43 @@ export interface GeneticScreeningRecord {
   updated_at: string;
 }
 
+// ========================================
+// HEALTH OVERVIEW (umbrella synthesizer)
+// ========================================
+//
+// Bundle returned by `getDogHealthOverview()` / `useDogHealthOverview()` —
+// the canonical "everything about this dog's health" read. See
+// CONTEXT.md (Health Record entry) and ADR-008.
+
+export interface HealthOverviewOptions {
+  /**
+   * Number of months back to include in 'recent' lists.
+   * Defaults to 12. Pass 0 to disable the window — useful for
+   * "show me everything" admin views.
+   */
+  recentMonths?: number;
+}
+
+export interface HealthOverview {
+  // Active state
+  activeMedications: MedicationRecord[];
+  allergies: AllergyRecord[]; // typically few per dog; return all
+  upcomingVaccinations: VaccinationRecord[]; // due within next 30 days
+  followUpVetVisits: VetVisitRecord[];
+
+  // Recent history (windowed by recentMonths)
+  recentVaccinations: VaccinationRecord[];
+  recentVetVisits: VetVisitRecord[];
+  recentMedications: MedicationRecord[];
+
+  // Screenings (one-time records, all returned)
+  ofaScreenings: OFAScreeningRecord[];
+  geneticScreenings: GeneticScreeningRecord[];
+
+  // Roll-up
+  statistics: HealthStatistics;
+}
+
 // Health search filters
 export interface HealthFilters {
   record_type?: ('vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'ofa_screening' | 'genetic_screening')[] | undefined;

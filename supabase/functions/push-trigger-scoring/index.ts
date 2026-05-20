@@ -1,4 +1,10 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// supabase/functions/push-trigger-scoring/index.ts
+// Database webhook fired when an entry's scoring_completed_at flips from
+// null to a value. Sends a push notification via send-push-notification.
+
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+
+import { handle } from '../_shared/http/handler.ts';
 
 interface WebhookPayload {
   type: 'UPDATE';
@@ -16,49 +22,39 @@ interface WebhookPayload {
   };
 }
 
-Deno.serve(async (req: Request) => {
-  try {
-    const payload: WebhookPayload = await req.json();
-
-    // Only fire when scoring_completed_at transitions from null to a value
-    if (
-      payload.old_record.scoring_completed_at !== null ||
-      payload.record.scoring_completed_at === null
-    ) {
-      return new Response('No action needed', { status: 200 });
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    // Look up dog name and class name for the notification body
-    const { data: entry } = await supabase
-      .from('entries')
-      .select('dog:dogs(call_name), class:classes(name)')
-      .eq('id', payload.record.id)
-      .single();
-
-    const dogName = entry?.dog?.call_name ?? 'Your dog';
-    const className = entry?.class?.name ?? 'a class';
-
-    // Call the send-push-notification function
-    await supabase.functions.invoke('send-push-notification', {
-      body: {
-        user_id: payload.record.user_id,
-        payload: {
-          type: 'results_posted',
-          title: 'Results Posted',
-          body: `${dogName} — ${className}`,
-          priority: 'normal',
-        },
-      },
-    });
-
-    return new Response('Push sent', { status: 200 });
-  } catch (error) {
-    console.error('push-trigger-scoring error:', error);
-    return new Response('Error', { status: 500 });
+handle<WebhookPayload>({ auth: 'none' }, async ({ body, supabase }) => {
+  // Only fire when scoring_completed_at transitions from null to a value
+  if (
+    body.old_record.scoring_completed_at !== null ||
+    body.record.scoring_completed_at === null
+  ) {
+    return { status: 'no_action' };
   }
+
+  // Look up dog name and class name for the notification body
+  const { data: entry } = await supabase
+    .from('entries')
+    .select('dog:dogs(call_name), class:classes(name)')
+    .eq('id', body.record.id)
+    .single();
+
+  const dogName =
+    (entry as { dog?: { call_name?: string } | null } | null)?.dog?.call_name ?? 'Your dog';
+  const className =
+    (entry as { class?: { name?: string } | null } | null)?.class?.name ?? 'a class';
+
+  // Call the send-push-notification function
+  await supabase.functions.invoke('send-push-notification', {
+    body: {
+      user_id: body.record.user_id,
+      payload: {
+        type: 'results_posted',
+        title: 'Results Posted',
+        body: `${dogName} — ${className}`,
+        priority: 'normal',
+      },
+    },
+  });
+
+  return { status: 'push_sent' };
 });

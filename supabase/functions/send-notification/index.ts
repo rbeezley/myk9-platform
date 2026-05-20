@@ -3,31 +3,12 @@
 // Deploy with: supabase functions deploy send-notification --no-verify-jwt
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
-
-const ALLOWED_ORIGINS = [
-  'https://myk9show.com',
-  'https://www.myk9show.com',
-  'https://app.myk9show.com',
-  'https://myk9-platform-myk9show.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:5174',
-];
-
-function getCorsHeaders(origin: string | null): Record<string, string> {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  };
-}
 
 // ── Email shell ──────────────────────────────────────────────────────────────
 
@@ -212,58 +193,21 @@ interface SendNotificationPayload {
 
 // ── Handler ──────────────────────────────────────────────────────────────────
 
-Deno.serve(async req => {
-  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+handle<SendNotificationPayload>(
+  { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
+  async ({ body }) => {
+    const { type, to, data } = body;
+    if (!type || !to || !data) {
+      throw new HttpError(400, 'Missing required fields: type, to, data');
+    }
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      console.error('send-notification: RESEND_API_KEY not configured');
+      throw new HttpError(503, 'Email service not configured');
+    }
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const json = (body: object, status = 200) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  // Auth: verify caller via Supabase JWT
-  const authHeader = req.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '') ?? '';
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token);
-
-  if (authError || !user) {
-    return json({ error: 'Unauthorized' }, 401);
-  }
-
-  if (!resendApiKey) {
-    console.error('send-notification: RESEND_API_KEY not configured');
-    return json({ error: 'Email service not configured' }, 503);
-  }
-
-  let payload: SendNotificationPayload;
-  try {
-    payload = await req.json();
-  } catch {
-    return json({ error: 'Invalid JSON body' }, 400);
-  }
-
-  const { type, to, data } = payload;
-  if (!type || !to || !data) {
-    return json({ error: 'Missing required fields: type, to, data' }, 400);
-  }
-
-  let email: { subject: string; html: string };
-  try {
+    let email: { subject: string; html: string };
     if (type === 'entry_confirmed') {
       email = entryConfirmedEmail(data as EntryConfirmedData);
     } else if (type === 'payment_receipt') {
@@ -271,33 +215,30 @@ Deno.serve(async req => {
     } else if (type === 'result_notification') {
       email = resultNotificationEmail(data as ResultNotificationData);
     } else {
-      return json({ error: `Unknown notification type: ${type}` }, 400);
+      throw new HttpError(400, `Unknown notification type: ${type}`);
     }
-  } catch (err) {
-    console.error('send-notification: template error', err);
-    return json({ error: 'Template error' }, 500);
-  }
 
-  const resendRes = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [to],
-      subject: email.subject,
-      html: email.html,
-    }),
-  });
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: [to],
+        subject: email.subject,
+        html: email.html,
+      }),
+    });
 
-  if (!resendRes.ok) {
-    const errText = await resendRes.text();
-    console.error('send-notification: Resend error:', errText);
-    return json({ error: 'Failed to send email' }, 502);
-  }
+    if (!resendRes.ok) {
+      const errText = await resendRes.text();
+      console.error('send-notification: Resend error:', errText);
+      throw new HttpError(502, 'Failed to send email');
+    }
 
-  const resendData = await resendRes.json();
-  return json({ success: true, id: resendData.id });
-});
+    const resendData = await resendRes.json();
+    return { success: true, id: resendData.id };
+  },
+);

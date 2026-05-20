@@ -200,3 +200,40 @@ per-file imports make each helper's surface area visible at the call site.
 Entity modules use a barrel because their multiple files form one cohesive
 entity surface; `_shared/` is a collection of independent single-purpose
 helpers, not a single concept.
+
+## Edge function HTTP envelope
+
+Edge functions at `supabase/functions/<name>/` use the shared envelope at
+`supabase/functions/_shared/http/` for CORS, JWT auth, JSON body parsing,
+and error response mapping. Functions declare their config inline:
+
+```ts
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
+
+handle<PayloadType>(
+  { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
+  async ({ body, user, supabase }) => {
+    // domain logic; throw HttpError for known errors
+    return { success: true };
+  },
+);
+```
+
+RBAC checks (site_admin, club_admin, etc.) live inside the handler, not
+in the envelope. The envelope validates only the JWT and passes
+`ctx.user` through.
+
+Webhook functions (push-trigger-*, resend-webhook) pass `auth: 'none'`
+and omit `origins` (server-to-server, no CORS).
+
+Pilot migration (PR #259): send-notification, admin-delete-user, ask-myk9q,
+push-trigger-scoring. `resend-webhook` does not fit the envelope (uses
+GET/HEAD endpoint validation, raw-text HMAC verification, and plain-text
+responses) and remains hand-rolled. Remaining 15 functions migrate in
+a follow-up PR.
+
+Following the `_shared/` no-barrel convention above, callers import
+directly from `handler.ts`, `cors.ts`, and `responses.ts` — there is no
+`_shared/http/index.ts`.

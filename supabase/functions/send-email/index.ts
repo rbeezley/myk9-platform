@@ -1,32 +1,8 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// CORS configuration - restrict to known app domains
-const ALLOWED_ORIGINS = [
-  'https://myk9show.com',
-  'https://www.myk9show.com',
-  'https://app.myk9show.com',
-  'https://myk9-platform-myk9show.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
-];
-
-function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin =
-    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
-}
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
 
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -115,51 +91,19 @@ type EmailData =
   | WaitlistOfferData
   | EntryDecisionData;
 
-Deno.serve(async req => {
-  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
-
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Authenticate: require a Bearer token (user must be logged in).
-  // Full JWT validation is skipped — function is only reachable from the
-  // authenticated app (CORS + Supabase anon key) and Resend has its own key.
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Missing authorization' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Helper to return JSON with CORS headers — defined outside try so catch can use it
-  const jsonResponse = (body: object, status = 200) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  try {
+handle<EmailData>(
+  { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
+  async ({ body: data, supabase }) => {
     // Check for API key
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
       console.error('RESEND_API_KEY not configured');
-      return jsonResponse({ error: 'Email service not configured' }, 503);
+      throw new HttpError(503, 'Email service not configured');
     }
-
-    const data: EmailData = await req.json();
 
     // Validate required fields
     if (!data.to || !data.type) {
-      return jsonResponse({ error: 'Missing required fields: to, type' }, 400);
+      throw new HttpError(400, 'Missing required fields: to, type');
     }
 
     // Generate email content based on type
@@ -193,7 +137,7 @@ Deno.serve(async req => {
         break;
 
       default:
-        return jsonResponse({ error: `Unknown email type: ${(data as EmailData).type}` }, 400);
+        throw new HttpError(400, `Unknown email type: ${(data as EmailData).type}`);
     }
 
     const resendPayload = {
@@ -217,7 +161,7 @@ Deno.serve(async req => {
     if (!response.ok) {
       const error = await response.json();
       console.error('Resend API error:', error);
-      return jsonResponse({ error: 'Failed to send email', details: error }, 500);
+      throw new HttpError(500, 'Failed to send email');
     }
 
     const result = await response.json();
@@ -238,13 +182,9 @@ Deno.serve(async req => {
       .insert(logRow)
       .then(null, (err: unknown) => console.log('Could not log email:', err));
 
-    return jsonResponse({ success: true, id: result.id });
-  } catch (error: unknown) {
-    console.error('Error sending email:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return jsonResponse({ error: errorMessage }, 500);
-  }
-});
+    return { success: true, id: result.id };
+  },
+);
 
 /**
  * Generate entry confirmation email HTML

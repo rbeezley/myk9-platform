@@ -97,7 +97,7 @@ None.
 - **Intent check:** Harms the secretary target feeling of "That was easy" because a calm show-day page is quietly failing while loading incident data.
 - **Fix owner:** Supabase migration/deployment for show incidents.
 - **Proof required:** Passed on 2026-05-20 after applying pending migrations: `cd apps/myk9show && pnpm test:e2e:clean src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0` (`2 passed`).
-- **Notes:** Fixed by applying `supabase/migrations/20260518120000_add_entry_payment_method.sql` and `supabase/migrations/20260519163003_create_show_incidents.sql` to the linked Supabase project after explicit user approval.
+- **Notes:** Fixed by applying `supabase/migrations/20260519163003_create_show_incidents.sql` to the linked Supabase project after explicit user approval. `supabase/migrations/20260518120000_add_entry_payment_method.sql` was an unrelated pending prerequisite discovered by the dry run, so it was applied in the same approved DB push but was not the root cause of this finding.
 
 ### QA-ROLE-RLS-MISMATCH-002
 

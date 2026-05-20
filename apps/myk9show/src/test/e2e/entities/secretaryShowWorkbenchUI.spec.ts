@@ -16,6 +16,8 @@ import {
  * wrap-up surfaces together without console errors or owned 4xx/5xx responses.
  */
 
+// Keep this smoke serial so a broken phase-render check stops the dependent
+// interaction guard instead of producing duplicate noise against the same route.
 test.describe.configure({ mode: 'serial' });
 
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
@@ -29,8 +31,10 @@ test.describe('Secretary Show Workbench UI', () => {
   });
 
   test.afterEach(async ({ page }, testInfo) => {
-    void page;
     const health = healthByTest.get(testInfo.testId) ?? createBrowserHealth();
+    if (page.isClosed()) {
+      health.pageErrors.push('page closed before QA artifact write');
+    }
     const details = summarizeHealth(health);
     const status = testInfo.status === testInfo.expectedStatus ? 'passed' : 'failed';
     await writeUatFinding(testInfo, 'Secretary', 'show workbench feature audit', status, details);
@@ -45,7 +49,7 @@ test.describe('Secretary Show Workbench UI', () => {
     await expect(page.getByRole('heading', { name: /workbench$/i })).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit' }).first()).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Setup' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Today' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Wrap-up' })).toBeVisible();
@@ -55,7 +59,7 @@ test.describe('Secretary Show Workbench UI', () => {
     await expect(
       page.getByText(/confirm the schedule, judges, show page, and materials/i)
     ).toBeVisible();
-    await expect(page.getByText(/Premium/i).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Today' }).click();
     await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();

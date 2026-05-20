@@ -1,6 +1,11 @@
-// @deno-types="npm:@types/node"
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// supabase/functions/ask-myk9q/index.ts
+// myK9Q AI chat endpoint. License-key auth (validated in-handler); no JWT.
+
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9Q_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
 
 import type {
   ChatRequest,
@@ -14,68 +19,30 @@ import { executeTool } from '../_shared/askq/toolExecutor.ts';
 import { collectSource, buildChatResponse } from '../_shared/askq/responseFormatter.ts';
 import { MYK9Q_SYSTEM_PROMPT } from './promptBuilder.ts';
 
-const ALLOWED_ORIGINS = [
-  'https://myk9q.com',
-  'https://www.myk9q.com',
-  'https://app.myk9q.com',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
+const ASK_MYK9Q_ALLOWED_HEADERS = [
+  'authorization',
+  'x-client-info',
+  'apikey',
+  'content-type',
+  'x-license-key',
 ];
 
-function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin =
-    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
-
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type, x-license-key',
-  };
-}
-
-serve(async req => {
-  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
-
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  try {
-    // Get environment variables
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+handle<ChatRequest>(
+  { auth: 'none', origins: MYK9Q_ORIGINS, allowedHeaders: ASK_MYK9Q_ALLOWED_HEADERS },
+  async ({ body, supabase }) => {
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-
     if (!anthropicKey) {
-      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(500, 'ANTHROPIC_API_KEY not configured');
     }
 
-    // Parse request
-    const { message, licenseKey, organizationCode, sportCode }: ChatRequest = await req.json();
+    const { message, licenseKey, organizationCode, sportCode } = body;
 
-    // Validate required fields
     if (!message?.trim()) {
-      return new Response(JSON.stringify({ error: 'Message is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(400, 'Message is required');
     }
-
     if (!licenseKey) {
-      return new Response(JSON.stringify({ error: 'License key is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(400, 'License key is required');
     }
-
-    // Create Supabase client
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Initialize conversation with user message
     const messages: ClaudeMessage[] = [{ role: 'user', content: message }];
@@ -151,20 +118,6 @@ serve(async req => {
       .then(() => console.log('Query logged'))
       .catch((err: Error) => console.log('Query log skipped:', err.message));
 
-    return new Response(JSON.stringify(chatResponse), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Error in ask-myk9q function:', error);
-
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal server error',
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
-});
+    return chatResponse;
+  },
+);

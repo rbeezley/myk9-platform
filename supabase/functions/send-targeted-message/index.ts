@@ -1,58 +1,27 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
 
-serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+interface SendTargetedMessagePayload {
+  show_id?: string;
+  class_id?: string;
+  body?: string;
+}
 
-  try {
-    // Authenticate the caller
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+handle<SendTargetedMessagePayload>(
+  { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
+  async ({ body: payload, user, supabase }) => {
+    if (!user) {
+      throw new HttpError(401, 'Unauthorized');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    // Verify caller identity with their JWT
-    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const {
-      data: { user },
-      error: authError,
-    } = await callerClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const { show_id, class_id, body } = await req.json();
+    const { show_id, class_id, body } = payload;
 
     if (!show_id || !class_id || !body?.trim()) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: show_id, class_id, body' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      throw new HttpError(400, 'Missing required fields: show_id, class_id, body');
     }
-
-    // Use service role client for data operations (bypasses RLS)
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Verify caller is secretary/admin for this show
     const { data: show } = await supabase
@@ -62,10 +31,7 @@ serve(async (req: Request) => {
       .single();
 
     if (!show) {
-      return new Response(JSON.stringify({ error: 'Show not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(404, 'Show not found');
     }
 
     // Check caller has secretary or admin role
@@ -78,13 +44,7 @@ serve(async (req: Request) => {
       );
 
     if (!callerRoles || callerRoles.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: secretary or admin role required' }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      throw new HttpError(403, 'Forbidden: secretary or admin role required');
     }
 
     // Validate class belongs to this show
@@ -96,10 +56,7 @@ serve(async (req: Request) => {
       .single();
 
     if (!classCheck) {
-      return new Response(JSON.stringify({ error: 'Class does not belong to this show' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(400, 'Class does not belong to this show');
     }
 
     // Get class info for group label
@@ -117,10 +74,7 @@ serve(async (req: Request) => {
       .is('deleted_at', null);
 
     if (!entries || entries.length === 0) {
-      return new Response(JSON.stringify({ error: 'No entries found for class', sent_to: 0 }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return { error: 'No entries found for class', sent_to: 0 };
     }
 
     // Extract unique auth_user_ids, exclude the sender
@@ -133,10 +87,7 @@ serve(async (req: Request) => {
     ] as string[];
 
     if (recipientIds.length === 0) {
-      return new Response(JSON.stringify({ sent_to: 0 }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return { sent_to: 0 };
     }
 
     const classLabel = classInfo
@@ -159,10 +110,7 @@ serve(async (req: Request) => {
       .select('id, participant_id');
 
     if (upsertError || !upsertedThreads) {
-      return new Response(
-        JSON.stringify({ error: 'Failed to create threads', details: upsertError?.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new HttpError(500, 'Failed to create threads');
     }
 
     // Step 2: Batch insert messages into all threads
@@ -181,18 +129,10 @@ serve(async (req: Request) => {
 
     const sentCount = insertError ? 0 : (insertedMessages?.length ?? 0);
 
-    return new Response(
-      JSON.stringify({
-        sent_to: sentCount,
-        total_recipients: recipientIds.length,
-        group_label: classLabel,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-});
+    return {
+      sent_to: sentCount,
+      total_recipients: recipientIds.length,
+      group_label: classLabel,
+    };
+  },
+);

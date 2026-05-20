@@ -9,6 +9,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useClassScentWorkEntries } from '@/hooks/queries/useClassScentWorkEntries';
 import {
   Clock,
   Users,
@@ -26,11 +27,10 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { logger } from '@/services/LoggingService';
 
 // Add imports for the same data stores ClassDetailsPage uses
-import { useClassStoreCompat, useClassEntriesWithQuery } from '@/hooks/useClassStoreCompat';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
-import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -65,7 +65,6 @@ import type {
   ScentWorkResult,
   MultiAreaScentWorkResult,
   ScentWorkClassConfig,
-  QualificationStatus,
 } from '@/types/scent-work-types';
 
 export interface SecretaryClassDashboardProps {
@@ -105,8 +104,6 @@ export function SecretaryClassDashboard({
 
   // Connect to the same data stores as ClassDetailsPage
   const { classes } = useClassStoreCompat();
-  const { dogs } = useDogStoreCompat();
-  const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
   const { updateResult } = useEntryStore();
   const { shows } = useShowStore();
   const { trials } = useTrialStore();
@@ -146,26 +143,6 @@ export function SecretaryClassDashboard({
     classId: activeClassId || undefined,
   });
 
-  // --- Entry sources ---
-  // 1. Database entries via React Query (primary source)
-  const { entries: dbEntries } = useClassEntriesWithQuery(activeClassId || '', !!activeClassId);
-
-  // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
-  const localEntries = useEntriesByClass(activeClassId || '');
-
-  // Merge: local entries are used as-is (they have full ShowEntry data);
-  // local-only entries not yet in DB are included automatically.
-  // The rawEntries is just localEntries — dedup with DB happens in actualEntries.
-  const rawEntries = localEntries;
-
-  // Debug: Log entry counts when sources change
-  useEffect(() => {
-    logger.debug('SecretaryClassDashboard entry sources', 'secretary', {
-      dbCount: dbEntries.length,
-      localCount: localEntries.length,
-    });
-  }, [dbEntries.length, localEntries.length]);
-
   const [activeTab, setActiveTab] = useUrlTab(['overview', 'bulk', 'placements'], 'overview');
   const [isCalculatingPlacements, setIsCalculatingPlacements] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -183,103 +160,23 @@ export function SecretaryClassDashboard({
     [propClassConfig]
   );
 
-  // Helper: transform a local ShowEntry into ScentWorkEntry shape
-  const toScentWorkEntry = useCallback(
-    (typedEntry: ShowEntry) => {
-      const dog = dogsById.get(typedEntry.dogId);
-      const registrationData = (typedEntry.registrationData || {}) as Record<string, unknown>;
-      const competitionData = typedEntry.competitionData || ({} as CompetitionData);
+  // Entry sources + merge + transform — owned by useClassScentWorkEntries.
+  // Local entries come first; DB-only entries are appended. rawEntries (the
+  // local-only ShowEntry list) is still needed by handleResultUpdate below.
+  const rawEntries = useEntriesByClass(activeClassId || '');
+  const {
+    entries: actualEntries,
+    dbCount,
+    localCount,
+  } = useClassScentWorkEntries(activeClassId, classConfig);
 
-      return {
-        ...typedEntry,
-        classConfig: classConfig,
-        displayInfo: {
-          armband: registrationData.armband || '',
-          dogName: dog?.callName || dog?.name || 'Unknown Dog',
-          dogBreed: dog?.registrations?.[0]?.breed || 'Unknown Breed',
-          handlerName: registrationData.handler || 'Unknown Handler',
-          dogId: typedEntry.dogId || '',
-          handlerId: registrationData.handlerId || '',
-        },
-        judgingState: {
-          isInProgress: false,
-          currentResult:
-            competitionData.score || competitionData.time
-              ? {
-                  entryId: typedEntry.id,
-                  classId: activeClassId || '',
-                  searchTime: competitionData.score ? parseFloat(competitionData.score) * 1000 : 0,
-                  maxTimeAllowed: classConfig.timeLimit,
-                  qualification: (competitionData.qualified === true
-                    ? 'Qualified'
-                    : competitionData.qualified === false
-                      ? 'Not Qualified'
-                      : 'Not Qualified') as QualificationStatus,
-                  faults: 0,
-                  judgeNotes: competitionData.judgeNotes || '',
-                  recordedBy: competitionData.recordedBy || 'System',
-                  recordedAt: new Date(
-                    (competitionData as CompetitionData).recordedAt || Date.now()
-                  ),
-                }
-              : undefined,
-        },
-      };
-    },
-    [dogsById, classConfig, activeClassId]
-  );
-
-  // Transform entries to the format expected by this component (ScentWorkEntry).
-  // Merge: local entries first (transformed from ShowEntry), then DB-only entries
-  // that aren't in the local store yet (transformed from DB display format).
-  const actualEntries = useMemo(() => {
-    // Transform local entries
-    const localScentWork = rawEntries.map(entry => toScentWorkEntry(entry as ShowEntry));
-    const localIds = new Set(rawEntries.map(e => (e as ShowEntry).id));
-
-    // Add DB-only entries not present locally
-    const dbOnlyEntries = dbEntries
-      .filter(e => !localIds.has(e.id))
-      .map(e => ({
-        id: e.id,
-        classId: e.classId || activeClassId || '',
-        dogId: '',
-        showId: '',
-        status: 'submitted' as const,
-        statusHistory: [],
-        createdAt: '',
-        updatedAt: '',
-        registrationData: {
-          submittedAt: '',
-          handler: e.handler || '',
-          entryFee: 0,
-          paymentStatus: 'pending' as const,
-        },
-        competitionData: {
-          score: e.score || '',
-          time: e.time || '',
-          qualified: e.status === 'Qualified',
-          placement: e.placement || '',
-          recordedAt: '',
-          recordedBy: 'System',
-        },
-        classConfig: classConfig,
-        displayInfo: {
-          armband: e.armband || '',
-          dogName: e.dog || 'Unknown Dog',
-          dogBreed: 'Unknown Breed',
-          handlerName: e.handler || 'Unknown Handler',
-          dogId: '',
-          handlerId: '',
-        },
-        judgingState: {
-          isInProgress: false,
-          currentResult: undefined,
-        },
-      }));
-
-    return [...localScentWork, ...dbOnlyEntries];
-  }, [rawEntries, dbEntries, toScentWorkEntry, classConfig, activeClassId]);
+  // Debug: Log entry counts when sources change
+  useEffect(() => {
+    logger.debug('SecretaryClassDashboard entry sources', 'secretary', {
+      dbCount,
+      localCount,
+    });
+  }, [dbCount, localCount]);
 
   const classInfo = propClassInfo || {
     name: currentClass

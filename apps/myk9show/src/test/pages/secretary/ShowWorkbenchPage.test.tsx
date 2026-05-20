@@ -444,6 +444,7 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByText(/keep rings moving/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Late entry help' })).toBeInTheDocument();
     expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
+    expect(screen.getByRole('heading', { name: 'Judge hospitality' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Quick broadcast' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Message a class' })).toBeInTheDocument();
     expect(screen.getByTestId('incident-log-card')).toHaveTextContent('Incident log for show-1');

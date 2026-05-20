@@ -4,7 +4,7 @@ import type { PdfFormFillValues } from './pdfForm';
 import { formattedTrialDate, textOrUndefined } from './reportValueHelpers';
 import { UKC_NOSEWORK_TRIAL_REPORT_FIELDS } from './ukcNoseworkTrialReportFields';
 
-interface UKCEntryCounts {
+export interface UKCEntryCounts {
   dayOfShowEntries: number;
   onlineEntries: number;
   preEntries: number;
@@ -27,6 +27,7 @@ export function buildUKCNoseworkTrialReportValues(props: ReportProps): PdfFormFi
       counts.dayOfShowEntries * UKC_NOSEWORK_REPORT_FEE_PER_ENTRY
     ),
     [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries]: counts.totalEntries,
+    // UKC online entries are paid through UKC's lane, so only pre/day-of entries remain due.
     [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue]: formatUKCFee(
       (counts.preEntries + counts.dayOfShowEntries) * UKC_NOSEWORK_REPORT_FEE_PER_ENTRY
     ),
@@ -40,6 +41,7 @@ export function buildUKCNoseworkTrialReportValues(props: ReportProps): PdfFormFi
 
   return {
     checkboxes: {
+      // INTENT: This builder fills one trial at a time; show-level downloads should choose explicitly.
       [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.oneTrial]: true,
     },
     text,
@@ -67,6 +69,7 @@ export function countUKCNoseworkEntries(entries: ReportEntry[]): UKCEntryCounts 
 }
 
 function isUKCOnlineEntry(entry: ReportEntry): boolean {
+  // "online" here means UKC's online entry lane, not generic myK9 card/Stripe collection.
   return entry.paymentMethod?.trim().toLowerCase() === 'online';
 }
 

@@ -15,9 +15,9 @@ import {
   getVetVisitsRequiringFollowUp,
   getAllOFAScreenings,
   getAllGeneticScreenings,
-  getHealthStatistics,
-  getHealthTimeline,
-  searchHealthRecords,
+  getDogHealthStatistics,
+  getDogHealthTimeline,
+  searchDogHealth,
 } from '@/services/database/health-records';
 
 import {
@@ -257,7 +257,7 @@ export const useHealthStatisticsQuery = (dogId: string, enabled = true) => {
   return useQuery({
     queryKey: healthQueryKeys.healthStatistics(dogId),
     queryFn: async () => {
-      const { data, error } = await getHealthStatistics(dogId);
+      const { data, error } = await getDogHealthStatistics(dogId);
       if (error) throw error;
       return data;
     },
@@ -270,7 +270,7 @@ export const useHealthTimelineQuery = (dogId: string, filters?: HealthFilters, e
   return useQuery({
     queryKey: healthQueryKeys.healthTimeline(dogId, filters),
     queryFn: async () => {
-      const { data, error } = await getHealthTimeline(dogId, filters);
+      const { data, error } = await getDogHealthTimeline(dogId, filters);
       if (error) throw error;
       return data || [];
     },
@@ -315,7 +315,7 @@ export const useHealthSearchQuery = (
   return useQuery({
     queryKey: healthQueryKeys.healthSearch(dogId, searchTerm, filters),
     queryFn: async () => {
-      const { data, error } = await searchHealthRecords(dogId, searchTerm, filters);
+      const { data, error } = await searchDogHealth(dogId, searchTerm, filters);
       if (error) throw error;
       return data || [];
     },

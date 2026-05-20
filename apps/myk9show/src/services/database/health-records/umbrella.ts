@@ -1,6 +1,11 @@
 // ========================================
-// HEALTH STATISTICS, TIMELINE & SEARCH
+// HEALTH UMBRELLA — synthesizing reads across health sub-tables
 // ========================================
+//
+// This module is the single canonical surface for "everything about this
+// dog's health" reads. Statistics, timeline, search, and the per-dog
+// overview synthesizer all live here so callers do not need to coordinate
+// across vaccination/medication/allergy/vet-visit/screening files.
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
@@ -14,7 +19,7 @@ import { getAllVetVisits, getVetVisitsRequiringFollowUp } from './vet-visits';
 // HEALTH STATISTICS & ANALYTICS
 // ========================================
 
-export const getHealthStatistics = async (
+export const getDogHealthStatistics = async (
   dogId: string
 ): Promise<{ data: HealthStatistics | null; error: unknown }> => {
   const startTime = Date.now();
@@ -71,7 +76,7 @@ export const getHealthStatistics = async (
 // COMPREHENSIVE HEALTH TIMELINE
 // ========================================
 
-export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) => {
+export const getDogHealthTimeline = async (dogId: string, filters?: HealthFilters) => {
   const startTime = Date.now();
 
   try {
@@ -195,7 +200,7 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
 // SEARCH FUNCTIONS
 // ========================================
 
-export const searchHealthRecords = async (
+export const searchDogHealth = async (
   dogId: string,
   searchTerm: string,
   filters?: HealthFilters

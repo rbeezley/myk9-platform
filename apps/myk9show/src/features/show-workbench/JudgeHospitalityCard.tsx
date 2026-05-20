@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Coffee, Droplets, Utensils } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,10 +25,7 @@ function itemFor(state: JudgeHospitalityState, judgeId: string): JudgeHospitalit
 }
 
 export function JudgeHospitalityCard({ judges, showId }: JudgeHospitalityCardProps) {
-  const judgeKey = judges.map(judge => judge.id).join('|');
-  return (
-    <JudgeHospitalityCardContent key={`${showId}:${judgeKey}`} judges={judges} showId={showId} />
-  );
+  return <JudgeHospitalityCardContent key={showId} judges={judges} showId={showId} />;
 }
 
 function JudgeHospitalityCardContent({ judges, showId }: JudgeHospitalityCardProps) {
@@ -38,9 +35,13 @@ function JudgeHospitalityCardContent({ judges, showId }: JudgeHospitalityCardPro
   const summary = useMemo(() => summarizeJudgeHospitality(judges, state), [judges, state]);
   const reminders = summary.lunchPendingCount + summary.waterPendingCount;
 
+  useEffect(() => {
+    writeJudgeHospitalityState(showId, state);
+  }, [showId, state]);
+
   function updateJudge(judgeId: string, patch: Partial<JudgeHospitalityItem>) {
     setState(current => {
-      const next = {
+      return {
         ...current,
         [judgeId]: {
           ...EMPTY_HOSPITALITY_ITEM,
@@ -48,8 +49,6 @@ function JudgeHospitalityCardContent({ judges, showId }: JudgeHospitalityCardPro
           ...patch,
         },
       };
-      writeJudgeHospitalityState(showId, next);
-      return next;
     });
   }
 
@@ -138,12 +137,30 @@ function JudgeHospitalityCardContent({ judges, showId }: JudgeHospitalityCardPro
                           checked={item.waterDelivered}
                           aria-labelledby={`hospitality-water-${judge.id}`}
                           onCheckedChange={checked =>
-                            updateJudge(judge.id, { waterDelivered: checked === true })
+                            updateJudge(judge.id, {
+                              waterDelivered: checked === true,
+                              waterDeclined: checked === true ? false : item.waterDeclined,
+                            })
                           }
                         />
                         <Droplets className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         <span id={`hospitality-water-${judge.id}`}>
                           Water <span className="sr-only">delivered for {judge.name}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={item.waterDeclined}
+                          aria-labelledby={`hospitality-water-declined-${judge.id}`}
+                          onCheckedChange={checked =>
+                            updateJudge(judge.id, {
+                              waterDeclined: checked === true,
+                              waterDelivered: checked === true ? false : item.waterDelivered,
+                            })
+                          }
+                        />
+                        <span id={`hospitality-water-declined-${judge.id}`}>
+                          No water needed <span className="sr-only">for {judge.name}</span>
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">

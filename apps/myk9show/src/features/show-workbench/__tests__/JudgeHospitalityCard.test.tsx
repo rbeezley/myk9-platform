@@ -18,16 +18,33 @@ describe('JudgeHospitalityCard', () => {
     const { user } = render(<JudgeHospitalityCard showId="show-1" judges={judges} />);
 
     expect(screen.getByRole('heading', { name: 'Judge hospitality' })).toBeInTheDocument();
-    expect(within(screen.getByRole('group', { name: 'Judges tracked' })).getByText('2')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Judges tracked' })).getByText('2')
+    ).toBeInTheDocument();
     expect(screen.getByText('2 reminders')).toBeInTheDocument();
 
     await user.type(screen.getAllByLabelText('Lunch order')[0], 'Turkey sandwich');
     await user.click(screen.getByRole('checkbox', { name: 'Water delivered for Pat Judge' }));
     await user.click(screen.getByRole('checkbox', { name: 'Lunch delivered for Pat Judge' }));
 
-    expect(within(screen.getByRole('group', { name: 'Lunch orders captured' })).getByText('1')).toBeInTheDocument();
-    expect(within(screen.getByRole('group', { name: 'Water reminders remaining' })).getByText('1 left')).toBeInTheDocument();
-    expect(within(screen.getByRole('group', { name: 'Judges handled' })).getByText('1/2')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Lunch orders captured' })).getByText('1')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Water reminders remaining' })).getByText('1 left')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Judges handled' })).getByText('1/2')
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'No water needed for Sam Judge' }));
+
+    expect(
+      within(screen.getByRole('group', { name: 'Water reminders remaining' })).getByText('0 left')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Judges handled' })).getByText('2/2')
+    ).toBeInTheDocument();
     expect(window.localStorage.getItem(judgeHospitalityStorageKey('show-1'))).toContain(
       'Turkey sandwich'
     );

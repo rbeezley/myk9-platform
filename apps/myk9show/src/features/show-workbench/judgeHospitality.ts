@@ -9,6 +9,7 @@ export interface JudgeHospitalityItem {
   lunchOrder: string;
   notes: string;
   waterDelivered: boolean;
+  waterDeclined: boolean;
 }
 
 export type JudgeHospitalityState = Record<string, JudgeHospitalityItem>;
@@ -27,6 +28,7 @@ export const EMPTY_HOSPITALITY_ITEM: JudgeHospitalityItem = {
   lunchOrder: '',
   notes: '',
   waterDelivered: false,
+  waterDeclined: false,
 };
 
 export function judgeHospitalityStorageKey(showId: string): string {
@@ -45,6 +47,7 @@ function normalizeItem(value: unknown): JudgeHospitalityItem {
     lunchOrder: typeof item.lunchOrder === 'string' ? item.lunchOrder : '',
     notes: typeof item.notes === 'string' ? item.notes : '',
     waterDelivered: item.waterDelivered === true,
+    waterDeclined: item.waterDeclined === true,
   };
 }
 
@@ -85,11 +88,12 @@ export function summarizeJudgeHospitality(
   for (const judge of judges) {
     const item = state[judge.id] ?? EMPTY_HOSPITALITY_ITEM;
     const hasLunchOrder = item.lunchOrder.trim().length > 0;
+    const waterHandled = item.waterDelivered || item.waterDeclined;
     if (hasLunchOrder) lunchOrderCount += 1;
     if (hasLunchOrder && !item.lunchDelivered) lunchPendingCount += 1;
-    if (!item.waterDelivered) waterPendingCount += 1;
-    // Coffee is optional hospitality detail; water plus any requested lunch define "handled."
-    if (item.waterDelivered && (!hasLunchOrder || item.lunchDelivered)) handledCount += 1;
+    if (!waterHandled) waterPendingCount += 1;
+    // Coffee is optional; water can be delivered or explicitly declined.
+    if (waterHandled && (!hasLunchOrder || item.lunchDelivered)) handledCount += 1;
   }
 
   return {

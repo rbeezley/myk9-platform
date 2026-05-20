@@ -1,7 +1,7 @@
 # Plan — Show-Day Workflow Sequencing
 
 **Date:** 2026-05-16
-**Status:** Active sequencing roadmap. Current phase: Phase D — Day-of operational gaps.
+**Status:** Active sequencing roadmap. Current phase: Phase E — Compliance / AKC + UKC PDF form-fill.
 **Scope:** Defines the order in which remaining items from the 2026-05-16 show-day brainstorm are picked up. This doc is the source of truth for _what's next_ when a PR lands; granular item tracking continues to live in `OPEN-TODOS.md`. Implementation details per phase land in their own dedicated plan docs as each phase begins.
 
 ## How to use this doc
@@ -120,7 +120,7 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 ## Phase D — Day-of operational gaps
 
-**Status:** Current phase. Initial late-entry plan lives in [`docs/plan-phase-d-late-entry-workflow.md`](plan-phase-d-late-entry-workflow.md).
+**Status:** Complete as of 2026-05-20.
 
 **Entry trigger:** Phase C exit criterion met _or_ a specific operational gap becomes urgent before then (e.g., real users requesting incident logging). Phase D can also overlap with Phase C if items don't compete for the same UI surface.
 
@@ -138,13 +138,24 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 **OPEN-TODOS items covered:** the entire "Day-of operational gaps" subsection.
 
-**Exit criterion:** Each item has shipped UI in the workbench _or_ has been explicitly de-scoped with a documented reason. Estimated 8-12 PRs.
+**Exit criterion:** Met. Each item has shipped UI in the workbench or an explicit documented boundary:
+
+- Late entries / day-of additions shipped across PR #232-#235.
+- Scratches, no-shows, and manual-refund boundary shipped via PR #219.
+- Incident logging and closeout shipped via PR #247-#248.
+- Schedule-slip communication and opt-in push alerts shipped via PR #239, #242, and #246.
+- Judge hospitality tracking shipped via PR #249.
+- End-of-day reconciliation shipped via PR #234, #236, and #238.
+- Per-judge supply checklist shipped via PR #218.
+- Mass broadcast and canned replies shipped via PR #221, #243, #244, and #246.
 
 **Why this phase fourth:** Each item is a discrete feature that lands as a row-action variant, a Setup/Today/Wrap-up sub-view, or a notification surface. None of them require new architecture. Picking them up after the tree/guided-UX scaffolding is mature avoids each item designing its own one-off home.
 
 ---
 
 ## Phase E — Compliance / AKC + UKC PDF form-fill (parallel track)
+
+**Status:** Current phase. Initial implementation plan lives in [`docs/plan-phase-e-pdf-form-fill.md`](plan-phase-e-pdf-form-fill.md).
 
 **Entry trigger:** User has sourced the official AKC and UKC submission PDF templates.
 

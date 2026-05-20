@@ -1,3 +1,5 @@
+import { AKC_TRIAL_SECRETARY_REPORT_REQUIRED_FIELDS } from './akcTrialSecretaryReportFields';
+
 export type OrganizationFormRegistry = 'AKC' | 'UKC';
 
 export type OrganizationFormTemplateId =
@@ -20,16 +22,7 @@ export const ORGANIZATION_FORM_TEMPLATES = [
     label: 'AKC Scent Work Trial Secretary Report',
     registry: 'AKC',
     sourcePath: 'docs/AKC-forms/SW-TSReport.pdf',
-    requiredFields: [
-      'Club',
-      'TrialDate',
-      'EventNumber',
-      'TotalRunsAtClosing',
-      'Withdrawn',
-      'RunsPaid',
-      'TotalFee',
-      'TrialSecretary',
-    ],
+    requiredFields: AKC_TRIAL_SECRETARY_REPORT_REQUIRED_FIELDS,
   },
   {
     id: 'akc-scent-work-judge-report',
@@ -68,4 +61,3 @@ export function getOrganizationFormTemplate(
   if (!template) throw new Error(`Unknown organization form template: ${id}`);
   return template;
 }
-

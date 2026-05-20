@@ -1,10 +1,10 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
+import { AKC_SCENT_WORK_REPORT_FEE_PER_RUN } from '@/lib/reports/reportConstants';
 
 const AKC_ADDRESS =
   'The American Kennel Club, Event Operations, 8051 Arco Corporate Dr, Suite 100, Raleigh, NC 27617-3390';
-const AKC_FEE_PER_ENTRY = 3.5;
 
 export const TrialSecretaryReport: React.FC<ReportProps> = ({
   showName,
@@ -15,7 +15,7 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
   const judgeName = trial?.judgeName ?? '___________';
   const entryCount = entries.length;
-  const totalFee = (entryCount * AKC_FEE_PER_ENTRY).toFixed(2);
+  const totalFee = (entryCount * AKC_SCENT_WORK_REPORT_FEE_PER_RUN).toFixed(2);
 
   return (
     <div className="report-page">
@@ -58,7 +58,7 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
           </tr>
           <tr>
             <td className="form-label" colSpan={2}>
-              ${AKC_FEE_PER_ENTRY.toFixed(2)} per entry × {entryCount} entries = ${totalFee} Total Service Charge
+              {`$${AKC_SCENT_WORK_REPORT_FEE_PER_RUN.toFixed(2)} per entry × ${entryCount} entries = $${totalFee} Total Service Charge`}
             </td>
           </tr>
         </tbody>

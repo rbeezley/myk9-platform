@@ -1,0 +1,1 @@
+export const AKC_SCENT_WORK_REPORT_FEE_PER_RUN = 3.5;

@@ -11,6 +11,8 @@ export const AKC_TRIAL_CHAIRMAN_REPORT_FIELDS = {
   judge4: 'Judge4',
 } as const;
 
+// Required by the official PDF. Builders may leave human-entered fields blank;
+// pdfFormCompleteness surfaces those before download.
 export const AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS = [
   AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.trialDates,
   AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.eventNumbers,

@@ -19,8 +19,10 @@ export function uniqueTrialJudgeNames(props: ReportProps): string[] {
     props.allClasses
       ?.map(cls => textOrUndefined(cls.judgeName))
       .filter((name): name is string => Boolean(name)) ?? [];
-  const fallback = textOrUndefined(props.trial?.judgeName);
-  if (fallback) names.unshift(fallback);
+  if (names.length === 0) {
+    const fallback = textOrUndefined(props.trial?.judgeName);
+    if (fallback) names.push(fallback);
+  }
 
   return [...new Set(names)];
 }

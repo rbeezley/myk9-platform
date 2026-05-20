@@ -19,6 +19,9 @@ import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 import { buildTrialReportProps } from './reportDataMapping';
 import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
+import { buildAKCTrialSecretaryReportValues } from '@/features/organization-forms/akcTrialSecretaryReport';
+import { findMissingPdfRequiredFieldLabels } from '@/features/organization-forms/pdfFormCompleteness';
+import { getOrganizationFormTemplate } from '@/features/organization-forms/organizationFormTemplates';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -152,19 +155,32 @@ export default function ReportsPage() {
     printIframe(iframeRef);
   };
 
+  const officialPdfProps = useMemo(() => {
+    if (!show || trialId === 'all') return null;
+    return (
+      buildTrialReportProps({
+        show,
+        trials: trials as Parameters<typeof buildTrialReportProps>[0]['trials'],
+        classes: classes as Parameters<typeof buildTrialReportProps>[0]['classes'],
+        entries: entries as Parameters<typeof buildTrialReportProps>[0]['entries'],
+        trialId,
+        sortOrder,
+      })[0] ?? null
+    );
+  }, [show, trials, classes, entries, trialId, sortOrder]);
+
+  const officialPdfMissingFieldLabels = useMemo(() => {
+    if (reportType !== 'trial-secretary-report' || !officialPdfProps) return [];
+
+    const template = getOrganizationFormTemplate('akc-scent-work-trial-secretary-report');
+    return findMissingPdfRequiredFieldLabels(
+      template.requiredFields,
+      buildAKCTrialSecretaryReportValues(officialPdfProps)
+    );
+  }, [officialPdfProps, reportType]);
+
   const handleOfficialPdfDownload = useCallback(async () => {
-    if (!show || trialId === 'all') return;
-
-    const props = buildTrialReportProps({
-      show,
-      trials: trials as Parameters<typeof buildTrialReportProps>[0]['trials'],
-      classes: classes as Parameters<typeof buildTrialReportProps>[0]['classes'],
-      entries: entries as Parameters<typeof buildTrialReportProps>[0]['entries'],
-      trialId,
-      sortOrder,
-    })[0];
-
-    if (!props) {
+    if (!officialPdfProps) {
       toast.error('Select a trial before downloading the official PDF');
       return;
     }
@@ -173,8 +189,8 @@ export default function ReportsPage() {
     try {
       const { buildAKCTrialSecretaryReportFilename, buildAKCTrialSecretaryReportPdf } =
         await import('@/features/organization-forms/akcTrialSecretaryReportPdf');
-      const bytes = await buildAKCTrialSecretaryReportPdf(props);
-      downloadPdfBytes(bytes, buildAKCTrialSecretaryReportFilename(props));
+      const bytes = await buildAKCTrialSecretaryReportPdf(officialPdfProps);
+      downloadPdfBytes(bytes, buildAKCTrialSecretaryReportFilename(officialPdfProps));
       toast.success('Official PDF downloaded');
     } catch (error) {
       console.error('[reports] official PDF download failed', error);
@@ -182,7 +198,7 @@ export default function ReportsPage() {
     } finally {
       setIsDownloadingOfficialPdf(false);
     }
-  }, [show, trials, classes, entries, trialId, sortOrder]);
+  }, [officialPdfProps]);
 
   const officialPdfAction =
     reportType === 'trial-secretary-report'
@@ -190,6 +206,7 @@ export default function ReportsPage() {
           disabled: isLoading || isError || !show || trialId === 'all',
           isLoading: isDownloadingOfficialPdf,
           label: trialId === 'all' ? 'Select trial for official PDF' : 'Download official PDF',
+          missingFieldLabels: officialPdfMissingFieldLabels,
           onClick: handleOfficialPdfDownload,
         }
       : undefined;

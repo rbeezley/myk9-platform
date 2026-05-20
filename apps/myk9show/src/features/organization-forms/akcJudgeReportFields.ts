@@ -8,6 +8,8 @@ export const AKC_JUDGE_REPORT_FIELDS = {
   judgeEmail: 'JudgeEmail',
 } as const;
 
+// Required by the official PDF. Builders may leave human-entered fields blank;
+// pdfFormCompleteness surfaces those before download.
 export const AKC_JUDGE_REPORT_REQUIRED_FIELDS = [
   AKC_JUDGE_REPORT_FIELDS.location,
   AKC_JUDGE_REPORT_FIELDS.eventNumbers,

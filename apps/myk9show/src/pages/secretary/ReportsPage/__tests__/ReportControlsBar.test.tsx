@@ -79,6 +79,32 @@ describe('ReportControlsBar', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('shows missing official PDF fields without blocking download', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <ReportControlsBar
+        {...defaultProps}
+        reportType="trial-secretary-report"
+        trialId="trial-1"
+        officialPdfAction={{
+          disabled: false,
+          isLoading: false,
+          label: 'Download official PDF',
+          missingFieldLabels: ['Trial Secretary'],
+          onClick,
+        }}
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Official PDF needs a quick review');
+    expect(screen.getByText('Official PDF needs a quick review')).toBeInTheDocument();
+    expect(screen.getByText(/Trial Secretary/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /download official pdf/i }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the current report type name', () => {
     render(<ReportControlsBar {...defaultProps} />);
     // Base UI Select renders items into a portal; the trigger shows the raw value.

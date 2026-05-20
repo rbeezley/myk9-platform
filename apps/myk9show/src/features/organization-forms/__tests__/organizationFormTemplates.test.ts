@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  getOrganizationFormTemplateUrl,
   getOrganizationFormTemplate,
   ORGANIZATION_FORM_TEMPLATES,
 } from '../organizationFormTemplates';
@@ -33,5 +34,11 @@ describe('organization form templates', () => {
       label: 'AKC Scent Work Trial Secretary Report',
       sourcePath: 'docs/AKC-forms/SW-TSReport.pdf',
     });
+  });
+
+  it('resolves the AKC trial secretary report runtime URL from the registry id', () => {
+    expect(getOrganizationFormTemplateUrl('akc-scent-work-trial-secretary-report')).toContain(
+      'SW-TSReport.pdf'
+    );
   });
 });

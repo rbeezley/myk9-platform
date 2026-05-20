@@ -12,7 +12,7 @@ export interface OrganizationFormTemplate {
   id: OrganizationFormTemplateId;
   label: string;
   registry: OrganizationFormRegistry;
-  // Build-relative path; runtime loading will be wired through a Vite/public asset URL.
+  // Repo-relative path used by inventory tests and field audits.
   sourcePath: string;
   requiredFields: readonly string[];
 }
@@ -30,7 +30,14 @@ export const ORGANIZATION_FORM_TEMPLATES = [
     label: 'AKC Scent Work Judge Report',
     registry: 'AKC',
     sourcePath: 'docs/AKC-forms/SW-JudgeReport.pdf',
-    requiredFields: ['Location', 'EventNumbers', 'EventDates', 'ClubName', 'JudgeName', 'JudgeEmail'],
+    requiredFields: [
+      'Location',
+      'EventNumbers',
+      'EventDates',
+      'ClubName',
+      'JudgeName',
+      'JudgeEmail',
+    ],
   },
   {
     id: 'akc-scent-work-trial-chairman-report',
@@ -55,10 +62,23 @@ export const ORGANIZATION_FORM_TEMPLATES = [
   },
 ] as const satisfies readonly OrganizationFormTemplate[];
 
+const ORGANIZATION_FORM_TEMPLATE_URLS: Partial<Record<OrganizationFormTemplateId, string>> = {
+  'akc-scent-work-trial-secretary-report': new URL(
+    '../../../../../docs/AKC-forms/SW-TSReport.pdf',
+    import.meta.url
+  ).href,
+};
+
 export function getOrganizationFormTemplate(
   id: OrganizationFormTemplateId
 ): OrganizationFormTemplate {
   const template = ORGANIZATION_FORM_TEMPLATES.find(item => item.id === id);
   if (!template) throw new Error(`Unknown organization form template: ${id}`);
   return template;
+}
+
+export function getOrganizationFormTemplateUrl(id: OrganizationFormTemplateId): string {
+  const url = ORGANIZATION_FORM_TEMPLATE_URLS[id];
+  if (!url) throw new Error(`No runtime URL configured for organization form template: ${id}`);
+  return url;
 }

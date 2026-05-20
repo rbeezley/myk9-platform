@@ -1,5 +1,6 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -16,6 +17,8 @@ import { ReportControlsBar } from './ReportControlsBar';
 import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
+import { buildTrialReportProps } from './reportDataMapping';
+import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -41,6 +44,7 @@ export default function ReportsPage() {
   const [dogId, setDogId] = useState<string>('all');
   const report = getReportById(reportType);
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
+  const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
@@ -148,6 +152,48 @@ export default function ReportsPage() {
     printIframe(iframeRef);
   };
 
+  const handleOfficialPdfDownload = useCallback(async () => {
+    if (!show || trialId === 'all') return;
+
+    const props = buildTrialReportProps({
+      show,
+      trials: trials as Parameters<typeof buildTrialReportProps>[0]['trials'],
+      classes: classes as Parameters<typeof buildTrialReportProps>[0]['classes'],
+      entries: entries as Parameters<typeof buildTrialReportProps>[0]['entries'],
+      trialId,
+      sortOrder,
+    })[0];
+
+    if (!props) {
+      toast.error('Select a trial before downloading the official PDF');
+      return;
+    }
+
+    setIsDownloadingOfficialPdf(true);
+    try {
+      const { buildAKCTrialSecretaryReportFilename, buildAKCTrialSecretaryReportPdf } =
+        await import('@/features/organization-forms/akcTrialSecretaryReportPdf');
+      const bytes = await buildAKCTrialSecretaryReportPdf(props);
+      downloadPdfBytes(bytes, buildAKCTrialSecretaryReportFilename(props));
+      toast.success('Official PDF downloaded');
+    } catch (error) {
+      console.error('[reports] official PDF download failed', error);
+      toast.error('Could not download the official PDF');
+    } finally {
+      setIsDownloadingOfficialPdf(false);
+    }
+  }, [show, trials, classes, entries, trialId, sortOrder]);
+
+  const officialPdfAction =
+    reportType === 'trial-secretary-report'
+      ? {
+          disabled: isLoading || isError || !show || trialId === 'all',
+          isLoading: isDownloadingOfficialPdf,
+          label: trialId === 'all' ? 'Select trial for official PDF' : 'Download official PDF',
+          onClick: handleOfficialPdfDownload,
+        }
+      : undefined;
+
   return (
     <div className="container mx-auto py-6 flex flex-col">
       {/* Page header */}
@@ -192,21 +238,15 @@ export default function ReportsPage() {
         onDogChange={setDogId}
         onSortChange={setSortOrder}
         onPrint={handlePrint}
+        officialPdfAction={officialPdfAction}
       />
 
       {/* Preview */}
       <div className="mt-6 flex justify-center">
         {reportType === 'armband-labels' ? (
           <div className="w-full">
-            <ArmbandLabelsReport
-              showId={selectedShowId}
-              iframeRef={iframeRef}
-            />
-            <iframe
-              ref={iframeRef}
-              title="Label Print"
-              style={{ display: 'none' }}
-            />
+            <ArmbandLabelsReport showId={selectedShowId} iframeRef={iframeRef} />
+            <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
           </div>
         ) : (
           <ReportPreview

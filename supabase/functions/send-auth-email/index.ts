@@ -1,9 +1,13 @@
 // supabase/functions/send-auth-email/index.ts
-import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+//
+// Called by Supabase Auth as a Send Email Hook. The contract requires that
+// we always return 200 (even on internal failure) so the auth flow does not
+// break for users. Failures are logged and email_log captures the status.
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const resendApiKey = Deno.env.get('RESEND_API_KEY');
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+
+import { handle } from '../_shared/http/handler.ts';
+
 const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:5173';
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -96,9 +100,12 @@ function buildAuthEmailHtml(
   };
 }
 
-Deno.serve(async (req: Request) => {
+handle<AuthHookPayload>({ auth: 'none' }, async ({ body: payload, supabase }) => {
+  // Always-200 contract: never throw HttpError from here. Failures are logged
+  // and recorded in email_log so the auth flow is not blocked.
+  const resendApiKey = Deno.env.get('RESEND_API_KEY');
+
   try {
-    const payload: AuthHookPayload = await req.json();
     const { user, email_data } = payload;
 
     const firstName = user.user_metadata?.first_name || 'there';
@@ -110,8 +117,6 @@ Deno.serve(async (req: Request) => {
       callbackUrl
     );
 
-    // Log to email_log regardless of send outcome
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     let resendMessageId: string | undefined;
     let sendStatus = 'sent';
     let errorMessage: string | undefined;
@@ -166,16 +171,11 @@ Deno.serve(async (req: Request) => {
     if (logError) {
       console.error('Failed to write email_log:', logError);
     }
-
-    // Always return success so auth flow completes
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
   } catch (err) {
+    // Always swallow errors so the auth flow completes.
     console.error('send-auth-email error:', err);
-    // Return success even on error to not block auth flow
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
   }
+
+  // Always return success so auth flow completes
+  return { success: true };
 });

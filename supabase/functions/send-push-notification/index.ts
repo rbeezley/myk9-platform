@@ -1,87 +1,55 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import webpush from 'npm:web-push@3';
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
+
 const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@myk9show.com';
 
 webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-// CORS configuration — this is an internal function called only by other edge functions,
-// but restrict origins as defense-in-depth
-const ALLOWED_ORIGINS = [
-  'https://myk9show.com',
-  'https://www.myk9show.com',
-  'https://app.myk9show.com',
-  'https://myk9-platform-myk9show.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
-];
-
-function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin =
-    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+interface SendPushPayload {
+  user_id?: string;
+  payload?: unknown;
 }
 
-Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  try {
-    // Auth: accept either service role key (server-to-server)
-    // or user JWT (client sends push to themselves)
+// Dual-mode auth: accepts either service-role key (server-to-server, used by
+// push-trigger-* webhooks via supabase.functions.invoke) or user JWT (client
+// pushing to themselves). The envelope's built-in JWT validation can't
+// express this contract, so we use auth: 'none' and validate in-handler.
+handle<SendPushPayload>(
+  { auth: 'none', origins: MYK9SHOW_ORIGINS },
+  async ({ req, body, supabase }) => {
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
 
     if (!token) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(401, 'Unauthorized');
     }
 
-    const { user_id, payload } = await req.json();
+    const { user_id, payload } = body;
 
     if (!user_id || !payload) {
-      return new Response(JSON.stringify({ error: 'user_id and payload are required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(400, 'user_id and payload are required');
     }
 
     // If not service role key, verify as JWT and enforce self-send only
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     if (token !== supabaseServiceKey) {
-      const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey);
       const {
         data: { user },
         error: authError,
-      } = await supabaseAuth.auth.getUser(token);
+      } = await supabase.auth.getUser(token);
       if (authError || !user) {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        throw new HttpError(401, 'Invalid token');
       }
       if (user.id !== user_id) {
-        return new Response(JSON.stringify({ error: 'Cannot send push to other users' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        throw new HttpError(403, 'Cannot send push to other users');
       }
     }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
@@ -90,9 +58,7 @@ Deno.serve(async (req: Request) => {
 
     if (error) throw error;
     if (!subscriptions?.length) {
-      return new Response(JSON.stringify({ sent: 0, message: 'No subscriptions found' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return { sent: 0, message: 'No subscriptions found' };
     }
 
     let sent = 0;
@@ -127,13 +93,6 @@ Deno.serve(async (req: Request) => {
         .in('endpoint', expiredEndpoints);
     }
 
-    return new Response(JSON.stringify({ sent, errors: errors.length ? errors : undefined }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch {
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-});
+    return { sent, errors: errors.length ? errors : undefined };
+  },
+);

@@ -1,9 +1,10 @@
 // supabase/functions/send-registration-email/index.ts
-import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const resendApiKey = Deno.env.get('RESEND_API_KEY');
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
+
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 // Mirrors apps/myk9show/src/services/notifications/ccSecretary.ts — Deno cannot import from apps/.
@@ -15,21 +16,6 @@ function resolveSecretaryCc(
   if (!enabled) return [];
   if (!secretaryEmail) return [];
   return [secretaryEmail];
-}
-
-const ALLOWED_ORIGINS = [
-  'https://myk9-platform-myk9show.vercel.app',
-  'https://myk9show.com',
-  'http://localhost:5173',
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
 }
 
 function formatCurrency(cents: number): string {
@@ -144,55 +130,26 @@ function buildRegistrationEmailHtml(data: {
 </html>`;
 }
 
-Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
+interface SendRegistrationEmailPayload {
+  registrationId?: string;
+}
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  try {
-    // Verify the caller's JWT
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Create a user-scoped client to verify identity
-    const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const {
-      data: { user },
-    } = await userClient.auth.getUser();
-
+handle<SendRegistrationEmailPayload>(
+  { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
+  async ({ body, user, supabase }) => {
     if (!user) {
-      return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(401, 'Invalid authorization');
     }
 
-    const { registrationId } = await req.json();
-
+    const { registrationId } = body;
     if (!registrationId) {
-      return new Response(JSON.stringify({ error: 'registrationId is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(400, 'registrationId is required');
     }
 
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (!resendApiKey) {
-      return new Response(JSON.stringify({ error: 'Email service not configured' }), {
-        status: 503,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(503, 'Email service not configured');
     }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Fetch registration with related data (include auth_user_id for ownership check)
     const { data: registration, error: regError } = await supabase
@@ -204,10 +161,7 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (regError || !registration) {
-      return new Response(JSON.stringify({ error: 'Registration not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(404, 'Registration not found');
     }
 
     // Verify the caller owns this registration or is a secretary/admin for the show
@@ -251,10 +205,7 @@ Deno.serve(async (req: Request) => {
       }
     }
     if (!isOwner && !isSecretary && !isAdmin) {
-      return new Response(JSON.stringify({ error: 'Not authorized' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(403, 'Not authorized');
     }
 
     // Fetch entries for this registration
@@ -265,10 +216,7 @@ Deno.serve(async (req: Request) => {
 
     const recipientEmail = registration.person?.email;
     if (!recipientEmail) {
-      return new Response(JSON.stringify({ error: 'No email address for registrant' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new HttpError(400, 'No email address for registrant');
     }
 
     const secretaryCc = resolveSecretaryCc(
@@ -354,20 +302,9 @@ Deno.serve(async (req: Request) => {
       .select('id')
       .single();
 
-    return new Response(
-      JSON.stringify({
-        success: sendStatus === 'sent',
-        emailLogId: logRow?.id,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (err) {
-    console.error('send-registration-email error:', err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-});
+    return {
+      success: sendStatus === 'sent',
+      emailLogId: logRow?.id,
+    };
+  },
+);

@@ -1,72 +1,48 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 const NARRATIVE_TIMEOUT_MS = 8000;
 
-function jsonResponse(body: Record<string, unknown>, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-  });
+interface GeneratePremiumPayload {
+  show_id?: string;
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS });
-  }
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: CORS_HEADERS });
-  }
-
-  try {
-    // Step 1: Validate authorization header
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization header' }, 401);
+handle<GeneratePremiumPayload>(
+  { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
+  async ({ req, body, user }) => {
+    if (!user) {
+      throw new HttpError(401, 'Unauthorized');
     }
 
     // Step 2: Validate required env vars
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicKey) {
       console.error('Missing required env var: ANTHROPIC_API_KEY');
-      return jsonResponse({ error: 'Service configuration error' }, 500);
+      throw new HttpError(500, 'Service configuration error');
     }
 
     // Step 3: Create user-scoped client. All reads in this function go through
     // RLS, so authorization is enforced by the same policies as the rest of the
     // app — no separate role-name allowlist to drift from migrations 156/163.
+    // The envelope's `supabase` is service-role and bypasses RLS, so we build a
+    // user-scoped client here using the caller's Authorization header.
+    const authHeader = req.headers.get('authorization')!;
     const userClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Step 4: Authenticate user
-    const {
-      data: { user },
-      error: authError,
-    } = await userClient.auth.getUser();
-    if (authError || !user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
-    }
-
-    // Step 5: Parse request body
-    let body: { show_id?: string };
-    try {
-      body = await req.json();
-    } catch {
-      return jsonResponse({ error: 'Invalid JSON body' }, 400);
-    }
+    // Step 5: Validate request body
     const { show_id } = body;
     if (!show_id) {
-      return jsonResponse({ error: 'show_id is required' }, 400);
+      throw new HttpError(400, 'show_id is required');
     }
 
     // Step 6: Fetch show data with nested relations.
@@ -95,15 +71,7 @@ Deno.serve(async (req: Request) => {
 
     if (showError || !show) {
       console.error('Show fetch failed:', { show_id, showError });
-      return jsonResponse(
-        {
-          error: 'Show not found',
-          detail: showError?.message ?? null,
-          code: showError?.code ?? null,
-          hint: showError?.hint ?? null,
-        },
-        404
-      );
+      throw new HttpError(404, 'Show not found');
     }
 
     // Step 7: Reject unsupported organizations early. The premium_generations
@@ -111,11 +79,9 @@ Deno.serve(async (req: Request) => {
     // fail downstream when the client tries to log the generation.
     const showOrg = (show.organization as string | null) ?? null;
     if (showOrg !== 'AKC' && showOrg !== 'UKC') {
-      return jsonResponse(
-        {
-          error: `Premium generation is only supported for AKC and UKC shows (got: ${showOrg ?? 'null'})`,
-        },
-        400
+      throw new HttpError(
+        400,
+        `Premium generation is only supported for AKC and UKC shows (got: ${showOrg ?? 'null'})`
       );
     }
 
@@ -300,12 +266,9 @@ Deno.serve(async (req: Request) => {
       narratives,
     };
 
-    return jsonResponse(result as unknown as Record<string, unknown>, 200);
-  } catch (err) {
-    console.error('generate-premium unhandled error:', err);
-    return jsonResponse({ error: 'Internal server error' }, 500);
-  }
-});
+    return result;
+  },
+);
 
 // ---------------------------------------------------------------------------
 // Helpers

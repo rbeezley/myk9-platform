@@ -11,11 +11,12 @@
 // fires this fire-and-forget right after a successful insert when the
 // user picked "Club / secretary".
 
-import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
+
 const SITE_URL = Deno.env.get('SITE_URL') || 'https://myk9-platform-myk9show.vercel.app';
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -33,19 +34,6 @@ interface WaitlistRow {
   role: string;
   access_granted_at: string | null;
   access_invite_sent_at: string | null;
-}
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  });
 }
 
 function escapeHtml(s: string): string {
@@ -88,113 +76,100 @@ function buildInviteHtml(firstName: string, actionUrl: string): string {
 </body></html>`;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS });
-  }
-  if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405);
-  }
-  if (!RESEND_API_KEY) {
-    return json({ error: 'RESEND_API_KEY not configured' }, 500);
-  }
+handle<InvitePayload>(
+  { auth: 'none', origins: MYK9SHOW_ORIGINS },
+  async ({ body: payload, supabase }) => {
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      throw new HttpError(500, 'RESEND_API_KEY not configured');
+    }
 
-  let payload: InvitePayload;
-  try {
-    payload = await req.json();
-  } catch {
-    return json({ error: 'Invalid JSON body' }, 400);
-  }
+    const email = payload.email?.trim().toLowerCase();
+    if (!email) {
+      throw new HttpError(400, 'email is required');
+    }
 
-  const email = payload.email?.trim().toLowerCase();
-  if (!email) {
-    return json({ error: 'email is required' }, 400);
-  }
+    // Look up the waitlist row. The unique index is on lower(email), so the
+    // caller's lowercased email matches exactly.
+    const { data: rows, error: lookupErr } = await supabase
+      .from('platform_waitlist')
+      .select('id, email, name, role, access_granted_at, access_invite_sent_at')
+      .eq('email', email)
+      .limit(1);
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
-    auth: { persistSession: false },
-  });
+    if (lookupErr) {
+      console.error('waitlist lookup failed', lookupErr);
+      throw new HttpError(500, 'lookup failed');
+    }
 
-  // Look up the waitlist row. The unique index is on lower(email), so the
-  // caller's lowercased email matches exactly.
-  const { data: rows, error: lookupErr } = await supabase
-    .from('platform_waitlist')
-    .select('id, email, name, role, access_granted_at, access_invite_sent_at')
-    .eq('email', email)
-    .limit(1);
+    const row = rows?.[0] as WaitlistRow | undefined;
+    if (!row) {
+      // Don't leak whether an email is on the list. Return success so a
+      // typo or stale call from the form doesn't reveal anything.
+      return { ok: true, sent: false, reason: 'no_row' };
+    }
 
-  if (lookupErr) {
-    console.error('waitlist lookup failed', lookupErr);
-    return json({ error: 'lookup failed' }, 500);
-  }
+    if (row.role !== EARLY_ACCESS_ROLE) {
+      return { ok: true, sent: false, reason: 'role_not_eligible' };
+    }
 
-  const row = rows?.[0] as WaitlistRow | undefined;
-  if (!row) {
-    // Don't leak whether an email is on the list. Return success so a
-    // typo or stale call from the form doesn't reveal anything.
-    return json({ ok: true, sent: false, reason: 'no_row' });
-  }
+    if (row.access_invite_sent_at) {
+      // Idempotent: already sent. Nothing to do.
+      return { ok: true, sent: false, reason: 'already_sent' };
+    }
 
-  if (row.role !== EARLY_ACCESS_ROLE) {
-    return json({ ok: true, sent: false, reason: 'role_not_eligible' });
-  }
+    // Generate the magic link.
+    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: row.email,
+      options: { redirectTo: `${SITE_URL}${REDIRECT_PATH}` },
+    });
 
-  if (row.access_invite_sent_at) {
-    // Idempotent: already sent. Nothing to do.
-    return json({ ok: true, sent: false, reason: 'already_sent' });
-  }
+    if (linkErr || !linkData?.properties?.action_link) {
+      console.error('generateLink failed', linkErr);
+      throw new HttpError(500, 'failed to generate sign-in link');
+    }
 
-  // Generate the magic link.
-  const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
-    type: 'magiclink',
-    email: row.email,
-    options: { redirectTo: `${SITE_URL}${REDIRECT_PATH}` },
-  });
+    const firstName = (row.name ?? '').trim().split(/\s+/)[0] ?? '';
+    const html = buildInviteHtml(firstName, linkData.properties.action_link);
 
-  if (linkErr || !linkData?.properties?.action_link) {
-    console.error('generateLink failed', linkErr);
-    return json({ error: 'failed to generate sign-in link' }, 500);
-  }
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${resendApiKey}`,
+        'Idempotency-Key': `waitlist-invite-${row.id}`,
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: row.email,
+        subject: "You're in — myK9Show early access",
+        html,
+      }),
+    });
 
-  const firstName = (row.name ?? '').trim().split(/\s+/)[0] ?? '';
-  const html = buildInviteHtml(firstName, linkData.properties.action_link);
+    if (!resendRes.ok) {
+      const detail = await resendRes.text();
+      console.error('resend send failed', resendRes.status, detail);
+      throw new HttpError(502, 'email send failed');
+    }
 
-  const resendRes = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Idempotency-Key': `waitlist-invite-${row.id}`,
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: row.email,
-      subject: "You're in — myK9Show early access",
-      html,
-    }),
-  });
+    const now = new Date().toISOString();
+    const { error: updateErr } = await supabase
+      .from('platform_waitlist')
+      .update({
+        access_granted_at: row.access_granted_at ?? now,
+        access_invite_sent_at: now,
+      })
+      .eq('id', row.id);
 
-  if (!resendRes.ok) {
-    const detail = await resendRes.text();
-    console.error('resend send failed', resendRes.status, detail);
-    return json({ error: 'email send failed' }, 502);
-  }
+    if (updateErr) {
+      // The email already went out — log but don't fail. The cost of a
+      // duplicate send is bounded by the next caller hitting access_invite_sent_at
+      // (still null) and Resend's own idempotency key blocking the dupe.
+      console.error('failed to stamp access timestamps', updateErr);
+    }
 
-  const now = new Date().toISOString();
-  const { error: updateErr } = await supabase
-    .from('platform_waitlist')
-    .update({
-      access_granted_at: row.access_granted_at ?? now,
-      access_invite_sent_at: now,
-    })
-    .eq('id', row.id);
-
-  if (updateErr) {
-    // The email already went out — log but don't fail. The cost of a
-    // duplicate send is bounded by the next caller hitting access_invite_sent_at
-    // (still null) and Resend's own idempotency key blocking the dupe.
-    console.error('failed to stamp access timestamps', updateErr);
-  }
-
-  return json({ ok: true, sent: true });
-});
+    return { ok: true, sent: true };
+  },
+);

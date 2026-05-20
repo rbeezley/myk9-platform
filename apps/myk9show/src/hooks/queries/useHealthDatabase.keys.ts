@@ -1,5 +1,5 @@
 // Query key factories and cache strategies for health database hooks
-import type { HealthFilters } from '@/types/health';
+import type { HealthFilters, HealthOverviewOptions } from '@/types/health';
 
 // Query key factory
 export const healthQueryKeys = {
@@ -46,6 +46,12 @@ export const healthQueryKeys = {
   geneticScreening: (id: string) => [...healthQueryKeys.geneticScreenings(), id] as const,
   dogGeneticScreenings: (dogId: string) =>
     [...healthQueryKeys.geneticScreenings(), 'dog', dogId] as const,
+
+  // Per-dog umbrella key — shared prefix for the synthesized overview so
+  // sub-table mutations can invalidate every options-variant in one call.
+  dogHealth: (dogId: string) => [...healthQueryKeys.all, 'dog', dogId] as const,
+  dogHealthOverview: (dogId: string, options?: HealthOverviewOptions) =>
+    [...healthQueryKeys.dogHealth(dogId), 'overview', options] as const,
 
   // Analytics
   healthStatistics: (dogId: string) => [...healthQueryKeys.all, 'statistics', dogId] as const,

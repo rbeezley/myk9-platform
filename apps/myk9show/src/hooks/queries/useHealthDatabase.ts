@@ -18,6 +18,7 @@ import {
   getDogHealthStatistics,
   getDogHealthTimeline,
   searchDogHealth,
+  getDogHealthOverview,
 } from '@/services/database/health-records';
 
 import {
@@ -31,7 +32,7 @@ import {
   generateHealthAlerts,
 } from '@/services/mappers/healthMappers';
 
-import type { HealthFilters } from '@/types/health';
+import type { HealthFilters, HealthOverviewOptions } from '@/types/health';
 
 import { healthQueryKeys, healthCacheStrategies } from './useHealthDatabase.keys';
 
@@ -320,6 +321,27 @@ export const useHealthSearchQuery = (
       return data || [];
     },
     enabled: !!dogId && !!searchTerm && enabled,
+    ...healthCacheStrategies.moderate,
+  });
+};
+
+// ========================================
+// UMBRELLA HOOK — everything about this dog's health in one query
+// ========================================
+//
+// Prefer this over composing 4-6 sub-hooks for "health overview" UI
+// surfaces. Fans the sub-queries out in parallel inside React Query so
+// the page sees one loading/error state instead of N.
+
+export const useDogHealthOverview = (dogId: string, options?: HealthOverviewOptions) => {
+  return useQuery({
+    queryKey: healthQueryKeys.dogHealthOverview(dogId, options),
+    queryFn: async () => {
+      const { data, error } = await getDogHealthOverview(dogId, options);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!dogId,
     ...healthCacheStrategies.moderate,
   });
 };

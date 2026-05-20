@@ -10,6 +10,31 @@ One dog's registration into one class at one trial. An Entry has a status
 (pending, accepted, wait-listed, scratched, absent) and belongs to exactly
 one Show via its Trial and Class. The unit of ringside work.
 
+The canonical seam for every Entry `entry_status` change is
+`services/database/entries/lifecycle.ts`. Every status transition has a
+named function (`scratchEntry`, `scratchEntryDayOf`, `requestScratch`,
+`approveScratchRequest`, `denyScratchRequest`, `markEntryMoved`,
+`rollbackEntryMove`, `denyMoveUpRequest`, `restoreEntryStatus`,
+`acceptEntry`, `rejectEntry`, `waitlistEntry`) that:
+- Writes the status field + any side-effect fields the transition implies
+  (e.g., `check_in_status='pulled'` for day-of scratch).
+- Emits an `auditService.log` entry recording the from/to status and the
+  domain action.
+
+Direct `entry_status:` writes outside `lifecycle.ts` are a convention
+violation. Day-of-operations files (`day-of-operations/scratch.ts`,
+`move-up.ts`, `entries.ts`) retain their orchestration role
+(eligibility queries, capacity checks, secretary workflows) but compose
+lifecycle transitions rather than writing `entry_status` directly.
+INSERTs that create new entries (walk-in registration, waitlist
+promotion, the new row in a move-up's target class) are not transitions
+and stay where they are.
+
+Out of scope for this seam: the dual `EntryStatus` enum
+(`@/types/entry-lifecycle` vs `@/types/show-registration-types`) and
+refund accounting (`refund_status`, `refund_amount`,
+`updateRefundStatus`). Both stay as-is.
+
 **Class**
 A competitive division within a Trial (e.g. "Novice A Agility"). Defines
 the rules, judge assignment, run order, and entry limit. Classes belong to

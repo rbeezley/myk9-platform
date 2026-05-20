@@ -8,14 +8,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { reportRegistry, getReportById } from '@/lib/reports/reportRegistry';
 import type { ReportCategory, ReportDefinition } from '@/lib/reports/types';
-import { Download } from 'lucide-react';
+import { AlertTriangle, Download } from 'lucide-react';
 
 interface OfficialPdfAction {
   disabled: boolean;
   isLoading: boolean;
   label: string;
+  missingFieldLabels?: readonly string[] | undefined;
   onClick: () => void;
 }
 
@@ -214,6 +216,19 @@ export function ReportControlsBar({
           {officialPdfAction.isLoading ? 'Preparing PDF' : officialPdfAction.label}
         </Button>
       )}
+      {officialPdfAction?.missingFieldLabels?.length ? (
+        <Alert
+          role="status"
+          className="basis-full border-warning-orange/30 bg-warning-orange/10 [&>svg]:text-warning-orange"
+        >
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Official PDF needs a quick review</AlertTitle>
+          <AlertDescription>
+            Fill before submitting: {officialPdfAction.missingFieldLabels.join(', ')}. You can still
+            download the PDF and complete those fields there.
+          </AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }

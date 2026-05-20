@@ -20,6 +20,8 @@ export function buildAKCJudgeReportValues(props: ReportProps): PdfFormFillValues
 
   return {
     radioGroups: {
+      // INTENT: myK9Show currently creates AKC Scent Work trial paperwork only.
+      // Derive this from event metadata when Match/Test closeout forms are supported.
       [AKC_JUDGE_REPORT_FIELDS.eventType]: 'Trial',
     },
     text,

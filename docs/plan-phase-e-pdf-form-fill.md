@@ -46,7 +46,7 @@ Tests:
 
 ## PR 3 — AKC Judge + Trial Chairman Field Builders
 
-**Status:** Current slice.
+**Status:** Shipped in PR #255.
 
 Deliverables:
 
@@ -60,7 +60,23 @@ Tests:
 - Assert AKC Trial Chairman Report values map to exact field names and fill the real official PDF.
 - Keep the template inventory test backed by the new field constants.
 
+## PR 4 — Missing-Data Warnings Before Download
+
+**Status:** Current slice.
+
+Deliverables:
+
+- Compare each official form's `requiredFields` against the values the current builder can populate.
+- Surface missing official fields in the Reports toolbar before download while still allowing the secretary to download and complete the PDF manually.
+- Keep the warning helper generic so AKC Judge, AKC Trial Chairman, and UKC builders can reuse the same contract as their download buttons land.
+- Preserve the calm Trial Secretary closeout intent: warnings should say what still needs review, not block routine paperwork.
+
+Tests:
+
+- Assert missing-field detection for AKC Trial Secretary, AKC Judge, and AKC Trial Chairman builders.
+- Assert readable labels for official PDF field names.
+- Assert the Reports toolbar displays missing fields without disabling the official PDF action.
+
 ## Next PRs
 
 - Add UKC Nosework Trial Report field builder.
-- Surface missing-data warnings before download when a required official field cannot be populated.

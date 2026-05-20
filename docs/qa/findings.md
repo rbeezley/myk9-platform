@@ -83,6 +83,22 @@ None.
 
 ## Closed Findings
 
+### QA-NETWORK-ERROR-003
+
+- **Status:** fixed
+- **Severity:** high
+- **Role:** secretary
+- **Surface:** `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx` / `/secretary/shows/:showId`
+- **Suite category:** feature-audit
+- **Pattern:** network-error
+- **Detected by:** qa-feature
+- **Evidence:** Reproduced on 2026-05-20 with `cd apps/myk9show && pnpm test:e2e:clean src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0`. The Secretary Show Workbench rendered, but browser health captured `404 GET https://sojmvhhwsjxmfistvzbe.supabase.co/rest/v1/show_incidents?...` from the Incident Log/Incident Closeout queries. The migration file exists at `supabase/migrations/20260519163003_create_show_incidents.sql`, so the linked environment appears to be missing the table or REST exposure.
+- **User impact:** Secretaries see incident-related workbench cards backed by a failing request, so show-day incident logging/closeout cannot be trusted until the table is available in the environment.
+- **Intent check:** Harms the secretary target feeling of "That was easy" because a calm show-day page is quietly failing while loading incident data.
+- **Fix owner:** Supabase migration/deployment for show incidents.
+- **Proof required:** Passed on 2026-05-20 after applying pending migrations: `cd apps/myk9show && pnpm test:e2e:clean src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0` (`2 passed`).
+- **Notes:** Fixed by applying `supabase/migrations/20260519163003_create_show_incidents.sql` to the linked Supabase project after explicit user approval. `supabase/migrations/20260518120000_add_entry_payment_method.sql` was an unrelated pending prerequisite discovered by the dry run, so it was applied in the same approved DB push but was not the root cause of this finding.
+
 ### QA-ROLE-RLS-MISMATCH-002
 
 - **Status:** fixed

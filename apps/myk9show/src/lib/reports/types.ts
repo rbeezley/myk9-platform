@@ -20,6 +20,7 @@ export interface ReportEntry {
   entryFee?: number;
   paymentStatus?: 'accepted' | 'waitlisted' | 'withdrawn';
   paymentMethod?: string;
+  isDayOfShow?: boolean;
   // Class/trial context — populated for show-level and trial-level catalog reports
   classId?: string;
   classElement?: string;

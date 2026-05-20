@@ -7,3 +7,5 @@ export * from './akcTrialSecretaryReportFields';
 export * from './organizationFormTemplates';
 export * from './pdfFormCompleteness';
 export * from './pdfForm';
+export * from './ukcNoseworkTrialReport';
+export * from './ukcNoseworkTrialReportFields';

@@ -62,7 +62,7 @@ Tests:
 
 ## PR 4 — Missing-Data Warnings Before Download
 
-**Status:** Current slice.
+**Status:** Shipped in PR #257.
 
 Deliverables:
 
@@ -77,6 +77,22 @@ Tests:
 - Assert readable labels for official PDF field names.
 - Assert the Reports toolbar displays missing fields without disabling the official PDF action.
 
+## PR 5 — UKC Nosework Trial Report Field Builder
+
+**Status:** Current slice.
+
+Deliverables:
+
+- Add typed field constants for `NW-TrialReport.pdf`.
+- Add a value builder for safe known metadata and totals: event date, club name, UKC online count/subtotal, pre-entry count/subtotal, day-of-show count/subtotal, total entries, and grand total due.
+- Carry day-of-show entry metadata through report props so official closeout totals can split pre-entry vs day-of-show rows.
+
+Tests:
+
+- Assert UKC Nosework values map to exact official field names.
+- Fill the real UKC PDF in test and reload it to prove the official fields receive expected values.
+- Keep the template inventory test backed by the new field constants.
+
 ## Next PRs
 
-- Add UKC Nosework Trial Report field builder.
+- Wire download buttons for additional official PDFs as their builders are available.

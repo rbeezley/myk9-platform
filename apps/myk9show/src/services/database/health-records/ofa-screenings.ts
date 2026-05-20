@@ -2,140 +2,40 @@
 // OFA SCREENINGS
 // ========================================
 
-import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { supabase } from '../supabaseClient';
+import { wrapQuery, wrapMutation } from '../_shared/wrap-query';
 import type { Database } from '@/types/supabase';
 
+type DbOFAScreeningRow = Database['public']['Tables']['ofa_screenings']['Row'];
 export type DbOFAScreeningInsert = Database['public']['Tables']['ofa_screenings']['Insert'];
 export type DbOFAScreeningUpdate = Database['public']['Tables']['ofa_screenings']['Update'];
 
-export const getAllOFAScreenings = async (dogId?: string) => {
-  const startTime = Date.now();
-
-  try {
+export const getAllOFAScreenings = (dogId?: string) =>
+  wrapQuery('ofa_screening', 'select_all', [] as DbOFAScreeningRow[], () => {
     let query = supabase
       .from('ofa_screenings')
       .select('*')
       .order('test_date', { ascending: false });
+    if (dogId) query = query.eq('dog_id', dogId);
+    return query;
+  });
 
-    if (dogId) {
-      query = query.eq('dog_id', dogId);
-    }
+export const getOFAScreeningById = (id: string) =>
+  wrapQuery('ofa_screening', 'select_by_id', null as DbOFAScreeningRow | null, () =>
+    supabase.from('ofa_screenings').select('*').eq('id', id).single()
+  );
 
-    const { data, error } = await query;
+export const createOFAScreening = (screening: DbOFAScreeningInsert) =>
+  wrapQuery('ofa_screening', 'insert', null as DbOFAScreeningRow | null, () =>
+    supabase.from('ofa_screenings').insert(screening).select().single()
+  );
 
-    const duration = Date.now() - startTime;
-    logQuery('ofa_screening', 'select_all', duration, error?.message);
+export const updateOFAScreening = (id: string, updates: DbOFAScreeningUpdate) =>
+  wrapQuery('ofa_screening', 'update', null as DbOFAScreeningRow | null, () =>
+    supabase.from('ofa_screenings').update(updates).eq('id', id).select().single()
+  );
 
-    if (error) {
-      throw createDatabaseError(error, 'ofa_screening', 'select_all');
-    }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'ofa_screening', 'select_all');
-    logQuery('ofa_screening', 'select_all', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
-export const getOFAScreeningById = async (id: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('ofa_screenings')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('ofa_screening', 'select_by_id', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'ofa_screening', 'select_by_id');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'ofa_screening', 'select_by_id');
-    logQuery('ofa_screening', 'select_by_id', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-export const createOFAScreening = async (screening: DbOFAScreeningInsert) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('ofa_screenings')
-      .insert(screening)
-      .select()
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('ofa_screening', 'insert', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'ofa_screening', 'insert');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'ofa_screening', 'insert');
-    logQuery('ofa_screening', 'insert', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-export const updateOFAScreening = async (id: string, updates: DbOFAScreeningUpdate) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('ofa_screenings')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('ofa_screening', 'update', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'ofa_screening', 'update');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'ofa_screening', 'update');
-    logQuery('ofa_screening', 'update', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-export const deleteOFAScreening = async (id: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { error } = await supabase.from('ofa_screenings').delete().eq('id', id);
-
-    const duration = Date.now() - startTime;
-    logQuery('ofa_screening', 'delete', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'ofa_screening', 'delete');
-    }
-
-    return { error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'ofa_screening', 'delete');
-    logQuery('ofa_screening', 'delete', duration, dbError.message);
-    return { error: dbError };
-  }
-};
+export const deleteOFAScreening = (id: string) =>
+  wrapMutation('ofa_screening', 'delete', () =>
+    supabase.from('ofa_screenings').delete().eq('id', id)
+  );

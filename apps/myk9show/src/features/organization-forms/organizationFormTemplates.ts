@@ -1,6 +1,7 @@
 import { AKC_JUDGE_REPORT_REQUIRED_FIELDS } from './akcJudgeReportFields';
 import { AKC_TRIAL_SECRETARY_REPORT_REQUIRED_FIELDS } from './akcTrialSecretaryReportFields';
 import { AKC_TRIAL_CHAIRMAN_REPORT_REQUIRED_FIELDS } from './akcTrialChairmanReportFields';
+import { UKC_NOSEWORK_TRIAL_REPORT_REQUIRED_FIELDS } from './ukcNoseworkTrialReportFields';
 
 export type OrganizationFormRegistry = 'AKC' | 'UKC';
 
@@ -46,14 +47,7 @@ export const ORGANIZATION_FORM_TEMPLATES = [
     label: 'UKC Nosework Trial Report',
     registry: 'UKC',
     sourcePath: 'docs/UKC-forms/NW-TrialReport.pdf',
-    requiredFields: [
-      'EVENT DATE',
-      'Club Name do not abbreviate',
-      'Number of PreEntries',
-      'Number of DayOfShow Entries',
-      'Total Entries',
-      'Grand Total due to UKC',
-    ],
+    requiredFields: UKC_NOSEWORK_TRIAL_REPORT_REQUIRED_FIELDS,
   },
 ] as const satisfies readonly OrganizationFormTemplate[];
 

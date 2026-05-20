@@ -41,6 +41,7 @@ function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): Repor
       ? { paymentStatus: e.payment_status as NonNullable<ReportEntry['paymentStatus']> }
       : {}),
     ...(e.payment_method ? { paymentMethod: e.payment_method } : {}),
+    ...(e.is_day_of_show != null ? { isDayOfShow: Boolean(e.is_day_of_show) } : {}),
     ...(trial
       ? {
           trialId: trial.id,

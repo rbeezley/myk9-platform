@@ -8,7 +8,12 @@
 // Idempotent: tracks per-entry send state in entries.confirmation_email_* columns.
 // The pg_cron job (migration 193) calls this at 09:00 UTC each day.
 
-import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+
+import { handle } from '../_shared/http/handler.ts';
+import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { HttpError } from '../_shared/http/responses.ts';
+
 import { resolveEmailStyle, selectEmailBuilderKey } from './email-style-registry.ts';
 import { buildHeadlineHtml } from './headline-email.ts';
 import { buildMonogramHtml } from './monogram-email.ts';
@@ -25,15 +30,7 @@ import {
 } from './dispatch-helpers.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
-// Shared secret for caller auth. Set HERITAGE_CONFIRMATION_SECRET in Supabase
-// dashboard → Edge Functions → send-confirmation-email → Secrets. The pg_cron
-// SQL (migration 193) must pass this value in the x-function-secret header.
-// Without this env var the check is skipped (facilitates local dev / first deploy).
-const FUNCTION_SECRET = Deno.env.get('HERITAGE_CONFIRMATION_SECRET');
 
 // ─── Palette (must match packages/email/src/templates/HeritageConfirmationEmail.tsx) ──
 
@@ -320,59 +317,41 @@ function formatDateRange(start: string, end: string): string {
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
-const ALLOWED_ORIGINS = [
-  'https://myk9-platform-myk9show.vercel.app',
-  'https://myk9show.com',
-  'http://localhost:5173',
-];
-
-function corsHeaders(req: Request) {
-  const origin = req.headers.get('origin') ?? '';
-  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+interface ConfirmationEmailPayload {
+  trial_id?: string;
 }
 
-Deno.serve(async (req: Request) => {
-  const cors = corsHeaders(req);
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-
-  // Caller auth: when HERITAGE_CONFIRMATION_SECRET is configured, every
-  // non-OPTIONS request must carry it in x-function-secret. The pg_cron
-  // SQL in migration 193 must be updated to pass this header.
-  if (FUNCTION_SECRET) {
-    const provided = req.headers.get('x-function-secret');
-    if (provided !== FUNCTION_SECRET) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...cors, 'Content-Type': 'application/json' },
-      });
+// auth: 'none' because the caller is pg_cron / pg_net (migration 193), which
+// passes the service-role key in `Authorization: Bearer <key>` — that is not a
+// user JWT, so the envelope's JWT check would fail. Caller validation is the
+// optional HERITAGE_CONFIRMATION_SECRET header below.
+handle<ConfirmationEmailPayload>(
+  { auth: 'none', origins: MYK9SHOW_ORIGINS },
+  async ({ req, body, supabase }) => {
+    // Caller auth: when HERITAGE_CONFIRMATION_SECRET is configured, every
+    // non-OPTIONS request must carry it in x-function-secret. The pg_cron
+    // SQL in migration 193 must be updated to pass this header.
+    const FUNCTION_SECRET = Deno.env.get('HERITAGE_CONFIRMATION_SECRET');
+    if (FUNCTION_SECRET) {
+      const provided = req.headers.get('x-function-secret');
+      if (provided !== FUNCTION_SECRET) {
+        throw new HttpError(401, 'Unauthorized');
+      }
     }
-  }
 
-  if (!RESEND_API_KEY) {
-    return new Response(JSON.stringify({ error: 'Email service not configured' }), {
-      status: 503,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    });
-  }
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    if (!RESEND_API_KEY) {
+      throw new HttpError(503, 'Email service not configured');
+    }
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
-
-  try {
     // Determine which trials to process.
     // Body is optional — called with { trial_id } for a single trial,
-    // or with no body (pg_cron batch mode) to process all trials whose
+    // or with `{}` (pg_cron batch mode) to process all trials whose
     // confirmation_date = today.
     let trialIds: string[] = [];
 
-    if (req.method === 'POST' && req.headers.get('content-length') !== '0') {
-      const body = (await req.json().catch(() => ({}))) as { trial_id?: string };
-      if (body.trial_id) {
-        trialIds = [body.trial_id];
-      }
+    if (body?.trial_id) {
+      trialIds = [body.trial_id];
     }
 
     if (trialIds.length === 0) {
@@ -387,12 +366,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (trialIds.length === 0) {
-      return new Response(
-        JSON.stringify({ sent: 0, skipped: 0, failed: 0, message: 'No trials due today' }),
-        {
-          headers: { ...cors, 'Content-Type': 'application/json' },
-        }
-      );
+      return { sent: 0, skipped: 0, failed: 0, message: 'No trials due today' };
     }
 
     let sent = 0,
@@ -653,14 +627,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ sent, skipped, failed }), {
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    });
-  } catch (err) {
-    console.error('send-confirmation-email error:', err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    });
-  }
-});
+    return { sent, skipped, failed };
+  },
+);

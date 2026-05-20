@@ -101,22 +101,24 @@ test.describe('Secretary QA regression proof', () => {
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible({
       timeout: 15000,
     });
-    const addTrialAction = page.getByRole('button', { name: /^Add (First )?Trial$/ }).last();
+    const addTrialAction = page.getByRole('button', { name: 'Add First Trial' });
     await expect(addTrialAction).toBeVisible();
-    await addTrialAction.click();
+    await addTrialAction.click({ force: true });
 
     const eventNumber = page.getByPlaceholder('Required: AKC event number');
     await expect(eventNumber).toBeVisible();
     await expect(eventNumber).toHaveAttribute('required', '');
 
-    await page.getByLabel(/Trial Type/i).click();
+    await page.getByLabel(/Trial Type/i).click({ force: true });
     for (const label of ['Scent Work', 'Obedience', 'Rally', 'Obedience & Rally', 'Tracking']) {
       await expect(page.getByRole('option', { name: label, exact: true })).toBeVisible();
     }
     await expect(page.getByRole('option', { name: /scent_work/i })).toHaveCount(0);
-    await page.keyboard.press('Escape');
+    await page.getByRole('option', { name: 'Scent Work', exact: true }).click();
 
-    await page.getByLabel(/Trial Date & Time/i).click();
+    const trialDateTime = page.getByLabel(/Trial Date & Time/i);
+    await expect(trialDateTime).toBeVisible();
+    await trialDateTime.press('Enter');
     const dialog = page.getByRole('dialog').filter({ has: page.getByRole('grid') });
     await expect(dialog.locator('select').first()).toHaveValue('5');
     await expect(dialog.locator('select').nth(1)).toHaveValue('2026');

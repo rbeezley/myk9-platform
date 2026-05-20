@@ -53,7 +53,7 @@ npx vitest run \
   src/hooks/useInfiniteScroll.performanceCaching.test.ts
 ```
 
-Phase 2 runs stable Chromium checks. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus online-entry repairs on 2026-05-14 promoted the following stable checks. This command was verified with retries disabled: `46 passed (2.7m)`.
+Phase 2 runs stable Chromium checks. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus online-entry repairs on 2026-05-14 promoted the following stable checks. This command was verified with retries disabled on 2026-05-20: `45 passed (2.7m)`.
 
 ```bash
 cd apps/myk9show

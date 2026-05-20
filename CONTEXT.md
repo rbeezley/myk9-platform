@@ -229,10 +229,11 @@ Webhook functions (push-trigger-*, resend-webhook) pass `auth: 'none'`
 and omit `origins` (server-to-server, no CORS).
 
 Pilot migration (PR #259): send-notification, admin-delete-user, ask-myk9q,
-push-trigger-scoring. `resend-webhook` does not fit the envelope (uses
-GET/HEAD endpoint validation, raw-text HMAC verification, and plain-text
-responses) and remains hand-rolled. Remaining 15 functions migrate in
-a follow-up PR.
+push-trigger-scoring. Batch 2 (PR #261) migrated the rest with two
+exceptions: `resend-webhook` (GET/HEAD endpoint validation, raw-text
+HMAC verification, plain-text responses) and `ask-myk9show` (returns
+a streaming SSE response — the envelope JSON-wraps return values, so a
+streaming Response cannot escape). Both remain hand-rolled.
 
 Following the `_shared/` no-barrel convention above, callers import
 directly from `handler.ts`, `cors.ts`, and `responses.ts` — there is no

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import userEvent from '@testing-library/user-event';
 import { ReportControlsBar } from '../ReportControlsBar';
 import { reportRegistry } from '@/lib/reports/reportRegistry';
 
@@ -20,9 +21,11 @@ const defaultProps = {
   sortOrder: 'run-order',
   trials: mockTrials,
   classes: mockClasses,
+  dogs: [],
   onReportTypeChange: vi.fn(),
   onTrialChange: vi.fn(),
   onClassChange: vi.fn(),
+  onDogChange: vi.fn(),
   onSortChange: vi.fn(),
   onPrint: vi.fn(),
 };
@@ -31,6 +34,49 @@ describe('ReportControlsBar', () => {
   it('renders Print button', () => {
     render(<ReportControlsBar {...defaultProps} />);
     expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument();
+  });
+
+  it('does not render the official PDF action for regular reports', () => {
+    render(<ReportControlsBar {...defaultProps} />);
+    expect(screen.queryByRole('button', { name: /official pdf/i })).not.toBeInTheDocument();
+  });
+
+  it('disables the official PDF action until one trial is selected', () => {
+    render(
+      <ReportControlsBar
+        {...defaultProps}
+        reportType="trial-secretary-report"
+        officialPdfAction={{
+          disabled: true,
+          isLoading: false,
+          label: 'Select trial for official PDF',
+          onClick: vi.fn(),
+        }}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /select trial for official pdf/i })).toBeDisabled();
+  });
+
+  it('runs the official PDF action when enabled', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <ReportControlsBar
+        {...defaultProps}
+        reportType="trial-secretary-report"
+        trialId="trial-1"
+        officialPdfAction={{
+          disabled: false,
+          isLoading: false,
+          label: 'Download official PDF',
+          onClick,
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /download official pdf/i }));
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 
   it('shows the current report type name', () => {

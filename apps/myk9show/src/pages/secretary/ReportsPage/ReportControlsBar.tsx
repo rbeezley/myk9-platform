@@ -10,6 +10,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { reportRegistry, getReportById } from '@/lib/reports/reportRegistry';
 import type { ReportCategory, ReportDefinition } from '@/lib/reports/types';
+import { Download } from 'lucide-react';
+
+interface OfficialPdfAction {
+  disabled: boolean;
+  isLoading: boolean;
+  label: string;
+  onClick: () => void;
+}
 
 interface ReportControlsBarProps {
   reportType: string;
@@ -37,6 +45,7 @@ interface ReportControlsBarProps {
   onDogChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onPrint: () => void;
+  officialPdfAction?: OfficialPdfAction | undefined;
 }
 
 // Order chosen so the most-used categories stay at the top of the dropdown.
@@ -72,6 +81,7 @@ export function ReportControlsBar({
   onDogChange,
   onSortChange,
   onPrint,
+  officialPdfAction,
 }: ReportControlsBarProps) {
   const selectedReport = getReportById(reportType);
 
@@ -192,6 +202,18 @@ export function ReportControlsBar({
       <Button onClick={onPrint} className="mb-0">
         Print
       </Button>
+      {officialPdfAction && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={officialPdfAction.onClick}
+          disabled={officialPdfAction.disabled || officialPdfAction.isLoading}
+          className="mb-0"
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
+          {officialPdfAction.isLoading ? 'Preparing PDF' : officialPdfAction.label}
+        </Button>
+      )}
     </div>
   );
 }

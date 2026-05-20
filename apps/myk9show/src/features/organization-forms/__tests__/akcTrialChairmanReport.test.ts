@@ -82,6 +82,25 @@ describe('buildAKCTrialChairmanReportValues', () => {
     });
   });
 
+  it('uses class-level judge assignments before the trial-level fallback', () => {
+    const values = buildAKCTrialChairmanReportValues({
+      ...reportProps,
+      trial: {
+        ...reportProps.trial,
+        judgeName: 'Trial-Level Judge',
+      },
+    });
+
+    expect(values.text).toMatchObject({
+      [AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.judge1]: 'Pat Judge',
+      [AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.judge2]: 'Avery Judge',
+    });
+    expect(values.text).not.toHaveProperty(
+      AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.judge3,
+      'Trial-Level Judge'
+    );
+  });
+
   it('fills the official AKC trial chairman PDF with mapped values', async () => {
     const templateBytes = new Uint8Array(
       await readFile(resolve(repoRoot, 'docs/AKC-forms/SW-TCReport.pdf'))

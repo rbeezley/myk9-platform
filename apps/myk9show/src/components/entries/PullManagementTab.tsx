@@ -133,11 +133,9 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     setIsProcessing(true);
 
     try {
-      const { error } = await approvePullRequest(
-        selectedRequest.id,
-        processRefund,
-        processRefund ? refundAmount : undefined
-      );
+      // Refund processing is handled separately via the payment service —
+      // approveScratchRequest only writes the status transition.
+      const { error } = await approvePullRequest(selectedRequest.id);
 
       if (error) {
         toast.error('Failed to approve pull request');

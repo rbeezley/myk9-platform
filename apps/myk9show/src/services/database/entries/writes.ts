@@ -8,6 +8,7 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappings';
 import type { EntryStatus } from '@/types/entry-lifecycle';
+import { rejectEntry, setEntryLifecycleStatus } from './lifecycle';
 
 // Create new entry
 export const createEntry = async (entryData: DbEntryInsert) => {
@@ -157,32 +158,28 @@ export const deleteEntry = async (id: string, deletedBy?: string) => {
   }
 };
 
-// Update entry status
+// Update entry status — routes through the lifecycle seam so the status
+// change is audit-logged and the standard side-effect fields (e.g.
+// check_in_status='pulled' for scratch) are applied. Re-exported from
+// entries/index.ts as `updateEntryStatusWithAudit`.
 export const updateEntryStatus = async (params: {
   id: string;
   status: EntryStatus;
   userId: string;
   reason?: string;
 }) => {
-  const { id, status, userId } = params;
+  const { id, status, userId, reason } = params;
   const startTime = Date.now();
 
   try {
-    // Update entry status
-    // Note: status change reason is logged via userId/audit, not written to special_requests
-    // which holds exhibitor-provided data that should not be overwritten
-    const { data: entryData, error: entryError } = await supabase
-      .from('entries')
-      .update({
-        entry_status: status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error } = await setEntryLifecycleStatus({
+      entryId: id,
+      status,
+      reason,
+    });
 
-    if (entryError) {
-      throw createDatabaseError(entryError, 'entries', 'update_status');
+    if (error) {
+      throw createDatabaseError(error, 'entries', 'update_status');
     }
 
     const duration = Date.now() - startTime;
@@ -191,7 +188,7 @@ export const updateEntryStatus = async (params: {
     // Log for debugging (userId is for audit purposes)
     logger.debug(`Entry ${id} status updated to ${status} by user ${userId}`, 'database', {});
 
-    return { data: entryData, error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'update_status');
@@ -320,12 +317,11 @@ export const updateEntryHandler = async (params: { entryId: string; handler: str
   }
 };
 
-// Withdraw (scratch) an entry
+// Withdraw an entry — routes through the lifecycle seam so the transition is
+// audit-logged. The lifecycle `rejectEntry` transition writes
+// `entry_status='withdrawn'` (preserving prior behavior of this function).
 export const withdrawEntry = async (entryId: string) => {
-  return updateEntryDetails({
-    entryId,
-    updates: { entry_status: 'withdrawn' },
-  });
+  return rejectEntry(entryId);
 };
 
 // Comp an entry (mark as comped with reason, set payment_status to waived)

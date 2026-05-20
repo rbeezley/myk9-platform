@@ -1,5 +1,6 @@
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
 import { processMoveUp } from '@/services/database/day-of-operations';
+import { restoreEntryStatus, scratchEntryDayOf } from '@/services/database/entries/lifecycle';
 
 export interface ShowMapMoveUpInput {
   entryId: string;
@@ -50,15 +51,14 @@ export async function scratchShowMapEntry(
   entryId: string,
   reason: string | undefined
 ): Promise<void> {
-  const { error } = await supabase
-    .from('entries')
-    .update({
-      entry_status: 'scratched',
-      check_in_status: 'pulled',
-      withdrawal_reason: reason?.trim() || 'Marked no-show from Show Map',
-      updated_at: new Date().toISOString(),
-    } as Record<string, unknown>)
-    .eq('id', entryId);
+  // Route through the lifecycle seam so the pull is audit-logged and the
+  // side-effect fields (check_in_status='pulled', withdrawal_reason,
+  // special_requests) are written consistently with other day-of pulls.
+  const trimmed = reason?.trim();
+  const { error } = await scratchEntryDayOf(
+    entryId,
+    trimmed || 'Marked no-show from Show Map'
+  );
 
   if (error) {
     throw createDatabaseError(error, 'entries', 'show_map_scratch_entry');
@@ -229,15 +229,12 @@ export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<
     throw createDatabaseError(removeError, 'entries', 'show_map_undo_move_up_remove');
   }
 
-  const { error: restoreError } = await supabase
-    .from('entries')
-    .update({
-      entry_status: input.previousEntryStatus,
-      check_in_status: input.previousCheckInStatus,
-      special_requests: input.previousSpecialRequests,
-      updated_at: now,
-    } as Record<string, unknown>)
-    .eq('id', input.originalEntryId);
+  const { error: restoreError } = await restoreEntryStatus({
+    entryId: input.originalEntryId,
+    previousEntryStatus: input.previousEntryStatus,
+    previousCheckInStatus: input.previousCheckInStatus,
+    previousSpecialRequests: input.previousSpecialRequests,
+  });
 
   if (restoreError) {
     throw createDatabaseError(restoreError, 'entries', 'show_map_undo_move_up_restore');

@@ -2,12 +2,23 @@
  * Move-Up Queries
  *
  * Database queries for move-up operations during day-of-show:
- * - Processing move-ups (moving entry to a higher class)
+ * - Orchestrating move-ups (capacity check, mark original moved, insert new entry)
  * - Finding eligible entries for move-up
  * - Managing pending move-up requests (approve/deny)
+ *
+ * Status transitions (`entry_status='moved'`, rollback to 'confirmed', deny
+ * to 'confirmed') route through `entries/lifecycle.ts`. This module retains
+ * the orchestration role: capacity check, target-class lookup, new-entry
+ * insert. Entry creation (the new row in the target class) stays here
+ * because creation is not an `entry_status` transition.
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import {
+  markEntryMoved,
+  rollbackEntryMove,
+  denyMoveUpRequest as denyMoveUpRequestTransition,
+} from '../entries/lifecycle';
 
 /**
  * Process a move-up request (move entry from one class to a higher class)
@@ -66,21 +77,19 @@ export const processMoveUp = async (entryId: string, toClassId: string, reason?:
       return { data: null, error: { message: 'Target class is full' } };
     }
 
-    // Mark original entry as 'moved'
-    const { error: updateError } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'moved',
-        special_requests: `Moved up to ${targetClass.name}${reason ? ': ' + reason : ''}`,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId);
+    // Mark original entry as 'moved' via the lifecycle seam (audit-logged).
+    const { error: updateError } = await markEntryMoved({
+      entryId,
+      targetClassName: targetClass.name,
+      reason,
+    });
 
     if (updateError) {
       throw createDatabaseError(updateError, 'entries', 'process_move_up_update');
     }
 
-    // Create new entry in target class
+    // Create new entry in target class. INSERT is creation, not a transition,
+    // so it stays on the direct Supabase write.
     const { data: newEntry, error: createError } = await supabase
       .from('entries')
       .insert({
@@ -119,15 +128,8 @@ export const processMoveUp = async (entryId: string, toClassId: string, reason?:
       .single();
 
     if (createError) {
-      // Rollback the status change if new entry fails
-      await supabase
-        .from('entries')
-        .update({
-          entry_status: 'confirmed',
-          special_requests: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', entryId);
+      // Rollback the original entry's status change via the lifecycle seam.
+      await rollbackEntryMove(entryId);
       throw createDatabaseError(createError, 'entries', 'process_move_up_create');
     }
 
@@ -253,61 +255,15 @@ export const getPendingMoveUpRequests = async (showId: string) => {
 };
 
 /**
- * Approve a move-up request
+ * Approve a move-up request — orchestrates the move via `processMoveUp`.
  */
 export const approveMoveUpRequest = async (entryId: string, toClassId: string, reason?: string) => {
-  // Use the existing processMoveUp function
   return processMoveUp(entryId, toClassId, reason);
 };
 
 /**
- * Deny a move-up request
+ * Deny a move-up request — re-exported from the lifecycle seam. Restores
+ * `entry_status='confirmed'` (guarded by `entry_status='move-up-requested'`)
+ * and records the denial reason in `special_requests`.
  */
-export const denyMoveUpRequest = async (entryId: string, reason?: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'confirmed',
-        special_requests: reason ? `Move-up denied: ${reason}` : 'Move-up request denied',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .eq('entry_status', 'move-up-requested')
-      .select(
-        `
-        id,
-        entry_status,
-        handler,
-        armband,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'deny_move_up_request', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'deny_move_up_request');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'deny_move_up_request');
-    logQuery('entries', 'deny_move_up_request', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
+export const denyMoveUpRequest = denyMoveUpRequestTransition;

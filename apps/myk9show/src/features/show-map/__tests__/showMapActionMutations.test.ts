@@ -15,6 +15,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
+  logQuery: vi.fn(),
   createDatabaseError: (err: unknown) => {
     if (err instanceof Error) return err;
     if (err && typeof err === 'object' && 'message' in err) {
@@ -32,6 +33,25 @@ function makeUpdateChain(result: { error: Error | null } = { error: null }) {
   const chain = {
     update: vi.fn().mockReturnThis(),
     eq: vi.fn().mockResolvedValue(result),
+  };
+  return chain;
+}
+
+/**
+ * Chain that mirrors `update(...).eq('id', ...).select(...).single()` — used
+ * by lifecycle transitions that return the updated row.
+ */
+function makeUpdateSelectSingleChain(
+  result: { data: Record<string, unknown> | null; error: Error | null } = {
+    data: { id: 'entry-1' },
+    error: null,
+  }
+) {
+  const chain = {
+    update: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue(result),
   };
   return chain;
 }
@@ -78,7 +98,7 @@ describe('showMapActionMutations', () => {
   });
 
   it('marks a scratch / no-show as pulled for ringside propagation', async () => {
-    const chain = makeUpdateChain();
+    const chain = makeUpdateSelectSingleChain();
     mockFrom.mockReturnValue(chain);
 
     await scratchShowMapEntry('entry-1', 'Dog absent');
@@ -89,6 +109,9 @@ describe('showMapActionMutations', () => {
         entry_status: 'scratched',
         check_in_status: 'pulled',
         withdrawal_reason: 'Dog absent',
+        // Routed through scratchEntryDayOf, which also writes special_requests
+        // so the pull reason is visible ringside.
+        special_requests: 'Dog absent',
         updated_at: expect.any(String),
       })
     );
@@ -96,7 +119,7 @@ describe('showMapActionMutations', () => {
   });
 
   it('uses a plain default reason when scratch / no-show has no typed reason', async () => {
-    const chain = makeUpdateChain();
+    const chain = makeUpdateSelectSingleChain();
     mockFrom.mockReturnValue(chain);
 
     await scratchShowMapEntry('entry-1', '  ');

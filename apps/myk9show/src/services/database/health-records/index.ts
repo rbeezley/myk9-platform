@@ -58,8 +58,15 @@ export {
 
 export type { DbVetVisitInsert, DbVetVisitUpdate } from './vet-visits';
 
-// Health Statistics, Timeline & Search (cross-cuts the sub-tables)
-export { getHealthStatistics, getHealthTimeline, searchHealthRecords } from './statistics';
+// Health umbrella — statistics, timeline, search & overview synthesizer.
+// Cross-cuts the sub-tables; this is the canonical "everything about this
+// dog's health" surface (see CONTEXT.md, Health Record entry).
+export {
+  getDogHealthStatistics,
+  getDogHealthTimeline,
+  searchDogHealth,
+  getDogHealthOverview,
+} from './umbrella';
 
 // OFA Screenings
 export {

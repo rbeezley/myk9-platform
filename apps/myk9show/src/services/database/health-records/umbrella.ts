@@ -1,20 +1,40 @@
 // ========================================
-// HEALTH STATISTICS, TIMELINE & SEARCH
+// HEALTH UMBRELLA — synthesizing reads across health sub-tables
 // ========================================
+//
+// This module is the single canonical surface for "everything about this
+// dog's health" reads. Statistics, timeline, search, and the per-dog
+// overview synthesizer all live here so callers do not need to coordinate
+// across vaccination/medication/allergy/vet-visit/screening files.
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
-import type { HealthFilters, HealthStatistics } from '@/types/health';
+import type {
+  HealthFilters,
+  HealthOverview,
+  HealthOverviewOptions,
+  HealthStatistics,
+} from '@/types/health';
+import {
+  mapDbVaccinationToApp,
+  mapDbMedicationToApp,
+  mapDbAllergyToApp,
+  mapDbVetVisitToApp,
+  mapDbOFAScreeningToApp,
+  mapDbGeneticScreeningToApp,
+} from '@/services/mappers/healthMappers';
 import { getAllVaccinations, getUpcomingVaccinations } from './vaccinations';
 import { getAllMedications, getActiveMedications } from './medications';
 import { getAllAllergies, getActiveAllergies } from './allergies';
 import { getAllVetVisits, getVetVisitsRequiringFollowUp } from './vet-visits';
+import { getAllOFAScreenings } from './ofa-screenings';
+import { getAllGeneticScreenings } from './genetic-screenings';
 
 // ========================================
 // HEALTH STATISTICS & ANALYTICS
 // ========================================
 
-export const getHealthStatistics = async (
+export const getDogHealthStatistics = async (
   dogId: string
 ): Promise<{ data: HealthStatistics | null; error: unknown }> => {
   const startTime = Date.now();
@@ -71,7 +91,7 @@ export const getHealthStatistics = async (
 // COMPREHENSIVE HEALTH TIMELINE
 // ========================================
 
-export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) => {
+export const getDogHealthTimeline = async (dogId: string, filters?: HealthFilters) => {
   const startTime = Date.now();
 
   try {
@@ -195,7 +215,7 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
 // SEARCH FUNCTIONS
 // ========================================
 
-export const searchHealthRecords = async (
+export const searchDogHealth = async (
   dogId: string,
   searchTerm: string,
   filters?: HealthFilters
@@ -307,5 +327,126 @@ export const searchHealthRecords = async (
     const dbError = createDatabaseError(error, 'health_search', 'search_all');
     logQuery('health_search', 'search_all', duration, dbError.message);
     return { data: [], error: dbError };
+  }
+};
+
+// ========================================
+// DOG HEALTH OVERVIEW (umbrella synthesizer)
+// ========================================
+//
+// This is the canonical "everything about this dog's health" read.
+// Fans out the per-sub-table reads in parallel, applies a recency window
+// to the long-history lists, and rolls statistics up into one bundle so
+// callers don't have to coordinate 6+ queries themselves.
+
+const emptyHealthStatistics = (): HealthStatistics => ({
+  total_vaccinations: 0,
+  upcoming_vaccinations: 0,
+  overdue_vaccinations: 0,
+  active_medications: 0,
+  total_allergies: 0,
+  total_vet_visits: 0,
+  upcoming_appointments: 0,
+});
+
+export const getDogHealthOverview = async (
+  dogId: string,
+  options: HealthOverviewOptions = {}
+): Promise<{ data: HealthOverview | null; error: unknown }> => {
+  const startTime = Date.now();
+  const recentMonths = options.recentMonths ?? 12;
+
+  try {
+    // Fan out all sub-queries in parallel for speed.
+    const [
+      vaccinationsResult,
+      upcomingVaccinationsResult,
+      medicationsResult,
+      activeMedicationsResult,
+      allergiesResult,
+      vetVisitsResult,
+      followUpVetVisitsResult,
+      ofaScreeningsResult,
+      geneticScreeningsResult,
+      statisticsResult,
+    ] = await Promise.all([
+      getAllVaccinations(dogId),
+      getUpcomingVaccinations(dogId),
+      getAllMedications(dogId),
+      getActiveMedications(dogId),
+      getAllAllergies(dogId),
+      getAllVetVisits(dogId),
+      getVetVisitsRequiringFollowUp(dogId),
+      getAllOFAScreenings(dogId),
+      getAllGeneticScreenings(dogId),
+      getDogHealthStatistics(dogId),
+    ]);
+
+    // Surface the first error if any sub-query failed.
+    const firstError = [
+      vaccinationsResult.error,
+      upcomingVaccinationsResult.error,
+      medicationsResult.error,
+      activeMedicationsResult.error,
+      allergiesResult.error,
+      vetVisitsResult.error,
+      followUpVetVisitsResult.error,
+      ofaScreeningsResult.error,
+      geneticScreeningsResult.error,
+      statisticsResult.error,
+    ].find(e => e !== null);
+    if (firstError) {
+      const duration = Date.now() - startTime;
+      logQuery(
+        'health_overview',
+        'select_overview',
+        duration,
+        (firstError as { message?: string })?.message
+      );
+      return { data: null, error: firstError };
+    }
+
+    // Window 'recent' lists by `recentMonths`. recentMonths === 0 -> no window.
+    const cutoff =
+      recentMonths > 0 ? new Date(Date.now() - recentMonths * 30 * 24 * 60 * 60 * 1000) : null;
+
+    const within = <T>(items: T[], dateField: keyof T): T[] => {
+      if (!cutoff) return items;
+      return items.filter(item => {
+        const dateStr = item[dateField] as unknown as string | null | undefined;
+        if (!dateStr) return false;
+        return new Date(dateStr) >= cutoff;
+      });
+    };
+
+    const overview: HealthOverview = {
+      activeMedications: (activeMedicationsResult.data ?? []).map(mapDbMedicationToApp),
+      allergies: (allergiesResult.data ?? []).map(mapDbAllergyToApp),
+      upcomingVaccinations: (upcomingVaccinationsResult.data ?? []).map(mapDbVaccinationToApp),
+      followUpVetVisits: (followUpVetVisitsResult.data ?? []).map(mapDbVetVisitToApp),
+
+      recentVaccinations: within(vaccinationsResult.data ?? [], 'date_administered').map(
+        mapDbVaccinationToApp
+      ),
+      recentVetVisits: within(vetVisitsResult.data ?? [], 'visit_date').map(mapDbVetVisitToApp),
+      recentMedications: within(medicationsResult.data ?? [], 'start_date').map(
+        mapDbMedicationToApp
+      ),
+
+      ofaScreenings: (ofaScreeningsResult.data ?? []).map(mapDbOFAScreeningToApp),
+      geneticScreenings: (geneticScreeningsResult.data ?? []).map(mapDbGeneticScreeningToApp),
+
+      statistics: statisticsResult.data ?? emptyHealthStatistics(),
+    };
+
+    const duration = Date.now() - startTime;
+    logQuery('health_overview', 'select_overview', duration);
+
+    return { data: overview, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'health_overview', 'select_overview');
+    logQuery('health_overview', 'select_overview', duration, dbError.message);
+    return { data: null, error: dbError };
   }
 };

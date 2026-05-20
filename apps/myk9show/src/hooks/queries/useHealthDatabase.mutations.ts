@@ -77,6 +77,8 @@ export const useCreateHealthRecordMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthAlerts(data.dog_id) });
+        // Invalidate the umbrella overview for this dog (prefix-matches all option variants).
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -97,6 +99,7 @@ export const useUpdateHealthRecordMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealthRecords(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -139,6 +142,7 @@ export const useCreateVaccinationMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthAlerts(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -164,6 +168,7 @@ export const useUpdateVaccinationMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthAlerts(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -204,6 +209,7 @@ export const useCreateMedicationMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthAlerts(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -228,6 +234,7 @@ export const useUpdateMedicationMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthAlerts(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -265,6 +272,7 @@ export const useCreateAllergyMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.activeAllergies(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -286,6 +294,7 @@ export const useUpdateAllergyMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.activeAllergies(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -324,6 +333,7 @@ export const useCreateVetVisitMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthAlerts(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -346,6 +356,7 @@ export const useUpdateVetVisitMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthAlerts(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -381,6 +392,7 @@ export const useCreateOFAScreeningMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogOFAScreenings(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -400,6 +412,7 @@ export const useUpdateOFAScreeningMutation = () => {
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogOFAScreenings(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -439,6 +452,7 @@ export const useCreateGeneticScreeningMutation = () => {
         });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });
@@ -466,6 +480,7 @@ export const useUpdateGeneticScreeningMutation = () => {
         });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
         queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogHealth(data.dog_id) });
       }
     },
   });

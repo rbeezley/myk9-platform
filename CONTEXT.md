@@ -86,6 +86,12 @@ genetic screenings. Each sub-type lives in its own table but all are owned
 by a Dog. Statistics, timeline, and search cross-cut the sub-tables and
 share a single canonical module so callers can read "everything about this
 dog's health" without coordinating across files.
+The canonical synthesizing function is `getDogHealthOverview(dogId, options?)`
+in `health-records/umbrella.ts`. It returns a `HealthOverview` bundle with
+active state (medications, allergies, upcoming items), windowed recent
+history (default last 12 months), one-time screenings, and roll-up
+statistics. Per-sub-table reads remain available for editing single rows;
+the umbrella is for synthesized "what about this dog's health" views.
 
 **Pedigree**
 A Dog's ancestor lineage tree. Stored as rows in `pedigree_ancestors`

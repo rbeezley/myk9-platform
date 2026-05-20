@@ -12,6 +12,7 @@ export interface OrganizationFormTemplate {
   id: OrganizationFormTemplateId;
   label: string;
   registry: OrganizationFormRegistry;
+  // Build-relative path; runtime loading will be wired through a Vite/public asset URL.
   sourcePath: string;
   requiredFields: readonly string[];
 }

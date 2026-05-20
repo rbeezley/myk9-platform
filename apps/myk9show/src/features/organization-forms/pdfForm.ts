@@ -55,7 +55,7 @@ export async function fillPdfForm(
   const form = pdf.getForm();
 
   for (const [name, value] of Object.entries(values.text ?? {})) {
-    if (value == null) continue;
+    if (value == null || value === '') continue;
     form.getTextField(name).setText(String(value));
   }
 
@@ -73,4 +73,3 @@ export async function fillPdfForm(
 
   return pdf.save();
 }
-

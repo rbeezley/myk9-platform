@@ -64,10 +64,53 @@ describe('buildAKCTrialSecretaryReportValues', () => {
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee]: '7.00',
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalRunsAtClosing]: 3,
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate]: '6/12/2026',
-        [AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialSecretary]: '',
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]: 1,
       },
     });
+  });
+
+  it('counts only exact withdrawn and day-of no-show statuses', () => {
+    const values = buildAKCTrialSecretaryReportValues({
+      ...reportProps,
+      entries: [
+        makeEntry({ id: 'entry-1', checkInStatus: 'pulled' }),
+        makeEntry({ id: 'entry-2', resultText: 'WD' }),
+        makeEntry({ id: 'entry-3', resultText: 'no-show' }),
+        makeEntry({ id: 'entry-4', resultText: 'judge pulled the class' }),
+        makeEntry({ id: 'entry-5', resultText: 'ABS' }),
+      ],
+    });
+
+    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]).toBe(3);
+    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]).toBe(2);
+  });
+
+  it('omits legal club and event fields when source data is missing', () => {
+    const values = buildAKCTrialSecretaryReportValues({
+      ...reportProps,
+      clubName: undefined,
+      trial: undefined,
+    });
+
+    expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.club);
+    expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.eventNumber);
+  });
+
+  it('does not clear existing PDF text fields when the fill value is empty', async () => {
+    const templateBytes = new Uint8Array(
+      await readFile(resolve(repoRoot, 'docs/AKC-forms/SW-TSReport.pdf'))
+    );
+    const seededBytes = await fillPdfForm(templateBytes, {
+      text: { [AKC_TRIAL_SECRETARY_REPORT_FIELDS.club]: 'Existing Club' },
+    });
+    const filledBytes = await fillPdfForm(seededBytes, {
+      text: { [AKC_TRIAL_SECRETARY_REPORT_FIELDS.club]: '' },
+    });
+    const pdf = await PDFDocument.load(filledBytes);
+
+    expect(pdf.getForm().getTextField(AKC_TRIAL_SECRETARY_REPORT_FIELDS.club).getText()).toBe(
+      'Existing Club'
+    );
   });
 
   it('fills the official AKC trial secretary PDF with mapped values', async () => {

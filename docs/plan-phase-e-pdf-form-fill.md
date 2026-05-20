@@ -85,6 +85,7 @@ Deliverables:
 
 - Add typed field constants for `NW-TrialReport.pdf`.
 - Add a value builder for safe known metadata and totals: event date, club name, UKC online count/subtotal, pre-entry count/subtotal, day-of-show count/subtotal, total entries, and grand total due.
+- Keep UKC online entries at zero until the product tracks a dedicated UKC-hosted online-entry source; `entries.payment_method` is only the myK9 collection method.
 - Carry day-of-show entry metadata through report props so official closeout totals can split pre-entry vs day-of-show rows.
 
 Tests:
@@ -96,3 +97,4 @@ Tests:
 ## Next PRs
 
 - Wire download buttons for additional official PDFs as their builders are available.
+- Add a dedicated UKC online-entry source flag before populating the UKC Online Entries fields from production data.

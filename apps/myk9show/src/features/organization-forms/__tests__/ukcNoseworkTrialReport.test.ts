@@ -40,7 +40,7 @@ function makeEntry(overrides: Partial<ReportEntry> = {}): ReportEntry {
 const reportProps = {
   clubName: 'Demo Nosework Club',
   entries: [
-    makeEntry({ id: 'online-1', paymentMethod: 'online' }),
+    makeEntry({ id: 'pre-online-payment-1', paymentMethod: 'online' }),
     makeEntry({ id: 'pre-1' }),
     makeEntry({ id: 'pre-2', isDayOfShow: false }),
     makeEntry({ id: 'day-1', isDayOfShow: true }),
@@ -56,11 +56,11 @@ const reportProps = {
 } satisfies ReportProps;
 
 describe('countUKCNoseworkEntries', () => {
-  it('splits entries into UKC online, pre-entry, and day-of-show buckets', () => {
+  it('splits entries into pre-entry and day-of-show buckets without inferring UKC online source', () => {
     expect(countUKCNoseworkEntries(reportProps.entries)).toEqual({
       dayOfShowEntries: 2,
-      onlineEntries: 1,
-      preEntries: 2,
+      onlineEntries: 0,
+      preEntries: 3,
       totalEntries: 5,
     });
   });
@@ -77,11 +77,11 @@ describe('buildUKCNoseworkTrialReportValues', () => {
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries]: 2,
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowSubtotal]: '8.00',
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate]: '6/12/2026',
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue]: '16.00',
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries]: 1,
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineSubtotal]: '4.00',
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries]: 2,
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntrySubtotal]: '8.00',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue]: '20.00',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries]: 0,
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineSubtotal]: '0.00',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries]: 3,
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntrySubtotal]: '12.00',
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries]: 5,
       },
     });
@@ -123,13 +123,13 @@ describe('buildUKCNoseworkTrialReportValues', () => {
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate).getText()).toBe(
       '6/12/2026'
     );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries).getText()).toBe('2');
+    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries).getText()).toBe('3');
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries).getText()).toBe(
       '2'
     );
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries).getText()).toBe('5');
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue).getText()).toBe(
-      '16.00'
+      '20.00'
     );
   });
 });

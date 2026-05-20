@@ -53,8 +53,9 @@ export function countUKCNoseworkEntries(entries: ReportEntry[]): UKCEntryCounts 
     (counts, entry) => {
       counts.totalEntries += 1;
 
-      if (isUKCOnlineEntry(entry)) counts.onlineEntries += 1;
-      else if (entry.isDayOfShow === true) counts.dayOfShowEntries += 1;
+      // INTENT: paymentMethod is a myK9 collection method, not proof of UKC-hosted online entry.
+      // Keep UKC online count at zero until a dedicated UKC source flag exists.
+      if (entry.isDayOfShow === true) counts.dayOfShowEntries += 1;
       else counts.preEntries += 1;
 
       return counts;
@@ -66,11 +67,6 @@ export function countUKCNoseworkEntries(entries: ReportEntry[]): UKCEntryCounts 
       totalEntries: 0,
     }
   );
-}
-
-function isUKCOnlineEntry(entry: ReportEntry): boolean {
-  // "online" here means UKC's online entry lane, not generic myK9 card/Stripe collection.
-  return entry.paymentMethod?.trim().toLowerCase() === 'online';
 }
 
 function formatUKCFee(amount: number): string {

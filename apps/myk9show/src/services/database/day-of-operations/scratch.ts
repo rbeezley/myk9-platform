@@ -2,67 +2,29 @@
  * Scratch Queries
  *
  * Database queries for scratch and refund operations during day-of-show:
- * - Scratching entries
- * - Finding scratchable entries
+ * - Finding scratchable entries (eligibility)
  * - Getting scratched entries with refund info
- * - Managing scratch requests (request/approve/deny)
+ * - Pending scratch request queues
  * - Updating refund status
+ *
+ * Status transitions (day-of pull, scratch-request approve/deny) live in
+ * `entries/lifecycle.ts` — this module re-exports them so existing callers
+ * (`pages/secretary/DayOfOperationsPage`, `components/entries/PullManagementTab`)
+ * keep their import paths.
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 
 /**
- * Mark an entry as scratched
+ * Day-of pull — re-exported from the canonical lifecycle seam. The lifecycle
+ * version writes `entry_status='scratched'`, `check_in_status='pulled'`,
+ * `withdrawal_reason`, and `special_requests`, and emits an audit log entry.
+ *
+ * Re-exported under the existing `scratchEntry` name so day-of callers
+ * (`pages/secretary/DayOfOperationsPage/index.tsx`,
+ * `pages/secretary/DayOfOperationsPage/PullDialog.tsx`) keep their imports.
  */
-export const scratchEntry = async (entryId: string, reason?: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'scratched',
-        check_in_status: 'pulled',
-        withdrawal_reason: reason || 'Pulled day-of',
-        special_requests: reason || 'Pulled day-of',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select(
-        `
-        id,
-        entry_status,
-        handler,
-        armband,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'scratch_entry', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'scratch_entry');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'scratch_entry');
-    logQuery('entries', 'scratch_entry', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
+export { scratchEntryDayOf as scratchEntry } from '../entries/lifecycle';
 
 /**
  * Get entries eligible for scratching (accepted but not yet run)
@@ -173,57 +135,11 @@ export const getScratchedEntries = async (showId: string) => {
 };
 
 /**
- * Request a scratch with reason
+ * Exhibitor-initiated scratch request — re-exported from the lifecycle seam.
+ * Writes `entry_status='scratch-requested'` and stores the reason in
+ * `special_requests` so it's visible in the secretary's pull queue UI.
  */
-export const requestScratch = async (entryId: string, reason?: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'scratch-requested',
-        special_requests: reason || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select(
-        `
-        id,
-        entry_status,
-        entry_fee,
-        handler,
-        armband,
-        payment_status,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'request_scratch', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'request_scratch');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'request_scratch');
-    logQuery('entries', 'request_scratch', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
+export { requestScratch } from '../entries/lifecycle';
 
 /**
  * Get pending scratch requests (entries requesting to scratch)
@@ -281,98 +197,15 @@ export const getPendingScratchRequests = async (showId: string) => {
 };
 
 /**
- * Approve a scratch request
- * Note: Refund processing should be handled separately via payment service
+ * Approve a scratch request — re-exported from the lifecycle seam. Refund
+ * processing is handled separately by the payment service.
  */
-export const approveScratchRequest = async (
-  entryId: string,
-  _processRefund?: boolean,
-  _refundAmount?: number
-) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'scratched',
-        check_in_status: 'pulled',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .eq('entry_status', 'scratch-requested')
-      .select(
-        `
-        id,
-        entry_status,
-        check_in_status,
-        entry_fee,
-        handler,
-        armband,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'approve_scratch_request', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'approve_scratch_request');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'approve_scratch_request');
-    logQuery('entries', 'approve_scratch_request', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
+export { approveScratchRequest } from '../entries/lifecycle';
 
 /**
- * Deny a scratch request
+ * Deny a scratch request — re-exported from the lifecycle seam.
  */
-export const denyScratchRequest = async (entryId: string, reason?: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'confirmed',
-        special_requests: reason ? `Pull denied: ${reason}` : 'Pull request denied',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .eq('entry_status', 'scratch-requested')
-      .select()
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'deny_scratch_request', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'deny_scratch_request');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'deny_scratch_request');
-    logQuery('entries', 'deny_scratch_request', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
+export { denyScratchRequest } from '../entries/lifecycle';
 
 /**
  * Update refund status for a scratched entry

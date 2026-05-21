@@ -1,7 +1,7 @@
 # Plan — Phase F Show Map Row Action Hardening
 
 **Date:** 2026-05-21
-**Status:** In progress — PR 2 class/trial destination audit implemented locally and validated.
+**Status:** In progress — PR 3 Recommended-section hardening implemented locally and awaiting review.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Validation Profile
@@ -73,12 +73,13 @@ Tests:
 
 ## PR 2 — Class + Trial Destination Audit
 
-Status: Complete locally on 2026-05-21. Class and trial row actions now build
-explicit secretary/report destinations instead of reusing public row hrefs:
-class print links deep-link to the Check-in Sheet report with show/trial/class
-scope, trial schedule opens the show workbench Setup phase, and trial reports
-deep-link to the Trial Secretary report with show/trial scope. ReportsPage now
-preserves incoming show/trial/class/dog query scope on initial load.
+Status: Shipped in PR #279 on 2026-05-21, with CI assertion hotfix in PR #280.
+Class and trial row actions now build explicit secretary/report destinations
+instead of reusing public row hrefs: class print links deep-link to the Check-in
+Sheet report with show/trial/class scope, trial schedule opens the show workbench
+Setup phase, and trial reports deep-link to the Trial Secretary report with
+show/trial scope. ReportsPage now preserves incoming show/trial/class/dog query
+scope on initial load.
 
 Deliverables:
 
@@ -100,6 +101,13 @@ Tests:
 - [ADDED] Unit-test ReportsPage initial query-scope resolution for report deep links.
 
 ## PR 3 — Recommended Section Hardening
+
+Status: Implemented locally on 2026-05-21. The shared recommendation contract now
+uses an explicit two-action cap, deterministic tie-breaking, and excludes disabled
+navigation actions from Recommended while leaving them visible with disabled
+reasons in the full row-action list. The menu has focused coverage for the
+Recommended section, why-lines, separator ordering, safe focus, phase-aware
+recommendations, and disabled full-list behavior.
 
 Deliverables:
 

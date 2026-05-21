@@ -1,7 +1,7 @@
 # Plan — Phase E Organization PDF Form Fill
 
 **Date:** 2026-05-20
-**Status:** Current phase.
+**Status:** Complete for current AKC Scent Work / UKC Nosework scope.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Goal
@@ -130,7 +130,7 @@ Tests:
 
 ## PR 8 — UKC Online Entry Source Flag
 
-**Status:** Current slice.
+**Status:** Shipped in PR #275.
 
 Deliverables:
 
@@ -145,6 +145,18 @@ Tests:
 - Assert `paymentMethod: 'online'` alone does not count as a UKC-hosted online entry.
 - Assert report data mapping carries `entry_source` into shared `ReportProps`.
 
-## Next PRs
+## Phase E Closeout
 
-- Finish Phase E bookkeeping after PR 8 lands and confirm whether any non-scent-work organization forms should move into a separate future phase.
+The current Phase E scope is complete:
+
+- AKC Scent Work Trial Secretary, Judge, and Trial Chairman official PDFs have field builders.
+- UKC Nosework Trial Report official PDF has a field builder.
+- Reports UI downloads the official PDF for each supported report and warns about missing required fields without blocking closeout.
+- Official PDF selection routes from the trial registry id, not the show label.
+- UKC online-entry totals have a dedicated `entries.entry_source` lane so future UKC-hosted import/registration producers can mark `ukc_online` rows without overloading payment method.
+
+Out of scope for this phase:
+
+- A UKC-hosted online-entry import or registration producer that writes `entry_source = 'ukc_online'`.
+- Non-scent-work official forms (for example future agility, obedience, rally, or additional registry forms).
+- Venue hardware print testing, which remains tracked separately in `OPEN-TODOS.md`.

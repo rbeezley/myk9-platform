@@ -428,6 +428,40 @@ describe('ShowMapStructureTable', () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it('opens the trial row actions menu from keyboard focus without executing an action', async () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [],
+      entries: [],
+    });
+    const onAction = vi.fn();
+    const onNavigate = vi.fn();
+
+    const { user } = render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={getTrialsExpandedNodeIds(tree)}
+        filter="all"
+        onToggle={vi.fn()}
+        onAction={onAction}
+        onNavigate={onNavigate}
+      />
+    );
+
+    const trialRow = getTreeItemForText('Trial 1');
+    await user.tab();
+    expect(trialRow).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findAllByRole('menuitem', { name: /open schedule/i })).not.toHaveLength(
+      0
+    );
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
   it('does not open row actions when keyboard events start in nested row controls', () => {
     const attentionClass = classes[0];
     if (!attentionClass) throw new Error('Expected an attention class fixture');

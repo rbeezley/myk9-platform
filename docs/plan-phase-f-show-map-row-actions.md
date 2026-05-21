@@ -29,7 +29,7 @@ Already shipped:
 
 Remaining risk:
 
-- Keyboard opening (`Enter` / `Space` on a focused row) is not yet proven by implementation or tests.
+- Keyboard opening (`Enter` / `Space` on a focused row) is implemented in PR #278, but the tree still needs a dedicated roving-tabindex / arrow-key navigation pass before the accessibility contract is considered fully closed.
 - The OPEN-TODOS row-action item is still open because the original spec included three triggers, full action inventory, and Recommended-section hardening as one umbrella item.
 - Class/trial print and schedule destinations should be verified against real routes before the tracker is closed.
 
@@ -48,7 +48,9 @@ Remaining risk:
 
 Status: Complete locally on 2026-05-21. Keyboard row opening now uses the existing
 `ShowMapRowActionsMenu` open signal from focused treeitems, preserves nested-control
-key handling, and has focused regression coverage.
+key handling, and has focused regression coverage. PR #278 keeps per-row tab stops
+for the narrow row-actions trigger; roving tabindex and arrow-key movement remain a
+tracked follow-up before final Phase F accessibility closeout.
 
 Deliverables:
 
@@ -63,7 +65,8 @@ Deliverables:
 Tests:
 
 - Assert `Enter` opens the row menu for an entry row.
-- Assert `Space` opens the row menu for a class or trial row.
+- Assert `Space` opens the row menu for a class row.
+- Assert keyboard focus can reach a trial row and `Enter` opens its row menu.
 - Assert pressing keys on nested row buttons does not open the row menu.
 - [ADDED] Assert keyboard opening does not call `onAction` or `onNavigate` by itself.
 - Re-run focused `ShowMapStructureTable` tests and myK9Show typecheck.
@@ -111,6 +114,7 @@ Tests:
 Deliverables:
 
 - Add or extend a small show-map regression walk that covers all three menu triggers: three-dot, right-click, keyboard.
+- Confirm the final keyboard contract either implements ARIA-style roving tabindex / arrow-key movement for the tree or carries an explicit follow-up before closing the accessibility portion of the umbrella item.
 - Verify one representative action per execution kind:
   - `navigate`
   - `mutation`

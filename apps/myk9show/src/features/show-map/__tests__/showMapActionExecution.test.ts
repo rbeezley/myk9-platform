@@ -51,6 +51,19 @@ describe('showMapActionExecution', () => {
     expect(isShowMapActionEnabled(action)).toBe(false);
   });
 
+  it('never resolves a navigation execution for an action without a usable href', () => {
+    const navigationActionIds = showMapActionIds.filter(
+      id => showMapActionExecutionById[id].kind === 'navigate'
+    );
+
+    for (const id of navigationActionIds) {
+      expect(resolveShowMapActionExecution(makeAction({ id, href: null }))).toMatchObject({
+        kind: 'disabled',
+        disabledReason: 'No destination is available for this action.',
+      });
+    }
+  });
+
   it('enables mark checked-in as the first mutation action', () => {
     const markCheckedIn = makeAction({
       id: 'mark-checked-in',

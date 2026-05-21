@@ -1,3 +1,4 @@
+import { getShowMapReportHref, getShowMapTrialScheduleHref } from './showMapRoutes';
 import {
   ArrowUpCircle,
   Ban,
@@ -95,6 +96,23 @@ function sourceIdFromNodeId(nodeId: string | undefined, expectedType: string): s
   if (!nodeId?.startsWith(prefix)) return undefined;
   const sourceId = nodeId.slice(prefix.length);
   return sourceId.length > 0 ? sourceId : undefined;
+}
+
+function getNodeSourceId(node: ShowMapNode, expectedType: string): string | undefined {
+  return sourceIdFromNodeId(node.id, expectedType);
+}
+
+function getParentSourceId(
+  node: ShowMapNode,
+  tree: ShowMapTree,
+  expectedType: string
+): string | undefined {
+  const parent = node.parentId ? tree.nodesById[node.parentId] : undefined;
+  return parent ? getNodeSourceId(parent, expectedType) : undefined;
+}
+
+function getRootShowId(tree: ShowMapTree): string | undefined {
+  return getNodeSourceId(tree.root, 'show');
 }
 
 function withHref(action: Omit<ShowMapAction, 'href'>, href: string | undefined): ShowMapAction {
@@ -277,6 +295,9 @@ function actionsForNode(
 
   if (node.type === 'class') {
     const actions: ShowMapAction[] = [];
+    const showId = getRootShowId(tree);
+    const trialId = getParentSourceId(node, tree, 'trial');
+    const classId = getNodeSourceId(node, 'class');
     if (isClassReadyToScore(node) && node.scoreHref) {
       actions.push({
         id: 'score-class',
@@ -311,13 +332,22 @@ function actionsForNode(
           icon: ClipboardList,
           recommended: node.status?.kind === 'neutral',
         },
-        node.href
+        showId && trialId && classId
+          ? getShowMapReportHref({
+              reportId: 'check-in-sheet',
+              showId,
+              trialId,
+              classId,
+            })
+          : undefined
       )
     );
     return actions;
   }
 
   if (node.type === 'trial') {
+    const showId = getRootShowId(tree);
+    const trialId = getNodeSourceId(node, 'trial');
     return [
       withHref(
         {
@@ -329,7 +359,7 @@ function actionsForNode(
           icon: DoorOpen,
           recommended: node.status?.kind === 'active',
         },
-        node.href
+        showId ? getShowMapTrialScheduleHref(showId) : undefined
       ),
       withHref(
         {
@@ -340,7 +370,13 @@ function actionsForNode(
           priority: 10,
           icon: FileText,
         },
-        node.href
+        showId && trialId
+          ? getShowMapReportHref({
+              reportId: 'trial-secretary-report',
+              showId,
+              trialId,
+            })
+          : undefined
       ),
     ];
   }

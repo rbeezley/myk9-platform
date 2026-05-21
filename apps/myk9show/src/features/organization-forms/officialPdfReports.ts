@@ -56,12 +56,16 @@ export function getOfficialPdfReportConfig(
 ): OfficialPdfReportConfig | null {
   if (!isReportIdWithOfficialPdf(reportId)) return null;
 
-  if (reportId === 'trial-secretary-report') {
-    return isUKCShow(props) ? UKC_TRIAL_REPORT_CONFIG : AKC_TRIAL_SECRETARY_CONFIG;
+  switch (reportId) {
+    case 'trial-secretary-report':
+      return isUKCShow(props) ? UKC_TRIAL_REPORT_CONFIG : AKC_TRIAL_SECRETARY_CONFIG;
+    case 'akc-judge-report':
+      return AKC_JUDGE_REPORT_CONFIG;
+    case 'trial-chairman-report':
+      return AKC_TRIAL_CHAIRMAN_CONFIG;
+    default:
+      return assertNever(reportId);
   }
-
-  if (reportId === 'akc-judge-report') return AKC_JUDGE_REPORT_CONFIG;
-  return AKC_TRIAL_CHAIRMAN_CONFIG;
 }
 
 export function getOfficialPdfMissingFieldLabels(
@@ -94,6 +98,10 @@ function isReportIdWithOfficialPdf(reportId: string): reportId is ReportIdWithOf
 function isUKCShow(props: ReportProps | null | undefined): boolean {
   const organization = props?.organization?.trim().toUpperCase();
   return organization === 'UKC' || organization === 'UKC (UNITED KENNEL CLUB)';
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled official PDF report id: ${value}`);
 }
 
 function sanitizeFilenameToken(value: string | null | undefined): string {

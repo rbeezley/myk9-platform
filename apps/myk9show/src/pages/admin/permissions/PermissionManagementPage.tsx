@@ -149,8 +149,12 @@ const PermissionManagementPage: React.FC = () => {
   }
 
   return (
-    <PrimaryTabs tabs={PERMISSION_TABS} value={activeTab} onValueChange={setActiveTab} className="mb-6">
-
+    <PrimaryTabs
+      tabs={PERMISSION_TABS}
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="mb-6"
+    >
       <TabsContent value="overview">
         <div className="min-h-screen bg-background">
           <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">

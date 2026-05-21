@@ -174,7 +174,7 @@ export class PermissionChecker {
         const scopeId = userRole.scope_id || null;
 
         return {
-          id: `${userId}-${userRole.role_id}`,
+          id: `${userId}-${userRole.role_id}-${scopeType}-${scopeId ?? 'global'}`,
           user_id: userId,
           role_id: userRole.role_id,
           club_id: scopeType === 'club' ? scopeId : null,

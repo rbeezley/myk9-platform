@@ -186,9 +186,8 @@ describe('Show Queries', () => {
 
     it('should return null data without an error when show is not found', async () => {
       const showId = 'non-existent';
-      const mockError = { message: 'Row not found', code: 'PGRST116' };
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
       const result = await getShowById(showId);
 

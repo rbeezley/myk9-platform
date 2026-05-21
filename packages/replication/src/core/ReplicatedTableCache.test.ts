@@ -57,6 +57,23 @@ describe('ReplicatedTableCacheManager', () => {
   });
 
   afterEach(async () => {
+    // notifyListeners() schedules a trailing-edge setTimeout that calls
+    // getAllData() against the IDB handle ~100ms later. If we close the DB
+    // before that fires, the timer hits a closed handle and surfaces as an
+    // unhandled InvalidStateError after the test has already passed. Cancel
+    // the pending timer and drop subscribers before tearing down the DB.
+    const internals = cacheManager as unknown as {
+      notifyDebounceTimer: ReturnType<typeof setTimeout> | null;
+      hasNotifiedLeadingEdge: boolean;
+      listeners: Set<unknown>;
+    };
+    if (internals.notifyDebounceTimer) {
+      clearTimeout(internals.notifyDebounceTimer);
+      internals.notifyDebounceTimer = null;
+    }
+    internals.hasNotifiedLeadingEdge = false;
+    internals.listeners.clear();
+
     await dbManager.reset();
   });
 

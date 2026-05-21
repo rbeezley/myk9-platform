@@ -13,7 +13,7 @@ import {
   nodeMatchesCompletionScope,
   nodeMatchesDayScope,
 } from './showMapTimeScope';
-import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
+import { useMemo, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import type { ShowMapAction } from './showMapActions';
 import type { ShowMapFilter, ShowMapNode, ShowMapScopeState, ShowMapTree } from './showMapTypes';
@@ -28,6 +28,26 @@ interface ShowMapStructureTableProps {
   scope?: ShowMapScopeState | undefined;
   scopeNow?: Date | undefined;
   actionPhase?: 'today' | 'wrap-up' | undefined;
+}
+
+const INTERACTIVE_ROW_TARGET_SELECTOR =
+  'a,button,input,textarea,select,[role="button"],[role="menuitem"]';
+
+function isInteractiveRowTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement && Boolean(target.closest(INTERACTIVE_ROW_TARGET_SELECTOR))
+  );
+}
+
+function supportsKeyboardActions(node: ShowMapNode): boolean {
+  return node.type === 'trial' || node.type === 'class' || node.type === 'entry';
+}
+
+function isKeyboardEventForCurrentTreeItem(event: KeyboardEvent<HTMLLIElement>): boolean {
+  return (
+    event.target instanceof HTMLElement &&
+    event.target.closest('[role="treeitem"]') === event.currentTarget
+  );
 }
 
 function nodeMatchesFilter(
@@ -209,16 +229,35 @@ export function ShowMapStructureTable({
   const getRowActionOpenProps = (nodeId: string) => ({
     'data-row-action-surface': nodeId,
     onContextMenu: (event: MouseEvent<HTMLDivElement>) => {
-      if (
-        event.target instanceof HTMLElement &&
-        event.target.closest('a,button,input,textarea,select,[role="button"],[role="menuitem"]')
-      ) {
+      if (isInteractiveRowTarget(event.target)) {
         return;
       }
       event.preventDefault();
       openActionsForNode(nodeId);
     },
   });
+  const getTreeItemKeyboardProps = (node: ShowMapNode) =>
+    supportsKeyboardActions(node)
+      ? {
+          tabIndex: 0,
+          // INTENT: Focus the treeitem itself so keyboard users can open row actions
+          // without turning the row into a fake button or losing tree semantics.
+          onKeyDown: (event: KeyboardEvent<HTMLLIElement>) => {
+            if (
+              event.repeat ||
+              (event.key !== 'Enter' && event.key !== ' ') ||
+              !isKeyboardEventForCurrentTreeItem(event) ||
+              isInteractiveRowTarget(event.target)
+            ) {
+              return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            openActionsForNode(node.id);
+          },
+        }
+      : {};
 
   const renderNode = (nodeId: string, depth: number): ReactNode => {
     const node = tree.nodesById[nodeId];
@@ -246,7 +285,9 @@ export function ShowMapStructureTable({
         <li
           key={nodeId}
           {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
+          {...getTreeItemKeyboardProps(node)}
           {...scopeAttrs}
+          className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div
             className={cn(
@@ -358,8 +399,9 @@ export function ShowMapStructureTable({
         <li
           key={nodeId}
           {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
+          {...getTreeItemKeyboardProps(node)}
           {...scopeAttrs}
-          className="overflow-hidden rounded-md border bg-card"
+          className="overflow-hidden rounded-md border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div
             className={cn(
@@ -379,7 +421,13 @@ export function ShowMapStructureTable({
     }
 
     return (
-      <li key={nodeId} {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)} {...scopeAttrs}>
+      <li
+        key={nodeId}
+        {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
+        {...getTreeItemKeyboardProps(node)}
+        {...scopeAttrs}
+        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <div
           className={cn(
             'grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

@@ -46,6 +46,12 @@ const classes: ShowMapClassInput[] = [
   },
 ];
 
+function getTreeItemForText(text: string): HTMLElement {
+  const row = screen.getByText(text).closest('[role="treeitem"]');
+  if (!(row instanceof HTMLElement)) throw new Error(`Expected treeitem for ${text}`);
+  return row;
+}
+
 describe('ShowMapStructureTable', () => {
   it('keeps parent context when filtering to entries that need attention', () => {
     const tree = buildShowMapTree({
@@ -349,6 +355,120 @@ describe('ShowMapStructureTable', () => {
     fireEvent.contextMenu(row);
     expect(await screen.findByText('Recommended')).toBeInTheDocument();
     expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+  });
+
+  it('opens the entry row actions menu from Enter without executing an action', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog: { call_name: 'Bella' },
+          check_in_status: 'conflict',
+        },
+      ],
+    });
+    const onAction = vi.fn();
+    const onNavigate = vi.fn();
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+        onAction={onAction}
+        onNavigate={onNavigate}
+      />
+    );
+
+    fireEvent.keyDown(getTreeItemForText('Bella'), { key: 'Enter' });
+
+    expect(await screen.findByText('Recommended')).toBeInTheDocument();
+    expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('opens the class row actions menu from Space without executing an action', async () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [],
+    });
+    const onAction = vi.fn();
+    const onNavigate = vi.fn();
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={getTrialsExpandedNodeIds(tree)}
+        filter="all"
+        onToggle={vi.fn()}
+        onAction={onAction}
+        onNavigate={onNavigate}
+      />
+    );
+
+    fireEvent.keyDown(getTreeItemForText('Interior Novice A'), { key: ' ' });
+
+    expect(await screen.findAllByRole('menuitem', { name: /score class/i })).not.toHaveLength(0);
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not open row actions when keyboard events start in nested row controls', () => {
+    const attentionClass = classes[0];
+    if (!attentionClass) throw new Error('Expected an attention class fixture');
+
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [attentionClass],
+      entries: [
+        {
+          id: 'entry-1',
+          class_id: 'class-attention',
+          armband: '12',
+          dog_id: 'dog-12',
+          dog: { id: 'dog-12', call_name: 'Bella' },
+        },
+      ],
+    });
+    const onAction = vi.fn();
+    const onNavigate = vi.fn();
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        onToggle={vi.fn()}
+        onAction={onAction}
+        onNavigate={onNavigate}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Bella' }), { key: 'Enter' });
+    fireEvent.keyDown(screen.getByRole('button', { name: /collapse interior novice a/i }), {
+      key: ' ',
+    });
+
+    expect(screen.queryByText('Recommended')).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 
   it('executes mark checked-in through the shared action executor', async () => {

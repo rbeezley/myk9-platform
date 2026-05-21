@@ -1,7 +1,7 @@
 # Plan — Phase F Show Map Row Action Hardening
 
 **Date:** 2026-05-21
-**Status:** Proposed next phase.
+**Status:** In progress — PR 1 keyboard/focus slice implemented locally and validated.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Validation Profile
@@ -45,6 +45,10 @@ Remaining risk:
 - [ADDED] Rollback is straightforward: each PR should be independently revertible without breaking already-shipped row actions because it either adds a trigger, corrects destinations, hardens recommendation rendering, or updates trackers.
 
 ## PR 1 — Keyboard Trigger + Focus Contract
+
+Status: Complete locally on 2026-05-21. Keyboard row opening now uses the existing
+`ShowMapRowActionsMenu` open signal from focused treeitems, preserves nested-control
+key handling, and has focused regression coverage.
 
 Deliverables:
 

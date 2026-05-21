@@ -179,7 +179,10 @@ export default defineConfig({
       },
     },
     // Code splitting settings - optimized for Core Web Vitals
-    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'], // Modern browsers for better performance
+    // safari14.1 (not 14) is required so esbuild will lower destructuring rather than refusing.
+    // The bundled service worker pulls destructuring out of workbox-precaching; with safari14
+    // listed esbuild aborts the SW build (and any module importing those helpers).
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14.1'], // Modern browsers for better performance
     cssCodeSplit: true,
     // Asset optimization - optimized for LCP
     assetsInlineLimit: 4096, // Increased from 2048 for better caching vs requests trade-off

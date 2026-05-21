@@ -63,7 +63,7 @@ function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): Repor
 
 export function readTrialRegistryId(trial: DbTrial): string {
   // Read trials.registry_id; default older rows to AKC.
-  return trial.registry_id.trim() || 'AKC';
+  return trial.registry_id?.trim() || 'AKC';
 }
 
 export function mapReportTrialFields(

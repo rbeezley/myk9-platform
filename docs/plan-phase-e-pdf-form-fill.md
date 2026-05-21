@@ -114,7 +114,7 @@ Tests:
 
 ## PR 7 — Official PDF Registry Detection
 
-**Status:** Current slice.
+**Status:** Shipped in PR #267.
 
 Deliverables:
 

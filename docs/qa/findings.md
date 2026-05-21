@@ -125,9 +125,9 @@ Copy this block for each new finding.
 - **Evidence:** 2026-05-21 route-health sweep logged repeated React duplicate-key warnings on `/admin/permissions` at desktop and 375px. Browser console args identified the repeated key as a generated RBAC role key.
 - **User impact:** Admin permissions page rendered, but repeated React key collisions could cause unstable list identity or duplicated/omitted rows.
 - **Intent check:** Preserves admin confidence by removing noisy, low-level render instability from a permission-management surface.
-- **Fix owner:** `apps/myk9show/src/pages/admin/permissions/PermissionManagementPage.tsx`
+- **Fix owner:** `apps/myk9show/src/services/rbac/PermissionChecker.ts`, `apps/myk9show/src/pages/admin/permissions/PermissionManagementPage.tsx`
 - **Proof required:** Passed on 2026-05-21 with focused browser replay of `/admin/permissions`: `errors=0 duplicateKey=0`.
-- **Notes:** Fixed by adding stable composite keys for current-user role rows.
+- **Notes:** Fixed by including role scope in generated user-role row IDs so scoped assignments keep stable React identity.
 
 ### QA-NETWORK-ERROR-006
 

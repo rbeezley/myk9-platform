@@ -310,9 +310,9 @@ const PermissionManagementPage: React.FC = () => {
                   <CardContent className="relative">
                     <div className="space-y-2">
                       {userRoles.length > 0 ? (
-                        userRoles.map((ur, index) => (
+                        userRoles.map(ur => (
                           <div
-                            key={`${ur.id}-${ur.scope_type ?? 'global'}-${ur.scope_id ?? index}`}
+                            key={ur.id}
                             className="flex items-center justify-between p-3 border border-border/50 rounded-lg 
                                                  hover:bg-muted/50 transition-colors duration-300"
                           >

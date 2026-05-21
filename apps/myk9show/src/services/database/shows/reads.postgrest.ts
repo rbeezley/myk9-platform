@@ -293,7 +293,6 @@ export async function postgrestGetShowById(id: string) {
     .is('deleted_at', null)
     .maybeSingle();
 
-  if (error?.code === 'PGRST116') return { data: null, error: null };
   if (error) throw createDatabaseError(error, 'show', 'select_by_id');
   return { data: Array.isArray(data) ? null : data, error: null };
 }

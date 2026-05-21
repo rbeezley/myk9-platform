@@ -1,6 +1,14 @@
 import type React from 'react';
 import type { DbShow, DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 
+export const REPORT_ENTRY_SOURCE = {
+  MYK9: 'myk9',
+  UKC_ONLINE: 'ukc_online',
+} as const;
+
+export type ReportEntrySource =
+  (typeof REPORT_ENTRY_SOURCE)[keyof typeof REPORT_ENTRY_SOURCE];
+
 export interface ReportEntry {
   id: string;
   armband: number;
@@ -20,6 +28,7 @@ export interface ReportEntry {
   entryFee?: number;
   paymentStatus?: 'accepted' | 'waitlisted' | 'withdrawn';
   paymentMethod?: string;
+  entrySource?: ReportEntrySource;
   isDayOfShow?: boolean;
   // Class/trial context — populated for show-level and trial-level catalog reports
   classId?: string;

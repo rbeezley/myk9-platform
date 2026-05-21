@@ -128,6 +128,23 @@ Tests:
 - Assert legacy UKC show labels no longer override an AKC trial registry id.
 - Assert `buildTrialReportProps` carries the trial registry id into the shared report props.
 
+## PR 8 — UKC Online Entry Source Flag
+
+**Status:** Current slice.
+
+Deliverables:
+
+- Add a dedicated `entries.entry_source` lane so official reports can distinguish myK9-collected entries from UKC-hosted online entries.
+- Keep existing myK9 entries defaulted to `myk9`, including day-of and desk-payment rows.
+- Populate UKC Nosework Trial Report online-entry count/subtotal only when `entry_source = 'ukc_online'`.
+- Preserve the previous guardrail: `entries.payment_method` remains a payment collection method, not a source-of-entry signal.
+
+Tests:
+
+- Assert UKC Nosework counts split UKC-hosted online, myK9 pre-entry, and day-of-show rows.
+- Assert `paymentMethod: 'online'` alone does not count as a UKC-hosted online entry.
+- Assert report data mapping carries `entry_source` into shared `ReportProps`.
+
 ## Next PRs
 
-- Add a dedicated UKC online-entry source flag before populating the UKC Online Entries fields from production data.
+- Finish Phase E bookkeeping after PR 8 lands and confirm whether any non-scent-work organization forms should move into a separate future phase.

@@ -1,4 +1,5 @@
 import { UKC_NOSEWORK_REPORT_FEE_PER_ENTRY } from '@/lib/reports/reportConstants';
+import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import type { PdfFormFillValues } from './pdfForm';
 import { formattedTrialDate, textOrUndefined } from './reportValueHelpers';
@@ -27,7 +28,6 @@ export function buildUKCNoseworkTrialReportValues(props: ReportProps): PdfFormFi
       counts.dayOfShowEntries * UKC_NOSEWORK_REPORT_FEE_PER_ENTRY
     ),
     [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries]: counts.totalEntries,
-    // UKC online-entry source is not tracked yet, so every current row remains due to UKC.
     [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue]: formatUKCFee(
       (counts.preEntries + counts.dayOfShowEntries) * UKC_NOSEWORK_REPORT_FEE_PER_ENTRY
     ),
@@ -53,9 +53,9 @@ export function countUKCNoseworkEntries(entries: ReportEntry[]): UKCEntryCounts 
     (counts, entry) => {
       counts.totalEntries += 1;
 
-      // INTENT: paymentMethod is a myK9 collection method, not proof of UKC-hosted online entry.
-      // Keep UKC online count at zero until a dedicated UKC source flag exists.
-      if (entry.isDayOfShow === true) counts.dayOfShowEntries += 1;
+      // INTENT: paymentMethod is a myK9 collection method. Only entrySource proves UKC collected it.
+      if (entry.entrySource === REPORT_ENTRY_SOURCE.UKC_ONLINE) counts.onlineEntries += 1;
+      else if (entry.isDayOfShow === true) counts.dayOfShowEntries += 1;
       else counts.preEntries += 1;
 
       return counts;

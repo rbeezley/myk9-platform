@@ -94,6 +94,36 @@ describe('ReplicatedEntriesTable', () => {
         expect(result).toBeNull();
       });
 
+      it('should default entry source to myK9 when queueing a new entry', async () => {
+        const queueMutation = vi.spyOn(
+          table as unknown as {
+            queueMutation: (
+              operation: string,
+              rowId: string,
+              payload: Record<string, unknown>,
+              dependencies?: string[]
+            ) => Promise<string | null>;
+          },
+          'queueMutation'
+        );
+
+        await table.createEntry({
+          id: 'entry-1',
+          classId: 'class-1',
+          showId: 'show-1',
+          dogId: 'dog-1',
+        });
+
+        expect(queueMutation).toHaveBeenCalledWith(
+          'INSERT',
+          'entry-1',
+          expect.objectContaining({
+            entry_source: 'myk9',
+          }),
+          undefined
+        );
+      });
+
       it('should update existing entry', async () => {
         const entry: ReplicatedEntry = {
           id: 'entry-1',

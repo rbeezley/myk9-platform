@@ -1,7 +1,7 @@
 # Plan — Show-Day Workflow Sequencing
 
 **Date:** 2026-05-16
-**Status:** Active sequencing roadmap. Current phase: Phase E — Compliance / AKC + UKC PDF form-fill.
+**Status:** Active sequencing roadmap. Phase E complete for current AKC Scent Work / UKC Nosework scope.
 **Scope:** Defines the order in which remaining items from the 2026-05-16 show-day brainstorm are picked up. This doc is the source of truth for _what's next_ when a PR lands; granular item tracking continues to live in `OPEN-TODOS.md`. Implementation details per phase land in their own dedicated plan docs as each phase begins.
 
 ## How to use this doc
@@ -155,19 +155,20 @@ Focused Show Map tests now exercise the shared action registry, row menu, dialog
 
 ## Phase E — Compliance / AKC + UKC PDF form-fill (parallel track)
 
-**Status:** Current phase. Initial implementation plan lives in [`docs/plan-phase-e-pdf-form-fill.md`](plan-phase-e-pdf-form-fill.md).
+**Status:** Complete for current AKC Scent Work / UKC Nosework scope. Implementation plan lives in [`docs/plan-phase-e-pdf-form-fill.md`](plan-phase-e-pdf-form-fill.md).
 
 **Entry trigger:** User has sourced the official AKC and UKC submission PDF templates.
 
-**Scope:**
+**Delivered scope:**
 
 - Replace HTML mockups in `JudgesCertification.tsx`, `TrialSecretaryReport.tsx`, `TrialSecretaryCertification.tsx` with `pdf-lib`-driven fills of the actual fillable AcroForm PDFs.
 - Surface HTML versions as on-screen previews; the "Download for AKC submission" button hands back the real form.
 - Wire submission status into the wrap-up status taxonomy (Phase C).
+- Add a dedicated `entries.entry_source` lane so UKC-hosted online-entry totals can be represented without overloading payment method.
 
 **OPEN-TODOS items covered:** "AKC/UKC PDF form-fill" + "Verify ResultCatalog signature lines" (#211 already shipped the latter).
 
-**Exit criterion:** A secretary can complete an AKC submission without manually retyping any data from on-screen reports. Estimated 2-4 PRs.
+**Exit criterion:** A secretary can complete the supported AKC Scent Work and UKC Nosework official PDF closeout without manually retyping data from on-screen reports. Met across PR #252, #253, #255, #257, #258, #265, #267, and #275.
 
 **Why this phase is parallel:** Blocked on external input (the user's PDF sourcing), not on upstream code. Can run alongside any other phase. Has a compliance-deadline dimension that may justify pulling it forward if a real submission is imminent.
 
@@ -179,7 +180,7 @@ These don't fit a phase; pick up at any time when convenient:
 
 - **Lint debt from PR #196** — `StickyNav.tsx` `react-hooks/set-state-in-effect` error, `MonogramSectionFolio.tsx` `react-refresh` warning. Captured in OPEN-TODOS.
 - **Restore GHA CI gating** — once billing is unpaused. Until then, lint regressions can land silently.
-- **Memory hygiene** — `~/.claude/projects/.../memory/project_report_generation.md` says "6 Phase 2 report stubs pending"; inventory on 2026-05-16 confirmed all shipped except the PDF form-fill (Phase E here).
+- **Future official form expansion** — UKC-hosted online-entry import producers and non-scent-work official forms should be planned as a new phase rather than extending Phase E.
 
 ---
 

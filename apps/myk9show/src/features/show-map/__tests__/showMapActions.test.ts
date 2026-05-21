@@ -4,6 +4,8 @@ import {
   getAttentionActions,
   getPrimaryActionForNode,
   getRankedActions,
+  getRecommendedActions,
+  SHOW_MAP_RECOMMENDED_ACTION_LIMIT,
   showMapBadgeTargets,
 } from '../showMapActions';
 import type { Show } from '@/types/show-types';
@@ -89,6 +91,48 @@ describe('showMapActions', () => {
       href: '/shows/show-1/trials/trial-1/classes/class-active',
     });
     expect(actions.map(action => action.id)).toContain('score-class');
+  });
+
+  it('caps recommended actions at two in deterministic ranked order', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-conflict',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          check_in_status: 'conflict',
+        },
+        {
+          id: 'entry-submitted',
+          class_id: 'class-future',
+          dog: { call_name: 'Scout' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    const allRecommendedActions = getRecommendedActions(
+      'root',
+      { tree },
+      Number.POSITIVE_INFINITY
+    );
+    const recommendedActions = getRecommendedActions('root', { tree });
+
+    expect(allRecommendedActions.length).toBeGreaterThan(SHOW_MAP_RECOMMENDED_ACTION_LIMIT);
+    expect(recommendedActions).toHaveLength(SHOW_MAP_RECOMMENDED_ACTION_LIMIT);
+    expect(recommendedActions).toEqual([
+      expect.objectContaining({
+        id: 'resolve-check-in-conflict',
+        why: 'Entry has a check-in conflict',
+      }),
+      expect.objectContaining({
+        id: 'review-entry',
+        why: 'Entry is waiting for secretary review',
+      }),
+    ]);
   });
 
   it('exposes only human-attention actions for the Attention lens', () => {
@@ -288,6 +332,61 @@ describe('showMapActions', () => {
         createsAttention: true,
       }),
     ]);
+  });
+
+  it('uses the shared phase-aware contract for recommended actions', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          is_scored: true,
+        },
+      ],
+    });
+
+    expect(getRecommendedActions('root', { tree }).map(action => action.id)).not.toContain(
+      'collect-judge-signature'
+    );
+    expect(getRecommendedActions('root', { tree, phase: 'wrap-up' })).toEqual([
+      expect.objectContaining({
+        id: 'collect-judge-signature',
+        why: 'Completed class still needs judge sign-off',
+      }),
+    ]);
+  });
+
+  it('keeps disabled navigation actions out of the recommended contract', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[1]!],
+      entries: [],
+    });
+    const classNode = tree.nodesById['class:class-future'];
+    if (!classNode) throw new Error('Expected future class node');
+    const classWithoutTrial = { ...classNode, parentId: undefined };
+
+    const printAction = findAction(
+      getRankedActions(classWithoutTrial, { tree }),
+      'print-check-in-sheet'
+    );
+
+    expect(printAction).toMatchObject({
+      recommended: true,
+    });
+    expect(printAction.href).toBeUndefined();
+    expect(getRecommendedActions(classWithoutTrial, { tree })).toEqual([]);
   });
 
   it('treats unsigned and unsubmitted completed classes as wrap-up attention work', () => {

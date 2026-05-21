@@ -13,8 +13,11 @@ import {
   UserCheck,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
+import { isShowMapActionEnabled } from './showMapActionExecution';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
+
+export const SHOW_MAP_RECOMMENDED_ACTION_LIMIT = 2;
 
 export const showMapBadgeTargets = {
   trial: ['registry', 'date', 'ring/judge', 'status', 'reports-readiness'],
@@ -392,17 +395,21 @@ export function getRankedActions(
     .flatMap(node => actionsForNode(node, state.tree, state.phase))
     .sort((a, b) => {
       if (b.priority !== a.priority) return b.priority - a.priority;
-      return a.label.localeCompare(b.label);
+      const labelOrder = a.label.localeCompare(b.label);
+      if (labelOrder !== 0) return labelOrder;
+      const nodeOrder = a.nodeId.localeCompare(b.nodeId);
+      if (nodeOrder !== 0) return nodeOrder;
+      return a.id.localeCompare(b.id);
     });
 }
 
 export function getRecommendedActions(
   scope: ShowMapActionScope,
   state: ShowMapActionState,
-  limit = 2
+  limit = SHOW_MAP_RECOMMENDED_ACTION_LIMIT
 ): ShowMapAction[] {
   return getRankedActions(scope, state)
-    .filter(action => action.recommended)
+    .filter(action => action.recommended && isShowMapActionEnabled(action))
     .slice(0, limit);
 }
 

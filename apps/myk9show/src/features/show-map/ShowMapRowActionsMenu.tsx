@@ -111,6 +111,7 @@ export function ShowMapRowActionsMenu({
               return (
                 <DropdownMenuItem
                   key={`${action.id}:${action.nodeId}:recommended`}
+                  data-show-map-action-section="recommended"
                   disabled={actionProps.disabled}
                   className="items-start gap-3 py-2"
                   {...(actionProps.onClick ? { onClick: actionProps.onClick } : {})}
@@ -127,6 +128,7 @@ export function ShowMapRowActionsMenu({
           return (
             <DropdownMenuItem
               key={`${action.id}:${action.nodeId}`}
+              data-show-map-action-section="all"
               disabled={actionProps.disabled}
               className="items-start gap-3"
               {...(actionProps.onClick ? { onClick: actionProps.onClick } : {})}

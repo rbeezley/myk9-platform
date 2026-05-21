@@ -96,7 +96,7 @@ Tests:
 
 ## PR 6 — Remaining Official PDF Download Wiring
 
-**Status:** Current slice.
+**Status:** Shipped in PR #265.
 
 Deliverables:
 

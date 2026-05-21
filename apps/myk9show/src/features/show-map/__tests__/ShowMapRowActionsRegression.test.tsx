@@ -48,6 +48,12 @@ function getTreeItemForText(text: string): HTMLElement {
   return row;
 }
 
+async function expectOneOpenMenu(): Promise<HTMLElement> {
+  const menu = await screen.findByRole('menu');
+  expect(screen.getAllByRole('menu')).toHaveLength(1);
+  return menu;
+}
+
 describe('ShowMap row actions closeout regression', () => {
   it('uses the three-dot trigger for a navigate action', async () => {
     const tree = buildShowMapTree({
@@ -69,6 +75,7 @@ describe('ShowMap row actions closeout regression', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /actions for exterior advanced b/i }));
+    await expectOneOpenMenu();
     const printActions = await screen.findAllByRole('menuitem', {
       name: /print check-in sheet/i,
     });
@@ -111,6 +118,7 @@ describe('ShowMap row actions closeout regression', () => {
     if (!(row instanceof HTMLElement)) throw new Error('Expected entry row');
 
     fireEvent.contextMenu(row);
+    await expectOneOpenMenu();
     await user.click(await screen.findByRole('menuitem', { name: /mark checked in/i }));
 
     expect(onAction).toHaveBeenCalledWith(
@@ -157,6 +165,7 @@ describe('ShowMap row actions closeout regression', () => {
 
     fireEvent.keyDown(getTreeItemForText('Bella'), { key: 'Enter' });
 
+    await expectOneOpenMenu();
     expect(
       await screen.findByRole('menuitem', { name: /scratch \/ no-show/i })
     ).toBeInTheDocument();
@@ -202,10 +211,13 @@ describe('ShowMap row actions closeout regression', () => {
 
     await user.click(screen.getByRole('button', { name: /actions for exterior advanced b/i }));
 
-    expect(await screen.findByRole('menu')).toBeInTheDocument();
+    await expectOneOpenMenu();
     expect(screen.getByText('No destination is available for this action.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('menuitem', { name: /print check-in sheet/i }));
+    const printAction = screen.getByRole('menuitem', { name: /print check-in sheet/i });
+    expect(printAction).toHaveAttribute('aria-disabled', 'true');
+
+    fireEvent.click(printAction);
 
     expect(onAction).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();

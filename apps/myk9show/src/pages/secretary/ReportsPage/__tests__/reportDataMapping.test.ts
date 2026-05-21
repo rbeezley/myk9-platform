@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTrialReportProps } from '../reportDataMapping';
+import { buildTrialReportProps, readTrialRegistryId } from '../reportDataMapping';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
@@ -78,5 +78,15 @@ describe('buildTrialReportProps', () => {
         },
       ],
     });
+  });
+});
+
+describe('readTrialRegistryId', () => {
+  it('defaults to AKC when registry_id is missing or blank', () => {
+    expect(readTrialRegistryId({ ...trial, registry_id: undefined } as unknown as DbTrial)).toBe(
+      'AKC'
+    );
+    expect(readTrialRegistryId({ ...trial, registry_id: null } as unknown as DbTrial)).toBe('AKC');
+    expect(readTrialRegistryId({ ...trial, registry_id: '   ' } as DbTrial)).toBe('AKC');
   });
 });

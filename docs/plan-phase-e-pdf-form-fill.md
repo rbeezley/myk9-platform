@@ -79,7 +79,7 @@ Tests:
 
 ## PR 5 — UKC Nosework Trial Report Field Builder
 
-**Status:** Current slice.
+**Status:** Shipped in PR #258.
 
 Deliverables:
 
@@ -94,7 +94,24 @@ Tests:
 - Fill the real UKC PDF in test and reload it to prove the official fields receive expected values.
 - Keep the template inventory test backed by the new field constants.
 
+## PR 6 — Remaining Official PDF Download Wiring
+
+**Status:** Current slice.
+
+Deliverables:
+
+- Replace the single AKC Trial Secretary download special case with a shared official-PDF config.
+- Download AKC Judge Report and AKC Trial Chairman Report PDFs from their existing builders.
+- Download the UKC Nosework Trial Report when the selected show is UKC.
+- Keep `pdf-lib` lazy-loaded through the download path.
+- Reuse missing-field warnings for every official PDF action.
+
+Tests:
+
+- Assert report ids resolve to the expected official PDF template.
+- Assert UKC shows use the UKC trial report rather than the AKC Trial Secretary Report.
+- Assert official filenames are sanitized consistently across forms.
+
 ## Next PRs
 
-- Wire download buttons for additional official PDFs as their builders are available.
 - Add a dedicated UKC online-entry source flag before populating the UKC Online Entries fields from production data.

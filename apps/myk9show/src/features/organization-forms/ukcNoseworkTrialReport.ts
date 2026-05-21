@@ -27,7 +27,7 @@ export function buildUKCNoseworkTrialReportValues(props: ReportProps): PdfFormFi
       counts.dayOfShowEntries * UKC_NOSEWORK_REPORT_FEE_PER_ENTRY
     ),
     [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries]: counts.totalEntries,
-    // UKC online entries are paid through UKC's lane, so only pre/day-of entries remain due.
+    // UKC online-entry source is not tracked yet, so every current row remains due to UKC.
     [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue]: formatUKCFee(
       (counts.preEntries + counts.dayOfShowEntries) * UKC_NOSEWORK_REPORT_FEE_PER_ENTRY
     ),

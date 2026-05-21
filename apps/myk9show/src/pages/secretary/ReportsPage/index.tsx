@@ -27,6 +27,18 @@ import {
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
+export interface InitialReportScope {
+  showId?: string | undefined;
+  trialId: string;
+  classId: string;
+  dogId: string;
+}
+
+function nonEmptyParam(params: URLSearchParams, key: string): string | undefined {
+  const value = params.get(key)?.trim();
+  return value ? value : undefined;
+}
+
 // Exported for unit testing — keeps the deep-link logic verifiable without
 // asserting against shadcn SelectValue render internals.
 // eslint-disable-next-line react-refresh/only-export-components
@@ -36,17 +48,28 @@ export function resolveInitialReportId(queryParam: string | null): string {
   return candidate?.enabled ? queryParam : DEFAULT_REPORT_ID;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function resolveInitialReportScope(params: URLSearchParams): InitialReportScope {
+  return {
+    showId: nonEmptyParam(params, 'showId'),
+    trialId: nonEmptyParam(params, 'trialId') ?? 'all',
+    classId: nonEmptyParam(params, 'classId') ?? 'all',
+    dogId: nonEmptyParam(params, 'dogId') ?? 'all',
+  };
+}
+
 export default function ReportsPage() {
   const { selectedShowId, shows, selectShow } = useShowStore();
   const [searchParams] = useSearchParams();
+  const [initialScope] = useState(() => resolveInitialReportScope(searchParams));
   // Resolve once on mount so subsequent ?report= changes don't fight the
   // user's manual dropdown selection.
   const [reportType, setReportType] = useState(() =>
     resolveInitialReportId(searchParams.get('report'))
   );
-  const [trialId, setTrialId] = useState<string>('all');
-  const [classId, setClassId] = useState<string>('all');
-  const [dogId, setDogId] = useState<string>('all');
+  const [trialId, setTrialId] = useState<string>(initialScope.trialId);
+  const [classId, setClassId] = useState<string>(initialScope.classId);
+  const [dogId, setDogId] = useState<string>(initialScope.dogId);
   const report = getReportById(reportType);
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
@@ -55,10 +78,18 @@ export default function ReportsPage() {
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
 
   useEffect(() => {
+    if (
+      initialScope.showId &&
+      selectedShowId !== initialScope.showId &&
+      shows.some(show => show.id === initialScope.showId)
+    ) {
+      selectShow(initialScope.showId);
+      return;
+    }
     if (!selectedShowId && shows.length > 0) {
       selectShow(shows[0].id);
     }
-  }, [selectedShowId, shows, selectShow]);
+  }, [initialScope.showId, selectedShowId, shows, selectShow]);
 
   const { show, trials, classes, entries, isLoading, isError } = useReportData({
     show: selectedShow,
@@ -190,9 +221,8 @@ export default function ReportsPage() {
 
     setIsDownloadingOfficialPdf(true);
     try {
-      const { buildOfficialPdfBytes } = await import(
-        '@/features/organization-forms/officialPdfDownload'
-      );
+      const { buildOfficialPdfBytes } =
+        await import('@/features/organization-forms/officialPdfDownload');
       const bytes = await buildOfficialPdfBytes(officialPdfConfig, officialPdfProps);
       downloadPdfBytes(bytes, buildOfficialPdfFilename(officialPdfConfig, officialPdfProps));
       toast.success('Official PDF downloaded');
@@ -204,16 +234,15 @@ export default function ReportsPage() {
     }
   }, [officialPdfConfig, officialPdfProps]);
 
-  const officialPdfAction =
-    officialPdfConfig
-      ? {
-          disabled: isLoading || isError || !show || trialId === 'all',
-          isLoading: isDownloadingOfficialPdf,
-          label: trialId === 'all' ? 'Select trial for official PDF' : officialPdfConfig.actionLabel,
-          missingFieldLabels: officialPdfMissingFieldLabels,
-          onClick: handleOfficialPdfDownload,
-        }
-      : undefined;
+  const officialPdfAction = officialPdfConfig
+    ? {
+        disabled: isLoading || isError || !show || trialId === 'all',
+        isLoading: isDownloadingOfficialPdf,
+        label: trialId === 'all' ? 'Select trial for official PDF' : officialPdfConfig.actionLabel,
+        missingFieldLabels: officialPdfMissingFieldLabels,
+        onClick: handleOfficialPdfDownload,
+      }
+    : undefined;
 
   return (
     <div className="container mx-auto py-6 flex flex-col">

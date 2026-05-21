@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import ReportsPage, { resolveInitialReportId } from '../index';
+import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '../index';
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
@@ -49,7 +49,6 @@ describe('ReportsPage', () => {
     render(<ReportsPage />);
     expect(screen.getAllByText('Spring Scent Trial 2026').length).toBeGreaterThan(0);
   });
-
 });
 
 describe('resolveInitialReportId', () => {
@@ -67,5 +66,32 @@ describe('resolveInitialReportId', () => {
 
   it('falls back to default when the report id is unknown', () => {
     expect(resolveInitialReportId('not-a-real-report')).toBe('check-in-sheet');
+  });
+});
+
+describe('resolveInitialReportScope', () => {
+  it('uses all scopes when no query params are provided', () => {
+    expect(resolveInitialReportScope(new URLSearchParams())).toEqual({
+      showId: undefined,
+      trialId: 'all',
+      classId: 'all',
+      dogId: 'all',
+    });
+  });
+
+  it('keeps show, trial, class, and dog deep-link params', () => {
+    const params = new URLSearchParams({
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+      dogId: 'dog-1',
+    });
+
+    expect(resolveInitialReportScope(params)).toEqual({
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+      dogId: 'dog-1',
+    });
   });
 });

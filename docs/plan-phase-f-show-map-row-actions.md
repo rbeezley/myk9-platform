@@ -1,7 +1,7 @@
 # Plan — Phase F Show Map Row Action Hardening
 
 **Date:** 2026-05-21
-**Status:** In progress — PR 1 keyboard/focus slice implemented locally and validated.
+**Status:** In progress — PR 2 class/trial destination audit implemented locally and validated.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Validation Profile
@@ -46,7 +46,7 @@ Remaining risk:
 
 ## PR 1 — Keyboard Trigger + Focus Contract
 
-Status: Complete locally on 2026-05-21. Keyboard row opening now uses the existing
+Status: Shipped in PR #278 on 2026-05-21. Keyboard row opening now uses the existing
 `ShowMapRowActionsMenu` open signal from focused treeitems, preserves nested-control
 key handling, and has focused regression coverage. PR #278 keeps per-row tab stops
 for the narrow row-actions trigger; roving tabindex and arrow-key movement remain a
@@ -73,6 +73,13 @@ Tests:
 
 ## PR 2 — Class + Trial Destination Audit
 
+Status: Complete locally on 2026-05-21. Class and trial row actions now build
+explicit secretary/report destinations instead of reusing public row hrefs:
+class print links deep-link to the Check-in Sheet report with show/trial/class
+scope, trial schedule opens the show workbench Setup phase, and trial reports
+deep-link to the Trial Secretary report with show/trial scope. ReportsPage now
+preserves incoming show/trial/class/dog query scope on initial load.
+
 Deliverables:
 
 - Verify each class/trial row action goes to the intended destination:
@@ -88,8 +95,9 @@ Tests:
 
 - Unit-test class action hrefs for open / score / print actions.
 - Unit-test trial action hrefs for schedule / report actions.
-- Assert disabled navigation actions show the registry disabled reason when no destination exists.
+- Assert disabled navigation actions show the shared plain-English disabled reason when no destination exists.
 - [ADDED] Assert `resolveShowMapActionExecution` never returns a navigate execution for an action without a usable href.
+- [ADDED] Unit-test ReportsPage initial query-scope resolution for report deep links.
 
 ## PR 3 — Recommended Section Hardening
 

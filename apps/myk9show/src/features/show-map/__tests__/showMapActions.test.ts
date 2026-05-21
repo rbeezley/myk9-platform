@@ -9,6 +9,7 @@ import {
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowMapClassInput } from '../showMapTypes';
+import type { ShowMapActionId } from '../showMapActions';
 
 const show = {
   id: 'show-1',
@@ -44,6 +45,12 @@ const classes: ShowMapClassInput[] = [
     status: 'Not Started',
   },
 ];
+
+function findAction(actions: ReturnType<typeof getRankedActions>, id: ShowMapActionId) {
+  const action = actions.find(candidate => candidate.id === id);
+  expect(action, `expected ${id} action`).toBeDefined();
+  return action!;
+}
 
 describe('showMapActions', () => {
   it('documents the canonical badge targets by row type', () => {
@@ -142,6 +149,45 @@ describe('showMapActions', () => {
     expect(getPrimaryActionForNode(tree.nodesById['class:class-future'], { tree })).toMatchObject({
       id: 'print-check-in-sheet',
       label: 'Print Check-In Sheet',
+    });
+  });
+
+  it('uses verified destinations for class open, score, and print actions', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [],
+    });
+
+    const actions = getRankedActions(tree.nodesById['class:class-active'], { tree });
+
+    expect(findAction(actions, 'open-class')).toMatchObject({
+      href: '/shows/show-1/trials/trial-1/classes/class-active',
+    });
+    expect(findAction(actions, 'score-class')).toMatchObject({
+      href: '/scoring/classes/class-active/entries?mode=split',
+    });
+    expect(findAction(actions, 'print-check-in-sheet')).toMatchObject({
+      href: '/secretary/reports?report=check-in-sheet&showId=show-1&trialId=trial-1&classId=class-active',
+    });
+  });
+
+  it('uses verified destinations for trial schedule and report actions', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [],
+    });
+
+    const actions = getRankedActions(tree.nodesById['trial:trial-1'], { tree });
+
+    expect(findAction(actions, 'open-schedule')).toMatchObject({
+      href: '/secretary/shows/show-1?phase=setup',
+    });
+    expect(findAction(actions, 'print-trial-reports')).toMatchObject({
+      href: '/secretary/reports?report=trial-secretary-report&showId=show-1&trialId=trial-1',
     });
   });
 

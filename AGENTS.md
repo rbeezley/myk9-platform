@@ -128,6 +128,12 @@ Before writing a migration or code fix for a "why doesn't this data flow" bug, *
 
 - ALWAYS run `gh pr merge` from the main repo directory, NEVER from inside a feature worktree (causes stale worktree + cwd lockup).
 - Before reporting a branch as having unpushed work, run `gh pr list --state merged --head <branch>` AND grep merged PR titles for the branch's commit messages. Only flag as truly unpushed if both checks return empty.
+- After a PR merge, immediately do the branch hygiene for that PR while the branch name is still known:
+  1. Switch to the main repo directory and sync `main` with `git checkout main && git pull --ff-only`.
+  2. Run `git fetch --prune` to drop remote-tracking refs for auto-deleted PR branches.
+  3. Delete the local feature branch. For squash merges, first confirm `gh pr list --state merged --head <branch>` returns the merged PR, then use `git branch -D <branch>` because `git branch -d` may not recognize rewritten squash history.
+  4. If the branch had a worktree, remove the worktree after branch cleanup. Do worktree removal as the final cleanup command if the current shell is inside that worktree.
+- Branches named `pr-###`, scratch branches, or temporary review branches should be deleted immediately after the corresponding PR/review work is merged or abandoned. Do not leave them for weekly cleanup unless they are explicitly marked as active.
 - Defer worktree removal to the FINAL step of cleanup, after all other commands have run, to avoid orphaning the shell cwd.
 
 ## Database Migrations

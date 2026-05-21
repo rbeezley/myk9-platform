@@ -196,14 +196,48 @@ if git diff HEAD~1 --name-only | grep -q '^supabase/migrations/'; then
 fi
 ```
 
-### Step 6: Confirm
+### Step 6: PR Merge Cleanup
+
+When this workflow includes merging a PR, clean up that PR branch immediately after the merge instead of deferring it to a later cleanup session.
+
+Run merges from the main repo directory, not from inside a feature worktree:
+
+```bash
+gh pr merge <number> --squash --delete-branch
+git checkout main
+git pull --ff-only
+git fetch --prune
+```
+
+Then delete the local feature branch:
+
+```bash
+# Normal merge history:
+git branch -d <branch>
+
+# Squash merge history:
+gh pr list --state merged --head <branch>
+git branch -D <branch>
+```
+
+Use `git branch -D` only after GitHub confirms the branch's PR is merged, or after the user explicitly confirms the branch is abandoned. If the branch has a worktree, remove that worktree last:
+
+```bash
+git worktree remove <path-to-worktree>
+```
+
+If the current shell is inside the worktree being removed, do not remove it until every other command for the session is complete.
+
+### Step 7: Confirm
 
 ```bash
 git log --oneline -1
 git status
+git branch --no-merged main
+git worktree list
 ```
 
-Report the commit hash and confirm push succeeded.
+Report the commit hash, push/merge result, and whether any non-`main` local branches or extra worktrees remain.
 
 ## Rules
 
@@ -215,3 +249,4 @@ Report the commit hash and confirm push succeeded.
 - Include `Co-Authored-By` trailer for AI-assisted commits
 - Do NOT create new test files during a commit — only run existing ones
 - Ignore known flaky tests (see MEMORY.md pre-existing failures list)
+- After merging a PR, do not leave the feature branch or worktree behind unless the user asks to keep it

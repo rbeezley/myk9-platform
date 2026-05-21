@@ -111,7 +111,7 @@
     "date-fns": "^4.1.0",
     "deep-object-diff": "^1.1.9",
     "dexie": "^4.2.1",
-    "dompurify": "^3.3.1",
+    "dompurify": "^3.4.0",
     "fast-json-patch": "^3.1.1",
     "fflate": "^0.8.2",
     "file-saver": "^2.0.5",

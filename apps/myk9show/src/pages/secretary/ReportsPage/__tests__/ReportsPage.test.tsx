@@ -1,12 +1,26 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '../index';
+
+const showStoreMock = vi.hoisted(() => {
+  const state = {
+    selectedShowId: 'show-1',
+    shows: [
+      { id: 'show-1', name: 'Spring Scent Trial 2026' },
+      { id: 'show-2', name: 'Summer Scent Trial 2026' },
+    ],
+    selectShow: vi.fn((showId: string) => {
+      state.selectedShowId = showId;
+    }),
+  };
+  return state;
+});
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
-    selectedShowId: 'show-1',
-    shows: [{ id: 'show-1', name: 'Spring Scent Trial 2026' }],
-    selectShow: vi.fn(),
+    selectedShowId: showStoreMock.selectedShowId,
+    shows: showStoreMock.shows,
+    selectShow: showStoreMock.selectShow,
   }),
 }));
 
@@ -35,6 +49,11 @@ vi.mock('../ReportPreview', () => ({
 }));
 
 describe('ReportsPage', () => {
+  beforeEach(() => {
+    showStoreMock.selectedShowId = 'show-1';
+    showStoreMock.selectShow.mockClear();
+  });
+
   it('renders "Reports" title', () => {
     render(<ReportsPage />);
     expect(screen.getByText('Reports')).toBeInTheDocument();
@@ -48,6 +67,25 @@ describe('ReportsPage', () => {
   it('renders show name', () => {
     render(<ReportsPage />);
     expect(screen.getAllByText('Spring Scent Trial 2026').length).toBeGreaterThan(0);
+  });
+
+  it('applies a deep-linked show once without overriding later show changes', async () => {
+    showStoreMock.selectedShowId = 'show-2';
+
+    const { rerender } = render(<ReportsPage />, {
+      initialRoute: '/secretary/reports?showId=show-1',
+    });
+
+    await waitFor(() => expect(showStoreMock.selectShow).toHaveBeenCalledWith('show-1'));
+
+    showStoreMock.selectShow.mockClear();
+    showStoreMock.selectedShowId = 'show-2';
+    rerender(<ReportsPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Summer Scent Trial 2026').length).toBeGreaterThan(0)
+    );
+    expect(showStoreMock.selectShow).not.toHaveBeenCalledWith('show-1');
   });
 });
 

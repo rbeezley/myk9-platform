@@ -74,18 +74,33 @@ export default function ReportsPage() {
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const hasAppliedInitialShowRef = useRef(false);
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
 
   useEffect(() => {
-    if (
-      initialScope.showId &&
-      selectedShowId !== initialScope.showId &&
-      shows.some(show => show.id === initialScope.showId)
-    ) {
-      selectShow(initialScope.showId);
-      return;
+    if (!hasAppliedInitialShowRef.current) {
+      const initialShowExists = Boolean(
+        initialScope.showId && shows.some(show => show.id === initialScope.showId)
+      );
+
+      if (initialScope.showId && initialShowExists) {
+        hasAppliedInitialShowRef.current = true;
+        if (selectedShowId !== initialScope.showId) {
+          selectShow(initialScope.showId);
+        }
+        return;
+      }
+
+      if (!initialScope.showId || shows.length > 0) {
+        hasAppliedInitialShowRef.current = true;
+        if (!selectedShowId && shows.length > 0) {
+          selectShow(shows[0].id);
+        }
+        return;
+      }
     }
+
     if (!selectedShowId && shows.length > 0) {
       selectShow(shows[0].id);
     }

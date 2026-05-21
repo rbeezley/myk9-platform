@@ -5904,6 +5904,7 @@ export type Database = {
           actual_start_time: string | null
           allow_self_checkin: boolean | null
           category: string | null
+          confirmation_date: string | null
           created_at: string | null
           date: string
           deleted_at: string | null
@@ -5918,8 +5919,10 @@ export type Database = {
           name: string
           pipeline_stage: number
           planned_start_time: string | null
+          registry_id: string
           show_id: string
           status: string | null
+          timezone: string
           trial_number: string | null
           trial_type: string | null
           updated_at: string | null
@@ -5929,6 +5932,7 @@ export type Database = {
           actual_start_time?: string | null
           allow_self_checkin?: boolean | null
           category?: string | null
+          confirmation_date?: string | null
           created_at?: string | null
           date: string
           deleted_at?: string | null
@@ -5943,8 +5947,10 @@ export type Database = {
           name: string
           pipeline_stage?: number
           planned_start_time?: string | null
+          registry_id?: string
           show_id: string
           status?: string | null
+          timezone?: string
           trial_number?: string | null
           trial_type?: string | null
           updated_at?: string | null
@@ -5954,6 +5960,7 @@ export type Database = {
           actual_start_time?: string | null
           allow_self_checkin?: boolean | null
           category?: string | null
+          confirmation_date?: string | null
           created_at?: string | null
           date?: string
           deleted_at?: string | null
@@ -5968,8 +5975,10 @@ export type Database = {
           name?: string
           pipeline_stage?: number
           planned_start_time?: string | null
+          registry_id?: string
           show_id?: string
           status?: string | null
+          timezone?: string
           trial_number?: string | null
           trial_type?: string | null
           updated_at?: string | null

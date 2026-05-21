@@ -61,6 +61,21 @@ function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): Repor
   };
 }
 
+export function readTrialRegistryId(trial: DbTrial): string {
+  // Read trials.registry_id; default older rows to AKC.
+  return trial.registry_id.trim() || 'AKC';
+}
+
+export function mapReportTrialFields(
+  trial: DbTrial
+): Pick<NonNullable<ReportProps['trial']>, 'date' | 'registryId' | 'trialNumber'> {
+  return {
+    date: trial.date ?? '',
+    registryId: readTrialRegistryId(trial),
+    trialNumber: String(trial.trial_number ?? ''),
+  };
+}
+
 export function buildTrialReportProps(input: {
   show: Show;
   trials: DbTrial[] | null | undefined;
@@ -95,8 +110,7 @@ export function buildTrialReportProps(input: {
       showId: show.id,
       showName: show.name ?? '',
       trial: {
-        date: trial.date ?? '',
-        trialNumber: String(trial.trial_number ?? ''),
+        ...mapReportTrialFields(trial),
         judgeName: firstClassJudge,
       },
       allClasses: allClasses.filter(c => c.trialId === trial.id),

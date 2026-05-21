@@ -58,7 +58,7 @@ export function getOfficialPdfReportConfig(
 
   switch (reportId) {
     case 'trial-secretary-report':
-      return isUKCShow(props) ? UKC_TRIAL_REPORT_CONFIG : AKC_TRIAL_SECRETARY_CONFIG;
+      return isUKCTrial(props) ? UKC_TRIAL_REPORT_CONFIG : AKC_TRIAL_SECRETARY_CONFIG;
     case 'akc-judge-report':
       return AKC_JUDGE_REPORT_CONFIG;
     case 'trial-chairman-report':
@@ -95,9 +95,8 @@ function isReportIdWithOfficialPdf(reportId: string): reportId is ReportIdWithOf
   );
 }
 
-function isUKCShow(props: ReportProps | null | undefined): boolean {
-  const organization = props?.organization?.trim().toUpperCase();
-  return organization === 'UKC' || organization === 'UKC (UNITED KENNEL CLUB)';
+function isUKCTrial(props: ReportProps | null | undefined): boolean {
+  return props?.trial?.registryId?.trim().toUpperCase() === 'UKC';
 }
 
 function assertNever(value: never): never {

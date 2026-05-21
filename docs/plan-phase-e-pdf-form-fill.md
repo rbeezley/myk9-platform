@@ -112,6 +112,22 @@ Tests:
 - Assert UKC shows use the UKC trial report rather than the AKC Trial Secretary Report.
 - Assert official filenames are sanitized consistently across forms.
 
+## PR 7 — Official PDF Registry Detection
+
+**Status:** Current slice.
+
+Deliverables:
+
+- Route official PDF selection from `trials.registry_id` instead of the show-level organization label.
+- Carry the trial registry id through shared Reports props so preview and official PDF flows share the same trial-scoped data.
+- Preserve AKC as the default when older trial rows do not expose a registry id.
+
+Tests:
+
+- Assert UKC trial registry ids select the UKC Nosework Trial Report even when the show organization label is AKC.
+- Assert legacy UKC show labels no longer override an AKC trial registry id.
+- Assert `buildTrialReportProps` carries the trial registry id into the shared report props.
+
 ## Next PRs
 
 - Add a dedicated UKC online-entry source flag before populating the UKC Online Entries fields from production data.

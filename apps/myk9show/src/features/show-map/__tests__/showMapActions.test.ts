@@ -114,8 +114,14 @@ describe('showMapActions', () => {
       ],
     });
 
+    const allRecommendedActions = getRecommendedActions(
+      'root',
+      { tree },
+      Number.POSITIVE_INFINITY
+    );
     const recommendedActions = getRecommendedActions('root', { tree });
 
+    expect(allRecommendedActions.length).toBeGreaterThan(SHOW_MAP_RECOMMENDED_ACTION_LIMIT);
     expect(recommendedActions).toHaveLength(SHOW_MAP_RECOMMENDED_ACTION_LIMIT);
     expect(recommendedActions).toEqual([
       expect.objectContaining({

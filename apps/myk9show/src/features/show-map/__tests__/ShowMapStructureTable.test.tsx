@@ -245,7 +245,9 @@ describe('ShowMapStructureTable', () => {
     expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /print check-in sheet/i }));
-    expect(onNavigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1/classes/class-future');
+    expect(onNavigate).toHaveBeenCalledWith(
+      '/secretary/reports?report=check-in-sheet&showId=show-1&trialId=trial-1&classId=class-future'
+    );
   });
 
   it('defaults to root-only expansion so class rows are hidden until a trial is opened', () => {

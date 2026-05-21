@@ -1,7 +1,7 @@
 # Plan — Phase F Show Map Row Action Hardening
 
 **Date:** 2026-05-21
-**Status:** In progress — PR 3 Recommended-section hardening implemented locally and awaiting review.
+**Status:** In progress — PR 4 tracker closeout and regression walk implemented locally.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Validation Profile
@@ -27,11 +27,10 @@ Already shipped:
 - Entry actions for mark checked-in, scratch / no-show, move-up + undo, and message handler are executable through the shared action execution contract.
 - Class and trial menu actions exist as navigation actions where destinations are available.
 
-Remaining risk:
+Remaining follow-up:
 
-- Keyboard opening (`Enter` / `Space` on a focused row) is implemented in PR #278, but the tree still needs a dedicated roving-tabindex / arrow-key navigation pass before the accessibility contract is considered fully closed.
-- The OPEN-TODOS row-action item is still open because the original spec included three triggers, full action inventory, and Recommended-section hardening as one umbrella item.
-- Class/trial print and schedule destinations should be verified against real routes before the tracker is closed.
+- Keyboard opening (`Enter` / `Space` on a focused row) is implemented in PR #278, but the tree still needs a dedicated roving-tabindex / arrow-key navigation pass before the ARIA tree-widget contract is fully complete. PR 4 carries this as an explicit `OPEN-TODOS.md` follow-up rather than silently closing it.
+- Class status quick actions such as Mark Class Started / Complete remain a separate follow-up because they require choosing the offline-safe class-status mutation path. Phase F v1 closes the shipped row-action command surface without adding that new mutation workflow.
 
 ## Constraints
 
@@ -102,7 +101,7 @@ Tests:
 
 ## PR 3 — Recommended Section Hardening
 
-Status: Implemented locally on 2026-05-21. The shared recommendation contract now
+Status: Shipped in PR #281 on 2026-05-21. The shared recommendation contract now
 uses an explicit two-action cap, deterministic tie-breaking, and excludes disabled
 navigation actions from Recommended while leaving them visible with disabled
 reasons in the full row-action list. The menu has focused coverage for the
@@ -126,6 +125,15 @@ Tests:
 - [ADDED] Assert disabled recommended actions, if present, cannot execute and expose their disabled reason.
 
 ## PR 4 — Tracker Closeout + Regression Walk
+
+Status: Implemented locally on 2026-05-21. A focused regression walk covers the
+three menu triggers (three-dot, right-click, keyboard) and representative
+execution outcomes (`navigate`, `mutation`, `dialog`, disabled navigation). The
+`OPEN-TODOS.md` umbrella row-actions v1 item is marked complete with explicit
+follow-ups for roving ARIA tree focus and class status quick actions. This
+closeout uses React Testing Library coverage rather than browser automation; a
+live staging workbench smoke check remains a deployment/manual verification note,
+not a claimed automated result.
 
 Deliverables:
 

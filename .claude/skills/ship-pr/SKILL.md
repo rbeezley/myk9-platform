@@ -156,9 +156,16 @@ Do not proceed until `state == "MERGED"`.
 
 ```bash
 # Already in main repo from Step 5
-git fetch --prune
 git checkout main
 git pull --ff-only
+git fetch --prune
+
+# Delete the local feature branch.
+# `gh pr merge --delete-branch` only deletes the REMOTE branch — the local ref persists
+# until explicitly deleted, which is the #1 source of "hanging branches" at weekly cleanup.
+# Squash-merge rewrites SHAs, so `git branch -d` may refuse — use -D after verifying merge.
+gh pr list --state merged --head <branch-name> --json number -q '.[].number'  # must return $PR_NUMBER
+git branch -D <branch-name>
 
 # git worktree remove is the ABSOLUTE LAST command — nothing runs after this
 git worktree remove "/Users/richardbeezley/AI Projects/myk9-platform/.claude/worktrees/<branch-name>" --force 2>/dev/null || true
@@ -172,6 +179,7 @@ git worktree remove "/Users/richardbeezley/AI Projects/myk9-platform/.claude/wor
 - NEVER run `gh pr merge` from inside a worktree directory
 - NEVER remove the worktree before merge is confirmed AND main is updated
 - Worktree removal is ALWAYS the final command
+- ALWAYS delete the local feature branch (`git branch -D`) after merge — `--delete-branch` on `gh pr merge` only removes the REMOTE; the local ref must be deleted separately
 - Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
 - Use `pnpm`, not `npm` or `npx`
 - Max 5 verify iterations, max 5 review rounds — escalate if limits hit

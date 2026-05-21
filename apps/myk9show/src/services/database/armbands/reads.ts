@@ -1,7 +1,7 @@
 // Armband-related database queries
 //
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
-// Mutation functions (assignArmband) stay on PostgREST (RPC call — DO NOT CHANGE).
+// Mutation functions (claimNextArmband) stay on PostgREST (RPC call — DO NOT CHANGE).
 
 import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from '../_shared/replication-fallback';
@@ -155,10 +155,12 @@ export const getArmbandCountForShow = async (showId: string) => {
 };
 
 /**
- * Assign an armband number to a dog for a given show via the assign_armband RPC.
- * Returns the assigned armband number string, or null if assignment failed.
+ * Claim the next available armband for a dog at a show. The number is chosen
+ * server-side by the assign_armband RPC; callers do not pick it.
+ *
+ * For caller-specified armband numbers, use setEntryArmband() from this module.
  */
-export const assignArmband = async (
+export const claimNextArmband = async (
   showId: string,
   dogId: string
 ): Promise<{ armband: string | null; error: unknown }> => {

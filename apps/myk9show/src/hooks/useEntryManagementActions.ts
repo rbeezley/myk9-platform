@@ -17,8 +17,8 @@ import {
 import {
   autoAssignArmbands,
   getNextArmbandForShow,
-  assignArmband,
-} from '@/services/database/armbands/secretary';
+  setEntryArmband,
+} from '@/services/database/armbands';
 
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
@@ -184,7 +184,7 @@ export function useEntryManagementActions({
 
     setIsProcessing(true);
     try {
-      const { error: dbError } = await assignArmband(
+      const { error: dbError } = await setEntryArmband(
         armbandDialog.entry.id,
         armbandDialog.value.trim()
       );

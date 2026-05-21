@@ -3,18 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEntryManagementActions } from '../useEntryManagementActions';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { assignArmband } from '@/services/database/armbands/secretary';
+import { setEntryArmband } from '@/services/database/armbands';
 import { deleteEntry } from '@/services/database/entries';
 
 const mocks = vi.hoisted(() => ({
-  assignArmband: vi.fn(),
+  setEntryArmband: vi.fn(),
   autoAssignArmbands: vi.fn(),
   getEntryArmbandById: vi.fn(),
   getNextArmbandForShow: vi.fn(),
 }));
 
-vi.mock('@/services/database/armbands/secretary', () => ({
-  assignArmband: mocks.assignArmband,
+vi.mock('@/services/database/armbands', () => ({
+  setEntryArmband: mocks.setEntryArmband,
   autoAssignArmbands: mocks.autoAssignArmbands,
   getEntryArmbandById: mocks.getEntryArmbandById,
   getNextArmbandForShow: mocks.getNextArmbandForShow,
@@ -77,7 +77,7 @@ function makeEntry(): EntryManagementEntry {
 describe('useEntryManagementActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.assignArmband.mockResolvedValue({ data: { updated: 1, armband: '89742' }, error: null });
+    mocks.setEntryArmband.mockResolvedValue({ data: { updated: 1, armband: '89742' }, error: null });
   });
 
   it('assigns secretary armbands by entry id and requested armband number', async () => {
@@ -109,7 +109,7 @@ describe('useEntryManagementActions', () => {
       await result.current.handleAssignArmband();
     });
 
-    expect(assignArmband).toHaveBeenCalledWith('entry-1', '89742');
+    expect(setEntryArmband).toHaveBeenCalledWith('entry-1', '89742');
     expect(setError).not.toHaveBeenCalled();
 
     const updater = setEntries.mock.calls[0]?.[0];

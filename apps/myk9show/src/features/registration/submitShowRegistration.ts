@@ -1,6 +1,6 @@
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import type { ShowFeeInfo } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
-import { assignArmband } from '@/services/database/armbands';
+import { claimNextArmband } from '@/services/database/armbands';
 import { submitShowEntries } from '@/services/database/entries';
 import { createShowRegistration } from '@/services/database/show-registrations';
 import type {
@@ -45,7 +45,7 @@ interface SubmitShowRegistrationDeps {
   ) => Promise<{ confirmationNumber?: string | undefined; dbRegistrationId?: string | undefined }>;
   createShowRegistration: typeof createShowRegistration;
   submitShowEntries: typeof submitShowEntries;
-  assignArmband: typeof assignArmband;
+  claimNextArmband: typeof claimNextArmband;
   updateEntryRegistration: (
     entryId: string,
     updates: { armband?: string | undefined },
@@ -80,7 +80,7 @@ const DEFAULT_DEPS: Omit<
 > = {
   createShowRegistration,
   submitShowEntries,
-  assignArmband,
+  claimNextArmband,
   createSubmissionId: () => crypto.randomUUID(),
 };
 
@@ -224,7 +224,7 @@ async function assignArmbandsForEntries({
   const armbandAssignments = (
     await Promise.all(
       uniqueDogIds.map(async dogId => {
-        const { armband } = await deps.assignArmband(showId, dogId);
+        const { armband } = await deps.claimNextArmband(showId, dogId);
         return armband ? { dogId, armband } : null;
       })
     )

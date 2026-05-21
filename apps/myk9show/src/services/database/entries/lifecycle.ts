@@ -17,7 +17,7 @@
  */
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import { auditService } from '@/services/AuditService';
-import { getEntryArmbandById } from '@/services/database/armbands/secretary';
+import { getEntryArmbandById } from '@/services/database/armbands';
 import { AuditAction } from '@/types/audit-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EntryStatus as SecretaryEntryStatus } from '@/types/show-registration-types';

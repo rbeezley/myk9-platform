@@ -33,7 +33,14 @@ async function fetchStartingArmbandForShow(showId: string): Promise<number> {
   return Number.isFinite(start) && start > 0 ? start : 100;
 }
 
-export const assignArmband = async (entryId: string, armband: string) => {
+/**
+ * Set a specific armband number for an entry. The caller picks the number;
+ * this function upserts the armbands row and syncs the entries.armband field.
+ *
+ * For auto-claiming the next available number, use claimNextArmband() from
+ * the reads side of this module.
+ */
+export const setEntryArmband = async (entryId: string, armband: string) => {
   const startTime = Date.now();
 
   try {

@@ -122,8 +122,9 @@ vi.mock('@/components/common/ErrorBoundary', () => ({
   RegistrationErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('@/services/database/queries/armbandQueries', () => ({
-  assignArmband: vi.fn(),
+vi.mock('@/services/database/armbands', () => ({
+  claimNextArmband: vi.fn(),
+  getEntryArmbandById: vi.fn(),
 }));
 
 // ─── Import page after all mocks ─────────────────────────────────────────────

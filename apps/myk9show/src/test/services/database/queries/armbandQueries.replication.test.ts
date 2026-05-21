@@ -66,7 +66,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 // Now import the functions under test
 import {
-  assignArmband,
+  claimNextArmband,
   getArmbandCountForShow,
   lookupDogByArmband,
 } from '@/services/database/armbands';
@@ -139,7 +139,7 @@ describe('armbandQueries (replication)', () => {
     vi.clearAllMocks();
   });
 
-  describe('assignArmband', () => {
+  describe('claimNextArmband', () => {
     it('syncs the assigned armband back to all entries for the dog in the show', async () => {
       mockSupabase.rpc.mockResolvedValue({ data: 104, error: null });
 
@@ -149,7 +149,7 @@ describe('armbandQueries (replication)', () => {
       const updateMock = vi.fn().mockReturnValue({ eq: firstEqMock });
       mockSupabase.from.mockReturnValue({ update: updateMock });
 
-      const result = await assignArmband('show-1', 'dog-1');
+      const result = await claimNextArmband('show-1', 'dog-1');
 
       expect(result).toEqual({ armband: '104', error: null });
       expect(mockSupabase.rpc).toHaveBeenCalledWith('assign_armband', {
@@ -178,7 +178,7 @@ describe('armbandQueries (replication)', () => {
         update: vi.fn().mockReturnValue({ eq: firstEqMock }),
       });
 
-      const result = await assignArmband('show-1', 'dog-1');
+      const result = await claimNextArmband('show-1', 'dog-1');
 
       expect(result.armband).toBeNull();
       expect(result.error).toEqual({ message: 'update failed' });

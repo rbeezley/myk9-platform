@@ -44,7 +44,7 @@ function makeParams(
         registrationId: 'db-reg-1',
         submissionId: 'submission-1',
       }),
-      assignArmband: vi.fn().mockResolvedValue({ armband: '101' }),
+      claimNextArmband: vi.fn().mockResolvedValue({ armband: '101' }),
       updateEntryRegistration: vi.fn().mockResolvedValue(undefined),
       createSubmissionId: () => 'submission-1',
     },

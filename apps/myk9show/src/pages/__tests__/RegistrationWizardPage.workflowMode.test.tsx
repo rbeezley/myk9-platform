@@ -140,7 +140,8 @@ vi.mock('@/components/common/ErrorBoundary', () => ({
 }));
 
 vi.mock('@/services/database/armbands', () => ({
-  assignArmband: vi.fn(),
+  claimNextArmband: vi.fn(),
+  getEntryArmbandById: vi.fn(),
 }));
 
 // ─── Import page after all mocks ─────────────────────────────────────────────

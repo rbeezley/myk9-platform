@@ -1483,6 +1483,7 @@ export type Database = {
           dog_id: string | null
           entry_fee: number | null
           entry_status: string | null
+          entry_source: string
           final_placement: number | null
           handler: string | null
           handler_id: string | null
@@ -1558,6 +1559,7 @@ export type Database = {
           dog_id?: string | null
           entry_fee?: number | null
           entry_status?: string | null
+          entry_source?: string
           final_placement?: number | null
           handler?: string | null
           handler_id?: string | null
@@ -1633,6 +1635,7 @@ export type Database = {
           dog_id?: string | null
           entry_fee?: number | null
           entry_status?: string | null
+          entry_source?: string
           final_placement?: number | null
           handler?: string | null
           handler_id?: string | null

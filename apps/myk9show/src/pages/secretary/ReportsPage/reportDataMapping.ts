@@ -1,4 +1,5 @@
 import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
+import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
@@ -16,6 +17,7 @@ function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): Repor
   const owner = dog?.owner as Record<string, unknown> | null;
   const handlerName = owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '';
   const armbandNum = e.armband != null ? Number(e.armband) : null;
+  const entrySource = readEntrySource(e.entry_source);
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,
@@ -41,6 +43,7 @@ function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): Repor
       ? { paymentStatus: e.payment_status as NonNullable<ReportEntry['paymentStatus']> }
       : {}),
     ...(e.payment_method ? { paymentMethod: e.payment_method } : {}),
+    ...(entrySource ? { entrySource } : {}),
     ...(e.is_day_of_show != null ? { isDayOfShow: Boolean(e.is_day_of_show) } : {}),
     ...(trial
       ? {
@@ -59,6 +62,14 @@ function mapReportEntry(e: DbEntry, trial?: DbTrial, classData?: DbClass): Repor
         }
       : {}),
   };
+}
+
+function readEntrySource(entrySource: string | null | undefined): ReportEntry['entrySource'] {
+  if (entrySource === REPORT_ENTRY_SOURCE.MYK9 || entrySource === REPORT_ENTRY_SOURCE.UKC_ONLINE) {
+    return entrySource;
+  }
+
+  return undefined;
 }
 
 export function readTrialRegistryId(trial: DbTrial): string {

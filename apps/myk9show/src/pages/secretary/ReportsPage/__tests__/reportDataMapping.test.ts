@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTrialReportProps, readTrialRegistryId } from '../reportDataMapping';
+import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
@@ -42,6 +43,7 @@ const entry = {
     breed: 'Beagle',
     owner: { first_name: 'Jamie', last_name: 'Walker' },
   },
+  entry_source: REPORT_ENTRY_SOURCE.UKC_ONLINE,
 } as unknown as DbEntry;
 
 describe('buildTrialReportProps', () => {
@@ -72,6 +74,7 @@ describe('buildTrialReportProps', () => {
           armband: 7,
           callName: 'Rocket',
           handler: 'Jamie Walker',
+          entrySource: REPORT_ENTRY_SOURCE.UKC_ONLINE,
           classElement: 'Container',
           classLevel: 'Novice',
           classSection: 'A',

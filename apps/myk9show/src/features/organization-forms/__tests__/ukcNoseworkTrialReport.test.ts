@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PDFDocument } from 'pdf-lib';
+import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import {
   buildUKCNoseworkTrialReportValues,
@@ -40,7 +41,11 @@ function makeEntry(overrides: Partial<ReportEntry> = {}): ReportEntry {
 const reportProps = {
   clubName: 'Demo Nosework Club',
   entries: [
-    makeEntry({ id: 'pre-online-payment-1', paymentMethod: 'online' }),
+    makeEntry({
+      id: 'ukc-online-1',
+      entrySource: REPORT_ENTRY_SOURCE.UKC_ONLINE,
+      paymentMethod: 'online',
+    }),
     makeEntry({ id: 'pre-1' }),
     makeEntry({ id: 'pre-2', isDayOfShow: false }),
     makeEntry({ id: 'day-1', isDayOfShow: true }),
@@ -56,12 +61,21 @@ const reportProps = {
 } satisfies ReportProps;
 
 describe('countUKCNoseworkEntries', () => {
-  it('splits entries into pre-entry and day-of-show buckets without inferring UKC online source', () => {
+  it('splits entries into UKC online, pre-entry, and day-of-show buckets', () => {
     expect(countUKCNoseworkEntries(reportProps.entries)).toEqual({
       dayOfShowEntries: 2,
-      onlineEntries: 0,
-      preEntries: 3,
+      onlineEntries: 1,
+      preEntries: 2,
       totalEntries: 5,
+    });
+  });
+
+  it('does not infer UKC online source from myK9 payment method', () => {
+    expect(countUKCNoseworkEntries([makeEntry({ paymentMethod: 'online' })])).toEqual({
+      dayOfShowEntries: 0,
+      onlineEntries: 0,
+      preEntries: 1,
+      totalEntries: 1,
     });
   });
 });
@@ -77,11 +91,11 @@ describe('buildUKCNoseworkTrialReportValues', () => {
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries]: 2,
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowSubtotal]: '8.00',
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate]: '6/12/2026',
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue]: '20.00',
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries]: 0,
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineSubtotal]: '0.00',
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries]: 3,
-        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntrySubtotal]: '12.00',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue]: '16.00',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries]: 1,
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineSubtotal]: '4.00',
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries]: 2,
+        [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntrySubtotal]: '8.00',
         [UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries]: 5,
       },
     });
@@ -123,13 +137,14 @@ describe('buildUKCNoseworkTrialReportValues', () => {
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.eventDate).getText()).toBe(
       '6/12/2026'
     );
-    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries).getText()).toBe('3');
+    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.onlineEntries).getText()).toBe('1');
+    expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.preEntries).getText()).toBe('2');
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.dayOfShowEntries).getText()).toBe(
       '2'
     );
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.totalEntries).getText()).toBe('5');
     expect(form.getTextField(UKC_NOSEWORK_TRIAL_REPORT_FIELDS.grandTotalDue).getText()).toBe(
-      '20.00'
+      '16.00'
     );
   });
 });

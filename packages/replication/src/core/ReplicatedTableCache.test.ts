@@ -57,22 +57,38 @@ describe('ReplicatedTableCacheManager', () => {
   });
 
   afterEach(async () => {
-    // notifyListeners() schedules a trailing-edge setTimeout that calls
-    // getAllData() against the IDB handle ~100ms later. If we close the DB
-    // before that fires, the timer hits a closed handle and surfaces as an
-    // unhandled InvalidStateError after the test has already passed. Cancel
-    // the pending timer and drop subscribers before tearing down the DB.
+    // notifyListeners() is async: it first awaits the leading-edge
+    // actuallyNotifyListeners() (which does an IDB read), and ONLY THEN
+    // schedules a trailing-edge setTimeout (~100ms) that does another IDB
+    // read. subscribe() fires notifyListeners() without awaiting it, so a
+    // synchronous test that calls subscribe() leaves an in-flight async
+    // call that hasn't reached the setTimeout yet when the test body ends.
+    //
+    // If afterEach reads `notifyDebounceTimer` and closes the DB before
+    // that in-flight call finishes scheduling, the trailing-edge timer
+    // fires later against a closed IDB handle and surfaces as an unhandled
+    // InvalidStateError. So:
+    //   1. Drop subscribers so callbacks no-op.
+    //   2. Wait > NOTIFY_DEBOUNCE_MS so any in-flight notifyListeners()
+    //      has time to schedule AND fire its trailing-edge timer against
+    //      the still-open DB.
+    //   3. Cancel any timer that somehow got rescheduled during the wait.
     const internals = cacheManager as unknown as {
       notifyDebounceTimer: ReturnType<typeof setTimeout> | null;
       hasNotifiedLeadingEdge: boolean;
       listeners: Set<unknown>;
     };
+    internals.listeners.clear();
+
+    // NOTIFY_DEBOUNCE_MS is 100; 150ms covers it plus the trailing-edge's
+    // own IDB read latency before we tear down the DB.
+    await new Promise(r => setTimeout(r, 150));
+
     if (internals.notifyDebounceTimer) {
       clearTimeout(internals.notifyDebounceTimer);
       internals.notifyDebounceTimer = null;
     }
     internals.hasNotifiedLeadingEdge = false;
-    internals.listeners.clear();
 
     await dbManager.reset();
   });

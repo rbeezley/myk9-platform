@@ -149,8 +149,12 @@ const PermissionManagementPage: React.FC = () => {
   }
 
   return (
-    <PrimaryTabs tabs={PERMISSION_TABS} value={activeTab} onValueChange={setActiveTab} className="mb-6">
-
+    <PrimaryTabs
+      tabs={PERMISSION_TABS}
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="mb-6"
+    >
       <TabsContent value="overview">
         <div className="min-h-screen bg-background">
           <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
@@ -306,9 +310,9 @@ const PermissionManagementPage: React.FC = () => {
                   <CardContent className="relative">
                     <div className="space-y-2">
                       {userRoles.length > 0 ? (
-                        userRoles.map(ur => (
+                        userRoles.map((ur, index) => (
                           <div
-                            key={ur.id}
+                            key={`${ur.id}-${ur.scope_type ?? 'global'}-${ur.scope_id ?? index}`}
                             className="flex items-center justify-between p-3 border border-border/50 rounded-lg 
                                                  hover:bg-muted/50 transition-colors duration-300"
                           >

@@ -79,9 +79,71 @@ Copy this block for each new finding.
 
 ## Open Findings
 
-None.
+### QA-TEST-FLAKE-004
+
+- **Status:** open
+- **Severity:** medium
+- **Role:** secretary
+- **Surface:** `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`, `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`, `apps/myk9show/src/test/e2e/uat/secretary/critical-path.spec.ts`
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-05-21 active Nightly command failed after `40 passed`, `3 failed`, and `2 did not run`. Failures were `entryCreationCore.spec.ts:64` timed out inside `page.evaluate` while importing/using `useEntryStore`, `singleDogSingleClass.spec.ts:110` could not find seeded dog `Bravo` in the mail-in registration wizard, and `critical-path.spec.ts:63` timed out on the sign-in deep link to `/secretary/register/:showId`. Evidence paths include `apps/myk9show/test-results/registration-entryCreation-9764e-tus-through-workflow-states-chromium/error-context.md`, `apps/myk9show/test-results/registration-singleDogSing-28b55--dog-and-one-selected-class-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-critical-pat-bc2f8-g-and-reach-class-selection-chromium/error-context.md`.
+- **User impact:** Nightly cannot currently prove the secretary registration/payment path reliably. Focused `registrationUI.spec.ts --grep "searches for a non-owned dog"` passed in isolation, so this may be sequence pollution rather than a product-wide dog-search outage.
+- **Intent check:** Harms the secretary target feeling of "That was easy" if it reflects real registration instability; harms QA trust if it is only suite order/state leakage.
+- **Fix owner:** registration Playwright fixtures, secretary mail-in registration flow, and entry-store browser test coverage.
+- **Proof required:** Focused reruns of the three failed specs alone, then the full active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0`.
+- **Notes:** Do not demote yet unless this repeats within 14 days or the focused proof shows the active specs are no longer trustworthy.
+
+### QA-CONSOLE-ERROR-005
+
+- **Status:** open
+- **Severity:** medium
+- **Role:** secretary
+- **Surface:** `/secretary/entries/:showId` and `/secretary/reports`
+- **Suite category:** none
+- **Pattern:** console-error
+- **Detected by:** audit-pages
+- **Evidence:** 2026-05-21 route-health sweep logged `[ERROR] [secretary] Error loading entries: {stack: undefined}` on `/secretary/entries/4584f257-19b5-4016-aae6-5e7827b769cb` at 375px and `/secretary/reports` at 1280px. The route sweep otherwise rendered those pages.
+- **User impact:** Secretary routes render, but entry-backed data may be missing or stale without a clear user-facing explanation.
+- **Intent check:** Harms the secretary target feeling of calm control because the page appears usable while entry loading fails in the background.
+- **Fix owner:** `apps/myk9show/src/hooks/useEntryManagementData.ts` and entry query/RLS path behind `getEntriesForShow`.
+- **Proof required:** Focused route-health replay for `/secretary/entries/:showId` and `/secretary/reports` at desktop and 375px with no console errors or owned 4xx/5xx responses.
+- **Notes:** Left open because the failure may involve query shape or RLS and needs a narrower investigation.
 
 ## Closed Findings
+
+### QA-CONSOLE-ERROR-007
+
+- **Status:** fixed
+- **Severity:** low
+- **Role:** admin
+- **Surface:** `/admin/permissions`
+- **Suite category:** none
+- **Pattern:** console-error
+- **Detected by:** audit-pages
+- **Evidence:** 2026-05-21 route-health sweep logged repeated React duplicate-key warnings on `/admin/permissions` at desktop and 375px. Browser console args identified the repeated key as a generated RBAC role key.
+- **User impact:** Admin permissions page rendered, but repeated React key collisions could cause unstable list identity or duplicated/omitted rows.
+- **Intent check:** Preserves admin confidence by removing noisy, low-level render instability from a permission-management surface.
+- **Fix owner:** `apps/myk9show/src/pages/admin/permissions/PermissionManagementPage.tsx`
+- **Proof required:** Passed on 2026-05-21 with focused browser replay of `/admin/permissions`: `errors=0 duplicateKey=0`.
+- **Notes:** Fixed by adding stable composite keys for current-user role rows.
+
+### QA-NETWORK-ERROR-006
+
+- **Status:** fixed
+- **Severity:** low
+- **Role:** public
+- **Surface:** `/shows/:id`
+- **Suite category:** none
+- **Pattern:** network-error
+- **Detected by:** audit-pages
+- **Evidence:** 2026-05-21 route-health sweep logged Supabase `406` responses on public `/shows/4584f257-19b5-4016-aae6-5e7827b769cb` at desktop and 375px from `postgrestGetShowById`.
+- **User impact:** Public show detail rendered, but the background detail query generated avoidable 406 network noise that can mask real route-health failures.
+- **Intent check:** Preserves the exhibitor/public browsing experience by keeping show-detail loading quiet when a detail row is not visible.
+- **Fix owner:** `apps/myk9show/src/services/database/shows/reads.postgrest.ts`
+- **Proof required:** Passed on 2026-05-21 with focused browser replay of `/shows/4584f257-19b5-4016-aae6-5e7827b769cb` at 1280px and 375px: both passed with no owned 4xx/5xx responses.
+- **Notes:** Fixed by changing the detail lookup from `.single()` to `.maybeSingle()` while keeping the existing `PGRST116` compatibility branch for tests.
 
 ### QA-NETWORK-ERROR-003
 

@@ -291,7 +291,7 @@ export async function postgrestGetShowById(id: string) {
     )
     .eq('id', id)
     .is('deleted_at', null)
-    .single();
+    .maybeSingle();
 
   if (error?.code === 'PGRST116') return { data: null, error: null };
   if (error) throw createDatabaseError(error, 'show', 'select_by_id');

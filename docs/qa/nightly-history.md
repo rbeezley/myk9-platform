@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-21
+
+- **Playwright command:** fail
+- **Route sweep:** partial after low-risk local fixes
+- **Active specs:** Vitest 18/18; Playwright 40/45 passed, 3 failed, 2 skipped
+- **Failures:** `entryCreationCore.spec.ts:64`, `singleDogSingleClass.spec.ts:110`, and `uat/secretary/critical-path.spec.ts:63`, finding `QA-TEST-FLAKE-004`. Route sweep also opened `QA-CONSOLE-ERROR-005` for secretary entry-loading console errors.
+- **Fixes made:** `apps/myk9show/src/services/database/shows/reads.postgrest.ts`, `apps/myk9show/src/pages/admin/permissions/PermissionManagementPage.tsx`, `docs/qa/findings.md`, `docs/qa/nightly-history.md`
+- **Demotions/promotions:** none
+- **Notes:** Run began from clean local `main`; remote sync was skipped after approval timeout. Focused `registrationUI.spec.ts --grep "searches for a non-owned dog"` passed, so the `Bravo` failure is not currently proven as a product-wide dog-search outage. Secretary Show Workbench feature-audit passed (`2 passed`). Route sweep covered public, exhibitor, secretary, judge, club-admin, and admin route groups at desktop plus 375px mobile (`38` route/viewport checks). Fixed and re-proved public show detail 406 noise (`QA-NETWORK-ERROR-006`) and admin permissions duplicate-key console noise (`QA-CONSOLE-ERROR-007`). Focused show query unit proof passed (`35 passed`).
+
 ### 2026-05-20
 
 - **Playwright command:** pass after low-risk local fixes

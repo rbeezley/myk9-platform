@@ -24,6 +24,7 @@ const reportProps = {
   trial: {
     date: '2026-06-12',
     judgeName: 'Pat Judge',
+    registryId: 'AKC',
     trialNumber: '2026/1234 A',
   },
 } satisfies ReportProps;
@@ -39,20 +40,21 @@ describe('getOfficialPdfReportConfig', () => {
   it('uses the UKC Nosework PDF for UKC trial secretary reports', () => {
     const config = getOfficialPdfReportConfig('trial-secretary-report', {
       ...reportProps,
-      organization: 'UKC',
+      organization: 'AKC',
+      trial: { ...reportProps.trial, registryId: 'UKC' },
     });
 
     expect(config?.templateId).toBe('ukc-nosework-trial-report');
     expect(config?.actionLabel).toBe('Download UKC Trial Report PDF');
   });
 
-  it('recognizes the legacy UKC display label', () => {
+  it('uses the trial registry instead of the show organization label', () => {
     const config = getOfficialPdfReportConfig('trial-secretary-report', {
       ...reportProps,
       organization: 'UKC (United Kennel Club)',
     });
 
-    expect(config?.templateId).toBe('ukc-nosework-trial-report');
+    expect(config?.templateId).toBe('akc-scent-work-trial-secretary-report');
   });
 
   it('maps AKC judge and chairman report ids to their official PDFs', () => {

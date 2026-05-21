@@ -13,6 +13,7 @@ const show = {
 const trial = {
   id: 'trial-1',
   date: '2026-04-12',
+  registry_id: 'UKC',
   trial_number: 2026123401,
 } as DbTrial;
 
@@ -61,6 +62,7 @@ describe('buildTrialReportProps', () => {
       organization: 'AKC',
       trial: {
         date: '2026-04-12',
+        registryId: 'UKC',
         trialNumber: '2026123401',
         judgeName: 'Pat Judge',
       },

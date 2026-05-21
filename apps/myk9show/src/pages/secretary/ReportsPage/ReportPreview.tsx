@@ -5,7 +5,7 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import type { ReportProps } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
-import { buildTrialReportProps, mapReportEntries } from './reportDataMapping';
+import { buildTrialReportProps, mapReportEntries, mapReportTrialFields } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
 
 export interface ReportPreviewProps {
@@ -119,8 +119,7 @@ export function ReportPreview({
         .filter(t => targetTrialIds.includes(t.id))
         .map(t => ({
           id: t.id,
-          date: t.date ?? '',
-          trialNumber: String(t.trial_number ?? ''),
+          ...mapReportTrialFields(t),
           judgeName: ((t as Record<string, unknown>).judge_name as string) ?? undefined,
         }));
 
@@ -183,8 +182,7 @@ export function ReportPreview({
             showId: show.id,
             showName: show.name ?? '',
             trial: {
-              date: trial.date ?? '',
-              trialNumber: String(trial.trial_number ?? ''),
+              ...mapReportTrialFields(trial),
               judgeName: ((classData as Record<string, unknown>).judge_name as string) ?? 'TBD',
             },
             classData: {

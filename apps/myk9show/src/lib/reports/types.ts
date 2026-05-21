@@ -44,6 +44,7 @@ export interface ReportProps {
     date: string;
     trialNumber: string;
     judgeName: string;
+    registryId?: string;
   };
   classData?: {
     element: string;
@@ -69,6 +70,7 @@ export interface ReportProps {
     id: string;
     date: string;
     trialNumber: string;
+    registryId?: string;
     judgeName?: string;
   }>;
   allClasses?: Array<{

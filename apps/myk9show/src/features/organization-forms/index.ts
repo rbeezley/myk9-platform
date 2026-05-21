@@ -4,6 +4,7 @@ export * from './akcTrialChairmanReport';
 export * from './akcTrialChairmanReportFields';
 export * from './akcTrialSecretaryReport';
 export * from './akcTrialSecretaryReportFields';
+export * from './officialPdfReports';
 export * from './organizationFormTemplates';
 export * from './pdfFormCompleteness';
 export * from './pdfForm';

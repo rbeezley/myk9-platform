@@ -51,9 +51,21 @@ export const ORGANIZATION_FORM_TEMPLATES = [
   },
 ] as const satisfies readonly OrganizationFormTemplate[];
 
-const ORGANIZATION_FORM_TEMPLATE_URLS: Partial<Record<OrganizationFormTemplateId, string>> = {
+const ORGANIZATION_FORM_TEMPLATE_URLS: Record<OrganizationFormTemplateId, string> = {
   'akc-scent-work-trial-secretary-report': new URL(
     '../../../../../docs/AKC-forms/SW-TSReport.pdf',
+    import.meta.url
+  ).href,
+  'akc-scent-work-judge-report': new URL(
+    '../../../../../docs/AKC-forms/SW-JudgeReport.pdf',
+    import.meta.url
+  ).href,
+  'akc-scent-work-trial-chairman-report': new URL(
+    '../../../../../docs/AKC-forms/SW-TCReport.pdf',
+    import.meta.url
+  ).href,
+  'ukc-nosework-trial-report': new URL(
+    '../../../../../docs/UKC-forms/NW-TrialReport.pdf',
     import.meta.url
   ).href,
 };
@@ -67,7 +79,5 @@ export function getOrganizationFormTemplate(
 }
 
 export function getOrganizationFormTemplateUrl(id: OrganizationFormTemplateId): string {
-  const url = ORGANIZATION_FORM_TEMPLATE_URLS[id];
-  if (!url) throw new Error(`No runtime URL configured for organization form template: ${id}`);
-  return url;
+  return ORGANIZATION_FORM_TEMPLATE_URLS[id];
 }

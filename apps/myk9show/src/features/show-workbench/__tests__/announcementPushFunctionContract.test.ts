@@ -16,7 +16,7 @@ describe('push-trigger-announcement function contract', () => {
     expect(source).toContain('if (!supabaseServiceKey)');
     expect(source).toContain("req.headers.get('Authorization')");
     expect(source).toContain('Bearer ${supabaseServiceKey}');
-    expect(source).toContain("new Response('Unauthorized', { status: 401 })");
+    expect(source).toContain("throw new HttpError(401, 'Unauthorized')");
     expect(source).toContain(".eq('is_active', true)");
     expect(source.indexOf("req.headers.get('Authorization')")).toBeLessThan(
       source.indexOf('webpush.sendNotification')

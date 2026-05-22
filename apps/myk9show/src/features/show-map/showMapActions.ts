@@ -94,7 +94,10 @@ function canMarkClassStarted(node: ShowMapNode): boolean {
 }
 
 function canMarkClassComplete(node: ShowMapNode): boolean {
-  return node.type === 'class' && node.status?.kind === 'active';
+  if (node.type !== 'class' || node.status?.kind !== 'active') return false;
+  // No progress data means an empty class; let the secretary close it out.
+  if (!node.progress) return true;
+  return node.progress.completed >= node.progress.total;
 }
 
 function canMarkEntryCheckedIn(node: ShowMapNode): boolean {

@@ -264,6 +264,15 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 ## North Star — Phase 2: Walk the Golden Paths
 
 - [ ] **Phase 2 re-walk** — First pass complete 2026-05-03. Do a second end-to-end walk for secretary and exhibitor paths before Phase 3 hand-off. Exit: both paths complete without a blocker.
+
+  Secretary re-walk scope must explicitly cover the full Phase A-F show-day / Show Map arc:
+
+  - **Phase A — smart row actions:** shared action execution contract; mark checked-in; scratch/no-show with manual-refund boundary; move-up plus undo; message handler and canned replies.
+  - **Phase B — workbench IA:** `/secretary/shows/:showId` Setup / Today / Wrap-up tabs; secretary show-picker / auto-route behavior; legacy day-of, check-in, run-order, and volunteer redirects; Setup panels; Today MyK9Q access plus Show Map; Wrap-up report/results links.
+  - **Phase C — tree extensions + guided UX:** Today / Tomorrow / All / Completed scope; Running Now strip; Next Best Action card; priority queue; Attention filtering; phase checklists; contextual phase strips; AskQ "What do I do if..." entry points; wrap-up signature/submission taxonomy.
+  - **Phase D — day-of operations:** late-entry flow; scratches/no-shows; incident logging and closeout; schedule-slip PA script / broadcast / push alert flow; judge hospitality; end-of-day reconciliation; per-judge supply checklist; mass broadcast and class/handler canned messages.
+  - **Phase E — official closeout PDFs:** supported AKC / UKC official PDF downloads from Reports / Wrap-up; missing-field warnings; registry-id routing; UKC entry-source totals; Result Catalog judge signature lines. Venue hardware print testing remains tracked separately.
+  - **Phase F — row-action hardening:** row actions from three-dot, right-click, and keyboard; Recommended section cap/order/why-lines; class/trial secretary/report destinations; roving tree keyboard focus (single tab stop, arrow movement, Enter/Space opens actions); Mark Class Started / Complete; unresolved-score guardrail; Wrap-up attention/status behavior after class completion.
 - [x] **Fix exhibitor check-in status column wiring** — Fixed on 2026-05-10. `/exhibitor/check-in/:entryId` and `/exhibitor/show-day` now read show-day status from `entries.check_in_status`, matching the `self_checkin_entry` RPC write path. Added focused tests for the check-in page data query and show-day class mapping.
 - [x] **Secretary Task Timeline View** — Fixed on 2026-05-10. The Tasks tab has a persisted List/Timeline toggle, Timeline renders dated and undated tasks with summary counts, and Timeline rows now support mark done/undone, edit, and delete using the same task mutations as List. No migration required for v1.
 

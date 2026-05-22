@@ -175,17 +175,23 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 
 ---
 
-## Phase IA-4 (deferred) — URL-state sync and duplication verification
+## Phase IA-4 — URL-state sync and duplication verification
 
-**Status:** Documented only. Not scheduled.
-**Entry trigger:** IA-1 through IA-3 merged AND evidence that deep-linking is requested by users (currently no signal).
+**Status:** Duplication verification and remediation complete. URL-state sync remains deferred.
+**Entry trigger:** Duplication remediation is triggered by the confirmed Class Details duplicate. URL-state sync remains gated on evidence that deep-linking is requested by users (currently no signal).
 
 **Scope (if revisited):**
 
 - URL-reflect ShowMap internal state (expanded nodes, focused row, filter, day/completion scope) so users can deep-link to a specific class node.
-- Verify whether the new class-completion action (PR #287) is duplicated on a class-detail route. If yes, consolidate. If no, close this item.
+- Verify whether the new class-completion action (PR #287) is duplicated on a class-detail route. **Completed 2026-05-22:** duplication confirmed and remediated in [`ia-4-class-completion-duplication-audit.md`](ia-4-class-completion-duplication-audit.md).
 
-**Why deferred:** URL-state sync is a non-trivial implementation, low-frequency value, and not on the show-day critical path. Class-completion verification is a 30-minute task that should be done opportunistically — not worth its own PR.
+**Why URL-state remains deferred:** URL-state sync is a non-trivial implementation, low-frequency value, and not on the show-day critical path.
+
+**Implemented remediation for the confirmed duplicate:**
+
+1. Remove `Mark In Progress` and `Mark Completed` from the Class Details header overflow on the public-route class details page.
+2. Add an `Open in Workbench` / `Manage in Workbench` action from Class Details when the parent show is known.
+3. Keep Class Management bulk status changes as setup/admin tooling, not as the show-day lifecycle path.
 
 ---
 
@@ -196,9 +202,9 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 | IA-1  | Public ShowMap becomes view-only (recommended Option A)      | PO sign-off on Option A | View-only behavior shipped; manage-route still has full actions; tests pass | Done          |
 | IA-2  | Add `?` popover advertising right-click + keyboard shortcuts | Shipped in P1-P3 polish | Popover ships; new users discover power features                            | Done          |
 | IA-3  | Wrap-up framing subtitle                                     | IA-1 merged             | Wrap-up tab renders explanatory subtitle                                    | Done          |
-| IA-4  | URL-state sync + class-completion duplication check          | Deferred                | (not scheduled)                                                             | 0–1           |
+| IA-4  | URL-state sync + class-completion duplication check          | Verification complete   | Duplicate remediated; URL-state remains deferred until requested            | Done          |
 
-**Remaining estimated effort:** Deferred IA-4 only if users ask for deep links or class-completion duplication is confirmed.
+**Remaining estimated effort:** URL-state sync remains deferred until users ask for deep links.
 
 ---
 
@@ -210,6 +216,7 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 | 2026-05-21 | Plan drafted with 3 phases. IA-1 awaiting PO option choice.                                                             | This doc                                                       |
 | 2026-05-22 | IA-1 Option A approved: public Show Map remains a staff preview but is read-only; workbench is the operational home.    | This session                                                   |
 | 2026-05-22 | IA-3 wrap-up framing implemented inside `ShowMapTab`, keeping the completed-scope explanation with the toolbar filters. | This session                                                   |
+| 2026-05-22 | IA-4 verification found and remediated a class-completion duplicate on Class Details.                                 | [`ia-4-class-completion-duplication-audit.md`](ia-4-class-completion-duplication-audit.md) |
 
 ---
 

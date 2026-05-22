@@ -9,6 +9,7 @@ const mockEq = vi.fn();
 const mockUpdate = vi.fn();
 const mockFrom = vi.fn();
 const mockProcessMoveUp = vi.fn();
+const mockUpdateClass = vi.hoisted(() => vi.fn());
 const mockMessageStore = vi.hoisted(() => ({
   getOrCreateThread: vi.fn(),
   sendMessage: vi.fn(),
@@ -23,6 +24,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 vi.mock('@/services/database/day-of-operations', () => ({
   processMoveUp: (...args: unknown[]) => mockProcessMoveUp(...args),
+}));
+
+vi.mock('@/services/replication', () => ({
+  replicatedClassesTable: {
+    updateClass: (...args: unknown[]) => mockUpdateClass(...args),
+  },
 }));
 
 vi.mock('@/store/messageStore', () => ({
@@ -73,6 +80,7 @@ describe('ShowMapTab', () => {
       data: { id: 'new-entry-1', class: { name: 'Exterior Advanced' } },
       error: null,
     });
+    mockUpdateClass.mockResolvedValue('mutation-1');
     mockMessageStore.getOrCreateThread.mockResolvedValue({ id: 'thread-1' });
     mockMessageStore.sendMessage.mockResolvedValue(undefined);
   });
@@ -357,6 +365,73 @@ describe('ShowMapTab', () => {
     expect(mockFrom).toHaveBeenCalledWith('entries');
     expect(mockUpdate).toHaveBeenCalledWith({ check_in_status: 'checked-in' });
     expect(mockEq).toHaveBeenCalledWith('id', 'entry-1');
+  });
+
+  it('marks a not-started class started from row actions', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'Scheduled',
+          },
+        ]}
+        entries={[]}
+        canManageShow
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
+    await user.click(screen.getByRole('button', { name: /actions for interior novice a/i }));
+    const startedActions = await screen.findAllByRole('menuitem', {
+      name: /mark class started/i,
+    });
+    const startedAction = startedActions[0];
+    if (!startedAction) throw new Error('Expected Mark Class Started action');
+    await user.click(startedAction);
+
+    await waitFor(() =>
+      expect(mockUpdateClass).toHaveBeenCalledWith('class-1', {
+        classStatus: 'In Progress',
+        actual_start_time: expect.any(String),
+        isCompleted: false,
+      })
+    );
+  });
+
+  it('marks an active class complete from row actions', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[]}
+        canManageShow
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
+    await user.click(screen.getByRole('button', { name: /actions for interior novice a/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark class complete/i }));
+
+    await waitFor(() =>
+      expect(mockUpdateClass).toHaveBeenCalledWith('class-1', {
+        classStatus: 'Completed',
+        actual_end_time: expect.any(String),
+        isCompleted: true,
+      })
+    );
   });
 
   it('opens the scratch / no-show dialog and writes pulled status', async () => {

@@ -1,7 +1,7 @@
 # Plan — Phase F Show Map Row Action Hardening
 
 **Date:** 2026-05-21
-**Status:** In progress — ARIA tree roving-focus follow-up implemented locally after PR #282 closeout.
+**Status:** Complete through class-status quick actions follow-up.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Validation Profile
@@ -27,10 +27,10 @@ Already shipped:
 - Entry actions for mark checked-in, scratch / no-show, move-up + undo, and message handler are executable through the shared action execution contract.
 - Class and trial menu actions exist as navigation actions where destinations are available.
 
-Remaining follow-up:
+Follow-up closeout:
 
-- Keyboard opening (`Enter` / `Space` on a focused row) shipped in PR #278. The dedicated roving-tabindex / arrow-key navigation pass is implemented locally on 2026-05-21 as the ARIA tree follow-up.
-- Class status quick actions such as Mark Class Started / Complete remain a separate follow-up because they require choosing the offline-safe class-status mutation path. Phase F v1 closes the shipped row-action command surface without adding that new mutation workflow.
+- Keyboard opening (`Enter` / `Space` on a focused row) shipped in PR #278. The dedicated roving-tabindex / arrow-key navigation pass shipped in PR #283.
+- Class status quick actions such as Mark Class Started / Complete are implemented locally on 2026-05-21 using the offline-first replicated class mutation path.
 
 ## Constraints
 

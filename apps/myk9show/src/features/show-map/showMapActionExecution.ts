@@ -2,7 +2,10 @@ import type { ShowMapAction, ShowMapActionId } from './showMapActions';
 
 export type ShowMapActionDialogKey = 'move-up-entry' | 'scratch-entry' | 'message-handler';
 
-export type ShowMapActionMutationKey = 'mark-checked-in';
+export type ShowMapActionMutationKey =
+  | 'mark-checked-in'
+  | 'mark-class-started'
+  | 'mark-class-complete';
 
 export type ShowMapActionExecution =
   | {
@@ -47,6 +50,16 @@ export const showMapActionExecutionById = {
   'score-class': { kind: 'navigate' },
   'open-class': { kind: 'navigate' },
   'print-check-in-sheet': { kind: 'navigate' },
+  'mark-class-started': {
+    kind: 'mutation',
+    mutation: 'mark-class-started',
+    successMessage: 'Class marked started',
+  },
+  'mark-class-complete': {
+    kind: 'mutation',
+    mutation: 'mark-class-complete',
+    successMessage: 'Class marked complete',
+  },
   'open-schedule': { kind: 'navigate' },
   'print-trial-reports': { kind: 'navigate' },
   'collect-judge-signature': { kind: 'navigate' },

@@ -196,6 +196,48 @@ describe('showMapActions', () => {
     });
   });
 
+  it('emits class lifecycle quick actions only for matching class states', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        ...classes,
+        {
+          id: 'class-complete',
+          trialId: 'trial-1',
+          name: 'Buried Excellent',
+          status: 'Complete',
+        },
+      ],
+      entries: [],
+    });
+
+    expect(findAction(getRankedActions(tree.nodesById['class:class-future'], { tree }), 'mark-class-started')).toMatchObject({
+      label: 'Mark Class Started',
+      classId: 'class-future',
+      trialId: 'trial-1',
+      recommended: true,
+    });
+    expect(getRankedActions(tree.nodesById['class:class-future'], { tree }).map(action => action.id)).not.toContain(
+      'mark-class-complete'
+    );
+
+    expect(findAction(getRankedActions(tree.nodesById['class:class-active'], { tree }), 'mark-class-complete')).toMatchObject({
+      label: 'Mark Class Complete',
+      classId: 'class-active',
+      trialId: 'trial-1',
+    });
+    expect(getRankedActions(tree.nodesById['class:class-active'], { tree }).map(action => action.id)).not.toContain(
+      'mark-class-started'
+    );
+
+    const completedActionIds = getRankedActions(tree.nodesById['class:class-complete'], {
+      tree,
+    }).map(action => action.id);
+    expect(completedActionIds).not.toContain('mark-class-started');
+    expect(completedActionIds).not.toContain('mark-class-complete');
+  });
+
   it('uses verified destinations for class open, score, and print actions', () => {
     const tree = buildShowMapTree({
       show,
@@ -386,7 +428,9 @@ describe('showMapActions', () => {
       recommended: true,
     });
     expect(printAction.href).toBeUndefined();
-    expect(getRecommendedActions(classWithoutTrial, { tree })).toEqual([]);
+    expect(getRecommendedActions(classWithoutTrial, { tree })).not.toContainEqual(
+      expect.objectContaining({ id: 'print-check-in-sheet' })
+    );
   });
 
   it('treats unsigned and unsubmitted completed classes as wrap-up attention work', () => {

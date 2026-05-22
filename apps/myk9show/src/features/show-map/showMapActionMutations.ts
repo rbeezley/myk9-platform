@@ -1,6 +1,9 @@
+import { CLASS_STATUS } from '@myk9/core';
+
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
 import { processMoveUp } from '@/services/database/day-of-operations';
 import { restoreEntryStatus, scratchEntryDayOf } from '@/services/database/entries/lifecycle';
+import { replicatedClassesTable } from '@/services/replication';
 
 export interface ShowMapMoveUpInput {
   entryId: string;
@@ -45,6 +48,22 @@ export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> 
   if (error) {
     throw createDatabaseError(error, 'entries', 'show_map_mark_checked_in');
   }
+}
+
+export async function markShowMapClassStarted(classId: string): Promise<void> {
+  await replicatedClassesTable.updateClass(classId, {
+    classStatus: CLASS_STATUS.IN_PROGRESS,
+    actual_start_time: new Date().toISOString(),
+    isCompleted: false,
+  });
+}
+
+export async function markShowMapClassComplete(classId: string): Promise<void> {
+  await replicatedClassesTable.updateClass(classId, {
+    classStatus: CLASS_STATUS.COMPLETED,
+    actual_end_time: new Date().toISOString(),
+    isCompleted: true,
+  });
 }
 
 export async function scratchShowMapEntry(

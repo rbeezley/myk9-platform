@@ -196,7 +196,6 @@ export function ShowMapStructureTable({
   };
   const moveFocusToNode = (nodeId: string | undefined, focusRoot: ParentNode) => {
     if (!nodeId) return;
-    setFocusedNodeId(nodeId);
     focusTreeItemByNodeId(nodeId, focusRoot);
   };
   const moveFocusByOffset = (nodeId: string, offset: number, focusRoot: ParentNode) => {

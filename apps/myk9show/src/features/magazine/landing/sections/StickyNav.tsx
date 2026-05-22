@@ -38,6 +38,7 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
   const hasRecordedPresentIds = useRef(false);
 
   useEffect(() => {
+    // Reset if this effect gains dependencies and re-runs in the future.
     hasRecordedPresentIds.current = false;
 
     const found = SECTIONS.map(s => document.getElementById(s.id)).filter(

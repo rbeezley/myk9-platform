@@ -169,7 +169,7 @@ That's 8 distinct visual subsystems in one tab. Not an IA issue per se (it's one
 | Wrap-up tab renders the same ShowMap as Today with different scope props; no visible framing that this is "the post-show view"                                                                                           | 2    | 3                                  | 3                                                                       | 2 (add header/empty-state copy explaining the scope)                                         | **8**  | **High**                                          |
 | Tree internal state (expansion, focused row, day/completion scope) isn't URL-reflected — no deep-linking                                                                                                                 | 1    | 2                                  | 3                                                                       | 4 (URL-state sync nontrivial)                                                                | **9**  | **High** (defer — fix invasiveness dominates)     |
 | Phase routing uses query param `?phase=today` rather than path segment                                                                                                                                                   | 1    | 1 (intentional)                    | 1                                                                       | —                                                                                            | **3**  | Low (intentional)                                 |
-| Class completion action is inline in tree — possibly also elsewhere                                                                                                                                                      | 4    | 1 (until verified)                 | 1                                                                       | —                                                                                            | **3**  | Low (verify first)                                |
+| Class completion action is inline in tree — possibly also elsewhere — **verified 2026-05-22 and remediated via PR #293.**                                                                                                | 4    | —                                  | —                                                                       | —                                                                                            | —      | **Resolved**                                      |
 
 **Top findings to fix in the next phase:**
 
@@ -183,7 +183,7 @@ That's 8 distinct visual subsystems in one tab. Not an IA issue per se (it's one
 - Two homes for the same action inside one tab (#4) — keep as-is until evidence of confusion
 - Deep-linking via URL state (#6) — defer; nontrivial fix
 - Phase-as-query-param (#7) — intentional
-- Class completion duplication (#8) — verify, not yet a confirmed finding
+- Class completion duplication (#8) — verified and remediated in PR #293; see [`ia-4-class-completion-duplication-audit.md`](ia-4-class-completion-duplication-audit.md)
 
 ## Step 6: Phased Remediation Plan
 
@@ -196,20 +196,20 @@ That's 8 distinct visual subsystems in one tab. Not an IA issue per se (it's one
 | **IA-1: Resolve manage-action duplication**                                | Public Show Map is read-only for manage-capable users; operational row actions live only in the secretary workbench. Workbench and public routes cross-link intentionally. | Approved Option A  | Public route passes `canManageShow={false}` to Show Map; tests cover read-only public map and workbench link visibility | Done          |
 | **IA-2: Wrap-up framing only**                                             | (Rename dropped — "Show Map" is intentionally a sitemap-style name per PO.) Add Wrap-up tab framing copy so users know this view is scoped to completed work.              | Approval           | Wrap-up renders an explanatory header / kicker                                                                          | 1             |
 | **IA-3: Row-action discoverability**                                       | Add a small "Tip" line or kbd legend in the toolbar advertising right-click + keyboard shortcuts (without crowding the UI). Validate with a fresh-contributor walk.        | Approval           | Toolbar legend ships; legend can be dismissed/persisted                                                                 | 1             |
-| **IA-4 (defer): URL-reflected state + class-completion duplication check** | Investigate URL state sync (deep-linking) and verify class-completion isn't a duplicate action.                                                                            | After IA-1..3 land | Findings doc updated with "no action needed" OR a follow-up plan exists                                                 | 0–1           |
+| **IA-4: URL-reflected state + class-completion duplication check**         | URL-state sync remains deferred until user demand appears; class-completion duplication was verified and remediated.                                                       | Complete           | Class Details duplicate removed; URL-state deferral documented                                                          | Done          |
 
 **Why this order:**
 
 - IA-1 is the biggest mental-model risk (action-from-wrong-context bugs); also the highest-priority architectural-commitment violation.
 - IA-2 reads as cosmetic but pays back the largest first-impression mismatch; cheap to ship.
 - IA-3 is a UX patch on already-shipped behavior — small, low-risk.
-- IA-4 collapses to "verify, don't fix" until evidence warrants the work.
+- IA-4 verification found a real Class Details lifecycle duplicate, which PR #293 remediated. URL-state sync remains deferred until evidence warrants the work.
 
 ---
 
 ## Summary
 
-**Overall IA health:** **Improving** — the show-map feature is internally coherent (one shared component, one shared priority function, one shared attention function), IA-1 makes the public Show Map read-only for staff preview, IA-2 surfaces row-action shortcuts, and IA-3 frames the Wrap-up scope. Remaining work is deferred verification.
+**Overall IA health:** **Closed for the shipped scope** — the show-map feature is internally coherent (one shared component, one shared priority function, one shared attention function), IA-1 makes the public Show Map read-only for staff preview, IA-2 surfaces row-action shortcuts, IA-3 frames the Wrap-up scope, and IA-4 removed the confirmed Class Details completion duplicate. URL-state/deep-linking remains a deferred enhancement until users ask for it.
 
 **Top 3 findings (after PO reclassification 2026-05-21):**
 
@@ -219,9 +219,9 @@ That's 8 distinct visual subsystems in one tab. Not an IA issue per se (it's one
 
 _(Original finding #2 — "Show Map" name implies spatial layout — withdrawn. "Map" is intentionally used in the sitemap sense per PO.)_
 
-**Recommended next phase:** **IA-4 verification only if needed** — URL-state/deep-linking remains deferred unless users ask for it; class-completion duplication should be verified opportunistically.
+**Recommended next phase:** **Phase 3 real-user testing** — URL-state/deep-linking remains deferred unless users ask for it; no additional IA remediation is required before the next observed show-day walk.
 
-**Remaining estimated remediation effort:** IA-4 is deferred pending evidence.
+**Remaining estimated remediation effort:** None for the shipped Show Map scope. URL-state sync remains deferred pending evidence.
 
 ---
 
@@ -229,10 +229,20 @@ _(Original finding #2 — "Show Map" name implies spatial layout — withdrawn. 
 
 - Step 2 was **not** executed as a live walk; it was modeled from code. Re-running Step 2 with `qa-feature` against the live app may surface friction not visible from code inspection.
 - The mental-model elicitation in Step 3 substitutes product-owner intuition (via architectural commitments) for real user research. A fresh-contributor walk would strengthen findings #2 and #3.
-- "Class completion duplication" (finding #8) is unverified — needs a grep across class-detail routes before being upgraded from "documented" to "fix."
+- "Class completion duplication" (finding #8) was verified and remediated on 2026-05-22; the evidence trail lives in [`ia-4-class-completion-duplication-audit.md`](ia-4-class-completion-duplication-audit.md).
 
 ## 2026-05-22 Impeccable follow-up
 
 The later `$impeccable critique` pass added one Today-workbench finding that is adjacent to, but separate from, this route IA audit: Show Map is the operational spine, but the Today tab placed multiple secondary desk tools before it. The remediation is tracked in [`docs/plan-ia-show-map.md`](plan-ia-show-map.md#2026-05-22-impeccable-p1-p3-polish-addendum).
 
 This follow-up also addresses the row-action discoverability finding with an in-toolbar shortcuts popover. IA-1 later resolved the public-vs-secretary route duplication by making the public Show Map read-only for staff preview.
+
+## 2026-05-22 IA-4 closeout
+
+The IA-4 verification pass found a confirmed duplicate: Class Details still exposed direct `Mark In Progress` / `Mark Completed` lifecycle commands while Show Map owned the guarded, offline-first class status row actions. PR #293 removed those duplicate Class Details commands, added an `Open in Workbench` route for secretaries/admins, and added focused coverage for the consolidated menu behavior.
+
+Final closeout validation passed on 2026-05-22:
+
+- `pnpm exec vitest run src/features/show-map/__tests__/ShowMapTab.test.tsx src/test/pages/secretary/ShowWorkbenchPage.test.tsx src/pages/ClassDetailsPage/ClassDetailsPage.actions.test.tsx`
+- `pnpm test:e2e:clean src/test/e2e/entities/phase2ShowDayRewalk.spec.ts --project=chromium --workers=1 --timeout=90000 --retries=0`
+- PR #293 CI run `26308644892`: Quality Checks, Test, and Build all passed.

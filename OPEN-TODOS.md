@@ -264,7 +264,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## North Star — Phase 2: Walk the Golden Paths
 
-- [x] **Phase 2 re-walk** — Completed 2026-05-22. First pass complete 2026-05-03; second pass covered secretary and exhibitor paths before Phase 3 hand-off with no remaining blockers. Proofs: `phase2ShowDayRewalk.spec.ts` covers the full Phase A-F secretary show-day / Show Map arc; `browse-shows-to-details.spec.ts`, `exhibitorSelfRegistration.spec.ts`, and repaired `my-entries-page-ui.spec.ts` cover the exhibitor browse / registration / My Entries path. During the walk, fixed class-row Show Map menus so they no longer leak descendant entry actions.
+- [x] **Phase 2 re-walk** — Completed 2026-05-22. First pass complete 2026-05-03; second pass covered secretary and exhibitor paths before Phase 3 hand-off with no remaining blockers. Proofs: `phase2ShowDayRewalk.spec.ts` covers the full Phase A-F secretary show-day / Show Map arc; `browse-shows-to-details.spec.ts`, `exhibitorSelfRegistration.spec.ts`, and repaired `my-entries-page-ui.spec.ts` cover the exhibitor browse / registration / My Entries path. During the walk, fixed class-row Show Map menus so they no longer leak descendant entry actions. Final closeout rerun passed the focused Show Map/Class Details Vitest batch, the Phase 2 re-walk E2E, and PR #293 CI Quality/Test/Build.
 
   Secretary re-walk scope must explicitly cover the full Phase A-F show-day / Show Map arc:
   - **Phase A — smart row actions:** shared action execution contract; mark checked-in; scratch/no-show with manual-refund boundary; move-up plus undo; message handler and canned replies.

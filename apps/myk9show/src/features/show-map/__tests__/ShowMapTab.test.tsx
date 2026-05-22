@@ -368,6 +368,33 @@ describe('ShowMapTab', () => {
     expect(screen.queryByRole('button', { name: /new trial/i })).not.toBeInTheDocument();
   });
 
+  it('frames the completed-scope default in wrap-up mode only', () => {
+    const props = {
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'Completed',
+        },
+      ],
+      entries: [],
+      canManageShow: true,
+      initialDayScope: 'all' as const,
+      initialCompletionScope: 'completed' as const,
+    };
+
+    const { rerender } = render(<ShowMapTab {...props} actionPhase="wrap-up" />);
+
+    expect(screen.getByText(/wrap-up starts with completed entries/i)).toBeInTheDocument();
+
+    rerender(<ShowMapTab {...props} actionPhase="today" />);
+
+    expect(screen.queryByText(/wrap-up starts with completed entries/i)).not.toBeInTheDocument();
+  });
+
   it('keeps the guidance action out of Up next and executes the next queued action', async () => {
     const { user } = render(
       <ShowMapTab

@@ -1,5 +1,7 @@
-import { ChevronsDownUp, GitBranch } from 'lucide-react';
+import { ChevronsDownUp, GitBranch, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { ShowMapCompletionScope, ShowMapDayScope, ShowMapFilter } from './showMapTypes';
 
 interface ShowMapToolbarProps {
@@ -29,6 +31,61 @@ const completionScopes: Array<{ value: ShowMapCompletionScope; label: string }> 
   { value: 'active', label: 'Active' },
   { value: 'completed', label: 'Completed' },
 ];
+
+function ShowMapHelpPopover() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Show map shortcuts"
+          className="min-h-11"
+        >
+          <HelpCircle className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80">
+        <div className="space-y-3">
+          <div>
+            <h4 className="text-sm font-semibold">Show Map shortcuts</h4>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Use the tree without leaving the row you are working on.
+            </p>
+          </div>
+          <dl className="space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Move between rows</dt>
+              <dd className="flex gap-1">
+                <Kbd>Up</Kbd>
+                <Kbd>Down</Kbd>
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Expand or collapse</dt>
+              <dd className="flex gap-1">
+                <Kbd>Right</Kbd>
+                <Kbd>Left</Kbd>
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Open row actions</dt>
+              <dd className="flex gap-1">
+                <Kbd>Enter</Kbd>
+                <Kbd>Space</Kbd>
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Open row actions</dt>
+              <dd className="text-xs font-medium text-foreground">Right-click</dd>
+            </div>
+          </dl>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function ShowMapToolbar({
   filter,
@@ -88,6 +145,7 @@ export function ShowMapToolbar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <ShowMapHelpPopover />
         <Button
           type="button"
           variant="outline"

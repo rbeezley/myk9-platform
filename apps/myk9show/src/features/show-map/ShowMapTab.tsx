@@ -107,9 +107,9 @@ function PriorityQueue({
   if (visibleActions.length === 0) return null;
 
   return (
-    <div className="mb-3 rounded-md border bg-muted/15">
+    <section className="mb-3 rounded-md border bg-muted/15" aria-label="Up next">
       <div className="border-b px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
-        Priority Queue
+        Up next
       </div>
       <div className="divide-y">
         {visibleActions.map(action => {
@@ -140,7 +140,7 @@ function PriorityQueue({
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -253,10 +253,13 @@ export default function ShowMapTab({
     if (!guidanceAction) return;
     setDismissedGuidanceKeys(current => new Set(current).add(actionKey(guidanceAction)));
   }, [guidanceAction]);
-  const priorityActions = useMemo(
-    () => getRankedActions('root', { tree, phase: actionPhase }),
-    [actionPhase, tree]
-  );
+  const priorityActions = useMemo(() => {
+    const currentGuidanceKey = guidanceAction ? actionKey(guidanceAction) : null;
+    const actions = getRankedActions('root', { tree, phase: actionPhase });
+    return currentGuidanceKey
+      ? actions.filter(action => actionKey(action) !== currentGuidanceKey)
+      : actions;
+  }, [actionPhase, guidanceAction, tree]);
   const runningNowItems = useMemo(
     () => getRunningNowItems(tree, scope, effectiveScopeNow),
     [effectiveScopeNow, scope, tree]

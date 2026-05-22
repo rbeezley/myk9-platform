@@ -1,8 +1,18 @@
-import { lazy, Suspense, useEffect, useMemo } from 'react';
-import { ClipboardCheck, FileBarChart, ListChecks, Medal, Pencil, Send } from 'lucide-react';
+import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
+import {
+  ChevronDown,
+  ClipboardCheck,
+  FileBarChart,
+  ListChecks,
+  Medal,
+  Pencil,
+  Send,
+  Wrench,
+} from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
@@ -73,6 +83,30 @@ function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
   );
 }
 
+function TodayDeskToolsSection({ children }: { children: ReactNode }) {
+  return (
+    <Collapsible>
+      <section className="space-y-2" aria-label="Desk tools">
+        <CollapsibleTrigger className="rounded-md border bg-muted/20 px-3 py-3 text-left hover:no-underline">
+          <span className="flex min-w-0 items-start gap-3">
+            <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">Desk tools</span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                Late entries, broadcasts, incidents, delay scripts, and access codes.
+              </span>
+            </span>
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-4 pt-1">{children}</div>
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
+  );
+}
+
 function toChecklistEntrySummary(entry: {
   id?: string | null | undefined;
   class_id?: string | null | undefined;
@@ -92,7 +126,10 @@ function textField(source: Record<string, unknown> | null | undefined, key: stri
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function relatedObject(source: Record<string, unknown>, key: string): Record<string, unknown> | null {
+function relatedObject(
+  source: Record<string, unknown>,
+  key: string
+): Record<string, unknown> | null {
   const value = source[key];
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -369,45 +406,6 @@ export function ShowWorkbenchPage() {
               />
             )}
             <ShowWorkbenchAskQHelp phase="today" />
-            <WorkbenchLateEntryAction showId={currentShow.id} />
-            <JudgeHospitalityCard
-              showId={currentShow.id}
-              judges={effectiveJudges.map(judge => ({
-                id: judge.judgeId,
-                name: judge.judgeName,
-              }))}
-            />
-            <QuickBroadcastCard showId={currentShow.id} />
-            <ClassBroadcastCard
-              showId={currentShow.id}
-              classes={showClasses.map(cls => ({
-                id: cls.id,
-                label: buildClassBroadcastClassLabel({
-                  name: cls.name,
-                  section: cls.section,
-                }),
-                entryCount: cls.entryCount,
-              }))}
-            />
-            <IncidentLogCard
-              showId={currentShow.id}
-              entries={incidentEntryOptions}
-              judges={effectiveJudges.map(judge => ({
-                id: judge.judgeId,
-                name: judge.judgeName,
-                personId: isValidUUID(judge.judgeId.trim()) ? judge.judgeId.trim() : null,
-              }))}
-            />
-            <ScheduleSlipScriptCard
-              showId={currentShow.id}
-              showName={currentShow.name}
-              defaultClassName={showClasses[0]?.name ?? ''}
-            />
-            <MyK9QAccessCard
-              showId={currentShow.id}
-              showName={currentShow.name}
-              showDate={currentShow.startDate}
-            />
             <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
               <ShowMapTab
                 show={currentShow}
@@ -418,6 +416,47 @@ export function ShowWorkbenchPage() {
                 initialDayScope="today"
               />
             </Suspense>
+            <TodayDeskToolsSection>
+              <WorkbenchLateEntryAction showId={currentShow.id} />
+              <JudgeHospitalityCard
+                showId={currentShow.id}
+                judges={effectiveJudges.map(judge => ({
+                  id: judge.judgeId,
+                  name: judge.judgeName,
+                }))}
+              />
+              <QuickBroadcastCard showId={currentShow.id} />
+              <ClassBroadcastCard
+                showId={currentShow.id}
+                classes={showClasses.map(cls => ({
+                  id: cls.id,
+                  label: buildClassBroadcastClassLabel({
+                    name: cls.name,
+                    section: cls.section,
+                  }),
+                  entryCount: cls.entryCount,
+                }))}
+              />
+              <IncidentLogCard
+                showId={currentShow.id}
+                entries={incidentEntryOptions}
+                judges={effectiveJudges.map(judge => ({
+                  id: judge.judgeId,
+                  name: judge.judgeName,
+                  personId: isValidUUID(judge.judgeId.trim()) ? judge.judgeId.trim() : null,
+                }))}
+              />
+              <ScheduleSlipScriptCard
+                showId={currentShow.id}
+                showName={currentShow.name}
+                defaultClassName={showClasses[0]?.name ?? ''}
+              />
+              <MyK9QAccessCard
+                showId={currentShow.id}
+                showName={currentShow.name}
+                showDate={currentShow.startDate}
+              />
+            </TodayDeskToolsSection>
           </div>
         </PrimaryTabsContent>
         <PrimaryTabsContent value="wrap-up">

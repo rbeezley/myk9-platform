@@ -6,14 +6,23 @@ import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
 import { getAttentionNodeIds, getPrimaryActionForNode } from './showMapActions';
 import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
+import { DEFAULT_SHOW_MAP_SCOPE } from './showMapTimeScope';
 import {
-  DEFAULT_SHOW_MAP_SCOPE,
-  getNodeDayBucket,
-  isDimmedByDayScope,
-  nodeMatchesCompletionScope,
-  nodeMatchesDayScope,
-} from './showMapTimeScope';
-import { useMemo, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+  getFirstVisibleKeyboardChildNodeId,
+  getParentKeyboardNodeId,
+  getShowMapNodeScopeAttrs,
+  getVisibleKeyboardNodeIds,
+  shouldRenderShowMapNode,
+  supportsTreeKeyboardActions,
+} from './showMapTreeNavigation';
+import {
+  useMemo,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import type { ShowMapAction } from './showMapActions';
 import type { ShowMapFilter, ShowMapNode, ShowMapScopeState, ShowMapTree } from './showMapTypes';
@@ -39,75 +48,10 @@ function isInteractiveRowTarget(target: EventTarget | null): boolean {
   );
 }
 
-function supportsKeyboardActions(node: ShowMapNode): boolean {
-  return node.type === 'trial' || node.type === 'class' || node.type === 'entry';
-}
-
 function isKeyboardEventForCurrentTreeItem(event: KeyboardEvent<HTMLLIElement>): boolean {
   return (
     event.target instanceof HTMLElement &&
     event.target.closest('[role="treeitem"]') === event.currentTarget
-  );
-}
-
-function nodeMatchesFilter(
-  node: ShowMapNode,
-  filter: ShowMapFilter,
-  attentionNodeIds: Set<string>
-): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'needs-attention') {
-    return attentionNodeIds.has(node.id);
-  }
-  return node.status?.kind === 'active';
-}
-
-function nodeMatchesScopeAndFilter(
-  tree: ShowMapTree,
-  node: ShowMapNode,
-  filter: ShowMapFilter,
-  attentionNodeIds: Set<string>,
-  scope: ShowMapScopeState,
-  scopeNow: Date
-): boolean {
-  return (
-    nodeMatchesDayScope(tree, node, scope.dayScope, scopeNow) &&
-    nodeMatchesCompletionScope(node, scope.completionScope) &&
-    nodeMatchesFilter(node, filter, attentionNodeIds)
-  );
-}
-
-function descendantsMatch(
-  tree: ShowMapTree,
-  nodeId: string,
-  filter: ShowMapFilter,
-  attentionNodeIds: Set<string>,
-  scope: ShowMapScopeState,
-  scopeNow: Date
-): boolean {
-  const childIds = tree.childIdsByParentId[nodeId] ?? [];
-  return childIds.some(childId => {
-    const child = tree.nodesById[childId];
-    return (
-      !!child &&
-      (nodeMatchesScopeAndFilter(tree, child, filter, attentionNodeIds, scope, scopeNow) ||
-        descendantsMatch(tree, childId, filter, attentionNodeIds, scope, scopeNow))
-    );
-  });
-}
-
-function shouldRenderNode(
-  tree: ShowMapTree,
-  node: ShowMapNode,
-  filter: ShowMapFilter,
-  attentionNodeIds: Set<string>,
-  scope: ShowMapScopeState,
-  scopeNow: Date
-): boolean {
-  return (
-    node.type === 'show' ||
-    nodeMatchesScopeAndFilter(tree, node, filter, attentionNodeIds, scope, scopeNow) ||
-    descendantsMatch(tree, node.id, filter, attentionNodeIds, scope, scopeNow)
   );
 }
 
@@ -124,6 +68,13 @@ function getTreeItemAttrs(
     'data-node-id': node.id,
     'data-node-type': node.type,
   };
+}
+
+function focusTreeItemByNodeId(nodeId: string, root: ParentNode): void {
+  const treeItem = Array.from(root.querySelectorAll<HTMLElement>('[role="treeitem"]')).find(
+    element => element.dataset.nodeId === nodeId
+  );
+  treeItem?.focus();
 }
 
 function ProgressCell({ node }: { node: ShowMapNode }) {
@@ -216,15 +167,45 @@ export function ShowMapStructureTable({
   actionPhase,
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
+  const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>();
   const attentionNodeIds = useMemo(
     () => getAttentionNodeIds(tree, actionPhase),
     [actionPhase, tree]
   );
+  const visibleKeyboardNodeIds = useMemo(
+    () =>
+      getVisibleKeyboardNodeIds({
+        tree,
+        expandedNodeIds,
+        filter,
+        attentionNodeIds,
+        scope,
+        scopeNow,
+      }),
+    [attentionNodeIds, expandedNodeIds, filter, scope, scopeNow, tree]
+  );
+  const activeFocusedNodeId =
+    focusedNodeId && visibleKeyboardNodeIds.includes(focusedNodeId)
+      ? focusedNodeId
+      : visibleKeyboardNodeIds[0];
   const openActionsForNode = (nodeId: string) => {
     setActionMenuOpenSignals(current => ({
       ...current,
       [nodeId]: (current[nodeId] ?? 0) + 1,
     }));
+  };
+  const moveFocusToNode = (nodeId: string | undefined, focusRoot: ParentNode) => {
+    if (!nodeId) return;
+    focusTreeItemByNodeId(nodeId, focusRoot);
+  };
+  const moveFocusByOffset = (nodeId: string, offset: number, focusRoot: ParentNode) => {
+    const currentIndex = visibleKeyboardNodeIds.indexOf(nodeId);
+    if (currentIndex === -1) return;
+    const nextIndex = Math.min(
+      Math.max(currentIndex + offset, 0),
+      visibleKeyboardNodeIds.length - 1
+    );
+    moveFocusToNode(visibleKeyboardNodeIds[nextIndex], focusRoot);
   };
   const getRowActionOpenProps = (nodeId: string) => ({
     'data-row-action-surface': nodeId,
@@ -236,32 +217,86 @@ export function ShowMapStructureTable({
       openActionsForNode(nodeId);
     },
   });
-  const getTreeItemKeyboardProps = (node: ShowMapNode) =>
-    supportsKeyboardActions(node)
+  const getTreeItemKeyboardProps = (node: ShowMapNode, hasChildren: boolean, isExpanded: boolean) =>
+    supportsTreeKeyboardActions(node)
       ? {
-          tabIndex: 0,
-          // INTENT: Focus the treeitem itself so keyboard users can open row actions
-          // without turning the row into a fake button or losing tree semantics.
+          tabIndex: node.id === activeFocusedNodeId ? 0 : -1,
+          // INTENT: The tree owns one roving tab stop. Arrow keys move between rows;
+          // Enter/Space open row actions without turning the row into a fake button.
+          onFocus: (event: FocusEvent<HTMLLIElement>) => {
+            if (event.target === event.currentTarget) {
+              setFocusedNodeId(node.id);
+            }
+          },
           onKeyDown: (event: KeyboardEvent<HTMLLIElement>) => {
             if (
-              event.repeat ||
-              (event.key !== 'Enter' && event.key !== ' ') ||
               !isKeyboardEventForCurrentTreeItem(event) ||
               isInteractiveRowTarget(event.target)
             ) {
               return;
             }
+            const focusRoot = event.currentTarget.closest('[role="tree"]') ?? document;
 
-            event.preventDefault();
-            event.stopPropagation();
-            openActionsForNode(node.id);
+            if (event.key === 'Enter' || event.key === ' ') {
+              if (event.repeat) return;
+              event.preventDefault();
+              event.stopPropagation();
+              openActionsForNode(node.id);
+              return;
+            }
+
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              event.stopPropagation();
+              moveFocusByOffset(node.id, event.key === 'ArrowDown' ? 1 : -1, focusRoot);
+              return;
+            }
+
+            if (event.key === 'Home' || event.key === 'End') {
+              event.preventDefault();
+              event.stopPropagation();
+              moveFocusToNode(
+                event.key === 'Home'
+                  ? visibleKeyboardNodeIds[0]
+                  : visibleKeyboardNodeIds[visibleKeyboardNodeIds.length - 1],
+                focusRoot
+              );
+              return;
+            }
+
+            if (event.key === 'ArrowRight') {
+              event.preventDefault();
+              event.stopPropagation();
+              if (hasChildren && !isExpanded) {
+                onToggle(node.id);
+                return;
+              }
+              moveFocusToNode(
+                getFirstVisibleKeyboardChildNodeId(tree, visibleKeyboardNodeIds, node.id),
+                focusRoot
+              );
+              return;
+            }
+
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault();
+              event.stopPropagation();
+              if (hasChildren && isExpanded) {
+                onToggle(node.id);
+                return;
+              }
+              moveFocusToNode(
+                getParentKeyboardNodeId(tree, visibleKeyboardNodeIds, node),
+                focusRoot
+              );
+            }
           },
         }
       : {};
 
   const renderNode = (nodeId: string, depth: number): ReactNode => {
     const node = tree.nodesById[nodeId];
-    if (!node || !shouldRenderNode(tree, node, filter, attentionNodeIds, scope, scopeNow)) {
+    if (!node || !shouldRenderShowMapNode(tree, node, filter, attentionNodeIds, scope, scopeNow)) {
       return null;
     }
 
@@ -269,23 +304,19 @@ export function ShowMapStructureTable({
     const visibleChildIds = childIds.filter(childId => {
       const child = tree.nodesById[childId];
       return child
-        ? shouldRenderNode(tree, child, filter, attentionNodeIds, scope, scopeNow)
+        ? shouldRenderShowMapNode(tree, child, filter, attentionNodeIds, scope, scopeNow)
         : false;
     });
     const isExpanded = expandedNodeIds.has(nodeId);
     const hasChildren = visibleChildIds.length > 0;
-    const isDimmed = isDimmedByDayScope(tree, node, scope, scopeNow);
-    const scopeAttrs = {
-      'data-day-bucket': getNodeDayBucket(tree, node, scopeNow),
-      'data-completion-view': scope.completionScope,
-    };
+    const { isDimmed, ...scopeAttrs } = getShowMapNodeScopeAttrs(tree, node, scope, scopeNow);
 
     if (node.type === 'entry') {
       return (
         <li
           key={nodeId}
           {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
-          {...getTreeItemKeyboardProps(node)}
+          {...getTreeItemKeyboardProps(node, hasChildren, isExpanded)}
           {...scopeAttrs}
           className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -399,7 +430,7 @@ export function ShowMapStructureTable({
         <li
           key={nodeId}
           {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
-          {...getTreeItemKeyboardProps(node)}
+          {...getTreeItemKeyboardProps(node, hasChildren, isExpanded)}
           {...scopeAttrs}
           className="overflow-hidden rounded-md border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -424,7 +455,7 @@ export function ShowMapStructureTable({
       <li
         key={nodeId}
         {...getTreeItemAttrs(node, depth, hasChildren, isExpanded)}
-        {...getTreeItemKeyboardProps(node)}
+        {...getTreeItemKeyboardProps(node, hasChildren, isExpanded)}
         {...scopeAttrs}
         className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >

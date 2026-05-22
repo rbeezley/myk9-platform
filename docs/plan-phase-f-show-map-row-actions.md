@@ -1,7 +1,7 @@
 # Plan — Phase F Show Map Row Action Hardening
 
 **Date:** 2026-05-21
-**Status:** In progress — PR 4 tracker closeout and regression walk implemented locally.
+**Status:** In progress — ARIA tree roving-focus follow-up implemented locally after PR #282 closeout.
 **Parent plan:** [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md)
 
 ## Validation Profile
@@ -29,7 +29,7 @@ Already shipped:
 
 Remaining follow-up:
 
-- Keyboard opening (`Enter` / `Space` on a focused row) is implemented in PR #278, but the tree still needs a dedicated roving-tabindex / arrow-key navigation pass before the ARIA tree-widget contract is fully complete. PR 4 carries this as an explicit `OPEN-TODOS.md` follow-up rather than silently closing it.
+- Keyboard opening (`Enter` / `Space` on a focused row) shipped in PR #278. The dedicated roving-tabindex / arrow-key navigation pass is implemented locally on 2026-05-21 as the ARIA tree follow-up.
 - Class status quick actions such as Mark Class Started / Complete remain a separate follow-up because they require choosing the offline-safe class-status mutation path. Phase F v1 closes the shipped row-action command surface without adding that new mutation workflow.
 
 ## Constraints
@@ -126,7 +126,7 @@ Tests:
 
 ## PR 4 — Tracker Closeout + Regression Walk
 
-Status: Implemented locally on 2026-05-21. A focused regression walk covers the
+Status: Shipped in PR #282 on 2026-05-21. A focused regression walk covers the
 three menu triggers (three-dot, right-click, keyboard) and representative
 execution outcomes (`navigate`, `mutation`, `dialog`, disabled navigation). The
 `OPEN-TODOS.md` umbrella row-actions v1 item is marked complete with explicit
@@ -154,6 +154,27 @@ Tests:
 - Run myK9Show typecheck.
 - If the regression walk uses browser tooling, capture a short note about viewport and route tested.
 - [ADDED] Run `git diff --check` before every PR; run myK9Show lint only if touched files are expected to be lint-clean under current repo debt.
+
+## Follow-up — ARIA Tree Roving Focus
+
+Status: Implemented locally on 2026-05-21. The tree now has one roving row
+`tabIndex=0`, moves row focus with Arrow Up / Down / Left / Right plus Home /
+End, and keeps `Enter` / `Space` opening the shared row-actions menu from the
+focused treeitem.
+
+Deliverables:
+
+- Replace per-row `tabIndex=0` with a single roving row tab stop.
+- Add keyboard movement across visible trial / class / entry rows.
+- Keep nested row buttons and menu controls from hijacking row navigation.
+- Preserve `Enter` / `Space` row-action opening and the no-auto-execute contract.
+
+Tests:
+
+- Added `ShowMapStructureTable.keyboard.test.tsx` for roving tab stop, Arrow key
+  movement, Home / End, class row menu opening from focused row, and Arrow
+  Right / Left tree behavior.
+- Re-run focused Show Map structure and row-action regression tests.
 
 ## Out Of Scope
 

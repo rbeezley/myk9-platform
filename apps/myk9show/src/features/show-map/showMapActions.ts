@@ -428,20 +428,40 @@ function actionsForNode(
   return [];
 }
 
+function compareShowMapActions(a: ShowMapAction, b: ShowMapAction): number {
+  if (b.priority !== a.priority) return b.priority - a.priority;
+  const labelOrder = a.label.localeCompare(b.label);
+  if (labelOrder !== 0) return labelOrder;
+  const nodeOrder = a.nodeId.localeCompare(b.nodeId);
+  if (nodeOrder !== 0) return nodeOrder;
+  return a.id.localeCompare(b.id);
+}
+
 export function getRankedActions(
   scope: ShowMapActionScope,
   state: ShowMapActionState
 ): ShowMapAction[] {
+  // INTENT: node scope aggregates descendants for root/attention surfaces; row menus use direct helpers.
   return scopedNodes(scope, state.tree)
     .flatMap(node => actionsForNode(node, state.tree, state.phase))
-    .sort((a, b) => {
-      if (b.priority !== a.priority) return b.priority - a.priority;
-      const labelOrder = a.label.localeCompare(b.label);
-      if (labelOrder !== 0) return labelOrder;
-      const nodeOrder = a.nodeId.localeCompare(b.nodeId);
-      if (nodeOrder !== 0) return nodeOrder;
-      return a.id.localeCompare(b.id);
-    });
+    .sort(compareShowMapActions);
+}
+
+export function getDirectActionsForNode(
+  node: ShowMapNode,
+  state: ShowMapActionState
+): ShowMapAction[] {
+  return actionsForNode(node, state.tree, state.phase).sort(compareShowMapActions);
+}
+
+export function getRecommendedActionsForNode(
+  node: ShowMapNode,
+  state: ShowMapActionState,
+  limit = SHOW_MAP_RECOMMENDED_ACTION_LIMIT
+): ShowMapAction[] {
+  return getDirectActionsForNode(node, state)
+    .filter(action => action.recommended && isShowMapActionEnabled(action))
+    .slice(0, limit);
 }
 
 export function getRecommendedActions(
@@ -488,6 +508,6 @@ export function getPrimaryActionForNode(
   state: ShowMapActionState
 ): ShowMapAction | undefined {
   if (!node) return undefined;
-  const actions = getRankedActions(node, state).filter(action => action.href);
+  const actions = getDirectActionsForNode(node, state).filter(action => action.href);
   return actions[0];
 }

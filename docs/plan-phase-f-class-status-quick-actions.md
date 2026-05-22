@@ -58,3 +58,9 @@ instead of adding direct Supabase writes.
 - Confirmation dialogs for routine Start / Complete actions.
 - Result finalization, judge signatures, and registry submission.
 - New database columns or direct Supabase class-status writes.
+
+## Follow-Up
+
+- Add class-completion guardrails before this becomes the primary wrap-up path:
+  hide or confirm `Mark Class Complete` when unresolved score progress, unsigned
+  sheets, or registry submission attention remains.

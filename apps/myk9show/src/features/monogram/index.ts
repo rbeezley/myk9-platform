@@ -24,10 +24,8 @@ export {
 
 export { MonogramEmboss, type MonogramEmbossProps } from './components/MonogramEmboss';
 export { MonogramHeading, type MonogramHeadingProps } from './components/MonogramHeading';
-export {
-  MonogramSectionFolio,
-  type MonogramSectionFolioProps,
-} from './components/MonogramSectionFolio';
+export { MonogramSectionFolio } from './components/MonogramSectionFolio';
+export { type MonogramSectionFolioProps } from './components/MonogramSectionFolio.types';
 export { toLowerRoman } from './utils/roman';
 export {
   MonogramJudgeCard,

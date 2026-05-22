@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface StickyNavProps {
@@ -35,21 +35,24 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
   // Tracks which SECTIONS were actually present in the DOM — anchors for
   // missing sections are dimmed rather than rendered hot.
   const [presentIds, setPresentIds] = useState<Set<string>>(() => new Set());
+  const hasRecordedPresentIds = useRef(false);
 
   useEffect(() => {
+    // Reset if this effect gains dependencies and re-runs in the future.
+    hasRecordedPresentIds.current = false;
+
     const found = SECTIONS.map(s => document.getElementById(s.id)).filter(
       (el): el is HTMLElement => el !== null
     );
     if (!found.length) return;
 
-    // Defer the DOM-derived state one frame so the observer setup stays the
-    // only synchronous work in this effect.
-    const frame = window.requestAnimationFrame(() => {
-      setPresentIds(new Set(found.map(el => el.id)));
-    });
-
     const observer = new IntersectionObserver(
       entries => {
+        if (!hasRecordedPresentIds.current) {
+          setPresentIds(new Set(found.map(el => el.id)));
+          hasRecordedPresentIds.current = true;
+        }
+
         for (const entry of entries) {
           if (entry.isIntersecting) setActiveId(entry.target.id);
         }
@@ -58,7 +61,6 @@ export function StickyNav({ clubName, editionLabel, entryWizardUrl }: StickyNavP
     );
     found.forEach(el => observer.observe(el));
     return () => {
-      window.cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, []);

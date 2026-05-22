@@ -1,15 +1,7 @@
 import { type JSX } from 'react';
 import { MONOGRAM_MONOGRAM_FAMILY } from '../fonts';
 import { monogramColors } from '../tokens';
-
-export interface MonogramSectionFolioProps {
-  /** Folio numeral, lowercase roman (i, ii, iii, iv, v, vi, vii, viii). */
-  numeral: string;
-  /** Font size in px. Defaults to 56 (matches the handoff section folio). */
-  size?: number;
-  /** Optional className for positioning. */
-  className?: string;
-}
+import { type MonogramSectionFolioProps } from './MonogramSectionFolio.types';
 
 /**
  * Lowercase-roman folio numeral rendered in Italiana on bronze.

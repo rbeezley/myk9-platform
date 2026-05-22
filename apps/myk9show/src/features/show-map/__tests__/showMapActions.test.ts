@@ -278,6 +278,31 @@ describe('showMapActions', () => {
     expect(actionIds).not.toContain('mark-class-complete');
   });
 
+  it('allows empty active classes to be marked complete', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-active',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+        },
+      ],
+      entries: [],
+    });
+
+    expect(
+      findAction(
+        getRankedActions(tree.nodesById['class:class-active'], { tree }),
+        'mark-class-complete'
+      )
+    ).toMatchObject({
+      label: 'Mark Class Complete',
+    });
+  });
+
   it('uses verified destinations for class open, score, and print actions', () => {
     const tree = buildShowMapTree({
       show,

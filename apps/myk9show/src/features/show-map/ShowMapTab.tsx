@@ -327,6 +327,12 @@ export default function ShowMapTab({
           <p className="mt-1 text-sm text-muted-foreground">
             Scan the show by trial and class, then open the class you need.
           </p>
+          {actionPhase === 'wrap-up' && (
+            <p className="mt-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+              Wrap-up starts with completed entries across the full show. Use the filters to widen
+              or narrow what you see.
+            </p>
+          )}
         </div>
         <div
           className="flex flex-wrap gap-3"

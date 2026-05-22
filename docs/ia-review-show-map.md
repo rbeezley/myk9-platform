@@ -209,19 +209,19 @@ That's 8 distinct visual subsystems in one tab. Not an IA issue per se (it's one
 
 ## Summary
 
-**Overall IA health:** **Improving** — the show-map feature is internally coherent (one shared component, one shared priority function, one shared attention function), and IA-1 now makes the public Show Map read-only for staff preview while keeping operational row actions in the secretary workbench. Remaining work is mostly framing and verification.
+**Overall IA health:** **Improving** — the show-map feature is internally coherent (one shared component, one shared priority function, one shared attention function), IA-1 makes the public Show Map read-only for staff preview, IA-2 surfaces row-action shortcuts, and IA-3 frames the Wrap-up scope. Remaining work is deferred verification.
 
 **Top 3 findings (after PO reclassification 2026-05-21):**
 
 1. **Resolved in IA-1:** Manage actions no longer duplicate across public `/shows/:id?tab=map` and secretary `/secretary/shows/:id`; the public map is read-only and staff get a `Manage in Workbench` link.
 2. **Three row-action access paths exist; only one (three-dot menu) is discoverable** — High. Recently shipped via PRs #278 (keyboard) and #284 (row actions menu) without a discoverability companion.
-3. **Wrap-up tab renders the same ShowMap as Today with different scope props; no visible framing that this is the post-show view** — High.
+3. **Resolved in IA-3:** Wrap-up Show Map now explains the completed/full-show default before users reach the toolbar and tree.
 
 _(Original finding #2 — "Show Map" name implies spatial layout — withdrawn. "Map" is intentionally used in the sitemap sense per PO.)_
 
-**Recommended next phase:** **Wrap-up framing** — add a short explanation for the Wrap-up Show Map's completed-scope default.
+**Recommended next phase:** **IA-4 verification only if needed** — URL-state/deep-linking remains deferred unless users ask for it; class-completion duplication should be verified opportunistically.
 
-**Total estimated remediation effort:** 3–5 PRs across IA-1 through IA-3. IA-4 deferred pending evidence.
+**Remaining estimated remediation effort:** IA-4 is deferred pending evidence.
 
 ---
 

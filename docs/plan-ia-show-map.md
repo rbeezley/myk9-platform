@@ -144,7 +144,7 @@ Discoverability is the cheapest payback in the trio. It also doesn't change beha
 
 ## Phase IA-3 — Add Wrap-up tab framing
 
-**Status:** Ready to start.
+**Status:** Implemented.
 **Entry trigger:** IA-1 merged.
 **Estimated PRs:** 1.
 
@@ -195,20 +195,21 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 | ----- | ------------------------------------------------------------ | ----------------------- | --------------------------------------------------------------------------- | ------------- |
 | IA-1  | Public ShowMap becomes view-only (recommended Option A)      | PO sign-off on Option A | View-only behavior shipped; manage-route still has full actions; tests pass | Done          |
 | IA-2  | Add `?` popover advertising right-click + keyboard shortcuts | Shipped in P1-P3 polish | Popover ships; new users discover power features                            | Done          |
-| IA-3  | Wrap-up framing subtitle                                     | IA-1 merged             | Wrap-up tab renders explanatory subtitle                                    | 1             |
+| IA-3  | Wrap-up framing subtitle                                     | IA-1 merged             | Wrap-up tab renders explanatory subtitle                                    | Done          |
 | IA-4  | URL-state sync + class-completion duplication check          | Deferred                | (not scheduled)                                                             | 0–1           |
 
-**Remaining estimated effort:** 1 PR for wrap-up framing, plus deferred IA-4 only if users ask for deep links.
+**Remaining estimated effort:** Deferred IA-4 only if users ask for deep links or class-completion duplication is confirmed.
 
 ---
 
 ## Decision log
 
-| Date       | Decision                                                                                                             | Source                                                         |
-| ---------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| 2026-05-21 | Audit produced. Finding #2 ("Show Map" naming) withdrawn — sitemap sense was intentional per PO.                     | [`ia-review-show-map.md`](ia-review-show-map.md), this session |
-| 2026-05-21 | Plan drafted with 3 phases. IA-1 awaiting PO option choice.                                                          | This doc                                                       |
-| 2026-05-22 | IA-1 Option A approved: public Show Map remains a staff preview but is read-only; workbench is the operational home. | This session                                                   |
+| Date       | Decision                                                                                                                | Source                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 2026-05-21 | Audit produced. Finding #2 ("Show Map" naming) withdrawn — sitemap sense was intentional per PO.                        | [`ia-review-show-map.md`](ia-review-show-map.md), this session |
+| 2026-05-21 | Plan drafted with 3 phases. IA-1 awaiting PO option choice.                                                             | This doc                                                       |
+| 2026-05-22 | IA-1 Option A approved: public Show Map remains a staff preview but is read-only; workbench is the operational home.    | This session                                                   |
+| 2026-05-22 | IA-3 wrap-up framing implemented inside `ShowMapTab`, keeping the completed-scope explanation with the toolbar filters. | This session                                                   |
 
 ---
 

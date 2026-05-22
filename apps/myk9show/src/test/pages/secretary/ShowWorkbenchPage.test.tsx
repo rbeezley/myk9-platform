@@ -171,7 +171,11 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
       data-initial-day-scope={initialDayScope ?? ''}
       data-initial-completion-scope={initialCompletionScope ?? ''}
       data-action-phase={actionPhase ?? ''}
-    />
+    >
+      {actionPhase === 'wrap-up' && (
+        <p>Wrap-up starts with completed entries across the full show.</p>
+      )}
+    </div>
   ),
 }));
 
@@ -576,6 +580,7 @@ describe('ShowWorkbenchPage', () => {
     expect(showMap).toHaveAttribute('data-initial-completion-scope', 'completed');
     expect(showMap).toHaveAttribute('data-action-phase', 'wrap-up');
     expect(showMap).toHaveAttribute('data-submitted-trial-count', '1');
+    expect(screen.getByText(/wrap-up starts with completed entries/i)).toBeInTheDocument();
   });
 
   it('opens AskQ with a selected show-day prompt', async () => {

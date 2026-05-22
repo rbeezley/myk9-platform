@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
@@ -46,6 +46,8 @@ export interface LastShowMapMoveUp extends ShowMapMoveUpUndoInput {
   targetClassId: string;
   classId?: string | undefined;
 }
+
+export const MOVE_UP_UNDO_BANNER_TIMEOUT_MS = 8000;
 
 function markRowCheckedIn<T extends Record<string, unknown>>(
   rows: T[] | undefined,
@@ -97,8 +99,25 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   const [moveUpAction, setMoveUpAction] = useState<ShowMapAction | null>(null);
   const [messageAction, setMessageAction] = useState<ShowMapAction | null>(null);
   const [lastMoveUp, setLastMoveUp] = useState<LastShowMapMoveUp | null>(null);
+  const moveUpClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
   const sendMessage = useMessageStore(s => s.sendMessage);
+
+  const clearPendingMoveUpTimeout = useCallback(() => {
+    if (moveUpClearTimeoutRef.current !== null) {
+      clearTimeout(moveUpClearTimeoutRef.current);
+      moveUpClearTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (moveUpClearTimeoutRef.current !== null) {
+        clearTimeout(moveUpClearTimeoutRef.current);
+        moveUpClearTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const invalidateShowMapActionQueries = useCallback(
     (classId?: string | undefined, trialId?: string | undefined) => {
@@ -282,6 +301,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     mutationFn: async (input: LastShowMapMoveUp) => undoShowMapMoveUp(input),
     onSuccess: () => {
       toast.success('Move-up undone');
+      clearPendingMoveUpTimeout();
       setLastMoveUp(null);
     },
     onError: error => {
@@ -320,7 +340,12 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
         targetClassId,
         classId: action.classId,
       };
+      clearPendingMoveUpTimeout();
       setLastMoveUp(nextLastMoveUp);
+      moveUpClearTimeoutRef.current = setTimeout(() => {
+        moveUpClearTimeoutRef.current = null;
+        setLastMoveUp(null);
+      }, MOVE_UP_UNDO_BANNER_TIMEOUT_MS);
       setMoveUpAction(null);
       toast.success('Entry moved up');
     },

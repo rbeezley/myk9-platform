@@ -1,7 +1,7 @@
 # Plan — Phase F Class Status Quick Actions
 
 **Date:** 2026-05-21
-**Status:** Implemented locally.
+**Status:** Implemented locally, with completion guardrails follow-up.
 **Parent plan:** [`docs/plan-phase-f-show-map-row-actions.md`](plan-phase-f-show-map-row-actions.md)
 
 ## Goal
@@ -61,6 +61,7 @@ instead of adding direct Supabase writes.
 
 ## Follow-Up
 
-- Add class-completion guardrails before this becomes the primary wrap-up path:
-  hide or confirm `Mark Class Complete` when unresolved score progress, unsigned
-  sheets, or registry submission attention remains.
+- Class-completion guardrails implemented 2026-05-21: `Mark Class Complete`
+  stays hidden while an active class still has unresolved score progress.
+  Completed classes continue through the existing wrap-up attention path for
+  judge signatures and registry submission.

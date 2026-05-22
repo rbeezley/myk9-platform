@@ -94,7 +94,9 @@ function canMarkClassStarted(node: ShowMapNode): boolean {
 }
 
 function canMarkClassComplete(node: ShowMapNode): boolean {
-  return node.type === 'class' && node.status?.kind === 'active';
+  if (node.type !== 'class' || node.status?.kind !== 'active') return false;
+  if (!node.progress) return true;
+  return node.progress.completed >= node.progress.total;
 }
 
 function canMarkEntryCheckedIn(node: ShowMapNode): boolean {

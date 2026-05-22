@@ -416,7 +416,14 @@ describe('ShowMapTab', () => {
             status: 'In Progress',
           },
         ]}
-        entries={[]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            dog: { call_name: 'Bella' },
+            is_scored: true,
+          },
+        ]}
         canManageShow
       />
     );

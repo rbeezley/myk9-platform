@@ -222,7 +222,12 @@ describe('showMapActions', () => {
       'mark-class-complete'
     );
 
-    expect(findAction(getRankedActions(tree.nodesById['class:class-active'], { tree }), 'mark-class-complete')).toMatchObject({
+    expect(
+      findAction(
+        getRankedActions(tree.nodesById['class:class-active'], { tree }),
+        'mark-class-complete'
+      )
+    ).toMatchObject({
       label: 'Mark Class Complete',
       classId: 'class-active',
       trialId: 'trial-1',
@@ -236,6 +241,41 @@ describe('showMapActions', () => {
     }).map(action => action.id);
     expect(completedActionIds).not.toContain('mark-class-started');
     expect(completedActionIds).not.toContain('mark-class-complete');
+  });
+
+  it('hides class completion until active class scoring is resolved', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-active',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-scored',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          is_scored: true,
+        },
+        {
+          id: 'entry-unscored',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+        },
+      ],
+    });
+
+    const actionIds = getRankedActions(tree.nodesById['class:class-active'], { tree }).map(
+      action => action.id
+    );
+
+    expect(actionIds).toContain('score-class');
+    expect(actionIds).not.toContain('mark-class-complete');
   });
 
   it('uses verified destinations for class open, score, and print actions', () => {

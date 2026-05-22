@@ -32,8 +32,8 @@ Carried forward from [`docs/plan-show-day-sequencing.md`](plan-show-day-sequenci
 
 `ShowMapTab` is rendered with `canManageShow={canManageShow}` in **both**:
 
-- Public: [ShowDetailsPage.tsx:574](../apps/myk9show/src/pages/ShowDetailsPage.tsx:574), behind the tab `'map'` gated by `canShowMap = features.showMap && canManageShow` ([line 245](../apps/myk9show/src/pages/ShowDetailsPage.tsx:245)).
-- Secretary: [ShowWorkbenchPage.tsx:412](../apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx:412) (Today) and [:468](../apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx:468) (Wrap-up).
+- Public: [ShowDetailsPage.tsx](../apps/myk9show/src/pages/ShowDetailsPage.tsx), behind the tab `'map'` gated by `canShowMap = features.showMap && canManageShow`.
+- Secretary: [ShowWorkbenchPage.tsx](../apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx), in the Today and Wrap-up workbench phases.
 
 A manage-capable user can scratch / move-up / message-handler from either route, contradicting the show-centric IA commitment.
 
@@ -43,12 +43,12 @@ The public route keeps the "Show Map" tab visible to all authenticated users but
 
 **Implementation:**
 
-1. In [`ShowDetailsPage.tsx`](../apps/myk9show/src/pages/ShowDetailsPage.tsx:574), pass `canManageShow={false}` to the public `ShowMapTab` mount regardless of the user's actual permission.
-2. Loosen the `canShowMap` gate at [line 245](../apps/myk9show/src/pages/ShowDetailsPage.tsx:245) — the map tab no longer requires manage rights; it shows for all authenticated users (or even unauthenticated, depending on whether we want public viewers to see the structural tree).
+1. In [`ShowDetailsPage.tsx`](../apps/myk9show/src/pages/ShowDetailsPage.tsx), pass `canManageShow={false}` to the public `ShowMapTab` mount regardless of the user's actual permission.
+2. Loosen the `canShowMap` gate — the map tab no longer requires manage rights; it shows for all authenticated users (or even unauthenticated, depending on whether we want public viewers to see the structural tree).
 3. Inside `ShowMapTab`, confirm that `canManageShow={false}` already hides the row-actions menu, priority queue execution affordances, and dialogs. If any element renders an action when `canManageShow` is false, fix it.
 4. Add a small "Manage this show in the [Workbench]" link inside the public map for users who _do_ have manage rights — preserves discoverability of the canonical home.
 
-**Precedent:** This mirrors the existing manage-vs-view pattern in the same file — `EntriesTab` vs `MyEntriesTab` at [ShowDetailsPage.tsx:554-556](../apps/myk9show/src/pages/ShowDetailsPage.tsx:554).
+**Precedent:** This mirrors the existing manage-vs-view pattern in the same file — `EntriesTab` vs `MyEntriesTab`.
 
 **Trade-offs:**
 
@@ -91,7 +91,7 @@ Option A is closer in spirit to the existing manage-vs-view patterns in the code
 
 ### Why this phase first
 
-This is the only phase that touches an explicit architectural commitment (the show-centric mental model in [`plan-show-day-sequencing.md`](plan-show-day-sequencing.md) line 21). If we add discoverability affordances (IA-2) and wrap-up framing (IA-3) to the public mount first, we'd then have to remove them when IA-1 lands. Order is load-bearing.
+This is the only phase that touches an explicit architectural commitment (the show-centric mental model in [`plan-show-day-sequencing.md`](plan-show-day-sequencing.md)). If we add discoverability affordances (IA-2) and wrap-up framing (IA-3) to the public mount first, we'd then have to remove them when IA-1 lands. Order is load-bearing.
 
 ---
 
@@ -149,11 +149,11 @@ Discoverability is the cheapest payback in the trio. It also doesn't change beha
 
 ### Problem recap
 
-The Wrap-up tab renders `ShowMapTab` with `initialDayScope="all"`, `initialCompletionScope="completed"`, and `actionPhase="wrap-up"` ([ShowWorkbenchPage.tsx:468](../apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx:468)). No header copy explains _why_ this view defaults to completed-only. A user can toggle the toolbar's completion scope back to active and lose the wrap-up framing entirely.
+The Wrap-up tab renders `ShowMapTab` with `initialDayScope="all"`, `initialCompletionScope="completed"`, and `actionPhase="wrap-up"`. No header copy explains _why_ this view defaults to completed-only. A user can toggle the toolbar's completion scope back to active and lose the wrap-up framing entirely.
 
 ### Implementation
 
-1. In [`ShowWorkbenchPage.tsx`](../apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx:468), wrap the Wrap-up `ShowMapTab` mount in a `PhaseShell` (or extend the existing `PhaseShell` at line ~423) with a kicker:
+1. In [`ShowWorkbenchPage.tsx`](../apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx), wrap the Wrap-up `ShowMapTab` mount in a `PhaseShell` with a kicker:
    > **Show structure — completed entries.** This view defaults to entries marked complete from the entire show. Widen the scope from the toolbar to see active or upcoming entries.
 2. Alternatively, push the kicker _inside_ `ShowMapTab` by gating on `actionPhase === "wrap-up"` — render a one-line subtitle above the toolbar. This keeps the framing co-located with the data scope, so toggling the toolbar still leaves the wrap-up subtitle visible.
 3. Recommended: the in-component subtitle (option 2). Pairs the framing with the data, not the route.

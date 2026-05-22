@@ -71,14 +71,11 @@ function ShowMapHelpPopover() {
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">Open row actions</dt>
-              <dd className="flex gap-1">
+              <dd className="flex items-center gap-1">
                 <Kbd>Enter</Kbd>
                 <Kbd>Space</Kbd>
+                <span className="ml-1 text-xs font-medium text-foreground">or right-click</span>
               </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-muted-foreground">Open row actions</dt>
-              <dd className="text-xs font-medium text-foreground">Right-click</dd>
             </div>
           </dl>
         </div>

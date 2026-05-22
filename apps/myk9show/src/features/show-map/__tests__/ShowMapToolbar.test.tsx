@@ -27,9 +27,9 @@ describe('ShowMapToolbar', () => {
     expect(await screen.findByText('Show Map shortcuts')).toBeInTheDocument();
     expect(screen.getByText('Move between rows')).toBeInTheDocument();
     expect(screen.getByText('Expand or collapse')).toBeInTheDocument();
-    expect(screen.getAllByText('Open row actions')).toHaveLength(2);
+    expect(screen.getByText('Open row actions')).toBeInTheDocument();
     expect(screen.getByText('Enter')).toBeInTheDocument();
     expect(screen.getByText('Space')).toBeInTheDocument();
-    expect(screen.getByText('Right-click')).toBeInTheDocument();
+    expect(screen.getByText('or right-click')).toBeInTheDocument();
   });
 });

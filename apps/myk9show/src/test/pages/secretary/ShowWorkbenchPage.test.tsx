@@ -419,7 +419,6 @@ describe('ShowWorkbenchPage', () => {
   });
 
   it('renders Today operational surfaces with show-map data', async () => {
-    const user = userEvent.setup();
     mockTrials = [
       {
         id: 'trial-1',
@@ -454,8 +453,7 @@ describe('ShowWorkbenchPage', () => {
     expect(showMap.compareDocumentPosition(deskTools) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
-
-    await user.click(deskTools);
+    expect(deskTools).toHaveAttribute('aria-expanded', 'true');
 
     expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
     expect(screen.getByRole('heading', { name: 'Judge hospitality' })).toBeInTheDocument();

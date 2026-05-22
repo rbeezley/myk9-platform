@@ -9,9 +9,9 @@
 
 The show-map feature is mounted in three places:
 
-1. **Public ShowDetails** — `/shows/:id?tab=map` via `apps/myk9show/src/pages/ShowDetailsPage.tsx:574`, gated by `canShowMap = features.showMap && canManageShow` (`ShowDetailsPage.tsx:245`).
-2. **Secretary Workbench → Today tab** — `/secretary/shows/:showId?phase=today` via `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx:412`, configured with `initialDayScope="today"`.
-3. **Secretary Workbench → Wrap-up tab** — `/secretary/shows/:showId?phase=wrap-up` via `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx:468`, configured with `initialDayScope="all"`, `initialCompletionScope="completed"`, `actionPhase="wrap-up"`.
+1. **Public ShowDetails** — `/shows/:id?tab=map` via `apps/myk9show/src/pages/ShowDetailsPage.tsx`, gated by `canShowMap = features.showMap && canManageShow`.
+2. **Secretary Workbench → Today tab** — `/secretary/shows/:showId?phase=today` via `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx`, configured with `initialDayScope="today"`.
+3. **Secretary Workbench → Wrap-up tab** — `/secretary/shows/:showId?phase=wrap-up` via `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx`, configured with `initialDayScope="all"`, `initialCompletionScope="completed"`, `actionPhase="wrap-up"`.
 
 All three mounts use the same `ShowMapTab` component from `apps/myk9show/src/features/show-map/ShowMapTab.tsx` and reach into a shared 21-file feature module (≈4,000 LOC) covering:
 
@@ -213,7 +213,7 @@ That's 8 distinct visual subsystems in one tab. Not an IA issue per se (it's one
 
 **Top 3 findings (after PO reclassification 2026-05-21):**
 
-1. **Manage actions duplicate across public `/shows/:id?tab=map` and secretary `/secretary/shows/:id`** — High. Architectural commitment partially violated. See [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md) line 21.
+1. **Manage actions duplicate across public `/shows/:id?tab=map` and secretary `/secretary/shows/:id`** — High. Architectural commitment partially violated. See the show-centric mental model in [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md).
 2. **Three row-action access paths exist; only one (three-dot menu) is discoverable** — High. Recently shipped via PRs #278 (keyboard) and #284 (row actions menu) without a discoverability companion.
 3. **Wrap-up tab renders the same ShowMap as Today with different scope props; no visible framing that this is the post-show view** — High.
 

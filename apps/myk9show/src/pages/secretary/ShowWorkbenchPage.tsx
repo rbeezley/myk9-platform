@@ -85,7 +85,7 @@ function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
 
 function TodayDeskToolsSection({ children }: { children: ReactNode }) {
   return (
-    <Collapsible>
+    <Collapsible defaultOpen>
       <section className="space-y-2" aria-label="Desk tools">
         <CollapsibleTrigger className="rounded-md border bg-muted/20 px-3 py-3 text-left hover:no-underline">
           <span className="flex min-w-0 items-start gap-3">

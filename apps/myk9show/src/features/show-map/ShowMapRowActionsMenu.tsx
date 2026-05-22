@@ -8,7 +8,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { getRankedActions, getRecommendedActions } from './showMapActions';
+import {
+  getDirectActionsForNode,
+  getRankedActions,
+  getRecommendedActions,
+  getRecommendedActionsForNode,
+} from './showMapActions';
 import type { ShowMapAction } from './showMapActions';
 import {
   resolveShowMapActionExecution,
@@ -55,8 +60,13 @@ export function ShowMapRowActionsMenu({
 }: ShowMapRowActionsMenuProps) {
   const [manualOpen, setManualOpen] = useState(false);
   const [dismissedOpenSignal, setDismissedOpenSignal] = useState(0);
-  const recommendedActions = getRecommendedActions(node, { tree, phase: actionPhase });
-  const allActions = getRankedActions(node, { tree, phase: actionPhase });
+  const isRootMenu = node.id === tree.root.id;
+  const recommendedActions = isRootMenu
+    ? getRecommendedActions('root', { tree, phase: actionPhase })
+    : getRecommendedActionsForNode(node, { tree, phase: actionPhase });
+  const allActions = isRootMenu
+    ? getRankedActions('root', { tree, phase: actionPhase })
+    : getDirectActionsForNode(node, { tree, phase: actionPhase });
   const signalOpen = Boolean(openSignal && openSignal !== dismissedOpenSignal);
   const isOpen = manualOpen || signalOpen;
 

@@ -146,4 +146,37 @@ describe('ShowMapRowActionsMenu', () => {
     expect(onAction).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
   });
+
+  it('keeps class row menus scoped to class actions', async () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[1]!],
+      entries: [
+        {
+          id: 'entry-needs-check-in',
+          class_id: 'class-future',
+          dog: { call_name: 'Scout' },
+          check_in_status: 'no-status',
+        },
+      ],
+    });
+    const classNode = tree.nodesById['class:class-future'];
+    if (!classNode) throw new Error('Expected future class node');
+
+    const { user } = render(<ShowMapRowActionsMenu node={classNode} tree={tree} />);
+
+    await user.click(screen.getByRole('button', { name: /actions for exterior advanced b/i }));
+
+    await screen.findByRole('menu');
+    expect(screen.getAllByRole('menuitem', { name: /mark class started/i }).length).toBeGreaterThan(
+      0
+    );
+    expect(
+      screen.getAllByRole('menuitem', { name: /print check-in sheet/i }).length
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole('menuitem', { name: /mark checked in/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /move up/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /scratch \/ no-show/i })).not.toBeInTheDocument();
+  });
 });

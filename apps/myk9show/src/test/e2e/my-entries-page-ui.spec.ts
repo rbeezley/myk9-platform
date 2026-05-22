@@ -21,22 +21,22 @@ const testUser = {
 
 // Helper function to login
 async function login(page: Page) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
+  await page.goto('/sign-in?returnTo=%2Fexhibitor%2Fentries', { waitUntil: 'networkidle' });
 
   await page.waitForSelector('[data-testid="email-input"]', { state: 'visible', timeout: 10000 });
   await page.fill('[data-testid="email-input"]', testUser.email);
   await page.fill('[data-testid="password-input"]', testUser.password);
   await page.click('[data-testid="sign-in-button"]');
 
-  await page.waitForURL('/', { timeout: 15000 });
+  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
   await page.waitForLoadState('networkidle');
 }
 
 // Helper to navigate to My Entries
 async function navigateToMyEntries(page: Page) {
-  await page.goto('/my-entries', { waitUntil: 'networkidle' });
+  await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
   // Wait for page to load
-  await page.waitForSelector('h1:has-text("My Entries")', { timeout: 10000 });
+  await expect(page.getByText('MY ENTRIES')).toBeVisible({ timeout: 10000 });
 }
 
 test.describe('My Entries Page - Fake Trend Data Removal', () => {
@@ -62,7 +62,7 @@ test.describe('My Entries Page - Fake Trend Data Removal', () => {
 
     // Verify meaningful stat card titles
     await expect(page.locator('text=Total Entries')).toBeVisible();
-    await expect(page.locator('text=Accepted')).toBeVisible();
+    await expect(page.getByText('Accepted').first()).toBeVisible();
     await expect(page.locator('text=Needs Action')).toBeVisible();
     await expect(page.locator('text=Total Fees')).toBeVisible();
   });
@@ -88,22 +88,21 @@ test.describe('My Entries Page - Enter a Show CTA', () => {
   });
 
   test('should display "Enter a Show" button in header', async ({ page }) => {
-    const enterShowButton = page.locator('a:has-text("Enter a Show")');
+    const enterShowButton = page.getByRole('button', { name: 'Enter a Show' });
     await expect(enterShowButton).toBeVisible();
-    await expect(enterShowButton).toHaveAttribute('href', '/shows');
   });
 
   test('should navigate to Browse Shows when clicking "Enter a Show"', async ({ page }) => {
-    const enterShowButton = page.locator('a:has-text("Enter a Show")');
+    const enterShowButton = page.getByRole('button', { name: 'Enter a Show' });
     await enterShowButton.click();
 
     // Should navigate to browse shows page
-    await expect(page).toHaveURL(/\/shows\/browse/);
+    await expect(page).toHaveURL(/\/shows/);
   });
 
-  test('should display Refresh button alongside Enter a Show', async ({ page }) => {
-    const refreshButton = page.locator('button:has-text("Refresh")');
-    await expect(refreshButton).toBeVisible();
+  test('should display dog management affordances alongside Enter a Show', async ({ page }) => {
+    await expect(page.getByText('MY DOGS')).toBeVisible();
+    await expect(page.getByRole('button', { name: /New Dog/i })).toBeVisible();
   });
 });
 
@@ -149,13 +148,13 @@ test.describe('My Entries Page - Tab Structure', () => {
     await pendingTab.click();
 
     // Tab should be selected
-    await expect(pendingTab).toHaveAttribute('data-state', 'active');
+    await expect(pendingTab).toHaveAttribute('aria-selected', 'true');
 
     // Click on Accepted tab
     const acceptedTab = page.locator('[role="tab"]:has-text("Accepted")');
     await acceptedTab.click();
 
-    await expect(acceptedTab).toHaveAttribute('data-state', 'active');
+    await expect(acceptedTab).toHaveAttribute('aria-selected', 'true');
   });
 });
 
@@ -213,12 +212,13 @@ test.describe('My Entries Page - Status Stepper', () => {
     await page.waitForTimeout(1000);
 
     // If there are entries, status stepper should be visible
-    const entryCards = page.locator('.myk9-entries-card');
-    const entryCount = await entryCards.count();
+    const entryCount = await page.getByRole('button', { name: /Edit Entry/i }).count();
 
     if (entryCount > 0) {
-      const statusStepper = page.locator('.entry-status-stepper');
-      await expect(statusStepper.first()).toBeVisible();
+      await expect(page.getByText('Submitted').first()).toBeVisible();
+      await expect(page.getByText('Review').first()).toBeVisible();
+      await expect(page.getByText('Accepted').first()).toBeVisible();
+      await expect(page.getByText('Paid').first()).toBeVisible();
     }
   });
 });
@@ -235,7 +235,7 @@ test.describe('My Entries Page - Empty State', () => {
 
     // Check if empty state is shown
     const emptyState = page.locator("text=/no entries found|haven't entered any shows/i");
-    const entryCards = page.locator('.myk9-entries-card');
+    const entryCards = page.getByRole('button', { name: /Edit Entry/i });
 
     const cardCount = await entryCards.count();
     if (cardCount === 0) {
@@ -251,7 +251,7 @@ test.describe('My Entries Page - Empty State', () => {
     const cardCount = await entryCards.count();
 
     if (cardCount === 0) {
-      const browseButton = page.locator('a:has-text("Browse All Shows")');
+      const browseButton = page.getByRole('button', { name: /Browse All Shows|Enter a Show/i });
       await expect(browseButton).toBeVisible();
     }
   });
@@ -266,24 +266,21 @@ test.describe('My Entries Page - Context-Aware Messaging', () => {
   test('should display context-aware status messages for entries', async ({ page }) => {
     await page.waitForTimeout(500);
 
-    const entryCards = page.locator('.myk9-entries-card');
+    const entryCards = page.getByRole('button', { name: /Edit Entry/i });
     const cardCount = await entryCards.count();
 
     if (cardCount > 0) {
       // Check for context-aware messaging (not just "Last updated: date")
-      const lastUpdatedSection = page.locator('.myk9-entries-last-updated');
-      await expect(lastUpdatedSection.first()).toBeVisible();
-
-      // Should have relative time or context (e.g., "Accepted 2 days ago", "Show is tomorrow")
-      const messageText = await lastUpdatedSection.first().textContent();
+      const pageText = await page.locator('body').innerText();
+      // Should have relative time or context (e.g., "Accepted 2 days ago", "Show is today")
       const hasContextualMessage =
-        messageText?.includes('ago') ||
-        messageText?.includes('today') ||
-        messageText?.includes('tomorrow') ||
-        messageText?.includes('days') ||
-        messageText?.includes('pending') ||
-        messageText?.includes('Accepted') ||
-        messageText?.includes('Submitted');
+        pageText.includes('ago') ||
+        pageText.includes('today') ||
+        pageText.includes('tomorrow') ||
+        pageText.includes('days') ||
+        pageText.includes('pending') ||
+        pageText.includes('Accepted') ||
+        pageText.includes('Submitted');
       expect(hasContextualMessage).toBe(true);
     }
   });

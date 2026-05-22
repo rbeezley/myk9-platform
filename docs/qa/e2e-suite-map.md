@@ -205,6 +205,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/entities/entriesUI.spec.ts`                | Entry management UI.        |
 | `apps/myk9show/src/test/e2e/entities/peopleCRUD.spec.ts`               | People CRUD.                |
 | `apps/myk9show/src/test/e2e/entities/peopleUI.spec.ts`                 | People UI.                  |
+| `apps/myk9show/src/test/e2e/entities/phase2ShowDayRewalk.spec.ts`      | Phase 2 show-day re-walk.   |
 | `apps/myk9show/src/test/e2e/entities/registrationUI.spec.ts`           | Registration wizard UI.     |
 | `apps/myk9show/src/test/e2e/entities/reportsUI.spec.ts`                | Reports UI.                 |
 | `apps/myk9show/src/test/e2e/entities/secretaryEntryCreationUI.spec.ts` | Secretary entry creation.   |

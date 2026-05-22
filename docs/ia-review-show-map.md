@@ -187,16 +187,16 @@ That's 8 distinct visual subsystems in one tab. Not an IA issue per se (it's one
 
 ## Step 6: Phased Remediation Plan
 
-**Plan doc:** [`docs/plan-ia-show-map.md`](plan-ia-show-map.md) (drafted 2026-05-21; awaiting PO sign-off on IA-1 option).
+**Plan doc:** [`docs/plan-ia-show-map.md`](plan-ia-show-map.md) (drafted 2026-05-21; IA-1 Option A approved and implemented 2026-05-22).
 
 **Phase summary:**
 
-| Phase                                                                      | Scope                                                                                                                                                                                                                                            | Entry trigger                                        | Exit criterion                                                                                            | Estimated PRs |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------- |
-| **IA-1: Resolve manage-action duplication**                                | Decide: keep public map as view-only when `canManageShow` (strip row actions when route is `/shows/:id`), OR remove the map tab from `/shows/:id` for manage users and redirect to `/secretary/shows/:id?phase=today`. Update `canShowMap` gate. | Approval of this audit + PO decision on which option | Public route either shows view-only map or redirects manage users to workbench; tests cover both branches | 1–2           |
-| **IA-2: Wrap-up framing only**                                             | (Rename dropped — "Show Map" is intentionally a sitemap-style name per PO.) Add Wrap-up tab framing copy so users know this view is scoped to completed work.                                                                                    | Approval                                             | Wrap-up renders an explanatory header / kicker                                                            | 1             |
-| **IA-3: Row-action discoverability**                                       | Add a small "Tip" line or kbd legend in the toolbar advertising right-click + keyboard shortcuts (without crowding the UI). Validate with a fresh-contributor walk.                                                                              | Approval                                             | Toolbar legend ships; legend can be dismissed/persisted                                                   | 1             |
-| **IA-4 (defer): URL-reflected state + class-completion duplication check** | Investigate URL state sync (deep-linking) and verify class-completion isn't a duplicate action.                                                                                                                                                  | After IA-1..3 land                                   | Findings doc updated with "no action needed" OR a follow-up plan exists                                   | 0–1           |
+| Phase                                                                      | Scope                                                                                                                                                                      | Entry trigger      | Exit criterion                                                                                                          | Estimated PRs |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------- | ------------- |
+| **IA-1: Resolve manage-action duplication**                                | Public Show Map is read-only for manage-capable users; operational row actions live only in the secretary workbench. Workbench and public routes cross-link intentionally. | Approved Option A  | Public route passes `canManageShow={false}` to Show Map; tests cover read-only public map and workbench link visibility | Done          |
+| **IA-2: Wrap-up framing only**                                             | (Rename dropped — "Show Map" is intentionally a sitemap-style name per PO.) Add Wrap-up tab framing copy so users know this view is scoped to completed work.              | Approval           | Wrap-up renders an explanatory header / kicker                                                                          | 1             |
+| **IA-3: Row-action discoverability**                                       | Add a small "Tip" line or kbd legend in the toolbar advertising right-click + keyboard shortcuts (without crowding the UI). Validate with a fresh-contributor walk.        | Approval           | Toolbar legend ships; legend can be dismissed/persisted                                                                 | 1             |
+| **IA-4 (defer): URL-reflected state + class-completion duplication check** | Investigate URL state sync (deep-linking) and verify class-completion isn't a duplicate action.                                                                            | After IA-1..3 land | Findings doc updated with "no action needed" OR a follow-up plan exists                                                 | 0–1           |
 
 **Why this order:**
 
@@ -209,17 +209,17 @@ That's 8 distinct visual subsystems in one tab. Not an IA issue per se (it's one
 
 ## Summary
 
-**Overall IA health:** **Needs Work** — the show-map feature is internally coherent (one shared component, one shared priority function, one shared attention function) but its **placement** is the issue. Three mount points across two routes produce a real risk of users finding the wrong home for the same task, and the public route's manage-capable mount partially contradicts the workbench's documented "single home for management" commitment.
+**Overall IA health:** **Improving** — the show-map feature is internally coherent (one shared component, one shared priority function, one shared attention function), and IA-1 now makes the public Show Map read-only for staff preview while keeping operational row actions in the secretary workbench. Remaining work is mostly framing and verification.
 
 **Top 3 findings (after PO reclassification 2026-05-21):**
 
-1. **Manage actions duplicate across public `/shows/:id?tab=map` and secretary `/secretary/shows/:id`** — High. Architectural commitment partially violated. See the show-centric mental model in [`docs/plan-show-day-sequencing.md`](plan-show-day-sequencing.md).
+1. **Resolved in IA-1:** Manage actions no longer duplicate across public `/shows/:id?tab=map` and secretary `/secretary/shows/:id`; the public map is read-only and staff get a `Manage in Workbench` link.
 2. **Three row-action access paths exist; only one (three-dot menu) is discoverable** — High. Recently shipped via PRs #278 (keyboard) and #284 (row actions menu) without a discoverability companion.
 3. **Wrap-up tab renders the same ShowMap as Today with different scope props; no visible framing that this is the post-show view** — High.
 
 _(Original finding #2 — "Show Map" name implies spatial layout — withdrawn. "Map" is intentionally used in the sitemap sense per PO.)_
 
-**Recommended next phase:** **IA-1** — resolve the public-vs-secretary duplication. This is the largest mental-model bet and the only one that touches an explicit architectural commitment.
+**Recommended next phase:** **Wrap-up framing** — add a short explanation for the Wrap-up Show Map's completed-scope default.
 
 **Total estimated remediation effort:** 3–5 PRs across IA-1 through IA-3. IA-4 deferred pending evidence.
 
@@ -235,4 +235,4 @@ _(Original finding #2 — "Show Map" name implies spatial layout — withdrawn. 
 
 The later `$impeccable critique` pass added one Today-workbench finding that is adjacent to, but separate from, this route IA audit: Show Map is the operational spine, but the Today tab placed multiple secondary desk tools before it. The remediation is tracked in [`docs/plan-ia-show-map.md`](plan-ia-show-map.md#2026-05-22-impeccable-p1-p3-polish-addendum).
 
-This follow-up also addresses the row-action discoverability finding with an in-toolbar shortcuts popover. The public-vs-secretary route duplication finding remains open and still needs the IA-1 PO decision.
+This follow-up also addresses the row-action discoverability finding with an in-toolbar shortcuts popover. IA-1 later resolved the public-vs-secretary route duplication by making the public Show Map read-only for staff preview.

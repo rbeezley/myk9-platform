@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import {
   ChevronDown,
   ClipboardCheck,
+  Eye,
   FileBarChart,
   ListChecks,
   Medal,
@@ -332,16 +333,24 @@ export function ShowWorkbenchPage() {
         breadcrumbs={breadcrumbs}
         title={`${currentShow.name || 'Show'} workbench`}
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/shows/${currentShow.id}?edit=true`)}
-          >
-            {/* INTENT: full show editing stays on the existing show detail edit panel
-                until the Setup phase owns every edit surface. */}
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/shows/${currentShow.id}`}>
+                <Eye className="h-4 w-4 mr-2" />
+                Preview public page
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/shows/${currentShow.id}?edit=true`)}
+            >
+              {/* INTENT: full show editing stays on the existing show detail edit panel
+                  until the Setup phase owns every edit surface. */}
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          </div>
         }
       />
 

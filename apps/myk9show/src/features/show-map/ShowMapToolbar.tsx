@@ -13,6 +13,7 @@ interface ShowMapToolbarProps {
   onCompletionScopeChange: (scope: ShowMapCompletionScope) => void;
   onCollapseAll: () => void;
   onExpandTrials: () => void;
+  showActionHelp?: boolean | undefined;
 }
 
 const filters: Array<{ value: ShowMapFilter; label: string }> = [
@@ -93,6 +94,7 @@ export function ShowMapToolbar({
   onCompletionScopeChange,
   onCollapseAll,
   onExpandTrials,
+  showActionHelp = true,
 }: ShowMapToolbarProps) {
   return (
     <div className="flex flex-col gap-3 border-b bg-background p-3 lg:flex-row lg:items-center lg:justify-between">
@@ -142,7 +144,7 @@ export function ShowMapToolbar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <ShowMapHelpPopover />
+        {showActionHelp && <ShowMapHelpPopover />}
         <Button
           type="button"
           variant="outline"

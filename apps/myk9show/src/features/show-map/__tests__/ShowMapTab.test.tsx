@@ -329,7 +329,7 @@ describe('ShowMapTab', () => {
     expect(screen.getByText(/show map is only available to show staff/i)).toBeInTheDocument();
   });
 
-  it('executes mark checked-in from the Priority Queue', async () => {
+  it('keeps the guidance action out of Up next and executes the next queued action', async () => {
     const { user } = render(
       <ShowMapTab
         show={show}
@@ -348,6 +348,13 @@ describe('ShowMapTab', () => {
             class_id: 'class-1',
             armband: '12',
             dog: { call_name: 'Bella' },
+            check_in_status: 'conflict',
+          },
+          {
+            id: 'entry-2',
+            class_id: 'class-1',
+            armband: '13',
+            dog: { call_name: 'Luna' },
             check_in_status: 'no-status',
           },
         ]}
@@ -355,7 +362,13 @@ describe('ShowMapTab', () => {
       />
     );
 
-    const label = screen.getByText('Mark checked in');
+    const guidance = screen.getByRole('region', { name: /next best action/i });
+    expect(within(guidance).getByText('Next: Resolve check-in conflict')).toBeInTheDocument();
+    const queue = screen.getByRole('region', { name: /up next/i });
+    expect(within(queue).queryByText('Resolve check-in conflict')).not.toBeInTheDocument();
+
+    const label = within(queue).getAllByText('Mark checked in')[0];
+    if (!label) throw new Error('Expected a queued check-in action');
     const queueRow = label.closest('div')?.parentElement?.parentElement;
     if (!(queueRow instanceof HTMLElement)) throw new Error('Expected priority queue row');
 

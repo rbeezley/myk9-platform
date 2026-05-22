@@ -193,7 +193,11 @@ vi.mock('@/features/show-workbench/IncidentLogCard', () => ({
     judges: unknown[];
     showId: string;
   }) => (
-    <section data-testid="incident-log-card" data-entry-count={entries.length} data-judge-count={judges.length}>
+    <section
+      data-testid="incident-log-card"
+      data-entry-count={entries.length}
+      data-judge-count={judges.length}
+    >
       Incident log for {showId}
     </section>
   ),
@@ -443,6 +447,14 @@ describe('ShowWorkbenchPage', () => {
     expect(await screen.findByRole('heading', { name: 'About Today' })).toBeInTheDocument();
     expect(screen.getByText(/keep rings moving/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Late entry help' })).toBeInTheDocument();
+    expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
+    const showMap = await screen.findByTestId('show-map-tab');
+    const deskTools = screen.getByRole('button', { name: /desk tools/i });
+    expect(showMap.compareDocumentPosition(deskTools) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(deskTools).toHaveAttribute('aria-expanded', 'true');
+
     expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
     expect(screen.getByRole('heading', { name: 'Judge hospitality' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Quick broadcast' })).toBeInTheDocument();
@@ -453,9 +465,7 @@ describe('ShowWorkbenchPage', () => {
     expect((screen.getByLabelText('PA script') as HTMLTextAreaElement).value).toContain(
       'Container Novice A will start later than the posted schedule.'
     );
-    expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
     expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
-    const showMap = await screen.findByTestId('show-map-tab');
     expect(showMap).toHaveAttribute('data-show-id', 'show-1');
     expect(showMap).toHaveAttribute('data-trial-count', '1');
     expect(showMap).toHaveAttribute('data-class-count', '1');

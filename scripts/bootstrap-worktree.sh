@@ -4,7 +4,8 @@
 # or manually: bash scripts/bootstrap-worktree.sh
 set -euo pipefail
 
-WORKTREE_DIR="$(pwd)"
+WORKTREE_DIR="$(git rev-parse --show-toplevel)"
+cd "$WORKTREE_DIR"
 MAIN_REPO="$(git worktree list --porcelain | head -1 | sed 's/^worktree //')"
 
 echo "=== Bootstrapping worktree ===" >&2
@@ -18,11 +19,11 @@ if [ "$WORKTREE_DIR" = "$MAIN_REPO" ]; then
 fi
 
 # 1. Install dependencies
-if [ ! -d "node_modules" ]; then
+if [ ! -x "apps/myk9show/node_modules/.bin/vite" ]; then
   echo "  Installing dependencies..." >&2
   pnpm install --frozen-lockfile 2>&1 | tail -3 >&2
 else
-  echo "  node_modules exists — skipping install" >&2
+  echo "  myK9Show dependencies exist — skipping install" >&2
 fi
 
 # 2. Copy .env files from main repo

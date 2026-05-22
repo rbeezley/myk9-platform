@@ -34,6 +34,8 @@ interface ShowMapStructureTableProps {
   onToggle: (nodeId: string) => void;
   onNavigate?: (href: string) => void;
   onAction?: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
+  // When false, the tree is browse-only: no row menus, primary action buttons,
+  // Enter/Space activation, or context-menu actions.
   enableRowActions?: boolean | undefined;
   scope?: ShowMapScopeState | undefined;
   scopeNow?: Date | undefined;

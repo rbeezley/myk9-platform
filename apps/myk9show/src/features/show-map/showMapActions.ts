@@ -441,6 +441,7 @@ export function getRankedActions(
   scope: ShowMapActionScope,
   state: ShowMapActionState
 ): ShowMapAction[] {
+  // INTENT: node scope aggregates descendants for root/attention surfaces; row menus use direct helpers.
   return scopedNodes(scope, state.tree)
     .flatMap(node => actionsForNode(node, state.tree, state.phase))
     .sort(compareShowMapActions);

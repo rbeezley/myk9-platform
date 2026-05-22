@@ -97,7 +97,7 @@ test.describe('My Entries Page - Enter a Show CTA', () => {
     await enterShowButton.click();
 
     // Should navigate to browse shows page
-    await expect(page).toHaveURL(/\/shows/);
+    await expect(page).toHaveURL(/\/shows$/);
   });
 
   test('should display dog management affordances alongside Enter a Show', async ({ page }) => {
@@ -215,10 +215,13 @@ test.describe('My Entries Page - Status Stepper', () => {
     const entryCount = await page.getByRole('button', { name: /Edit Entry/i }).count();
 
     if (entryCount > 0) {
-      await expect(page.getByText('Submitted').first()).toBeVisible();
-      await expect(page.getByText('Review').first()).toBeVisible();
-      await expect(page.getByText('Accepted').first()).toBeVisible();
-      await expect(page.getByText('Paid').first()).toBeVisible();
+      const statusStepper = page.locator('.entry-status-stepper').first();
+
+      await expect(statusStepper).toBeVisible();
+      await expect(statusStepper.getByText('Submitted')).toBeVisible();
+      await expect(statusStepper.getByText('Review')).toBeVisible();
+      await expect(statusStepper.getByText('Accepted')).toBeVisible();
+      await expect(statusStepper.getByText('Paid')).toBeVisible();
     }
   });
 });

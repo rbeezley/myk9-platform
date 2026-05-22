@@ -181,6 +181,13 @@ vi.mock('@/components/shows/tabs/ClassesTab', () => ({
 vi.mock('@/components/shows/tabs/TrialsTab', () => ({
   TrialsTab: () => <div data-testid="trials-tab">TrialsTab</div>,
 }));
+vi.mock('@/features/show-map/ShowMapTab', () => ({
+  default: ({ canManageShow }: { canManageShow: boolean }) => (
+    <div data-testid="show-map-tab" data-can-manage={String(canManageShow)}>
+      ShowMapTab
+    </div>
+  ),
+}));
 vi.mock('@/components/shows/EntryList', () => ({
   EntryList: () => <div data-testid="entry-list">EntryList</div>,
 }));
@@ -491,6 +498,41 @@ describe('ShowDetailsPage', () => {
 
     expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
+  });
+
+  it('shows a workbench link only for show managers on public show details', () => {
+    mockAuthContext.isSecretary = true;
+
+    renderPage();
+
+    expect(screen.getByRole('link', { name: /manage in workbench/i })).toHaveAttribute(
+      'href',
+      '/secretary/shows/show-1'
+    );
+  });
+
+  it('hides the workbench link from exhibitors on public show details', () => {
+    renderPage();
+
+    expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
+  });
+
+  it('renders the public Show Map as read-only for show managers', async () => {
+    mockAuthContext.isSecretary = true;
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+
+    renderPage('show-1', '?tab=map');
+
+    const showMap = await screen.findByTestId('show-map-tab');
+    expect(showMap).toHaveAttribute('data-can-manage', 'false');
   });
 
   it('uses the published experience style for public landing selection', () => {

@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ListTree, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ErrorState } from '@/components/common/ErrorState';
 import {
   buildShowMapTree,
   getDefaultExpandedNodeIds,
@@ -291,10 +290,6 @@ export default function ShowMapTab({
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
 
-  if (!canManageShow) {
-    return <ErrorState message="Show Map is only available to show staff." />;
-  }
-
   if (trials.length === 0) {
     return (
       <div className="rounded-md border bg-card p-6">
@@ -303,17 +298,21 @@ export default function ShowMapTab({
           <div>
             <h3 className="text-base font-semibold">No trials yet</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Add trials to start building this show's list.
+              {canManageShow
+                ? "Add trials to start building this show's list."
+                : "This show doesn't have trials listed yet."}
             </p>
-            <Button
-              type="button"
-              className="mt-4"
-              onClick={() =>
-                navigate(`/secretary/create-show/wizard?showId=${show.id}&mode=add-trials`)
-              }
-            >
-              New Trial
-            </Button>
+            {canManageShow && (
+              <Button
+                type="button"
+                className="mt-4"
+                onClick={() =>
+                  navigate(`/secretary/create-show/wizard?showId=${show.id}&mode=add-trials`)
+                }
+              >
+                New Trial
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -349,17 +348,32 @@ export default function ShowMapTab({
         onCompletionScopeChange={setCompletionScope}
         onCollapseAll={collapseAll}
         onExpandTrials={expandTrials}
+        showActionHelp={canManageShow}
       />
       <div className="p-3">
-        <ShowMapGuidanceCard
-          action={guidanceAction}
-          canExecute={Boolean(guidanceExecution && guidanceExecution.kind !== 'disabled')}
-          onStart={startGuidanceAction}
-          onDismiss={dismissGuidanceAction}
-        />
+        {canManageShow && (
+          <ShowMapGuidanceCard
+            action={guidanceAction}
+            canExecute={Boolean(guidanceExecution && guidanceExecution.kind !== 'disabled')}
+            onStart={startGuidanceAction}
+            onDismiss={dismissGuidanceAction}
+          />
+        )}
         <ShowMapRunningNowStrip items={runningNowItems} onSelect={selectRunningNowClass} />
-        <PriorityQueue actions={priorityActions} onNavigate={navigateTo} onAction={executeAction} />
-        <MoveUpUndoBanner moveUp={lastMoveUp} isUndoing={isUndoingMoveUp} onUndo={undoLastMoveUp} />
+        {canManageShow && (
+          <PriorityQueue
+            actions={priorityActions}
+            onNavigate={navigateTo}
+            onAction={executeAction}
+          />
+        )}
+        {canManageShow && (
+          <MoveUpUndoBanner
+            moveUp={lastMoveUp}
+            isUndoing={isUndoingMoveUp}
+            onUndo={undoLastMoveUp}
+          />
+        )}
         <ShowMapStructureTable
           tree={tree}
           expandedNodeIds={expandedNodeIds}
@@ -369,41 +383,46 @@ export default function ShowMapTab({
           onToggle={toggleNode}
           onNavigate={navigateTo}
           onAction={executeAction}
+          enableRowActions={canManageShow}
           actionPhase={actionPhase}
         />
       </div>
-      <ShowMapMoveUpDialog
-        key={moveUpAction?.nodeId ?? 'move-up-dialog'}
-        open={Boolean(moveUpAction)}
-        node={moveUpAction ? tree.nodesById[moveUpAction.nodeId] : undefined}
-        currentClass={moveUpCurrentClass}
-        targets={moveUpTargets}
-        isSubmitting={isExecuting}
-        onOpenChange={open => {
-          if (!open) closeMoveUpDialog();
-        }}
-        onConfirm={confirmMoveUp}
-      />
-      <ShowMapScratchNoShowDialog
-        key={scratchAction?.nodeId ?? 'scratch-dialog'}
-        open={Boolean(scratchAction)}
-        node={scratchAction ? tree.nodesById[scratchAction.nodeId] : undefined}
-        isSubmitting={isExecuting}
-        onOpenChange={open => {
-          if (!open) closeScratchDialog();
-        }}
-        onConfirm={confirmScratchNoShow}
-      />
-      <ShowMapMessageHandlerDialog
-        key={messageAction?.nodeId ?? 'message-handler-dialog'}
-        open={Boolean(messageAction)}
-        node={messageAction ? tree.nodesById[messageAction.nodeId] : undefined}
-        isSubmitting={isExecuting}
-        onOpenChange={open => {
-          if (!open) closeMessageDialog();
-        }}
-        onConfirm={body => confirmMessageHandler({ body })}
-      />
+      {canManageShow && (
+        <>
+          <ShowMapMoveUpDialog
+            key={moveUpAction?.nodeId ?? 'move-up-dialog'}
+            open={Boolean(moveUpAction)}
+            node={moveUpAction ? tree.nodesById[moveUpAction.nodeId] : undefined}
+            currentClass={moveUpCurrentClass}
+            targets={moveUpTargets}
+            isSubmitting={isExecuting}
+            onOpenChange={open => {
+              if (!open) closeMoveUpDialog();
+            }}
+            onConfirm={confirmMoveUp}
+          />
+          <ShowMapScratchNoShowDialog
+            key={scratchAction?.nodeId ?? 'scratch-dialog'}
+            open={Boolean(scratchAction)}
+            node={scratchAction ? tree.nodesById[scratchAction.nodeId] : undefined}
+            isSubmitting={isExecuting}
+            onOpenChange={open => {
+              if (!open) closeScratchDialog();
+            }}
+            onConfirm={confirmScratchNoShow}
+          />
+          <ShowMapMessageHandlerDialog
+            key={messageAction?.nodeId ?? 'message-handler-dialog'}
+            open={Boolean(messageAction)}
+            node={messageAction ? tree.nodesById[messageAction.nodeId] : undefined}
+            isSubmitting={isExecuting}
+            onOpenChange={open => {
+              if (!open) closeMessageDialog();
+            }}
+            onConfirm={body => confirmMessageHandler({ body })}
+          />
+        </>
+      )}
     </div>
   );
 }

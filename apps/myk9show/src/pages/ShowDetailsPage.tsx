@@ -2,7 +2,7 @@ import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard,
@@ -331,6 +331,10 @@ const ShowDetailsPage: React.FC = () => {
     }
   }
 
+  const workbenchHref = actualCurrentShow?.id
+    ? `/secretary/shows/${actualCurrentShow.id}`
+    : undefined;
+
   // Breadcrumbs for PageHeader
   const breadcrumbs = useMemo(
     () => [
@@ -490,6 +494,14 @@ const ShowDetailsPage: React.FC = () => {
             canManageShow && (
               <div className="flex items-center gap-1">
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
+                {workbenchHref && (
+                  <Button asChild variant="default" size="sm">
+                    <Link to={workbenchHref}>
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
+                      Manage in Workbench
+                    </Link>
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => setShowEditPanel(true)}>
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit
@@ -576,7 +588,7 @@ const ShowDetailsPage: React.FC = () => {
                   trials={associatedTrials}
                   classes={showClasses}
                   entries={showEntries}
-                  canManageShow={canManageShow}
+                  canManageShow={false}
                 />
               </Suspense>
             </TabsContent>

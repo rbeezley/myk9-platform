@@ -380,6 +380,10 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByRole('tab', { name: /Setup/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Today/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Wrap-up/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /preview public page/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1'
+    );
     expect(screen.getByTestId('quick-info')).toHaveTextContent('show-1');
   });
 

@@ -1,7 +1,7 @@
 # Plan — Show Map IA Remediation
 
 **Date:** 2026-05-21
-**Status:** Draft. Awaiting PO sign-off on Phase IA-1 option (A vs B) before implementation.
+**Status:** Active. IA-1 Option A approved and implemented; remaining IA follow-ups are tracked below.
 **Source audit:** [`docs/ia-review-show-map.md`](ia-review-show-map.md)
 **Scope:** Address the 3 remaining High-priority findings from the show-map IA audit. Finding #2 ("Show Map" name) was withdrawn after PO confirmed sitemap-style naming was intentional.
 
@@ -18,14 +18,14 @@ Carried forward from [`docs/plan-show-day-sequencing.md`](plan-show-day-sequenci
 
 1. **Single shared priority function** — `getRankedActions(scope, state)` in [showMapActions.ts](../apps/myk9show/src/features/show-map/showMapActions.ts) remains the only source of action ranking. No phase introduces a parallel ranker.
 2. **Single shared attention function** — [attention.ts](../apps/myk9show/src/features/show-map/attention.ts) remains the only source of "needs attention" classification.
-3. **Show-centric mental model** — All single-show management UI lives under `/secretary/shows/:showId`. This plan's Phase IA-1 is the work item that closes the remaining hole in this commitment.
+3. **Show-centric mental model** — All single-show management UI lives under `/secretary/shows/:showId`. Phase IA-1 closes the Show Map row-action hole in this commitment.
 
 ---
 
 ## Phase IA-1 — Resolve public-vs-secretary action duplication
 
-**Status:** Awaiting PO decision (Option A vs B below).
-**Entry trigger:** PO sign-off on which option to pursue.
+**Status:** Implemented via Option A.
+**Entry trigger:** PO sign-off on Option A (2026-05-22).
 **Estimated PRs:** 1 (plus a small follow-up for redirect telemetry if Option B is chosen).
 
 ### Problem recap
@@ -39,14 +39,15 @@ A manage-capable user can scratch / move-up / message-handler from either route,
 
 ### Option A — View-only public map (recommended default)
 
-The public route keeps the "Show Map" tab visible to all authenticated users but **renders the tree without manage actions**. Manage users can still browse the structure from the public route; to take action, they go to `/secretary/shows/:showId`.
+The public route keeps the "Show Map" tab visible to manage-capable staff as a preview but **renders the tree without manage actions**. Manage users can still browse the structure from the public route; to take action, they go to `/secretary/shows/:showId`.
 
 **Implementation:**
 
 1. In [`ShowDetailsPage.tsx`](../apps/myk9show/src/pages/ShowDetailsPage.tsx), pass `canManageShow={false}` to the public `ShowMapTab` mount regardless of the user's actual permission.
-2. Loosen the `canShowMap` gate — the map tab no longer requires manage rights; it shows for all authenticated users (or even unauthenticated, depending on whether we want public viewers to see the structural tree).
-3. Inside `ShowMapTab`, confirm that `canManageShow={false}` already hides the row-actions menu, priority queue execution affordances, and dialogs. If any element renders an action when `canManageShow` is false, fix it.
-4. Add a small "Manage this show in the [Workbench]" link inside the public map for users who _do_ have manage rights — preserves discoverability of the canonical home.
+2. Keep the `canShowMap` gate manage-scoped for now so exhibitors keep the current public details experience.
+3. Inside `ShowMapTab`, make `canManageShow={false}` hide row-action menus, priority-queue execution affordances, dialogs, and setup actions while preserving the structural tree.
+4. Add a "Manage in Workbench" link on public show details for users who _do_ have manage rights — preserves discoverability of the canonical home.
+5. Add a "Preview public page" link on the workbench so staff can intentionally inspect the exhibitor-facing route.
 
 **Precedent:** This mirrors the existing manage-vs-view pattern in the same file — `EntriesTab` vs `MyEntriesTab`.
 
@@ -80,7 +81,7 @@ Option A is closer in spirit to the existing manage-vs-view patterns in the code
 
 - The chosen option is implemented end-to-end.
 - A unit test asserts that `ShowMapTab` rendered with `canManageShow={false}` exposes no executable row actions, no priority-queue Open buttons, and no dialog triggers. (Assertion-first per CLAUDE.md.)
-- An E2E or component test covers a manage-capable user on `/shows/:id?tab=map` confirming they cannot scratch / move-up from there.
+- A component test covers a manage-capable user on `/shows/:id?tab=map` confirming the public mount passes `canManageShow={false}`.
 - The audit doc [`ia-review-show-map.md`](ia-review-show-map.md) is updated: Finding #1 moves to "Resolved in IA-1."
 
 ### Testing
@@ -97,8 +98,8 @@ This is the only phase that touches an explicit architectural commitment (the sh
 
 ## Phase IA-2 — Surface row-action access affordances
 
-**Status:** Ready to start after IA-1 lands.
-**Entry trigger:** IA-1 merged (so we're only adding affordances to the canonical secretary mount).
+**Status:** Completed in PR #289.
+**Entry trigger:** IA-1 no longer blocks this; the popover shipped as part of the P1-P3 IA polish slice.
 **Estimated PRs:** 1.
 
 ### Problem recap
@@ -143,7 +144,7 @@ Discoverability is the cheapest payback in the trio. It also doesn't change beha
 
 ## Phase IA-3 — Add Wrap-up tab framing
 
-**Status:** Ready to start after IA-1 lands (independent of IA-2).
+**Status:** Ready to start.
 **Entry trigger:** IA-1 merged.
 **Estimated PRs:** 1.
 
@@ -190,25 +191,24 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 
 ## Plan summary
 
-| Phase | Scope                                                        | Entry trigger                | Exit criterion                                                              | Estimated PRs            |
-| ----- | ------------------------------------------------------------ | ---------------------------- | --------------------------------------------------------------------------- | ------------------------ |
-| IA-1  | Public ShowMap becomes view-only (recommended Option A)      | PO sign-off on Option A vs B | View-only behavior shipped; manage-route still has full actions; tests pass | 1 (+ optional follow-up) |
-| IA-2  | Add `?` popover advertising right-click + keyboard shortcuts | IA-1 merged                  | Popover ships; new users discover power features                            | 1                        |
-| IA-3  | Wrap-up framing subtitle                                     | IA-1 merged                  | Wrap-up tab renders explanatory subtitle                                    | 1                        |
-| IA-4  | URL-state sync + class-completion duplication check          | Deferred                     | (not scheduled)                                                             | 0–1                      |
+| Phase | Scope                                                        | Entry trigger           | Exit criterion                                                              | Estimated PRs |
+| ----- | ------------------------------------------------------------ | ----------------------- | --------------------------------------------------------------------------- | ------------- |
+| IA-1  | Public ShowMap becomes view-only (recommended Option A)      | PO sign-off on Option A | View-only behavior shipped; manage-route still has full actions; tests pass | Done          |
+| IA-2  | Add `?` popover advertising right-click + keyboard shortcuts | Shipped in P1-P3 polish | Popover ships; new users discover power features                            | Done          |
+| IA-3  | Wrap-up framing subtitle                                     | IA-1 merged             | Wrap-up tab renders explanatory subtitle                                    | 1             |
+| IA-4  | URL-state sync + class-completion duplication check          | Deferred                | (not scheduled)                                                             | 0–1           |
 
-**Total estimated effort:** 3 PRs (~1 day each, including tests).
-
-**First action required from PO:** Pick Option A or B for IA-1.
+**Remaining estimated effort:** 1 PR for wrap-up framing, plus deferred IA-4 only if users ask for deep links.
 
 ---
 
 ## Decision log
 
-| Date       | Decision                                                                                         | Source                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| 2026-05-21 | Audit produced. Finding #2 ("Show Map" naming) withdrawn — sitemap sense was intentional per PO. | [`ia-review-show-map.md`](ia-review-show-map.md), this session |
-| 2026-05-21 | Plan drafted with 3 phases. IA-1 awaiting PO option choice.                                      | This doc                                                       |
+| Date       | Decision                                                                                                             | Source                                                         |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 2026-05-21 | Audit produced. Finding #2 ("Show Map" naming) withdrawn — sitemap sense was intentional per PO.                     | [`ia-review-show-map.md`](ia-review-show-map.md), this session |
+| 2026-05-21 | Plan drafted with 3 phases. IA-1 awaiting PO option choice.                                                          | This doc                                                       |
+| 2026-05-22 | IA-1 Option A approved: public Show Map remains a staff preview but is read-only; workbench is the operational home. | This session                                                   |
 
 ---
 
@@ -216,7 +216,7 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 
 **Status:** Ready for implementation as a separate polish PR.
 **Source:** `$impeccable critique` over the Phase A-F Show Map capabilities.
-**Relationship to IA-1:** This addendum does not resolve the public-vs-secretary route duplication. It addresses the Today workbench and Show Map interaction clarity while IA-1 remains a separate PO decision.
+**Relationship to IA-1:** This addendum addressed the Today workbench and Show Map interaction clarity. IA-1 was later resolved separately with a read-only public Show Map.
 
 ### P1 — Distill the Today tab around the Show Map spine
 

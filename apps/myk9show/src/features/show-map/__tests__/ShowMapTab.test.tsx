@@ -320,13 +320,52 @@ describe('ShowMapTab', () => {
     expect(screen.getByRole('button', { name: /new trial/i })).toBeInTheDocument();
   });
 
-  it('does not expose map content when canManageShow is false', () => {
-    render(
-      <ShowMapTab show={show} trials={[trial]} classes={[]} entries={[]} canManageShow={false} />
+  it('renders a read-only map when canManageShow is false', async () => {
+    const { user } = render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-1',
+            class_id: 'class-1',
+            armband: '12',
+            dog: { call_name: 'Bella' },
+            check_in_status: 'conflict',
+          },
+        ]}
+        canManageShow={false}
+      />
     );
 
-    expect(screen.queryByText('Show Map')).not.toBeInTheDocument();
-    expect(screen.getByText(/show map is only available to show staff/i)).toBeInTheDocument();
+    expect(screen.getByText('Show Map')).toBeInTheDocument();
+    expect(screen.getByText('Trial 1')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /next best action/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /up next/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show map shortcuts/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /actions for/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /expand trial 1/i }));
+
+    expect(screen.getAllByText('Interior Novice A').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /actions for/i })).not.toBeInTheDocument();
+  });
+
+  it('does not offer setup actions in the read-only empty state', () => {
+    render(<ShowMapTab show={show} trials={[]} classes={[]} entries={[]} canManageShow={false} />);
+
+    expect(screen.getByText('No trials yet')).toBeInTheDocument();
+    expect(screen.getByText(/doesn't have trials listed yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /new trial/i })).not.toBeInTheDocument();
   });
 
   it('keeps the guidance action out of Up next and executes the next queued action', async () => {

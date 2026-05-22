@@ -34,6 +34,9 @@ interface ShowMapStructureTableProps {
   onToggle: (nodeId: string) => void;
   onNavigate?: (href: string) => void;
   onAction?: (action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void;
+  // When false, the tree is browse-only: no row menus, primary action buttons,
+  // Enter/Space activation, or context-menu actions.
+  enableRowActions?: boolean | undefined;
   scope?: ShowMapScopeState | undefined;
   scopeNow?: Date | undefined;
   actionPhase?: 'today' | 'wrap-up' | undefined;
@@ -43,9 +46,7 @@ const INTERACTIVE_ROW_TARGET_SELECTOR =
   'a,button,input,textarea,select,[role="button"],[role="menuitem"]';
 
 function isInteractiveRowTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement && Boolean(target.closest(INTERACTIVE_ROW_TARGET_SELECTOR))
-  );
+  return target instanceof HTMLElement && Boolean(target.closest(INTERACTIVE_ROW_TARGET_SELECTOR));
 }
 
 function isKeyboardEventForCurrentTreeItem(event: KeyboardEvent<HTMLLIElement>): boolean {
@@ -162,6 +163,7 @@ export function ShowMapStructureTable({
   onToggle,
   onNavigate,
   onAction,
+  enableRowActions = true,
   scope = DEFAULT_SHOW_MAP_SCOPE,
   scopeNow = new Date(),
   actionPhase,
@@ -189,6 +191,7 @@ export function ShowMapStructureTable({
       ? focusedNodeId
       : visibleKeyboardNodeIds[0];
   const openActionsForNode = (nodeId: string) => {
+    if (!enableRowActions) return;
     setActionMenuOpenSignals(current => ({
       ...current,
       [nodeId]: (current[nodeId] ?? 0) + 1,
@@ -210,6 +213,9 @@ export function ShowMapStructureTable({
   const getRowActionOpenProps = (nodeId: string) => ({
     'data-row-action-surface': nodeId,
     onContextMenu: (event: MouseEvent<HTMLDivElement>) => {
+      if (!enableRowActions) {
+        return;
+      }
       if (isInteractiveRowTarget(event.target)) {
         return;
       }
@@ -217,7 +223,11 @@ export function ShowMapStructureTable({
       openActionsForNode(nodeId);
     },
   });
-  const getTreeItemKeyboardProps = (node: ShowMapNode, hasChildren: boolean, isExpanded: boolean) =>
+  const getTreeItemKeyboardProps = (
+    node: ShowMapNode,
+    hasChildren: boolean,
+    isExpanded: boolean
+  ) =>
     supportsTreeKeyboardActions(node)
       ? {
           tabIndex: node.id === activeFocusedNodeId ? 0 : -1,
@@ -229,15 +239,12 @@ export function ShowMapStructureTable({
             }
           },
           onKeyDown: (event: KeyboardEvent<HTMLLIElement>) => {
-            if (
-              !isKeyboardEventForCurrentTreeItem(event) ||
-              isInteractiveRowTarget(event.target)
-            ) {
+            if (!isKeyboardEventForCurrentTreeItem(event) || isInteractiveRowTarget(event.target)) {
               return;
             }
             const focusRoot = event.currentTarget.closest('[role="tree"]') ?? document;
 
-            if (event.key === 'Enter' || event.key === ' ') {
+            if (enableRowActions && (event.key === 'Enter' || event.key === ' ')) {
               if (event.repeat) return;
               event.preventDefault();
               event.stopPropagation();
@@ -331,14 +338,16 @@ export function ShowMapStructureTable({
             <StatusCell node={node} />
             <ProgressCell node={node} />
             <div className="flex justify-end">
-              <ShowMapRowActionsMenu
-                node={node}
-                tree={tree}
-                onNavigate={onNavigate}
-                onAction={onAction}
-                openSignal={actionMenuOpenSignals[node.id]}
-                actionPhase={actionPhase}
-              />
+              {enableRowActions && (
+                <ShowMapRowActionsMenu
+                  node={node}
+                  tree={tree}
+                  onNavigate={onNavigate}
+                  onAction={onAction}
+                  openSignal={actionMenuOpenSignals[node.id]}
+                  actionPhase={actionPhase}
+                />
+              )}
             </div>
           </div>
         </li>
@@ -402,7 +411,7 @@ export function ShowMapStructureTable({
         <ProgressCell node={node} />
 
         <div className="flex flex-wrap justify-end gap-2">
-          {node.type === 'class' && primaryAction?.href && (
+          {enableRowActions && node.type === 'class' && primaryAction?.href && (
             <Button
               type="button"
               size="sm"
@@ -413,14 +422,16 @@ export function ShowMapStructureTable({
               {primaryAction.label}
             </Button>
           )}
-          <ShowMapRowActionsMenu
-            node={node}
-            tree={tree}
-            onNavigate={onNavigate}
-            onAction={onAction}
-            openSignal={actionMenuOpenSignals[node.id]}
-            actionPhase={actionPhase}
-          />
+          {enableRowActions && (
+            <ShowMapRowActionsMenu
+              node={node}
+              tree={tree}
+              onNavigate={onNavigate}
+              onAction={onAction}
+              openSignal={actionMenuOpenSignals[node.id]}
+              actionPhase={actionPhase}
+            />
+          )}
         </div>
       </>
     );

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { buildShowMapTree } from '../showMapTree';
@@ -171,6 +171,51 @@ describe('ShowMapStructureTable — data-node-id / data-node-type / ARIA', () =>
 
     const classRow = document.querySelector('[data-node-id="class:class-1"]');
     expect(classRow?.hasAttribute('aria-expanded')).toBe(false);
+  });
+
+  it('renders browse-only rows when row actions are disabled', () => {
+    const onAction = vi.fn();
+    const onNavigate = vi.fn();
+    const { tree, expandedNodeIds } = buildExpandedAll({
+      show,
+      trials: [trial],
+      classes: [baseClass],
+      entries: [
+        {
+          ...baseEntry,
+          check_in_status: 'conflict',
+        },
+      ],
+    });
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={expandedNodeIds}
+        filter="all"
+        onToggle={vi.fn()}
+        onAction={onAction}
+        onNavigate={onNavigate}
+        enableRowActions={false}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /actions for/i })).not.toBeInTheDocument();
+
+    const entryRow = document.querySelector('[data-node-id="entry:entry-1"]');
+    const entrySurface = document.querySelector('[data-row-action-surface="entry:entry-1"]');
+    if (!(entryRow instanceof HTMLElement) || !(entrySurface instanceof HTMLElement)) {
+      throw new Error('Expected entry row and action surface');
+    }
+
+    fireEvent.contextMenu(entrySurface);
+    fireEvent.keyDown(entryRow, { key: 'Enter' });
+    fireEvent.keyDown(entryRow, { key: ' ' });
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 });
 

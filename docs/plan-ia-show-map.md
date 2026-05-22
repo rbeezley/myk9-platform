@@ -177,17 +177,17 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 
 ## Phase IA-4 — URL-state sync and duplication verification
 
-**Status:** Duplication verification complete; remediation recommended. URL-state sync remains deferred.
+**Status:** Duplication verification and remediation complete. URL-state sync remains deferred.
 **Entry trigger:** Duplication remediation is triggered by the confirmed Class Details duplicate. URL-state sync remains gated on evidence that deep-linking is requested by users (currently no signal).
 
 **Scope (if revisited):**
 
 - URL-reflect ShowMap internal state (expanded nodes, focused row, filter, day/completion scope) so users can deep-link to a specific class node.
-- Verify whether the new class-completion action (PR #287) is duplicated on a class-detail route. **Completed 2026-05-22:** duplication confirmed in [`ia-4-class-completion-duplication-audit.md`](ia-4-class-completion-duplication-audit.md).
+- Verify whether the new class-completion action (PR #287) is duplicated on a class-detail route. **Completed 2026-05-22:** duplication confirmed and remediated in [`ia-4-class-completion-duplication-audit.md`](ia-4-class-completion-duplication-audit.md).
 
 **Why URL-state remains deferred:** URL-state sync is a non-trivial implementation, low-frequency value, and not on the show-day critical path.
 
-**Recommended remediation for the confirmed duplicate:**
+**Implemented remediation for the confirmed duplicate:**
 
 1. Remove `Mark In Progress` and `Mark Completed` from the Class Details header overflow on the public-route class details page.
 2. Add an `Open in Workbench` / `Manage in Workbench` action from Class Details when the parent show is known.
@@ -202,9 +202,9 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 | IA-1  | Public ShowMap becomes view-only (recommended Option A)      | PO sign-off on Option A | View-only behavior shipped; manage-route still has full actions; tests pass | Done          |
 | IA-2  | Add `?` popover advertising right-click + keyboard shortcuts | Shipped in P1-P3 polish | Popover ships; new users discover power features                            | Done          |
 | IA-3  | Wrap-up framing subtitle                                     | IA-1 merged             | Wrap-up tab renders explanatory subtitle                                    | Done          |
-| IA-4  | URL-state sync + class-completion duplication check          | Verification complete   | Duplicate remediated; URL-state remains deferred until requested            | 1             |
+| IA-4  | URL-state sync + class-completion duplication check          | Verification complete   | Duplicate remediated; URL-state remains deferred until requested            | Done          |
 
-**Remaining estimated effort:** One remediation PR for the class-completion duplicate; URL-state sync remains deferred until users ask for deep links.
+**Remaining estimated effort:** URL-state sync remains deferred until users ask for deep links.
 
 ---
 
@@ -216,7 +216,7 @@ Cheapest fix in the trio (one or two files touched) but lowest leverage — it i
 | 2026-05-21 | Plan drafted with 3 phases. IA-1 awaiting PO option choice.                                                             | This doc                                                       |
 | 2026-05-22 | IA-1 Option A approved: public Show Map remains a staff preview but is read-only; workbench is the operational home.    | This session                                                   |
 | 2026-05-22 | IA-3 wrap-up framing implemented inside `ShowMapTab`, keeping the completed-scope explanation with the toolbar filters. | This session                                                   |
-| 2026-05-22 | IA-4 verification found a confirmed class-completion duplicate on Class Details; remediation recommended.              | [`ia-4-class-completion-duplication-audit.md`](ia-4-class-completion-duplication-audit.md) |
+| 2026-05-22 | IA-4 verification found and remediated a class-completion duplicate on Class Details.                                 | [`ia-4-class-completion-duplication-audit.md`](ia-4-class-completion-duplication-audit.md) |
 
 ---
 

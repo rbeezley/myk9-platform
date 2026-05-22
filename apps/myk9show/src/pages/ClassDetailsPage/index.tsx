@@ -4,16 +4,15 @@
  * Displays class information, entries, and results
  */
 
-import { startTransition, useCallback, useMemo, useState } from 'react';
+import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  CheckCircle2,
   ClipboardList,
+  LayoutDashboard,
   MessageSquare,
   MoreVertical,
   Pencil,
-  Play,
   Trash2,
 } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
@@ -188,24 +187,6 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.closeEditEntryDialog();
   };
 
-  const handleStartClass = useCallback(async () => {
-    if (!currentClass?.id) return;
-    try {
-      await updateClass(currentClass.id, { status: 'In Progress' });
-    } catch {
-      toast.error('Failed to start class');
-    }
-  }, [currentClass, updateClass]);
-
-  const handleCloseClass = useCallback(async () => {
-    if (!currentClass?.id) return;
-    try {
-      await updateClass(currentClass.id, { status: 'Completed' });
-    } catch {
-      toast.error('Failed to close class');
-    }
-  }, [currentClass, updateClass]);
-
   // Breadcrumbs
   const breadcrumbs = useMemo(() => {
     const crumbs = [{ label: 'Shows', href: '/shows' }];
@@ -227,11 +208,6 @@ const ClassDetailsPage: React.FC = () => {
 
   // Action buttons for the compact header
   const headerActions = useMemo(() => {
-    const canStartClass =
-      currentClass?.status !== 'In Progress' &&
-      currentClass?.status !== 'Completed' &&
-      currentClass?.status !== 'Cancelled';
-
     return (
       <div className="flex items-center gap-2">
         {(isSecretary || isAdmin) && parentShow?.id && (
@@ -265,16 +241,12 @@ const ClassDetailsPage: React.FC = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {(isSecretary || isAdmin) && canStartClass && (
-              <DropdownMenuItem onClick={handleStartClass}>
-                <Play className="mr-2 h-4 w-4" />
-                Mark In Progress
-              </DropdownMenuItem>
-            )}
-            {(isSecretary || isAdmin) && currentClass?.status === 'In Progress' && (
-              <DropdownMenuItem onClick={handleCloseClass}>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Mark Completed
+            {(isSecretary || isAdmin) && parentShow?.id && (
+              <DropdownMenuItem
+                onClick={() => navigate(`/secretary/shows/${parentShow.id}?phase=today`)}
+              >
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                Open in Workbench
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={() => setRequirementsPanelOpen(true)}>
@@ -299,9 +271,6 @@ const ClassDetailsPage: React.FC = () => {
     parentShow,
     trialId,
     currentClass?.trialId,
-    currentClass?.status,
-    handleStartClass,
-    handleCloseClass,
     navigate,
   ]);
 

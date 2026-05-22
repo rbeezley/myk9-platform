@@ -111,7 +111,6 @@ export interface ShowDayDetailRow {
     status: string;
     total_entries_count: number;
     scored_count: number;
-    ring_number: number | null;
   };
   trial: {
     id: string;

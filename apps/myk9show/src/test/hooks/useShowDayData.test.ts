@@ -340,6 +340,7 @@ describe('buildShowDayClasses', () => {
     expect(cls.scoredEntries).toBe(3);
     expect(cls.currentDogInRing).toBe('Rex');
     expect(cls.myRunningOrder).toBe(5);
+    expect(cls.ringNumber).toBeNull();
     // 5 - 3 - 1 = 1 dog ahead; 3 scored over 8 min = 4 min avg → 1 × 4 = 4
     expect(cls.estimatedTimeMinutes).toBe(4);
   });

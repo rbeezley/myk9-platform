@@ -7,8 +7,10 @@ const SECRETARY_PASSWORD = 'TestPass4567!';
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const DOG_SEARCH = 'Bravo';
 
-async function signInAsSecretary(page: Page) {
-  await page.goto('/sign-in?returnTo=/secretary/dashboard', { waitUntil: 'domcontentloaded' });
+async function signInAsSecretary(page: Page, returnTo = '/secretary/dashboard') {
+  await page.goto(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, {
+    waitUntil: 'domcontentloaded',
+  });
   await page.getByTestId('email-input').fill(SECRETARY_EMAIL);
   await page.getByTestId('password-input').fill(SECRETARY_PASSWORD);
   await page.getByTestId('sign-in-button').click();
@@ -79,7 +81,9 @@ async function preventSharedWrites(page: Page) {
 }
 
 async function gotoSecretaryRegistration(page: Page) {
-  await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
+  if (!new URL(page.url()).pathname.startsWith(`/secretary/register/${SHOW_ID}`)) {
+    await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
+  }
   await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
     timeout: 15000,
   });
@@ -89,6 +93,7 @@ async function searchAndSelectDog(page: Page) {
   const search = page.getByPlaceholder(/Search all dogs/i);
   await expect(search).toBeVisible();
   await search.fill(DOG_SEARCH);
+  await waitForDogSearch(page, DOG_SEARCH.toLowerCase());
 
   const dogRow = page.locator('.grid.items-center.gap-x-3').filter({ hasText: DOG_SEARCH }).last();
   await expect(dogRow).toBeVisible({ timeout: 10000 });
@@ -109,7 +114,7 @@ async function selectFirstInteriorClass(page: Page) {
 
 test('reaches payment with one selected dog and one selected class', async ({ page }) => {
   await preventSharedWrites(page);
-  await signInAsSecretary(page);
+  await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
   await gotoSecretaryRegistration(page);
 
   await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
@@ -136,3 +141,13 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
     await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled();
   }
 });
+
+async function waitForDogSearch(page: Page, query: string) {
+  await page.waitForResponse(
+    response =>
+      response.url().includes('/rest/v1/dogs') &&
+      response.request().method() === 'GET' &&
+      response.url().toLowerCase().includes(query),
+    { timeout: 10000 }
+  );
+}

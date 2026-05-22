@@ -2,6 +2,7 @@ import { getShowMapReportHref, getShowMapTrialScheduleHref } from './showMapRout
 import {
   ArrowUpCircle,
   Ban,
+  CheckCircle2,
   ClipboardCheck,
   ClipboardList,
   DoorOpen,
@@ -9,6 +10,7 @@ import {
   FolderOpen,
   MessageSquare,
   PenLine,
+  PlayCircle,
   Send,
   UserCheck,
 } from 'lucide-react';
@@ -31,6 +33,8 @@ export const showMapActionIds = [
   'score-class',
   'open-class',
   'print-check-in-sheet',
+  'mark-class-started',
+  'mark-class-complete',
   'open-schedule',
   'print-trial-reports',
   'mark-checked-in',
@@ -52,6 +56,7 @@ export interface ShowMapAction {
   priority: number;
   href?: string;
   classId?: string | undefined;
+  trialId?: string | undefined;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   recommended?: boolean;
   createsAttention?: boolean;
@@ -82,6 +87,14 @@ function scopedNodes(scope: ShowMapActionScope, tree: ShowMapTree): ShowMapNode[
 
 function isClassReadyToScore(node: ShowMapNode): boolean {
   return node.type === 'class' && node.status?.kind === 'active' && Boolean(node.scoreHref);
+}
+
+function canMarkClassStarted(node: ShowMapNode): boolean {
+  return node.type === 'class' && node.status?.kind === 'neutral';
+}
+
+function canMarkClassComplete(node: ShowMapNode): boolean {
+  return node.type === 'class' && node.status?.kind === 'active';
 }
 
 function canMarkEntryCheckedIn(node: ShowMapNode): boolean {
@@ -301,6 +314,19 @@ function actionsForNode(
     const showId = getRootShowId(tree);
     const trialId = getParentSourceId(node, tree, 'trial');
     const classId = getNodeSourceId(node, 'class');
+    if (canMarkClassStarted(node) && classId) {
+      actions.push({
+        id: 'mark-class-started',
+        nodeId: node.id,
+        label: 'Mark Class Started',
+        why: 'Start the class for show-day tracking',
+        priority: 62,
+        icon: PlayCircle,
+        classId,
+        ...(trialId ? { trialId } : {}),
+        recommended: true,
+      });
+    }
     if (isClassReadyToScore(node) && node.scoreHref) {
       actions.push({
         id: 'score-class',
@@ -311,6 +337,18 @@ function actionsForNode(
         href: node.scoreHref,
         icon: ClipboardCheck,
         recommended: true,
+      });
+    }
+    if (canMarkClassComplete(node) && classId) {
+      actions.push({
+        id: 'mark-class-complete',
+        nodeId: node.id,
+        label: 'Mark Class Complete',
+        why: 'Move this class into wrap-up',
+        priority: 58,
+        icon: CheckCircle2,
+        classId,
+        ...(trialId ? { trialId } : {}),
       });
     }
     if (node.href) {

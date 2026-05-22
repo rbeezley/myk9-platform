@@ -79,6 +79,32 @@ describe('showMapActionExecution', () => {
     expect(isShowMapActionEnabled(markCheckedIn)).toBe(true);
   });
 
+  it('enables class lifecycle actions through the shared mutation lane', () => {
+    const markStarted = makeAction({
+      id: 'mark-class-started',
+      label: 'Mark Class Started',
+      href: null,
+    });
+    const markComplete = makeAction({
+      id: 'mark-class-complete',
+      label: 'Mark Class Complete',
+      href: null,
+    });
+
+    expect(resolveShowMapActionExecution(markStarted)).toEqual({
+      kind: 'mutation',
+      mutation: 'mark-class-started',
+      successMessage: 'Class marked started',
+    });
+    expect(resolveShowMapActionExecution(markComplete)).toEqual({
+      kind: 'mutation',
+      mutation: 'mark-class-complete',
+      successMessage: 'Class marked complete',
+    });
+    expect(isShowMapActionEnabled(markStarted)).toBe(true);
+    expect(isShowMapActionEnabled(markComplete)).toBe(true);
+  });
+
   it('enables scratch / no-show through the shared dialog lane', () => {
     const scratch = makeAction({
       id: 'scratch-entry',

@@ -133,7 +133,12 @@ describe('ShowMapRowActionsMenu', () => {
     await user.click(screen.getByRole('button', { name: /actions for exterior advanced b/i }));
 
     await screen.findByRole('menu');
-    expect(screen.queryByText('Recommended')).not.toBeInTheDocument();
+    const recommendedItems = Array.from(
+      document.body.querySelectorAll('[data-show-map-action-section="recommended"]')
+    );
+    expect(recommendedItems).toHaveLength(1);
+    expect(recommendedItems[0]).toHaveTextContent('Mark Class Started');
+    expect(recommendedItems[0]).not.toHaveTextContent('Print Check-In Sheet');
     expect(screen.getByText('No destination is available for this action.')).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole('menuitem', { name: /print check-in sheet/i }));

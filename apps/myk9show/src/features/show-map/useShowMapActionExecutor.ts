@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
+import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
@@ -10,6 +11,8 @@ import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
   getShowMapHandlerMessageTarget,
+  markShowMapClassComplete,
+  markShowMapClassStarted,
   markShowMapEntryCheckedIn,
   moveUpShowMapEntry,
   scratchShowMapEntry,
@@ -98,21 +101,41 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   const sendMessage = useMessageStore(s => s.sendMessage);
 
   const invalidateShowMapActionQueries = useCallback(
-    (classId?: string | undefined) => {
+    (classId?: string | undefined, trialId?: string | undefined) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.show(showId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.showClasses(showId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(showId) });
       queryClient.invalidateQueries({ queryKey: ['show-day'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.entries });
       if (classId) {
+        queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.classEntries(classId) });
         queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
       }
+      if (trialId) {
+        queryClient.invalidateQueries({ queryKey: classKeys.byTrial(trialId) });
+      }
+      queryClient.invalidateQueries({ queryKey: classKeys.lists() });
     },
     [queryClient, showId]
   );
 
   const mutation = useMutation({
     mutationFn: async ({ action, execution }: MutationInput) => {
+      if (
+        execution.mutation === 'mark-class-started' ||
+        execution.mutation === 'mark-class-complete'
+      ) {
+        if (!action.classId) throw new Error('Unable to find the class for this action.');
+        if (execution.mutation === 'mark-class-started') {
+          await markShowMapClassStarted(action.classId);
+          return;
+        }
+        await markShowMapClassComplete(action.classId);
+        return;
+      }
+
       if (execution.mutation !== 'mark-checked-in') return;
 
       const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
@@ -226,7 +249,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       toast.error(getUserFriendlyError(error));
     },
     onSettled: (_data, _error, variables) => {
-      invalidateShowMapActionQueries(variables?.action.classId);
+      invalidateShowMapActionQueries(variables?.action.classId, variables?.action.trialId);
     },
   });
 

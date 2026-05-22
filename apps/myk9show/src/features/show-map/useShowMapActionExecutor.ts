@@ -299,9 +299,14 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
 
   const undoMoveUpMutation = useMutation({
     mutationFn: async (input: LastShowMapMoveUp) => undoShowMapMoveUp(input),
+    onMutate: () => {
+      // Cancel the auto-dismiss the moment the user engages with Undo. If the
+      // network call later fails, the banner stays visible (user can retry)
+      // instead of vanishing under them when the original timer fires.
+      clearPendingMoveUpTimeout();
+    },
     onSuccess: () => {
       toast.success('Move-up undone');
-      clearPendingMoveUpTimeout();
       setLastMoveUp(null);
     },
     onError: error => {

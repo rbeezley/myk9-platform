@@ -6,6 +6,8 @@
  *  - The banner auto-clears 8000ms later
  *  - A second move-up resets the timer (the first move-up's pending timer must not
  *    clear the fresh banner)
+ *  - Manual undo cancels the pending timer
+ *  - Unmounting the hook cancels the pending timer
  */
 import React from 'react';
 import { ArrowUpCircle } from 'lucide-react';
@@ -151,28 +153,155 @@ describe('useShowMapActionExecutor — move-up undo banner auto-dismiss', () => 
 
     expect(result.current.lastMoveUp?.targetClassName).toBe('Novice A');
 
-    // Advance partway through the first banner's timeout, then trigger a second move-up.
+    // Advance halfway through the first banner's timeout, then trigger a second move-up.
     await act(async () => {
-      vi.advanceTimersByTime(4000);
+      vi.advanceTimersByTime(MOVE_UP_UNDO_BANNER_TIMEOUT_MS / 2);
     });
 
     await triggerMoveUp(result, makeMoveUpAction('entry:entry-3', 'class-1'), 'class-3');
 
     expect(result.current.lastMoveUp?.targetClassName).toBe('Advanced B');
 
-    // If the original timer were still pending, this advance would tip it past 8000ms
-    // and wipe the fresh banner. The implementation must have cancelled it.
+    // Now total elapsed since move-up #1 will exceed the original deadline. If the
+    // first timer were still pending, it would fire here and wipe the fresh banner.
     await act(async () => {
-      vi.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(MOVE_UP_UNDO_BANNER_TIMEOUT_MS / 2 + 1000);
     });
 
     expect(result.current.lastMoveUp?.targetClassName).toBe('Advanced B');
 
-    // The fresh banner's own timer should fire after the full 8000ms.
+    // The fresh banner's own timer should still fire after a full timeout from move-up #2.
     await act(async () => {
       vi.advanceTimersByTime(MOVE_UP_UNDO_BANNER_TIMEOUT_MS);
     });
 
     expect(result.current.lastMoveUp).toBeNull();
+  });
+
+  it('cancels the pending timer when the user manually undoes the move-up', async () => {
+    moveUpShowMapEntryMock.mockResolvedValue({
+      originalEntryId: 'entry-1',
+      newEntryId: 'entry-2',
+      previousEntryStatus: 'pre-entered',
+      previousCheckInStatus: null,
+      previousSpecialRequests: null,
+      targetClassName: 'Novice A',
+    });
+    undoShowMapMoveUpMock.mockResolvedValue(undefined);
+
+    // Capture the handle our hook receives from setTimeout so we can verify it
+    // is the one passed to clearTimeout during undo (other timers from React
+    // Query etc. share the same global setTimeout / clearTimeout).
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    const { result } = renderHook(() => useShowMapActionExecutor({ showId: 'show-1' }), {
+      wrapper: createWrapper(),
+    });
+
+    await triggerMoveUp(result, makeMoveUpAction('entry:entry-1', 'class-1'), 'class-2');
+    expect(result.current.lastMoveUp).not.toBeNull();
+
+    const bannerSetTimeoutIndex = setTimeoutSpy.mock.calls.findIndex(
+      ([, delay]) => delay === MOVE_UP_UNDO_BANNER_TIMEOUT_MS
+    );
+    expect(bannerSetTimeoutIndex).toBeGreaterThanOrEqual(0);
+    const bannerTimerHandle = setTimeoutSpy.mock.results[bannerSetTimeoutIndex]?.value;
+
+    clearTimeoutSpy.mockClear();
+
+    await act(async () => {
+      result.current.undoLastMoveUp();
+    });
+
+    expect(result.current.lastMoveUp).toBeNull();
+    expect(undoShowMapMoveUpMock).toHaveBeenCalledTimes(1);
+    // The exact handle scheduled by the move-up must have been cancelled by undo,
+    // not just any clearTimeout call (React Query may issue its own).
+    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(
+      true
+    );
+  });
+
+  it('cancels the auto-dismiss timer even when the undo network call fails', async () => {
+    moveUpShowMapEntryMock.mockResolvedValue({
+      originalEntryId: 'entry-1',
+      newEntryId: 'entry-2',
+      previousEntryStatus: 'pre-entered',
+      previousCheckInStatus: null,
+      previousSpecialRequests: null,
+      targetClassName: 'Novice A',
+    });
+    // The undo call fails — banner should remain visible so the user can retry,
+    // but the pending auto-dismiss timer must still be cancelled (the banner
+    // should not vanish on its own while the user is mid-recovery).
+    undoShowMapMoveUpMock.mockRejectedValue(new Error('network down'));
+
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    const { result } = renderHook(() => useShowMapActionExecutor({ showId: 'show-1' }), {
+      wrapper: createWrapper(),
+    });
+
+    await triggerMoveUp(result, makeMoveUpAction('entry:entry-1', 'class-1'), 'class-2');
+
+    const bannerSetTimeoutIndex = setTimeoutSpy.mock.calls.findIndex(
+      ([, delay]) => delay === MOVE_UP_UNDO_BANNER_TIMEOUT_MS
+    );
+    const bannerTimerHandle = setTimeoutSpy.mock.results[bannerSetTimeoutIndex]?.value;
+
+    clearTimeoutSpy.mockClear();
+
+    await act(async () => {
+      result.current.undoLastMoveUp();
+    });
+
+    // Banner stays so the user can retry; timer was already cancelled in onMutate.
+    expect(result.current.lastMoveUp).not.toBeNull();
+    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(
+      true
+    );
+
+    // Confirm the cancelled timer can no longer auto-dismiss the banner.
+    await act(async () => {
+      vi.advanceTimersByTime(MOVE_UP_UNDO_BANNER_TIMEOUT_MS * 2);
+    });
+    expect(result.current.lastMoveUp).not.toBeNull();
+  });
+
+  it('cancels the pending timer when the hook unmounts', async () => {
+    moveUpShowMapEntryMock.mockResolvedValue({
+      originalEntryId: 'entry-1',
+      newEntryId: 'entry-2',
+      previousEntryStatus: 'pre-entered',
+      previousCheckInStatus: null,
+      previousSpecialRequests: null,
+      targetClassName: 'Novice A',
+    });
+
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    const { result, unmount } = renderHook(
+      () => useShowMapActionExecutor({ showId: 'show-1' }),
+      { wrapper: createWrapper() }
+    );
+
+    await triggerMoveUp(result, makeMoveUpAction('entry:entry-1', 'class-1'), 'class-2');
+
+    const bannerSetTimeoutIndex = setTimeoutSpy.mock.calls.findIndex(
+      ([, delay]) => delay === MOVE_UP_UNDO_BANNER_TIMEOUT_MS
+    );
+    expect(bannerSetTimeoutIndex).toBeGreaterThanOrEqual(0);
+    const bannerTimerHandle = setTimeoutSpy.mock.results[bannerSetTimeoutIndex]?.value;
+
+    clearTimeoutSpy.mockClear();
+
+    unmount();
+
+    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(
+      true
+    );
   });
 });

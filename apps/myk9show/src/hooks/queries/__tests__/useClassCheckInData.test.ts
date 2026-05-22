@@ -25,7 +25,6 @@ const baseRow = {
     element: 'Container',
     level: 'Novice',
     max_entries: 30,
-    ring_number: 2,
     start_time: '2026-05-03T09:00:00Z',
     judge_name: 'Ellen Heavner',
     trial: {
@@ -50,7 +49,7 @@ describe('mapRowToClassInfo', () => {
     expect(result.class.element).toBe('Container');
     expect(result.class.level).toBe('Novice');
     expect(result.class.maxEntries).toBe(30);
-    expect(result.class.ringNumber).toBe(2);
+    expect(result.class.ringNumber).toBe(0);
     expect(result.class.startTime).toBe('2026-05-03T09:00:00Z');
     expect(result.class.judgeName).toBe('Ellen Heavner');
     expect(result.class.showId).toBe('show-1');
@@ -76,7 +75,7 @@ describe('mapRowToClassInfo', () => {
     expect(result.entry.checkInStatus).toBe('checked-in');
     expect(result.entry.dogCallName).toBe('Storm');
     expect(result.entry.className).toBe('Container Novice A');
-    expect(result.entry.ringNumber).toBe(2);
+    expect(result.entry.ringNumber).toBe(0);
     expect(result.entry.judgeName).toBe('Ellen Heavner');
   });
 
@@ -91,7 +90,7 @@ describe('mapRowToClassInfo', () => {
   it('builds minimal ringStatus stub', () => {
     const result = mapRowToClassInfo(baseRow);
     expect(result.ringStatus.classId).toBe('class-1');
-    expect(result.ringStatus.ringNumber).toBe(2);
+    expect(result.ringStatus.ringNumber).toBe(0);
     expect(result.ringStatus.judgeName).toBe('Ellen Heavner');
     expect(result.ringStatus.onDeck).toEqual([]);
   });
@@ -108,7 +107,6 @@ describe('mapRowToClassInfo', () => {
         element: null,
         level: null,
         max_entries: null,
-        ring_number: null,
         start_time: null,
         judge_name: null,
       },

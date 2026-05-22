@@ -4,8 +4,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ExhibitorClassInfo } from '@/types/exhibitor-types';
 import { isCheckInStatus } from '@myk9/core';
 
-// Raw shape returned by the Supabase query — typed manually because
-// ring_number was added via a migration after codegen was last run.
+// Raw shape returned by the Supabase query.
 interface CheckInDataRow {
   id: string;
   check_in_status: string | null;
@@ -25,7 +24,6 @@ interface CheckInDataRow {
     element: string | null;
     level: string | null;
     max_entries: number | null;
-    ring_number: number | null;
     start_time: string | null;
     judge_name: string | null;
     trial: {
@@ -58,7 +56,7 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       maxEntries: cls.max_entries ?? 0,
       judgeName: cls.judge_name ?? '',
       startTime: cls.start_time ?? new Date().toISOString(),
-      ringNumber: cls.ring_number ?? 0,
+      ringNumber: 0,
     },
     trial: {
       id: trial.id,
@@ -77,15 +75,16 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       handlerId: row.handler_id,
       armband: row.armband ?? '',
       ...(row.run_order != null ? { runningOrder: row.run_order } : {}),
-      checkInStatus: row.check_in_status != null && isCheckInStatus(row.check_in_status)
-        ? row.check_in_status
-        : 'no-status',
+      checkInStatus:
+        row.check_in_status != null && isCheckInStatus(row.check_in_status)
+          ? row.check_in_status
+          : 'no-status',
       dogCallName: row.dog.call_name ?? '',
       dogRegistrationNumber: '',
       breed: row.dog.breed,
       handlerName: '',
       className: cls.name,
-      ringNumber: cls.ring_number ?? 0,
+      ringNumber: 0,
       judgeName: cls.judge_name ?? '',
       dog: {
         id: row.dog.id,
@@ -102,7 +101,7 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
     ringStatus: {
       classId: cls.id,
       className: cls.name,
-      ringNumber: cls.ring_number ?? 0,
+      ringNumber: 0,
       judgeName: cls.judge_name ?? '',
       judgeStatus: 'active',
       totalEntries: 0,
@@ -124,7 +123,7 @@ async function fetchCheckInData(
       id, check_in_status, armband, run_order, handler_id,
       dog:dogs!inner(id, call_name, breed, sex, date_of_birth),
       class:classes!inner(
-        id, name, element, level, max_entries, ring_number, start_time, judge_name,
+        id, name, element, level, max_entries, start_time, judge_name,
         trial:trials!inner(
           id, name, date, planned_start_time,
           show:shows!inner(id, name, location)

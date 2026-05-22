@@ -79,39 +79,57 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+_None currently._
+
+## Closed Findings
+
+### QA-NETWORK-ERROR-008
+
+- **Status:** fixed
+- **Severity:** high
+- **Role:** exhibitor | secretary
+- **Surface:** `apps/myk9show/src/hooks/queries/useShowDayData.ts`, `apps/myk9show/src/hooks/queries/useClassCheckInData.ts`
+- **Suite category:** nightly
+- **Pattern:** network-error
+- **Detected by:** Playwright
+- **Evidence:** 2026-05-22 active Nightly initially failed both `qa-regression-proof.spec.ts` tests with owned Supabase `400 GET /rest/v1/entries?...class:classes!...ring_number...`. A focused REST replay returned Postgres `42703`: `column classes_1.ring_number does not exist`. `rg "ring_number" supabase/migrations` found no migration adding that column.
+- **User impact:** Show-day and check-in data could fail behind otherwise rendered pages, making secretary/exhibitor show-day routes unreliable and causing Nightly browser health to fail.
+- **Intent check:** Restores the secretary/exhibitor expectation that show-day status pages load quietly and predictably.
+- **Fix owner:** show-day and class check-in query mapping.
+- **Proof required:** Passed on 2026-05-22: focused `qa-regression-proof.spec.ts` (`3 passed`), focused show-day/check-in Vitest (`37 passed`), and full active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0` (`45 passed`).
+- **Notes:** Fixed by removing the stale `classes.ring_number` select and mapping currently unavailable ring values to the existing null/default UI contract.
+
 ### QA-TEST-FLAKE-004
 
-- **Status:** open
+- **Status:** fixed
 - **Severity:** medium
 - **Role:** secretary
 - **Surface:** `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`, `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`, `apps/myk9show/src/test/e2e/uat/secretary/critical-path.spec.ts`
 - **Suite category:** nightly
 - **Pattern:** test-flake
 - **Detected by:** Playwright
-- **Evidence:** 2026-05-21 active Nightly command failed after `40 passed`, `3 failed`, and `2 did not run`. Failures were `entryCreationCore.spec.ts:64` timed out inside `page.evaluate` while importing/using `useEntryStore`, `singleDogSingleClass.spec.ts:110` could not find seeded dog `Bravo` in the mail-in registration wizard, and `critical-path.spec.ts:63` timed out on the sign-in deep link to `/secretary/register/:showId`. Evidence paths include `apps/myk9show/test-results/registration-entryCreation-9764e-tus-through-workflow-states-chromium/error-context.md`, `apps/myk9show/test-results/registration-singleDogSing-28b55--dog-and-one-selected-class-chromium/error-context.md`, and `apps/myk9show/test-results/uat-secretary-critical-pat-bc2f8-g-and-reach-class-selection-chromium/error-context.md`.
-- **User impact:** Nightly cannot currently prove the secretary registration/payment path reliably. Focused `registrationUI.spec.ts --grep "searches for a non-owned dog"` passed in isolation, so this may be sequence pollution rather than a product-wide dog-search outage.
-- **Intent check:** Harms the secretary target feeling of "That was easy" if it reflects real registration instability; harms QA trust if it is only suite order/state leakage.
-- **Fix owner:** registration Playwright fixtures, secretary mail-in registration flow, and entry-store browser test coverage.
-- **Proof required:** Focused reruns of the three failed specs alone, then the full active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0`.
-- **Notes:** Do not demote yet unless this repeats within 14 days or the focused proof shows the active specs are no longer trustworthy.
+- **Evidence:** 2026-05-21 active Nightly command failed after `40 passed`, `3 failed`, and `2 did not run`. Failures were `entryCreationCore.spec.ts:64`, `singleDogSingleClass.spec.ts:110`, and `critical-path.spec.ts:63`. On 2026-05-22, focused replay showed `singleDogSingleClass.spec.ts` could still miss seeded dog `Bravo` when it signed in through `/secretary/dashboard` before jumping to the registration route.
+- **User impact:** Nightly could not reliably prove the secretary registration/payment path.
+- **Intent check:** Restores QA trust around the secretary "That was easy" registration proof by removing route-order sensitivity from the spec.
+- **Fix owner:** registration Playwright proof setup.
+- **Proof required:** Passed on 2026-05-22: focused rerun of the three failed specs (`11 passed`) and full active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0` (`45 passed`).
+- **Notes:** Fixed by sending the spec through the same direct `returnTo=/secretary/register/:showId` sign-in path used by the maintained secretary UAT proof, and by waiting for the server dog-search response before selecting `Bravo`.
 
 ### QA-CONSOLE-ERROR-005
 
-- **Status:** open
+- **Status:** fixed
 - **Severity:** medium
 - **Role:** secretary
 - **Surface:** `/secretary/entries/:showId` and `/secretary/reports`
 - **Suite category:** none
 - **Pattern:** console-error
 - **Detected by:** audit-pages
-- **Evidence:** 2026-05-21 route-health sweep logged `[ERROR] [secretary] Error loading entries: {stack: undefined}` on `/secretary/entries/4584f257-19b5-4016-aae6-5e7827b769cb` at 375px and `/secretary/reports` at 1280px. The route sweep otherwise rendered those pages.
-- **User impact:** Secretary routes render, but entry-backed data may be missing or stale without a clear user-facing explanation.
-- **Intent check:** Harms the secretary target feeling of calm control because the page appears usable while entry loading fails in the background.
+- **Evidence:** 2026-05-21 route-health sweep logged `[ERROR] [secretary] Error loading entries: {stack: undefined}` on `/secretary/entries/4584f257-19b5-4016-aae6-5e7827b769cb` at 375px and `/secretary/reports` at 1280px.
+- **User impact:** Secretary routes rendered, but entry-backed data could be missing or stale without a clear user-facing explanation.
+- **Intent check:** Preserves the secretary target feeling of calm control by keeping entry-backed routes free of background load errors.
 - **Fix owner:** `apps/myk9show/src/hooks/useEntryManagementData.ts` and entry query/RLS path behind `getEntriesForShow`.
-- **Proof required:** Focused route-health replay for `/secretary/entries/:showId` and `/secretary/reports` at desktop and 375px with no console errors or owned 4xx/5xx responses.
-- **Notes:** Left open because the failure may involve query shape or RLS and needs a narrower investigation.
-
-## Closed Findings
+- **Proof required:** Passed on 2026-05-22 route-health sweep: `/secretary/entries/4584f257-19b5-4016-aae6-5e7827b769cb` and `/secretary/reports` rendered at desktop and 375px with no console errors or owned 4xx/5xx responses.
+- **Notes:** Closed by route-sweep proof; no code change was needed in this run.
 
 ### QA-CONSOLE-ERROR-007
 

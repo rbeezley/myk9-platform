@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-22
+
+- **Playwright command:** pass after low-risk local fixes
+- **Route sweep:** partial, with focused replays passed
+- **Active specs:** Vitest 18/18; Playwright 45/45
+- **Failures:** Initial active Playwright run failed `40/45` because show-day/check-in queries selected a non-existent `classes.ring_number` column, finding `QA-NETWORK-ERROR-008`. The exact focused proof for prior flake `QA-TEST-FLAKE-004` initially reproduced `singleDogSingleClass.spec.ts` missing seeded dog `Bravo` after a dashboard-first sign-in path. Route sweep initially logged transient console/fetch errors on secretary Today, club-admin members, and judge dashboard routes; focused desktop/mobile replays passed, so no durable route finding was opened.
+- **Fixes made:** `apps/myk9show/src/hooks/queries/useShowDayData.ts`, `apps/myk9show/src/types/show-day-types.ts`, `apps/myk9show/src/hooks/queries/useClassCheckInData.ts`, `apps/myk9show/src/hooks/queries/__tests__/useClassCheckInData.test.ts`, `apps/myk9show/src/test/hooks/useShowDayData.test.ts`, `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`, `docs/qa/findings.md`, `docs/qa/nightly-history.md`
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`, then created local branch `codex/nightly-qa-2026-05-22` before edits. Proofs passed: `pnpm qa:e2e-map:check`, promoted Vitest Nightly (`18 passed`), focused show-day/check-in Vitest (`37 passed`), focused QA regression proof (`3 passed`), focused rerun of initially failed registration/entry specs (`3 passed`), exact `QA-TEST-FLAKE-004` proof (`11 passed`), full active Playwright Nightly (`45 passed`, retries disabled), and route sweep across public, exhibitor, secretary, judge, club-admin, and admin route groups (`65/66` full sweep plus focused replays passed for all failures). Closed `QA-TEST-FLAKE-004` and `QA-CONSOLE-ERROR-005`.
+
 ### 2026-05-21
 
 - **Playwright command:** fail

@@ -88,7 +88,7 @@ Within the `^` ranges declared in our `package.json` files, `pnpm update -r`
 should resolve these to their patched versions and quietly close most of the
 alert backlog:
 
-- `jspdf` 4.0.0 → 4.2.1 *(direct, in `^4.0.0`)* — kills 1 critical + 5 high + 2 medium
+- `jspdf` 4.0.0 → 4.2.1 *(direct, in `^4.0.0`)* — kills 1 critical + 6 high + 2 medium
 - `tar` 7.5.7 → 7.5.11 *(transitive, in `^7`)* — kills 3 high
 - `turbo` 2.8.0 → 2.9.14 *(direct, in `^2.8.0`)* — kills 1 medium + 1 low
 - `flatted` 3.3.3 → 3.4.2 *(transitive)* — kills 1 high
@@ -102,8 +102,14 @@ alert backlog:
 the `rollup <2.80.0` alert, and probably the `path-to-regexp <0.1.10` alert
 (no 0.x in our tree).
 
-**Estimated Phase 2 cleared:** ~35–40 of the 50 (the auto-fix targets above
-plus the stale ones).
+**Estimated Phase 2 cleared:** ~10–13 of the 50 — *only* the direct-dep fixes
+that don't require transitive overrides (`jspdf`, `turbo`, `lodash`). A blanket
+`pnpm update -r` was tried initially to cover transitives in-range but pulled
+in scope-creep tooling bumps (`@supabase/supabase-js`, `eslint-plugin-react-hooks`)
+that broke typecheck/lint, so Phase 2 was narrowed to the surgical subset.
+Add another ~7 alerts auto-closing on Dependabot rescan (the stale ones above),
+for a post-merge total of ~30–33 open. The transitive fixes listed in the
+auto-fix candidates table above are deferred to Phase 3 via `pnpm.overrides`.
 
 ## Remainder — needs major bumps or override
 
@@ -128,8 +134,9 @@ walks every importer. There is no missing advisory in either source.
 
 ## Next steps
 
-1. Phase 2: run `pnpm update -r` and verify typecheck/lint/vitest. Expected
-   outcome: ~35–40 alerts cleared.
+1. Phase 2: surgically update direct deps (`jspdf`, `turbo`, `lodash`) and
+   verify typecheck/lint/vitest. Expected outcome: ~10–13 alerts cleared
+   plus ~7 stale auto-closing on rescan.
 2. Phase 3: write `docs/plan-dependabot-remediation.md` for the major bumps
    (`undici`, `serialize-javascript`) and the no-fix-available items.
 3. Phase 4: add `.github/dependabot.yml` with weekly grouped updates so the

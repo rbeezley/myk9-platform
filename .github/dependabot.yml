@@ -6,6 +6,14 @@ version: 2
 #
 # Schedule: Monday 06:00 UTC = early Monday US for triage at start of week.
 # See docs/plan-dependabot-remediation.md for the policy this codifies.
+#
+# Note on the npm "ignore semver-major" rule below: this suppresses ONLY the
+# scheduled / non-security major-version PRs. Dependabot security updates
+# bypass `ignore` rules — so a major-version SECURITY fix (e.g. undici 5→6)
+# is still filed automatically. Trade-off: routine non-security majors
+# (@types/node, future React majors, etc.) won't be proposed here and need
+# to be picked up by hand during planned upgrade work. Drop the wildcard
+# ignore if periodic visibility into routine majors becomes desirable.
 
 updates:
   - package-ecosystem: "npm"

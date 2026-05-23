@@ -486,7 +486,7 @@ describe('ShowWorkbenchPage', () => {
     expect(deskTools).toHaveAttribute('aria-expanded', 'true');
 
     expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
-    expect(screen.getByRole('heading', { name: 'Judge hospitality' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Hospitality' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Quick broadcast' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Message a class' })).toBeInTheDocument();
     expect(screen.getByTestId('incident-log-card')).toHaveTextContent('Incident log for show-1');

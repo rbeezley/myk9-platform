@@ -1,5 +1,6 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
+import { ShowDeskToolsSheet } from './ShowDeskToolsSheet';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
@@ -15,6 +16,10 @@ import type { ShowDeskPendingSignalId } from './showDeskPendingSignals';
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
   scopeNow?: Date | undefined;
+  // Composed at the page level so this panel never needs to know about
+  // judges, incident options, broadcast classes, or other tool-specific
+  // data dependencies. When omitted, the Tools sheet is not rendered.
+  toolsContent?: ReactNode;
 }
 
 function buildMoveUpTargets(
@@ -45,6 +50,7 @@ export default function ShowDeskPanel({
   entries,
   canManageShow,
   scopeNow,
+  toolsContent,
 }: ShowDeskPanelProps) {
   const state = useShowMapWorkbenchState({
     show,
@@ -125,6 +131,11 @@ export default function ShowDeskPanel({
 
   return (
     <div className="space-y-4 pt-6">
+      {toolsContent && (
+        <div className="flex justify-end">
+          <ShowDeskToolsSheet>{toolsContent}</ShowDeskToolsSheet>
+        </div>
+      )}
       <ShowDeskAdaptiveHeader
         showStatus={desk.status}
         statusSummary={desk.summary}

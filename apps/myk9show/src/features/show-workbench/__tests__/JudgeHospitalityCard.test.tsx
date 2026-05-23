@@ -17,7 +17,7 @@ describe('JudgeHospitalityCard', () => {
   it('tracks lunch and drink reminders per judge', async () => {
     const { user } = render(<JudgeHospitalityCard showId="show-1" judges={judges} />);
 
-    expect(screen.getByRole('heading', { name: 'Judge hospitality' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Hospitality' })).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Judges tracked' })).getByText('2')
     ).toBeInTheDocument();

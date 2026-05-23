@@ -50,7 +50,9 @@ describe('EntryAgreementSection', () => {
   it('checkbox is always visible regardless of collapsed state', () => {
     render(<EntryAgreementSection {...baseProps} />);
     expect(
-      screen.getByLabelText(/I have read and agree to the AKC entry agreement/)
+      screen.getByRole('checkbox', {
+        name: /I have read and agree to the AKC entry agreement/,
+      })
     ).toBeInTheDocument();
   });
 

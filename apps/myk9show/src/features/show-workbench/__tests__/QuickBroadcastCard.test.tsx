@@ -116,7 +116,7 @@ describe('QuickBroadcastCard', () => {
   it('posts a checked push alert on the high-priority announcement lane', async () => {
     const { user } = render(<QuickBroadcastCard showId="show-1" />);
 
-    await user.click(screen.getByLabelText('Send push alert'));
+    await user.click(screen.getByRole('checkbox', { name: 'Send push alert' }));
     await user.click(screen.getByRole('button', { name: 'Post broadcast' }));
 
     await waitFor(() => {

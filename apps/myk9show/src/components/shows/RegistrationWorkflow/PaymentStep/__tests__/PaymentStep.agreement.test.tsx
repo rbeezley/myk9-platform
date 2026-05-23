@@ -66,7 +66,9 @@ describe('PaymentStep — entry agreement integration', () => {
   it('renders the agreement checkbox', () => {
     render(<PaymentStep {...baseProps} />);
     expect(
-      screen.getByLabelText(/I have read and agree to the AKC entry agreement/)
+      screen.getByRole('checkbox', {
+        name: /I have read and agree to the AKC entry agreement/,
+      })
     ).toBeInTheDocument();
   });
 

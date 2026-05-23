@@ -109,7 +109,7 @@ describe('DayOfEntryDialog', () => {
     expect(screen.getByText('Rocket Fuel')).toBeInTheDocument();
     expect(screen.getByLabelText(/Handler Name/)).toHaveValue('Jamie Walker');
 
-    await user.click(screen.getByLabelText(/Container Novice A/));
+    await user.click(screen.getByRole('checkbox', { name: /Container Novice A/ }));
     await user.click(screen.getByRole('button', { name: 'Create Entry' }));
 
     await waitFor(() => {

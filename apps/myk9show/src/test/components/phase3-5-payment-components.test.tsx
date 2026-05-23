@@ -256,7 +256,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       await user.click(feeTab);
 
       // Should show waive fees option
-      const waiveFeesCheckbox = screen.getByLabelText('Waive all fees');
+      const waiveFeesCheckbox = screen.getByRole('checkbox', { name: 'Waive all fees' });
       expect(waiveFeesCheckbox).toBeInTheDocument();
 
       // Should show override amount input

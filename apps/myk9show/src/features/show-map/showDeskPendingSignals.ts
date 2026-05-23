@@ -37,7 +37,14 @@ function countEntriesWaitingReview(entries: readonly EntryLike[]): number {
 }
 
 function countEntriesWaitingCheckIn(entries: readonly EntryLike[]): number {
-  return entries.filter(entry => lower(entry.check_in_status) === 'no-status').length;
+  // INTENT: Treat missing / null / empty / 'no-status' all as "not yet checked in".
+  // Real DB rows often arrive with null check_in_status before the gate steward has
+  // touched the entry; mappers preserve that null. Narrowing to literal 'no-status'
+  // would undercount the chip on most shows.
+  return entries.filter(entry => {
+    const status = lower(entry.check_in_status);
+    return status === '' || status === 'no-status';
+  }).length;
 }
 
 function countClassesByWrapUpValue(tree: ShowMapTree, values: readonly string[]): number {

@@ -44,6 +44,9 @@ export function hasAnyWrapUpEligibleNode(tree: ShowMapTree): boolean {
 
 export function computeShowDeskStatus({
   show,
+  // Reserved for future multi-day refinement: per-trial dates may override show-level
+  // boundaries when trials span non-contiguous days. Phase B0 uses show.startDate /
+  // show.endDate only; the param shape is preserved so callers don't churn in B2.
   trials: _trials,
   tree,
   now,
@@ -71,7 +74,16 @@ export function computeShowDeskStatus({
   let status: ShowDeskShowStatus;
   if (allClassesComplete && allClassesSubmitted) {
     status = 'closed';
-  } else if (today > endDate && activeClassCount === 0 && hasAnyWrapUpEligibleNode(tree)) {
+  } else if (
+    startDate &&
+    today >= startDate &&
+    activeClassCount === 0 &&
+    hasAnyWrapUpEligibleNode(tree)
+  ) {
+    // INTENT: Wrap-up fires once the show has STARTED (not after it ends) so a single-day
+    // show with all classes done and signatures pending shows wrap-up the same day, not
+    // tomorrow. Plan Q1 (2026-05-22): "Today is past start date AND ≥1 class needs
+    // sign/review/submit AND no class is active".
     status = 'wrap-up';
   } else if (startDate && today < startDate && !hasScoringActivity) {
     status = 'setup';

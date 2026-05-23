@@ -124,6 +124,31 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(getByText('1 class needs judge signature')).toBeInTheDocument();
   });
 
+  it('renders pending-signal chips with a 44px-min touch target (INTENT.md)', () => {
+    // Regression: chips started life as px-3 py-1 text-xs which is well under the
+    // 44x44px minimum from docs/INTENT.md. They are filter shortcuts and need to be
+    // tappable on tablet before B2 mounts them.
+    const signals = [
+      {
+        id: 'entries-waiting-review' as const,
+        count: 1,
+        priority: 'highest' as const,
+        label: '1 entry waiting for review',
+      },
+    ];
+    const onSelectPendingSignal = vi.fn();
+    const { container } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        pendingSignals={signals}
+        onSelectPendingSignal={onSelectPendingSignal}
+      />
+    );
+    const chip = container.querySelector('button[data-signal-id="entries-waiting-review"]');
+    expect(chip).not.toBeNull();
+    expect(chip?.className).toContain('min-h-[44px]');
+  });
+
   it('invokes onSelectPendingSignal when a chip is clicked', async () => {
     const onSelectPendingSignal = vi.fn();
     const signals = [

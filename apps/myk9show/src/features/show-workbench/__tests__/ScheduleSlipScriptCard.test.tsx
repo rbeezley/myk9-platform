@@ -182,7 +182,7 @@ describe('ScheduleSlipScriptCard', () => {
       />
     );
 
-    await user.click(screen.getByLabelText('Send push alert'));
+    await user.click(screen.getByRole('checkbox', { name: 'Send push alert' }));
     await user.click(screen.getByRole('button', { name: 'Post announcement' }));
 
     await waitFor(() => {

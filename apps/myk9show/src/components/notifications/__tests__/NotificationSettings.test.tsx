@@ -96,12 +96,12 @@ describe('NotificationSettings', () => {
   // --- Master toggle ---
   it('renders master toggle', () => {
     render(<NotificationSettings />);
-    expect(screen.getByLabelText(/enable notifications/i)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /enable notifications/i })).toBeInTheDocument();
   });
 
   it('toggles master switch updates store', () => {
     render(<NotificationSettings />);
-    fireEvent.click(screen.getByLabelText(/enable notifications/i));
+    fireEvent.click(screen.getByRole('switch', { name: /enable notifications/i }));
     expect(useNotificationStore.getState().preferences.enabled).toBe(false);
   });
 
@@ -119,20 +119,20 @@ describe('NotificationSettings', () => {
 
   it('renders push as a channel with explanation', () => {
     render(<NotificationSettings />);
-    expect(screen.getByLabelText(/push notifications/i)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /push notifications/i })).toBeInTheDocument();
     expect(screen.getByText(/lock screen/i)).toBeInTheDocument();
   });
 
   it('calls subscribe when push is toggled on', async () => {
     render(<NotificationSettings />);
-    fireEvent.click(screen.getByLabelText(/push notifications/i));
+    fireEvent.click(screen.getByRole('switch', { name: /push notifications/i }));
     await waitFor(() => expect(mockSubscribe).toHaveBeenCalledTimes(1));
   });
 
   it('shows warning when push permission denied', async () => {
     mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'permission-denied' });
     render(<NotificationSettings />);
-    fireEvent.click(screen.getByLabelText(/push notifications/i));
+    fireEvent.click(screen.getByRole('switch', { name: /push notifications/i }));
     await waitFor(() =>
       expect(notifications.warning).toHaveBeenCalledWith(
         'Push notifications blocked. Check browser settings.'
@@ -143,7 +143,7 @@ describe('NotificationSettings', () => {
   // --- Voice Announcements ---
   it('renders voice announcements master toggle', () => {
     render(<NotificationSettings />);
-    expect(screen.getByLabelText(/voice announcements/i)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /voice announcements/i })).toBeInTheDocument();
   });
 
   it('shows category toggles when voice is enabled', () => {

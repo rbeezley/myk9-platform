@@ -90,6 +90,8 @@ async function selectRange(page: Page, trigger: Locator, dates: { start: RegExp;
   await clickCalendarDay(dialog, dates.end);
   const done = dialog.getByRole('button', { name: 'Done' });
   await expect(done).toBeVisible();
+  // The Base UI popover can briefly reposition after range selection; DOM click
+  // keeps this helper from failing on Playwright-only actionability jitter.
   await done.evaluate((button: HTMLButtonElement) => button.click());
   await expect(dialog).not.toBeVisible();
 }

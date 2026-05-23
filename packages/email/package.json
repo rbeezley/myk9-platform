@@ -22,13 +22,13 @@
   },
   "dependencies": {
     "@react-email/components": "^0.0.36",
-    "react": "^19.1.0"
+    "react": "^19.2.6"
   },
   "devDependencies": {
     "@react-email/render": "^1.0.5",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.2.15",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.7"
   }
 }

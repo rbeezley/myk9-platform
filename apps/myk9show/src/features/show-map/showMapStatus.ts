@@ -113,10 +113,6 @@ export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplay
   const resultStatus = readString(entry, 'result_status')?.toLowerCase();
   const checkInStatus = readString(entry, 'check_in_status')?.toLowerCase();
 
-  if (checkInStatus === 'conflict') {
-    return { value: checkInStatus, label: 'Needs attention', kind: 'attention' };
-  }
-
   if ((entryStatus && SCRATCH_ENTRY_STATUSES.has(entryStatus)) || checkInStatus === 'pulled') {
     return { value: entryStatus ?? 'pulled', label: 'Pulled', kind: 'muted' };
   }
@@ -160,7 +156,7 @@ export function classifyEntryCheckInStatus(
     return { value: status, label: 'At gate', kind: 'active' };
   }
   if (status === 'conflict') {
-    return { value: status, label: 'Conflict', kind: 'attention' };
+    return { value: status, label: 'Conflict', kind: 'neutral' };
   }
   if (status === 'pulled') {
     return { value: status, label: 'Pulled', kind: 'muted' };

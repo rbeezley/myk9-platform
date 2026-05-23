@@ -71,7 +71,7 @@ describe('ShowMapStructureTable', () => {
             breed: 'Mixed Breed',
             registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }],
           },
-          check_in_status: 'conflict',
+          entry_status: 'submitted',
         },
         {
           id: 'entry-complete',
@@ -302,7 +302,7 @@ describe('ShowMapStructureTable', () => {
           class_id: 'class-attention',
           armband: '12',
           dog: { call_name: 'Bella' },
-          check_in_status: 'conflict',
+          entry_status: 'submitted',
         },
       ],
     });
@@ -319,8 +319,8 @@ describe('ShowMapStructureTable', () => {
     await user.click(screen.getByRole('button', { name: /actions for .*bella/i }));
 
     expect(await screen.findByText('Recommended')).toBeInTheDocument();
-    expect(screen.getAllByText('Resolve check-in conflict').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/Entry has a check-in conflict/)).toBeInTheDocument();
+    expect(screen.getAllByText('Review entry').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/Entry is waiting for secretary review/)).toBeInTheDocument();
   });
 
   it('opens the same row actions menu from right-clicking row whitespace', async () => {
@@ -337,7 +337,7 @@ describe('ShowMapStructureTable', () => {
           class_id: 'class-attention',
           armband: '12',
           dog: { call_name: 'Bella' },
-          check_in_status: 'conflict',
+          entry_status: 'submitted',
         },
       ],
     });
@@ -356,7 +356,7 @@ describe('ShowMapStructureTable', () => {
 
     fireEvent.contextMenu(row);
     expect(await screen.findByText('Recommended')).toBeInTheDocument();
-    expect(screen.getByText(/Entry has a check-in conflict/)).toBeInTheDocument();
+    expect(screen.getByText(/Entry is waiting for secretary review/)).toBeInTheDocument();
   });
 
   it('opens the entry row actions menu from Enter without executing an action', async () => {
@@ -373,7 +373,7 @@ describe('ShowMapStructureTable', () => {
           class_id: 'class-attention',
           armband: '12',
           dog: { call_name: 'Bella' },
-          check_in_status: 'conflict',
+          entry_status: 'submitted',
         },
       ],
     });
@@ -394,7 +394,7 @@ describe('ShowMapStructureTable', () => {
     fireEvent.keyDown(getTreeItemForText('Bella'), { key: 'Enter' });
 
     expect(await screen.findByText('Recommended')).toBeInTheDocument();
-    expect(screen.getByText(/Entry has a check-in conflict/)).toBeInTheDocument();
+    expect(screen.getByText(/Entry is waiting for secretary review/)).toBeInTheDocument();
     expect(onAction).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
   });

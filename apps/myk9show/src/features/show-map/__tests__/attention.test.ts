@@ -24,16 +24,16 @@ describe('getEntryAttention', () => {
     expect(getEntryAttention({ entry_status: 'submitted' })).toBe('pending_review');
   });
 
-  it("returns 'check_in_conflict' when check_in_status='conflict'", () => {
-    expect(
-      getEntryAttention({ entry_status: 'accepted', check_in_status: 'conflict' })
-    ).toBe('check_in_conflict');
+  it("does not flag check_in_status='conflict' as secretary attention (myK9Q owns that signal)", () => {
+    expect(getEntryAttention({ entry_status: 'accepted', check_in_status: 'conflict' })).toBe(
+      null
+    );
   });
 
-  it("prefers check_in_conflict over pending_review when both apply", () => {
+  it("still flags pending_review when submitted entry also has a check-in conflict", () => {
     expect(
       getEntryAttention({ entry_status: 'submitted', check_in_status: 'conflict' })
-    ).toBe('check_in_conflict');
+    ).toBe('pending_review');
   });
 
   it('returns null for unknown statuses (does not throw)', () => {
@@ -47,12 +47,11 @@ describe('countAttention', () => {
   it('returns zeroed counts for empty input', () => {
     expect(countAttention([])).toEqual({
       pending_review: 0,
-      check_in_conflict: 0,
       total: 0,
     });
   });
 
-  it('aggregates per-reason and totals', () => {
+  it('aggregates pending_review and ignores conflict-only entries', () => {
     const entries: EntryLike[] = [
       { entry_status: 'submitted' },
       { entry_status: 'submitted' },
@@ -62,19 +61,9 @@ describe('countAttention', () => {
       { entry_status: 'completed' },
     ];
     expect(countAttention(entries)).toEqual({
-      pending_review: 2,
-      check_in_conflict: 2,
-      total: 4,
+      pending_review: 3,
+      total: 3,
     });
-  });
-
-  it('treats each entry as exactly one reason (highest priority wins)', () => {
-    const counts = countAttention([
-      { entry_status: 'submitted', check_in_status: 'conflict' },
-    ]);
-    expect(counts.pending_review).toBe(0);
-    expect(counts.check_in_conflict).toBe(1);
-    expect(counts.total).toBe(1);
   });
 });
 

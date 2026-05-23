@@ -423,6 +423,7 @@ export function ShowWorkbenchPage() {
                 entries={showEntries}
                 canManageShow
                 initialDayScope="today"
+                actionPhase="today"
               />
             </Suspense>
             <TodayDeskToolsSection>

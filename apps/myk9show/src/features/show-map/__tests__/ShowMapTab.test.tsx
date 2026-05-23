@@ -294,7 +294,7 @@ describe('ShowMapTab', () => {
             class_id: 'class-1',
             armband: '12',
             dog: { call_name: 'Bella' },
-            check_in_status: 'conflict',
+            entry_status: 'submitted',
           },
         ]}
         canManageShow
@@ -302,7 +302,7 @@ describe('ShowMapTab', () => {
     );
 
     const guidance = screen.getByRole('region', { name: /next best action/i });
-    expect(within(guidance).getByText('Next: Resolve check-in conflict')).toBeInTheDocument();
+    expect(within(guidance).getByText('Next: Review entry')).toBeInTheDocument();
 
     await user.click(within(guidance).getByRole('button', { name: /dismiss/i }));
 
@@ -414,7 +414,7 @@ describe('ShowMapTab', () => {
             class_id: 'class-1',
             armband: '12',
             dog: { call_name: 'Bella' },
-            check_in_status: 'conflict',
+            entry_status: 'submitted',
           },
           {
             id: 'entry-2',
@@ -429,9 +429,9 @@ describe('ShowMapTab', () => {
     );
 
     const guidance = screen.getByRole('region', { name: /next best action/i });
-    expect(within(guidance).getByText('Next: Resolve check-in conflict')).toBeInTheDocument();
+    expect(within(guidance).getByText('Next: Review entry')).toBeInTheDocument();
     const queue = screen.getByRole('region', { name: /up next/i });
-    expect(within(queue).queryByText('Resolve check-in conflict')).not.toBeInTheDocument();
+    expect(within(queue).queryByText('Review entry')).not.toBeInTheDocument();
 
     const label = within(queue).getAllByText('Mark checked in')[0];
     if (!label) throw new Error('Expected a queued check-in action');

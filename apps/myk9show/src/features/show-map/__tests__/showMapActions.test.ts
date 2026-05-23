@@ -67,17 +67,17 @@ describe('showMapActions', () => {
     expect(showMapBadgeTargets.entry).toContain('score status');
   });
 
-  it('ranks urgent entry attention above ordinary class actions', () => {
+  it('ranks pending-review entry attention above ordinary class actions', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
       classes,
       entries: [
         {
-          id: 'entry-conflict',
+          id: 'entry-submitted',
           class_id: 'class-active',
           dog: { call_name: 'Bella' },
-          check_in_status: 'conflict',
+          entry_status: 'submitted',
         },
       ],
     });
@@ -85,12 +85,33 @@ describe('showMapActions', () => {
     const actions = getRankedActions('root', { tree });
 
     expect(actions[0]).toMatchObject({
-      id: 'resolve-check-in-conflict',
-      nodeId: 'entry:entry-conflict',
-      label: 'Resolve check-in conflict',
+      id: 'review-entry',
+      nodeId: 'entry:entry-submitted',
+      label: 'Review entry',
       href: '/shows/show-1/trials/trial-1/classes/class-active',
     });
     expect(actions.map(action => action.id)).toContain('score-class');
+  });
+
+  it('does not surface a secretary action for check_in_status="conflict" (myK9Q owns that signal)', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [
+        {
+          id: 'entry-conflict-only',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          check_in_status: 'conflict',
+        },
+      ],
+    });
+
+    const ids = getRankedActions('root', { tree }).map(action => action.id);
+
+    expect(ids).not.toContain('resolve-check-in-conflict');
+    expect(ids).not.toContain('review-entry');
   });
 
   it('caps recommended actions at two in deterministic ranked order', () => {
@@ -100,13 +121,13 @@ describe('showMapActions', () => {
       classes,
       entries: [
         {
-          id: 'entry-conflict',
+          id: 'entry-submitted-a',
           class_id: 'class-active',
           dog: { call_name: 'Bella' },
-          check_in_status: 'conflict',
+          entry_status: 'submitted',
         },
         {
-          id: 'entry-submitted',
+          id: 'entry-submitted-b',
           class_id: 'class-future',
           dog: { call_name: 'Scout' },
           entry_status: 'submitted',
@@ -125,8 +146,8 @@ describe('showMapActions', () => {
     expect(recommendedActions).toHaveLength(SHOW_MAP_RECOMMENDED_ACTION_LIMIT);
     expect(recommendedActions).toEqual([
       expect.objectContaining({
-        id: 'resolve-check-in-conflict',
-        why: 'Bella — Entry has a check-in conflict',
+        id: 'review-entry',
+        why: 'Bella — Entry is waiting for secretary review',
       }),
       expect.objectContaining({
         id: 'review-entry',
@@ -471,7 +492,7 @@ describe('showMapActions', () => {
     expect(reviewAction!.why).toBe('Bella — Entry is waiting for secretary review');
   });
 
-  it('keeps wrap-up attention actions out of the default Today action set', () => {
+  it("keeps wrap-up attention actions out of the legacy phase: 'today' action set", () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -492,9 +513,9 @@ describe('showMapActions', () => {
       ],
     });
 
-    expect(getRankedActions('root', { tree }).map(action => action.id)).not.toContain(
-      'collect-judge-signature'
-    );
+    expect(
+      getRankedActions('root', { tree, phase: 'today' }).map(action => action.id)
+    ).not.toContain('collect-judge-signature');
     expect(getRankedActions('root', { tree, phase: 'wrap-up' })).toEqual([
       expect.objectContaining({
         id: 'collect-judge-signature',
@@ -526,15 +547,149 @@ describe('showMapActions', () => {
       ],
     });
 
-    expect(getRecommendedActions('root', { tree }).map(action => action.id)).not.toContain(
-      'collect-judge-signature'
-    );
+    expect(
+      getRecommendedActions('root', { tree, phase: 'today' }).map(action => action.id)
+    ).not.toContain('collect-judge-signature');
     expect(getRecommendedActions('root', { tree, phase: 'wrap-up' })).toEqual([
       expect.objectContaining({
         id: 'collect-judge-signature',
         why: 'Completed class still needs judge sign-off',
       }),
     ]);
+  });
+
+  it('merges live-ops and wrap-up actions when phase is undefined (Show Desk unified mode)', () => {
+    // A tree where a class is complete & needs judge signature (wrap-up action)
+    // AND a different class has a submitted entry (live-ops action). Both
+    // actions must surface in the unified Show Desk action set.
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+        {
+          id: 'class-active',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          is_scored: true,
+        },
+        {
+          id: 'entry-submitted',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    const ids = getRankedActions('root', { tree }).map(action => action.id);
+
+    expect(ids).toContain('collect-judge-signature');
+    expect(ids).toContain('review-entry');
+  });
+
+  it('honors phase="today" by hiding wrap-up actions even when both apply', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+        {
+          id: 'class-active',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+        },
+      ],
+      entries: [
+        { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
+        {
+          id: 'entry-submitted',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    const ids = getRankedActions('root', { tree, phase: 'today' }).map(action => action.id);
+
+    expect(ids).toContain('review-entry');
+    expect(ids).not.toContain('collect-judge-signature');
+  });
+
+  it('honors phase="wrap-up" by hiding live-ops actions even when both apply', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+        {
+          id: 'class-active',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+        },
+      ],
+      entries: [
+        { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
+        {
+          id: 'entry-submitted',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(action => action.id);
+
+    expect(ids).toContain('collect-judge-signature');
+    expect(ids).not.toContain('review-entry');
+  });
+
+  it('does not collide when the same node satisfies both a live-ops and a wrap-up action', () => {
+    // A class that is `complete` (wrap-up: needs-signature) but the merged
+    // emitter must not assign the same action id twice to the same node.
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+      ],
+      entries: [{ id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true }],
+    });
+
+    // Dedup invariant: the assertion would throw if a duplicate (id, nodeId) pair
+    // were emitted. Reaching this line means the merge produced unique entries.
+    expect(() => getRankedActions('root', { tree })).not.toThrow();
   });
 
   it('keeps disabled navigation actions out of the recommended contract', () => {

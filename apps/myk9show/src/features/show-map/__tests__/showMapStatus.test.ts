@@ -77,7 +77,7 @@ describe('showMapStatus', () => {
     expect(classifyEntryCheckInStatus(entry)?.label).toBe('Checked in');
   });
 
-  it('prefers check-in-conflict attention over other entry states', () => {
+  it('no longer routes check-in conflict through the secretary run-status classifier (myK9Q owns that signal)', () => {
     const entry = {
       id: 'entry-1',
       entry_status: 'accepted',
@@ -85,14 +85,16 @@ describe('showMapStatus', () => {
       is_scored: true,
     };
 
-    expect(classifyEntryRunStatus(entry)?.label).toBe('Needs attention');
+    // Conflict is now informational only — scored completion wins in the
+    // secretary's view since the gate steward (myK9Q) owns conflict response.
+    expect(classifyEntryRunStatus(entry)?.label).toBe('Complete');
   });
 
   it.each([
     [
-      'conflict beats scored completion',
+      'scored completion beats check-in conflict',
       { entry_status: 'accepted', check_in_status: 'conflict', is_scored: true },
-      'Needs attention',
+      'Complete',
     ],
     [
       'scratch beats scored completion',

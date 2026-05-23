@@ -217,7 +217,7 @@ describe('ShowMapStructureTable', () => {
     expect(onToggle).toHaveBeenCalledWith('class:class-attention');
   });
 
-  it('uses the shared primary action instead of showing Score Class for future classes', async () => {
+  it('surfaces Mark Class Started as the inline primary for not-started classes (Pattern 3)', async () => {
     const futureClass = {
       id: 'class-future',
       trialId: 'trial-1',
@@ -231,6 +231,7 @@ describe('ShowMapStructureTable', () => {
       entries: [],
     });
     const onNavigate = vi.fn();
+    const onAction = vi.fn();
 
     const { user } = render(
       <ShowMapStructureTable
@@ -239,15 +240,24 @@ describe('ShowMapStructureTable', () => {
         filter="all"
         onToggle={vi.fn()}
         onNavigate={onNavigate}
+        onAction={onAction}
       />
     );
 
     expect(screen.queryByRole('button', { name: /score class/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /print check-in sheet/i }));
-    expect(onNavigate).toHaveBeenCalledWith(
-      '/secretary/reports?report=check-in-sheet&showId=show-1&trialId=trial-1&classId=class-future'
-    );
+    // The inline primary is the lifecycle's next step — a mutation action,
+    // not a navigation. Pre-B2b, the primary picker filtered mutations out
+    // and fell back to Print Check-In Sheet (priority 45) instead.
+    const markStartedButton = screen.getByRole('button', { name: /mark class started/i });
+    await user.click(markStartedButton);
+
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onAction.mock.calls[0]?.[0]).toMatchObject({
+      id: 'mark-class-started',
+      classId: 'class-future',
+    });
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 
   it('defaults to root-only expansion so class rows are hidden until a trial is opened', () => {

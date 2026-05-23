@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
 import { getAttentionNodeIds, getPrimaryActionForNode } from './showMapActions';
+import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
 import { DEFAULT_SHOW_MAP_SCOPE } from './showMapTimeScope';
 import {
@@ -88,6 +89,47 @@ function ProgressCell({ node }: { node: ShowMapNode }) {
       <div className="mb-1 text-xs text-muted-foreground">{node.progress.label}</div>
       <Progress value={value} className="h-1.5" />
     </div>
+  );
+}
+
+// INTENT: Pattern 3 — class-row primary action mirrors the class lifecycle.
+// Neutral → Mark Started (mutation, default style). Active → Score Class · N%
+// (navigate, accent style; the % decoration is purely visual — the action
+// itself stays a clean "what" identifier). Complete → Open Class (navigate,
+// outline style). Mutation actions render inline (no href guard) so the next
+// operational step is always one click away, never buried in the row menu.
+function ClassPrimaryActionButton({
+  action,
+  progressPercent,
+  onNavigate,
+  onAction,
+}: {
+  action: ShowMapAction;
+  progressPercent: number | undefined;
+  onNavigate: ((href: string) => void) | undefined;
+  onAction:
+    | ((action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void)
+    | undefined;
+}) {
+  const execution = resolveShowMapActionExecution(action);
+  if (execution.kind === 'disabled') return null;
+
+  const variant = action.id === 'score-class' ? 'default' : 'outline';
+  const label =
+    action.id === 'score-class' && typeof progressPercent === 'number'
+      ? `${action.label} · ${progressPercent}%`
+      : action.label;
+
+  const onClick = () => {
+    if (execution.kind === 'navigate') onNavigate?.(execution.href);
+    else onAction?.(action, execution);
+  };
+
+  return (
+    <Button type="button" size="sm" variant={variant} onClick={onClick}>
+      <action.icon className="h-4 w-4" />
+      {label}
+    </Button>
   );
 }
 
@@ -421,16 +463,17 @@ export function ShowMapStructureTable({
         <ProgressCell node={node} />
 
         <div className="flex flex-wrap justify-end gap-2">
-          {enableRowActions && node.type === 'class' && primaryAction?.href && (
-            <Button
-              type="button"
-              size="sm"
-              variant={primaryAction.id === 'score-class' ? 'default' : 'outline'}
-              onClick={() => onNavigate?.(primaryAction.href!)}
-            >
-              <primaryAction.icon className="h-4 w-4" />
-              {primaryAction.label}
-            </Button>
+          {enableRowActions && node.type === 'class' && primaryAction && (
+            <ClassPrimaryActionButton
+              action={primaryAction}
+              progressPercent={
+                node.progress && node.progress.total > 0
+                  ? Math.round((node.progress.completed / node.progress.total) * 100)
+                  : undefined
+              }
+              onNavigate={onNavigate}
+              onAction={onAction}
+            />
           )}
           {enableRowActions && (
             <ShowMapRowActionsMenu

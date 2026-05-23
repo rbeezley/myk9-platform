@@ -396,6 +396,11 @@ describe('ShowMapTab', () => {
   });
 
   it('keeps the guidance action out of Up next and executes the next queued action', async () => {
+    // Class is Not Started so the queue's top items are the not-yet-started
+    // class actions + the mark-checked-in mutations. Post-B2b, an active
+    // class also surfaces edit-score (priority 40) on every entry, which
+    // would push mark-checked-in past the queue's 4-item slice — choose
+    // neutral here so the assertion targets a stable position.
     const { user } = render(
       <ShowMapTab
         show={show}
@@ -405,7 +410,7 @@ describe('ShowMapTab', () => {
             id: 'class-1',
             trialId: 'trial-1',
             name: 'Interior Novice A',
-            status: 'In Progress',
+            status: 'Not Started',
           },
         ]}
         entries={[

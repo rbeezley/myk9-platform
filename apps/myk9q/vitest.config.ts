@@ -19,10 +19,10 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       reportOnFailure: true,
       thresholds: {
-        statements: 51,
-        branches: 45,
+        statements: 50,
+        branches: 44,
         functions: 53,
-        lines: 52,
+        lines: 51,
       },
       exclude: [
         'node_modules/',

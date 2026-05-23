@@ -510,7 +510,7 @@ export function ShowMapStructureTable({
         <div>
           <h3 className="text-base font-semibold">Nothing matches your current filters.</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Try a different day or completion view, or reset to defaults.
+            Try a different view, or reset to defaults.
           </p>
         </div>
         {onResetFilters && (

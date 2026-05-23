@@ -35,7 +35,7 @@ describe('ShowDeskToolsSheet', () => {
   it('keeps the sheet closed by default (children not rendered)', () => {
     renderSheet();
 
-    expect(screen.queryByRole('dialog', { name: /^tools$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /show desk tools/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId('tool-stub')).not.toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe('ShowDeskToolsSheet', () => {
 
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
 
-    expect(screen.getByRole('dialog', { name: /^tools$/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
     expect(screen.getByTestId('tool-1')).toBeInTheDocument();
     expect(screen.getByTestId('tool-2')).toBeInTheDocument();
   });
@@ -60,11 +60,11 @@ describe('ShowDeskToolsSheet', () => {
     const { user } = renderSheet();
 
     await user.click(screen.getByRole('button', { name: /open tools panel/i }));
-    expect(screen.getByRole('dialog', { name: /^tools$/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
 
-    expect(screen.queryByRole('dialog', { name: /^tools$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /show desk tools/i })).not.toBeInTheDocument();
   });
 
   it('shows the actionable count in destructive style when > 0', () => {
@@ -80,7 +80,7 @@ describe('ShowDeskToolsSheet', () => {
 
     expect(screen.getByTestId('show-desk-tools-badge')).toHaveAttribute(
       'aria-label',
-      '1 item need attention'
+      '1 item needs attention'
     );
   });
 

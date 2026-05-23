@@ -64,7 +64,7 @@ test.describe('Secretary Show Workbench UI', () => {
     await page.getByRole('tab', { name: 'Today' }).click();
     await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
     await expectWorkbenchSection(page, 'Late entry');
-    await expectWorkbenchSection(page, 'Judge hospitality');
+    await expectWorkbenchSection(page, 'Hospitality');
     await expectWorkbenchSection(page, 'Quick broadcast');
     await expectWorkbenchSection(page, 'Message a class');
     await expectWorkbenchSection(page, 'Incident log');

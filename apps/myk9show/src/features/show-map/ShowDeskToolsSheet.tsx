@@ -39,7 +39,7 @@ export function ShowDeskToolsSheet({
   const hasActionable = typeof actionableCount === 'number' && actionableCount > 0;
   const badgeValue = hasActionable ? actionableCount : toolCount;
   const badgeAriaLabel = hasActionable
-    ? `${actionableCount} item${actionableCount === 1 ? '' : 's'} need attention`
+    ? `${actionableCount} ${actionableCount === 1 ? 'item needs' : 'items need'} attention`
     : `${toolCount} tools available`;
 
   return (
@@ -69,7 +69,7 @@ export function ShowDeskToolsSheet({
         aria-label="Tools panel"
       >
         <SheetHeader className="border-b px-6 py-4 text-left">
-          <SheetTitle>Tools</SheetTitle>
+          <SheetTitle>Show Desk tools</SheetTitle>
           <SheetDescription>
             Late entries, hospitality, broadcasts, incidents, delay scripts, and access codes.
           </SheetDescription>

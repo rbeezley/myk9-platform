@@ -490,14 +490,15 @@ export function ShowMapStructureTable({
   };
 
   const topLevelChildIds = tree.childIdsByParentId[tree.root.id] ?? [];
-  const visibleTopLevelChildIds = topLevelChildIds.filter(childId => {
-    const child = tree.nodesById[childId];
-    return child
-      ? shouldRenderShowMapNode(tree, child, filter, attentionNodeIds, scope, scopeNow)
-      : false;
-  });
-  const showFilteredEmptyState =
-    topLevelChildIds.length > 0 && visibleTopLevelChildIds.length === 0;
+  const showFilteredEmptyState = useMemo(() => {
+    if (topLevelChildIds.length === 0) return false;
+    return !topLevelChildIds.some(childId => {
+      const child = tree.nodesById[childId];
+      return child
+        ? shouldRenderShowMapNode(tree, child, filter, attentionNodeIds, scope, scopeNow)
+        : false;
+    });
+  }, [topLevelChildIds, tree, filter, attentionNodeIds, scope, scopeNow]);
 
   if (showFilteredEmptyState) {
     return (

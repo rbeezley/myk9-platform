@@ -79,12 +79,15 @@ describe('computeShowDeskPendingSignals', () => {
         entry_status: 'submitted',
       },
     ]);
+    // Each test entry sets check_in_status: 'checked-in' so this assertion isolates
+    // the review signal — missing/null check_in_status now legitimately counts as
+    // waiting-for-check-in (see the null/undefined test below).
     const signals = computeShowDeskPendingSignals({
       tree: t,
       entries: [
-        { entry_status: 'submitted' },
-        { entry_status: 'submitted' },
-        { entry_status: 'accepted' },
+        { entry_status: 'submitted', check_in_status: 'checked-in' },
+        { entry_status: 'submitted', check_in_status: 'checked-in' },
+        { entry_status: 'accepted', check_in_status: 'checked-in' },
       ],
     });
     expect(signals).toHaveLength(1);
@@ -102,12 +105,13 @@ describe('computeShowDeskPendingSignals', () => {
         id: 'e1',
         class_id: 'class-active',
         dog: { call_name: 'Bella' },
+        entry_status: 'accepted',
         check_in_status: 'no-status',
       },
     ]);
     const signals = computeShowDeskPendingSignals({
       tree: t,
-      entries: [{ check_in_status: 'no-status' }],
+      entries: [{ entry_status: 'accepted', check_in_status: 'no-status' }],
     });
     expect(signals).toHaveLength(1);
     expect(signals[0]).toMatchObject({
@@ -116,6 +120,62 @@ describe('computeShowDeskPendingSignals', () => {
       priority: 'high',
     });
     expect(signals[0]?.label).toContain('1 entry waiting for check-in');
+  });
+
+  it('counts null and undefined check_in_status as waiting for accepted entries (real DB rows)', () => {
+    // Regression: prior version only matched literal 'no-status', so brand-new DB
+    // rows (where the gate steward hasn't touched the entry yet and the column is
+    // null) were invisible to the chip. Normalize null/undefined/empty — but only
+    // count entries that are already accepted into the run order.
+    const t = tree([
+      {
+        id: 'e1',
+        class_id: 'class-active',
+        dog: { call_name: 'Bella' },
+        entry_status: 'accepted',
+      },
+    ]);
+    const signals = computeShowDeskPendingSignals({
+      tree: t,
+      entries: [
+        { entry_status: 'accepted', check_in_status: null },
+        { entry_status: 'accepted', check_in_status: undefined },
+        { entry_status: 'accepted' }, // missing check-in field entirely
+        { entry_status: 'confirmed', check_in_status: 'no-status' },
+        { entry_status: 'accepted', check_in_status: 'checked-in' }, // does NOT count
+      ],
+    });
+    const waiting = signals.find(s => s.id === 'entries-waiting-checkin');
+    expect(waiting).toBeDefined();
+    expect(waiting?.count).toBe(4);
+  });
+
+  it('does NOT count pre-acceptance entries (submitted/draft/pending) as waiting for check-in', () => {
+    // Regression: submitted entries are already surfaced in waiting-for-review and
+    // are not in the run order yet — they should not double-fire in the check-in
+    // chip just because check_in_status is null.
+    const t = tree([
+      {
+        id: 'e1',
+        class_id: 'class-active',
+        dog: { call_name: 'Bella' },
+        entry_status: 'submitted',
+      },
+    ]);
+    const signals = computeShowDeskPendingSignals({
+      tree: t,
+      entries: [
+        { entry_status: 'submitted', check_in_status: null },
+        { entry_status: 'submitted' },
+        { entry_status: 'draft', check_in_status: 'no-status' },
+        { entry_status: 'pending', check_in_status: null },
+      ],
+    });
+    const waiting = signals.find(s => s.id === 'entries-waiting-checkin');
+    expect(waiting).toBeUndefined();
+    // Submitted entries still surface in the review chip.
+    const review = signals.find(s => s.id === 'entries-waiting-review');
+    expect(review?.count).toBe(2);
   });
 
   it('emits a signal when a class needs judge signature', () => {
@@ -168,7 +228,10 @@ describe('computeShowDeskPendingSignals', () => {
     );
     const signals = computeShowDeskPendingSignals({
       tree: t,
-      entries: [{ entry_status: 'submitted' }, { check_in_status: 'no-status' }],
+      entries: [
+        { entry_status: 'submitted' },
+        { entry_status: 'accepted', check_in_status: 'no-status' },
+      ],
     });
     expect(signals.map(s => s.priority)).toEqual(['highest', 'high', 'high']);
   });

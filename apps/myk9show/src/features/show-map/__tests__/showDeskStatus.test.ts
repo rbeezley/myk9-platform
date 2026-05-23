@@ -102,6 +102,61 @@ describe('computeShowDeskStatus', () => {
     expect(result.status).toBe('show-in-progress');
   });
 
+  it('enters wrap-up on the SAME day for a single-day show when classes are done but signatures pending', () => {
+    // Regression: previously gated on today > endDate, which forced single-day shows
+    // to stay show-in-progress until the next calendar day. Plan Q1 says wrap-up
+    // begins once the show has STARTED + no class active + closeout work remains.
+    const singleDayShow = { ...baseShow, startDate: '2026-05-15', endDate: '2026-05-15' } as Show;
+    const sameDayTrial = makeTrial({ trialDate: '2026-05-15' });
+    const tree = buildTree({
+      show: singleDayShow,
+      trials: [sameDayTrial],
+      classes: [
+        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' },
+      ],
+      entries: [
+        {
+          id: 'e1',
+          class_id: 'c1',
+          dog: { call_name: 'Bella' },
+          entry_status: 'accepted',
+          is_scored: true,
+        },
+      ],
+    });
+
+    const result = computeShowDeskStatus({
+      show: singleDayShow,
+      trials: [sameDayTrial],
+      tree,
+      now: new Date('2026-05-15T16:00:00'),
+    });
+
+    expect(result.status).toBe('wrap-up');
+  });
+
+  it('stays show-in-progress on the final day when at least one class is still active', () => {
+    // Guard against over-eager wrap-up: the gate is "no class is active".
+    const singleDayShow = { ...baseShow, startDate: '2026-05-15', endDate: '2026-05-15' } as Show;
+    const sameDayTrial = makeTrial({ trialDate: '2026-05-15' });
+    const tree = buildTree({
+      show: singleDayShow,
+      trials: [sameDayTrial],
+      classes: [
+        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'In Progress' },
+      ],
+    });
+
+    const result = computeShowDeskStatus({
+      show: singleDayShow,
+      trials: [sameDayTrial],
+      tree,
+      now: new Date('2026-05-15T16:00:00'),
+    });
+
+    expect(result.status).toBe('show-in-progress');
+  });
+
   it('returns wrap-up when past end date, no active classes, and wrap-up-eligible nodes exist', () => {
     const tree = buildTree({
       classes: [

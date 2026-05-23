@@ -148,9 +148,12 @@ function PendingSignalsRow({
     >
       {signals.map(signal => {
         const isInteractive = Boolean(onSelect);
-        const className = `rounded-full border px-3 py-1 text-xs font-medium ${
+        // INTENT: Interactive chips are filter shortcuts (Pattern 1) — they must meet
+        // the 44x44px minimum from docs/INTENT.md. min-h-[44px] plus generous padding
+        // keeps the chip readable on desktop while remaining tappable on tablet.
+        const className = `inline-flex min-h-[44px] items-center rounded-full border px-4 py-2 text-sm font-medium ${
           isInteractive
-            ? 'cursor-pointer bg-card hover:bg-muted/40'
+            ? 'cursor-pointer bg-card hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
             : 'bg-card text-foreground'
         }`;
         if (!isInteractive) {

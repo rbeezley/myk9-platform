@@ -1,0 +1,193 @@
+---
+name: ship-pr
+description: Use when shipping or merging an existing PR/branch through review, verification, squash-merge, and cleanup.
+---
+
+# Ship PR
+
+Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → self-review loop → squash-merge → worktree cleanup in the correct order.
+
+## Trigger Phrases
+
+- "ship this PR", "merge the PR", "ship this branch"
+- "address review and merge", "fix review comments"
+- `/ship-pr`
+
+## Workflow
+
+### Step 0: Establish Context
+
+```bash
+git branch --show-current
+gh pr view --json number,title,url,reviewDecision,state 2>/dev/null || echo "NO_PR"
+```
+
+Note the branch name. Note the MAIN REPO path (always `/Users/richardbeezley/AI Projects/myk9-platform`) — needed for merge step.
+
+**Branch check:** Never run on `main`. If the current branch is `main`, stop and tell the user.
+
+---
+
+### If NO PR exists → Steps A–D first
+
+#### Step A: Simplify
+
+Invoke `/simplify` against all uncommitted changes. Wait for it to complete. If it makes changes, re-run typecheck and lint before continuing.
+
+#### Step B: Commit
+
+Invoke `/commit` — it handles staging, typecheck, lint, scoped tests, commit message, and push.
+
+#### Step C: Open PR
+
+```bash
+gh pr create --title "<conventional-commit-style title>" --body "$(cat <<'EOF'
+## Summary
+- <bullet per logical change>
+
+## Test Plan
+- [ ] pnpm typecheck passes
+- [ ] pnpm lint passes
+- [ ] related tests pass
+
+🤖 Generated with [Codex](https://Codex.ai/Codex)
+EOF
+)"
+
+PR_NUMBER=$(gh pr view --json number -q '.number')
+BASE_SHA=$(git rev-parse origin/main)
+HEAD_SHA=$(git rev-parse HEAD)
+```
+
+Then continue to **Step 1** (self-review loop).
+
+---
+
+### If PR already exists → Steps 1–3 first
+
+#### Step 1: Read Review Comments
+
+```bash
+gh pr view <number> --comments
+```
+
+Read ALL comments. Group: (a) blocking issues, (b) nits, (c) resolved/praise — skip (c).
+
+If no unresolved comments, skip to Step 2 (verify).
+
+#### Step 2: Apply Fixes
+
+Work through blocking issues first, then nits:
+
+- Read each file before editing
+- Minimal change — no surrounding refactors
+
+#### Step 3: Verify
+
+Use the same risk-based validation ladder as `/commit`:
+
+- Micro review follow-up: focused tests only; skip full local typecheck/lint unless production TypeScript changed.
+- Low-risk focused change: app/package-local typecheck + lint and related tests.
+- High-risk/shared change: full `pnpm typecheck`, full `pnpm lint`, and broader tests.
+
+Fix failures — max 5 iterations, stop and report if still failing.
+
+After fixes, invoke `/commit` to push.
+
+---
+
+### Step 4: Self-Review via Subagent
+
+```bash
+BASE_SHA=$(git rev-parse origin/main)
+HEAD_SHA=$(git rev-parse HEAD)
+PR_NUMBER=$(gh pr view --json number -q '.number')
+```
+
+Spawn a `superpowers:code-reviewer` subagent:
+
+```
+Review the following implementation.
+
+WHAT_WAS_IMPLEMENTED: <one-line description of the branch>
+PLAN_OR_REQUIREMENTS: <plan file if one exists, otherwise "feature branch">
+BASE_SHA: <base_sha>
+HEAD_SHA: <head_sha>
+DESCRIPTION: PR #<number> — <title>
+
+Repo path: /Users/richardbeezley/AI Projects/myk9-platform
+
+Run `gh pr diff <number>` to see the full diff.
+
+Check for:
+1. TypeScript correctness — no `any`, correct exactOptionalPropertyTypes usage
+2. Test coverage — new logic has tests, no tests disabled
+3. Logic errors, edge cases, boundary conditions
+4. Security — RLS bypass, privilege escalation, unvalidated input, data integrity
+5. AGENTS.md conventions — pnpm not npm, offline-first patterns, files under 500 lines
+
+Return EXACTLY one of:
+- APPROVED
+- A numbered list of issues with file:line, description, severity (critical/high/medium/low)
+```
+
+If `APPROVED` → skip to Step 5.
+
+Otherwise apply findings (critical + high required; medium if straightforward), invoke `/commit`, re-spawn subagent with updated `HEAD_SHA`. **Max 5 review rounds** — escalate to user if not clean after 5.
+
+---
+
+### Step 5: Squash-Merge from MAIN REPO
+
+**CRITICAL: Never run `gh pr merge` from inside the feature worktree.**
+
+Before merging, check status once:
+
+```bash
+gh pr checks $PR_NUMBER
+```
+
+If any check is pending, report "CI pending" and stop unless the user explicitly asked to wait. Do not repeatedly poll. Use `gh pr checks $PR_NUMBER --watch` only when the user asks to wait for checks.
+
+```bash
+# 1. Verify PR state
+gh pr view $PR_NUMBER --json state,mergedAt
+
+# 2. Switch to main repo BEFORE merging
+cd "/Users/richardbeezley/AI Projects/myk9-platform"
+
+# 3. Squash-merge
+gh pr merge $PR_NUMBER --squash --delete-branch
+
+# 4. Confirm
+gh pr view $PR_NUMBER --json state,mergedAt
+```
+
+Do not proceed until `state == "MERGED"`.
+
+---
+
+### Step 6: Cleanup — LAST STEP ONLY
+
+```bash
+# Already in main repo from Step 5
+git fetch --prune
+git checkout main
+git pull --ff-only
+
+# git worktree remove is the ABSOLUTE LAST command — nothing runs after this
+git worktree remove "/Users/richardbeezley/AI Projects/myk9-platform/.Codex/worktrees/<branch-name>" --force 2>/dev/null || true
+```
+
+---
+
+## Rules
+
+- NEVER run on `main` directly
+- NEVER run `gh pr merge` from inside a worktree directory
+- NEVER repeatedly poll PR checks unless the user asks to wait
+- NEVER remove the worktree before merge is confirmed AND main is updated
+- Worktree removal is ALWAYS the final command
+- Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
+- Use `pnpm`, not `npm` or `npx`
+- Max 5 verify iterations, max 5 review rounds — escalate if limits hit

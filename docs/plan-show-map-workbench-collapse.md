@@ -424,6 +424,14 @@ This session surfaced that `resolve-check-in-conflict` (priority 100 in [`showMa
 5. **Audit related callers** — grep for `'check_in_conflict'` and `check_in_status === 'conflict'` across `apps/myk9show/src` (NOT `apps/myk9q/src` — myK9Q legitimately consumes the status). Update any UI that classified entries as "needs secretary attention" based on conflict.
 6. **myK9Q is unchanged.** The status value itself stays in the schema; the gate steward's view continues to render it with priority. This is a secretary-perspective fix, not a data-model change.
 
+7. **[ADDED — review patch] Type/execution cleanup completeness.** The earlier conflict-removal task was incomplete. Three more sites need explicit cleanup:
+
+   - **`showMapActionExecutionById`** in [`showMapActionExecution.ts`](../apps/myk9show/src/features/show-map/showMapActionExecution.ts) — currently includes `'resolve-check-in-conflict': { kind: 'navigate' }` (around line 47 of the current file). Remove this entry. If `ShowMapActionExecution` is keyed by `ShowMapActionId` typewise, removing the action ID from `showMapActionIds` would force a type error here anyway — but make the removal explicit.
+   - **`AttentionCounts` interface** in [`attention.ts`](../apps/myk9show/src/features/show-map/attention.ts) — currently `{ pending_review: number; check_in_conflict: number; total: number }`. Remove the `check_in_conflict: number` field.
+   - **`emptyAttentionCounts()`** in the same file — currently `return { pending_review: 0, check_in_conflict: 0, total: 0 }`. Remove the `check_in_conflict: 0` initializer.
+   - **`countAttention()`** indexes `counts[reason]++` — once `check_in_conflict` is removed from the reason union, this should typecheck cleanly. Verify.
+   - Update any test fixtures that assert against the `AttentionCounts` shape (likely `attention.test.ts`).
+
 #### Cross-app audit checkpoint for the other 5 entry-row actions
 
 Before Phase B2 ships, sanity-check each remaining entry-row action against the question: *"Does the secretary actually do this, or is the primary actor in myK9Q?"*
@@ -483,6 +491,29 @@ Add a `Show Desk` tab to the workbench, wired up with the adaptive header from P
    For Phase B2, `<ShowDeskCloseoutSection>` and `<ShowDeskToolsSheet>` are placeholder stubs that render `null` — Phases B3 and B4 fill them in.
 5. **Refactor `ShowMapTab`** to optionally hide its internal Guidance card, Up Next queue, and Running Now strip when a new prop `compact={true}` is passed (the Show Desk tab passes `compact`, since those surfaces are now hoisted into the adaptive header). The Today and Wrap-up tabs do NOT pass `compact`, so their internal versions render as today (no UX regression during migration).
 
+5a. **[ADDED — review patch] Extract shared workbench state.** The adaptive header (`ShowDeskAdaptiveHeader`) and the compact-mode `ShowMapTab` both need the same orchestration state — the header invokes guidance / Up Next actions, dismisses the guidance, and selects Running Now entries; the tree needs to react (expand path to node, scroll into view, surface attention). Today this state lives entirely inside [`ShowMapTab.tsx`](../apps/myk9show/src/features/show-map/ShowMapTab.tsx) (`useExpandedNodes` around line 218; `useShowMapActionExecutor` and `dismissedGuidanceKeys`; the `selectRunningNowClass` scroll helper around line 266).
+
+   **Mounting the header as a sibling without shared state would force duplicate state and out-of-sync surfaces.** Extract a single source of truth before mounting.
+
+   Recommended approach: a new hook `useShowMapWorkbenchState({ show, trials, classes, entries, phase })` returning:
+
+   ```ts
+   {
+     tree: ShowMapTree;
+     scope: { dayScope, completionScope };
+     setDayScope, setCompletionScope, filter, setFilter;
+     expandedNodeIds, toggleNode, collapseAll, expandTrials, expandPathToNode;
+     guidanceAction, priorityActions, runningNowItems;
+     dismissedGuidanceKeys, dismissGuidanceAction;
+     executor: ReturnType<typeof useShowMapActionExecutor>; // includes moveUp/scratch/message dialogs
+     selectRunningNowClass: (nodeId: string) => void;
+   }
+   ```
+
+   Both `ShowDeskAdaptiveHeader` and the compact-mode `ShowMapTab` consume this hook's return value as props. The dialogs (move-up, scratch, message) render at the Show Desk tab level (not inside ShowMapTab) so the header's action triggers can open them without duplicate dialog roots.
+
+   Acceptance: a single render of `useShowMapWorkbenchState` per Show Desk page; header and compact tree share the same `tree`, `expandedNodeIds`, `executor`, and `dismissedGuidanceKeys`. New test `useShowMapWorkbenchState.test.ts` covers the hook in isolation.
+
 6. Flip the default tab: if `?phase=` is omitted, route to `?phase=show-desk`. Today and Wrap-up remain reachable via the old phase values.
 7. **Auth gate confirmation:** the new tab inherits `ProtectedRoute` from the route position. Phase B2 testing must explicitly verify this hasn't drifted.
 
@@ -522,17 +553,24 @@ Add three new entry-row actions and wire the class-row primary action lifecycle 
 
 ### Implementation
 
-1. **Entry-row 3-dot menu additions** — three new entry-level actions beyond the existing six production actions in [`showMapActions.ts`](../apps/myk9show/src/features/show-map/showMapActions.ts):
+1. **Entry-row 3-dot menu additions.** Originally proposed three additions; scope-corrected to **one confirmed addition** during review, with two deferred until destination routes exist.
 
-   | Action | When it appears | Priority |
+   | Action | Status | Reason |
    |---|---|---|
-   | **Open entry details** | Always | 28 (between scratch and message) |
-   | **Edit score** | Class has been scored OR currently scoring; entry has a score row | 40 |
-   | **View handler's other entries** | Entry has a `handlerId` AND that handler has 2+ entries in the show | 22 |
+   | **Edit score** | **Ship** | Destination exists: `getPaperScoringEntryHref(classId, entryId)` in [`scoringRoutes.ts`](../apps/myk9show/src/pages/scoring/scoringRoutes.ts). Verified during review. |
+   | **Open entry details** | **Defer** | No entry-detail route exists today. The visible secretary route at `/secretary/entries/:showId?` is the cross-show entries-management page, not a per-entry detail. Create the destination first; then add this action. |
+   | **View handler's other entries** | **Defer** | No handler-detail or handler-filtered-entries route exists today. Same blocker. |
 
-   `Edit score` is the deep-link into the scoring screen at `/scoring/classes/:classId/entries?mode=split` for that specific entry — see the [Scoring & data flow](#scoring--data-flow) section.
+   **For the shipped `Edit score` action:**
 
-   **Edit score safety:** when an entry has no score row yet (class not yet started, entry not yet run), `Edit score` should render disabled with a tooltip *"No score recorded yet — start the class first."* — same disabled-with-reason pattern the prototype uses for Scratch on already-scored entries. Add a unit test asserting this conditional rendering.
+   - **ID:** `'edit-score'`. Add to `showMapActionIds` array (currently 16 entries) and the `ShowMapActionId` union in [`showMapActions.ts`](../apps/myk9show/src/features/show-map/showMapActions.ts).
+   - **Execution declaration:** add `'edit-score': { kind: 'navigate' }` to `showMapActionExecutionById` map in [`showMapActionExecution.ts`](../apps/myk9show/src/features/show-map/showMapActionExecution.ts).
+   - **Emission:** in `actionsForNode` for entry nodes, add the action with `href: getPaperScoringEntryHref(classId, entryId)` where `classId` is `parentSourceId` and `entryId` is `sourceIdFromNodeId(node.id, 'entry')`.
+   - **Priority:** 40. Recommended when class status is `active` and entry is the one currently being scored; default-priority otherwise.
+   - **Conditional emission:** only emit when the entry has a score row OR the class is currently being scored. When the entry has no score row yet (class not started), do NOT emit `Edit score` at all (per "Don't show actions that can't apply" — prefer absence over disabled-with-reason for navigate actions; the disabled-with-reason pattern is appropriate for mutation actions like Scratch where the operator might still want to know the option exists).
+   - **Acceptance test:** new unit test in `showMapActions.test.ts` confirming `Edit score` emits with correct href for a scored entry and does NOT emit for an unscored entry in a not-started class.
+
+   **For the deferred actions:** capture as TODOs in `OPEN-TODOS.md` (or wherever the project tracks future work). Pre-requisite: create entry-detail and handler-detail routes. Out of scope for Option B.
 
 2. **Class-row primary action lifecycle** — implement the dynamic primary button per [Pattern 3](#pattern-3--class-primary-action-reflects-class-lifecycle). The class row's most-prominent inline button changes based on `node.status`:
 
@@ -655,13 +693,37 @@ Phase B3 must not merge until:
 
 ## Phase B4 — Closeout section (conditional)
 
-**Entry trigger:** Phase B3 merged.
+**Entry trigger:** Phase B2a merged. (B4 does not depend on B2b's row-action enhancements or B3's tools sheet — can ship in parallel with either.)
 **Estimated PRs:** 1.
 **Risk:** Low. Conditional render block; data-driven appearance.
 
 ### Scope
 
-Build the Closeout section that appears at the bottom of Show Desk **only when at least one class is in a wrap-up-eligible state.**
+Build the Closeout section that appears at the bottom of Show Desk **only when at least one class node carries a wrap-up-eligible `wrapUpStatus.value`.**
+
+**[ADDED — review patch] Terminology precision.** In the tree model ([`showMapTypes.ts:51`](../apps/myk9show/src/features/show-map/showMapTypes.ts)), `node.status.kind` (lifecycle status: `neutral`/`active`/`complete`/`attention`/`muted`/`undefined`) and `node.wrapUpStatus.value` (wrap-up status: see `SHOW_MAP_WRAP_UP_STATUS` constants — `CLASS_READY_FOR_WRAP_UP`, `NEEDS_JUDGE_SIGNATURE`, `SIGNED_BY_JUDGE`, `TRIAL_READY_TO_SUBMIT`) are **separate fields**. Implementations must use `node.wrapUpStatus?.value` with the `SHOW_MAP_WRAP_UP_STATUS` constants, NOT `node.status.kind`. The helper signature:
+
+```ts
+import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
+
+const WRAP_UP_ELIGIBLE_VALUES = new Set([
+  SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
+  SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
+  SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
+  // TRIAL_READY_TO_SUBMIT applies to trial nodes — handle separately if needed
+]);
+
+export function hasAnyWrapUpEligibleNode(tree: ShowMapTree): boolean {
+  for (const node of Object.values(tree.nodesById)) {
+    if (node.type !== 'class') continue;
+    const value = node.wrapUpStatus?.value;
+    if (value && WRAP_UP_ELIGIBLE_VALUES.has(value)) return true;
+  }
+  return false;
+}
+```
+
+Acceptance test in `showDeskStatus.test.ts`: assert the helper returns `false` for a tree where classes only have lifecycle status but no `wrapUpStatus`, and `true` for a tree with at least one class carrying `wrapUpStatus.value = CLASS_READY_FOR_WRAP_UP`.
 
 ### Implementation
 
@@ -715,8 +777,14 @@ Confirm the [Surface boundary](#surface-boundary-with-detail-pages) is intact be
 1. Grep [`apps/myk9show/src/pages/ClassDetailsPage/`](../apps/myk9show/src/pages/ClassDetailsPage/) for any lifecycle/operational actions (start, complete, scratch, move-up, score). PR #293 already removed `Mark In Progress` / `Mark Completed`; verify nothing crept back in.
 2. Audit [`apps/myk9show/src/components/shows/ShowDashboard.tsx`](../apps/myk9show/src/components/shows/ShowDashboard.tsx) — is this a legacy page (now redirects), a duplicate home, or still actively used? If duplicate, decide: deprecate, redirect to workbench, or reconcile.
 3. Grep `apps/myk9show/src/pages/secretary/ShowManagementPage.tsx` (saw references in the earlier audit) — same question.
-4. Document findings as a short PR description or a `docs/b4-5-audit-findings.md` snapshot.
-5. If leaks found: file a remediation PR before Phase B5.
+4. **[ADDED — review patch] Setup tab audit (Q3 resolution).** Walk the live Setup tab at `/secretary/shows/:id?phase=setup`. Compare its scaffolding against the simplification template applied to Today/Wrap-up in B5:
+   - Does it have an "About Setup" banner that exists purely as static educational copy? If yes, candidate for removal.
+   - Does it have a "What do I do if…" help card always visible? If yes, candidate for `?` popover.
+   - Does it sprawl 5+ separate setup-tool cards? If yes, candidate for collapsing into a `ShowDeskSetupToolsSection` or similar.
+   - Setup's `PhaseChecklist` likely contains genuinely manual confirmations (premium published, judges confirmed, etc.) — keep the checklist primitive itself; don't try to derive these the way Show Desk derives operational signals.
+   - Document findings + recommendation. If significant simplification opportunity exists, file a new Phase B8 to apply it after B5. If Setup is already lean, mark as confirmed-clean.
+5. Document overall findings as a short PR description or a `docs/b4-5-audit-findings.md` snapshot.
+6. If leaks or scaffolding opportunities found: file remediation PR(s) before Phase B5 (for the operational leaks) and/or queue B8 (for the Setup simplification).
 
 ### Exit criterion
 
@@ -1035,7 +1103,7 @@ These were identified during verify-plan but are intentionally deferred — hand
 | **Net surface area** | +1 tab | −2 tabs, −2 checklists, −2 about banners, −2 help cards, 6/7 desk cards collapsed |
 | **Conceptual change** | Incremental | Architectural |
 | **Risk** | Lower | Higher (more user-visible removal) |
-| **Effort** | 5 PRs | 7 PRs |
+| **Effort** | 5 PRs | 10–11 PRs (B0, B1, B2a, B2b, B3, B4, B4.5, B5, B6, B6.5, plus B7 post-launch) |
 | **Addresses "too many features and choices" concern** | Partially (consolidates Show Map only) | Directly (deletes scaffolding, collapses tools) |
 | **Preserves architectural commitments** | Yes | Yes |
 | **Reversibility** | High (5 small PRs, each revertible) | Medium (B5 is the load-bearing rip; B0-B4 are fully reversible) |
@@ -1068,3 +1136,4 @@ If the PO's strongest priority is **fewer features and choices**, Option B is th
 | 2026-05-22 | **PO review pass — six concrete patches applied.** (1) Conflict-removal extended to `showMapStatus.ts` lines 116 & 162 (was incomplete — would still visually render attention). (2) `computeShowDeskStatus` signature widened to take show + trials + tree + injectable `now` (was tree-only; date-aware rule needs show dates). (3) Phase B2 split into B2a (tab/header/compact/routing) and B2b (row-action enhancements) — original was too loaded. (4) Class primary action wiring gap documented — current `ShowMapStructureTable.tsx:416` only renders when `primaryAction.href` exists; mutation actions (`mark-class-started`, `mark-class-complete`) need additional wiring. (5) Tools sheet reverted from 9 → 7 tiles for the B3 collapse pass; Volunteers + Tasks tile additions moved to deferred Phase B6.5 to keep simplification message clean. (6) Pattern 2 terminology aligned with production: `navigate / mutation / dialog / disabled` (was `navigate / execute / print / disabled` — wrong). | Code-grounded PO review |
 | 2026-05-22 | **Class status auto-derivation flagged as candidate follow-up plan.** PO observed that first-score → `active` and last-expected-score → `complete` is derivable from scoring events. Captured as stub at [`plan-class-status-auto-derivation.md`](plan-class-status-auto-derivation.md); requires PO interview on six edge-case rules before full plan can be drafted. Phase B2b now carries a future-proofing note: don't over-invest in always-visible Mark Started / Mark Complete buttons since they may become rare under auto-derivation. | This session |
 | 2026-05-22 | **Dashboard refocus stub created** at [`plan-dashboard-refocus.md`](plan-dashboard-refocus.md). Captures the candidate follow-up to narrow the Secretary Dashboard to cross-show concerns once Option B's workbench takes over per-show work. Deferred until post-Option-B observation period yields data on which dashboard surfaces remain useful. | This session |
+| 2026-05-23 | **Second PO review pass — six concrete patches applied.** (1) B2a now includes an explicit shared-state extraction step (`useShowMapWorkbenchState` hook) so adaptive header + compact tree don't fork orchestration state. (2) Phase B1 conflict-removal extended to `showMapActionExecutionById`, `AttentionCounts` interface, and `emptyAttentionCounts()` (three sites the earlier patch missed). (3) Phase B2b entry-action additions scope-corrected from three (Open entry details, Edit score, View handler's other entries) to one (Edit score — the only one with an existing destination via `getPaperScoringEntryHref`). Two deferred until destination routes exist; captured as TODOs. (4) Phase B4 closeout terminology tightened to `node.wrapUpStatus?.value` with `SHOW_MAP_WRAP_UP_STATUS` constants (was conflated with `node.status.kind`). (5) Sequencing fixed: B4 entry trigger now correctly "B2a merged" matching the parallel critical path; Comparison table effort row updated 7 PRs → 10–11 PRs. (6) Setup audit (Q3 resolution) added explicitly to Phase B4.5 implementation steps — was marked resolved but never landed in B4.5's actual scope. | Code-grounded PO review |

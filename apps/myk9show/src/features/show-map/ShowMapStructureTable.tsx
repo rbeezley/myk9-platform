@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, FilterX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -40,6 +40,7 @@ interface ShowMapStructureTableProps {
   scope?: ShowMapScopeState | undefined;
   scopeNow?: Date | undefined;
   actionPhase?: 'today' | 'wrap-up' | undefined;
+  onResetFilters?: (() => void) | undefined;
 }
 
 const INTERACTIVE_ROW_TARGET_SELECTOR =
@@ -167,6 +168,7 @@ export function ShowMapStructureTable({
   scope = DEFAULT_SHOW_MAP_SCOPE,
   scopeNow = new Date(),
   actionPhase,
+  onResetFilters,
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
   const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>();
@@ -487,10 +489,42 @@ export function ShowMapStructureTable({
     );
   };
 
+  const topLevelChildIds = tree.childIdsByParentId[tree.root.id] ?? [];
+  const visibleTopLevelChildIds = topLevelChildIds.filter(childId => {
+    const child = tree.nodesById[childId];
+    return child
+      ? shouldRenderShowMapNode(tree, child, filter, attentionNodeIds, scope, scopeNow)
+      : false;
+  });
+  const showFilteredEmptyState =
+    topLevelChildIds.length > 0 && visibleTopLevelChildIds.length === 0;
+
+  if (showFilteredEmptyState) {
+    return (
+      <div
+        className="flex flex-col items-center gap-3 rounded-md border bg-card px-6 py-10 text-center"
+        role="status"
+      >
+        <FilterX className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <div>
+          <h3 className="text-base font-semibold">Nothing matches your current filters.</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Try a different day or completion view, or reset to defaults.
+          </p>
+        </div>
+        {onResetFilters && (
+          <Button type="button" variant="outline" size="sm" onClick={onResetFilters}>
+            Reset filters
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto">
       <ul role="tree" className="min-w-[900px] space-y-3">
-        {(tree.childIdsByParentId[tree.root.id] ?? []).map(id => renderNode(id, 0))}
+        {topLevelChildIds.map(id => renderNode(id, 0))}
       </ul>
     </div>
   );

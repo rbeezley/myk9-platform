@@ -286,6 +286,11 @@ export default function ShowMapTab({
     () => buildMoveUpTargets(classes, moveUpAction?.classId),
     [classes, moveUpAction?.classId]
   );
+  const resetFilters = useCallback(() => {
+    setFilter('all');
+    setDayScope(initialDayScope);
+    setCompletionScope(initialCompletionScope);
+  }, [initialCompletionScope, initialDayScope]);
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
@@ -391,6 +396,7 @@ export default function ShowMapTab({
           onAction={executeAction}
           enableRowActions={canManageShow}
           actionPhase={actionPhase}
+          onResetFilters={resetFilters}
         />
       </div>
       {canManageShow && (

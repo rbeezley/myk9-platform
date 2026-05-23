@@ -754,6 +754,101 @@ describe('showMapActions', () => {
     ]);
   });
 
+  describe('trial-level wrap-up gate (no premature submit-final-results)', () => {
+    it('does NOT emit submit-final-results while any class in the trial is still in progress', () => {
+      // Regression: pre-fix, a trial defaulted to TRIAL_READY_TO_SUBMIT the
+      // moment ANY class completed. A secretary on day 1 of a multi-day trial
+      // would see "Submit final results" pointing at the registry submission
+      // page while 20 classes were still running.
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-complete',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-still-running',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ],
+        entries: [],
+      });
+
+      const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(a => a.id);
+      expect(ids).not.toContain('submit-final-results');
+    });
+
+    it('emits submit-final-results when every class in the trial is complete', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-a',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-b',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'Complete',
+          },
+        ],
+        entries: [
+          { id: 'e-a', class_id: 'class-a', is_scored: true, judge_signature_timestamp: '2026-05-18' },
+          { id: 'e-b', class_id: 'class-b', is_scored: true, judge_signature_timestamp: '2026-05-18' },
+        ],
+      });
+
+      const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(a => a.id);
+      expect(ids).toContain('submit-final-results');
+    });
+
+    it('still rolls a complete-but-unsigned class up to trial NEEDS_WRAP_UP even when other classes are in progress', () => {
+      // NEEDS_WRAP_UP stays loose: an unsigned signature is urgent regardless
+      // of whether other classes are still scoring. The signal must surface
+      // immediately so the secretary can chase the judge while the show runs.
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-still-running',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ],
+        entries: [
+          // Complete but unsigned → class-level NEEDS_JUDGE_SIGNATURE.
+          { id: 'e1', class_id: 'class-needs-signature', is_scored: true },
+        ],
+      });
+
+      const trialNode = tree.nodesById['trial:trial-1'];
+      expect(trialNode?.wrapUpStatus?.value).toBe('needs-wrap-up');
+
+      const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(a => a.id);
+      expect(ids).toContain('collect-judge-signature');
+      // NEEDS_WRAP_UP does not itself emit a trial-level action; that's by design.
+      expect(ids).not.toContain('submit-final-results');
+    });
+  });
+
   describe('getAttentionCountsByNodeId', () => {
     it('rolls per-node attention up to root in unified (phase=undefined) mode', () => {
       // 2 submitted entries on class-active (live-ops) + 1 unsigned-complete

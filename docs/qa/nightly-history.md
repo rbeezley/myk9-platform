@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-23
+
+- **Playwright command:** pass after low-risk local fixes
+- **Route sweep:** pass
+- **Active specs:** Vitest 18/18; Playwright 44/44
+- **Failures:** Initial active Playwright run failed `43/45`. `entryCreationCore.spec.ts` timed out in the browser-side show-statistics direct-store check after the suite exceeded the 60-second hang threshold; evidence path: `apps/myk9show/test-results/registration-entryCreation-2f2cf-egrate-with-show-statistics-chromium/error-context.md`. `show-creation-wizard.spec.ts` failed clicking the date-picker `Done` button because the element became unstable/outside the viewport; evidence path: `apps/myk9show/test-results/secretary-show-creation-wi-ca4cd-and-independent-date-ranges-chromium/error-context.md`. Finding `QA-TEST-FLAKE-009`.
+- **Fixes made:** `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`, `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`, `packages/ui/package.json`, `docs/qa/e2e-suite-map.md`, `docs/qa/findings.md`, `docs/qa/nightly-history.md`
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`, then created local branch `codex/nightly-qa-2026-05-23` before edits. Removed duplicate browser-side show-statistics coverage already proven by promoted Vitest Nightly, and hardened the show-wizard date helper with a visibility assertion plus DOM click for the dialog `Done` button. Also repaired the local `@myk9/ui` build script after the commit hook exposed an npm/pnpm mismatch. Proofs passed: `pnpm qa:e2e-map:check`, promoted Vitest Nightly (`18 passed`), focused registration/show-wizard Playwright proof (`8 passed`), full active Playwright Nightly (`44 passed`, retries disabled), route sweep across public, exhibitor, secretary, judge, club-admin, and admin route groups (`66/66`), `pnpm --filter @myk9/show typecheck`, and `pnpm --filter @myk9/ui build`.
+
 ### 2026-05-22
 
 - **Playwright command:** pass after low-risk local fixes

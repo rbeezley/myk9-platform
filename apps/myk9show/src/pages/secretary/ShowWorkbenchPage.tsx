@@ -585,6 +585,47 @@ export function ShowWorkbenchPage() {
                   <TasksNotesCard showId={currentShow.id} />
                 </>
               }
+              closeoutContent={
+                <>
+                  <ShowDayReconciliation entries={showEntries} />
+                  <IncidentCloseoutSummary showId={currentShow.id} />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                      <Link to="/secretary/results-control">
+                        <ListChecks className="h-5 w-5" />
+                        <span className="text-left">
+                          <span className="block font-medium">Results Control</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Verify results
+                          </span>
+                        </span>
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                      <Link to="/secretary/reports">
+                        <FileBarChart className="h-5 w-5" />
+                        <span className="text-left">
+                          <span className="block font-medium">Reports</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Print and export
+                          </span>
+                        </span>
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
+                      <Link to="/secretary/results-submission">
+                        <Send className="h-5 w-5" />
+                        <span className="text-left">
+                          <span className="block font-medium">Submit Results</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Send final files
+                          </span>
+                        </span>
+                      </Link>
+                    </Button>
+                  </div>
+                </>
+              }
             />
           </Suspense>
         </PrimaryTabsContent>

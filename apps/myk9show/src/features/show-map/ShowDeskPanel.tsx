@@ -1,5 +1,6 @@
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
+import { ShowDeskCloseoutSection } from './ShowDeskCloseoutSection';
 import { ShowDeskToolsSheet } from './ShowDeskToolsSheet';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
@@ -20,6 +21,9 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   // judges, incident options, broadcast classes, or other tool-specific
   // data dependencies. When omitted, the Tools sheet is not rendered.
   toolsContent?: ReactNode;
+  // Composed at the page level — the closeout section renders only when
+  // at least one class is wrap-up-eligible (see ShowDeskCloseoutSection).
+  closeoutContent?: ReactNode;
 }
 
 function buildMoveUpTargets(
@@ -51,6 +55,7 @@ export default function ShowDeskPanel({
   canManageShow,
   scopeNow,
   toolsContent,
+  closeoutContent,
 }: ShowDeskPanelProps) {
   const state = useShowMapWorkbenchState({
     show,
@@ -157,6 +162,9 @@ export default function ShowDeskPanel({
         compact
         workbenchState={state}
       />
+      {closeoutContent && (
+        <ShowDeskCloseoutSection tree={tree}>{closeoutContent}</ShowDeskCloseoutSection>
+      )}
       {canManageShow && (
         <>
           <ShowMapMoveUpDialog

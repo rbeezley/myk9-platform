@@ -106,6 +106,30 @@ describe('ShowMapStructureTable filtered empty state', () => {
     expect(onResetFilters).toHaveBeenCalledTimes(1);
   });
 
+  it('renders the empty state when the scope (not filter) hides every row', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: cleanClasses,
+      entries: [],
+    });
+
+    render(
+      <ShowMapStructureTable
+        tree={tree}
+        expandedNodeIds={new Set(Object.keys(tree.nodesById))}
+        filter="all"
+        scope={{ dayScope: 'tomorrow', completionScope: 'completed' }}
+        scopeNow={new Date('2026-05-11T12:00:00Z')}
+        onToggle={vi.fn()}
+        onResetFilters={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Nothing matches your current filters.')).toBeInTheDocument();
+    expect(screen.queryByRole('tree')).not.toBeInTheDocument();
+  });
+
   it('omits the reset button when no reset callback is provided', () => {
     const tree = buildShowMapTree({
       show,

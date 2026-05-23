@@ -490,14 +490,15 @@ export function ShowMapStructureTable({
   };
 
   const topLevelChildIds = tree.childIdsByParentId[tree.root.id] ?? [];
-  const visibleTopLevelChildIds = topLevelChildIds.filter(childId => {
-    const child = tree.nodesById[childId];
-    return child
-      ? shouldRenderShowMapNode(tree, child, filter, attentionNodeIds, scope, scopeNow)
-      : false;
-  });
-  const showFilteredEmptyState =
-    topLevelChildIds.length > 0 && visibleTopLevelChildIds.length === 0;
+  const showFilteredEmptyState = useMemo(() => {
+    if (topLevelChildIds.length === 0) return false;
+    return !topLevelChildIds.some(childId => {
+      const child = tree.nodesById[childId];
+      return child
+        ? shouldRenderShowMapNode(tree, child, filter, attentionNodeIds, scope, scopeNow)
+        : false;
+    });
+  }, [topLevelChildIds, tree, filter, attentionNodeIds, scope, scopeNow]);
 
   if (showFilteredEmptyState) {
     return (
@@ -509,7 +510,7 @@ export function ShowMapStructureTable({
         <div>
           <h3 className="text-base font-semibold">Nothing matches your current filters.</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Try a different day or completion view, or reset to defaults.
+            Try a different view, or reset to defaults.
           </p>
         </div>
         {onResetFilters && (

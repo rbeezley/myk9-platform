@@ -1,0 +1,58 @@
+version: 2
+
+# Weekly grouped updates so the Security tab doesn't flood with one PR per
+# advisory. Minor + patch versions are bundled per ecosystem; majors land as
+# their own PRs (each major bump deserves a dedicated review cycle).
+#
+# Schedule: Monday 06:00 UTC = early Monday US for triage at start of week.
+# See docs/plan-dependabot-remediation.md for the policy this codifies.
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 3
+    labels:
+      - "ci"
+      - "automated"
+    commit-message:
+      prefix: "ci(actions)"
+      include: "scope"
+    groups:
+      gha-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

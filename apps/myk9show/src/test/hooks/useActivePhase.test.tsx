@@ -17,12 +17,12 @@ function usePhaseWithPath() {
 }
 
 describe('useActivePhase', () => {
-  it('returns setup when no phase is present', () => {
+  it('returns show-desk when no phase is present (Phase B2a default)', () => {
     const { result } = renderHook(() => useActivePhase(), {
       wrapper: createWrapper('/secretary/shows/show-1'),
     });
 
-    expect(result.current[0]).toBe('setup');
+    expect(result.current[0]).toBe('show-desk');
   });
 
   it('reads a valid phase from the URL', () => {
@@ -33,12 +33,12 @@ describe('useActivePhase', () => {
     expect(result.current[0]).toBe('today');
   });
 
-  it('falls back to setup for an invalid phase', () => {
+  it('falls back to the default for an invalid phase', () => {
     const { result } = renderHook(() => useActivePhase(), {
       wrapper: createWrapper('/secretary/shows/show-1?phase=dashboard'),
     });
 
-    expect(result.current[0]).toBe('setup');
+    expect(result.current[0]).toBe('show-desk');
   });
 
   it('updates the phase while preserving unrelated query params', () => {
@@ -61,10 +61,10 @@ describe('useActivePhase', () => {
     });
 
     act(() => {
-      result.current.setPhase('setup');
+      result.current.setPhase('show-desk');
     });
 
-    expect(result.current.phase).toBe('setup');
+    expect(result.current.phase).toBe('show-desk');
     expect(result.current.search).toBe('?focus=check-in');
   });
 });

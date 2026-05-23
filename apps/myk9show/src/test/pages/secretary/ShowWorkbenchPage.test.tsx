@@ -384,6 +384,7 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByRole('tab', { name: /Setup/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Today/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Wrap-up/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Show Desk/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /preview public page/i })).toHaveAttribute(
       'href',
       '/shows/show-1'
@@ -398,6 +399,26 @@ describe('ShowWorkbenchPage', () => {
     expect(todayTab).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('lands on Show Desk by default when no ?phase is provided (Phase B2a)', async () => {
+    renderWorkbench('/secretary/shows/show-1');
+
+    const showDeskTab = await screen.findByRole('tab', { name: /Show Desk/ });
+    expect(showDeskTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('falls back to the default tab on an unknown ?phase value', async () => {
+    renderWorkbench('/secretary/shows/show-1?phase=garbage');
+
+    const showDeskTab = await screen.findByRole('tab', { name: /Show Desk/ });
+    expect(showDeskTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('renders the adaptive header status pill on the Show Desk tab', async () => {
+    renderWorkbench('/secretary/shows/show-1?phase=show-desk');
+
+    expect(await screen.findByTestId('show-desk-status-pill')).toBeInTheDocument();
+  });
+
   it('updates phase when a tab is selected', async () => {
     const user = userEvent.setup();
     renderWorkbench();
@@ -408,7 +429,8 @@ describe('ShowWorkbenchPage', () => {
   });
 
   it('renders Setup panels without public-discovery panels', async () => {
-    renderWorkbench('/secretary/shows/show-1');
+    // Phase B2a: bare URL lands on Show Desk by default; Setup is reached via explicit ?phase=setup.
+    renderWorkbench('/secretary/shows/show-1?phase=setup');
 
     expect(await screen.findByRole('heading', { name: 'About Setup' })).toBeInTheDocument();
     expect(

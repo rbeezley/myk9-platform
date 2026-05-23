@@ -10,32 +10,32 @@ import {
   type PhaseChecklistContext,
   type PhaseChecklistDefinition,
 } from './phaseChecklistDefinitions';
-import type { ShowWorkbenchPhase } from '@/hooks/useActivePhase';
+import type { LegacyShowWorkbenchPhase } from '@/hooks/useActivePhase';
 
 type ManualChecklistValue = 'checked' | 'skipped';
 type ManualChecklistState = Record<string, ManualChecklistValue>;
 type ResolvedChecklistStatus = 'auto' | 'checked' | 'skipped' | 'open';
 
 interface PhaseChecklistProps {
-  phase: ShowWorkbenchPhase;
+  phase: LegacyShowWorkbenchPhase;
   showId: string;
   context: PhaseChecklistContext;
 }
 
 interface PhaseChecklistBodyProps {
-  phase: ShowWorkbenchPhase;
+  phase: LegacyShowWorkbenchPhase;
   showId: string;
   autoCompleteIds: string[];
   definitions: PhaseChecklistDefinition[];
 }
 
-function storageKey(showId: string, phase: ShowWorkbenchPhase): string {
+function storageKey(showId: string, phase: LegacyShowWorkbenchPhase): string {
   return `myk9show:workbench-checklist:${showId}:${phase}`;
 }
 
 function readStoredState(
   showId: string,
-  phase: ShowWorkbenchPhase,
+  phase: LegacyShowWorkbenchPhase,
   ignoredIds: Set<string>
 ): ManualChecklistState {
   if (typeof window === 'undefined') return {};
@@ -56,7 +56,7 @@ function readStoredState(
 
 function writeStoredState(
   showId: string,
-  phase: ShowWorkbenchPhase,
+  phase: LegacyShowWorkbenchPhase,
   state: ManualChecklistState
 ) {
   if (typeof window === 'undefined') return;

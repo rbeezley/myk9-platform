@@ -36,14 +36,29 @@ function countEntriesWaitingReview(entries: readonly EntryLike[]): number {
   return entries.filter(entry => lower(entry.entry_status) === 'submitted').length;
 }
 
+// Entry states where the entry is in the run order and therefore eligible to be
+// checked in at the gate. Pre-acceptance states (submitted, draft, pending) and
+// terminal states (scratched, no-show, withdrawn) are excluded — they'd either
+// double-count against waiting-for-review or shouldn't show at the gate at all.
+const RUN_ORDER_ELIGIBLE_ENTRY_STATUSES: ReadonlySet<string> = new Set([
+  'accepted',
+  'confirmed',
+]);
+
 function countEntriesWaitingCheckIn(entries: readonly EntryLike[]): number {
   // INTENT: Treat missing / null / empty / 'no-status' all as "not yet checked in".
   // Real DB rows often arrive with null check_in_status before the gate steward has
   // touched the entry; mappers preserve that null. Narrowing to literal 'no-status'
   // would undercount the chip on most shows.
+  //
+  // BUT only count entries that are run-order-eligible — submitted/draft/pending
+  // entries are still pre-acceptance and already surface in waiting-for-review.
+  // Counting them here too would show the same entry in both chips.
   return entries.filter(entry => {
-    const status = lower(entry.check_in_status);
-    return status === '' || status === 'no-status';
+    const entryStatus = lower(entry.entry_status);
+    if (!RUN_ORDER_ELIGIBLE_ENTRY_STATUSES.has(entryStatus)) return false;
+    const checkInStatus = lower(entry.check_in_status);
+    return checkInStatus === '' || checkInStatus === 'no-status';
   }).length;
 }
 

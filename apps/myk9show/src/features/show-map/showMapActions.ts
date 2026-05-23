@@ -1,3 +1,4 @@
+import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import { getShowMapReportHref, getShowMapTrialScheduleHref } from './showMapRoutes';
 import {
   ArrowUpCircle,
@@ -10,6 +11,7 @@ import {
   FolderOpen,
   MessageSquare,
   PenLine,
+  Pencil,
   PlayCircle,
   Send,
 } from 'lucide-react';
@@ -28,6 +30,7 @@ export const showMapBadgeTargets = {
 
 export const showMapActionIds = [
   'review-entry',
+  'edit-score',
   'score-class',
   'open-class',
   'print-check-in-sheet',
@@ -244,6 +247,29 @@ function liveOpsActionsForNode(
           href
         )
       );
+    }
+    // Edit score deep-links into the paper-scoring screen at this entry's
+    // row. Surfaces in two situations:
+    // (a) The parent class is `active` → secretary can deep-link at any
+    //     entry's position (currently-scoring, upcoming, or already scored).
+    // (b) The entry itself is `complete` (scored) regardless of class status
+    //     → post-hoc correction path that works even after the class is
+    //     marked complete.
+    const parentNode = node.parentId ? tree.nodesById[node.parentId] : undefined;
+    const entryScored = node.status?.kind === 'complete';
+    const classActive = parentNode?.status?.kind === 'active';
+    const entryId = getNodeSourceId(node, 'entry');
+    if ((entryScored || classActive) && classId && entryId) {
+      actions.push({
+        id: 'edit-score',
+        nodeId: node.id,
+        label: 'Edit score',
+        why: withEntryContext(node, 'Open the scoring screen at this entry'),
+        priority: 40,
+        href: getPaperScoringEntryHref(classId, entryId),
+        icon: Pencil,
+        classId,
+      });
     }
     if (canMarkEntryCheckedIn(node)) {
       actions.push({
@@ -558,6 +584,11 @@ export function getPrimaryActionForNode(
   state: ShowMapActionState
 ): ShowMapAction | undefined {
   if (!node) return undefined;
-  const actions = getDirectActionsForNode(node, state).filter(action => action.href);
-  return actions[0];
+  // INTENT: B2b — the highest-priority action wins regardless of whether it
+  // navigates or fires a mutation. The previous href-only filter meant
+  // `mark-class-started` (mutation, no href) could never be the primary
+  // button on a neutral class, so the secretary saw "Print Check-In Sheet"
+  // when the next operational step was actually to start the class. Pattern
+  // 3: next step always visible.
+  return getDirectActionsForNode(node, state)[0];
 }

@@ -200,7 +200,7 @@ describe('showMapActions', () => {
     expect(getAttentionActions('root', { tree })).toEqual([]);
   });
 
-  it('uses Score Class only as the primary action for active classes', () => {
+  it('uses the lifecycle-appropriate primary action for each class state (Pattern 3)', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -208,13 +208,17 @@ describe('showMapActions', () => {
       entries: [],
     });
 
+    // Active class → Score Class (the next operational step).
     expect(getPrimaryActionForNode(tree.nodesById['class:class-active'], { tree })).toMatchObject({
       id: 'score-class',
       label: 'Score Class',
     });
+    // Neutral / not-started class → Mark Class Started (the next operational
+    // step). Pre-B2b this incorrectly returned Print Check-In Sheet because
+    // the primary picker filtered out mutation actions.
     expect(getPrimaryActionForNode(tree.nodesById['class:class-future'], { tree })).toMatchObject({
-      id: 'print-check-in-sheet',
-      label: 'Print Check-In Sheet',
+      id: 'mark-class-started',
+      label: 'Mark Class Started',
     });
   });
 
@@ -983,6 +987,134 @@ describe('showMapActions', () => {
       const counts = getAttentionCountsByNodeId(tree, undefined);
 
       expect(counts.size).toBe(0);
+    });
+  });
+
+  describe('edit-score entry action (B2b)', () => {
+    it('emits edit-score with the entry deep-link when the parent class is active', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-active', trialId: 'trial-1', name: 'Interior', status: 'In Progress' },
+        ],
+        entries: [
+          { id: 'entry-1', class_id: 'class-active', dog: { call_name: 'Bella' } },
+          { id: 'entry-2', class_id: 'class-active', dog: { call_name: 'Scout' } },
+        ],
+      });
+
+      const editActions = getRankedActions('root', { tree }).filter(a => a.id === 'edit-score');
+      expect(editActions).toHaveLength(2);
+      expect(editActions[0]).toMatchObject({
+        id: 'edit-score',
+        href: '/scoring/classes/class-active/entries?entryId=entry-1&mode=split',
+        classId: 'class-active',
+      });
+    });
+
+    it('emits edit-score on a complete entry regardless of class status (post-hoc correction)', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-complete', trialId: 'trial-1', name: 'Buried', status: 'Complete' },
+        ],
+        entries: [{ id: 'entry-scored', class_id: 'class-complete', is_scored: true }],
+      });
+
+      const editAction = getRankedActions(tree.nodesById['entry:entry-scored']!, { tree }).find(
+        a => a.id === 'edit-score'
+      );
+      expect(editAction).toBeDefined();
+      expect(editAction).toMatchObject({
+        href: '/scoring/classes/class-complete/entries?entryId=entry-scored&mode=split',
+      });
+    });
+
+    it('does NOT emit edit-score on an unscored entry in a not-started class', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes,
+        entries: [
+          {
+            id: 'entry-pending',
+            class_id: 'class-future',
+            dog: { call_name: 'Scout' },
+            entry_status: 'accepted',
+          },
+        ],
+      });
+
+      const ids = getRankedActions(tree.nodesById['entry:entry-pending']!, { tree }).map(a => a.id);
+      expect(ids).not.toContain('edit-score');
+    });
+
+    it("does NOT emit edit-score under phase: 'wrap-up' (it's a live-ops action)", () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-active', trialId: 'trial-1', name: 'Interior', status: 'In Progress' },
+        ],
+        entries: [{ id: 'entry-1', class_id: 'class-active', dog: { call_name: 'Bella' } }],
+      });
+
+      const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(a => a.id);
+      expect(ids).not.toContain('edit-score');
+    });
+  });
+
+  describe('class-row primary action lifecycle (B2b Pattern 3)', () => {
+    it("returns 'mark-class-started' for a not-started class", () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [{ id: 'c', trialId: 'trial-1', name: 'Novice', status: 'Not Started' }],
+        entries: [],
+      });
+
+      expect(getPrimaryActionForNode(tree.nodesById['class:c'], { tree })).toMatchObject({
+        id: 'mark-class-started',
+      });
+    });
+
+    it("returns 'score-class' for an active class", () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [{ id: 'c', trialId: 'trial-1', name: 'Novice', status: 'In Progress' }],
+        entries: [],
+      });
+
+      expect(getPrimaryActionForNode(tree.nodesById['class:c'], { tree })).toMatchObject({
+        id: 'score-class',
+      });
+    });
+
+    it("returns 'open-class' for a complete + submitted-to-registry class (no wrap-up competing)", () => {
+      // A complete class still in pre-submit limbo emits review-results
+      // (priority 60) which beats open-class — that's correct behavior, the
+      // next step really IS review. Pattern 3's "Open Class" applies once
+      // the trial has been submitted to the registry, after which no
+      // wrap-up action competes.
+      const trialSubmitted = {
+        ...trial,
+        resultSubmittedAt: '2026-05-20T12:00:00Z',
+      } as SyncableTrial;
+      const tree = buildShowMapTree({
+        show,
+        trials: [trialSubmitted],
+        classes: [{ id: 'c', trialId: 'trial-1', name: 'Novice', status: 'Complete' }],
+        entries: [
+          { id: 'e1', class_id: 'c', is_scored: true, judge_signature_timestamp: '2026-05-18' },
+        ],
+      });
+
+      expect(getPrimaryActionForNode(tree.nodesById['class:c'], { tree })).toMatchObject({
+        id: 'open-class',
+      });
     });
   });
 });

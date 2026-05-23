@@ -126,11 +126,11 @@ describe('showMapActions', () => {
     expect(recommendedActions).toEqual([
       expect.objectContaining({
         id: 'resolve-check-in-conflict',
-        why: 'Entry has a check-in conflict',
+        why: 'Bella — Entry has a check-in conflict',
       }),
       expect.objectContaining({
         id: 'review-entry',
-        why: 'Entry is waiting for secretary review',
+        why: 'Scout — Entry is waiting for secretary review',
       }),
     ]);
   });
@@ -405,6 +405,70 @@ describe('showMapActions', () => {
         nodeId: 'entry:entry-with-handler',
       }),
     ]);
+  });
+
+  it('disambiguates entry-scoped action context when several entries stack', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-one',
+          class_id: 'class-active',
+          armband: '101',
+          dog: { call_name: 'Bella' },
+          handler: 'A. Martin',
+          entry_status: 'submitted',
+        },
+        {
+          id: 'entry-two',
+          class_id: 'class-active',
+          armband: '102',
+          dog: { call_name: 'Scout' },
+          handler: 'B. Lee',
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    const reviewActions = getRankedActions('root', { tree }).filter(
+      action => action.id === 'review-entry'
+    );
+
+    expect(reviewActions).toHaveLength(2);
+    expect(reviewActions[0]!.label).toBe('Review entry');
+    expect(reviewActions[1]!.label).toBe('Review entry');
+    expect(reviewActions[0]!.why).toContain('#101');
+    expect(reviewActions[0]!.why).toContain('Bella');
+    expect(reviewActions[0]!.why).toContain('A. Martin');
+    expect(reviewActions[0]!.why).toContain('Entry is waiting for secretary review');
+    expect(reviewActions[1]!.why).toContain('#102');
+    expect(reviewActions[1]!.why).toContain('Scout');
+    expect(reviewActions[0]!.why).not.toBe(reviewActions[1]!.why);
+  });
+
+  it('omits missing entry-context fragments without leaving dangling separators', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-bare',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+
+    const reviewAction = getRankedActions('root', { tree }).find(
+      action => action.id === 'review-entry'
+    );
+
+    expect(reviewAction).toBeDefined();
+    expect(reviewAction!.why).toBe('Bella — Entry is waiting for secretary review');
   });
 
   it('keeps wrap-up attention actions out of the default Today action set', () => {

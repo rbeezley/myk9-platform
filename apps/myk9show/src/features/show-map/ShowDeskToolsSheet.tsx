@@ -32,7 +32,7 @@ interface ShowDeskToolsSheetProps {
 // children, so this component never needs to know about judges, classes,
 // incidents, or any of the tools' specific data dependencies.
 export function ShowDeskToolsSheet({
-  toolCount = 7,
+  toolCount = 9,
   actionableCount,
   children,
 }: ShowDeskToolsSheetProps) {

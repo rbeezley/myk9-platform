@@ -22,14 +22,14 @@ describe('ShowDeskToolsSheet', () => {
     );
   }
 
-  it('renders the Tools trigger button with a default badge of 7', () => {
+  it('renders the Tools trigger button with a default badge of 9', () => {
     renderSheet();
 
     const trigger = screen.getByRole('button', { name: /open tools panel/i });
     expect(trigger).toBeInTheDocument();
     const badge = screen.getByTestId('show-desk-tools-badge');
-    expect(badge).toHaveTextContent('7');
-    expect(badge).toHaveAttribute('aria-label', '7 tools available');
+    expect(badge).toHaveTextContent('9');
+    expect(badge).toHaveAttribute('aria-label', '9 tools available');
   });
 
   it('keeps the sheet closed by default (children not rendered)', () => {
@@ -88,7 +88,7 @@ describe('ShowDeskToolsSheet', () => {
     renderSheet({ actionableCount: 0 });
 
     const badge = screen.getByTestId('show-desk-tools-badge');
-    expect(badge).toHaveTextContent('7');
-    expect(badge).toHaveAttribute('aria-label', '7 tools available');
+    expect(badge).toHaveTextContent('9');
+    expect(badge).toHaveAttribute('aria-label', '9 tools available');
   });
 });

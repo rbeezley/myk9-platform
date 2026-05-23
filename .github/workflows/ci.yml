@@ -27,11 +27,11 @@ jobs:
     if: github.event.pull_request.draft == false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -52,11 +52,11 @@ jobs:
     needs: quality
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -92,11 +92,11 @@ jobs:
     needs: [test]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -121,11 +121,11 @@ jobs:
   #   continue-on-error: true
   #
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v6
   #
-  #     - uses: pnpm/action-setup@v4
+  #     - uses: pnpm/action-setup@v6
   #
-  #     - uses: actions/setup-node@v4
+  #     - uses: actions/setup-node@v6
   #       with:
   #         node-version: '20'
   #         cache: 'pnpm'
@@ -161,11 +161,11 @@ jobs:
   #   continue-on-error: true
   #
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v6
   #
-  #     - uses: pnpm/action-setup@v4
+  #     - uses: pnpm/action-setup@v6
   #
-  #     - uses: actions/setup-node@v4
+  #     - uses: actions/setup-node@v6
   #       with:
   #         node-version: '20'
   #         cache: 'pnpm'

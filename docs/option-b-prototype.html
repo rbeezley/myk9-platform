@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Option B Prototype — Show Desk Workbench</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html, body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background: #09090b;
+        color: #fafafa;
+      }
+      body { min-height: 100vh; }
+      .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+      .scrollbar-thin::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+      .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+      .preview-frame {
+        background: #0a0a0a;
+        border: 1px solid #27272a;
+        transition: max-width 200ms ease;
+        margin: 0 auto;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 500;
+        border: 1px solid;
+        white-space: nowrap;
+      }
+      .chip-attention { background: rgba(249, 115, 22, 0.08); border-color: rgba(249, 115, 22, 0.45); color: #fdba74; }
+      .chip-info { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.4); color: #93c5fd; }
+      .chip-success { background: rgba(34, 197, 94, 0.08); border-color: rgba(34, 197, 94, 0.4); color: #86efac; }
+      .chip-muted { background: rgba(161, 161, 170, 0.08); border-color: #3f3f46; color: #a1a1aa; }
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 10px; border-radius: 6px;
+        font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .accent { color: #f97316; }
+      .tab-button {
+        position: relative; padding: 10px 16px;
+        font-size: 14px; font-weight: 500;
+        color: #a1a1aa; cursor: pointer;
+        border-radius: 6px 6px 0 0;
+      }
+      .tab-button.active { color: #fafafa; }
+      .tab-button.active::after {
+        content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px;
+        background: #f97316; border-radius: 2px;
+      }
+      .control-group { border-top: 1px solid #27272a; padding-top: 14px; }
+      .control-group:first-child { border-top: none; padding-top: 0; }
+      input[type='range'] {
+        width: 100%; appearance: none; background: transparent; cursor: pointer; height: 20px;
+      }
+      input[type='range']::-webkit-slider-runnable-track {
+        height: 4px; background: #27272a; border-radius: 4px;
+      }
+      input[type='range']::-webkit-slider-thumb {
+        appearance: none; height: 16px; width: 16px; border-radius: 50%;
+        background: #f97316; margin-top: -6px; border: 2px solid #0a0a0a;
+      }
+      .radio-row { display: flex; gap: 4px; background: #18181b; padding: 3px; border-radius: 6px; }
+      .radio-row label {
+        flex: 1; text-align: center; padding: 6px 8px; font-size: 12px;
+        border-radius: 4px; cursor: pointer; color: #a1a1aa;
+      }
+      .radio-row input { display: none; }
+      .radio-row input:checked + span { background: #27272a; color: #fafafa; }
+      .radio-row span { display: block; padding: 6px 8px; margin: -6px -8px; border-radius: 4px; }
+      .ico { width: 14px; height: 14px; flex-shrink: 0; }
+      .ico-md { width: 16px; height: 16px; flex-shrink: 0; }
+      .ico-lg { width: 20px; height: 20px; flex-shrink: 0; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 12px; border-radius: 6px;
+        font-size: 12px; font-weight: 500;
+        background: #27272a; color: #fafafa; border: 1px solid #3f3f46;
+        cursor: pointer; white-space: nowrap;
+      }
+      .btn:hover { background: #3f3f46; }
+      .btn-primary { background: #f97316; color: #18181b; border-color: #f97316; }
+      .btn-primary:hover { background: #fb923c; }
+      .btn-ghost { background: transparent; border-color: transparent; }
+      .btn-ghost:hover { background: #27272a; }
+      .card {
+        background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 14px;
+      }
+      .tree-row {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 10px; border-radius: 6px; font-size: 13px;
+      }
+      .tree-row:hover { background: #18181b; }
+      .summary-tile {
+        background: rgba(24, 24, 27, 0.7); border: 1px solid #27272a;
+        border-radius: 6px; padding: 10px 14px; min-width: 100px;
+      }
+      .toolbar-segment {
+        display: flex; gap: 2px; background: rgba(39, 39, 42, 0.5);
+        padding: 3px; border-radius: 6px; border: 1px solid #27272a;
+      }
+      .toolbar-segment button {
+        padding: 6px 10px; font-size: 12px; border-radius: 4px;
+        color: #a1a1aa; cursor: pointer;
+      }
+      .toolbar-segment button.active { background: #f97316; color: #18181b; font-weight: 500; }
+      .copied-flash { animation: flash 1.2s ease; }
+      /* Clickable affordance for chips/tiles/badges */
+      .clickable { cursor: pointer; transition: all 150ms ease; }
+      .clickable:hover { transform: translateY(-1px); }
+      .chip.clickable:hover { filter: brightness(1.2); box-shadow: 0 2px 8px rgba(249, 115, 22, 0.2); }
+      .summary-tile.clickable:hover { background: rgba(39, 39, 42, 0.9); border-color: #f97316; }
+      /* Tools slide-out panel */
+      .preview-frame { position: relative; }
+      .tools-overlay {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.5);
+        opacity: 0; pointer-events: none; transition: opacity 200ms ease;
+        z-index: 40;
+      }
+      .tools-overlay.open { opacity: 1; pointer-events: auto; }
+      .tools-panel {
+        position: absolute; top: 0; right: 0; bottom: 0;
+        width: 420px; max-width: 90%;
+        background: #0a0a0a; border-left: 1px solid #27272a;
+        transform: translateX(100%); transition: transform 250ms ease;
+        z-index: 50; overflow-y: auto;
+      }
+      .tools-panel.open { transform: translateX(0); }
+      /* Run-order popover */
+      .popover {
+        position: absolute; z-index: 30;
+        background: #18181b; border: 1px solid #3f3f46;
+        border-radius: 6px; padding: 4px; min-width: 200px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      }
+      .popover-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 10px; border-radius: 4px; font-size: 13px;
+        cursor: pointer; color: #fafafa;
+      }
+      .popover-item:hover { background: #27272a; }
+      .popover-divider { height: 1px; background: #3f3f46; margin: 4px 0; }
+      .popover-item.disabled { opacity: 0.4; cursor: not-allowed; }
+      .popover-item.disabled:hover { background: transparent; }
+      .popover-section-label {
+        padding: 6px 10px 4px; font-size: 10px; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.05em; color: #71717a;
+      }
+      /* Entry row scoring states */
+      .entry-scored { opacity: 0.6; }
+      .entry-now-scoring { background: rgba(249, 115, 22, 0.08); }
+      .entry-now-scoring:hover { background: rgba(249, 115, 22, 0.12); }
+      .score-pulse {
+        display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+        background: #f97316; animation: pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.3); }
+      }
+      @keyframes flash {
+        0% { background: #f97316; color: #18181b; }
+        100% { background: #27272a; color: #fafafa; }
+      }
+    </style>
+  </head>
+  <body class="flex flex-col lg:flex-row min-h-screen">
+    <!-- Sidebar / Controls -->
+    <aside class="w-full lg:w-[340px] lg:min-w-[340px] border-b lg:border-b-0 lg:border-r border-zinc-800 bg-zinc-950 overflow-y-auto scrollbar-thin">
+      <div class="p-5 border-b border-zinc-800">
+        <div class="pill bg-zinc-800 text-zinc-300 mb-2">Prototype · Option B</div>
+        <h1 class="text-lg font-semibold">Show Desk Workbench</h1>
+        <p class="text-xs text-zinc-400 mt-1">Tweak controls to stress-test the new 2-tab layout across show states.</p>
+        <p class="text-xs text-zinc-500 mt-2">Compare against the live 3-tab app at <a href="http://localhost:5173" class="text-orange-400 underline">localhost:5173</a>.</p>
+      </div>
+
+      <div class="p-5 space-y-5">
+        <!-- Presets -->
+        <div>
+          <div class="text-xs font-semibold uppercase text-zinc-500 mb-2">Presets</div>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="btn" data-preset="morning">Morning of show</button>
+            <button class="btn" data-preset="midday">Mid-day chaos</button>
+            <button class="btn" data-preset="endday">End of day</button>
+            <button class="btn" data-preset="empty">Quiet / clean</button>
+          </div>
+        </div>
+
+        <!-- Active tab -->
+        <div class="control-group">
+          <label class="text-xs font-semibold uppercase text-zinc-500 mb-2 block">Active tab</label>
+          <div class="radio-row" data-control="activeTab">
+            <label><input type="radio" name="activeTab" value="setup" /><span>Setup</span></label>
+            <label><input type="radio" name="activeTab" value="show-desk" checked /><span>Show Desk</span></label>
+          </div>
+        </div>
+
+        <!-- Show state -->
+        <div class="control-group">
+          <label class="text-xs font-semibold uppercase text-zinc-500 mb-2 block">Show state</label>
+          <div class="radio-row" data-control="showState">
+            <label><input type="radio" name="showState" value="setup" /><span>Setup</span></label>
+            <label><input type="radio" name="showState" value="in-progress" checked /><span>In&nbsp;progress</span></label>
+            <label><input type="radio" name="showState" value="wrap-up" /><span>Wrap-up</span></label>
+            <label><input type="radio" name="showState" value="closed" /><span>Closed</span></label>
+          </div>
+          <p class="text-[11px] text-zinc-500 mt-1.5">In production this is auto-derived from class statuses, not user-selected.</p>
+        </div>
+
+        <!-- Class status -->
+        <div class="control-group">
+          <label class="text-xs font-semibold uppercase text-zinc-500 mb-2 block">Container Novice status</label>
+          <div class="radio-row" data-control="classStatus">
+            <label><input type="radio" name="classStatus" value="not-started" checked /><span>Not started</span></label>
+            <label><input type="radio" name="classStatus" value="in-progress" /><span>In&nbsp;progress</span></label>
+            <label><input type="radio" name="classStatus" value="complete" /><span>Complete</span></label>
+          </div>
+          <p class="text-[11px] text-zinc-500 mt-1.5">Controls the demo class's row state, primary action button, and per-entry scoring chips.</p>
+        </div>
+
+        <!-- Counts -->
+        <div class="control-group">
+          <label class="text-xs font-semibold uppercase text-zinc-500 mb-2 block">Pending signal counts</label>
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1"><span class="text-zinc-300">Entries waiting check-in</span><span class="text-orange-400 font-mono" id="val-entries">5</span></div>
+              <input type="range" min="0" max="30" value="5" data-control="entriesWaitingCheckin" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1"><span class="text-zinc-300">Classes need judge signature</span><span class="text-orange-400 font-mono" id="val-classes">2</span></div>
+              <input type="range" min="0" max="10" value="2" data-control="classesReadyForSig" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1"><span class="text-zinc-300">Results not yet reviewed</span><span class="text-orange-400 font-mono" id="val-results">3</span></div>
+              <input type="range" min="0" max="10" value="3" data-control="resultsNotReviewed" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Layout -->
+        <div class="control-group">
+          <label class="text-xs font-semibold uppercase text-zinc-500 mb-2 block">Layout</label>
+          <div class="space-y-2">
+            <div>
+              <div class="text-xs text-zinc-300 mb-1">Tools panel</div>
+              <div class="radio-row" data-control="toolsPanel">
+                <label><input type="radio" name="toolsPanel" value="closed" checked /><span>Closed</span></label>
+                <label><input type="radio" name="toolsPanel" value="open" /><span>Open</span></label>
+              </div>
+              <p class="text-[11px] text-zinc-500 mt-1.5">Slides out from the right edge of Show Desk.</p>
+            </div>
+            <div>
+              <div class="text-xs text-zinc-300 mb-1 mt-3">Show Map tree expansion</div>
+              <div class="radio-row" data-control="treeExpansion">
+                <label><input type="radio" name="treeExpansion" value="collapsed" /><span>Trials only</span></label>
+                <label><input type="radio" name="treeExpansion" value="trial-expanded" /><span>+ Class</span></label>
+                <label><input type="radio" name="treeExpansion" value="class-expanded" checked /><span>+ Entries</span></label>
+              </div>
+            </div>
+            <div>
+              <div class="text-xs text-zinc-300 mb-1 mt-3">Viewport</div>
+              <div class="radio-row" data-control="viewport">
+                <label><input type="radio" name="viewport" value="desktop" checked /><span>Desktop</span></label>
+                <label><input type="radio" name="viewport" value="mobile" /><span>Mobile</span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="control-group">
+          <label class="text-xs font-semibold uppercase text-zinc-500 mb-2 block">Your feedback</label>
+          <textarea
+            id="feedback"
+            class="w-full h-24 bg-zinc-900 border border-zinc-800 rounded-md p-2 text-sm text-zinc-100 placeholder-zinc-600 resize-none"
+            placeholder="e.g., 'The adaptive header is too tall when all signals are active' or 'Approve as-is.'"
+          ></textarea>
+        </div>
+
+        <!-- Prompt output -->
+        <div class="control-group">
+          <label class="text-xs font-semibold uppercase text-zinc-500 mb-2 block">Feedback prompt</label>
+          <pre id="prompt-output" class="text-xs text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-md p-3 whitespace-pre-wrap break-words"></pre>
+          <button id="copy-btn" class="btn btn-primary w-full mt-2 justify-center">Copy feedback prompt</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Preview Pane -->
+    <main class="flex-1 overflow-auto scrollbar-thin p-4 lg:p-8">
+      <div id="preview-frame" class="preview-frame rounded-lg overflow-hidden" style="max-width: 1100px;">
+        <!-- Tab strip -->
+        <div class="flex items-center gap-1 px-4 pt-3 border-b border-zinc-800 bg-zinc-950">
+          <div id="tab-setup" class="tab-button">
+            <span class="inline-flex items-center gap-2">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-4"/><path d="M9 11V5a3 3 0 0 1 6 0v6"/></svg>
+              Setup
+            </span>
+          </div>
+          <div id="tab-show-desk" class="tab-button active">
+            <span class="inline-flex items-center gap-2">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 6H3"/><path d="M10 12H3"/><path d="M21 12h-7"/><path d="M21 18H3"/></svg>
+              Show Desk
+            </span>
+          </div>
+        </div>
+
+        <!-- Tab content -->
+        <div id="tab-content" class="p-5"></div>
+      </div>
+    </main>
+
+    <script>
+      // ---------- State ----------
+      const DEFAULTS = {
+        activeTab: 'show-desk',
+        showState: 'in-progress',
+        classStatus: 'not-started',
+        entriesWaitingCheckin: 5,
+        classesReadyForSig: 2,
+        resultsNotReviewed: 3,
+        toolsPanel: 'closed',
+        treeExpansion: 'class-expanded',
+        viewport: 'desktop',
+      };
+      const state = { ...DEFAULTS };
+      // Transient UI state (not part of prompt output)
+      let runOrderMenuOpen = false;
+      let entryMenuOpenId = null; // entry armband, or null
+
+      // ---------- Presets ----------
+      const PRESETS = {
+        morning: { showState: 'setup', classStatus: 'not-started', entriesWaitingCheckin: 12, classesReadyForSig: 0, resultsNotReviewed: 0, treeExpansion: 'trial-expanded', toolsPanel: 'closed' },
+        midday: { showState: 'in-progress', classStatus: 'in-progress', entriesWaitingCheckin: 8, classesReadyForSig: 1, resultsNotReviewed: 2, treeExpansion: 'class-expanded', toolsPanel: 'closed' },
+        endday: { showState: 'wrap-up', classStatus: 'complete', entriesWaitingCheckin: 0, classesReadyForSig: 4, resultsNotReviewed: 3, treeExpansion: 'class-expanded', toolsPanel: 'closed' },
+        empty: { showState: 'closed', classStatus: 'complete', entriesWaitingCheckin: 0, classesReadyForSig: 0, resultsNotReviewed: 0, treeExpansion: 'trial-expanded', toolsPanel: 'closed' },
+      };
+
+      // ---------- Show state metadata ----------
+      const STATE_META = {
+        'setup': { label: 'Setup', summary: 'Pre-show preparation', dotColor: '#a1a1aa' },
+        'in-progress': { label: 'Show in progress', summary: 'May 22 · live operations', dotColor: '#22c55e' },
+        'wrap-up': { label: 'Wrap-up', summary: 'Closeout in progress', dotColor: '#f97316' },
+        'closed': { label: 'Closed', summary: 'Submitted · final', dotColor: '#71717a' },
+      };
+
+      // ---------- Helpers ----------
+      function el(tag, attrs = {}, ...children) {
+        const node = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          if (k === 'class') node.className = v;
+          else if (k === 'style') node.setAttribute('style', v);
+          else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
+          else if (v !== false && v != null) node.setAttribute(k, v);
+        }
+        for (const child of children) {
+          if (child == null || child === false) continue;
+          node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+        }
+        return node;
+      }
+
+      function icon(svgPath, classes = 'ico') {
+        const wrap = document.createElement('span');
+        wrap.innerHTML = `<svg class="${classes}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgPath}</svg>`;
+        return wrap.firstChild;
+      }
+
+      const ICONS = {
+        clipboard: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>',
+        alert: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+        radio: '<circle cx="12" cy="12" r="2"/><path d="M4.93 19.07A10 10 0 0 1 4.93 4.93"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M7.76 16.24a6 6 0 0 1 0-8.48"/><path d="M16.24 7.76a6 6 0 0 1 0 8.48"/>',
+        chevronDown: '<polyline points="6 9 12 15 18 9"/>',
+        chevronRight: '<polyline points="9 6 15 12 9 18"/>',
+        play: '<polygon points="5 3 19 12 5 21 5 3"/>',
+        check: '<polyline points="20 6 9 17 4 12"/>',
+        more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+        printer: '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+        signature: '<path d="M3 17h18"/><path d="M5 13L7 7l2 6"/><path d="M13 13l1.5-4 1.5 4"/>',
+        send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+        x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+        listTree: '<path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v12"/><path d="M3 12h2"/><path d="M3 18h2"/><path d="M3 6h2"/>',
+        users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        coffee: '<path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>',
+        mic: '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>',
+        message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+        clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+        smartphone: '<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>',
+        settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+        arrowUp: '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>',
+        arrowDown: '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>',
+        shuffle: '<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>',
+        moveVertical: '<polyline points="8 18 12 22 16 18"/><polyline points="8 6 12 2 16 6"/><line x1="12" y1="2" x2="12" y2="22"/>',
+        eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+        externalLink: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+        fileEdit: '<path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-5.5"/><polygon points="13.378 15.626 17.5 11.5 21.5 15.5 17.378 19.626 13 21 13.378 15.626"/>',
+        userSearch: '<circle cx="10" cy="7" r="4"/><path d="M10.3 15H7a4 4 0 0 0-4 4v2"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>',
+        ban: '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
+        userCheck: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>',
+        clipboardList: '<rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+      };
+
+      // ---------- Pending signals ----------
+      function pendingSignals() {
+        const sigs = [];
+        if (state.entriesWaitingCheckin > 0) {
+          sigs.push({ id: 'checkin', text: `${state.entriesWaitingCheckin} entries waiting check-in`, tone: 'attention' });
+        }
+        if (state.classesReadyForSig > 0) {
+          sigs.push({ id: 'sig', text: `${state.classesReadyForSig} classes need judge signature`, tone: 'attention' });
+        }
+        if (state.resultsNotReviewed > 0) {
+          sigs.push({ id: 'review', text: `${state.resultsNotReviewed} results not yet reviewed`, tone: 'attention' });
+        }
+        return sigs;
+      }
+
+      // ---------- Render: Adaptive header ----------
+      function renderAdaptiveHeader() {
+        const meta = STATE_META[state.showState];
+        const signals = pendingSignals();
+        const showRunningNow = state.showState === 'in-progress';
+
+        const statusRow = el('div', { class: 'flex flex-wrap items-center gap-x-3 gap-y-2 mb-3' },
+          el('span', { class: 'inline-flex items-center gap-2 text-sm font-semibold' },
+            el('span', { class: 'inline-block w-2 h-2 rounded-full', style: `background:${meta.dotColor}` }),
+            meta.label,
+          ),
+          el('span', { class: 'text-zinc-500 text-sm' }, '·'),
+          el('span', { class: 'text-sm text-zinc-400' }, meta.summary),
+          el('span', { class: 'text-zinc-500 text-sm' }, '·'),
+          el('span', { class: 'text-sm text-zinc-300' }, '3 of 5 classes complete'),
+        );
+
+        const signalsRow = signals.length === 0
+          ? el('div', { class: 'text-xs text-zinc-500 italic mb-3' }, 'No pending signals. The show is on track.')
+          : el('div', { class: 'flex flex-wrap gap-2 mb-3' },
+              ...signals.map(s => {
+                const chip = el('span', {
+                  class: `chip chip-${s.tone} clickable`,
+                  title: 'Click to filter the Show Map to these items',
+                });
+                chip.appendChild(icon(ICONS.alert, 'ico'));
+                chip.appendChild(document.createTextNode(s.text));
+                return chip;
+              }),
+            );
+
+        const guidanceCard = state.showState === 'closed'
+          ? null
+          : el('div', { class: 'rounded-md border border-zinc-800 bg-zinc-950/60 p-3 mb-3' },
+              el('div', { class: 'flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3' },
+                el('div', { class: 'min-w-0' },
+                  el('div', { class: 'text-[10px] font-semibold uppercase tracking-wide text-zinc-500' }, 'Next best action'),
+                  el('div', { class: 'text-sm font-semibold mt-1' },
+                    state.showState === 'wrap-up'
+                      ? 'Collect judge signature — Container Novice'
+                      : 'Review entry — #101 Dog 2 (Alice Martin)'
+                  ),
+                  el('div', { class: 'text-xs text-zinc-400 mt-0.5' },
+                    state.showState === 'wrap-up'
+                      ? 'Completed class still needs judge sign-off'
+                      : 'Entry is waiting for secretary review'
+                  ),
+                ),
+                el('div', { class: 'flex items-center gap-2 shrink-0' },
+                  (function(){ const b = el('button', { class: 'btn btn-primary' }); b.appendChild(icon(ICONS.play, 'ico')); b.appendChild(document.createTextNode('Start')); return b; })(),
+                  (function(){ const b = el('button', { class: 'btn btn-ghost', 'aria-label': 'Dismiss' }); b.appendChild(icon(ICONS.x, 'ico')); return b; })(),
+                ),
+              ),
+            );
+
+        const upNextItems = state.showState === 'wrap-up'
+          ? [
+              { label: 'Review results — Container Novice', why: 'Class signed; confirm placements', cta: 'Open', tip: 'Routes to Results Control' },
+              { label: 'Submit final results — Friday Trial 1', why: 'Trial ready for closeout submission', cta: 'Submit', tip: 'Routes to Results Submission' },
+              { label: 'Collect judge signature — Container Open', why: 'Completed class still needs judge sign-off', cta: 'Print', tip: 'Opens the signature sheet' },
+            ]
+          : state.showState === 'closed'
+          ? []
+          : [
+              { label: 'Review entry — #102 Dog 1', why: 'Entry is waiting for secretary review', cta: 'Open', tip: 'Opens the entry detail view' },
+              { label: 'Mark Class Started — Container Novice', why: 'Start the class for show-desk tracking', cta: 'Start', tip: 'Marks the class started inline (no navigation)' },
+              { label: 'Print Check-In Sheet — Friday Trial 1', why: 'Prepare check-in for this class', cta: 'Print', tip: 'Opens the printable report in a new tab' },
+            ];
+
+        const upNextSection = upNextItems.length === 0
+          ? null
+          : el('div', { class: 'rounded-md border border-zinc-800 mb-3 overflow-hidden' },
+              el('div', { class: 'px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 border-b border-zinc-800' }, 'Up next'),
+              el('div', { class: 'divide-y divide-zinc-800' },
+                ...upNextItems.map(item =>
+                  el('div', { class: 'flex items-center justify-between gap-3 px-3 py-2' },
+                    el('div', { class: 'min-w-0' },
+                      el('div', { class: 'text-sm font-medium truncate' }, item.label),
+                      el('div', { class: 'text-xs text-zinc-500 truncate' }, item.why),
+                    ),
+                    el('button', { class: 'btn shrink-0', title: item.tip }, item.cta),
+                  ),
+                ),
+              ),
+            );
+
+        const runningNowSection = !showRunningNow
+          ? null
+          : el('div', { class: 'rounded-md border border-zinc-800' },
+              el('div', { class: 'flex items-center gap-2 border-b border-zinc-800 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500' },
+                icon(ICONS.radio, 'ico'),
+                document.createTextNode('Running now'),
+              ),
+              el('div', { class: 'p-3 flex gap-2 overflow-x-auto' },
+                (function(){
+                  const card = el('div', { class: 'min-w-[240px] rounded-md border border-zinc-800 bg-zinc-950 p-3' });
+                  card.appendChild(el('div', { class: 'text-[10px] font-semibold uppercase tracking-wide text-zinc-500' }, 'Ring 1'));
+                  card.appendChild(el('div', { class: 'text-sm font-semibold mt-1' }, 'Container Novice — Section A'));
+                  card.appendChild(el('div', { class: 'text-xs text-zinc-400 mt-0.5' }, 'Judge: M. Smith · 9:15 AM'));
+                  card.appendChild(el('div', { class: 'text-xs text-orange-400 mt-1' }, '60% scored'));
+                  return card;
+                })(),
+              ),
+            );
+
+        return el('section', { class: 'card mb-4', 'aria-label': 'Adaptive header' },
+          statusRow,
+          signalsRow,
+          guidanceCard,
+          upNextSection,
+          runningNowSection,
+        );
+      }
+
+      // ---------- Render: Show Map ----------
+      function renderShowMap() {
+        const expand = state.treeExpansion;
+        const attentionCount = pendingSignals().reduce((acc, s) => {
+          if (s.id === 'checkin') return acc + state.entriesWaitingCheckin;
+          if (s.id === 'sig') return acc + state.classesReadyForSig;
+          if (s.id === 'review') return acc + state.resultsNotReviewed;
+          return acc;
+        }, 0);
+
+        const summary = el('div', { class: 'flex flex-wrap gap-2 mb-3' },
+          el('div', { class: 'summary-tile' },
+            el('div', { class: 'text-lg font-bold' }, '1'),
+            el('div', { class: 'text-[10px] font-semibold uppercase tracking-wide text-zinc-500 mt-1' }, 'Trials'),
+          ),
+          el('div', { class: 'summary-tile' },
+            el('div', { class: 'text-lg font-bold' }, '1'),
+            el('div', { class: 'text-[10px] font-semibold uppercase tracking-wide text-zinc-500 mt-1' }, 'Classes'),
+          ),
+          el('div', { class: 'summary-tile' },
+            el('div', { class: 'text-lg font-bold' }, '3'),
+            el('div', { class: 'text-[10px] font-semibold uppercase tracking-wide text-zinc-500 mt-1' }, 'Entries'),
+          ),
+          el('div', {
+            class: `summary-tile ${attentionCount > 0 ? 'clickable' : ''}`,
+            title: attentionCount > 0 ? 'Click to filter the tree to attention items' : '',
+          },
+            el('div', { class: `text-lg font-bold ${attentionCount > 0 ? 'text-orange-400' : ''}` }, String(attentionCount)),
+            el('div', { class: 'text-[10px] font-semibold uppercase tracking-wide text-zinc-500 mt-1' }, 'Need Attention'),
+          ),
+        );
+
+        const toolbar = el('div', { class: 'flex flex-wrap items-center justify-between gap-2 mb-3' },
+          el('div', { class: 'flex flex-wrap gap-2' },
+            el('div', { class: 'toolbar-segment' },
+              el('button', { class: 'active' }, 'Today'), el('button', {}, 'Tomorrow'), el('button', {}, 'All dates'),
+            ),
+            el('div', { class: 'toolbar-segment' },
+              el('button', { class: 'active' }, 'Active'), el('button', {}, 'Completed'),
+            ),
+            el('div', { class: 'toolbar-segment' },
+              el('button', { class: 'active' }, 'All'), el('button', {}, 'In progress'), el('button', {}, 'Attention'),
+            ),
+          ),
+          el('div', { class: 'flex gap-2' },
+            el('button', { class: 'btn' }, 'Collapse all'),
+            el('button', { class: 'btn' }, 'Expand trials'),
+          ),
+        );
+
+        const baseEntries = [
+          { armband: '100', dog: 'UAT Report Dog', breed: 'UAT Test Breed', handler: 'UAT Report Armband', handlerId: 'h1' },
+          { armband: '101', dog: 'Dog 2', breed: 'Akita', handler: 'Alice Martin', handlerId: 'h2' },
+          { armband: '102', dog: 'Dog 1', breed: 'Akita', handler: 'Alice Martin', handlerId: 'h2' },
+        ];
+
+        function entryState(idx) {
+          if (state.classStatus === 'not-started')
+            return { kind: 'pending-checkin', label: 'Not checked in', tone: 'muted' };
+          if (state.classStatus === 'complete')
+            return { kind: 'scored', label: 'Q · 32.4s', tone: 'success' };
+          if (idx === 0) return { kind: 'scored', label: 'Q · 28.9s', tone: 'success' };
+          if (idx === 1) return { kind: 'now-scoring', label: 'Now scoring', tone: 'attention' };
+          return { kind: 'pending', label: 'Pending', tone: 'muted' };
+        }
+
+        function entryMenuItems(e, est) {
+          // Production actions (showMapActions.ts) — conditional per entry state
+          const items = [];
+          const isPendingReview = est.kind === 'pending-checkin' || est.kind === 'pending';
+          const isScored = est.kind === 'scored' || est.kind === 'now-scoring';
+
+          items.push({ sectionLabel: 'Production actions' });
+          if (isPendingReview) {
+            items.push({ label: 'Review entry', icon: ICONS.clipboardList, recommended: true, tip: 'Entry is waiting for secretary review' });
+            items.push({ label: 'Mark checked in', icon: ICONS.userCheck, tip: 'Prepare this entry for the gate' });
+          }
+          items.push({ label: 'Move up', icon: ICONS.arrowUp, tip: 'Move this entry to a different class' });
+          items.push({
+            label: 'Scratch / no-show',
+            icon: ICONS.ban,
+            disabled: isScored && est.kind === 'scored',
+            disabledReason: 'Cannot scratch an entry that already has a score',
+            tip: 'Mark this entry absent for ring flow',
+          });
+          items.push({ label: 'Message handler', icon: ICONS.message, tip: `Contact ${e.handler}` });
+
+          items.push({ divider: true });
+          items.push({ sectionLabel: 'Option B additions' });
+          items.push({ label: 'Open entry details', icon: ICONS.externalLink, tip: 'Navigate to the full entry detail/edit page' });
+          if (isScored) {
+            items.push({ label: 'Edit score', icon: ICONS.fileEdit, recommended: est.kind === 'now-scoring', tip: 'Deep-link to this entry in the class scoring screen' });
+          } else {
+            items.push({ label: 'Edit score', icon: ICONS.fileEdit, disabled: true, disabledReason: 'No score recorded yet' });
+          }
+          items.push({ label: "View handler's other entries", icon: ICONS.userSearch, tip: `See all of ${e.handler}'s entries across the show` });
+
+          return items;
+        }
+
+        const entryRows = baseEntries.map((e, idx) => {
+          const est = entryState(idx);
+          const isOpen = entryMenuOpenId === e.armband;
+          const row = el('div', {
+            class: `tree-row pl-12 ${est.kind === 'scored' ? 'entry-scored' : ''} ${est.kind === 'now-scoring' ? 'entry-now-scoring' : ''}`,
+            style: 'position: relative;',
+          });
+          row.appendChild(el('span', { class: 'pill bg-orange-500/15 text-orange-400 border border-orange-500/40', style: 'min-width: 36px; justify-content: center;' }, e.armband));
+          row.appendChild(el('span', { class: 'font-medium' }, e.dog));
+          row.appendChild(el('span', { class: 'text-zinc-500 text-xs' }, e.breed));
+          row.appendChild(el('span', { class: 'text-zinc-400 text-xs' }, e.handler));
+
+          if (est.kind === 'now-scoring') {
+            const liveChip = el('span', { class: 'chip chip-attention ml-auto inline-flex items-center gap-2' });
+            liveChip.appendChild(el('span', { class: 'score-pulse' }));
+            liveChip.appendChild(document.createTextNode(est.label));
+            row.appendChild(liveChip);
+          } else {
+            row.appendChild(el('span', { class: `chip chip-${est.tone} ml-auto` }, est.label));
+          }
+
+          const moreBtn = el('button', {
+            class: 'btn btn-ghost',
+            'aria-label': `Actions for #${e.armband}`,
+            title: 'Open row actions',
+            onClick: (ev) => { ev.stopPropagation(); entryMenuOpenId = isOpen ? null : e.armband; renderPreview(); },
+          });
+          moreBtn.appendChild(icon(ICONS.more, 'ico'));
+          row.appendChild(moreBtn);
+
+          if (isOpen) {
+            const popover = el('div', { class: 'popover', style: 'top: 100%; right: 8px; margin-top: 4px; min-width: 260px;' });
+            entryMenuItems(e, est).forEach(item => {
+              if (item.divider) { popover.appendChild(el('div', { class: 'popover-divider' })); return; }
+              if (item.sectionLabel) { popover.appendChild(el('div', { class: 'popover-section-label' }, item.sectionLabel)); return; }
+              const i = el('div', {
+                class: `popover-item ${item.disabled ? 'disabled' : ''}`,
+                title: item.disabled ? item.disabledReason : (item.tip || ''),
+              });
+              i.appendChild(icon(item.icon, 'ico-md text-zinc-400'));
+              i.appendChild(document.createTextNode(item.label));
+              if (item.recommended && !item.disabled) {
+                i.appendChild(el('span', { class: 'pill bg-orange-500/15 text-orange-400 ml-auto', style: 'font-size: 9px;' }, '★'));
+              }
+              popover.appendChild(i);
+            });
+            row.appendChild(popover);
+          }
+          return row;
+        });
+
+        const runOrderBtn = el('button', {
+          class: 'btn btn-ghost',
+          title: 'Set or reorder the class run order',
+          onClick: (e) => { e.stopPropagation(); runOrderMenuOpen = !runOrderMenuOpen; renderPreview(); },
+        });
+        runOrderBtn.appendChild(document.createTextNode('Run order'));
+        runOrderBtn.appendChild(icon(ICONS.chevronDown, 'ico'));
+
+        const runOrderPopover = !runOrderMenuOpen ? null : el('div', { class: 'popover', style: 'top: 100%; right: 8px; margin-top: 4px;' },
+          (function(){ const i = el('div', { class: 'popover-item', title: 'Sort entries by armband number ascending' }); i.appendChild(icon(ICONS.arrowUp, 'ico-md text-zinc-400')); i.appendChild(document.createTextNode('Armband ↑')); return i; })(),
+          (function(){ const i = el('div', { class: 'popover-item', title: 'Sort entries by armband number descending' }); i.appendChild(icon(ICONS.arrowDown, 'ico-md text-zinc-400')); i.appendChild(document.createTextNode('Armband ↓')); return i; })(),
+          (function(){ const i = el('div', { class: 'popover-item', title: 'Randomize the run order' }); i.appendChild(icon(ICONS.shuffle, 'ico-md text-zinc-400')); i.appendChild(document.createTextNode('Random')); return i; })(),
+          el('div', { class: 'popover-divider' }),
+          (function(){ const i = el('div', { class: 'popover-item', title: 'Enter reorder mode — drag entries to set order' }); i.appendChild(icon(ICONS.moveVertical, 'ico-md text-zinc-400')); i.appendChild(document.createTextNode('Reorder manually…')); return i; })(),
+        );
+
+        // Class status -> chip + progress label + primary action button
+        const classStatusChip = state.classStatus === 'not-started'
+          ? el('span', { class: 'chip chip-muted' }, 'Not started')
+          : state.classStatus === 'complete'
+          ? el('span', { class: 'chip chip-success' }, 'Complete')
+          : (function(){
+              const c = el('span', { class: 'chip chip-success inline-flex items-center gap-2' });
+              c.appendChild(el('span', { class: 'score-pulse' }));
+              c.appendChild(document.createTextNode('In progress'));
+              return c;
+            })();
+
+        const classProgressText = state.classStatus === 'not-started'
+          ? '0/3 entries'
+          : state.classStatus === 'in-progress'
+          ? '1/3 scored · 33%'
+          : '3/3 complete';
+
+        const classPrimaryBtn = state.classStatus === 'not-started'
+          ? (function(){ const b = el('button', { class: 'btn', title: 'Start the class for show-desk tracking' }); b.appendChild(icon(ICONS.play, 'ico')); b.appendChild(document.createTextNode('Mark Started')); return b; })()
+          : state.classStatus === 'in-progress'
+          ? (function(){ const b = el('button', { class: 'btn btn-primary', title: 'Opens the paper-scoring screen for this class (routes to /scoring/classes/:id/entries)' }); b.appendChild(icon(ICONS.check, 'ico')); b.appendChild(document.createTextNode('Score Class · 33%')); return b; })()
+          : (function(){ const b = el('button', { class: 'btn', title: 'Open the class detail view' }); b.appendChild(icon(ICONS.externalLink, 'ico')); b.appendChild(document.createTextNode('Open Class')); return b; })();
+
+        const classRow = el('div', { class: 'tree-row pl-7 font-medium', style: 'position: relative;' },
+          icon(expand === 'class-expanded' ? ICONS.chevronDown : ICONS.chevronRight, 'ico text-zinc-500'),
+          el('span', {}, 'Container Novice'),
+          el('span', { class: 'text-zinc-500 text-xs' }, 'Section A'),
+          classStatusChip,
+          state.entriesWaitingCheckin > 0 && state.classStatus === 'not-started'
+            ? el('span', { class: 'chip chip-attention clickable', title: 'Click to filter to attention items in this class' }, `${state.entriesWaitingCheckin} need check-in`)
+            : null,
+          el('span', { class: 'text-xs text-zinc-400 ml-auto' }, classProgressText),
+          classPrimaryBtn,
+          runOrderBtn,
+          runOrderPopover,
+        );
+
+        const trialRow = el('div', { class: 'tree-row font-medium' },
+          icon(expand !== 'collapsed' ? ICONS.chevronDown : ICONS.chevronRight, 'ico text-zinc-500'),
+          el('span', {}, 'Friday Trial 1'),
+          el('span', { class: 'text-zinc-500 text-xs' }, '2026-05-22'),
+          el('span', { class: 'chip chip-muted' }, 'Not started'),
+          attentionCount > 0 ? el('span', { class: 'chip chip-attention clickable', title: 'Click to filter to attention items in this trial' }, `${attentionCount} need attention`) : null,
+          el('span', { class: 'text-xs text-zinc-400 ml-auto' }, '0/1 classes'),
+        );
+
+        const tree = el('div', { class: 'rounded-md border border-zinc-800 overflow-hidden' });
+        tree.appendChild(trialRow);
+        if (expand !== 'collapsed') tree.appendChild(classRow);
+        if (expand === 'class-expanded') entryRows.forEach(r => tree.appendChild(r));
+
+        return el('section', { class: 'card mb-4', 'aria-label': 'Show Map' },
+          el('div', { class: 'flex items-center justify-between mb-3' },
+            el('div', {},
+              el('h3', { class: 'text-base font-semibold' }, 'Show Map'),
+              el('p', { class: 'text-xs text-zinc-500 mt-0.5' }, 'Scan the show by trial and class, then open the class you need.'),
+            ),
+          ),
+          summary,
+          toolbar,
+          tree,
+        );
+      }
+
+      // ---------- Render: Tools button (inline header chip) ----------
+      function renderToolsButton() {
+        const btn = el('button', {
+          class: 'btn',
+          title: 'Open the tools panel',
+          onClick: () => { state.toolsPanel = 'open'; syncControls(); updateAll(); },
+        });
+        btn.appendChild(icon(ICONS.settings, 'ico-md'));
+        btn.appendChild(document.createTextNode('Tools'));
+        btn.appendChild(el('span', { class: 'pill bg-zinc-800 text-zinc-400 ml-1' }, '9'));
+        return el('div', { class: 'flex items-center justify-between mb-3' },
+          el('div', { class: 'text-xs text-zinc-500' }, 'Show Desk workspace'),
+          btn,
+        );
+      }
+
+      // ---------- Render: Tools slide-out panel ----------
+      function renderToolsPanel() {
+        const open = state.toolsPanel === 'open';
+        const tools = [
+          { name: 'Late entry', desc: 'Add an entry after entries closed', icon: ICONS.users },
+          { name: 'Hospitality', desc: 'Coffee, water, meal reminders for everyone working the show', icon: ICONS.coffee },
+          { name: 'Quick broadcast', desc: 'Show-wide announcement', icon: ICONS.mic },
+          { name: 'Class broadcast', desc: 'Message a specific class', icon: ICONS.message },
+          { name: 'Incident log', desc: 'Bites, complaints, disqualifications', icon: ICONS.alert },
+          { name: 'Schedule delay', desc: 'Script for schedule slips', icon: ICONS.clock },
+          { name: 'MyK9Q access', desc: 'Ringside PWA access codes', icon: ICONS.smartphone },
+          { name: 'Volunteers', desc: 'Open the volunteer schedule', icon: ICONS.userCheck },
+          { name: 'Tasks / Notes', desc: 'Quick notes for this show — things to remember', icon: ICONS.clipboardList },
+        ];
+
+        const close = () => { state.toolsPanel = 'closed'; syncControls(); updateAll(); };
+
+        const overlay = el('div', {
+          class: `tools-overlay ${open ? 'open' : ''}`,
+          onClick: close,
+        });
+
+        const closeBtn = el('button', {
+          class: 'btn btn-ghost',
+          title: 'Close panel',
+          onClick: close,
+        });
+        closeBtn.appendChild(icon(ICONS.x, 'ico-md'));
+
+        const header = el('div', { class: 'flex items-center justify-between p-4 border-b border-zinc-800 sticky top-0 bg-zinc-950 z-10' },
+          el('div', { class: 'flex items-center gap-2' },
+            icon(ICONS.settings, 'ico-md text-zinc-400'),
+            el('span', { class: 'text-sm font-semibold' }, 'Tools'),
+            el('span', { class: 'pill bg-zinc-800 text-zinc-400' }, '9'),
+          ),
+          closeBtn,
+        );
+
+        const body = el('div', { class: 'p-3 space-y-2' },
+          ...tools.map(t => {
+            const card = el('div', { class: 'rounded-md border border-zinc-800 p-3 hover:bg-zinc-900 cursor-pointer' });
+            const row = el('div', { class: 'flex items-start gap-3' });
+            row.appendChild(icon(t.icon, 'ico-md text-zinc-400'));
+            const bodyInner = el('div', { class: 'min-w-0 flex-1' });
+            bodyInner.appendChild(el('div', { class: 'text-sm font-medium' }, t.name));
+            bodyInner.appendChild(el('div', { class: 'text-xs text-zinc-500 mt-0.5' }, t.desc));
+            row.appendChild(bodyInner);
+            card.appendChild(row);
+            return card;
+          }),
+        );
+
+        const panel = el('aside', {
+          class: `tools-panel ${open ? 'open' : ''}`,
+          'aria-label': 'Tools panel',
+        }, header, body);
+
+        return el('div', {}, overlay, panel);
+      }
+
+      // ---------- Render: Closeout ----------
+      function renderCloseout() {
+        if (state.classesReadyForSig === 0) return null;
+
+        const destinations = [
+          { label: 'Results Control', desc: 'Verify results', icon: ICONS.check },
+          { label: 'Reports', desc: 'Print and export', icon: ICONS.printer },
+          { label: 'Submit Results', desc: 'Send final files', icon: ICONS.send },
+        ];
+
+        return el('section', { class: 'card', 'aria-label': 'Closeout' },
+          el('div', { class: 'flex items-center gap-2 mb-3' },
+            el('span', { class: 'pill bg-orange-500/15 text-orange-400 border border-orange-500/40' }, 'Closeout'),
+            el('span', { class: 'text-xs text-zinc-400' }, `${state.classesReadyForSig} class${state.classesReadyForSig === 1 ? '' : 'es'} ready`),
+          ),
+          el('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3' },
+            el('div', { class: 'rounded-md border border-zinc-800 p-3' },
+              el('div', { class: 'text-sm font-medium' }, 'Show Day Reconciliation'),
+              el('div', { class: 'text-xs text-zinc-500 mt-1' }, '3 entries · $0 collected · 0 refunded'),
+            ),
+            el('div', { class: 'rounded-md border border-zinc-800 p-3' },
+              el('div', { class: 'text-sm font-medium' }, 'Incident Closeout'),
+              el('div', { class: 'text-xs text-zinc-500 mt-1' }, 'No reportable incidents'),
+            ),
+          ),
+          el('div', { class: 'grid grid-cols-1 sm:grid-cols-3 gap-2' },
+            ...destinations.map(d => {
+              const btn = el('button', { class: 'btn justify-start' });
+              btn.appendChild(icon(d.icon, 'ico-md'));
+              const span = el('span', { class: 'text-left' });
+              span.appendChild(el('div', { class: 'font-medium' }, d.label));
+              span.appendChild(el('div', { class: 'text-[11px] text-zinc-500' }, d.desc));
+              btn.appendChild(span);
+              return btn;
+            }),
+          ),
+        );
+      }
+
+      // ---------- Render: Setup placeholder ----------
+      function renderSetupPlaceholder() {
+        return el('div', { class: 'card text-center py-12' },
+          el('div', { class: 'inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-800 mb-3' },
+            icon(ICONS.listTree, 'ico-lg text-zinc-400'),
+          ),
+          el('h3', { class: 'text-base font-semibold' }, 'Setup tab — kept'),
+          el('p', { class: 'text-sm text-zinc-400 mt-1' }, 'Internal layout TBD (separate decision).'),
+          el('p', { class: 'text-xs text-zinc-500 mt-3 max-w-md mx-auto' }, "Setup is structurally different work and doesn't ride the adaptive header. Whether its current scaffolding (About banner, checklist, tools) needs the same simplification pass is a 30-minute audit before Phase B5."),
+        );
+      }
+
+      // ---------- Render: main dispatch ----------
+      function renderPreview() {
+        const frame = document.getElementById('preview-frame');
+        frame.style.maxWidth = state.viewport === 'mobile' ? '420px' : '1100px';
+
+        document.getElementById('tab-setup').classList.toggle('active', state.activeTab === 'setup');
+        document.getElementById('tab-show-desk').classList.toggle('active', state.activeTab === 'show-desk');
+
+        const content = document.getElementById('tab-content');
+        content.innerHTML = '';
+        if (state.activeTab === 'setup') {
+          content.appendChild(renderSetupPlaceholder());
+        } else {
+          content.appendChild(renderToolsButton());
+          content.appendChild(renderAdaptiveHeader());
+          content.appendChild(renderShowMap());
+          const closeout = renderCloseout();
+          if (closeout) content.appendChild(closeout);
+        }
+
+        // Tools panel and overlay mount at the frame level so they overlay the entire Show Desk tab.
+        const existingPanel = frame.querySelector('[data-tools-mount]');
+        if (existingPanel) existingPanel.remove();
+        const panelMount = el('div', { 'data-tools-mount': 'true' }, renderToolsPanel());
+        frame.appendChild(panelMount);
+      }
+
+      // ---------- Prompt generation ----------
+      function updatePrompt() {
+        const lines = [];
+        const scenarios = [];
+
+        const meta = STATE_META[state.showState];
+        scenarios.push(`show state = ${meta.label.toLowerCase()}`);
+
+        if (state.entriesWaitingCheckin !== DEFAULTS.entriesWaitingCheckin)
+          scenarios.push(`${state.entriesWaitingCheckin} entries waiting check-in`);
+        if (state.classesReadyForSig !== DEFAULTS.classesReadyForSig)
+          scenarios.push(`${state.classesReadyForSig} classes needing judge signature`);
+        if (state.resultsNotReviewed !== DEFAULTS.resultsNotReviewed)
+          scenarios.push(`${state.resultsNotReviewed} results not yet reviewed`);
+        if (state.classStatus !== DEFAULTS.classStatus)
+          scenarios.push(`Container Novice = ${state.classStatus.replace('-', ' ')}`);
+        if (state.toolsPanel !== DEFAULTS.toolsPanel)
+          scenarios.push(`Tools panel ${state.toolsPanel}`);
+        if (state.viewport !== DEFAULTS.viewport)
+          scenarios.push(`viewed at ${state.viewport} viewport`);
+        if (state.activeTab !== DEFAULTS.activeTab)
+          scenarios.push(`Setup tab active (placeholder)`);
+
+        const feedback = (document.getElementById('feedback').value || '').trim();
+
+        lines.push(`I reviewed the Option B prototype (docs/option-b-prototype.html).`);
+        lines.push('');
+        lines.push(`Scenarios tested: ${scenarios.join('; ')}.`);
+        if (feedback) {
+          lines.push('');
+          lines.push(`Feedback:`);
+          lines.push(feedback);
+        } else {
+          lines.push('');
+          lines.push('Feedback: (add notes in the textarea above before copying).');
+        }
+
+        document.getElementById('prompt-output').textContent = lines.join('\n');
+      }
+
+      // ---------- Control wiring ----------
+      function syncControls() {
+        document.querySelectorAll('[data-control]').forEach(elm => {
+          const key = elm.getAttribute('data-control');
+          if (elm.type === 'range') {
+            elm.value = String(state[key]);
+            const valSpan = document.getElementById('val-' + (key === 'entriesWaitingCheckin' ? 'entries' : key === 'classesReadyForSig' ? 'classes' : key === 'resultsNotReviewed' ? 'results' : ''));
+            if (valSpan) valSpan.textContent = String(state[key]);
+          }
+        });
+        document.querySelectorAll('.radio-row').forEach(row => {
+          const key = row.getAttribute('data-control');
+          const radios = row.querySelectorAll('input[type=radio]');
+          radios.forEach(r => { r.checked = String(state[key]) === r.value; });
+        });
+      }
+
+      function attachControls() {
+        document.querySelectorAll('input[type=range][data-control]').forEach(r => {
+          r.addEventListener('input', e => {
+            const key = r.getAttribute('data-control');
+            state[key] = parseInt(e.target.value, 10);
+            const valSpan = document.getElementById('val-' + (key === 'entriesWaitingCheckin' ? 'entries' : key === 'classesReadyForSig' ? 'classes' : key === 'resultsNotReviewed' ? 'results' : ''));
+            if (valSpan) valSpan.textContent = e.target.value;
+            updateAll();
+          });
+        });
+
+        document.querySelectorAll('.radio-row').forEach(row => {
+          const key = row.getAttribute('data-control');
+          row.querySelectorAll('input[type=radio]').forEach(r => {
+            r.addEventListener('change', () => {
+              state[key] = r.value;
+              updateAll();
+            });
+          });
+        });
+
+        document.querySelectorAll('[data-preset]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const preset = PRESETS[btn.getAttribute('data-preset')];
+            Object.assign(state, preset);
+            syncControls();
+            updateAll();
+          });
+        });
+
+        document.getElementById('feedback').addEventListener('input', updatePrompt);
+
+        document.getElementById('tab-setup').addEventListener('click', () => {
+          state.activeTab = 'setup'; syncControls(); updateAll();
+        });
+        document.getElementById('tab-show-desk').addEventListener('click', () => {
+          state.activeTab = 'show-desk'; syncControls(); updateAll();
+        });
+
+        document.getElementById('copy-btn').addEventListener('click', () => {
+          const text = document.getElementById('prompt-output').textContent;
+          navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('copy-btn');
+            const original = btn.textContent;
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied-flash');
+            setTimeout(() => { btn.textContent = original; btn.classList.remove('copied-flash'); }, 1200);
+          });
+        });
+      }
+
+      function updateAll() {
+        renderPreview();
+        updatePrompt();
+      }
+
+      // ---------- Global click + key handlers ----------
+      document.addEventListener('click', (e) => {
+        const insidePopover = !!e.target.closest('.popover');
+        const onRunOrderBtn = !!e.target.closest('button[title="Set or reorder the class run order"]');
+        const onEntryActionsBtn = !!e.target.closest('button[aria-label^="Actions for #"]');
+        let changed = false;
+        if (runOrderMenuOpen && !insidePopover && !onRunOrderBtn) {
+          runOrderMenuOpen = false;
+          changed = true;
+        }
+        if (entryMenuOpenId && !insidePopover && !onEntryActionsBtn) {
+          entryMenuOpenId = null;
+          changed = true;
+        }
+        if (changed) renderPreview();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (state.toolsPanel === 'open') {
+            state.toolsPanel = 'closed';
+            syncControls();
+            updateAll();
+          } else if (runOrderMenuOpen || entryMenuOpenId) {
+            runOrderMenuOpen = false;
+            entryMenuOpenId = null;
+            renderPreview();
+          }
+        }
+      });
+
+      // ---------- Boot ----------
+      attachControls();
+      syncControls();
+      updateAll();
+    </script>
+  </body>
+</html>

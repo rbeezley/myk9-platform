@@ -320,7 +320,7 @@ describe('ShowMapStructureTable', () => {
 
     expect(await screen.findByText('Recommended')).toBeInTheDocument();
     expect(screen.getAllByText('Resolve check-in conflict').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+    expect(screen.getByText(/Entry has a check-in conflict/)).toBeInTheDocument();
   });
 
   it('opens the same row actions menu from right-clicking row whitespace', async () => {
@@ -356,7 +356,7 @@ describe('ShowMapStructureTable', () => {
 
     fireEvent.contextMenu(row);
     expect(await screen.findByText('Recommended')).toBeInTheDocument();
-    expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+    expect(screen.getByText(/Entry has a check-in conflict/)).toBeInTheDocument();
   });
 
   it('opens the entry row actions menu from Enter without executing an action', async () => {
@@ -394,7 +394,7 @@ describe('ShowMapStructureTable', () => {
     fireEvent.keyDown(getTreeItemForText('Bella'), { key: 'Enter' });
 
     expect(await screen.findByText('Recommended')).toBeInTheDocument();
-    expect(screen.getByText('Entry has a check-in conflict')).toBeInTheDocument();
+    expect(screen.getByText(/Entry has a check-in conflict/)).toBeInTheDocument();
     expect(onAction).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
   });

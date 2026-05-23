@@ -147,6 +147,21 @@ function nearestHref(tree: ShowMapTree, node: ShowMapNode): string | undefined {
   return undefined;
 }
 
+function entryContextLabel(node: ShowMapNode): string {
+  const display = node.entryDisplay;
+  if (!display) return '';
+  const parts: string[] = [];
+  if (display.armband) parts.push(`#${display.armband}`);
+  if (display.dogName && display.dogName !== 'Unknown') parts.push(display.dogName);
+  if (display.handler) parts.push(display.handler);
+  return parts.join(' · ');
+}
+
+function withEntryContext(node: ShowMapNode, why: string): string {
+  const context = entryContextLabel(node);
+  return context ? `${context} — ${why}` : why;
+}
+
 function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
   if (node.type === 'class') {
     if (node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE) {
@@ -227,7 +242,7 @@ function actionsForNode(
             id: 'resolve-check-in-conflict',
             nodeId: node.id,
             label: 'Resolve check-in conflict',
-            why: 'Entry has a check-in conflict',
+            why: withEntryContext(node, 'Entry has a check-in conflict'),
             priority: 100,
             icon: UserCheck,
             recommended: true,
@@ -244,7 +259,7 @@ function actionsForNode(
             id: 'review-entry',
             nodeId: node.id,
             label: 'Review entry',
-            why: 'Entry is waiting for secretary review',
+            why: withEntryContext(node, 'Entry is waiting for secretary review'),
             priority: 85,
             icon: ClipboardList,
             recommended: true,
@@ -259,7 +274,7 @@ function actionsForNode(
         id: 'mark-checked-in',
         nodeId: node.id,
         label: 'Mark checked in',
-        why: 'Prepare this entry for the gate',
+        why: withEntryContext(node, 'Prepare this entry for the gate'),
         priority: 35,
         icon: ClipboardCheck,
         ...(classId ? { classId } : {}),
@@ -271,7 +286,7 @@ function actionsForNode(
           id: 'move-up-entry',
           nodeId: node.id,
           label: 'Move up',
-          why: 'Move this entry to the next eligible class',
+          why: withEntryContext(node, 'Move this entry to the next eligible class'),
           priority: 32,
           icon: ArrowUpCircle,
           ...(classId ? { classId } : {}),
@@ -286,7 +301,7 @@ function actionsForNode(
           id: 'scratch-entry',
           nodeId: node.id,
           label: 'Scratch / no-show',
-          why: 'Mark this entry absent for ring flow',
+          why: withEntryContext(node, 'Mark this entry absent for ring flow'),
           priority: 30,
           icon: Ban,
           ...(classId ? { classId } : {}),
@@ -301,7 +316,7 @@ function actionsForNode(
             id: 'message-handler',
             nodeId: node.id,
             label: 'Message handler',
-            why: 'Contact the handler about this entry',
+            why: withEntryContext(node, 'Contact the handler about this entry'),
             priority: 25,
             icon: MessageSquare,
           },

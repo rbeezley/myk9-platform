@@ -83,6 +83,22 @@ _None currently._
 
 ## Closed Findings
 
+### QA-TEST-FLAKE-009
+
+- **Status:** fixed
+- **Severity:** medium
+- **Role:** secretary
+- **Surface:** `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`, `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-05-23 active Nightly initially failed `43/45`. `entryCreationCore.spec.ts` timed out in the browser-side show-statistics direct-store check, with evidence at `apps/myk9show/test-results/registration-entryCreation-2f2cf-egrate-with-show-statistics-chromium/error-context.md`. `show-creation-wizard.spec.ts` failed clicking the date-picker `Done` button because the element became unstable/outside the viewport, with evidence at `apps/myk9show/test-results/secretary-show-creation-wi-ca4cd-and-independent-date-ranges-chromium/error-context.md`.
+- **User impact:** Nightly could not reliably prove active registration and secretary show-wizard coverage even though the underlying product paths were covered by stronger maintained proofs.
+- **Intent check:** Preserves QA trust in the secretary "That was easy" regression proof by removing stale duplicate browser-store coverage and stabilizing a date-picker interaction helper.
+- **Fix owner:** registration and show-wizard Playwright proof setup.
+- **Proof required:** Passed on 2026-05-23: promoted Vitest Nightly (`18 passed`), focused two-spec Playwright proof (`8 passed`), and full active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0` (`44 passed`).
+- **Notes:** The removed show-statistics browser check duplicated promoted `entryStore.multiClass.test.ts` and related entry-store unit coverage. The show-wizard helper now verifies the dialog button is visible before invoking the DOM click, avoiding a viewport/stability-only Playwright flake.
+
 ### QA-NETWORK-ERROR-008
 
 - **Status:** fixed

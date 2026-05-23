@@ -24,8 +24,8 @@
     "src"
   ],
   "scripts": {
-    "build": "tsup && npm run build:css",
-    "build:css": "node -e \"require('fs').mkdirSync('./dist/styles',{recursive:true})\" && npx postcss src/styles/index.css -o dist/styles/index.css",
+    "build": "tsup && pnpm run build:css",
+    "build:css": "node -e \"require('fs').mkdirSync('./dist/styles',{recursive:true})\" && postcss src/styles/index.css -o dist/styles/index.css",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

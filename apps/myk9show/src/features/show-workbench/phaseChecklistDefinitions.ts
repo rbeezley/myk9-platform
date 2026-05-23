@@ -1,6 +1,6 @@
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
-import type { ShowWorkbenchPhase } from '@/hooks/useActivePhase';
+import type { LegacyShowWorkbenchPhase } from '@/hooks/useActivePhase';
 import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 
 export interface ShowWorkbenchClassSummary {
@@ -37,7 +37,7 @@ export interface PhaseChecklistContext {
 
 export interface PhaseChecklistDefinition {
   id: string;
-  phase: ShowWorkbenchPhase;
+  phase: LegacyShowWorkbenchPhase;
   title: string;
   detail: string;
   autoComplete: (context: PhaseChecklistContext) => boolean;
@@ -198,7 +198,7 @@ const phaseChecklistDefinitions: PhaseChecklistDefinition[] = [
 ];
 
 export function getPhaseChecklistDefinitions(
-  phase: ShowWorkbenchPhase
+  phase: LegacyShowWorkbenchPhase
 ): PhaseChecklistDefinition[] {
   return phaseChecklistDefinitions.filter(item => item.phase === phase);
 }

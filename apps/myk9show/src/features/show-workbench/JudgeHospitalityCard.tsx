@@ -53,14 +53,15 @@ function JudgeHospitalityCardContent({ judges, showId }: JudgeHospitalityCardPro
   }
 
   return (
-    <section className="rounded-md border bg-card p-4" aria-labelledby="judge-hospitality-title">
+    <section className="rounded-md border bg-card p-4" aria-labelledby="hospitality-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 id="judge-hospitality-title" className="text-base font-semibold">
-            Judge hospitality
+          <h3 id="hospitality-title" className="text-base font-semibold">
+            Hospitality
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Lunch orders, water, coffee, and small reminders for the judging team.
+            Lunch orders, water, coffee, and small reminders for judges, stewards, ring crew, and
+            volunteers.
           </p>
         </div>
         <Badge variant={reminders > 0 ? 'secondary' : 'default'}>

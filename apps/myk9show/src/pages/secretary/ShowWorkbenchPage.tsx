@@ -538,6 +538,49 @@ export function ShowWorkbenchPage() {
               classes={showClasses}
               entries={showEntries}
               canManageShow
+              toolsContent={
+                <>
+                  <WorkbenchLateEntryAction showId={currentShow.id} />
+                  <JudgeHospitalityCard
+                    showId={currentShow.id}
+                    judges={effectiveJudges.map(judge => ({
+                      id: judge.judgeId,
+                      name: judge.judgeName,
+                    }))}
+                  />
+                  <QuickBroadcastCard showId={currentShow.id} />
+                  <ClassBroadcastCard
+                    showId={currentShow.id}
+                    classes={showClasses.map(cls => ({
+                      id: cls.id,
+                      label: buildClassBroadcastClassLabel({
+                        name: cls.name,
+                        section: cls.section,
+                      }),
+                      entryCount: cls.entryCount,
+                    }))}
+                  />
+                  <IncidentLogCard
+                    showId={currentShow.id}
+                    entries={incidentEntryOptions}
+                    judges={effectiveJudges.map(judge => ({
+                      id: judge.judgeId,
+                      name: judge.judgeName,
+                      personId: isValidUUID(judge.judgeId.trim()) ? judge.judgeId.trim() : null,
+                    }))}
+                  />
+                  <ScheduleSlipScriptCard
+                    showId={currentShow.id}
+                    showName={currentShow.name}
+                    defaultClassName={showClasses[0]?.name ?? ''}
+                  />
+                  <MyK9QAccessCard
+                    showId={currentShow.id}
+                    showName={currentShow.name}
+                    showDate={currentShow.startDate}
+                  />
+                </>
+              }
             />
           </Suspense>
         </PrimaryTabsContent>

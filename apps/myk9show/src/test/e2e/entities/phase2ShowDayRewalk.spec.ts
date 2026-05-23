@@ -59,7 +59,7 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     await expect(page.getByRole('heading', { name: 'What do I do if...' })).toBeVisible();
     for (const name of [
       'Late entry',
-      'Judge hospitality',
+      'Hospitality',
       'Quick broadcast',
       'Message a class',
       'Incident log',

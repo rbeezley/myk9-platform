@@ -51,6 +51,8 @@ import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { QuickBroadcastCard } from '@/features/show-workbench/QuickBroadcastCard';
 import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
 import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
+import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
+import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
@@ -579,6 +581,8 @@ export function ShowWorkbenchPage() {
                     showName={currentShow.name}
                     showDate={currentShow.startDate}
                   />
+                  <VolunteersCard showId={currentShow.id} />
+                  <TasksNotesCard showId={currentShow.id} />
                 </>
               }
             />

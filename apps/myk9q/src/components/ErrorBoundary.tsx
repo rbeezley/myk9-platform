@@ -2,6 +2,8 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, Bug, WifiOff } from 'lucide-react';
 import { logger } from '@/utils/logger';
 
+/* eslint-disable react-refresh/only-export-components -- This legacy utility file intentionally exports ErrorBoundary helpers. */
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -303,7 +305,7 @@ export const withErrorBoundary = <P extends object>(
   );
 
   WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-  
+
   return WrappedComponent;
 };
 

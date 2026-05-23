@@ -7,7 +7,7 @@
     "create-profiles": "node create-test-profiles.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.8",
+    "@supabase/supabase-js": "^2.93.3",
     "dotenv": "^16.4.5"
   }
 }

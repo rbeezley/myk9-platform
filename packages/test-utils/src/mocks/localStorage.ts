@@ -28,4 +28,12 @@ export function setupLocalStorageMock() {
     writable: true,
     configurable: true,
   });
+
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
+  }
 }

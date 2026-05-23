@@ -37,6 +37,7 @@ if (typeof window === 'undefined') {
 
   Object.defineProperty(globalThis, 'window', {
     value: {
+      localStorage: globalThis.localStorage,
       addEventListener: (type: string, listener: EventListener) => {
         if (!eventListeners[type]) {
           eventListeners[type] = new Set();

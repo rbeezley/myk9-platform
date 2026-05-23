@@ -16,7 +16,11 @@ import { ShowMapToolbar } from './ShowMapToolbar';
 import { ShowMapRunningNowStrip } from './ShowMapRunningNowStrip';
 import { ShowMapGuidanceCard } from './ShowMapGuidanceCard';
 import { countCatalogEntries } from './entryCounts';
-import { getAllRecommendedActions, getRankedActions } from './showMapActions';
+import {
+  getAllRecommendedActions,
+  getAttentionCountsByNodeId,
+  getRankedActions,
+} from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { getRunningNowItems } from './showMapRunningNow';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
@@ -231,7 +235,11 @@ export default function ShowMapTab({
     confirmMessageHandler,
     isExecuting,
   } = useShowMapActionExecutor({ showId: show.id });
-  const attentionCount = tree.root.attentionCount ?? 0;
+  const attentionCountsByNodeId = useMemo(
+    () => getAttentionCountsByNodeId(tree, actionPhase),
+    [actionPhase, tree]
+  );
+  const attentionCount = attentionCountsByNodeId.get(tree.root.id) ?? 0;
   const catalogEntryCount = countCatalogEntries(entries);
   const recommendedActions = useMemo(
     () => getAllRecommendedActions('root', { tree, phase: actionPhase }),
@@ -396,6 +404,7 @@ export default function ShowMapTab({
           onAction={executeAction}
           enableRowActions={canManageShow}
           actionPhase={actionPhase}
+          attentionCountsByNodeId={attentionCountsByNodeId}
           onResetFilters={resetFilters}
         />
       </div>

@@ -694,4 +694,65 @@ describe('ShowMapTab', () => {
       );
     });
   });
+
+  it("counts wrap-up work in the Need Attention summary when actionPhase is undefined", () => {
+    // Regression guard: before the fix, the summary tile read
+    // tree.root.attentionCount (entry-only). In unified mode an
+    // unsigned-complete class is an attention item but no entry is
+    // submitted, so the tile said 0 while the Attention filter showed
+    // the class. After the fix the count is derived from the same
+    // phase-aware action set the filter uses.
+    render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+        ]}
+        entries={[
+          { id: 'entry-1', class_id: 'class-needs-signature', is_scored: true },
+        ]}
+        canManageShow
+      />
+    );
+
+    const labelEl = screen.getByText('Need Attention');
+    const tile = labelEl.parentElement;
+    if (!(tile instanceof HTMLElement)) throw new Error('Expected summary tile');
+    expect(within(tile).getByText('1')).toBeInTheDocument();
+  });
+
+  it("does NOT count wrap-up work in the Need Attention summary when actionPhase='today'", () => {
+    // The legacy Today tab keeps its semantics during the migration window:
+    // wrap-up actions are filtered out, so the same fixture renders a 0.
+    render(
+      <ShowMapTab
+        show={show}
+        trials={[trial]}
+        classes={[
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+        ]}
+        entries={[
+          { id: 'entry-1', class_id: 'class-needs-signature', is_scored: true },
+        ]}
+        canManageShow
+        actionPhase="today"
+      />
+    );
+
+    const labelEl = screen.getByText('Need Attention');
+    const tile = labelEl.parentElement;
+    if (!(tile instanceof HTMLElement)) throw new Error('Expected summary tile');
+    expect(within(tile).getByText('0')).toBeInTheDocument();
+  });
 });

@@ -1,4 +1,6 @@
 import type { Show } from '@/types/show-types';
+import { getAttentionCountsByNodeId } from './showMapActions';
+import type { ShowMapActionState } from './showMapActions';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree, ShowMapTrialInput } from './showMapTypes';
 
@@ -13,6 +15,7 @@ export interface ComputeShowDeskStatusInput {
   show: Pick<Show, 'startDate' | 'endDate'>;
   trials: readonly ShowMapTrialInput[];
   tree: ShowMapTree;
+  phase?: ShowMapActionState['phase'];
   now?: Date;
 }
 
@@ -49,6 +52,7 @@ export function computeShowDeskStatus({
   // show.endDate only; the param shape is preserved so callers don't churn in B2.
   trials: _trials,
   tree,
+  phase,
   now,
 }: ComputeShowDeskStatusInput): ShowDeskStatusResult {
   const today = toLocalDateString(now ?? new Date());
@@ -59,7 +63,9 @@ export function computeShowDeskStatus({
   const totalClasses = classes.length;
   const completeClassCount = classes.filter(node => node.status?.kind === 'complete').length;
   const activeClassCount = classes.filter(node => node.status?.kind === 'active').length;
-  const attentionEntries = tree.root.attentionCount ?? 0;
+  // Phase-aware: in unified mode (phase=undefined) wrap-up work counts too,
+  // matching the same source the Need Attention filter uses.
+  const attentionItems = getAttentionCountsByNodeId(tree, phase).get(tree.root.id) ?? 0;
 
   const hasScoringActivity = classes.some(
     node => node.status?.kind === 'active' || node.status?.kind === 'complete'
@@ -96,7 +102,7 @@ export function computeShowDeskStatus({
   const summary = buildSummary({
     totalClasses,
     completeClassCount,
-    attentionEntries,
+    attentionItems,
   });
 
   return { status, summary };
@@ -105,19 +111,19 @@ export function computeShowDeskStatus({
 function buildSummary({
   totalClasses,
   completeClassCount,
-  attentionEntries,
+  attentionItems,
 }: {
   totalClasses: number;
   completeClassCount: number;
-  attentionEntries: number;
+  attentionItems: number;
 }): string {
   const parts: string[] = [];
   if (totalClasses > 0) {
     parts.push(`${completeClassCount} of ${totalClasses} classes complete`);
   }
-  if (attentionEntries > 0) {
-    const label = attentionEntries === 1 ? 'entry needs' : 'entries need';
-    parts.push(`${attentionEntries} ${label} attention`);
+  if (attentionItems > 0) {
+    const label = attentionItems === 1 ? 'item needs' : 'items need';
+    parts.push(`${attentionItems} ${label} attention`);
   }
   return parts.length > 0 ? parts.join(' · ') : 'No activity yet';
 }

@@ -40,6 +40,7 @@ interface ShowMapStructureTableProps {
   scope?: ShowMapScopeState | undefined;
   scopeNow?: Date | undefined;
   actionPhase?: 'today' | 'wrap-up' | undefined;
+  attentionCountsByNodeId?: ReadonlyMap<string, number> | undefined;
   onResetFilters?: (() => void) | undefined;
 }
 
@@ -90,7 +91,7 @@ function ProgressCell({ node }: { node: ShowMapNode }) {
   );
 }
 
-function StatusCell({ node }: { node: ShowMapNode }) {
+function StatusCell({ node, attentionCount }: { node: ShowMapNode; attentionCount: number }) {
   return (
     <div className="flex flex-wrap gap-1">
       {node.status && <Badge variant="secondary">{node.status.label}</Badge>}
@@ -100,10 +101,10 @@ function StatusCell({ node }: { node: ShowMapNode }) {
         </Badge>
       )}
       {node.checkInStatus && <Badge variant="outline">{node.checkInStatus.label}</Badge>}
-      {!!node.attentionCount && (
-        <Badge variant="outline">{node.attentionCount} need attention</Badge>
+      {attentionCount > 0 && (
+        <Badge variant="outline">{attentionCount} need attention</Badge>
       )}
-      {!node.status && !node.wrapUpStatus && !node.checkInStatus && !node.attentionCount && (
+      {!node.status && !node.wrapUpStatus && !node.checkInStatus && attentionCount === 0 && (
         <span className="text-sm text-muted-foreground">-</span>
       )}
     </div>
@@ -168,6 +169,7 @@ export function ShowMapStructureTable({
   scope = DEFAULT_SHOW_MAP_SCOPE,
   scopeNow = new Date(),
   actionPhase,
+  attentionCountsByNodeId,
   onResetFilters,
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
@@ -337,7 +339,10 @@ export function ShowMapStructureTable({
             {...getRowActionOpenProps(node.id)}
           >
             <EntryIdentity node={node} onNavigate={onNavigate} />
-            <StatusCell node={node} />
+            <StatusCell
+              node={node}
+              attentionCount={attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0}
+            />
             <ProgressCell node={node} />
             <div className="flex justify-end">
               {enableRowActions && (
@@ -409,7 +414,10 @@ export function ShowMapStructureTable({
           )}
         </div>
 
-        <StatusCell node={node} />
+        <StatusCell
+          node={node}
+          attentionCount={attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0}
+        />
         <ProgressCell node={node} />
 
         <div className="flex flex-wrap justify-end gap-2">

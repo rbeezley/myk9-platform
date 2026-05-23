@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildShowMapTree } from '../showMapTree';
 import {
   getAttentionActions,
+  getAttentionCountsByNodeId,
   getPrimaryActionForNode,
   getRankedActions,
   getRecommendedActions,
@@ -751,5 +752,142 @@ describe('showMapActions', () => {
         href: '/secretary/results-submission',
       }),
     ]);
+  });
+
+  describe('getAttentionCountsByNodeId', () => {
+    it('rolls per-node attention up to root in unified (phase=undefined) mode', () => {
+      // 2 submitted entries on class-active (live-ops) + 1 unsigned-complete
+      // class on class-needs-signature (wrap-up). Root should see 3 items.
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-active',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+        ],
+        entries: [
+          {
+            id: 'entry-a',
+            class_id: 'class-active',
+            dog: { call_name: 'Bella' },
+            entry_status: 'submitted',
+          },
+          {
+            id: 'entry-b',
+            class_id: 'class-active',
+            dog: { call_name: 'Scout' },
+            entry_status: 'submitted',
+          },
+          { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
+        ],
+      });
+
+      const counts = getAttentionCountsByNodeId(tree, undefined);
+
+      expect(counts.get(tree.root.id)).toBe(3);
+      expect(counts.get('trial:trial-1')).toBe(3);
+      expect(counts.get('class:class-active')).toBe(2);
+      expect(counts.get('class:class-needs-signature')).toBe(1);
+      expect(counts.get('entry:entry-a')).toBe(1);
+      expect(counts.get('entry:entry-b')).toBe(1);
+    });
+
+    it("matches legacy tree.root.attentionCount when phase='today' (entry attention only)", () => {
+      // The legacy attention-consistency contract (entry-only) is preserved
+      // for the cross-show dashboard, which only sees entry data. With
+      // phase='today', wrap-up actions are filtered out, so the root count
+      // should equal tree.root.attentionCount.
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-active',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+        ],
+        entries: [
+          { id: 'e1', class_id: 'class-active', entry_status: 'submitted' },
+          { id: 'e2', class_id: 'class-active', entry_status: 'submitted' },
+          { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
+        ],
+      });
+
+      const counts = getAttentionCountsByNodeId(tree, 'today');
+
+      expect(counts.get(tree.root.id)).toBe(2);
+      expect(tree.root.attentionCount).toBe(2);
+    });
+
+    it("hides entry attention under phase='wrap-up' and counts only wrap-up nodes", () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-active',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+        ],
+        entries: [
+          { id: 'e1', class_id: 'class-active', entry_status: 'submitted' },
+          { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
+        ],
+      });
+
+      const counts = getAttentionCountsByNodeId(tree, 'wrap-up');
+
+      expect(counts.get(tree.root.id)).toBe(1);
+      expect(counts.get('class:class-needs-signature')).toBe(1);
+      expect(counts.get('class:class-active')).toBeUndefined();
+    });
+
+    it('returns an empty map when no node carries attention work', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-active',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ],
+        entries: [
+          { id: 'e1', class_id: 'class-active', check_in_status: 'checked-in' },
+        ],
+      });
+
+      const counts = getAttentionCountsByNodeId(tree, undefined);
+
+      expect(counts.size).toBe(0);
+    });
   });
 });

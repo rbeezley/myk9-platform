@@ -73,17 +73,6 @@ export function SecretaryDashboardPage() {
         text: string;
         href: string;
       }> = [];
-      if (counts.check_in_conflict > 0) {
-        rows.push({
-          showId,
-          showName,
-          kind: 'urgent',
-          text: `${counts.check_in_conflict} ${
-            counts.check_in_conflict === 1 ? 'entry' : 'entries'
-          } with check-in conflicts`,
-          href: `/secretary/entries/${showId}`,
-        });
-      }
       if (counts.pending_review > 0) {
         rows.push({
           showId,

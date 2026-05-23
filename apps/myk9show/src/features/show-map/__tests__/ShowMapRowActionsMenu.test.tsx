@@ -50,13 +50,13 @@ describe('ShowMapRowActionsMenu', () => {
       classes,
       entries: [
         {
-          id: 'entry-conflict',
+          id: 'entry-submitted-a',
           class_id: 'class-active',
           dog: { call_name: 'Bella' },
-          check_in_status: 'conflict',
+          entry_status: 'submitted',
         },
         {
-          id: 'entry-submitted',
+          id: 'entry-submitted-b',
           class_id: 'class-future',
           dog: { call_name: 'Scout' },
           entry_status: 'submitted',
@@ -92,8 +92,8 @@ describe('ShowMapRowActionsMenu', () => {
 
     expect(screen.getByText('Recommended')).toBeInTheDocument();
     expect(recommendedItems).toHaveLength(2);
-    expect(recommendedItems[0]).toHaveTextContent('Resolve check-in conflict');
-    expect(recommendedItems[0]).toHaveTextContent('Entry has a check-in conflict');
+    expect(recommendedItems[0]).toHaveTextContent('Review entry');
+    expect(recommendedItems[0]).toHaveTextContent('Entry is waiting for secretary review');
     expect(recommendedItems[1]).toHaveTextContent('Review entry');
     expect(recommendedItems[1]).toHaveTextContent('Entry is waiting for secretary review');
     expect(allItems.length).toBeGreaterThan(recommendedItems.length);

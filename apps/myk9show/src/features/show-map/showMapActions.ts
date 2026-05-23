@@ -12,7 +12,6 @@ import {
   PenLine,
   PlayCircle,
   Send,
-  UserCheck,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import { isShowMapActionEnabled } from './showMapActionExecution';
@@ -28,7 +27,6 @@ export const showMapBadgeTargets = {
 } as const;
 
 export const showMapActionIds = [
-  'resolve-check-in-conflict',
   'review-entry',
   'score-class',
   'open-class',
@@ -222,36 +220,14 @@ function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
   return [];
 }
 
-function actionsForNode(
+function liveOpsActionsForNode(
   node: ShowMapNode,
-  tree: ShowMapTree,
-  phase: ShowMapActionState['phase']
+  tree: ShowMapTree
 ): ShowMapAction[] {
-  if (phase === 'wrap-up') {
-    return wrapUpActionsForNode(node);
-  }
-
   if (node.type === 'entry') {
     const actions: ShowMapAction[] = [];
     const href = nearestHref(tree, node);
     const classId = sourceIdFromNodeId(node.parentId, 'class');
-    if (node.status?.kind === 'attention' || node.checkInStatus?.kind === 'attention') {
-      actions.push(
-        withHref(
-          {
-            id: 'resolve-check-in-conflict',
-            nodeId: node.id,
-            label: 'Resolve check-in conflict',
-            why: withEntryContext(node, 'Entry has a check-in conflict'),
-            priority: 100,
-            icon: UserCheck,
-            recommended: true,
-            createsAttention: true,
-          },
-          href
-        )
-      );
-    }
     if (node.status?.value === 'submitted') {
       actions.push(
         withHref(
@@ -441,6 +417,40 @@ function actionsForNode(
   }
 
   return [];
+}
+
+// INTENT: phase==='today' preserves the legacy Today-tab action set,
+// phase==='wrap-up' preserves the legacy Wrap-up-tab action set, and
+// phase===undefined yields the unified Show Desk action set (B1).
+function actionsForNode(
+  node: ShowMapNode,
+  tree: ShowMapTree,
+  phase: ShowMapActionState['phase']
+): ShowMapAction[] {
+  if (phase === 'today') {
+    return liveOpsActionsForNode(node, tree);
+  }
+  if (phase === 'wrap-up') {
+    return wrapUpActionsForNode(node);
+  }
+  const merged = [...liveOpsActionsForNode(node, tree), ...wrapUpActionsForNode(node)];
+  assertNoActionCollision(merged);
+  return merged;
+}
+
+function assertNoActionCollision(actions: ShowMapAction[]): void {
+  if (process.env.NODE_ENV === 'production') return;
+  const seen = new Set<string>();
+  for (const action of actions) {
+    const key = `${action.id}::${action.nodeId}`;
+    if (seen.has(key)) {
+      throw new Error(
+        `showMapActions: duplicate action id "${action.id}" on node "${action.nodeId}". ` +
+          `Live-ops and wrap-up branches must not emit the same id for the same node.`
+      );
+    }
+    seen.add(key);
+  }
 }
 
 function compareShowMapActions(a: ShowMapAction, b: ShowMapAction): number {

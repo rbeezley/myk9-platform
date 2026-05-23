@@ -35,15 +35,16 @@ const classes: ShowMapClassInput[] = [
 ];
 
 // Mixed dataset spanning every relevant status combination.
+// Post-B1: check-in conflicts are NOT secretary attention — only pending_review counts.
 const entries: EntryLike[] = [
-  // 3 pending_review only (entry_status='submitted', no check-in conflict)
+  // 3 pending_review (entry_status='submitted')
   { entry_status: 'submitted' },
   { entry_status: 'submitted' },
   { entry_status: 'submitted' },
-  // 2 check_in_conflict only (different entry_status)
+  // Conflict-only rows: no longer attention (gate-steward signal owned by myK9Q)
   { entry_status: 'accepted', check_in_status: 'conflict' },
   { entry_status: 'confirmed', check_in_status: 'conflict' },
-  // 1 row that matches BOTH — should count as check_in_conflict (higher priority)
+  // submitted + conflict: still counts as pending_review (single attention reason now)
   { entry_status: 'submitted', check_in_status: 'conflict' },
   // Noise: rows that should not contribute
   { entry_status: 'accepted', check_in_status: 'checked-in' },
@@ -65,10 +66,10 @@ describe('attention divergence prevention', () => {
     const tree = buildShowMapTree({ show, trials, classes, entries: treeEntries });
     const dashboardCounts = countAttention(treeEntries);
 
-    // Sanity: the fixture exercises both reasons + the priority tiebreak.
-    expect(dashboardCounts.pending_review).toBe(3);
-    expect(dashboardCounts.check_in_conflict).toBe(3);
-    expect(dashboardCounts.total).toBe(6);
+    // Sanity: post-B1 only pending_review contributes (3 submitted entries; the
+    // submitted+conflict row counts once, conflict-only rows contribute nothing).
+    expect(dashboardCounts.pending_review).toBe(4);
+    expect(dashboardCounts.total).toBe(4);
 
     expect(tree.root.attentionCount).toBe(dashboardCounts.total);
   });

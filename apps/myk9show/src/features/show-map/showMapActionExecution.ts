@@ -45,7 +45,6 @@ export type ResolvedShowMapActionExecution =
     };
 
 export const showMapActionExecutionById = {
-  'resolve-check-in-conflict': { kind: 'navigate' },
   'review-entry': { kind: 'navigate' },
   'score-class': { kind: 'navigate' },
   'open-class': { kind: 'navigate' },

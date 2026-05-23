@@ -239,7 +239,10 @@ describe('computeShowDeskStatus', () => {
     });
 
     expect(result.summary).toContain('1 of 2 classes complete');
-    expect(result.summary).toContain('1 entry needs attention');
+    // Unified mode (phase undefined): the 1 submitted entry, the empty-but-
+    // complete class c1 (review-results), and the trial that becomes
+    // TRIAL_READY_TO_SUBMIT once any class completes all surface attention.
+    expect(result.summary).toContain('3 items need attention');
   });
 
   it('produces a fallback summary when no classes or attention exist', () => {

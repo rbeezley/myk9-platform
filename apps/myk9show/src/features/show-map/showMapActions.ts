@@ -528,6 +528,31 @@ export function getAttentionNodeIds(
   return nodeIds;
 }
 
+// Phase-aware attention rollup. Each unique node that directly hosts an
+// attention action contributes +1 to itself and to every ancestor. The static
+// `node.attentionCount` baked into the tree is entry-only and cannot represent
+// unified-mode wrap-up work; this helper is the source of truth for any
+// surface (summary tile, row badges) whose count must match the
+// phase-aware Attention filter.
+export function getAttentionCountsByNodeId(
+  tree: ShowMapTree,
+  phase?: ShowMapActionState['phase']
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  const directNodeIds = new Set<string>();
+  for (const action of getAttentionActions('root', { tree, phase })) {
+    directNodeIds.add(action.nodeId);
+  }
+  for (const directId of directNodeIds) {
+    let node: ShowMapNode | undefined = tree.nodesById[directId];
+    while (node) {
+      counts.set(node.id, (counts.get(node.id) ?? 0) + 1);
+      node = node.parentId ? tree.nodesById[node.parentId] : undefined;
+    }
+  }
+  return counts;
+}
+
 export function getPrimaryActionForNode(
   node: ShowMapNode | undefined,
   state: ShowMapActionState

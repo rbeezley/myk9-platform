@@ -103,7 +103,11 @@ function useSecretaryRedirectShowId(): { showId: string; isResolving: boolean } 
   };
 }
 
-const SecretaryShowPhaseRedirect = ({ phase }: { phase: 'setup' | 'today' | 'wrap-up' }) => {
+const SecretaryShowPhaseRedirect = ({
+  phase,
+}: {
+  phase: 'setup' | 'today' | 'wrap-up' | 'show-desk';
+}) => {
   const { showId, isResolving } = useSecretaryRedirectShowId();
 
   if (isResolving) {

@@ -1,11 +1,11 @@
 import { HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SECRETARY_SHOW_DAY_PROMPTS } from '@/components/askq/askq-config';
-import type { ShowWorkbenchPhase } from '@/hooks/useActivePhase';
+import type { LegacyShowWorkbenchPhase } from '@/hooks/useActivePhase';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 
 interface ShowWorkbenchAskQHelpProps {
-  phase: ShowWorkbenchPhase;
+  phase: LegacyShowWorkbenchPhase;
 }
 
 export function ShowWorkbenchAskQHelp({ phase }: ShowWorkbenchAskQHelpProps) {

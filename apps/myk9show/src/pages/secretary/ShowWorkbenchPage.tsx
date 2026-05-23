@@ -5,6 +5,7 @@ import {
   Eye,
   FileBarChart,
   ListChecks,
+  ListTree,
   Medal,
   Pencil,
   Send,
@@ -66,11 +67,13 @@ import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/ove
 import { isValidUUID } from '@/utils/validation';
 
 const ShowMapTab = lazy(() => import('@/features/show-map/ShowMapTab'));
+const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
 
 const PHASE_TABS: PrimaryTabDef[] = [
   { id: 'setup', label: 'Setup', icon: ListChecks },
   { id: 'today', label: 'Today', icon: ClipboardCheck },
   { id: 'wrap-up', label: 'Wrap-up', icon: Medal },
+  { id: 'show-desk', label: 'Show Desk', icon: ListTree },
 ];
 
 function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
@@ -526,6 +529,17 @@ export function ShowWorkbenchPage() {
               />
             </Suspense>
           </div>
+        </PrimaryTabsContent>
+        <PrimaryTabsContent value="show-desk">
+          <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+            <ShowDeskPanel
+              show={currentShow}
+              trials={showMapTrials}
+              classes={showClasses}
+              entries={showEntries}
+              canManageShow
+            />
+          </Suspense>
         </PrimaryTabsContent>
       </PrimaryTabs>
     </PageShell>

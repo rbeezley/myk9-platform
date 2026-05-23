@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { ShowWorkbenchPhase } from '@/hooks/useActivePhase';
+import type { LegacyShowWorkbenchPhase } from '@/hooks/useActivePhase';
 
 interface AboutThisPhaseProps {
-  phase: ShowWorkbenchPhase;
+  phase: LegacyShowWorkbenchPhase;
   showId: string;
 }
 
@@ -13,7 +13,7 @@ interface PhaseAboutCopy {
   body: string;
 }
 
-const PHASE_ABOUT_COPY: Record<ShowWorkbenchPhase, PhaseAboutCopy> = {
+const PHASE_ABOUT_COPY: Record<LegacyShowWorkbenchPhase, PhaseAboutCopy> = {
   setup: {
     title: 'About Setup',
     body: 'Use this before the first dog runs: confirm the schedule, judges, show page, and materials so the morning starts cleanly.',
@@ -28,16 +28,16 @@ const PHASE_ABOUT_COPY: Record<ShowWorkbenchPhase, PhaseAboutCopy> = {
   },
 };
 
-function storageKey(showId: string, phase: ShowWorkbenchPhase): string {
+function storageKey(showId: string, phase: LegacyShowWorkbenchPhase): string {
   return `myk9show:workbench-about-dismissed:${showId}:${phase}`;
 }
 
-function readDismissed(showId: string, phase: ShowWorkbenchPhase): boolean {
+function readDismissed(showId: string, phase: LegacyShowWorkbenchPhase): boolean {
   if (typeof window === 'undefined') return false;
   return window.localStorage.getItem(storageKey(showId, phase)) === 'true';
 }
 
-function writeDismissed(showId: string, phase: ShowWorkbenchPhase) {
+function writeDismissed(showId: string, phase: LegacyShowWorkbenchPhase) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(storageKey(showId, phase), 'true');
 }

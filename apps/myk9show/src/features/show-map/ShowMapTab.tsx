@@ -1,13 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 import { ListTree, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  buildShowMapTree,
-  getDefaultExpandedNodeIds,
-  getShowMapNodeId,
-  getTrialsExpandedNodeIds,
-} from './showMapTree';
+import { getShowMapNodeId } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
@@ -16,20 +10,13 @@ import { ShowMapToolbar } from './ShowMapToolbar';
 import { ShowMapRunningNowStrip } from './ShowMapRunningNowStrip';
 import { ShowMapGuidanceCard } from './ShowMapGuidanceCard';
 import { countCatalogEntries } from './entryCounts';
-import {
-  getAllRecommendedActions,
-  getAttentionCountsByNodeId,
-  getRankedActions,
-} from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
-import { getRunningNowItems } from './showMapRunningNow';
-import { useShowMapActionExecutor } from './useShowMapActionExecutor';
+import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
+import type { ShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type {
   BuildShowMapTreeInput,
   ShowMapCompletionScope,
   ShowMapDayScope,
-  ShowMapFilter,
-  ShowMapTree,
 } from './showMapTypes';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
@@ -41,45 +28,15 @@ interface ShowMapTabProps extends BuildShowMapTreeInput {
   initialCompletionScope?: ShowMapCompletionScope | undefined;
   actionPhase?: 'today' | 'wrap-up' | undefined;
   scopeNow?: Date | undefined;
-}
-
-function useExpandedNodes(tree: ShowMapTree) {
-  const [expandedNodeIds, setExpandedNodeIds] = useState(() => getDefaultExpandedNodeIds(tree));
-
-  const toggleNode = useCallback((nodeId: string) => {
-    setExpandedNodeIds(current => {
-      const next = new Set(current);
-      if (next.has(nodeId)) next.delete(nodeId);
-      else next.add(nodeId);
-      return next;
-    });
-  }, []);
-
-  const collapseAll = useCallback(
-    () => setExpandedNodeIds(new Set([tree.root.id])),
-    [tree.root.id]
-  );
-  const expandTrials = useCallback(
-    () => setExpandedNodeIds(getTrialsExpandedNodeIds(tree)),
-    [tree]
-  );
-  const expandPathToNode = useCallback(
-    (nodeId: string) => {
-      setExpandedNodeIds(current => {
-        const next = new Set(current);
-        next.add(tree.root.id);
-        let parentId = tree.nodesById[nodeId]?.parentId;
-        while (parentId) {
-          next.add(parentId);
-          parentId = tree.nodesById[parentId]?.parentId;
-        }
-        return next;
-      });
-    },
-    [tree]
-  );
-
-  return { expandedNodeIds, toggleNode, collapseAll, expandTrials, expandPathToNode };
+  // When true, hide internal Guidance card, Up Next queue, and Running Now
+  // strip — the parent (e.g., ShowDeskAdaptiveHeader) owns those surfaces.
+  // The parent also owns dialog rendering in compact mode so the header's
+  // action triggers and the tree's row actions share one dialog root.
+  compact?: boolean | undefined;
+  // When provided, the tab consumes this shared state instead of creating
+  // its own. Required for compact mode (so the header and tree agree on
+  // expandedNodeIds, dismissedGuidanceKeys, executor, etc.).
+  workbenchState?: ShowMapWorkbenchState | undefined;
 }
 
 function SummaryItem({ label, value }: { label: string; value: number }) {
@@ -91,10 +48,6 @@ function SummaryItem({ label, value }: { label: string; value: number }) {
       </div>
     </div>
   );
-}
-
-function actionKey(action: ShowMapAction): string {
-  return `${action.id}:${action.nodeId}`;
 }
 
 function PriorityQueue({
@@ -192,33 +145,70 @@ function buildMoveUpTargets(
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-export default function ShowMapTab({
+// INTENT: Thin dispatcher that decides whether to own state (legacy Today /
+// Wrap-up mounts) or consume a parent's shared state (Show Desk tab). Splits
+// into two child components so React only runs one useShowMapWorkbenchState
+// per mount — preventing a duplicate useShowMapActionExecutor (which would
+// create a second Supabase subscription + a second set of pending dialogs).
+export default function ShowMapTab(props: ShowMapTabProps) {
+  if (props.workbenchState) {
+    return <ShowMapTabView {...props} state={props.workbenchState} />;
+  }
+  return <ShowMapTabStandalone {...props} />;
+}
+
+function ShowMapTabStandalone(props: ShowMapTabProps) {
+  const state = useShowMapWorkbenchState({
+    show: props.show,
+    trials: props.trials,
+    classes: props.classes,
+    entries: props.entries,
+    showId: props.show.id,
+    phase: props.actionPhase,
+    ...(props.scopeNow !== undefined && { scopeNow: props.scopeNow }),
+    initialDayScope: props.initialDayScope ?? 'all',
+    initialCompletionScope: props.initialCompletionScope ?? 'active',
+  });
+  return <ShowMapTabView {...props} state={state} />;
+}
+
+function ShowMapTabView({
   show,
   trials,
   classes,
   entries,
   canManageShow,
-  initialDayScope = 'all',
-  initialCompletionScope = 'active',
   actionPhase,
-  scopeNow,
-}: ShowMapTabProps) {
-  const navigate = useNavigate();
-  const [filter, setFilter] = useState<ShowMapFilter>('all');
-  const [dayScope, setDayScope] = useState<ShowMapDayScope>(initialDayScope);
-  const [completionScope, setCompletionScope] =
-    useState<ShowMapCompletionScope>(initialCompletionScope);
-  // INTENT: Guidance dismissals are session-local noise control, not a permanent action mute.
-  const [dismissedGuidanceKeys, setDismissedGuidanceKeys] = useState<Set<string>>(() => new Set());
-  const tree = useMemo(
-    () => buildShowMapTree({ show, trials, classes, entries }),
-    [show, trials, classes, entries]
-  );
-  const scope = useMemo(() => ({ dayScope, completionScope }), [completionScope, dayScope]);
-  const effectiveScopeNow = useMemo(() => scopeNow ?? new Date(), [scopeNow]);
-  const { expandedNodeIds, toggleNode, collapseAll, expandTrials, expandPathToNode } =
-    useExpandedNodes(tree);
-  const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
+  compact = false,
+  state,
+}: ShowMapTabProps & { state: ShowMapWorkbenchState }) {
+  const {
+    tree,
+    scope,
+    effectiveScopeNow,
+    filter,
+    setFilter,
+    dayScope,
+    setDayScope,
+    completionScope,
+    setCompletionScope,
+    resetFilters,
+    expandedNodeIds,
+    toggleNode,
+    collapseAll,
+    expandTrials,
+    attentionCountsByNodeId,
+    attentionCount,
+    guidanceAction,
+    guidanceExecution,
+    dismissGuidanceAction,
+    startGuidanceAction,
+    priorityActions,
+    runningNowItems,
+    selectRunningNowClass,
+    executor,
+    navigateTo,
+  } = state;
   const {
     executeAction,
     moveUpAction,
@@ -234,74 +224,21 @@ export default function ShowMapTab({
     closeMessageDialog,
     confirmMessageHandler,
     isExecuting,
-  } = useShowMapActionExecutor({ showId: show.id });
-  const attentionCountsByNodeId = useMemo(
-    () => getAttentionCountsByNodeId(tree, actionPhase),
-    [actionPhase, tree]
-  );
-  const attentionCount = attentionCountsByNodeId.get(tree.root.id) ?? 0;
+  } = executor;
+
   const catalogEntryCount = countCatalogEntries(entries);
-  const recommendedActions = useMemo(
-    () => getAllRecommendedActions('root', { tree, phase: actionPhase }),
-    [actionPhase, tree]
-  );
-  const guidanceAction = recommendedActions.find(
-    action => !dismissedGuidanceKeys.has(actionKey(action))
-  );
-  const guidanceExecution = guidanceAction
-    ? resolveShowMapActionExecution(guidanceAction)
-    : undefined;
-  const startGuidanceAction = useCallback(() => {
-    if (!guidanceAction || !guidanceExecution || guidanceExecution.kind === 'disabled') return;
-    if (guidanceExecution.kind === 'navigate') navigateTo(guidanceExecution.href);
-    else executeAction(guidanceAction, guidanceExecution);
-  }, [executeAction, guidanceAction, guidanceExecution, navigateTo]);
-  const dismissGuidanceAction = useCallback(() => {
-    if (!guidanceAction) return;
-    setDismissedGuidanceKeys(current => new Set(current).add(actionKey(guidanceAction)));
-  }, [guidanceAction]);
-  const priorityActions = useMemo(() => {
-    const currentGuidanceKey = guidanceAction ? actionKey(guidanceAction) : null;
-    const actions = getRankedActions('root', { tree, phase: actionPhase });
-    return currentGuidanceKey
-      ? actions.filter(action => actionKey(action) !== currentGuidanceKey)
-      : actions;
-  }, [actionPhase, guidanceAction, tree]);
-  const runningNowItems = useMemo(
-    () => getRunningNowItems(tree, scope, effectiveScopeNow),
-    [effectiveScopeNow, scope, tree]
-  );
-  const selectRunningNowClass = useCallback(
-    (nodeId: string) => {
-      expandPathToNode(nodeId);
-      const scrollToNode = () => {
-        // INTENT: Running Now uses stable row data attributes to focus recursive tree rows
-        // without threading one-off refs through the whole structure table.
-        const row = document.querySelector(`[data-node-id="${nodeId}"]`);
-        if (row instanceof HTMLElement && typeof row.scrollIntoView === 'function') {
-          row.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }
-      };
-      if (typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(scrollToNode);
-      } else {
-        window.setTimeout(scrollToNode, 0);
-      }
-    },
-    [expandPathToNode]
-  );
   const moveUpTargets = useMemo(
     () => buildMoveUpTargets(classes, moveUpAction?.classId),
     [classes, moveUpAction?.classId]
   );
-  const resetFilters = useCallback(() => {
-    setFilter('all');
-    setDayScope(initialDayScope);
-    setCompletionScope(initialCompletionScope);
-  }, [initialCompletionScope, initialDayScope]);
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
+
+  // INTENT: compact mode means the parent (Show Desk tab) renders the
+  // dialogs at its own level so the header's action triggers share the
+  // same dialog root as the tree's row actions.
+  const renderDialogs = canManageShow && !compact;
 
   if (trials.length === 0) {
     return (
@@ -320,7 +257,7 @@ export default function ShowMapTab({
                 type="button"
                 className="mt-4"
                 onClick={() =>
-                  navigate(`/secretary/create-show/wizard?showId=${show.id}&mode=add-trials`)
+                  navigateTo(`/secretary/create-show/wizard?showId=${show.id}&mode=add-trials`)
                 }
               >
                 New Trial
@@ -370,7 +307,7 @@ export default function ShowMapTab({
         showActionHelp={canManageShow}
       />
       <div className="p-3">
-        {canManageShow && (
+        {canManageShow && !compact && (
           <ShowMapGuidanceCard
             action={guidanceAction}
             canExecute={Boolean(guidanceExecution && guidanceExecution.kind !== 'disabled')}
@@ -378,15 +315,17 @@ export default function ShowMapTab({
             onDismiss={dismissGuidanceAction}
           />
         )}
-        <ShowMapRunningNowStrip items={runningNowItems} onSelect={selectRunningNowClass} />
-        {canManageShow && (
+        {!compact && (
+          <ShowMapRunningNowStrip items={runningNowItems} onSelect={selectRunningNowClass} />
+        )}
+        {canManageShow && !compact && (
           <PriorityQueue
             actions={priorityActions}
             onNavigate={navigateTo}
             onAction={executeAction}
           />
         )}
-        {canManageShow && (
+        {canManageShow && !compact && (
           <MoveUpUndoBanner
             moveUp={lastMoveUp}
             isUndoing={isUndoingMoveUp}
@@ -408,7 +347,7 @@ export default function ShowMapTab({
           onResetFilters={resetFilters}
         />
       </div>
-      {canManageShow && (
+      {renderDialogs && (
         <>
           <ShowMapMoveUpDialog
             key={moveUpAction?.nodeId ?? 'move-up-dialog'}

@@ -549,7 +549,7 @@ Add a `Show Desk` tab to the workbench, wired up with the adaptive header from P
 
 ### Scope
 
-Add three new entry-row actions and wire the class-row primary action lifecycle so the next operational step is always visible inline rather than buried in the row menu.
+Add **one** new entry-row action (`edit-score`) and wire the class-row primary action lifecycle so the next operational step is always visible inline rather than buried in the row menu. Two other entry actions originally proposed (`open-entry-details`, `view-handler-entries`) are deferred until destination routes exist — see the implementation step below.
 
 ### Implementation
 
@@ -567,8 +567,26 @@ Add three new entry-row actions and wire the class-row primary action lifecycle 
    - **Execution declaration:** add `'edit-score': { kind: 'navigate' }` to `showMapActionExecutionById` map in [`showMapActionExecution.ts`](../apps/myk9show/src/features/show-map/showMapActionExecution.ts).
    - **Emission:** in `actionsForNode` for entry nodes, add the action with `href: getPaperScoringEntryHref(classId, entryId)` where `classId` is `parentSourceId` and `entryId` is `sourceIdFromNodeId(node.id, 'entry')`.
    - **Priority:** 40. Recommended when class status is `active` and entry is the one currently being scored; default-priority otherwise.
-   - **Conditional emission:** only emit when the entry has a score row OR the class is currently being scored. When the entry has no score row yet (class not started), do NOT emit `Edit score` at all (per "Don't show actions that can't apply" — prefer absence over disabled-with-reason for navigate actions; the disabled-with-reason pattern is appropriate for mutation actions like Scratch where the operator might still want to know the option exists).
-   - **Acceptance test:** new unit test in `showMapActions.test.ts` confirming `Edit score` emits with correct href for a scored entry and does NOT emit for an unscored entry in a not-started class.
+   - **Conditional emission predicate:** entry nodes don't carry raw `is_scored` data — [`buildShowMapTree`](../apps/myk9show/src/features/show-map/showMapTree.ts) (around line 280) only puts derived `status` and `checkInStatus` on entry nodes. So the predicate must work off those derived fields plus the parent class's status.
+
+     Use this exact rule:
+
+     ```ts
+     // In actionsForNode for entry nodes:
+     const parentClass = tree.nodesById[node.parentId ?? ''];
+     const entryScored = node.status?.kind === 'complete';
+     const classActive = parentClass?.status?.kind === 'active';
+     if (entryScored || classActive) {
+       // emit edit-score action
+     }
+     ```
+
+     This produces:
+     - **Class is `active`** → `edit-score` on every entry in that class (lets the secretary deep-link into the scoring screen at any entry's position — pre-scored, currently-scoring, or upcoming-in-queue).
+     - **Entry is `complete` (scored)** → `edit-score` on that entry regardless of class status (post-hoc correction path; works even after the class is marked `complete`).
+     - **Entry is unscored in a `neutral` (not started) class** → no `edit-score` action emitted. No disabled state — the action simply doesn't appear.
+
+   - If the predicate ever needs richer data (e.g., distinguishing "scored Q" vs "scored NQ" vs "currently being scored"), add a typed `isScored: boolean` and/or `scoreStatus` field to `ShowMapNode` in `buildShowMapTree`. Out of scope for this PR; flag as a follow-up if the predicate proves insufficient.
 
    **For the deferred actions:** capture as TODOs in `OPEN-TODOS.md` (or wherever the project tracks future work). Pre-requisite: create entry-detail and handler-detail routes. Out of scope for Option B.
 
@@ -599,13 +617,16 @@ Add three new entry-row actions and wire the class-row primary action lifecycle 
 
 ### Exit criterion
 
-- The three new entry-row actions render with correct conditional visibility.
+- The `edit-score` action renders with correct conditional visibility (per the predicate below) and routes to the correct entry's row in the scoring screen.
 - The class-row primary button renders for all three lifecycle states (neutral / active / complete), with mutation actions correctly wired to `executeAction`.
-- `Edit score` shows the disabled-with-reason state when no score row exists.
 
 ### Testing
 
-- **Unit:** Extend [`showMapActions.test.ts`](../apps/myk9show/src/features/show-map/__tests__/showMapActions.test.ts) for the three new action emissions and their conditional triggers.
+- **Unit:** Extend [`showMapActions.test.ts`](../apps/myk9show/src/features/show-map/__tests__/showMapActions.test.ts):
+  - Assert `edit-score` emits with the correct `href` from `getPaperScoringEntryHref(classId, entryId)` when the predicate is satisfied.
+  - Assert `edit-score` does NOT emit on an unscored entry in a not-started class.
+  - Assert `edit-score` emits on every entry of an `active` class (so the secretary can deep-link into the scoring screen at any entry's position).
+  - Assert `edit-score` emits on a `complete` entry regardless of its class status (post-hoc correction path).
 - **Unit:** New `ShowMapStructureTable.classPrimary.test.tsx` — render a class node in each lifecycle state; assert the right inline button renders; mutation buttons invoke the executor on click.
 - **Integration:** Wire-through test confirming a `Mark Started` button click flips the class to `active` (mocked mutation).
 - **Visual regression:** Screenshot a class row in each lifecycle state.
@@ -1028,11 +1049,11 @@ Before merging Phase B7, verify drag-and-drop performance on a class with 50+ en
 | B0 | Build `ShowDeskAdaptiveHeader` + derivation helpers in isolation (`computeShowDeskStatus` takes show + trials + tree + injectable `now`) | PO sign-off on plan | Component + helpers unit-tested, not yet mounted | Low |
 | B1 | Action-system unification + conflict-removal cleanup across `showMapActions.ts`, `attention.ts`, and `showMapStatus.ts` | B0 merged | `getRankedActions` returns merged actions when no phase; conflict no longer classified as attention anywhere in secretary surfaces | Med |
 | B2a | Introduce Show Desk tab; wire header + compact mode on `ShowMapTab` + default-routing flip | B0 + B1 merged | New tab renders correctly, old tabs preserved | Med |
-| B2b | Row-action enhancements: entry-menu additions + class-row primary action lifecycle (with mutation-action wiring) | B2a merged | Three new entry actions render; class primary button surfaces for all three lifecycle states | Med |
-| B3 | Tools slide-out sheet (right-anchored, shadcn Sheet) — 7 cards | B2a merged (B2b and B3 can ship in either order) | 7 desk-tool cards behind a slide-out trigger | Low |
-| B4 | Conditional Closeout section | B3 merged | Closeout section renders only when wrap-up-eligible | Low |
-| B4.5 | Audit Class Details + ShowDashboard for operational-action leaks (per [Surface boundary](#surface-boundary-with-detail-pages)) | B4 merged | Audit findings doc; small remediation PR if leaks found | Low |
-| B5 | Remove Today + Wrap-up tabs | B2+B3+B4+B4.5 merged + PO sign-off | Workbench has 2 tabs; legacy phase URLs redirect | High |
+| B2b | Row-action enhancements: `edit-score` entry action + class-row primary action lifecycle (with mutation-action wiring) | B2a merged | `edit-score` renders per the predicate; class primary button surfaces for all three lifecycle states | Med |
+| B3 | Tools slide-out sheet (right-anchored, shadcn Sheet) — 7 cards | B2a merged (B2b, B3, B4 can ship in any order) | 7 desk-tool cards behind a slide-out trigger | Low |
+| B4 | Conditional Closeout section | B2a merged (parallel-eligible with B2b and B3) | Closeout section renders only when wrap-up-eligible | Low |
+| B4.5 | Audit Class Details + ShowDashboard for operational-action leaks + Setup tab simplification audit | B4 merged | Audit findings doc; small remediation PR if leaks found | Low |
+| B5 | Remove Today + Wrap-up tabs | B2a + B2b + B3 + B4 + B4.5 merged + PO sign-off | Workbench has 2 tabs; legacy phase URLs redirect | High |
 | B6 | Cleanup + documentation | One show cycle after B5 | No dead code; docs updated | Low |
 | B6.5 | Tools sheet additions (Volunteers + Tasks/Notes; deferred from B3) | One show cycle after B6 | 7 → 9 tiles; existing features get Show Desk entry points | Low |
 | B7 | Run-order editing in Show Map (auto-sort presets + drag-and-drop reorder mode) | B6.5 merged + observed in production | Class-row Run Order menu; Class Details cleanup | Med |
@@ -1137,3 +1158,4 @@ If the PO's strongest priority is **fewer features and choices**, Option B is th
 | 2026-05-22 | **Class status auto-derivation flagged as candidate follow-up plan.** PO observed that first-score → `active` and last-expected-score → `complete` is derivable from scoring events. Captured as stub at [`plan-class-status-auto-derivation.md`](plan-class-status-auto-derivation.md); requires PO interview on six edge-case rules before full plan can be drafted. Phase B2b now carries a future-proofing note: don't over-invest in always-visible Mark Started / Mark Complete buttons since they may become rare under auto-derivation. | This session |
 | 2026-05-22 | **Dashboard refocus stub created** at [`plan-dashboard-refocus.md`](plan-dashboard-refocus.md). Captures the candidate follow-up to narrow the Secretary Dashboard to cross-show concerns once Option B's workbench takes over per-show work. Deferred until post-Option-B observation period yields data on which dashboard surfaces remain useful. | This session |
 | 2026-05-23 | **Second PO review pass — six concrete patches applied.** (1) B2a now includes an explicit shared-state extraction step (`useShowMapWorkbenchState` hook) so adaptive header + compact tree don't fork orchestration state. (2) Phase B1 conflict-removal extended to `showMapActionExecutionById`, `AttentionCounts` interface, and `emptyAttentionCounts()` (three sites the earlier patch missed). (3) Phase B2b entry-action additions scope-corrected from three (Open entry details, Edit score, View handler's other entries) to one (Edit score — the only one with an existing destination via `getPaperScoringEntryHref`). Two deferred until destination routes exist; captured as TODOs. (4) Phase B4 closeout terminology tightened to `node.wrapUpStatus?.value` with `SHOW_MAP_WRAP_UP_STATUS` constants (was conflated with `node.status.kind`). (5) Sequencing fixed: B4 entry trigger now correctly "B2a merged" matching the parallel critical path; Comparison table effort row updated 7 PRs → 10–11 PRs. (6) Setup audit (Q3 resolution) added explicitly to Phase B4.5 implementation steps — was marked resolved but never landed in B4.5's actual scope. | Code-grounded PO review |
+| 2026-05-23 | **Third PO review pass — three propagation-drift patches.** Previous review correctly fixed individual sections but didn't propagate to downstream summaries. (1) B2b scope/exit/testing now consistently says "one action" (Edit score) — was still claiming "three new entry-row actions" in scope paragraph, exit criterion, and testing list. (2) Edit score conditional-emission predicate rewritten using actual `ShowMapNode` fields (`node.status.kind === 'complete'` || parent `class.status.kind === 'active'`) — was vague "entry has score row OR class is being scored" without grounding in the tree-build output. Disabled-with-reason language removed for the navigate-action case. (3) Summary table fixed: B4 entry trigger "B3 merged" → "B2a merged" matching the phase header; B5 entry trigger "B2+B3+B4+B4.5" → "B2a+B2b+B3+B4+B4.5" accounting for B2 split; B4.5 row also extended with "+ Setup tab simplification audit" matching the implementation steps. | Code-grounded PO review |

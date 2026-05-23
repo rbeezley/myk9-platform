@@ -239,10 +239,11 @@ describe('computeShowDeskStatus', () => {
     });
 
     expect(result.summary).toContain('1 of 2 classes complete');
-    // Unified mode (phase undefined): the 1 submitted entry, the empty-but-
-    // complete class c1 (review-results), and the trial that becomes
-    // TRIAL_READY_TO_SUBMIT once any class completes all surface attention.
-    expect(result.summary).toContain('3 items need attention');
+    // Unified mode (phase undefined): the 1 submitted entry (review-entry) and
+    // the empty-but-complete class c1 (review-results). The trial does NOT
+    // surface submit-final-results because c2 is still in progress — see the
+    // TRIAL_READY_TO_SUBMIT gate in showMapTree.ts.
+    expect(result.summary).toContain('2 items need attention');
   });
 
   it('produces a fallback summary when no classes or attention exist', () => {

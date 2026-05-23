@@ -203,28 +203,35 @@ export function buildShowMapTree({
     const classWrapUpStatuses = Array.from(classWrapUpStatusesById.values()).filter(
       (status): status is ShowMapDisplayStatus => Boolean(status)
     );
-    const trialWrapUpStatus =
-      classWrapUpStatuses.length === 0
+    // INTENT: TRIAL_READY_TO_SUBMIT and SUBMITTED_TO_REGISTRY require EVERY
+    // class to be complete — otherwise we'd surface "Submit final results"
+    // (a registry-bound CTA) mid-day while classes are still running.
+    // NEEDS_WRAP_UP stays loose: any complete class needing judge signature
+    // is a legitimate trial-level attention signal even while other classes
+    // run, because the secretary should chase the signature in parallel.
+    const allClassesComplete =
+      trialClasses.length > 0 && classWrapUpStatuses.length === trialClasses.length;
+    const trialWrapUpStatus = classWrapUpStatuses.some(status => status.kind === 'attention')
+      ? {
+          value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_WRAP_UP,
+          label: 'Needs wrap-up',
+          kind: 'attention' as const,
+        }
+      : !allClassesComplete
         ? undefined
-        : classWrapUpStatuses.some(status => status.kind === 'attention')
+        : classWrapUpStatuses.every(
+              status => status.value === SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY
+            )
           ? {
-              value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_WRAP_UP,
-              label: 'Needs wrap-up',
-              kind: 'attention' as const,
+              value: SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY,
+              label: 'Submitted to registry',
+              kind: 'complete' as const,
             }
-          : classWrapUpStatuses.every(
-                status => status.value === SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY
-              )
-            ? {
-                value: SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY,
-                label: 'Submitted to registry',
-                kind: 'complete' as const,
-              }
-            : {
-                value: SHOW_MAP_WRAP_UP_STATUS.TRIAL_READY_TO_SUBMIT,
-                label: 'Wrap-up ready',
-                kind: 'neutral' as const,
-              };
+          : {
+              value: SHOW_MAP_WRAP_UP_STATUS.TRIAL_READY_TO_SUBMIT,
+              label: 'Wrap-up ready',
+              kind: 'neutral' as const,
+            };
     const attentionCount = trialEntries.filter(entry => getEntryAttention(entry) !== null).length;
     const trialNode: ShowMapNode = {
       id: getShowMapNodeId('trial', trial.id),

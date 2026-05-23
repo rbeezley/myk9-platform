@@ -5,8 +5,6 @@
  * Uses statusConfig.ts as the single source of truth.
  */
 
-/* eslint-disable react-refresh/only-export-components -- This is a utility file, not a component */
-
 import React from 'react';
 import {
   Circle,

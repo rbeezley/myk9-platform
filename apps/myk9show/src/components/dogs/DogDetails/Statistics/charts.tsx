@@ -52,7 +52,7 @@ const Q_RATE_COLOR = (rate: number) => {
 
 interface TooltipPayload<T> {
   active?: boolean;
-  payload?: readonly { payload: T }[];
+  payload?: readonly { payload?: T }[];
 }
 
 const tooltipStyle: React.CSSProperties = {
@@ -138,8 +138,8 @@ export const ResultsDistributionChart: React.FC<ResultsDistributionChartProps> =
           </Pie>
           <Tooltip
             content={({ active, payload }: TooltipPayload<PieEntry>) => {
-              if (!active || !payload?.[0]) return null;
-              const d = payload[0].payload;
+              const d = payload?.[0]?.payload;
+              if (!active || !d) return null;
               return (
                 <div style={tooltipStyle}>
                   <p className="font-semibold text-foreground text-sm">{d.name}</p>
@@ -185,8 +185,8 @@ export const ElementBreakdownChart: React.FC<ElementBreakdownChartProps> = ({ by
           <YAxis type="category" dataKey="element" width={75} tick={{ fontSize: 12 }} />
           <Tooltip
             content={({ active, payload }: TooltipPayload<(typeof data)[0]>) => {
-              if (!active || !payload?.[0]) return null;
-              const d = payload[0].payload;
+              const d = payload?.[0]?.payload;
+              if (!active || !d) return null;
               return (
                 <div style={tooltipStyle}>
                   <p className="font-semibold text-foreground text-sm">{d.element}</p>
@@ -237,8 +237,8 @@ export const JudgePerformanceChart: React.FC<JudgePerformanceChartProps> = ({ by
           <YAxis type="category" dataKey="displayName" width={95} tick={{ fontSize: 12 }} />
           <Tooltip
             content={({ active, payload }: TooltipPayload<(typeof data)[0]>) => {
-              if (!active || !payload?.[0]) return null;
-              const d = payload[0].payload;
+              const d = payload?.[0]?.payload;
+              if (!active || !d) return null;
               return (
                 <div style={tooltipStyle}>
                   <p className="font-semibold text-foreground text-sm">{d.judge}</p>
@@ -278,8 +278,8 @@ export const ProgressTimelineChart: React.FC<ProgressTimelineChartProps> = ({ ti
           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
           <Tooltip
             content={({ active, payload }: TooltipPayload<TimelinePoint>) => {
-              if (!active || !payload?.[0]) return null;
-              const d = payload[0].payload;
+              const d = payload?.[0]?.payload;
+              if (!active || !d) return null;
               return (
                 <div style={tooltipStyle}>
                   <p className="text-xs text-muted-foreground">{formatDateShortMonth(d.date)}</p>

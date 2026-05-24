@@ -31,11 +31,6 @@ vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({ shows: [] }),
 }));
 
-vi.mock('@/store/messageStore', () => ({
-  useMessageStore: (selector: (state: { unreadCount: number }) => unknown) =>
-    selector({ unreadCount: 0 }),
-}));
-
 const mockUseSecretaryTasks = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
   useSecretaryTasks: (...args: unknown[]) => mockUseSecretaryTasks(...args),
@@ -71,7 +66,7 @@ describe('SecretaryDashboardPage', () => {
     });
   });
 
-  it("queries useSecretaryTasks with 'general' so the badge only counts personal tasks", () => {
+  it("renders TasksTab which queries useSecretaryTasks scoped to personal tasks ('general' filter)", () => {
     renderPage();
     expect(mockUseSecretaryTasks).toHaveBeenCalledWith('general');
   });

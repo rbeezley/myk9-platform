@@ -34,17 +34,26 @@ export interface ShowMapAutoSortSnapshot {
   priorOrders: readonly ShowMapAutoSortSnapshotItem[];
 }
 
+interface ShowMapAutoSortResult {
+  snapshot: ShowMapAutoSortSnapshot;
+  failedCount: number;
+}
+
 interface UseShowMapRunOrderAutoSortInput {
   showId: string;
 }
 
-async function applyAssignments(assignments: ShowMapAutoSortAssignment[]): Promise<void> {
+interface ApplyAssignmentsResult {
+  failedCount: number;
+}
+
+async function applyAssignments(
+  assignments: ShowMapAutoSortAssignment[]
+): Promise<ApplyAssignmentsResult> {
   const results = await Promise.allSettled(
     assignments.map(a => replicatedEntriesTable.updateEntry(a.id, { runOrder: a.runOrder }))
   );
-  if (results.some(r => r.status === 'rejected')) {
-    throw new Error('Some entries could not be reordered. The run order may be partially updated.');
-  }
+  return { failedCount: results.filter(r => r.status === 'rejected').length };
 }
 
 export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSortInput) {
@@ -73,23 +82,31 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
   );
 
   const autoSortMutation = useMutation({
-    mutationFn: async (input: ShowMapAutoSortInput): Promise<ShowMapAutoSortSnapshot> => {
+    mutationFn: async (input: ShowMapAutoSortInput): Promise<ShowMapAutoSortResult> => {
       const entries = await replicatedEntriesTable.getEntriesByClass(input.classId);
       if (entries.length < 2) {
         throw new Error('Auto-sort needs at least two entries in this class.');
       }
       const assignments = computeShowMapAutoSortAssignments(entries, input.kind);
-      const priorOrders = snapshotPriorRunOrders(entries);
-      await applyAssignments(assignments);
-      return {
+      const snapshot: ShowMapAutoSortSnapshot = {
         classId: input.classId,
         ...(input.classLabel !== undefined ? { classLabel: input.classLabel } : {}),
         kind: input.kind,
-        priorOrders,
+        priorOrders: snapshotPriorRunOrders(entries),
       };
+      const { failedCount } = await applyAssignments(assignments);
+      // INTENT: Even on partial failure, return the snapshot so the user keeps
+      // an Undo affordance to roll back the writes that did succeed.
+      return { snapshot, failedCount };
     },
-    onSuccess: (snapshot, input) => {
-      toast.success(SUCCESS_LABELS[input.kind]);
+    onSuccess: ({ snapshot, failedCount }, input) => {
+      if (failedCount > 0) {
+        toast.warning(
+          `Run order partially updated — ${failedCount} ${failedCount === 1 ? 'entry' : 'entries'} could not be saved. Use Undo to roll back.`
+        );
+      } else {
+        toast.success(SUCCESS_LABELS[input.kind]);
+      }
       clearPendingTimer();
       setLastAutoSort(snapshot);
       clearTimerRef.current = setTimeout(() => {
@@ -112,7 +129,12 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
           item.runOrder !== null
         )
         .map(item => ({ id: item.id, runOrder: item.runOrder }));
-      await applyAssignments(assignments);
+      const { failedCount } = await applyAssignments(assignments);
+      if (failedCount > 0) {
+        throw new Error(
+          `Could not restore ${failedCount} ${failedCount === 1 ? 'entry' : 'entries'} to the prior run order.`
+        );
+      }
     },
     onMutate: () => {
       // Stop the auto-dismiss the moment the user engages with Undo. If the
@@ -132,12 +154,23 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     },
   });
 
+  // INTENT: Both writes mutate the same `entries` rows, so we treat them as a
+  // single channel — issuing an auto-sort while undo is in flight (or vice
+  // versa) would interleave run_order writes and leave `lastAutoSort`
+  // pointing at a half-applied state. `isAutoSorting` reflects either path so
+  // the dropdown and the Undo button both disable while any write is active.
+  const isBusy = autoSortMutation.isPending || undoMutation.isPending;
+
   return {
-    autoSort: (input: ShowMapAutoSortInput) => autoSortMutation.mutate(input),
-    isAutoSorting: autoSortMutation.isPending,
+    autoSort: (input: ShowMapAutoSortInput) => {
+      if (isBusy) return;
+      autoSortMutation.mutate(input);
+    },
+    isAutoSorting: isBusy,
     lastAutoSort,
     undoLastAutoSort: () => {
-      if (lastAutoSort) undoMutation.mutate(lastAutoSort);
+      if (!lastAutoSort || isBusy) return;
+      undoMutation.mutate(lastAutoSort);
     },
     isUndoingAutoSort: undoMutation.isPending,
   };

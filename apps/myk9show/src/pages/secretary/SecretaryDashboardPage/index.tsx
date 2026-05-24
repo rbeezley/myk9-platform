@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +31,9 @@ function greeting(): string {
 
 export function SecretaryDashboardPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { firstName } = useAuthContext();
+  const showIdParam = searchParams.get('showId') ?? undefined;
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
   const { shows, classesByStage, isLoading: showsLoading } = useMissionControlData();
@@ -195,7 +197,13 @@ export function SecretaryDashboardPage() {
 
       {/* Tab Content */}
       <div className="flex-1 px-5 py-4">
-        {activeTab === 'tasks' && <TasksTab shows={tabShows} clubId={clubId} />}
+        {activeTab === 'tasks' && (
+          <TasksTab
+            shows={tabShows}
+            clubId={clubId}
+            {...(showIdParam ? { initialFilter: showIdParam } : {})}
+          />
+        )}
         {activeTab === 'messages' && <MessagesTab shows={tabShows} />}
       </div>
     </div>

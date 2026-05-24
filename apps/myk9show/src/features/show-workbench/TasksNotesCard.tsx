@@ -42,7 +42,7 @@ export function TasksNotesCard({ showId }: TasksNotesCardProps) {
       </div>
       <div className="mt-3">
         <Button asChild variant="outline" size="sm" className="gap-2">
-          <Link to="/secretary/dashboard">
+          <Link to={`/secretary/dashboard?showId=${showId}`}>
             Open tasks
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>

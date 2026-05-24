@@ -98,6 +98,21 @@ describe('TasksTab', () => {
     expect(allChip.closest('[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('pre-selects a show filter when initialFilter is passed', () => {
+    render(
+      <TasksTab
+        shows={[{ id: 'show-1', name: 'Spring Trial' }]}
+        clubId="club-1"
+        initialFilter="show-1"
+      />,
+      { wrapper }
+    );
+    const showChip = screen.getByText('Spring Trial');
+    expect(showChip.closest('[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
+    const allChip = screen.getByText('All Shows');
+    expect(allChip.closest('[aria-pressed]')).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('filters tasks when a show chip is clicked', async () => {
     render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
       wrapper,

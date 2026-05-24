@@ -32,12 +32,13 @@ interface Show {
 interface TasksTabProps {
   shows: Show[];
   clubId: string;
+  initialFilter?: string;
 }
 
 type Filter = 'all' | 'general' | string;
 
-export function TasksTab({ shows, clubId }: TasksTabProps) {
-  const [filter, setFilter] = useState<Filter>('all');
+export function TasksTab({ shows, clubId, initialFilter }: TasksTabProps) {
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? 'all');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [viewMode, setViewMode] = useTaskViewPreference();

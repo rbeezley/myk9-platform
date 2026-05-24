@@ -1,11 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useMessageStore } from '@/store/messageStore';
-import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
 import { useMyShows } from '@/hooks/useMyShows';
@@ -14,13 +11,9 @@ import {
   getEntryAttention,
   type AttentionCounts,
 } from '@/features/show-map/attention';
-import type { SecretaryTask } from './types';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
-import { MessagesTab } from './MessagesTab';
-
-type Tab = 'tasks' | 'messages';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -32,18 +25,10 @@ function greeting(): string {
 export function SecretaryDashboardPage() {
   const navigate = useNavigate();
   const { firstName } = useAuthContext();
-  const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
   const { shows, classesByStage, isLoading: showsLoading } = useMissionControlData();
 
   const { today, upcoming, draft, past, attentionNeeded: showAttentionItems } = useMyShows(shows);
-
-  // Personal tasks only — per-show tasks are owned by the per-show TasksNotesCard
-  // in the Show Desk Tools sheet. See D2 of docs/plan-dashboard-refocus.md.
-  const { data: personalTasks = [] } = useSecretaryTasks('general');
-  const openTaskCount = personalTasks.filter((t: SecretaryTask) => t.status === 'todo').length;
-
-  const unreadMessageCount = useMessageStore(s => s.unreadCount);
 
   const { data: pendingEntries = [] } = usePendingEntries();
 
@@ -97,13 +82,6 @@ export function SecretaryDashboardPage() {
 
   // first show's clubId; used by TasksTab to scope new tasks
   const clubId = shows[0]?.clubId ?? '';
-
-  const tabShows = shows.map(s => ({ id: s.id, name: s.name }));
-
-  const tabs: Array<{ key: Tab; label: string; badge: number }> = [
-    { key: 'tasks', label: 'Tasks', badge: openTaskCount },
-    { key: 'messages', label: 'Messages', badge: unreadMessageCount },
-  ];
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -173,32 +151,12 @@ export function SecretaryDashboardPage() {
         <MyShowsSection phase="past" title="Past shows" shows={past} defaultCollapsed />
       </div>
 
-      {/* Tab Bar */}
-      <div className="flex border-b px-5">
-        {tabs.map(({ key, label, badge }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === key
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {label}
-            {badge > 0 && (
-              <Badge variant="secondary" className="h-4.5 min-w-4 px-1 text-xs">
-                {badge}
-              </Badge>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      <div className="flex-1 px-5 py-4">
-        {activeTab === 'tasks' && <TasksTab clubId={clubId} />}
-        {activeTab === 'messages' && <MessagesTab shows={tabShows} />}
+      {/* Personal tasks — per-show tasks live in each show's Tools sheet. */}
+      <div className="flex-1 border-t px-5 py-4">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Personal tasks
+        </h2>
+        <TasksTab clubId={clubId} />
       </div>
     </div>
   );

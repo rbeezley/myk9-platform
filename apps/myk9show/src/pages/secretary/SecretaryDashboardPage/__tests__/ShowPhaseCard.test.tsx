@@ -34,11 +34,13 @@ describe('ShowPhaseCard — today', () => {
     expect(screen.getByText(/2 closed/)).toBeInTheDocument();
   });
 
-  it('links to the workbench Today phase', () => {
+  it('links to the workbench Show Desk', () => {
+    // Phase B5: the Today tab was removed; live-show dashboard cards link
+    // directly to Show Desk, the canonical operational surface.
     const show = makeShow({ id: 'show-42', startDate: TODAY, status: 'in_progress' });
     renderCard({ show, phase: 'today' });
     const link = screen.getByRole('link', { name: /go to show/i });
-    expect(link).toHaveAttribute('href', '/secretary/shows/show-42?phase=today');
+    expect(link).toHaveAttribute('href', '/secretary/shows/show-42?phase=show-desk');
   });
 });
 
@@ -114,10 +116,12 @@ describe('ShowPhaseCard — past', () => {
     expect(screen.getByText('Winter Classic')).toBeInTheDocument();
   });
 
-  it('shows "View" link to the workbench Wrap-up phase', () => {
+  it('shows "View" link to the workbench Show Desk', () => {
+    // Phase B5: the Wrap-up tab was removed; past-show review goes to Show
+    // Desk where the conditional Closeout section surfaces.
     const show = makeShow({ id: 'past-7', startDate: PAST, status: 'completed' });
     renderCard({ show, phase: 'past' });
     const link = screen.getByRole('link', { name: /view/i });
-    expect(link).toHaveAttribute('href', '/secretary/shows/past-7?phase=wrap-up');
+    expect(link).toHaveAttribute('href', '/secretary/shows/past-7?phase=show-desk');
   });
 });

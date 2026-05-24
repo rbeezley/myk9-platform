@@ -134,7 +134,7 @@ export function buildUnifiedSidebarConfig(
         ? `/secretary/shows/${activeShowId}?phase=setup`
         : '/secretary/dashboard';
       const todayHref = activeShowId
-        ? `/secretary/shows/${activeShowId}?phase=today`
+        ? `/secretary/shows/${activeShowId}?phase=show-desk`
         : '/secretary/dashboard';
 
       groups.push({

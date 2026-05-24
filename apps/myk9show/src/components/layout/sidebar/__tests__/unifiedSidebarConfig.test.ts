@@ -101,11 +101,13 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(item?.href).toBe('/secretary/dashboard');
   });
 
-  it('manage Day of Show href points to Today when an active show is known', () => {
+  it('manage Day of Show href points to Show Desk when an active show is known', () => {
+    // Phase B5: the Today tab was removed; Show Desk is the canonical
+    // operational surface, so the sidebar's day-of-show link goes there.
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, 'show-1');
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Day of Show');
-    expect(item?.href).toBe('/secretary/shows/show-1?phase=today');
+    expect(item?.href).toBe('/secretary/shows/show-1?phase=show-desk');
   });
 
   it('manage Results Control href is /secretary/results-control', () => {

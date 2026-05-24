@@ -75,10 +75,9 @@ function baseContext(overrides: Partial<PhaseChecklistContext> = {}): PhaseCheck
 }
 
 function itemStatus(id: string, context: PhaseChecklistContext): boolean {
-  const definition = getPhaseChecklistDefinitions('setup')
-    .concat(getPhaseChecklistDefinitions('today'))
-    .concat(getPhaseChecklistDefinitions('wrap-up'))
-    .find(item => item.id === id);
+  // Phase B5: only setup-phase definitions remain. Today and Wrap-up
+  // checklists were deleted alongside their tabs.
+  const definition = getPhaseChecklistDefinitions('setup').find(item => item.id === id);
   if (!definition) throw new Error(`Missing definition ${id}`);
   return definition.autoComplete(context);
 }
@@ -92,38 +91,5 @@ describe('phaseChecklistDefinitions', () => {
     expect(itemStatus('setup-classes-built', context)).toBe(true);
     expect(itemStatus('setup-judges-assigned', context)).toBe(true);
     expect(itemStatus('setup-exhibitor-materials', context)).toBe(true);
-  });
-
-  it('requires class times before marking today run order ready', () => {
-    const context = baseContext({
-      classes: [
-        {
-          ...baseClass,
-          time: '',
-        },
-      ],
-    });
-
-    expect(itemStatus('today-run-order-ready', context)).toBe(false);
-  });
-
-  it('requires trials and classes before marking the Show Map ready', () => {
-    expect(itemStatus('today-tools-ready', baseContext({ classes: [] }))).toBe(false);
-    expect(itemStatus('today-tools-ready', baseContext())).toBe(true);
-  });
-
-  it('marks wrap-up scoring complete only when all entries are scored', () => {
-    const incomplete = baseContext({
-      classes: [
-        {
-          ...baseClass,
-          scoredCount: 2,
-        },
-      ],
-    });
-    const complete = baseContext();
-
-    expect(itemStatus('wrap-results-scored', incomplete)).toBe(false);
-    expect(itemStatus('wrap-results-scored', complete)).toBe(true);
   });
 });

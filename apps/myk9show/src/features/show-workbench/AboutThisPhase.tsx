@@ -18,14 +18,6 @@ const PHASE_ABOUT_COPY: Record<LegacyShowWorkbenchPhase, PhaseAboutCopy> = {
     title: 'About Setup',
     body: 'Use this before the first dog runs: confirm the schedule, judges, show page, and materials so the morning starts cleanly.',
   },
-  today: {
-    title: 'About Today',
-    body: 'Use this during the show: keep rings moving, handle attention items, and open MyK9Q when ringside needs access.',
-  },
-  'wrap-up': {
-    title: 'About Wrap-up',
-    body: 'Use this after judging: review results, print reports, and submit final files once the show is ready to close.',
-  },
 };
 
 function storageKey(showId: string, phase: LegacyShowWorkbenchPhase): string {

@@ -1,4 +1,6 @@
 import { useCallback, useMemo, type ReactNode } from 'react';
+import { RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
 import { ShowDeskCloseoutSection } from './ShowDeskCloseoutSection';
 import { ShowDeskToolsSheet } from './ShowDeskToolsSheet';
@@ -78,6 +80,7 @@ export default function ShowDeskPanel({
     runningNowItems,
     selectRunningNowClass,
     dismissGuidanceAction,
+    runOrderAutoSort,
   } = state;
   const {
     executeAction,
@@ -153,6 +156,31 @@ export default function ShowDeskPanel({
         onSelectRunning={selectRunningNowClass}
         onSelectPendingSignal={handlePendingSignal}
       />
+      {canManageShow && runOrderAutoSort.lastAutoSort && (
+        <div className="rounded-md border bg-muted/20 px-3 py-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 text-sm">
+              <span className="font-medium">Run order updated.</span>
+              {runOrderAutoSort.lastAutoSort.classLabel && (
+                <span className="text-muted-foreground">
+                  {' '}
+                  {runOrderAutoSort.lastAutoSort.classLabel}.
+                </span>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={runOrderAutoSort.undoLastAutoSort}
+              disabled={runOrderAutoSort.isUndoingAutoSort}
+            >
+              <RotateCcw className="h-4 w-4" />
+              {runOrderAutoSort.isUndoingAutoSort ? 'Undoing...' : 'Undo'}
+            </Button>
+          </div>
+        </div>
+      )}
       <ShowMapTab
         show={show}
         trials={trials}

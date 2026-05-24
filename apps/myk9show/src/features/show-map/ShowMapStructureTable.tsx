@@ -7,7 +7,9 @@ import { cn } from '@/lib/utils';
 import { getAttentionNodeIds, getPrimaryActionForNode } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
+import { ShowMapRunOrderMenu } from './ShowMapRunOrderMenu';
 import { DEFAULT_SHOW_MAP_SCOPE } from './showMapTimeScope';
+import type { ShowMapAutoSortKind } from './showMapRunOrderAutoSort';
 import {
   getFirstVisibleKeyboardChildNodeId,
   getParentKeyboardNodeId,
@@ -42,6 +44,18 @@ interface ShowMapStructureTableProps {
   scopeNow?: Date | undefined;
   attentionCountsByNodeId?: ReadonlyMap<string, number> | undefined;
   onResetFilters?: (() => void) | undefined;
+  // Class-row Run Order menu controls. When omitted, the menu is not
+  // rendered (read-only / browse-only contexts like the public map).
+  runOrderControls?:
+    | {
+        onAutoSort: (input: {
+          classId: string;
+          kind: ShowMapAutoSortKind;
+          classLabel: string;
+        }) => void;
+        isAutoSorting: boolean;
+      }
+    | undefined;
 }
 
 const INTERACTIVE_ROW_TARGET_SELECTOR =
@@ -211,6 +225,7 @@ export function ShowMapStructureTable({
   scopeNow = new Date(),
   attentionCountsByNodeId,
   onResetFilters,
+  runOrderControls,
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
   const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>();
@@ -467,6 +482,15 @@ export function ShowMapStructureTable({
               }
               onNavigate={onNavigate}
               onAction={onAction}
+            />
+          )}
+          {enableRowActions && node.type === 'class' && runOrderControls && (
+            <ShowMapRunOrderMenu
+              classId={node.id.replace(/^class:/, '')}
+              classLabel={node.label}
+              entryCount={node.childrenCount}
+              onAutoSort={runOrderControls.onAutoSort}
+              isAutoSorting={runOrderControls.isAutoSorting}
             />
           )}
           {enableRowActions && (

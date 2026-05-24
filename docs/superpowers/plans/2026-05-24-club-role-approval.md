@@ -619,7 +619,7 @@ rg -n "^begin;|^commit;|zz_materialize_club_access_request|drop trigger if exist
 
 Expected: the migration starts with `begin;`, ends with `commit;`, adds the separate `zz_materialize_club_access_request` trigger, removes the legacy global-secretary trigger, and writes permission audit entries for approvals, denials, grants, and revokes. Do not run `supabase db push` without explicit user confirmation because it mutates the shared Supabase project.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add supabase/migrations/20260524120000_club_access_requests.sql supabase/tests/club_access_requests.sql
@@ -2413,7 +2413,7 @@ git commit -m "fix(auth): scope secretary people and dog access to managed shows
 **Files:**
 - Modify: `OPEN-TODOS.md`
 
-- [ ] **Step 1: Run focused test suite**
+- [x] **Step 1: Run focused test suite**
 
 Run:
 
@@ -2431,13 +2431,13 @@ cd apps/myk9show && npx vitest run \
 
 Expected: PASS.
 
-- [ ] **Step 2: Run typecheck**
+- [x] **Step 2: Run typecheck**
 
 Run: `pnpm typecheck`
 
 Expected: PASS.
 
-- [ ] **Step 3: Run lint**
+- [x] **Step 3: Run lint**
 
 Run: `pnpm lint`
 
@@ -2461,7 +2461,12 @@ Open `/sign-up` and verify:
 
 Then sign in as a site admin in the dev environment and open `/admin/access-requests`. Verify the page loads, the empty state is calm when no requests exist, and errors show the retry state instead of a blank page.
 
-- [ ] **Step 5: Mark todo complete**
+Result: public signup smoke passed locally against `http://localhost:5173/`.
+Site-admin browser smoke was not run because no signed-in site-admin browser
+session or dev credentials were available in this workspace; admin queue behavior
+is covered by focused unit/component tests.
+
+- [x] **Step 5: Mark todo complete**
 
 In `OPEN-TODOS.md`, change:
 
@@ -2477,7 +2482,7 @@ to:
 
 Append implementation notes with PR/commit references after the work is merged.
 
-- [ ] **Step 6: Commit closeout**
+- [x] **Step 6: Commit closeout**
 
 ```bash
 git add OPEN-TODOS.md

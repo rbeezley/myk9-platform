@@ -300,7 +300,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## Auth & Access
 
-- [ ] **Add an approval workflow for sign-up role requests** — The sign-up page currently lets users select `Exhibitor`, `Club officer / show host`, and `Show secretary`; those values are stored only as auth metadata (`raw_user_meta_data.intended_roles`) and do **not** self-grant `club_admin` or `secretary` roles. **Problem:** The UI wording implies access may be granted automatically, and we need a safe admin approval path before elevated roles are acted on. **Files:** `apps/myk9show/src/pages/SignUpPage.tsx`, `apps/myk9show/src/hooks/useAuth.ts`, `supabase/migrations/165_handle_new_user_agreed_to_tos.sql`, future admin approval UI under `apps/myk9show/src/pages/admin/` or role-management components. **Solution:** (1) Change copy to "I'm interested in..." or "Request access as..." and add helper text that club officer / secretary access requires approval. (2) Decide whether to keep requests in auth metadata short-term or create a `role_requests` table. (3) Build an admin review queue with approve/deny actions. (4) Approval creates scoped `user_roles` rows only through an authorized path; denied requests are auditable. (5) Add regression coverage proving signup still auto-grants only `exhibitor`.
+- [x] **Add an approval workflow for sign-up role requests** — Implemented in `docs/superpowers/plans/2026-05-24-club-role-approval.md`: signup now records club access requests, site admins can review them, approved club admins can manage club-scoped secretaries, show secretary selection is club-scoped, and broad secretary people/dog write paths are routed through show-scoped RPCs. Add PR reference after merge.
 
 ## Payments & Email
 

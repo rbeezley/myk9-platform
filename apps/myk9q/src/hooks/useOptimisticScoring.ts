@@ -101,10 +101,26 @@ export function useOptimisticScoring() {
     // Mark as scored in local store (legacy Zustand store)
     markAsScored(entryId, optimisticResult);
 
-    // CRITICAL: Also update the replicated entries cache (IndexedDB)
-    // This ensures the entry moves to Completed tab immediately, even when offline.
-    // Without this, EntryList (which reads from replication cache) won't see the update.
-    // Use queueMutation=false since offlineQueueStore handles the mutation queue separately.
+    // Update the replicated entries cache (IndexedDB) AND queue a mutation so
+    // the write goes through MutationManager's retry + toast pipeline. The
+    // cache row is marked _syncStatus: 'pending', which protects it from
+    // being overwritten when a replication pull arrives before the server
+    // has the score.
+    //
+    // Previously this used queueMutation=false because offlineQueueStore was
+    // the only offline-sync path for scoring. That left scoring writes outside
+    // MutationManager's failure-toast pipeline — when `submitScore` (the
+    // online inline write below) failed silently with an RLS reject or
+    // transient error, no toast fired AND the cache row wasn't dirty-marked,
+    // so the next replication pull overwrote the locally-scored row with
+    // stale server state. That reproduced as "scored dog reverts when next
+    // dog is scored." See project_scoring_sync_bug.md.
+    //
+    // Trade-off accepted: on the happy path this now produces a double-write —
+    // the queue fires `entries UPDATE` ~100ms after `submitScore` does the
+    // same. Idempotent and harmless. We keep `submitScore` for its placement
+    // calculation + class-completion side effects; routing the entries UPDATE
+    // through the queue is purely additive for the failure surface.
     try {
       const resultStatus = convertResultTextToStatus(optimisticResult);
       const searchTimeSeconds = scoreData.searchTime ? convertTimeToSeconds(scoreData.searchTime) : 0;
@@ -116,7 +132,7 @@ export function useOptimisticScoring() {
           search_time_seconds: searchTimeSeconds,
           total_faults: scoreData.faultCount,
         },
-        false // Don't queue mutation - offlineQueueStore handles this
+        true // Queue mutation so MutationManager's toast pipeline covers failures
       );
       logger.log(`✅ [useOptimisticScoring] Updated replicated cache for entry ${entryId}`);
     } catch (cacheError) {

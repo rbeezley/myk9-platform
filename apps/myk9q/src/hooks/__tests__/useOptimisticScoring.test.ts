@@ -7,6 +7,9 @@
  * 3. Silent failure when offline
  * 4. No rollback of optimistic updates
  * 5. Real-time subscriptions handle confirmation
+ * 6. Cache write goes through MutationManager (queueMutation=true) so the
+ *    replication:sync-failed toast pipeline covers scoring failures.
+ *    Regression for the scoring-sync-bug fix (2026-05-24).
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
@@ -14,6 +17,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vite
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { submitScore } from '@/services/entryService';
 import { useOfflineQueueStore } from '@/stores/offlineQueueStore';
+import { replicatedEntriesTable } from '@/services/replication';
 
 // Hoist mock functions so they are available to the hoisted vi.mock factories
 const { mockMarkAsScored, mockSubmitScore, mockAddToQueue, mockUpdate } = vi.hoisted(() => ({
@@ -514,6 +518,37 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       expect(uiUpdateTime).toBeLessThan(100); // Allow 100ms for test overhead
       expect(mockMarkAsScored).toHaveBeenCalled();
       expect(mockSubmitScore).toHaveBeenCalled();
+    });
+  });
+
+  // Regression for the scoring-sync-bug (project_scoring_sync_bug.md, 2026-05-24).
+  // Cache writes must go through MutationManager so the replication:sync-failed
+  // toast pipeline covers scoring failures. Before this fix the call passed
+  // `false` for queueMutation, which (a) left the cache row not-dirty so a
+  // replication pull could overwrite the optimistic score, and (b) bypassed
+  // the toast pipeline so submitScore failures were silent.
+  describe('Regression: replicatedEntriesTable.markAsScored must queue mutation', () => {
+    it('passes queueMutation=true so MutationManager covers failure surface', async () => {
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      // The third argument is queueMutation. Must be `true` so the mutation
+      // hits MutationManager. If a future PR flips it back to `false`, the
+      // toast pipeline goes silent again — fail loudly here.
+      expect(replicatedEntriesTable.markAsScored).toHaveBeenCalledWith(
+        String(mockEntry.id),
+        expect.any(Object),
+        true
+      );
     });
   });
 });

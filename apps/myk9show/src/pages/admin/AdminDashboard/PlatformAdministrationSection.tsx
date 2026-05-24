@@ -5,7 +5,7 @@
  */
 
 import { Link } from 'react-router-dom';
-import { Activity, ChevronRight, Settings, Users } from 'lucide-react';
+import { Activity, ChevronRight, Settings, ShieldCheck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { PlatformAdministrationSectionProps } from './admin-dashboard-types';
@@ -120,7 +120,7 @@ export function PlatformAdministrationSection({ userCount }: PlatformAdministrat
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {/* User Management Card */}
         <AdminCard
           title="User Management"
@@ -152,6 +152,22 @@ export function PlatformAdministrationSection({ userCount }: PlatformAdministrat
           buttonClassName="border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5 hover:border-emerald-500/40"
           hoverColor="text-emerald-600"
           href="/admin/alerts"
+        />
+
+        <AdminCard
+          title="Access Requests"
+          description="Review new club admin requests"
+          icon={ShieldCheck}
+          iconColor="text-blue-600"
+          iconBgFrom="from-blue-500/20"
+          iconBgTo="to-blue-500/10"
+          badgeContent="Review"
+          badgeVariant="secondary"
+          badgeClassName="bg-blue-500/10 text-blue-700"
+          buttonText="Review Requests"
+          buttonClassName="border-blue-500/20 text-blue-600 hover:bg-blue-500/5 hover:border-blue-500/40"
+          hoverColor="text-blue-600"
+          href="/admin/access-requests"
         />
 
         {/* Permissions Card */}

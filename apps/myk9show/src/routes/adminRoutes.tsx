@@ -118,6 +118,11 @@ const OnboardingRequestsPage = createEnhancedLazy(
   { ...RouteLazyPresets.mediumPriority, displayName: 'OnboardingRequestsPage' }
 );
 
+const AccessRequestsPage = createEnhancedLazy(() => import('@/pages/admin/AccessRequestsPage'), {
+  ...RouteLazyPresets.mediumPriority,
+  displayName: 'AccessRequestsPage',
+});
+
 const RBACTestPage = createEnhancedLazy(
   () => import('@/pages/admin/RBACTestPage').then(m => ({ default: m.RBACTestPage })),
   { ...RouteLazyPresets.lowPriority, displayName: 'RBACTestPage' }
@@ -371,6 +376,16 @@ export const AdminRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <OnboardingRequestsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/access-requests"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <AccessRequestsPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

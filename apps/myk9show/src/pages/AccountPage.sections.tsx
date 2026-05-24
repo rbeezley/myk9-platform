@@ -14,6 +14,7 @@ import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import type { Dog as DogType } from '@/types/dog-types';
+import { AccessRequestStatusCard } from '@/features/access-requests/AccessRequestStatusCard';
 
 export function ProfileSection() {
   const form = useProfileForm();
@@ -32,6 +33,8 @@ export function ProfileSection() {
 
   return (
     <div className="space-y-6">
+      <AccessRequestStatusCard />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Profile photo</CardTitle>

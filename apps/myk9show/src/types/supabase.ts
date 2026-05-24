@@ -1001,6 +1001,76 @@ export type Database = {
           },
         ]
       }
+      club_access_requests: {
+        Row: {
+          approved_club_id: string | null
+          created_at: string
+          id: string
+          request_note: string | null
+          requested_club_name: string
+          requested_club_website: string | null
+          requester_auth_user_id: string
+          requester_person_id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_club_id?: string | null
+          created_at?: string
+          id?: string
+          request_note?: string | null
+          requested_club_name: string
+          requested_club_website?: string | null
+          requester_auth_user_id: string
+          requester_person_id: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_club_id?: string | null
+          created_at?: string
+          id?: string
+          request_note?: string | null
+          requested_club_name?: string
+          requested_club_website?: string | null
+          requester_auth_user_id?: string
+          requester_person_id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_access_requests_approved_club_id_fkey"
+            columns: ["approved_club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_access_requests_requester_person_id_fkey"
+            columns: ["requester_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_access_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_officers: {
         Row: {
           club_id: string
@@ -7313,6 +7383,10 @@ export type Database = {
           waitlist_position: number
         }[]
       }
+      grant_club_secretary: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: string
+      }
       create_show_with_children: {
         Args: {
           p_classes: Json
@@ -7323,6 +7397,20 @@ export type Database = {
         Returns: string
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      review_club_access_request: {
+        Args: {
+          p_club_name?: string | null
+          p_decision: string
+          p_existing_club_id?: string | null
+          p_request_id: string
+          p_review_note?: string | null
+        }
+        Returns: string | null
+      }
+      revoke_club_secretary: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: undefined
+      }
       get_admin_user_list: {
         Args: { show_deleted?: boolean }
         Returns: {

@@ -138,4 +138,33 @@ describe('SecretaryDashboardPage', () => {
     expect(screen.getAllByText('Managed Show').length).toBeGreaterThan(0);
     expect(screen.queryByText('Other Club Show')).not.toBeInTheDocument();
   });
+
+  // D5 structural lock-in: pin the post-refocus dashboard shape. If a future PR
+  // accidentally re-introduces a tab bar, a MessagesTab, a per-show task filter,
+  // or any other surface the dashboard-refocus plan deliberately removed, this
+  // test fails and forces the contributor to either revert or update the plan.
+  // See docs/plan-dashboard-refocus.md phase D5.
+  it('renders the post-refocus structure: header + greeting + Personal tasks section, no tab bar, no Messages surface', () => {
+    renderPage();
+
+    // Header + greeting are present.
+    expect(screen.getByText(/Good (morning|afternoon|evening)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sam/)).toBeInTheDocument();
+
+    // Personal Tasks section header is present (was previously a tab; D3b
+    // collapsed it to an inline section).
+    expect(screen.getByRole('heading', { name: /Personal tasks/i })).toBeInTheDocument();
+
+    // No tab bar — D3b removed activeTab + the Tasks/Messages tab bar.
+    // The dashboard no longer renders elements with role="tab".
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+
+    // No Messages tab content / heading — Messages moved to /secretary/messages
+    // in D3a/D3b. The dashboard should not render any "Messages" heading.
+    expect(screen.queryByRole('heading', { name: /messages/i })).not.toBeInTheDocument();
+
+    // No FilterChips remnants from the per-show task filter (D2) or the
+    // per-show message filter (D3b). FilterChips.tsx itself is deleted in D5.
+    expect(screen.queryByText('All Shows')).not.toBeInTheDocument();
+  });
 });

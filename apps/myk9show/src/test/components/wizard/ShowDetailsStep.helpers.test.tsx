@@ -50,6 +50,36 @@ describe('groupPeopleForOfficial', () => {
   });
 });
 
+describe('groupPeopleForOfficial club scoping', () => {
+  const clubASecretary = makeUser({
+    id: 'person-a',
+    firstName: 'Jane',
+    lastName: 'A',
+    roles: [UserRole.SECRETARY],
+    roleAssignments: [{ roleName: UserRole.SECRETARY, clubId: 'club-a', isActive: true }],
+  } as Partial<User> & { id: string });
+
+  const clubBSecretary = makeUser({
+    id: 'person-b',
+    firstName: 'Jane',
+    lastName: 'B',
+    roles: [UserRole.SECRETARY],
+    roleAssignments: [{ roleName: UserRole.SECRETARY, clubId: 'club-b', isActive: true }],
+  } as Partial<User> & { id: string });
+
+  it('suggests only secretaries scoped to the selected club', () => {
+    const result = groupPeopleForOfficial(
+      [clubASecretary, clubBSecretary],
+      [UserRole.SECRETARY],
+      '',
+      { clubId: 'club-a', requireScopedRole: true }
+    );
+
+    expect(result.suggested).toEqual([clubASecretary]);
+    expect(result.others).not.toContain(clubBSecretary);
+  });
+});
+
 describe('groupPeopleForJudges', () => {
   const qualified = makeUser({
     id: '1',

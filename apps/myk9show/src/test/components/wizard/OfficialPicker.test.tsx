@@ -107,6 +107,35 @@ describe('OfficialPicker', () => {
     expect(onSelect).toHaveBeenCalledWith('1');
   });
 
+  it('hides secretaries outside the selected club when scoped grouping is required', async () => {
+    const onSelect = vi.fn();
+    const clubASecretary = {
+      ...makeUser('club-a-secretary', 'Ada', [UserRole.SECRETARY]),
+      roleAssignments: [{ roleName: UserRole.SECRETARY, clubId: 'club-a', isActive: true }],
+    } as User;
+    const clubBSecretary = {
+      ...makeUser('club-b-secretary', 'Bea', [UserRole.SECRETARY]),
+      roleAssignments: [{ roleName: UserRole.SECRETARY, clubId: 'club-b', isActive: true }],
+    } as User;
+
+    renderWithProviders(
+      <OfficialPicker
+        label="Show Secretary"
+        selectedPersonId={undefined}
+        people={[clubASecretary, clubBSecretary]}
+        suggestedRoles={[UserRole.SECRETARY]}
+        groupingOptions={{ clubId: 'club-a', requireScopedRole: true }}
+        onSelect={onSelect}
+        onCreatePerson={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /select show secretary/i }));
+
+    await waitFor(() => expect(screen.getByText('Ada Smith')).toBeInTheDocument());
+    expect(screen.queryByText('Bea Smith')).not.toBeInTheDocument();
+  });
+
   it('expands create form when "Add new" is clicked', async () => {
     renderWithProviders(
       <OfficialPicker

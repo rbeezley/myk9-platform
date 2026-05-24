@@ -5,7 +5,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import { GroupedSearchablePopover } from '@/components/ui/grouped-searchable-popover';
-import { groupPeopleForOfficial, getPersonName } from './ShowDetailsStep.helpers';
+import {
+  groupPeopleForOfficial,
+  getPersonName,
+  type OfficialGroupingOptions,
+} from './ShowDetailsStep.helpers';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 
@@ -21,6 +25,7 @@ export interface OfficialPickerProps {
   selectedPersonId: string | undefined;
   people: User[];
   suggestedRoles: UserRole[];
+  groupingOptions?: OfficialGroupingOptions;
   autoFillBadge?: string;
   onSelect: (personId: string) => void;
   onCreatePerson: (data: CreatePersonData) => Promise<string>;
@@ -32,6 +37,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   selectedPersonId,
   people,
   suggestedRoles,
+  groupingOptions,
   autoFillBadge,
   onSelect,
   onCreatePerson,
@@ -46,7 +52,12 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const selectedName = getPersonName(people, selectedPersonId);
-  const { suggested, others } = groupPeopleForOfficial(people, suggestedRoles, searchTerm);
+  const { suggested, others } = groupPeopleForOfficial(
+    people,
+    suggestedRoles,
+    searchTerm,
+    groupingOptions
+  );
 
   const handleOpenAddNew = () => {
     setOpen(false);

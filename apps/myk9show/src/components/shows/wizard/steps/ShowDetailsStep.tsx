@@ -449,6 +449,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 selectedPersonId={show.officials.secretary[0]}
                 people={people}
                 suggestedRoles={[UserRole.SECRETARY]}
+                groupingOptions={{ clubId: show.clubId, requireScopedRole: true }}
                 {...(show.officials.secretary[0] === userWithRoles?.databaseUserId
                   ? { autoFillBadge: 'You' }
                   : {})}

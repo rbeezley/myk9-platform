@@ -61,16 +61,59 @@ export function isValidEntryDates(openDate?: string, closeDate?: string): boolea
  * Split all people into "suggested" (has one of the given roles) and "others".
  * Both groups are filtered by searchTerm. Used by OfficialPicker.
  */
+export interface OfficialRoleAssignment {
+  roleName: UserRole;
+  clubId: string | null;
+  showId?: string | null;
+  isActive: boolean;
+}
+
+export interface OfficialGroupingOptions {
+  clubId?: string | null;
+  requireScopedRole?: boolean;
+}
+
+function hasSuggestedRole(
+  person: User & { roleAssignments?: OfficialRoleAssignment[] },
+  suggestedRoles: UserRole[],
+  options: OfficialGroupingOptions
+) {
+  if (!options.requireScopedRole) {
+    return person.roles?.some(role => suggestedRoles.includes(role as UserRole)) ?? false;
+  }
+
+  return (
+    person.roleAssignments?.some(
+      assignment =>
+        assignment.isActive &&
+        assignment.clubId === options.clubId &&
+        suggestedRoles.includes(assignment.roleName)
+    ) ?? false
+  );
+}
+
 export function groupPeopleForOfficial(
   people: User[],
   suggestedRoles: UserRole[],
-  searchTerm: string
+  searchTerm: string,
+  options: OfficialGroupingOptions = {}
 ): { suggested: User[]; others: User[] } {
   const sorted = getAllPeopleSorted(people);
   const filtered = filterPeopleByName(sorted, searchTerm);
+  const suggested = filtered.filter(person =>
+    hasSuggestedRole(
+      person as User & { roleAssignments?: OfficialRoleAssignment[] },
+      suggestedRoles,
+      options
+    )
+  );
+  const suggestedIds = new Set(suggested.map(person => person.id));
+
   return {
-    suggested: filtered.filter(p => p.roles?.some(r => suggestedRoles.includes(r as UserRole))),
-    others: filtered.filter(p => !p.roles?.some(r => suggestedRoles.includes(r as UserRole))),
+    suggested,
+    others: options.requireScopedRole
+      ? []
+      : filtered.filter(person => !suggestedIds.has(person.id)),
   };
 }
 

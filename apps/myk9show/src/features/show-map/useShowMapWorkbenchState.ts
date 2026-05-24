@@ -13,6 +13,7 @@ import {
 import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { getRunningNowItems } from './showMapRunningNow';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
+import { useShowMapRunOrderAutoSort } from './useShowMapRunOrderAutoSort';
 import type {
   BuildShowMapTreeInput,
   ShowMapCompletionScope,
@@ -106,6 +107,7 @@ export function useShowMapWorkbenchState({
 
   const executor = useShowMapActionExecutor({ showId });
   const { executeAction } = executor;
+  const runOrderAutoSort = useShowMapRunOrderAutoSort({ showId });
 
   const attentionCountsByNodeId = useMemo(
     () => getAttentionCountsByNodeId(tree),
@@ -201,6 +203,7 @@ export function useShowMapWorkbenchState({
     runningNowItems,
     selectRunningNowClass,
     executor,
+    runOrderAutoSort,
     navigateTo,
   };
 }

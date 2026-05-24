@@ -388,7 +388,7 @@ export function ShowWorkbenchPage() {
                     showName={currentShow.name}
                     showDate={currentShow.startDate}
                   />
-                  <VolunteersCard />
+                  <VolunteersCard showId={currentShow.id} />
                   <TasksNotesCard showId={currentShow.id} />
                 </>
               }

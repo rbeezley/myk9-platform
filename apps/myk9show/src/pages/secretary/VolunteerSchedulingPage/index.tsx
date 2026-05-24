@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Users } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import {
@@ -36,10 +37,24 @@ import type { Volunteer, ClassInfo } from '@/types/volunteer';
 const EMPTY_CONFLICT_MAP = new Map<string, Set<string>>();
 
 export default function VolunteerSchedulingPage() {
-  const { selectedShowId } = useShowStore();
+  const [searchParams] = useSearchParams();
+  const routeShowId = searchParams.get('showId') ?? undefined;
+  const selectedShowId = useShowStore(s => s.selectedShowId);
+  const selectShow = useShowStore(s => s.selectShow);
   const { trials } = useTrialStore();
-  const showId = selectedShowId || undefined;
-  const showTrials = trials.filter(t => t.showId === selectedShowId);
+
+  // INTENT: When the workbench's VolunteersCard links here with ?showId=X
+  // the explicit route value wins over whatever the sidebar last set as
+  // selectedShowId — otherwise a stale sidebar selection or a multi-show
+  // account silently lands the secretary on the wrong show's volunteers.
+  // We also sync the store so downstream surfaces (sidebar highlight,
+  // other show-scoped queries) reflect the actively-viewed show.
+  const activeShowId = routeShowId || selectedShowId || '';
+  const showId = activeShowId || undefined;
+  useEffect(() => {
+    if (routeShowId && routeShowId !== selectedShowId) selectShow(routeShowId);
+  }, [routeShowId, selectedShowId, selectShow]);
+  const showTrials = trials.filter(t => t.showId === activeShowId);
 
   const { data: volunteers = [], isLoading: loadingVols } = useVolunteers(showId);
   const { data: classAssignments = [], isLoading: loadingCA } =
@@ -54,10 +69,10 @@ export default function VolunteerSchedulingPage() {
   const addVolunteer = useAddVolunteer();
   const updateVolunteer = useUpdateVolunteer();
   const deleteVolunteer = useDeleteVolunteer();
-  const assignToClass = useAssignToClass(selectedShowId ?? '');
-  const unassignFromClass = useUnassignFromClass(selectedShowId ?? '');
-  const assignToGeneralDuty = useAssignToGeneralDuty(selectedShowId ?? '');
-  const unassignFromGeneralDuty = useUnassignFromGeneralDuty(selectedShowId ?? '');
+  const assignToClass = useAssignToClass(activeShowId);
+  const unassignFromClass = useUnassignFromClass(activeShowId);
+  const assignToGeneralDuty = useAssignToGeneralDuty(activeShowId);
+  const unassignFromGeneralDuty = useUnassignFromGeneralDuty(activeShowId);
 
   const {
     search,
@@ -116,27 +131,27 @@ export default function VolunteerSchedulingPage() {
     notes: string | null;
     personId: string | null;
   }) {
-    if (!selectedShowId) return;
+    if (!activeShowId) return;
     if (editingVolunteer) {
       await updateVolunteer.mutateAsync({
         id: editingVolunteer.id,
-        showId: selectedShowId,
+        showId: activeShowId,
         ...data,
       });
     } else {
       await addVolunteer.mutateAsync({
-        showId: selectedShowId,
+        showId: activeShowId,
         ...data,
       });
     }
   }
 
   async function handleDelete(id: string) {
-    if (!selectedShowId) return;
-    await deleteVolunteer.mutateAsync({ id, showId: selectedShowId });
+    if (!activeShowId) return;
+    await deleteVolunteer.mutateAsync({ id, showId: activeShowId });
   }
 
-  if (!selectedShowId) {
+  if (!activeShowId) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Users className="mb-4 h-12 w-12 text-muted-foreground/50" />
@@ -249,7 +264,7 @@ export default function VolunteerSchedulingPage() {
                 onAssign={volId =>
                   assignToGeneralDuty.mutate({
                     volunteerId: volId,
-                    showId: selectedShowId,
+                    showId: activeShowId,
                     roleName: role,
                   })
                 }

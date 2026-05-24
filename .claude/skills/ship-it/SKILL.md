@@ -62,9 +62,54 @@ Fix failures. Repeat until all pass. **Max 10 iterations** — stop and report i
 
 ## Step 3b: Simplify
 
-Invoke `/simplify` against all changed files. It will review for DRY violations, reuse opportunities, and efficiency issues, and auto-fix what it finds.
+Invoke `/simplify` (the local skill at `.claude/skills/simplify/SKILL.md`). It launches three parallel agents — efficiency, quality, reuse — auto-fixes safe wins (dead code, unused imports, trivial dupes), and proposes the judgment calls.
 
-Wait for simplify to complete before proceeding. If it makes changes, re-run the test loop (Step 3) to confirm nothing regressed.
+Apply the auto-fixes it lands. Address any `critical` proposals before proceeding. For `high`/`medium` proposals, apply the obvious ones and skip the rest unless they're cheap.
+
+If any edits land, re-run the test loop (Step 3) to confirm nothing regressed.
+
+For diffs spanning architectural boundaries (10+ files across packages, new cross-cutting modules), additionally invoke `improve-codebase-architecture` for the wider structural view.
+
+---
+
+## Step 3c: Harden (conditional)
+
+`/ship-it` is autonomous — no human is watching to decide "is this change trivial enough to skip hardening?" So harden runs by default unless **every file in the diff** belongs to a category where harden cannot find anything (pure data, prose, or generated content).
+
+```bash
+# Skip patterns — files where harden has no surface to attack.
+# Rationale per entry below this block.
+SKIP='\.(md|mdx|txt|css|scss|snap)$|^docs/|/(i18n|locales|fixtures|__fixtures__|__snapshots__)/|^(pnpm-lock\.yaml|package-lock\.json)$'
+
+NON_SKIP_FILES=$(git diff --name-only origin/main...HEAD | grep -vE "$SKIP" | wc -l | tr -d ' ')
+```
+
+**Skip pattern rationale (keep these in sync if the codebase shape changes):**
+
+- `.md` / `.mdx` / `.txt` / `docs/` — prose, no executable surface
+- `.css` / `.scss` — visual; behavior-affecting style is rare and Step 5 review catches it
+- `.snap` / `__snapshots__/` — machine-generated test snapshots
+- `i18n/` / `locales/` — translation strings (data, not logic)
+- `fixtures/` / `__fixtures__/` — test data
+- `pnpm-lock.yaml` / `package-lock.json` — when **only** the lockfile changed; a `package.json` change in the same diff will still register as a non-skip file and trigger harden (which is correct — dep adds have transitive surface)
+
+**Explicitly NOT skipped** even though they may look low-stakes:
+
+- `package.json`, `tsconfig*.json`, `*.config.ts/js`, `vercel.json`, `supabase/config.toml` — config files shape behavior and security boundaries
+- `.claude/settings.json` (and `.claude/settings.local.json`) — agent permissions
+- Anything under `supabase/migrations/` or `supabase/functions/` — the highest-stakes surface in this codebase
+
+**Decision:**
+
+- If `NON_SKIP_FILES == 0` → skip Step 3c with a logged note: "low-stakes diff (only [list extensions/dirs]), harden skipped"
+- Otherwise → invoke `/harden`
+
+Harden launches three parallel agents (edge cases, state corruption, security) and auto-fixes critical/high findings. After it completes:
+
+- If harden returns `PASS` → proceed to Step 4
+- If harden returns `FAIL` (critical findings remain after auto-fix, or 3+ high findings unfixed) → stop the pipeline and report. Do not proceed to commit. Surface the unfixed findings to the user and wait for direction.
+
+If any harden auto-fixes landed, re-run the test loop (Step 3) before proceeding.
 
 ---
 

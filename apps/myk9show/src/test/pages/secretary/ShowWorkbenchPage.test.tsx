@@ -439,17 +439,20 @@ describe('ShowWorkbenchPage', () => {
 
   it('renders Setup panels without public-discovery panels', async () => {
     // Phase B2a: bare URL lands on Show Desk by default; Setup is reached via explicit ?phase=setup.
+    // Phase B8 replaced the AboutThisPhase banner + PhaseChecklist + AskQ help
+    // card with the SetupAdaptiveHeader, and consolidated Premium + Landing
+    // into the SetupPublishSection.
     renderWorkbench('/secretary/shows/show-1?phase=setup');
 
-    expect(await screen.findByRole('heading', { name: 'About Setup' })).toBeInTheDocument();
-    expect(
-      screen.getByText(/confirm the schedule, judges, show page, and materials/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByLabelText('Setup readiness')).toBeInTheDocument();
+    // Deleted surfaces should not appear.
+    expect(screen.queryByRole('heading', { name: 'About Setup' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'What do I do if...' })).not.toBeInTheDocument();
+    // Publish section groups the two existing cards.
+    expect(screen.getByRole('heading', { name: 'Publish' })).toBeInTheDocument();
     expect(await screen.findByTestId('premium-download-card')).toHaveTextContent('show-1');
-    expect(screen.getByRole('heading', { name: '1 of 5 handled' })).toBeInTheDocument();
-    expect(screen.getByText('Trials are added')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'What do I do if...' })).toBeInTheDocument();
     expect(screen.getByTestId('landing-page-card')).toHaveTextContent('show-1');
+    // Reference info still inline.
     expect(screen.getByTestId('schedule-summary')).toHaveTextContent('show-1');
     expect(screen.getByTestId('venue-map')).toHaveTextContent('Louisville, KY');
     expect(screen.getByTestId('show-officials')).toHaveTextContent('show-1');

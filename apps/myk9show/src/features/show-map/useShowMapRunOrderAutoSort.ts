@@ -124,12 +124,20 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
 
   const undoMutation = useMutation({
     mutationFn: async (snapshot: ShowMapAutoSortSnapshot): Promise<void> => {
-      const assignments: ShowMapAutoSortAssignment[] = snapshot.priorOrders
-        .filter((item): item is ShowMapAutoSortSnapshotItem & { runOrder: number } =>
-          item.runOrder !== null
+      // INTENT: Entries whose prior run_order was null must be cleared
+      // (not skipped) — otherwise the number auto-sort assigned would
+      // survive Undo and the table would lie about the prior state.
+      // updateEntry({ runOrder: undefined }) flows through
+      // toSupabaseRow's `entry.runOrder ?? null` mapping and clears the
+      // column on the server.
+      const results = await Promise.allSettled(
+        snapshot.priorOrders.map(item =>
+          replicatedEntriesTable.updateEntry(item.id, {
+            runOrder: item.runOrder === null ? undefined : item.runOrder,
+          })
         )
-        .map(item => ({ id: item.id, runOrder: item.runOrder }));
-      const { failedCount } = await applyAssignments(assignments);
+      );
+      const failedCount = results.filter(r => r.status === 'rejected').length;
       if (failedCount > 0) {
         throw new Error(
           `Could not restore ${failedCount} ${failedCount === 1 ? 'entry' : 'entries'} to the prior run order.`

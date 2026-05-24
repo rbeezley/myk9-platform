@@ -412,6 +412,12 @@ export function ShowMapStructureTable({
             attentionCount={
               attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0
             }
+            isPersisting={reorderMode?.isPersisting ?? false}
+            onKeyboardReorder={
+              reorderMode?.onKeyboardReorder
+                ? direction => reorderMode.onKeyboardReorder?.(node.id, direction)
+                : undefined
+            }
           />
         );
       }
@@ -480,7 +486,11 @@ export function ShowMapStructureTable({
             )}
           </Button>
 
-          {node.href ? (
+          {/* INTENT: While drag-and-drop reorder mode is active the tree is
+              modal — let the label render as static text instead of a
+              navigation button so the secretary can't context-switch
+              mid-save and lose the reorder banner. */}
+          {node.href && !isAnyReorderActive ? (
             <button
               type="button"
               onClick={() => onNavigate?.(node.href!)}

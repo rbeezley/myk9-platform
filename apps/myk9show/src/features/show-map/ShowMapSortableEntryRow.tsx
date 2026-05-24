@@ -12,6 +12,14 @@ interface ShowMapSortableEntryRowProps {
   isPinned: boolean;
   isDimmed: boolean;
   attentionCount: number;
+  // When true, a previous drop's persist is still in flight — disable the
+  // sortable so the secretary can't start another drag (or fire a keyboard
+  // move) until the write settles.
+  isPersisting: boolean;
+  // Fires when the user invokes Alt+ArrowUp / Alt+ArrowDown on the drag
+  // handle. The parent (hook) decides what "one position up/down" means
+  // (skipping pinned neighbors) and persists.
+  onKeyboardReorder?: ((direction: 'up' | 'down') => void) | undefined;
 }
 
 // INTENT: Reorder-mode entry row. Strips clickable links and action menus
@@ -26,11 +34,24 @@ export function ShowMapSortableEntryRow({
   isPinned,
   isDimmed,
   attentionCount,
+  isPersisting,
+  onKeyboardReorder,
 }: ShowMapSortableEntryRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: node.id,
-    disabled: isPinned,
+    disabled: isPinned || isPersisting,
   });
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = event => {
+    if (!event.altKey || !onKeyboardReorder) return;
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      onKeyboardReorder('up');
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      onKeyboardReorder('down');
+    }
+  };
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -70,8 +91,13 @@ export function ShowMapSortableEntryRow({
           ) : (
             <button
               type="button"
-              className="flex h-9 w-9 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={`Drag to reorder ${display?.dogName ?? node.label}`}
+              disabled={isPersisting}
+              className={cn(
+                'flex h-9 w-9 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isPersisting && 'cursor-wait opacity-60'
+              )}
+              aria-label={`Drag or use Alt+ArrowUp/Down to reorder ${display?.dogName ?? node.label}`}
+              onKeyDown={handleKeyDown}
               {...listeners}
             >
               <GripVertical className="h-4 w-4" aria-hidden="true" />

@@ -239,7 +239,6 @@ const JudgeCheckInDashboard: React.FC = () => {
             <div className="grid gap-4">
               {ringAssignments.map(ring => {
                 const ringLabel = formatRingLabel(ring.ringNumber);
-                if (!ringLabel) return null;
 
                 return (
                   <Card
@@ -256,7 +255,7 @@ const JudgeCheckInDashboard: React.FC = () => {
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="font-mono text-lg px-3 py-1">
-                              {ringLabel}
+                              {ringLabel ?? 'Ring not assigned'}
                             </Badge>
                             {ring.isActive && <Badge className="bg-green-500">Active</Badge>}
                             {ring.conflictCount > 0 && (

@@ -50,6 +50,10 @@ export interface ReportData {
   judges: User[];
 }
 
+function getReportRingLabel(cls: ShowClass): string {
+  return formatRingLabel(cls.ring ?? cls.ringNumber) ?? 'Unassigned';
+}
+
 class OfflineReportService {
   /**
    * Generate a comprehensive report based on type and options
@@ -195,7 +199,7 @@ class OfflineReportService {
 
       doc.setFontSize(10);
       doc.text(
-        `Judge: ${classItem.judgeName || 'TBD'} | Ring: ${classItem.ringNumber || 'TBD'}`,
+        `Judge: ${classItem.judgeName || 'TBD'} | Ring: ${getReportRingLabel(classItem)}`,
         20,
         yPosition
       );
@@ -256,7 +260,7 @@ class OfflineReportService {
     const scheduleRows = data.classes.map(cls => [
       cls.classNumber || '',
       cls.className || '',
-      cls.ring || 'TBD',
+      getReportRingLabel(cls),
       cls.judgeName || 'TBD',
       cls.scheduledTime || 'TBD',
       (cls.entries || []).length.toString(),
@@ -281,9 +285,8 @@ class OfflineReportService {
 
       const ringAssignments = this.groupClassesByRing(data.classes);
       for (const [ring, classes] of Object.entries(ringAssignments)) {
-        const ringLabel = formatRingLabel(ring) ?? 'Unassigned';
         doc.setFontSize(10);
-        doc.text(`${ringLabel}: ${classes.length} classes`, 20, yPosition);
+        doc.text(`${ring}: ${classes.length} classes`, 20, yPosition);
         yPosition += 5;
       }
     }
@@ -325,7 +328,7 @@ class OfflineReportService {
       doc.text(`Judge: ${classItem.judgeName}`, 20, yPosition);
       yPosition += 5;
       doc.text(
-        `Ring: ${formatRingLabel(classItem.ringNumber) ?? 'Unassigned'} | Time: ${classItem.scheduledTime}`,
+        `Ring: ${getReportRingLabel(classItem)} | Time: ${classItem.scheduledTime}`,
         20,
         yPosition
       );
@@ -568,7 +571,7 @@ class OfflineReportService {
   private groupClassesByRing(classes: ShowClass[]): Record<string, ShowClass[]> {
     return classes.reduce(
       (acc, cls) => {
-        const ring = cls.ring || 'Unassigned';
+        const ring = getReportRingLabel(cls);
         if (!acc[ring]) {
           acc[ring] = [];
         }

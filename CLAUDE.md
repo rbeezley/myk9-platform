@@ -128,10 +128,12 @@ Before writing a migration or code fix for a "why doesn't this data flow" bug, *
 - After a PR merge, immediately do the branch hygiene for that PR while the branch name is still known:
   1. Switch to the main repo directory and sync `main` with `git checkout main && git pull --ff-only`.
   2. Run `git fetch --prune` to drop remote-tracking refs for auto-deleted PR branches.
-  3. Delete the local feature branch. For squash merges, first confirm `gh pr list --state merged --head <branch>` returns the merged PR, then use `git branch -D <branch>` because `git branch -d` may not recognize rewritten squash history.
+  3. Verify whether the local feature branch survived: `git branch --list <branch>`. On recent `gh` versions, `gh pr merge --delete-branch` deletes BOTH the remote and the local branch — observed 2026-05-24. If the local branch still exists (older gh, manual merge, or branch was created independently of the PR flow), confirm the squash-merge via `gh pr list --state merged --head <branch>` and delete with `git branch -D <branch>` (not `-d` — squash rewrites SHAs, so `-d` may refuse).
   4. If the branch had a worktree, remove the worktree after branch cleanup. Do worktree removal as the final cleanup command if the current shell is inside that worktree.
 - Branches named `pr-###`, scratch branches, or temporary review branches should be deleted immediately after the corresponding PR/review work is merged or abandoned. Do not leave them for weekly cleanup unless they are explicitly marked as active.
 - Defer worktree removal to the FINAL step of cleanup, after all other commands have run, to avoid orphaning the shell cwd.
+- **Bash matcher caveat:** Permission rules like `Bash(git branch:*)` gate on the literal start of the command. A compound `cd "..." && git branch -D ...` does NOT match — the rule sees `cd`, not `git branch`. The harness already persists working directory between bash calls, so drop the `cd` prefix entirely and invoke `git branch -D ...` directly. Observed 2026-05-24 during stale-branch cleanup — three denials in a row before the pattern surfaced.
+- **Before directing destructive history rewrites** (`git reset --hard`, interactive rebase drops, force-push that rewrites branch tip), check whether the agent has uncommitted edits in the working tree. Those edits travel across `git checkout` and get wiped by `reset --hard`. Commit or stash them first.
 
 ## Database Migrations
 

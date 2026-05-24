@@ -257,7 +257,7 @@ const SignUp: React.FC = () => {
 
           {/* Role selection */}
           <div className="mb-4">
-            <p className="mb-2 font-medium text-sm">I am a… (select all that apply)</p>
+            <p className="mb-2 font-medium text-sm">Request access as…</p>
             <div className="space-y-1.5">
               {[
                 { value: 'exhibitor', label: 'Exhibitor (I show dogs)' },
@@ -279,6 +279,10 @@ const SignUp: React.FC = () => {
                 </label>
               ))}
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Exhibitor access starts with your account. Club officer and secretary access requires
+              approval.
+            </p>
           </div>
 
           <div className="mb-6 flex items-start gap-2">

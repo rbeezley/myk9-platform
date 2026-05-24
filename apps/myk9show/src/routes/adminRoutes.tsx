@@ -133,6 +133,11 @@ const UserManagementPage = createEnhancedLazy(() => import('@/pages/admin/UserMa
   displayName: 'UserManagementPage',
 });
 
+const RoleRequestsPage = createEnhancedLazy(() => import('@/pages/admin/RoleRequestsPage'), {
+  ...RouteLazyPresets.highPriority,
+  displayName: 'RoleRequestsPage',
+});
+
 // Admin Help / Page Directory — enhanced lazy loading
 const AdminHelpPage = createEnhancedLazy(
   () => import('@/features/admin-help').then(m => ({ default: m.AdminHelpPage })),
@@ -231,6 +236,16 @@ export const AdminRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <UserManagementPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/role-requests"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <RoleRequestsPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

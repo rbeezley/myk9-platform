@@ -24,6 +24,7 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/templates/:templateId/test': () =>
     import('@/pages/admin/TemplateTestingPage').then(m => ({ default: m.TemplateTestingPage })),
   '/admin/sync': () => import('@/pages/sync/SyncMonitoringPage'),
+  '/admin/role-requests': () => import('@/pages/admin/RoleRequestsPage'),
   // Permission management
   '/admin/permissions': () => import('@/pages/admin/permissions/PermissionManagementPage'),
   '/admin/permissions/roles': () => import('@/pages/admin/permissions/RoleListPage'),

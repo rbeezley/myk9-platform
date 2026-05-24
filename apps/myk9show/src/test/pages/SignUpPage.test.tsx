@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import SignUpPage from '@/pages/SignUpPage';
 
 const mockSignUp = vi.fn();
@@ -120,6 +121,48 @@ describe('SignUpPage', () => {
       const googleBtn = screen.getByRole('button', { name: /continue with google/i });
       fireEvent.click(googleBtn);
       expect(mockSignInWithGoogle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('elevated role requests', () => {
+    it('explains that club officer and secretary access requires approval', () => {
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText(/request access as/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/club officer and secretary access requires approval/i)
+      ).toBeInTheDocument();
+    });
+
+    it('passes selected elevated roles as signup intent without granting access client-side', async () => {
+      const user = userEvent.setup();
+      mockSignUp.mockResolvedValue(undefined);
+
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+
+      await user.type(screen.getByLabelText(/first name/i), 'Pat');
+      await user.type(screen.getByLabelText(/last name/i), 'Morgan');
+      await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
+      await user.type(screen.getByLabelText(/^password$/i), 'password123');
+      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
+      await user.click(screen.getByLabelText(/club officer/i));
+      await user.click(screen.getByLabelText(/show secretary/i));
+      await user.click(screen.getByLabelText(/i agree to the/i));
+      await user.click(screen.getByRole('button', { name: /sign up/i }));
+
+      expect(mockSignUp).toHaveBeenCalledWith('pat@example.com', 'password123', {
+        firstName: 'Pat',
+        lastName: 'Morgan',
+        roles: ['exhibitor', 'club_officer', 'secretary'],
+      });
     });
   });
 });

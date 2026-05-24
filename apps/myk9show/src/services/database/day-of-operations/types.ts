@@ -33,6 +33,7 @@ export interface DayOfEntryDogResult {
 }
 
 export interface CreateDayOfEntryDogInput {
+  showId: string;
   ownerFirstName: string;
   ownerLastName: string;
   ownerEmail?: string;

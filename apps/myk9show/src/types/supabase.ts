@@ -7371,6 +7371,8 @@ export type Database = {
         Args: { p_dog_id: string; p_show_id: string }
         Returns: number
       }
+      can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
+      can_manage_show_person: { Args: { check_person_id: string }; Returns: boolean }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean }
       check_class_availability: {
@@ -7382,6 +7384,30 @@ export type Database = {
           is_available: boolean
           waitlist_position: number
         }[]
+      }
+      create_show_managed_dog: {
+        Args: {
+          p_show_id: string
+          p_owner_id: string
+          p_name: string
+          p_breed: string
+          p_call_name?: string | null
+          p_sex?: string | null
+          p_akc_number?: string | null
+          p_ukc_number?: string | null
+          p_microchip_number?: string | null
+        }
+        Returns: string
+      }
+      create_show_managed_person: {
+        Args: {
+          p_show_id: string
+          p_first_name: string
+          p_last_name: string
+          p_email?: string | null
+          p_phone?: string | null
+        }
+        Returns: string
       }
       grant_club_secretary: {
         Args: { p_club_id: string; p_person_id: string }

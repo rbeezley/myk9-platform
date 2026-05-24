@@ -1,5 +1,5 @@
-import { createDog } from '@/services/database/dogs';
-import { createUser, deleteUser, searchUsers } from '@/services/database/users';
+import { supabase } from '@/lib/supabase';
+import { deleteUser, searchUsers } from '@/services/database/users';
 import type {
   CreateDayOfEntryDogInput,
   DayOfEntryDogResult,
@@ -72,37 +72,42 @@ export async function createDayOfEntryDog(
   let owner = existingOwnerResult.data;
 
   if (!owner) {
-    const ownerResult = await createUser({
-      first_name: ownerFirstName,
-      last_name: ownerLastName,
-      email: ownerEmail,
-      phone: cleanOptional(input.ownerPhone),
-      status: 'active',
+    const { data: personId, error: ownerError } = await supabase.rpc('create_show_managed_person', {
+      p_show_id: input.showId,
+      p_first_name: ownerFirstName,
+      p_last_name: ownerLastName,
+      p_email: ownerEmail,
+      p_phone: cleanOptional(input.ownerPhone),
     });
 
-    if (ownerResult.error || !ownerResult.data) {
+    if (ownerError || !personId) {
       return {
         data: null,
-        error:
-          ownerResult.error instanceof Error
-            ? ownerResult.error
-            : new Error('Unable to create exhibitor.'),
+        error: ownerError instanceof Error ? ownerError : new Error('Unable to create exhibitor.'),
       };
     }
 
-    owner = ownerResult.data;
+    owner = {
+      id: personId,
+      first_name: ownerFirstName,
+      last_name: ownerLastName,
+    };
     createdOwnerId = owner.id;
   }
 
-  const { data: dog, error: dogError } = await createDog({
-    name: dogName,
-    call_name: dogCallName,
-    breed: dogBreed,
-    owner_id: owner.id,
-    status: 'active',
+  const { data: dogId, error: dogError } = await supabase.rpc('create_show_managed_dog', {
+    p_show_id: input.showId,
+    p_owner_id: owner.id,
+    p_name: dogName,
+    p_breed: dogBreed,
+    p_call_name: dogCallName,
+    p_sex: null,
+    p_akc_number: null,
+    p_ukc_number: null,
+    p_microchip_number: null,
   });
 
-  if (dogError || !dog) {
+  if (dogError || !dogId) {
     if (createdOwnerId) {
       await deleteUser(createdOwnerId);
     }
@@ -115,10 +120,10 @@ export async function createDayOfEntryDog(
 
   return {
     data: {
-      id: dog.id,
-      name: dog.name,
-      call_name: dog.call_name ?? null,
-      breed: dog.breed ?? null,
+      id: dogId,
+      name: dogName,
+      call_name: dogCallName,
+      breed: dogBreed,
       owner: {
         id: owner.id,
         first_name: owner.first_name ?? null,

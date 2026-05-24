@@ -2043,7 +2043,7 @@ git commit -m "fix(auth): scope show secretary selection to club"
 - Modify: `apps/myk9show/src/services/database/day-of-operations/late-entry-dog.ts`
 - Modify: `apps/myk9show/src/services/database/day-of-operations/__tests__/late-entry-dog.test.ts`
 
-- [ ] **Step 1: Write the policy audit test first**
+- [x] **Step 1: Write the policy audit test first**
 
 Create `apps/myk9show/src/features/role-scope/roleScopeAudit.test.ts`:
 
@@ -2071,13 +2071,13 @@ describe('role scope guardrails', () => {
 });
 ```
 
-- [ ] **Step 2: Run the policy audit red**
+- [x] **Step 2: Run the policy audit red**
 
 Run: `cd apps/myk9show && npx vitest run src/features/role-scope/roleScopeAudit.test.ts`
 
 Expected: FAIL because `20260524121000_scope_secretary_people_dog_access.sql` does not exist yet.
 
-- [ ] **Step 3: Add scoped people/dog-access migration**
+- [x] **Step 3: Add scoped people/dog-access migration**
 
 Create `supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql`:
 
@@ -2302,7 +2302,7 @@ grant execute on function public.create_show_managed_person(uuid, text, text, te
 commit;
 ```
 
-- [ ] **Step 4: Convert the V1 show-entry people/dog creation call site**
+- [x] **Step 4: Convert the V1 show-entry people/dog creation call site**
 
 V1 conversion scope is the day-of late-entry path, because that path creates both an exhibitor and a dog while a managed show context is available. Do not rely on a broad grep as the implementation checklist; use grep only as an audit after converting the explicit files below.
 
@@ -2388,7 +2388,7 @@ After the explicit conversion, run this audit command and document any remaining
 rg -n "from\\('people'\\).*insert|from\\('dogs'\\).*insert|createUser\\(|createDog\\(" apps/myk9show/src/services apps/myk9show/src/components apps/myk9show/src/pages apps/myk9show/src/hooks
 ```
 
-- [ ] **Step 5: Run guardrail tests**
+- [x] **Step 5: Run guardrail tests**
 
 Run: `cd apps/myk9show && npx vitest run src/features/role-scope/roleScopeAudit.test.ts`
 
@@ -2396,7 +2396,10 @@ Expected: PASS.
 
 Run: `supabase db lint`
 
-Expected: PASS.
+Result: linked PADI lint completed, but the remote schema still reports pre-existing
+issues in `submit_show_entries`, `check_class_availability`,
+`get_judge_day_capacity`, and `create_show_with_children`. The new migration has
+not been applied to PADI in this task.
 
 - [ ] **Step 6: Commit**
 

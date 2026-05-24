@@ -96,6 +96,7 @@ describe('DayOfEntryDialog', () => {
 
     await waitFor(() => {
       expect(createDayOfEntryDogMock).toHaveBeenCalledWith({
+        showId: 'show-1',
         ownerFirstName: 'Jamie',
         ownerLastName: 'Walker',
         ownerEmail: 'jamie@example.com',

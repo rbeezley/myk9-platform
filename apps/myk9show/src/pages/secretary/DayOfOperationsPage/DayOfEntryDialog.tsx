@@ -126,6 +126,7 @@ export function DayOfEntryDialog({
     setIsCreatingDog(true);
     try {
       const { data, error } = await createDayOfEntryDog({
+        showId,
         ownerFirstName: newOwnerFirstName,
         ownerLastName: newOwnerLastName,
         ownerEmail: newOwnerEmail,

@@ -205,9 +205,11 @@ function ShowMapTabView({
     selectRunningNowClass,
     executor,
     runOrderAutoSort,
+    reorderMode,
     navigateTo,
   } = state;
   const { autoSort, isAutoSorting } = runOrderAutoSort;
+  const enterReorderMode = reorderMode.enter;
   const {
     executeAction,
     moveUpAction,
@@ -338,8 +340,15 @@ function ShowMapTabView({
           attentionCountsByNodeId={attentionCountsByNodeId}
           onResetFilters={resetFilters}
           runOrderControls={
-            canManageShow ? { onAutoSort: autoSort, isAutoSorting } : undefined
+            canManageShow
+              ? {
+                  onAutoSort: autoSort,
+                  isAutoSorting,
+                  onEnterReorderMode: enterReorderMode,
+                }
+              : undefined
           }
+          reorderMode={canManageShow ? reorderMode : undefined}
         />
       </div>
       {renderDialogs && (

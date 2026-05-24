@@ -14,6 +14,7 @@ import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { getRunningNowItems } from './showMapRunningNow';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
 import { useShowMapRunOrderAutoSort } from './useShowMapRunOrderAutoSort';
+import { useShowMapReorderMode } from './useShowMapReorderMode';
 import type {
   BuildShowMapTreeInput,
   ShowMapCompletionScope,
@@ -108,6 +109,27 @@ export function useShowMapWorkbenchState({
   const executor = useShowMapActionExecutor({ showId });
   const { executeAction } = executor;
   const runOrderAutoSort = useShowMapRunOrderAutoSort({ showId });
+  // INTENT: Entering reorder mode auto-expands the target class (and its
+  // ancestors) so the secretary sees the entries they're reordering without
+  // an extra click. expandPathToNode opens ancestors only — the class itself
+  // also gets added so its child entries become visible.
+  const expandClassForReorder = useCallback(
+    (classId: string) => {
+      const classNodeId = `class:${classId}`;
+      expandPathToNode(classNodeId);
+      setExpandedNodeIds(current => {
+        if (current.has(classNodeId)) return current;
+        const next = new Set(current);
+        next.add(classNodeId);
+        return next;
+      });
+    },
+    [expandPathToNode]
+  );
+  const reorderMode = useShowMapReorderMode({
+    showId,
+    onActivate: expandClassForReorder,
+  });
 
   const attentionCountsByNodeId = useMemo(
     () => getAttentionCountsByNodeId(tree),
@@ -204,6 +226,7 @@ export function useShowMapWorkbenchState({
     selectRunningNowClass,
     executor,
     runOrderAutoSort,
+    reorderMode,
     navigateTo,
   };
 }

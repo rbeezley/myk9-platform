@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
 import { ShowDeskCloseoutSection } from './ShowDeskCloseoutSection';
 import { ShowDeskToolsSheet } from './ShowDeskToolsSheet';
+import { ShowMapReorderBanner } from './ShowMapReorderBanner';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
@@ -81,6 +82,7 @@ export default function ShowDeskPanel({
     selectRunningNowClass,
     dismissGuidanceAction,
     runOrderAutoSort,
+    reorderMode,
   } = state;
   const {
     executeAction,
@@ -156,7 +158,14 @@ export default function ShowDeskPanel({
         onSelectRunning={selectRunningNowClass}
         onSelectPendingSignal={handlePendingSignal}
       />
-      {canManageShow && runOrderAutoSort.lastAutoSort && (
+      {canManageShow && reorderMode.active && (
+        <ShowMapReorderBanner
+          active={reorderMode.active}
+          isPersisting={reorderMode.isPersisting}
+          onDone={reorderMode.exit}
+        />
+      )}
+      {canManageShow && !reorderMode.active && runOrderAutoSort.lastAutoSort && (
         <div className="rounded-md border bg-muted/20 px-3 py-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 text-sm">

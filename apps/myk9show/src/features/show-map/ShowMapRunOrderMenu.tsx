@@ -1,9 +1,16 @@
-import { ArrowDownNarrowWide, ArrowUpNarrowWide, ListOrdered, Shuffle } from 'lucide-react';
+import {
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
+  GripVertical,
+  ListOrdered,
+  Shuffle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { ShowMapAutoSortKind } from './showMapRunOrderAutoSort';
@@ -14,6 +21,12 @@ interface ShowMapRunOrderMenuProps {
   entryCount: number;
   onAutoSort: (input: { classId: string; kind: ShowMapAutoSortKind; classLabel: string }) => void;
   isAutoSorting: boolean;
+  // When provided, the menu shows a "Reorder manually..." item that enters
+  // drag-and-drop reorder mode. Omitted in read-only/browse contexts.
+  onEnterReorderMode?:
+    | ((input: { classId: string; classLabel: string }) => void)
+    | undefined;
+  isReordering?: boolean | undefined;
 }
 
 interface PresetDef {
@@ -37,8 +50,11 @@ export function ShowMapRunOrderMenu({
   entryCount,
   onAutoSort,
   isAutoSorting,
+  onEnterReorderMode,
+  isReordering = false,
 }: ShowMapRunOrderMenuProps) {
   if (entryCount < 2) return null;
+  const disabled = isAutoSorting || isReordering;
 
   return (
     <DropdownMenu>
@@ -47,7 +63,7 @@ export function ShowMapRunOrderMenu({
           type="button"
           variant="ghost"
           size="sm"
-          disabled={isAutoSorting}
+          disabled={disabled}
           aria-label={`Run order for ${classLabel}`}
         >
           <ListOrdered className="h-4 w-4" />
@@ -58,7 +74,7 @@ export function ShowMapRunOrderMenu({
         {PRESETS.map(preset => (
           <DropdownMenuItem
             key={preset.kind}
-            disabled={isAutoSorting}
+            disabled={disabled}
             onClick={() => onAutoSort({ classId, kind: preset.kind, classLabel })}
             className="items-center gap-3"
           >
@@ -66,6 +82,19 @@ export function ShowMapRunOrderMenu({
             <span className="text-sm font-medium">{preset.label}</span>
           </DropdownMenuItem>
         ))}
+        {onEnterReorderMode && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={disabled}
+              onClick={() => onEnterReorderMode({ classId, classLabel })}
+              className="items-center gap-3"
+            >
+              <GripVertical className="h-4 w-4" />
+              <span className="text-sm font-medium">Reorder manually...</span>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

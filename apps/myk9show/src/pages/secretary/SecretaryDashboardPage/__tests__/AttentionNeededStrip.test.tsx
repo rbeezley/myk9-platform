@@ -52,4 +52,21 @@ describe('AttentionNeededStrip', () => {
     ]);
     expect(screen.getAllByRole('link')).toHaveLength(3);
   });
+
+  // D4 regression: the dashboard is a "where to go" surface, not an "act here"
+  // surface. Every attention item MUST be a navigation primitive — no in-place
+  // mutation buttons. This test fails if a future PR adds a `<button onClick={mutate}>`
+  // inside the strip, forcing an explicit decision to either (a) keep the strip
+  // nav-only and move the action elsewhere, or (b) update this assertion and the
+  // plan that wrote it. See docs/plan-dashboard-refocus.md phase D4.
+  it('renders only navigation primitives — no buttons / no mutation handlers', () => {
+    const { container } = renderStrip([
+      { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Item A', href: '/shows/s1' },
+      { showId: 's2', showName: 'Fall Classic', kind: 'info', text: 'Item B', href: '/shows/s2' },
+    ]);
+    // Every item is an <a> tag, not a <button>.
+    expect(container.querySelectorAll('button')).toHaveLength(0);
+    // And the number of anchors equals the item count (no decorative-only buttons either).
+    expect(container.querySelectorAll('a')).toHaveLength(2);
+  });
 });

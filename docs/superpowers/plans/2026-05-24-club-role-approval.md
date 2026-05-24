@@ -4,7 +4,7 @@
 
 **Goal:** Build a secure V1 approval workflow where site admins approve new clubs and first club admins, then approved club admins manage secretary access for their own club only.
 
-**Architecture:** Add a `club_access_requests` approval table plus security-definer RPCs for reviewing club requests and managing club-scoped secretary grants. Keep signup low-friction by storing request intent in auth metadata and materializing a pending request from the existing `handle_new_user()` trigger path. Harden `user_roles` so elevated role writes happen through authorized RPCs instead of direct client table mutations.
+**Architecture:** Add a `club_access_requests` approval table plus security-definer RPCs for reviewing club requests and managing club-scoped secretary grants. Keep signup low-friction by storing request intent in auth metadata and materializing a pending request from a separate `zz_` auth trigger that runs after the existing account bootstrap trigger. Harden `user_roles` so elevated role writes happen through authorized RPCs instead of direct client table mutations.
 
 **Tech Stack:** Supabase Postgres/RLS/RPCs, TypeScript, React, React Router, shadcn/ui, React Query/Vitest, existing myK9Show admin and club detail surfaces.
 
@@ -19,7 +19,7 @@
 ## File Structure
 
 - Create: `supabase/migrations/20260524120000_club_access_requests.sql`
-  - Owns the approval table, enum/check constraints, RLS, trigger update to `handle_new_user()`, and three RPCs.
+  - Owns the approval table, enum/check constraints, RLS, separate auth trigger, and three RPCs. Uses the current timestamp migration convention already present in recent migrations.
 - Modify: `apps/myk9show/src/pages/SignUpPage.tsx`
   - Updates role copy, supports `/sign-up?request=club`, and collects club request fields when club access is requested.
 - Modify: `apps/myk9show/src/hooks/useAuth.ts`
@@ -39,9 +39,15 @@
 - Create: `apps/myk9show/src/features/access-requests/accessRequestService.ts`
   - Small Supabase service wrapper for listing and reviewing club access requests.
 - Create: `apps/myk9show/src/features/access-requests/useAccessRequests.ts`
-  - React Query hooks for the admin queue.
+  - React Query hooks for the admin queue and the requester's own status.
+- Create: `apps/myk9show/src/features/access-requests/AccessRequestStatusCard.tsx`
+  - Shows signed-in requesters whether their club request is pending, approved, or denied.
+- Test: `apps/myk9show/src/features/access-requests/AccessRequestStatusCard.test.tsx`
+  - Proves requesters can see pending/approved/denied status without email notifications.
 - Create: `apps/myk9show/src/pages/admin/AccessRequestsPage.tsx`
   - Site-admin queue UI.
+- Modify: `apps/myk9show/src/pages/AccountPage.sections.tsx`
+  - Renders the access request status card in the profile section.
 - Modify: `apps/myk9show/src/routes/adminRoutes.tsx`
   - Registers `/admin/access-requests`.
 - Modify: `apps/myk9show/src/pages/admin/AdminDashboard/PlatformAdministrationSection.tsx`
@@ -50,12 +56,20 @@
   - Calls secretary list/grant/revoke RPCs and fetches club-scoped secretary rows.
 - Modify: `apps/myk9show/src/components/clubs/ClubDetails/MembersTab.tsx`
   - Adds the secretary management section for club admins.
+- Test: `apps/myk9show/src/components/clubs/ClubDetails/__tests__/MembersTab.secretaries.test.tsx`
+  - Proves club admins choose secretaries by person name/email instead of pasting ids.
 - Test: `apps/myk9show/src/features/access-requests/accessRequestService.test.ts`
   - Proves RPC payloads and error handling.
 - Test: `apps/myk9show/src/features/club-secretaries/clubSecretaryService.test.ts`
   - Proves club-scoped grant/revoke calls.
 - Create: `apps/myk9show/src/features/role-scope/roleScopeAudit.test.ts`
   - [ADDED] Captures known broad people/dog permission policies and fails if new unscoped secretary paths are introduced.
+- Modify: `apps/myk9show/src/services/database/day-of-operations/types.ts`
+  - Adds `showId` to day-of entry dog creation input so scoped creation RPCs can authorize against the managed show.
+- Modify: `apps/myk9show/src/services/database/day-of-operations/late-entry-dog.ts`
+  - Converts day-of owner/dog creation to show-scoped RPC calls.
+- Test: `apps/myk9show/src/services/database/day-of-operations/__tests__/late-entry-dog.test.ts`
+  - Proves late-entry owner/dog RPC payloads include the managed `showId`.
 - Create: `supabase/tests/club_access_requests.sql`
   - SQL-level regression test covering RLS/RPC role boundaries if the repo's Supabase test harness is available.
 - Modify: `OPEN-TODOS.md`
@@ -83,9 +97,15 @@ order by r.name;
 select tgname
 from pg_trigger
 where tgname in ('zz_grant_early_access_secretary', 'trg_enforce_club_id_for_scoped_roles');
+
+select conname, pg_get_constraintdef(oid)
+from pg_constraint
+where conrelid = 'public.user_roles'::regclass
+  and contype in ('u', 'p')
+order by conname;
 ```
 
-Expected: no null-club `secretary` / `club_admin` rows remain, and the scoped-role constraint trigger exists. If `zz_grant_early_access_secretary` exists, include the compatibility fix in Step 3 so legacy early-access signup no longer attempts to insert a global secretary row.
+Expected: no null-club `secretary` / `club_admin` rows remain, the scoped-role constraint trigger exists, and `user_roles` has a usable unique constraint on `(user_id, role_id, club_id, show_id)`. If that exact conflict target does not exist, update the migration upsert statements to match the actual constraint before implementing. If `zz_grant_early_access_secretary` exists, include the compatibility fix in Step 3 so legacy early-access signup no longer attempts to insert a global secretary row.
 
 **Lifecycle rule:** pending club details must stay in `club_access_requests`; do not insert into `clubs` until `review_club_access_request(..., 'approved', ...)` runs. This prevents unapproved, duplicate, or spam clubs from becoming real platform clubs.
 
@@ -96,7 +116,7 @@ Create `supabase/tests/club_access_requests.sql` with these assertions:
 ```sql
 begin;
 
-select plan(8);
+select plan(9);
 
 select has_table('public', 'club_access_requests', 'club_access_requests table exists');
 select has_function('public', 'review_club_access_request', ARRAY['uuid', 'text', 'uuid', 'text', 'text'], 'review RPC exists');
@@ -156,12 +176,32 @@ create unique index if not exists club_access_requests_pending_person_club_uniqu
 
 alter table public.club_access_requests enable row level security;
 
+create or replace function public.can_insert_club_access_request(p_auth_user_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select count(*) < 3
+  from public.club_access_requests
+  where requester_auth_user_id = p_auth_user_id
+    and status = 'pending'
+$$;
+
 drop policy if exists club_access_requests_insert_own on public.club_access_requests;
 create policy club_access_requests_insert_own
   on public.club_access_requests
   for insert
   to authenticated
-  with check (requester_auth_user_id = auth.uid());
+  with check (
+    requester_auth_user_id = auth.uid()
+    and status = 'pending'
+    and reviewed_by is null
+    and reviewed_at is null
+    and approved_club_id is null
+    and public.can_insert_club_access_request(auth.uid())
+  );
 
 drop policy if exists club_access_requests_select_own_or_site_admin on public.club_access_requests;
 create policy club_access_requests_select_own_or_site_admin
@@ -252,8 +292,37 @@ begin
       nullif(trim(coalesce(p_metadata->>'requested_club_website', '')), ''),
       nullif(trim(coalesce(p_metadata->>'club_request_note', '')), '')
     )
-    on conflict do nothing;
+    on conflict (requester_person_id, lower(requested_club_name)) where status = 'pending'
+    do nothing;
   end if;
+end;
+$$;
+
+create or replace function public.materialize_club_access_request_from_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_person_id uuid;
+begin
+  select id into v_person_id
+  from public.people
+  where auth_user_id = new.id
+  limit 1;
+
+  if v_person_id is null then
+    return new;
+  end if;
+
+  perform public.insert_club_access_request_from_signup(
+    v_person_id,
+    new.id,
+    new.raw_user_meta_data
+  );
+
+  return new;
 end;
 $$;
 
@@ -476,6 +545,8 @@ begin
   where user_id = p_person_id
     and role_id = v_secretary_role_id
     and club_id = p_club_id
+    -- Club-level revocation does not deactivate show-scoped official rows.
+    -- Those assignments remain managed from the show official surface.
     and show_id is null;
 
   insert into public.permission_audit_log (
@@ -499,30 +570,34 @@ grant execute on function public.review_club_access_request(uuid, text, uuid, te
 grant execute on function public.grant_club_secretary(uuid, uuid) to authenticated;
 grant execute on function public.revoke_club_secretary(uuid, uuid) to authenticated;
 grant execute on function public.insert_club_access_request_from_signup(uuid, uuid, jsonb) to supabase_auth_admin;
+grant execute on function public.materialize_club_access_request_from_auth_user() to supabase_auth_admin;
 
 -- [ADDED] Compatibility: older early-access signup logic attempted to insert
 -- a global secretary role. Club-scoped secretary is now the only valid model.
 drop trigger if exists zz_grant_early_access_secretary on auth.users;
 drop function if exists public.grant_early_access_secretary_role();
 
+drop trigger if exists zz_materialize_club_access_request on auth.users;
+create trigger zz_materialize_club_access_request
+  after insert on auth.users
+  for each row execute function public.materialize_club_access_request_from_auth_user();
+
 notify pgrst, 'reload schema';
 
 commit;
 ```
 
-- [ ] **Step 4: Update the existing new-user trigger function**
+- [ ] **Step 4: Verify the auth trigger is isolated from `handle_new_user()`**
 
-In the same migration, replace `public.handle_new_user()` by copying the current body from `supabase/migrations/165_handle_new_user_agreed_to_tos.sql` and add this call immediately before `RETURN NEW;`:
+Do not replace `public.handle_new_user()`. The migration must leave the existing `on_auth_user_created` trigger and `handle_new_user()` function untouched, then add only the separate `zz_materialize_club_access_request` trigger.
 
-```sql
-  perform public.insert_club_access_request_from_signup(
-    new_person_id,
-    new.id,
-    new.raw_user_meta_data
-  );
+Run:
+
+```bash
+rg -n "CREATE OR REPLACE FUNCTION public.handle_new_user|zz_materialize_club_access_request|on_auth_user_created" supabase/migrations/20260524120000_club_access_requests.sql
 ```
 
-Keep the existing exhibitor-profile and exhibitor-role creation logic unchanged.
+Expected: no `CREATE OR REPLACE FUNCTION public.handle_new_user` match in the new migration, and a match for `zz_materialize_club_access_request`. This avoids stomping newer account-bootstrap trigger definitions.
 
 - [ ] **Step 5: Run database checks**
 
@@ -539,10 +614,10 @@ Expected: PASS, or the same documented local harness error from Step 2 if the ha
 Before committing, confirm the migration is transaction-wrapped and no shared-system write has been run:
 
 ```bash
-rg -n "^begin;|^commit;|drop trigger if exists zz_grant_early_access_secretary|permission_audit_log" supabase/migrations/20260524120000_club_access_requests.sql
+rg -n "^begin;|^commit;|zz_materialize_club_access_request|drop trigger if exists zz_grant_early_access_secretary|permission_audit_log" supabase/migrations/20260524120000_club_access_requests.sql
 ```
 
-Expected: the migration starts with `begin;`, ends with `commit;`, removes the legacy global-secretary trigger, and writes permission audit entries for approvals, denials, grants, and revokes. Do not run `supabase db push` without explicit user confirmation because it mutates the shared Supabase project.
+Expected: the migration starts with `begin;`, ends with `commit;`, adds the separate `zz_materialize_club_access_request` trigger, removes the legacy global-secretary trigger, and writes permission audit entries for approvals, denials, grants, and revokes. Do not run `supabase db push` without explicit user confirmation because it mutates the shared Supabase project.
 
 - [ ] **Step 6: Commit**
 
@@ -651,7 +726,9 @@ it('frames elevated signup roles as access requests', () => {
   expect(screen.getByLabelText('I help run a club or host shows')).toBeInTheDocument();
   expect(screen.getByLabelText('I work as a show secretary')).toBeInTheDocument();
   expect(
-    screen.getByText('Club and secretary access require approval before those tools appear.')
+    screen.getByText(
+      'Club access requires approval. Secretaries are added by an approved club admin after their club is approved.'
+    )
   ).toBeInTheDocument();
 });
 
@@ -773,7 +850,7 @@ Replace the role section with request language:
 <div className="mb-4">
   <p className="mb-2 font-medium text-sm">I am interested in...</p>
   <p className="text-sm text-muted-foreground mb-3">
-    Club and secretary access require approval before those tools appear.
+    Club access requires approval. Secretaries are added by an approved club admin after their club is approved.
   </p>
   <div className="space-y-1.5">
     {[
@@ -930,8 +1007,11 @@ git commit -m "feat(auth): collect club access requests at signup"
 - Create: `apps/myk9show/src/features/access-requests/accessRequestTypes.ts`
 - Create: `apps/myk9show/src/features/access-requests/accessRequestService.ts`
 - Create: `apps/myk9show/src/features/access-requests/useAccessRequests.ts`
+- Create: `apps/myk9show/src/features/access-requests/AccessRequestStatusCard.tsx`
+- Create: `apps/myk9show/src/features/access-requests/AccessRequestStatusCard.test.tsx`
 - Create: `apps/myk9show/src/features/access-requests/accessRequestService.test.ts`
 - Create: `apps/myk9show/src/pages/admin/AccessRequestsPage.tsx`
+- Modify: `apps/myk9show/src/pages/AccountPage.sections.tsx`
 - Modify: `apps/myk9show/src/routes/adminRoutes.tsx`
 - Modify: `apps/myk9show/src/pages/admin/AdminDashboard/PlatformAdministrationSection.tsx`
 
@@ -973,6 +1053,20 @@ describe('accessRequestService', () => {
     expect(order).toHaveBeenCalledWith('created_at', { ascending: false });
   });
 
+  it('loads the signed-in requesters own access requests through RLS', async () => {
+    const order = vi.fn().mockResolvedValue({ data: [], error: null });
+    const select = vi.fn(() => ({ order }));
+    vi.mocked(supabase.from).mockReturnValue({ select } as never);
+
+    await accessRequestService.listMine();
+
+    expect(supabase.from).toHaveBeenCalledWith('club_access_requests');
+    expect(select).toHaveBeenCalledWith(
+      'id, requester_person_id, requester_auth_user_id, requested_club_name, requested_club_website, request_note, status, approved_club_id, reviewed_by, reviewed_at, review_note, created_at, updated_at, requester:people!club_access_requests_requester_person_id_fkey(id, first_name, last_name, email)'
+    );
+    expect(order).toHaveBeenCalledWith('created_at', { ascending: false });
+  });
+
   it('approves a request through the review RPC', async () => {
     vi.mocked(supabase.rpc).mockResolvedValue({ data: 'club-1', error: null } as never);
 
@@ -1008,12 +1102,30 @@ describe('accessRequestService', () => {
       p_review_note: 'Could not verify club authority.',
     });
   });
+
+  it('approves a request against an existing club without creating a duplicate club intent', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'club-existing', error: null } as never);
+
+    await accessRequestService.approve({
+      requestId: 'request-1',
+      existingClubId: 'club-existing',
+      reviewNote: 'Existing club verified.',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('review_club_access_request', {
+      p_request_id: 'request-1',
+      p_decision: 'approved',
+      p_existing_club_id: 'club-existing',
+      p_club_name: null,
+      p_review_note: 'Existing club verified.',
+    });
+  });
 });
 ```
 
 - [ ] **Step 2: Run service tests red**
 
-Run: `cd apps/myk9show && npx vitest run src/features/access-requests/accessRequestService.test.ts`
+Run: `cd apps/myk9show && npx vitest run src/features/access-requests/accessRequestService.test.ts src/features/access-requests/AccessRequestStatusCard.test.tsx`
 
 Expected: FAIL because the service does not exist.
 
@@ -1091,6 +1203,16 @@ export const accessRequestService = {
     return (data ?? []) as ClubAccessRequest[];
   },
 
+  async listMine(): Promise<ClubAccessRequest[]> {
+    const { data, error } = await supabase
+      .from('club_access_requests')
+      .select(REQUEST_SELECT)
+      .order('created_at', { ascending: false });
+
+    throwIfError(error);
+    return (data ?? []) as ClubAccessRequest[];
+  },
+
   async approve(input: ApproveClubAccessRequestInput): Promise<string | null> {
     const { data, error } = await supabase.rpc('review_club_access_request', {
       p_request_id: input.requestId,
@@ -1130,12 +1252,20 @@ import type { ApproveClubAccessRequestInput, DenyClubAccessRequestInput } from '
 export const accessRequestKeys = {
   all: ['access-requests'] as const,
   pending: () => [...accessRequestKeys.all, 'pending'] as const,
+  mine: () => [...accessRequestKeys.all, 'mine'] as const,
 };
 
 export function usePendingAccessRequests() {
   return useQuery({
     queryKey: accessRequestKeys.pending(),
     queryFn: () => accessRequestService.listPending(),
+  });
+}
+
+export function useMyAccessRequests() {
+  return useQuery({
+    queryKey: accessRequestKeys.mine(),
+    queryFn: () => accessRequestService.listMine(),
   });
 }
 
@@ -1158,7 +1288,21 @@ export function useDenyAccessRequest() {
 }
 ```
 
-- [ ] **Step 6: Create admin queue page**
+- [ ] **Step 6: Add requester-visible status**
+
+Create `apps/myk9show/src/features/access-requests/AccessRequestStatusCard.tsx` using `useMyAccessRequests()`. Render nothing when the signed-in user has no requests. When requests exist, show the latest club request with one of these statuses:
+
+- `pending`: "Club access request pending"
+- `approved`: "Club access approved"
+- `denied`: "Club access request denied"
+
+Include the requested club name and the review note when present. This is the V1 notification surface: the admin queue is the source of truth, and requesters can re-check status after sign-in without email/push notifications.
+
+Create `apps/myk9show/src/features/access-requests/AccessRequestStatusCard.test.tsx` with focused tests for pending, approved, denied, and no-request states.
+
+In `apps/myk9show/src/pages/AccountPage.sections.tsx`, render `<AccessRequestStatusCard />` near the top of `ProfileSection`.
+
+- [ ] **Step 7: Create admin queue page**
 
 Create `apps/myk9show/src/pages/admin/AccessRequestsPage.tsx` with:
 
@@ -1320,9 +1464,11 @@ const AccessRequestsPage: React.FC = () => {
 export default AccessRequestsPage;
 ```
 
-- [ ] **Step 6a: [ADDED] Preserve existing-club approval path**
+- [ ] **Step 8: [ADDED] Preserve existing-club approval path**
 
 If a request is for a club that already exists, site admins must be able to approve against the existing club instead of creating a duplicate. Add an optional existing-club id input to the admin card before the review note:
+
+Approving against an existing club intentionally creates another active `club_admin` assignment for that club. Multiple club admins are allowed in V1, but only after site-admin review.
 
 ```tsx
 const [existingClubIds, setExistingClubIds] = useState<Record<string, string>>({});
@@ -1360,7 +1506,7 @@ Render the field with explicit helper copy:
 </div>
 ```
 
-- [ ] **Step 7: Wire route and dashboard link**
+- [ ] **Step 9: Wire route and dashboard link**
 
 In `apps/myk9show/src/routes/adminRoutes.tsx`, add a lazy import and route:
 
@@ -1388,16 +1534,16 @@ Add route:
 
 In `PlatformAdministrationSection.tsx`, add a card/link labeled `Access Requests` pointing to `/admin/access-requests`.
 
-- [ ] **Step 8: Run focused tests**
+- [ ] **Step 10: Run focused tests**
 
-Run: `cd apps/myk9show && npx vitest run src/features/access-requests/accessRequestService.test.ts`
+Run: `cd apps/myk9show && npx vitest run src/features/access-requests/accessRequestService.test.ts src/features/access-requests/AccessRequestStatusCard.test.tsx`
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add apps/myk9show/src/features/access-requests apps/myk9show/src/pages/admin/AccessRequestsPage.tsx apps/myk9show/src/routes/adminRoutes.tsx apps/myk9show/src/pages/admin/AdminDashboard/PlatformAdministrationSection.tsx
+git add apps/myk9show/src/features/access-requests apps/myk9show/src/pages/AccountPage.sections.tsx apps/myk9show/src/pages/admin/AccessRequestsPage.tsx apps/myk9show/src/routes/adminRoutes.tsx apps/myk9show/src/pages/admin/AdminDashboard/PlatformAdministrationSection.tsx
 git commit -m "feat(admin): add club access request queue"
 ```
 
@@ -1407,6 +1553,7 @@ git commit -m "feat(admin): add club access request queue"
 - Create: `apps/myk9show/src/features/club-secretaries/clubSecretaryService.ts`
 - Create: `apps/myk9show/src/features/club-secretaries/clubSecretaryService.test.ts`
 - Modify: `apps/myk9show/src/components/clubs/ClubDetails/MembersTab.tsx`
+- Create: `apps/myk9show/src/components/clubs/ClubDetails/__tests__/MembersTab.secretaries.test.tsx`
 
 - [ ] **Step 1: Write service tests first**
 
@@ -1571,13 +1718,15 @@ Use this copy:
 
 Grant and revoke actions must call `clubSecretaryService.grantSecretary()` and `clubSecretaryService.revokeSecretary()` with `club.id`.
 
+Use the existing person-selection pattern from `apps/myk9show/src/components/clubs/members/AddMemberDialog.tsx`: `useUserStore(state => state.people)`, `FormField`, and the shadcn `Select` components. Do not ship a raw UUID text input. Filter out people who are already active club secretaries.
+
 Add local state for a selected person id:
 
 ```typescript
 const [secretaryPersonId, setSecretaryPersonId] = React.useState('');
 ```
 
-Render a simple first slice that works with an explicit person id until it can be replaced by a richer person picker:
+Render a complete first slice with a selectable person picker:
 
 ```tsx
 {canManageMembers && (
@@ -1588,20 +1737,34 @@ Render a simple first slice that works with an explicit person id until it can b
         Secretaries added here can manage shows for this club only.
       </p>
     </div>
-    <div className="flex flex-col gap-2 sm:flex-row">
-      <input
-        aria-label="Secretary person ID"
-        value={secretaryPersonId}
-        onChange={event => setSecretaryPersonId(event.target.value)}
-        className="min-h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-        placeholder="Person ID"
-      />
+    <FormField label="Select Secretary" fieldId="secretary-person-select">
+      <Select value={secretaryPersonId} onValueChange={setSecretaryPersonId}>
+        <SelectTrigger id="secretary-person-select">
+          <SelectValue placeholder="Choose a person" />
+        </SelectTrigger>
+        <SelectContent>
+          {availableSecretaryPeople.map(person => (
+            <SelectItem key={person.id} value={person.id.toString()}>
+              <div className="flex flex-col">
+                <span className="font-medium">
+                  {person.firstName} {person.lastName}
+                </span>
+                {person.email && (
+                  <span className="text-xs text-muted-foreground">{person.email}</span>
+                )}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </FormField>
+    <div className="flex justify-end">
       <Button
         type="button"
-        disabled={secretaryPersonId.trim() === ''}
+        disabled={secretaryPersonId === ''}
         onClick={() =>
           clubSecretaryService.grantSecretary({
-            personId: secretaryPersonId.trim(),
+            personId: secretaryPersonId,
             clubId: club.id,
           })
         }
@@ -1613,18 +1776,39 @@ Render a simple first slice that works with an explicit person id until it can b
 )}
 ```
 
-This is deliberately plain but complete: it gives admins a working path without making global role assignment available. A later UX pass can replace the person-id input with a searchable person picker without changing the authorization boundary.
+Add success/error notifications consistent with `AddMemberDialog`, reset `secretaryPersonId` after a successful grant, and refresh the current secretary list after grant or revoke.
 
-- [ ] **Step 5: Run focused tests**
+- [ ] **Step 5: Add a focused MembersTab UI regression**
 
-Run: `cd apps/myk9show && npx vitest run src/features/club-secretaries/clubSecretaryService.test.ts`
+Create `apps/myk9show/src/components/clubs/ClubDetails/__tests__/MembersTab.secretaries.test.tsx` using the custom render from `src/test/utils/testUtils.tsx`. Mock `clubSecretaryService` and `useUserStore`.
+
+Test:
+
+```typescript
+it('lets club admins choose a secretary by person name instead of entering an id', async () => {
+  // Arrange people with names/emails in the mocked user store.
+  // Assert the select trigger is labeled "Select Secretary".
+  // Open the select, choose "Jane Doe", click "Add Secretary".
+  // Expect grantSecretary({ personId: 'person-jane', clubId: 'club-1' }).
+});
+```
+
+- [ ] **Step 6: Run focused tests**
+
+Run:
+
+```bash
+cd apps/myk9show && npx vitest run \
+  src/features/club-secretaries/clubSecretaryService.test.ts \
+  src/components/clubs/ClubDetails/__tests__/MembersTab.secretaries.test.tsx
+```
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add apps/myk9show/src/features/club-secretaries apps/myk9show/src/components/clubs/ClubDetails/MembersTab.tsx
+git add apps/myk9show/src/features/club-secretaries apps/myk9show/src/components/clubs/ClubDetails/MembersTab.tsx apps/myk9show/src/components/clubs/ClubDetails/__tests__/MembersTab.secretaries.test.tsx
 git commit -m "feat(clubs): manage club-scoped secretaries"
 ```
 
@@ -1855,6 +2039,9 @@ git commit -m "fix(auth): scope show secretary selection to club"
 **Files:**
 - Create: `apps/myk9show/src/features/role-scope/roleScopeAudit.test.ts`
 - Create: `supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql`
+- Modify: `apps/myk9show/src/services/database/day-of-operations/types.ts`
+- Modify: `apps/myk9show/src/services/database/day-of-operations/late-entry-dog.ts`
+- Modify: `apps/myk9show/src/services/database/day-of-operations/__tests__/late-entry-dog.test.ts`
 
 - [ ] **Step 1: Write the policy audit test first**
 
@@ -2115,43 +2302,91 @@ grant execute on function public.create_show_managed_person(uuid, text, text, te
 commit;
 ```
 
-- [ ] **Step 4: Convert show-entry people/dog creation call sites**
+- [ ] **Step 4: Convert the V1 show-entry people/dog creation call site**
 
-Find secretary/mail-in/day-of people and dog create paths:
+V1 conversion scope is the day-of late-entry path, because that path creates both an exhibitor and a dog while a managed show context is available. Do not rely on a broad grep as the implementation checklist; use grep only as an audit after converting the explicit files below.
 
-```bash
-rg -n "from\\('people'\\).*insert|from\\('dogs'\\).*insert|create.*person|create.*dog|insertDog|addDog" apps/myk9show/src/services apps/myk9show/src/components apps/myk9show/src/pages apps/myk9show/src/hooks
-```
-
-For paths that create a person while a `showId` is known, replace direct `supabase.from('people').insert(...)` calls with:
+Update `apps/myk9show/src/services/database/day-of-operations/types.ts` so `CreateDayOfEntryDogInput` includes the show context:
 
 ```typescript
-const { data: personId, error } = await supabase.rpc('create_show_managed_person', {
-  p_show_id: showId,
-  p_first_name: person.firstName,
-  p_last_name: person.lastName,
-  p_email: person.email ?? null,
-  p_phone: person.phone ?? null,
+export interface CreateDayOfEntryDogInput {
+  showId: string;
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  dogName: string;
+  dogCallName?: string;
+  dogBreed?: string;
+}
+```
+
+In `apps/myk9show/src/services/database/day-of-operations/late-entry-dog.ts`, replace the missing-owner `createUser(...)` call with:
+
+```typescript
+const { data: createdOwnerId, error: ownerError } = await supabase.rpc(
+  'create_show_managed_person',
+  {
+    p_show_id: input.showId,
+    p_first_name: ownerFirstName,
+    p_last_name: ownerLastName,
+    p_email: ownerEmail,
+    p_phone: cleanOptional(input.ownerPhone),
+  }
+);
+```
+
+Then fetch the created owner by id through the existing user/person read helper used elsewhere in this service layer, or through a narrowly scoped replicated/read path already available in day-of operations. Keep the rollback behavior if dog creation fails.
+
+Replace the `createDog(...)` call with:
+
+```typescript
+const { data: dogId, error: dogError } = await supabase.rpc('create_show_managed_dog', {
+  p_show_id: input.showId,
+  p_owner_id: owner.id,
+  p_name: dogName,
+  p_breed: dogBreed,
+  p_call_name: dogCallName,
+  p_sex: null,
+  p_akc_number: null,
+  p_ukc_number: null,
+  p_microchip_number: null,
 });
 ```
 
-For paths that create a dog while a `showId` is known, replace direct `supabase.from('dogs').insert(...)` calls with:
+Then fetch the created dog by id through the existing dog read helper used elsewhere in this service layer, or return the known values plus the returned id if that matches the current `DayOfEntryDogResult` contract.
+
+In `apps/myk9show/src/services/database/day-of-operations/__tests__/late-entry-dog.test.ts`, add assertion-first tests that prove the RPC payload includes the exact `showId`:
 
 ```typescript
-const { data: dogId, error } = await supabase.rpc('create_show_managed_dog', {
-  p_show_id: showId,
-  p_owner_id: ownerId,
-  p_name: dog.name,
-  p_breed: dog.breed,
-  p_call_name: dog.callName ?? null,
-  p_sex: dog.sex ?? null,
-  p_akc_number: dog.akcNumber ?? null,
-  p_ukc_number: dog.ukcNumber ?? null,
-  p_microchip_number: dog.microchipNumber ?? null,
+expect(supabase.rpc).toHaveBeenCalledWith('create_show_managed_person', {
+  p_show_id: 'show-1',
+  p_first_name: 'Jane',
+  p_last_name: 'Doe',
+  p_email: 'jane@example.com',
+  p_phone: null,
+});
+
+expect(supabase.rpc).toHaveBeenCalledWith('create_show_managed_dog', {
+  p_show_id: 'show-1',
+  p_owner_id: 'person-1',
+  p_name: 'Example Dog',
+  p_breed: 'Mixed Breed',
+  p_call_name: null,
+  p_sex: null,
+  p_akc_number: null,
+  p_ukc_number: null,
+  p_microchip_number: null,
 });
 ```
 
 Keep self-service exhibitor dog creation on the normal owner-scoped insert path.
+
+After the explicit conversion, run this audit command and document any remaining direct people/dog inserts as either owner self-service, site-admin utilities, or a separate follow-up plan:
+
+```bash
+rg -n "from\\('people'\\).*insert|from\\('dogs'\\).*insert|createUser\\(|createDog\\(" apps/myk9show/src/services apps/myk9show/src/components apps/myk9show/src/pages apps/myk9show/src/hooks
+```
 
 - [ ] **Step 5: Run guardrail tests**
 
@@ -2184,7 +2419,10 @@ cd apps/myk9show && npx vitest run \
   src/test/auth/useAuth.test.ts \
   src/test/pages/SignUpPage.test.tsx \
   src/features/access-requests/accessRequestService.test.ts \
+  src/features/access-requests/AccessRequestStatusCard.test.tsx \
   src/features/club-secretaries/clubSecretaryService.test.ts \
+  src/components/clubs/ClubDetails/__tests__/MembersTab.secretaries.test.tsx \
+  src/services/database/day-of-operations/__tests__/late-entry-dog.test.ts \
   src/features/role-scope/roleScopeAudit.test.ts
 ```
 

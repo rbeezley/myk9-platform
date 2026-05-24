@@ -121,12 +121,7 @@ myK9Show has separate detail pages that overlap with Show Map's scope:
 
 **Precedent:** PR #293 already enforced this boundary once — removed `Mark In Progress` / `Mark Completed` from Class Details because Show Map owned them. This plan continues that pattern.
 
-**Phase B4.5 (new audit checkpoint):** before Phase B5 ships, grep both the Class Details page and the legacy [`ShowDashboard.tsx`](../apps/myk9show/src/components/shows/ShowDashboard.tsx) for any operational action that duplicates Show Map. Two specific suspicions worth checking:
-
-1. **Class Details may still leak operational actions** beyond what PR #293 removed.
-2. **`ShowDashboard.tsx` and `ShowWorkbenchPage.tsx` coexist** — verify whether the Dashboard is legacy (deprecated, redirects) or an active second home that should be reconciled.
-
-Output of the audit: either confirmed-clean (proceed to B5) or a small remediation PR before B5.
+**Phase B4.5 (completed — PR #314):** audited Class Details and the legacy `ShowDashboard.tsx` / `ShowManagementPage.tsx` for operational-action duplication with Show Map. Both legacy pages were confirmed orphaned (no routes mounted them) and deleted in PR #314. Class Details was confirmed clean (PR #293 already removed lifecycle actions). The single operational surface is now `ShowWorkbenchPage`.
 
 ## Relationship to Secretary Dashboard
 
@@ -810,13 +805,13 @@ Phase B4 must not merge until:
 
 ### Scope
 
-Confirm the [Surface boundary](#surface-boundary-with-detail-pages) is intact before Phase B5 removes the embedded Show Map mounts. Specifically check that operational actions don't leak from Show Map back into the detail pages or the legacy ShowDashboard.
+Confirm the [Surface boundary](#surface-boundary-with-detail-pages) is intact before Phase B5 removes the embedded Show Map mounts.
 
-### Implementation
+### Implementation (completed)
 
-1. Grep [`apps/myk9show/src/pages/ClassDetailsPage/`](../apps/myk9show/src/pages/ClassDetailsPage/) for any lifecycle/operational actions (start, complete, scratch, move-up, score). PR #293 already removed `Mark In Progress` / `Mark Completed`; verify nothing crept back in.
-2. Audit [`apps/myk9show/src/components/shows/ShowDashboard.tsx`](../apps/myk9show/src/components/shows/ShowDashboard.tsx) — is this a legacy page (now redirects), a duplicate home, or still actively used? If duplicate, decide: deprecate, redirect to workbench, or reconcile.
-3. Grep `apps/myk9show/src/pages/secretary/ShowManagementPage.tsx` (saw references in the earlier audit) — same question.
+1. Grepped [`apps/myk9show/src/pages/ClassDetailsPage/`](../apps/myk9show/src/pages/ClassDetailsPage/) — confirmed clean (PR #293 already removed lifecycle actions).
+2. `ShowDashboard.tsx` — confirmed orphaned, no routes. **Deleted in PR #314.**
+3. `ShowManagementPage.tsx` — confirmed orphaned, no routes. **Deleted in PR #314.**
 4. **[ADDED — review patch] Setup tab audit (Q3 resolution).** Walk the live Setup tab at `/secretary/shows/:id?phase=setup`. Compare its scaffolding against the simplification template applied to Today/Wrap-up in B5:
    - Does it have an "About Setup" banner that exists purely as static educational copy? If yes, candidate for removal.
    - Does it have a "What do I do if…" help card always visible? If yes, candidate for `?` popover.
@@ -1071,7 +1066,7 @@ Before merging Phase B7, verify drag-and-drop performance on a class with 50+ en
 | B2b | Row-action enhancements: `edit-score` entry action + class-row primary action lifecycle (with mutation-action wiring) | B2a merged | `edit-score` renders per the predicate; class primary button surfaces for all three lifecycle states | Med |
 | B3 | Tools slide-out sheet (right-anchored, shadcn Sheet) — 7 cards | B2a merged (B2b, B3, B4 can ship in any order) | 7 desk-tool cards behind a slide-out trigger | Low |
 | B4 | Conditional Closeout section | B2a merged (parallel-eligible with B2b and B3) | Closeout section renders only when wrap-up-eligible | Low |
-| B4.5 | Audit Class Details + ShowDashboard for operational-action leaks + Setup tab simplification audit | B4 merged | Audit findings doc; small remediation PR if leaks found | Low |
+| B4.5 | Audit Class Details + ShowDashboard for operational-action leaks + Setup tab simplification audit | B4 merged | **Done** — orphaned pages deleted in PR #314; Class Details confirmed clean | Low |
 | B5 | Remove Today + Wrap-up tabs | B2a + B2b + B3 + B4 + B4.5 merged + PO sign-off | Workbench has 2 tabs; legacy phase URLs redirect | High |
 | B6 | Cleanup + documentation | One show cycle after B5 | No dead code; docs updated | Low |
 | B6.5 | Tools sheet additions (Volunteers + Tasks/Notes; deferred from B3) | One show cycle after B6 | 7 → 9 tiles; existing features get Show Desk entry points | Low |

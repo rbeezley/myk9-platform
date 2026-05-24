@@ -1,7 +1,7 @@
 # Plan — Unify Show Map into a Top-Level Workbench Tab
 
 **Date:** 2026-05-22
-**Status:** Draft. Awaiting PO sign-off before Phase 1 kickoff.
+**Status:** Superseded by [`plan-show-map-workbench-collapse.md`](plan-show-map-workbench-collapse.md) — shipped 2026-05-24 as PRs #305–#317.
 **Related prior plans:**
 
 - [`plan-ia-show-map.md`](plan-ia-show-map.md) — IA-1 through IA-4, all completed. Established the public-vs-secretary read/write split, the wrap-up framing subtitle, the row-action discoverability popover, and the Class Details duplication fix. **This plan builds on, and does not contradict, that work.**

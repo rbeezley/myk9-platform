@@ -141,7 +141,6 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
     canManageShow,
     initialDayScope,
     initialCompletionScope,
-    actionPhase,
   }: {
     show: { id: string };
     trials: unknown[];
@@ -150,7 +149,6 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
     canManageShow: boolean;
     initialDayScope?: string;
     initialCompletionScope?: string;
-    actionPhase?: string;
   }) => (
     <div
       data-testid="show-map-tab"
@@ -170,12 +168,7 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
       data-can-manage={String(canManageShow)}
       data-initial-day-scope={initialDayScope ?? ''}
       data-initial-completion-scope={initialCompletionScope ?? ''}
-      data-action-phase={actionPhase ?? ''}
-    >
-      {actionPhase === 'wrap-up' && (
-        <p>Wrap-up starts with completed entries across the full show.</p>
-      )}
-    </div>
+    />
   ),
 }));
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, ChevronRight, AlertCircle, Coffee, Users, Timer, Bell } from 'lucide-react';
 import { RingStatus, ExhibitorEntry } from '@/types/exhibitor-types';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface RingMonitorProps {
   userEntry: ExhibitorEntry;
@@ -61,6 +62,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
   };
 
   const estimatedTime = calculateEstimatedTime();
+  const ringLabel = formatRingLabel(ringStatus.ringNumber);
 
   return (
     <div className="max-w-lg mx-auto p-4 pb-20">
@@ -68,7 +70,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
       <div className="bg-card dark:bg-warm-900 rounded-lg shadow-sm p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            {ringStatus.className} - Ring {ringStatus.ringNumber}
+            {ringLabel ? `${ringStatus.className} - ${ringLabel}` : ringStatus.className}
           </h2>
           <button
             onClick={onRefresh}
@@ -208,7 +210,9 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
             <div className="text-xl font-bold text-red-800 dark:text-red-200">YOU'RE NEXT!</div>
           </div>
           <div className="text-red-700 dark:text-red-300">
-            Please proceed to Ring {ringStatus.ringNumber} immediately
+            {ringLabel
+              ? `Please proceed to ${ringLabel} immediately`
+              : 'Please proceed immediately'}
           </div>
         </div>
       )}
@@ -220,7 +224,9 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
             <div className="text-xl font-bold text-amber-800 dark:text-amber-200">GET READY!</div>
           </div>
           <div className="text-amber-700 dark:text-amber-300">
-            You're on deck. Head to Ring {ringStatus.ringNumber} now.
+            {ringLabel
+              ? `You're on deck. Head to ${ringLabel} now.`
+              : "You're on deck. Head over now."}
           </div>
         </div>
       )}

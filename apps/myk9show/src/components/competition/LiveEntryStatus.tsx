@@ -41,6 +41,7 @@ import type {
 } from '../../services/competition/entryStatusBroadcaster';
 import { CHECK_IN_STATUS_CONFIG } from '../../types/check-in-types';
 import { formatDistanceToNow } from 'date-fns';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 export interface LiveEntryStatusProps {
   entryStatuses: Map<string, EntryStatus>;
@@ -296,6 +297,7 @@ export function LiveEntryStatus({
                     const checkInConfig = CHECK_IN_STATUS_CONFIG[entry.checkInStatus];
                     const recentCalls = getRecentCalls(entry.entryId);
                     const RingIcon = ringConfig.icon;
+                    const ringLabel = formatRingLabel(entry.ringAssignment);
 
                     return (
                       <div
@@ -325,10 +327,8 @@ export function LiveEntryStatus({
                             {(entry as EntryStatus & { ownerName?: string }).ownerName ||
                               'Unknown Owner'}
                           </p>
-                          {entry.ringAssignment && (
-                            <p className="text-xs text-muted-foreground">
-                              Ring: {entry.ringAssignment}
-                            </p>
+                          {ringLabel && (
+                            <p className="text-xs text-muted-foreground">{ringLabel}</p>
                           )}
                         </div>
 
@@ -459,6 +459,7 @@ export function LiveEntryStatus({
                   const checkInConfig = CHECK_IN_STATUS_CONFIG[entry.checkInStatus];
                   const recentCalls = getRecentCalls(entry.entryId);
                   const RingIcon = ringConfig.icon;
+                  const ringLabel = formatRingLabel(entry.ringAssignment);
 
                   return (
                     <Card
@@ -482,10 +483,8 @@ export function LiveEntryStatus({
                             {(entry as EntryStatus & { ownerName?: string }).ownerName ||
                               'Unknown Owner'}
                           </p>
-                          {entry.ringAssignment && (
-                            <p className="text-xs text-muted-foreground">
-                              Ring: {entry.ringAssignment}
-                            </p>
+                          {ringLabel && (
+                            <p className="text-xs text-muted-foreground">{ringLabel}</p>
                           )}
                         </div>
 

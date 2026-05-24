@@ -40,6 +40,7 @@ import type { ReceiptData } from './ConfirmationStep.helpers';
 import type { ConfirmationStepProps, DogClassDetails } from './ConfirmationStep.types';
 import { RegistrationManagementPanel } from './RegistrationManagementPanel';
 import { NotificationPreferencesCard } from './NotificationPreferencesCard';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 export type { ConfirmationStepProps } from './ConfirmationStep.types';
 
@@ -307,6 +308,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             {selectedDogs.map(dogId => {
               const details = getDogDetails(dogId);
               const armband = getArmbandForDog(dogId);
+              const armbandRingLabel = formatRingLabel(armband?.ring);
               const handler = getHandlerForDog(dogId);
               if (!details) return null;
 
@@ -369,8 +371,8 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                         {armband ? (
                           <div className="text-sm bg-primary/10 rounded p-2">
                             <div className="font-semibold text-primary">#{armband.armband}</div>
-                            {armband.ring && (
-                              <div className="text-primary/70 text-xs">Ring {armband.ring}</div>
+                            {armbandRingLabel && (
+                              <div className="text-primary/70 text-xs">{armbandRingLabel}</div>
                             )}
                           </div>
                         ) : (
@@ -504,8 +506,8 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             {paymentStatus === PaymentStatus.PENDING &&
               (paymentMethod === 'check' || paymentMethod === 'cash') && (
                 <li>
-                  Remember to bring your{' '}
-                  {paymentMethod === 'check' ? 'check' : 'exact cash'} as payment
+                  Remember to bring your {paymentMethod === 'check' ? 'check' : 'exact cash'} as
+                  payment
                 </li>
               )}
             <li>Check-in at the show secretary&apos;s table upon arrival</li>

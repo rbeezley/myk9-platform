@@ -49,7 +49,7 @@ describe('mapRowToClassInfo', () => {
     expect(result.class.element).toBe('Container');
     expect(result.class.level).toBe('Novice');
     expect(result.class.maxEntries).toBe(30);
-    expect(result.class.ringNumber).toBe(0);
+    expect(result.class.ringNumber).toBeNull();
     expect(result.class.startTime).toBe('2026-05-03T09:00:00Z');
     expect(result.class.judgeName).toBe('Ellen Heavner');
     expect(result.class.showId).toBe('show-1');
@@ -75,7 +75,7 @@ describe('mapRowToClassInfo', () => {
     expect(result.entry.checkInStatus).toBe('checked-in');
     expect(result.entry.dogCallName).toBe('Storm');
     expect(result.entry.className).toBe('Container Novice A');
-    expect(result.entry.ringNumber).toBe(0);
+    expect(result.entry.ringNumber).toBeNull();
     expect(result.entry.judgeName).toBe('Ellen Heavner');
   });
 
@@ -90,7 +90,7 @@ describe('mapRowToClassInfo', () => {
   it('builds minimal ringStatus stub', () => {
     const result = mapRowToClassInfo(baseRow);
     expect(result.ringStatus.classId).toBe('class-1');
-    expect(result.ringStatus.ringNumber).toBe(0);
+    expect(result.ringStatus.ringNumber).toBeNull();
     expect(result.ringStatus.judgeName).toBe('Ellen Heavner');
     expect(result.ringStatus.onDeck).toEqual([]);
   });
@@ -118,7 +118,7 @@ describe('mapRowToClassInfo', () => {
     expect(result.class.element).toBe('');
     expect(result.class.level).toBe('');
     expect(result.class.maxEntries).toBe(0);
-    expect(result.class.ringNumber).toBe(0);
+    expect(result.class.ringNumber).toBeNull();
     expect(result.class.judgeName).toBe('');
   });
 });

@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface ClassCheckInProps {
   classInfo?: ExhibitorClassInfo;
@@ -234,6 +235,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
     entry.checkInStatus === 'completed';
 
   const lateFee = calculateLateFee();
+  const ringLabel = formatRingLabel(showClass.ringNumber);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -277,7 +279,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-xl font-bold">{showClass.name}</h2>
-                  <p className="text-gray-600">Ring {showClass.ringNumber}</p>
+                  {ringLabel && <p className="text-gray-600">{ringLabel}</p>}
                 </div>
                 <Badge variant="outline" className="text-lg px-3 py-1">
                   #{entry.armband}

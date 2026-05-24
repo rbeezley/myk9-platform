@@ -5,7 +5,12 @@
 
 import { logger } from '@/services/LoggingService';
 import { supabase } from '@/lib/supabase';
-import { replaceVariables, htmlToText, createDefaultTemplates } from './EmailService.helpers';
+import {
+  replaceVariables,
+  htmlToText,
+  createDefaultTemplates,
+  normalizeShowReminderData,
+} from './EmailService.helpers';
 import type {
   EmailTemplate,
   EmailNotification,
@@ -76,14 +81,15 @@ export class EmailService {
       logger.error('Show reminder template not found', 'notifications');
       return false;
     }
+    const variables = normalizeShowReminderData(data);
 
     const notification: Omit<EmailNotification, 'id'> = {
       to: email,
-      subject: replaceVariables(template.subject, data),
-      htmlContent: replaceVariables(template.htmlContent, data),
-      textContent: replaceVariables(template.textContent, data),
+      subject: replaceVariables(template.subject, variables),
+      htmlContent: replaceVariables(template.htmlContent, variables),
+      textContent: replaceVariables(template.textContent, variables),
       templateId: template.id,
-      variables: data as Record<string, string>,
+      variables: variables as Record<string, string>,
       status: 'pending',
       createdAt: new Date(),
       updatedAt: new Date(),

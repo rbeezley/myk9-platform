@@ -28,8 +28,8 @@ export interface ShowClass {
   judgeId?: string;
   startTime: string;
   scheduledTime?: string;
-  ringNumber: number;
-  ring?: string | number;
+  ringNumber: number | null;
+  ring?: string | number | null;
   entries?: unknown[];
 }
 
@@ -92,7 +92,7 @@ export interface ExhibitorEntry {
   breed: string;
   handlerName: string;
   className: string;
-  ringNumber: number;
+  ringNumber: number | null;
   judgeName: string;
   scheduledTime?: Date;
   checkInTime?: Date;
@@ -147,7 +147,7 @@ export interface ExhibitorClassInfo {
 export interface RingStatus {
   classId: string;
   className: string;
-  ringNumber: number;
+  ringNumber: number | null;
   judgeName: string;
   currentDog?: {
     armband: string;

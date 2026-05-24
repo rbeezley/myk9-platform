@@ -55,6 +55,7 @@ import { useClassEffectiveSettings } from '@/hooks/queries/useShowSettingsDataba
 
 // Utilities
 import { msToDisplay } from '@/lib/timeUtils';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 // Premium styling
 import '@/styles/myk9-show-details.css';
@@ -189,6 +190,7 @@ export function SecretaryClassDashboard({
       | 'in-progress'
       | 'pending',
   };
+  const ringLabel = formatRingLabel(classInfo.ring);
 
   // Use actual entries from the store, fallback to props if provided
   const entries = useMemo(() => propEntries || actualEntries, [propEntries, actualEntries]);
@@ -366,8 +368,8 @@ export function SecretaryClassDashboard({
                 </div>
               </div>
               <p className="text-sm font-medium text-muted-foreground mt-2">
-                {classConfig.element} {classConfig.level} • Ring {classInfo.ring} • Judge:{' '}
-                {classInfo.judgeAssignment}
+                {classConfig.element} {classConfig.level}
+                {ringLabel ? ` • ${ringLabel}` : ''} • Judge: {classInfo.judgeAssignment}
               </p>
             </div>
           </div>
@@ -452,15 +454,16 @@ export function SecretaryClassDashboard({
       {/* Tabbed Interface */}
       <div className="myk9-trials-section">
         <PrimaryTabs
-          tabs={[
-            { id: 'overview', label: 'Overview' },
-            { id: 'bulk', label: 'Results Entry', count: entries.length },
-            { id: 'placements', label: 'Placements' },
-          ] satisfies PrimaryTabDef[]}
+          tabs={
+            [
+              { id: 'overview', label: 'Overview' },
+              { id: 'bulk', label: 'Results Entry', count: entries.length },
+              { id: 'placements', label: 'Placements' },
+            ] satisfies PrimaryTabDef[]
+          }
           value={activeTab}
           onValueChange={setActiveTab}
         >
-
           <TabsContent value="overview" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Visibility Settings Override */}

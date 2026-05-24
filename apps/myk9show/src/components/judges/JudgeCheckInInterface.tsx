@@ -30,6 +30,7 @@ import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { Search, Filter, CheckCircle2, AlertTriangle, RefreshCw, Eye, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatRingLabel } from '@/utils/ringLabel';
 import '@/styles/myk9-show-details.css';
 
 interface RingEntry {
@@ -68,6 +69,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
   const [selectedTab, setSelectedTab] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const ringLabel = formatRingLabel(ringNumber);
   const [checkInDialog, setCheckInDialog] = useState<{
     open: boolean;
     entry: RingEntry | null;
@@ -334,7 +336,9 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight">Ring {ringNumber} Check-In</h2>
+          <h2 className="text-2xl font-bold tracking-tight">
+            {ringLabel ? `${ringLabel} Check-In` : 'Check-In'}
+          </h2>
           <p className="text-muted-foreground">
             Judge: {judgeName} • {entries.length} entries
           </p>

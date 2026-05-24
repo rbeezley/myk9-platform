@@ -3,6 +3,7 @@ import 'jspdf-autotable';
 import { Show, ShowClass } from '../../types/show-types';
 import { Dog } from '../../types/dog-types';
 import { User } from '../../types/show-types';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: Record<string, unknown>) => void;
@@ -47,6 +48,10 @@ export interface ReportData {
   dogs: Dog[];
   people: User[];
   judges: User[];
+}
+
+function getReportRingLabel(cls: ShowClass): string {
+  return formatRingLabel(cls.ring ?? cls.ringNumber) ?? 'Unassigned';
 }
 
 class OfflineReportService {
@@ -194,7 +199,7 @@ class OfflineReportService {
 
       doc.setFontSize(10);
       doc.text(
-        `Judge: ${classItem.judgeName || 'TBD'} | Ring: ${classItem.ringNumber || 'TBD'}`,
+        `Judge: ${classItem.judgeName || 'TBD'} | Ring: ${getReportRingLabel(classItem)}`,
         20,
         yPosition
       );
@@ -255,7 +260,7 @@ class OfflineReportService {
     const scheduleRows = data.classes.map(cls => [
       cls.classNumber || '',
       cls.className || '',
-      cls.ring || 'TBD',
+      getReportRingLabel(cls),
       cls.judgeName || 'TBD',
       cls.scheduledTime || 'TBD',
       (cls.entries || []).length.toString(),
@@ -281,7 +286,7 @@ class OfflineReportService {
       const ringAssignments = this.groupClassesByRing(data.classes);
       for (const [ring, classes] of Object.entries(ringAssignments)) {
         doc.setFontSize(10);
-        doc.text(`Ring ${ring}: ${classes.length} classes`, 20, yPosition);
+        doc.text(`${ring}: ${classes.length} classes`, 20, yPosition);
         yPosition += 5;
       }
     }
@@ -322,7 +327,11 @@ class OfflineReportService {
       doc.setFontSize(10);
       doc.text(`Judge: ${classItem.judgeName}`, 20, yPosition);
       yPosition += 5;
-      doc.text(`Ring: ${classItem.ringNumber} | Time: ${classItem.scheduledTime}`, 20, yPosition);
+      doc.text(
+        `Ring: ${getReportRingLabel(classItem)} | Time: ${classItem.scheduledTime}`,
+        20,
+        yPosition
+      );
       yPosition += 5;
       doc.text(`Total Entries: ${(classItem.entries || []).length}`, 20, yPosition);
       yPosition += 15;
@@ -562,7 +571,7 @@ class OfflineReportService {
   private groupClassesByRing(classes: ShowClass[]): Record<string, ShowClass[]> {
     return classes.reduce(
       (acc, cls) => {
-        const ring = cls.ring || 'Unassigned';
+        const ring = getReportRingLabel(cls);
         if (!acc[ring]) {
           acc[ring] = [];
         }

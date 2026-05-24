@@ -16,6 +16,7 @@ import {
   Calendar,
   Eye,
 } from 'lucide-react';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface RingAssignment {
   ringNumber: string;
@@ -73,6 +74,7 @@ const JudgeCheckInDashboard: React.FC = () => {
 
   if (viewMode === 'ring-detail' && selectedRing) {
     const ringAssignment = ringAssignments.find(r => r.ringNumber === selectedRing);
+    const selectedRingLabel = formatRingLabel(selectedRing) ?? 'Ring Assignment';
 
     return (
       <div className="bg-background">
@@ -82,7 +84,7 @@ const JudgeCheckInDashboard: React.FC = () => {
             <Breadcrumb
               items={[
                 ...breadcrumbItems,
-                { label: `Ring ${selectedRing}`, href: '', isCurrentPage: true },
+                { label: selectedRingLabel, href: '', isCurrentPage: true },
               ]}
               showHomeIcon={true}
               className="myk9-breadcrumb"
@@ -235,79 +237,83 @@ const JudgeCheckInDashboard: React.FC = () => {
             <h2 className="text-xl font-semibold">Your Ring Assignments</h2>
 
             <div className="grid gap-4">
-              {ringAssignments.map(ring => (
-                <Card
-                  key={ring.ringNumber}
-                  className={`transition-all duration-200 hover:shadow-md cursor-pointer ${getStatusColor(
-                    ring.checkedInCount,
-                    ring.totalEntries,
-                    ring.conflictCount
-                  )}`}
-                  onClick={() => handleRingSelect(ring.ringNumber)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="font-mono text-lg px-3 py-1">
-                            Ring {ring.ringNumber}
-                          </Badge>
-                          {ring.isActive && <Badge className="bg-green-500">Active</Badge>}
-                          {ring.conflictCount > 0 && (
-                            <Badge variant="destructive" className="animate-pulse">
-                              {ring.conflictCount} Conflicts
+              {ringAssignments.map(ring => {
+                const ringLabel = formatRingLabel(ring.ringNumber);
+
+                return (
+                  <Card
+                    key={ring.ringNumber}
+                    className={`transition-all duration-200 hover:shadow-md cursor-pointer ${getStatusColor(
+                      ring.checkedInCount,
+                      ring.totalEntries,
+                      ring.conflictCount
+                    )}`}
+                    onClick={() => handleRingSelect(ring.ringNumber)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono text-lg px-3 py-1">
+                              {ringLabel ?? 'Ring not assigned'}
                             </Badge>
-                          )}
+                            {ring.isActive && <Badge className="bg-green-500">Active</Badge>}
+                            {ring.conflictCount > 0 && (
+                              <Badge variant="destructive" className="animate-pulse">
+                                {ring.conflictCount} Conflicts
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="font-medium text-lg">{ring.className}</div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-4">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                {ring.startTime.toLocaleTimeString()}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Users className="h-4 w-4" />
+                                {ring.totalEntries} entries
+                              </span>
+                            </div>
+                          </div>
                         </div>
 
-                        <div>
-                          <div className="font-medium text-lg">{ring.className}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-4">
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {ring.startTime.toLocaleTimeString()}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Users className="h-4 w-4" />
-                              {ring.totalEntries} entries
-                            </span>
+                        <div className="flex items-center gap-6">
+                          {/* Quick Stats */}
+                          <div className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                              <div className="text-lg font-bold text-green-600">
+                                {ring.checkedInCount}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Checked In</div>
+                            </div>
+                            <div>
+                              <div className="text-lg font-bold text-blue-600">
+                                {ring.atGateCount}
+                              </div>
+                              <div className="text-xs text-muted-foreground">At Gate</div>
+                            </div>
+                            <div>
+                              <div
+                                className={`text-lg font-bold ${
+                                  ring.conflictCount > 0 ? 'text-red-600' : 'text-gray-400'
+                                }`}
+                              >
+                                {ring.conflictCount}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Conflicts</div>
+                            </div>
                           </div>
+
+                          <ArrowRight className="h-5 w-5 text-muted-foreground" />
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-6">
-                        {/* Quick Stats */}
-                        <div className="grid grid-cols-3 gap-4 text-center">
-                          <div>
-                            <div className="text-lg font-bold text-green-600">
-                              {ring.checkedInCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Checked In</div>
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-blue-600">
-                              {ring.atGateCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground">At Gate</div>
-                          </div>
-                          <div>
-                            <div
-                              className={`text-lg font-bold ${
-                                ring.conflictCount > 0 ? 'text-red-600' : 'text-gray-400'
-                              }`}
-                            >
-                              {ring.conflictCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Conflicts</div>
-                          </div>
-                        </div>
-
-                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
             {ringAssignments.length === 0 && (

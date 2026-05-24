@@ -138,6 +138,43 @@ describe('ClassCheckInPage', () => {
     expect(screen.getAllByText('Container Novice A').length).toBeGreaterThan(0);
   });
 
+  it('hides unavailable ring labels', () => {
+    const classInfoWithoutRing: ExhibitorClassInfo = {
+      ...mockClassInfo,
+      class: { ...mockClassInfo.class, ringNumber: null },
+      entry: { ...mockClassInfo.entry, ringNumber: null },
+      ringStatus: { ...mockClassInfo.ringStatus, ringNumber: null },
+    };
+    mockUseClassCheckInData.mockReturnValue({
+      isLoading: false,
+      data: classInfoWithoutRing,
+      error: null,
+    });
+
+    renderPage();
+
+    expect(screen.queryByText('Ring null')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ring 0')).not.toBeInTheDocument();
+  });
+
+  it('renders available ring labels', () => {
+    const classInfoWithRing: ExhibitorClassInfo = {
+      ...mockClassInfo,
+      class: { ...mockClassInfo.class, ringNumber: 2 },
+      entry: { ...mockClassInfo.entry, ringNumber: 2 },
+      ringStatus: { ...mockClassInfo.ringStatus, ringNumber: 2 },
+    };
+    mockUseClassCheckInData.mockReturnValue({
+      isLoading: false,
+      data: classInfoWithRing,
+      error: null,
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Ring 2')).toBeInTheDocument();
+  });
+
   it('calls mutation with checked-in when user selects Present', async () => {
     mockUseClassCheckInData.mockReturnValue({
       isLoading: false,

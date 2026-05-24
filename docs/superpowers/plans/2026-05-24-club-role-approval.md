@@ -1742,7 +1742,7 @@ git commit -m "fix(auth): scope show secretary selection to club"
 
 **Files:**
 - Create: `apps/myk9show/src/features/role-scope/roleScopeAudit.test.ts`
-- Create: `supabase/migrations/20260524121000_scope_secretary_dog_access.sql`
+- Create: `supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql`
 
 - [ ] **Step 1: Write the policy audit test first**
 
@@ -1760,12 +1760,13 @@ function readMigration(name: string) {
 }
 
 describe('role scope guardrails', () => {
-  it('dog access policies do not grant broad secretary-anywhere writes', () => {
-    const migration = readMigration('20260524121000_scope_secretary_dog_access.sql');
+  it('people and dog access policies do not grant broad secretary-anywhere writes', () => {
+    const migration = readMigration('20260524121000_scope_secretary_people_dog_access.sql');
 
     expect(migration).not.toMatch(/is_trial_secretary\(\)/);
     expect(migration).not.toMatch(/is_show_secretary\(\)/);
     expect(migration).toContain('can_manage_show(e.show_id)');
+    expect(migration).toContain('create_show_managed_person');
     expect(migration).toContain('create_show_managed_dog');
   });
 });
@@ -1775,14 +1776,65 @@ describe('role scope guardrails', () => {
 
 Run: `cd apps/myk9show && npx vitest run src/features/role-scope/roleScopeAudit.test.ts`
 
-Expected: FAIL because `20260524121000_scope_secretary_dog_access.sql` does not exist yet.
+Expected: FAIL because `20260524121000_scope_secretary_people_dog_access.sql` does not exist yet.
 
-- [ ] **Step 3: Add scoped dog-access migration**
+- [ ] **Step 3: Add scoped people/dog-access migration**
 
-Create `supabase/migrations/20260524121000_scope_secretary_dog_access.sql`:
+Create `supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql`:
 
 ```sql
 begin;
+
+drop policy if exists "people_select" on public.people;
+create policy "people_select" on public.people
+  for select to authenticated
+  using (
+    auth_user_id = (select auth.uid())
+    or (select public.is_site_admin())
+    or exists (
+      select 1
+      from public.entries e
+      where e.handler_id = people.id
+        and (select public.can_manage_show(e.show_id))
+    )
+    or exists (
+      select 1
+      from public.dogs d
+      join public.entries e on e.dog_id = d.id
+      where d.owner_id = people.id
+        and (select public.can_manage_show(e.show_id))
+    )
+  );
+
+drop policy if exists "people_insert" on public.people;
+create policy "people_insert" on public.people
+  for insert to authenticated
+  with check (
+    auth_user_id = (select auth.uid())
+    or (select public.is_site_admin())
+  );
+
+drop policy if exists "people_update_privileged" on public.people;
+create policy "people_update_privileged" on public.people
+  for update to authenticated
+  using (
+    (select public.is_site_admin())
+    or exists (
+      select 1
+      from public.entries e
+      where e.handler_id = people.id
+        and (select public.can_manage_show(e.show_id))
+    )
+  )
+  with check (
+    (select public.is_site_admin())
+    or exists (
+      select 1
+      from public.entries e
+      where e.handler_id = people.id
+        and (select public.can_manage_show(e.show_id))
+    )
+  );
 
 drop policy if exists "dogs_select" on public.dogs;
 create policy "dogs_select" on public.dogs
@@ -1836,6 +1888,52 @@ create policy "dogs_insert" on public.dogs
     or co_owner_id = (select public.get_my_person_id())
     or (select public.is_site_admin())
   );
+
+create or replace function public.create_show_managed_person(
+  p_show_id uuid,
+  p_first_name text,
+  p_last_name text,
+  p_email text default null,
+  p_phone text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_person_id uuid;
+begin
+  if not public.can_manage_show(p_show_id) then
+    raise exception 'Only managers for this show can create people on behalf of exhibitors'
+      using errcode = '42501';
+  end if;
+
+  if nullif(trim(p_first_name), '') is null then
+    raise exception 'First name is required' using errcode = '23514';
+  end if;
+
+  if nullif(trim(p_last_name), '') is null then
+    raise exception 'Last name is required' using errcode = '23514';
+  end if;
+
+  insert into public.people (
+    first_name,
+    last_name,
+    email,
+    phone
+  )
+  values (
+    trim(p_first_name),
+    trim(p_last_name),
+    nullif(trim(coalesce(p_email, '')), ''),
+    nullif(trim(coalesce(p_phone, '')), '')
+  )
+  returning id into v_person_id;
+
+  return v_person_id;
+end;
+$$;
 
 create or replace function public.create_show_managed_dog(
   p_show_id uuid,
@@ -1900,16 +1998,29 @@ end;
 $$;
 
 grant execute on function public.create_show_managed_dog(uuid, uuid, text, text, text, text, text, text, text) to authenticated;
+grant execute on function public.create_show_managed_person(uuid, text, text, text, text) to authenticated;
 
 commit;
 ```
 
-- [ ] **Step 4: Convert show-entry dog creation call sites**
+- [ ] **Step 4: Convert show-entry people/dog creation call sites**
 
-Find secretary/mail-in/day-of dog create paths:
+Find secretary/mail-in/day-of people and dog create paths:
 
 ```bash
-rg -n "from\\('dogs'\\).*insert|create.*dog|insertDog|addDog" apps/myk9show/src/services apps/myk9show/src/components apps/myk9show/src/pages apps/myk9show/src/hooks
+rg -n "from\\('people'\\).*insert|from\\('dogs'\\).*insert|create.*person|create.*dog|insertDog|addDog" apps/myk9show/src/services apps/myk9show/src/components apps/myk9show/src/pages apps/myk9show/src/hooks
+```
+
+For paths that create a person while a `showId` is known, replace direct `supabase.from('people').insert(...)` calls with:
+
+```typescript
+const { data: personId, error } = await supabase.rpc('create_show_managed_person', {
+  p_show_id: showId,
+  p_first_name: person.firstName,
+  p_last_name: person.lastName,
+  p_email: person.email ?? null,
+  p_phone: person.phone ?? null,
+});
 ```
 
 For paths that create a dog while a `showId` is known, replace direct `supabase.from('dogs').insert(...)` calls with:
@@ -1943,8 +2054,8 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/myk9show/src/features/role-scope/roleScopeAudit.test.ts supabase/migrations/20260524121000_scope_secretary_dog_access.sql apps/myk9show/src/services/database/day-of-operations/late-entry-dog.ts apps/myk9show/src/services/database/day-of-operations/__tests__/late-entry-dog.test.ts
-git commit -m "fix(auth): scope secretary dog access to managed shows"
+git add apps/myk9show/src/features/role-scope/roleScopeAudit.test.ts supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql apps/myk9show/src/services/database/day-of-operations/late-entry-dog.ts apps/myk9show/src/services/database/day-of-operations/__tests__/late-entry-dog.test.ts
+git commit -m "fix(auth): scope secretary people and dog access to managed shows"
 ```
 
 ## Task 7: Verification And Todo Closeout

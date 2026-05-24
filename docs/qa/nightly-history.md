@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-24
+
+- **Playwright command:** pass after local environment repair
+- **Route sweep:** pass after harness/server reset
+- **Active specs:** Vitest 18/18; Playwright 44/44; route sweep 122/122 route/viewport checks
+- **Failures:** none confirmed. Initial Playwright run was blocked before app assertions by a missing local Playwright Chromium binary after dependency updates; fixed locally with `pnpm exec playwright install chromium`. Initial route-sweep attempts exposed harness/environment issues only: no-progress broad test output, stale auth state between role groups, and stale Vite HMR reloads for deleted show-workbench modules. Fresh CI-mode server rerun passed.
+- **Fixes made:** local Playwright Chromium install only; no product code, test, or durable QA finding changes. Temporary route-sweep spec was removed.
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`, then created local branch `codex/nightly-qa-2026-05-24` for this history update. Proofs passed: promoted Vitest Nightly (`18 passed`), active Playwright Nightly (`44 passed`, retries disabled), and route sweep across public, exhibitor, secretary, judge, club-admin, and admin route groups at desktop plus 375px mobile (`122/122`). No durable QA finding was opened.
+
 ### 2026-05-23
 
 - **Playwright command:** pass after low-risk local fixes

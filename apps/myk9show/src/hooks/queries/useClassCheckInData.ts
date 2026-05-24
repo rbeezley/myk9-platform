@@ -56,7 +56,7 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       maxEntries: cls.max_entries ?? 0,
       judgeName: cls.judge_name ?? '',
       startTime: cls.start_time ?? new Date().toISOString(),
-      ringNumber: 0,
+      ringNumber: null,
     },
     trial: {
       id: trial.id,
@@ -84,7 +84,7 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       breed: row.dog.breed,
       handlerName: '',
       className: cls.name,
-      ringNumber: 0,
+      ringNumber: null,
       judgeName: cls.judge_name ?? '',
       dog: {
         id: row.dog.id,
@@ -101,7 +101,7 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
     ringStatus: {
       classId: cls.id,
       className: cls.name,
-      ringNumber: 0,
+      ringNumber: null,
       judgeName: cls.judge_name ?? '',
       judgeStatus: 'active',
       totalEntries: 0,

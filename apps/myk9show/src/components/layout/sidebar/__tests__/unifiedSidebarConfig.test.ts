@@ -44,16 +44,23 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       'Reports',
       'Results Control',
       'Submit Results',
+      'Messages',
     ]);
   });
 
-  it('manage sidebar omits Create Show, Messages, and parked items', () => {
+  it('manage sidebar includes Messages with the /secretary/messages href', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Messages');
+    expect(item?.href).toBe('/secretary/messages');
+  });
+
+  it('manage sidebar omits Create Show and other parked items', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
     for (const absent of [
       'New Show',
-      'Messages',
       'Check-In',
       'Volunteers',
       'Settings',

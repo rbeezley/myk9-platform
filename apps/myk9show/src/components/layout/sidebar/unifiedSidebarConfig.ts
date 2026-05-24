@@ -34,6 +34,7 @@ import {
   Send,
   ListChecks,
   HelpCircle,
+  MessageSquare,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
@@ -182,6 +183,12 @@ export function buildUnifiedSidebarConfig(
             href: '/secretary/results-submission',
             icon: Send,
             description: 'Submit results to sanctioning organizations',
+          },
+          {
+            title: 'Messages',
+            href: '/secretary/messages',
+            icon: MessageSquare,
+            description: 'Conversations with exhibitors across your shows',
           },
         ],
       });

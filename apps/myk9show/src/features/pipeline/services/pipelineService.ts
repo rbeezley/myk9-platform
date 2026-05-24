@@ -2,10 +2,6 @@ import { supabase } from '@/services/database/supabaseClient';
 import { activityLogService } from './activityLogService';
 import type { PipelineStage, ActivityActionType } from '../types';
 
-// Cast needed: pipeline_stage column not yet in app's local Database type (src/types/supabase.ts)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
-
 /** Shared stage update: updates trial + logs the transition in parallel */
 async function updateStage(
   trialId: string,
@@ -16,7 +12,7 @@ async function updateStage(
   metadata: Record<string, unknown>
 ): Promise<void> {
   const [updateResult, logResult] = await Promise.allSettled([
-    db.from('trials').update({ pipeline_stage: targetStage }).eq('id', trialId),
+    supabase.from('trials').update({ pipeline_stage: targetStage }).eq('id', trialId),
     activityLogService.log({
       trial_id: trialId,
       action_type: 'stage_transition' as ActivityActionType,

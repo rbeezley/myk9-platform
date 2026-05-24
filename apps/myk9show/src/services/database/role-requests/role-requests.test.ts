@@ -100,7 +100,6 @@ describe('role request database service', () => {
     expect(mockSupabase.rpc).toHaveBeenCalledWith('approve_role_request', {
       p_request_id: 'request-1',
       p_club_id: 'club-1',
-      p_show_id: null,
       p_reviewer_note: 'Verified with club.',
     });
   });

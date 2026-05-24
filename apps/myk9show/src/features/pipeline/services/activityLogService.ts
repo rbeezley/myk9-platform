@@ -1,9 +1,6 @@
 import { supabase } from '@/services/database/supabaseClient';
+import type { Json } from '@/types/supabase';
 import type { ActivityLogEntry, ActivityLogFilters, ActivityActionType } from '../types';
-
-// Cast needed: activity_log not yet in app's local Database type (src/types/supabase.ts)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
 
 const PAGE_SIZE = 20;
 
@@ -13,7 +10,7 @@ export const activityLogService = {
     filters?: ActivityLogFilters,
     page = 0
   ): Promise<{ entries: ActivityLogEntry[]; hasMore: boolean }> {
-    let query = db
+    let query = supabase
       .from('activity_log')
       .select('id, trial_id, action_type, description, actor_id, actor_name, metadata, created_at')
       .eq('trial_id', trialId)
@@ -48,13 +45,13 @@ export const activityLogService = {
     actor_name?: string;
     metadata?: Record<string, unknown>;
   }): Promise<void> {
-    const { error } = await db.from('activity_log').insert({
+    const { error } = await supabase.from('activity_log').insert({
       trial_id: entry.trial_id,
       action_type: entry.action_type,
       description: entry.description,
       actor_id: entry.actor_id ?? null,
       actor_name: entry.actor_name ?? null,
-      metadata: entry.metadata ?? {},
+      metadata: (entry.metadata ?? {}) as Json,
     });
 
     if (error) throw error;

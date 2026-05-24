@@ -1,13 +1,9 @@
 import { supabase } from '@/services/database/supabaseClient';
 import type { ChecklistItemRow, PipelineStage } from '../types';
 
-// Cast needed: trial_checklist_state not yet in app's local Database type (src/types/supabase.ts)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
-
 export const checklistService = {
   async getByTrial(trialId: string): Promise<ChecklistItemRow[]> {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('trial_checklist_state')
       .select('id, trial_id, stage, item_key, item_type, label, completed, completed_at, completed_by, auto_completed, sort_order, created_at, updated_at')
       .eq('trial_id', trialId)
@@ -29,7 +25,7 @@ export const checklistService = {
     auto_completed?: boolean;
     sort_order?: number;
   }): Promise<ChecklistItemRow> {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('trial_checklist_state')
       .upsert(
         {
@@ -54,7 +50,7 @@ export const checklistService = {
   },
 
   async deleteCustomItem(trialId: string, itemKey: string): Promise<void> {
-    const { error } = await db
+    const { error } = await supabase
       .from('trial_checklist_state')
       .delete()
       .eq('trial_id', trialId)
@@ -70,7 +66,7 @@ export const checklistService = {
     completed: boolean,
     userId: string
   ): Promise<ChecklistItemRow> {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('trial_checklist_state')
       .update({
         completed,

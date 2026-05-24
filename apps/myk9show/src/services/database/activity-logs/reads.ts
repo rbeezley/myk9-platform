@@ -1,12 +1,10 @@
 /**
  * Supabase queries for the activity_log table (generic record activity).
  *
- * Note: The record_type and record_id columns were added in migration 051
- * and are not yet in the generated Supabase types. We use the schema-free
- * `.from()` escape hatch and cast results.
  */
 
 import { supabase } from '../supabaseClient';
+import type { Json } from '@/types/supabase';
 
 export type ActivityRecordType = 'dog' | 'show' | 'trial' | 'person' | 'class';
 
@@ -33,10 +31,6 @@ export interface ActivityLogInsert {
   metadata?: Record<string, unknown>;
 }
 
-// Schema-free client for columns not yet in generated types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
-
 const PAGE_SIZE = 50;
 
 /** Fetch paginated activity for a specific record. */
@@ -48,7 +42,7 @@ export async function getActivityForRecord(
   const from = page * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
-  const { data, error, count } = await db
+  const { data, error, count } = await supabase
     .from('activity_log')
     .select('*', { count: 'exact' })
     .eq('record_type', recordType)
@@ -66,11 +60,11 @@ export async function logActivity(entry: ActivityLogInsert) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await db.from('activity_log').insert({
+  const { error } = await supabase.from('activity_log').insert({
     ...entry,
     actor_id: user?.id ?? null,
     actor_name: entry.actor_name ?? (user?.user_metadata?.full_name as string) ?? null,
-    metadata: entry.metadata ?? {},
+    metadata: (entry.metadata ?? {}) as Json,
   });
 
   if (error) return { error: error as Error };

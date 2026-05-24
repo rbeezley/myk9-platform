@@ -27,9 +27,43 @@ pnpm lint
 
 ### Step 1b: Run Tests
 
-Count the number of source files being changed (not test files). Use `git diff --stat` from Step 2 or `git status` to determine this.
+Test scope is decided in two passes: **path-based overrides first**, then **count-based fallback**. Overrides exist because file count is a poor proxy for blast radius — a 1-file change to a shared package or RBAC context can break everything, while a 10-file dashboard refactor is well-contained.
 
-**If >3 source files changed → run the full app test suite:**
+List changed source files (excluding test files AND prose/data files that have no executable surface):
+
+```bash
+PROSE='\.(md|mdx|txt|css|scss|snap)$|^docs/|/(i18n|locales|fixtures|__fixtures__|__snapshots__)/|^(pnpm-lock\.yaml|package-lock\.json)$'
+TESTS='\.(test|spec)\.(ts|tsx|js|jsx)$'
+
+CHANGED=$(git diff --name-only HEAD | grep -vE "$TESTS" | grep -vE "$PROSE")
+```
+
+If `CHANGED` is empty (the diff is entirely prose, test edits, or low-stakes data), skip Step 1b with a logged note: "docs/data-only diff, no test run needed." This matches the Step 3c skip-list philosophy in `/ship-it`: same prose set, same fail-safe principle.
+
+#### Pass 1: Path-based overrides (apply BEFORE counting)
+
+Walk `$CHANGED` and classify. If any file matches an override, run that scope; multiple overrides combine (union of scopes).
+
+| Path pattern | Run | Why |
+|--------------|-----|-----|
+| `packages/*/src/**` | **Both** apps' full suites | Shared monorepo packages are consumed cross-app; consumer-side breakage isn't covered by the package's own tests |
+| `apps/myk9show/src/{lib,contexts}/**` | myK9Show full suite | Cross-cutting utilities and React contexts ripple through every screen |
+| `apps/myk9q/src/{lib,contexts}/**` | myK9Q full suite | Same |
+| `apps/*/vite.config.*`, `apps/*/tsconfig*.json`, root `tsconfig*.json`, root `*.config.{ts,js,mjs,cjs}` | That app's full suite (or both, if root config) | Build/type-system config affects every compilation unit |
+| `supabase/migrations/**` | Both apps' full suites **AND** warn | Schema changes can break either app's queries. Note: no SQL-level test convention exists in this repo — flag the gap explicitly. |
+| `supabase/functions/**` | Both apps' full suites if the function is called from client code; warn | Edge functions are an API boundary; affected callers may live in either app. |
+
+If an override fires, log which one and skip Pass 2. Example log line:
+
+```
+Test scope: myK9Show full suite (override: apps/myk9show/src/contexts/AuthContext.tsx → contexts override)
+```
+
+#### Pass 2: Count-based fallback (only if no override fired)
+
+Count `$CHANGED` files.
+
+**If >3 source files → run the full app suite(s) for the affected app(s):**
 
 ```bash
 # myK9Show
@@ -39,9 +73,7 @@ cd apps/myk9show && pnpm vitest run --reporter=default --exclude '**/integration
 cd apps/myk9q && pnpm vitest run --reporter=default
 ```
 
-Run only the suite(s) for the app(s) that have changed files.
-
-**If ≤3 source files changed → run related tests only:**
+**If ≤3 source files → run related tests only:**
 
 Identify test files related to the modified source files:
 
@@ -52,14 +84,22 @@ Identify test files related to the modified source files:
 If related test files exist, run them:
 
 ```bash
-# myK9Show tests
 cd apps/myk9show && pnpm vitest run <test-file> --reporter=verbose
-
-# myK9Q tests
 cd apps/myk9q && pnpm vitest run <test-file> --reporter=verbose
 ```
 
-If no related test files exist, skip this step (don't create tests during a commit).
+**If no related test files exist** for a changed source file — do NOT silently skip. Log it as a visible coverage gap before proceeding:
+
+```
+Coverage gap: 2 of 3 changed source files have no related test:
+  - apps/myk9show/src/components/widgets/NewWidget.tsx
+  - apps/myk9show/src/utils/formatter.ts
+Commit will proceed without test coverage for these files.
+```
+
+Don't create new tests during a commit — but surface the gap so the user can decide whether to add tests in a follow-up.
+
+#### Failure handling (both passes)
 
 If tests fail:
 

@@ -27,7 +27,7 @@ Note the branch name. Note the MAIN REPO path (always `/Users/richardbeezley/AI 
 
 #### Step A: Simplify
 
-Invoke `/simplify` against all uncommitted changes. Wait for it to complete. If it makes changes, re-run typecheck and lint before continuing.
+Invoke `/simplify` against all uncommitted changes. It launches three parallel agents (efficiency, quality, reuse), auto-fixes safe wins, and proposes judgment calls. Apply the proposals you agree with. If any edits land, re-run typecheck and lint before continuing.
 
 #### Step B: Commit
 

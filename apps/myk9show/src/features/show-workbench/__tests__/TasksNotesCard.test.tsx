@@ -16,7 +16,7 @@ describe('TasksNotesCard', () => {
     expect(screen.getByRole('heading', { name: /tasks & notes/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open tasks/i })).toHaveAttribute(
       'href',
-      '/secretary/dashboard'
+      '/secretary/dashboard?showId=show-1'
     );
   });
 

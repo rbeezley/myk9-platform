@@ -54,6 +54,9 @@ const ShowWorkbenchPage = lazy(() =>
   }))
 );
 
+const VolunteerSchedulingPage = lazy(
+  () => import('@/pages/secretary/VolunteerSchedulingPage')
+);
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
@@ -249,17 +252,15 @@ export const SecretaryRoutes = () => (
       path="/secretary/volunteers"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="setup" />
+          <SuspenseWrapper>
+            <VolunteerSchedulingPage />
+          </SuspenseWrapper>
         </ProtectedRoute>
       }
     />
     <Route
       path="/secretary/volunteer-scheduling"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="setup" />
-        </ProtectedRoute>
-      }
+      element={<Navigate to="/secretary/volunteers" replace />}
     />
     <Route path="/secretary/tasks" element={<Navigate to="/secretary/dashboard" replace />} />
     <Route

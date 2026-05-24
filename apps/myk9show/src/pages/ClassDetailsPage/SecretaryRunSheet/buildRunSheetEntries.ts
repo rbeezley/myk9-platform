@@ -1,7 +1,7 @@
 import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import type { Dog } from '@/types/dog-types';
-import type { RunSheetEntry, RunSheetResult, SortMode } from './types';
+import type { RunSheetEntry, RunSheetResult } from './types';
 import { formatSearchTime } from './types';
 
 function normalizeOrganization(value: string | null | undefined): string {
@@ -75,20 +75,16 @@ function rawToEntry(
   };
 }
 
+// INTENT: Always sort by run_order ascending. The auto-sort presets and
+// random-shuffle modes that this helper used to support moved to Show Map
+// in B7 — Class Details is now read-only for run order (reorder action
+// links out to Show Desk).
 export function buildRunSheetEntries(
   rows: RawEntryRow[],
-  sortMode: SortMode,
   dogLookup: Map<string, Dog> = new Map(),
   organization?: string | null
 ): RunSheetEntry[] {
-  const entries = rows.map(row => rawToEntry(row, dogLookup, organization));
-  if (sortMode === 'armband-asc' || sortMode === 'armband-desc') {
-    const withParsed = entries.map(e => ({ e, n: parseInt(e.armband, 10) }));
-    withParsed.sort((a, b) => (sortMode === 'armband-asc' ? a.n - b.n : b.n - a.n));
-    return withParsed.map(({ e }) => e);
-  }
-  if (sortMode === 'random') {
-    return [...entries].sort(() => Math.random() - 0.5);
-  }
-  return [...entries].sort((a, b) => a.runOrder - b.runOrder);
+  return rows
+    .map(row => rawToEntry(row, dogLookup, organization))
+    .sort((a, b) => a.runOrder - b.runOrder);
 }

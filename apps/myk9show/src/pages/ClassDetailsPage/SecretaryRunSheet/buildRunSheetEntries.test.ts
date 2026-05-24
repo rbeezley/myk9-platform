@@ -37,7 +37,7 @@ function makeRow(overrides: Partial<RawEntryRow> = {}): RawEntryRow {
 
 describe('buildRunSheetEntries', () => {
   it('converts a basic row correctly', () => {
-    const [e] = buildRunSheetEntries([makeRow()], 'runOrder');
+    const [e] = buildRunSheetEntries([makeRow()]);
     expect(e.id).toBe('e1');
     expect(e.dogName).toBe('Rex');
     expect(e.armband).toBe('10');
@@ -64,8 +64,7 @@ describe('buildRunSheetEntries', () => {
             owner: null,
           },
         }),
-      ],
-      'runOrder'
+      ]
     );
     expect(e.dogName).toBe('Buddy');
   });
@@ -83,26 +82,25 @@ describe('buildRunSheetEntries', () => {
             owner: null,
           },
         }),
-      ],
-      'runOrder'
+      ]
     );
     expect(e.dogName).toBe('Registered Name');
   });
 
   it('uses 0 for runOrder when run_order is null', () => {
-    const [e] = buildRunSheetEntries([makeRow({ run_order: null })], 'runOrder');
+    const [e] = buildRunSheetEntries([makeRow({ run_order: null })]);
     expect(e.runOrder).toBe(0);
   });
 
   it('sets isCheckedIn when check_in_status is checked-in', () => {
-    const [e] = buildRunSheetEntries([makeRow({ check_in_status: 'checked-in' })], 'runOrder');
+    const [e] = buildRunSheetEntries([makeRow({ check_in_status: 'checked-in' })]);
     expect(e.checkInStatus).toBe('checked-in');
     expect(e.isCheckedIn).toBe(true);
     expect(e.isScratched).toBe(false);
   });
 
   it('sets isScratched when check_in_status is pulled', () => {
-    const [e] = buildRunSheetEntries([makeRow({ check_in_status: 'pulled' })], 'runOrder');
+    const [e] = buildRunSheetEntries([makeRow({ check_in_status: 'pulled' })]);
     expect(e.checkInStatus).toBe('pulled');
     expect(e.isScratched).toBe(true);
     expect(e.isCheckedIn).toBe(false);
@@ -111,7 +109,6 @@ describe('buildRunSheetEntries', () => {
   it('uses the show organization registered breed when available', () => {
     const [e] = buildRunSheetEntries(
       [makeRow()],
-      'runOrder',
       new Map([
         [
           'd1',
@@ -151,8 +148,7 @@ describe('buildRunSheetEntries', () => {
           final_placement: 1,
           judge_notes: 'Good search',
         }),
-      ],
-      'runOrder'
+      ]
     );
     expect(e.isScored).toBe(true);
     expect(e.result).not.toBeNull();
@@ -165,8 +161,7 @@ describe('buildRunSheetEntries', () => {
 
   it('builds an NQ result with empty timeStr when no time recorded', () => {
     const [e] = buildRunSheetEntries(
-      [makeRow({ is_scored: true, result_status: 'nq', search_time_seconds: null })],
-      'runOrder'
+      [makeRow({ is_scored: true, result_status: 'nq', search_time_seconds: null })]
     );
     expect(e.result!.qualified).toBe(false);
     expect(e.result!.timeStr).toBe('');
@@ -174,8 +169,7 @@ describe('buildRunSheetEntries', () => {
 
   it('maps final_placement 0 to null', () => {
     const [e] = buildRunSheetEntries(
-      [makeRow({ is_scored: true, result_status: 'qualified', final_placement: 0 })],
-      'runOrder'
+      [makeRow({ is_scored: true, result_status: 'qualified', final_placement: 0 })]
     );
     expect(e.result!.placement).toBeNull();
   });
@@ -186,32 +180,7 @@ describe('buildRunSheetEntries', () => {
       makeRow({ id: 'b', run_order: 1 }),
       makeRow({ id: 'c', run_order: 2 }),
     ];
-    expect(buildRunSheetEntries(rows, 'runOrder').map(e => e.id)).toEqual(['b', 'c', 'a']);
-  });
-
-  it('sorts by armband ascending (numeric, not lexicographic)', () => {
-    const rows = [
-      makeRow({ id: 'a', armband: '10' }),
-      makeRow({ id: 'b', armband: '3' }),
-      makeRow({ id: 'c', armband: '7' }),
-    ];
-    expect(buildRunSheetEntries(rows, 'armband-asc').map(e => e.id)).toEqual(['b', 'c', 'a']);
-  });
-
-  it('sorts by armband descending (numeric)', () => {
-    const rows = [
-      makeRow({ id: 'a', armband: '10' }),
-      makeRow({ id: 'b', armband: '3' }),
-      makeRow({ id: 'c', armband: '7' }),
-    ];
-    expect(buildRunSheetEntries(rows, 'armband-desc').map(e => e.id)).toEqual(['a', 'c', 'b']);
-  });
-
-  it('random mode returns all entries', () => {
-    const rows = [makeRow({ id: 'a' }), makeRow({ id: 'b' }), makeRow({ id: 'c' })];
-    const result = buildRunSheetEntries(rows, 'random');
-    expect(result).toHaveLength(3);
-    expect(result.map(e => e.id).sort()).toEqual(['a', 'b', 'c']);
+    expect(buildRunSheetEntries(rows).map(e => e.id)).toEqual(['b', 'c', 'a']);
   });
 
   it('builds ownerName from first + last', () => {
@@ -227,8 +196,7 @@ describe('buildRunSheetEntries', () => {
             owner: { id: 'o1', first_name: 'John', last_name: 'Doe' },
           },
         }),
-      ],
-      'runOrder'
+      ]
     );
     expect(e.ownerName).toBe('John Doe');
   });
@@ -247,8 +215,7 @@ describe('buildRunSheetEntries', () => {
             owner: { id: 'o1', first_name: 'Richard', last_name: 'Beezley' },
           },
         }),
-      ],
-      'runOrder'
+      ]
     );
     expect(e.handlerName).toBe('Liz Beezley');
     expect(e.ownerName).toBe('Richard Beezley');
@@ -268,8 +235,7 @@ describe('buildRunSheetEntries', () => {
             owner: { id: 'o1', first_name: 'Liz', last_name: 'Beezley' },
           },
         }),
-      ],
-      'runOrder'
+      ]
     );
     expect(e.handlerName).toBe('Liz Beezley');
   });
@@ -287,8 +253,7 @@ describe('buildRunSheetEntries', () => {
             owner: null,
           },
         }),
-      ],
-      'runOrder'
+      ]
     );
     expect(e.ownerName).toBe('');
   });

@@ -308,6 +308,7 @@ const ClassDetailsPage: React.FC = () => {
           myEntryIds={myEntryIds}
           dogs={dogs}
           organization={parentShow?.organization ?? null}
+          parentShowId={parentShow?.id ?? null}
         />
       ) : (
         <ClassDetailsMain

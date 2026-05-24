@@ -470,8 +470,9 @@ describe('ShowWorkbenchPage', () => {
   //
   // The "opens AskQ with a selected show-day prompt" test was also removed —
   // the "Scratch or no-show" prompt it asserted was a Today-phase prompt that
-  // B5 dropped from SECRETARY_SHOW_DAY_PROMPTS. Setup-tab AskQ usage is
-  // covered by ShowWorkbenchAskQHelp.test.tsx.
+  // B5 dropped from SECRETARY_SHOW_DAY_PROMPTS. Phase B8 removed the
+  // Setup-tab AskQ help card entirely (along with the AboutThisPhase banner
+  // and PhaseChecklist) in favor of the signal-driven SetupAdaptiveHeader.
 
   it('navigates to the existing edit surface', async () => {
     const user = userEvent.setup();

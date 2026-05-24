@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessageStore } from '@/store/messageStore';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
+import { useShowStore } from '@/store/showStore';
 import { supabase } from '@/lib/supabase-client';
 import { ThreadList } from '@/features/messages/components/ThreadList';
 import { MessageBubble } from '@/features/messages/components/MessageBubble';
@@ -14,8 +15,13 @@ import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare, Users } from 'lucide-react';
 
+const ALL_SHOWS = 'all';
+
 export default function SecretaryMessagesPage() {
-  const { showId } = useParams<{ showId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showIdParam = searchParams.get('showId');
+  const filterShowId = showIdParam ?? ALL_SHOWS;
+
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -25,19 +31,37 @@ export default function SecretaryMessagesPage() {
   const threads = useMessageStore(s => s.threads);
   const messagesByThread = useMessageStore(s => s.messagesByThread);
   const isLoading = useMessageStore(s => s.isLoading);
+  const error = useMessageStore(s => s.error);
   const fetchMessages = useMessageStore(s => s.fetchMessages);
   const storeMarkThreadRead = useMessageStore(s => s.markThreadRead);
+  const subscribeMessages = useMessageStore(s => s.subscribe);
+
+  const shows = useShowStore(s => s.shows);
+
+  // Widen the message subscription beyond what App-level useMessageSubscription
+  // provides (which scopes to exhibitorShowIds ∪ selectedShowId). The
+  // "All shows" filter promises threads from every managed show, so the
+  // page must subscribe its own union. The store mutex skips duplicates so
+  // re-subscribes on `shows` reference changes are safe.
+  const allShowIdsKey = useMemo(() => shows.map(s => s.id).sort().join(','), [shows]);
+  useEffect(() => {
+    if (!allShowIdsKey) return;
+    subscribeMessages(allShowIdsKey.split(','));
+  }, [allShowIdsKey, subscribeMessages]);
 
   const { sendMessage, sendTargetedMessage, isSending } = useMessageMutations();
 
+  const selectedShowId = filterShowId === ALL_SHOWS ? null : filterShowId;
+
+  // Targeted-modal class list — only meaningful when a specific show is selected.
   const { data: classes = [] } = useQuery({
-    queryKey: ['show-classes-for-messages', showId],
+    queryKey: ['show-classes-for-messages', selectedShowId],
     queryFn: async () => {
-      if (!showId) return [];
+      if (!selectedShowId) return [];
       const { data } = await supabase
         .from('classes')
         .select('id, class_number, name, trials!inner(show_id)')
-        .eq('trials.show_id' as string, showId)
+        .eq('trials.show_id' as string, selectedShowId)
         .order('class_number');
       const withCounts = await Promise.all(
         (data || []).map(async (c: { id: string; class_number: string | null; name: string }) => {
@@ -56,35 +80,78 @@ export default function SecretaryMessagesPage() {
       );
       return withCounts;
     },
-    enabled: !!showId,
+    enabled: !!selectedShowId,
   });
 
-  const activeMessages = activeThreadId ? messagesByThread[activeThreadId] || [] : [];
-  const showThreads = threads.filter(t => t.show_id === showId);
+  const showNameMap = useMemo(
+    () => Object.fromEntries(shows.map(s => [s.id, s.name])),
+    [shows]
+  );
+
+  const visibleThreads = useMemo(
+    () => (selectedShowId ? threads.filter(t => t.show_id === selectedShowId) : threads),
+    [threads, selectedShowId]
+  );
+
+  // Treat the active thread as "selected" only while it remains in the visible
+  // list. When the filter narrows the list (or the thread disappears), the
+  // derivation falls back to null and the right-pane shows the empty state —
+  // no need for a setState-in-effect to imperatively clear selection.
+  const activeThread = activeThreadId
+    ? visibleThreads.find(t => t.id === activeThreadId) ?? null
+    : null;
+  const effectiveActiveId = activeThread?.id ?? null;
+  const activeMessages = effectiveActiveId ? messagesByThread[effectiveActiveId] || [] : [];
 
   useEffect(() => {
-    if (activeThreadId) {
-      fetchMessages(activeThreadId).then(() => {
-        storeMarkThreadRead(activeThreadId);
+    if (effectiveActiveId) {
+      fetchMessages(effectiveActiveId).then(() => {
+        storeMarkThreadRead(effectiveActiveId);
       });
     }
-  }, [activeThreadId, fetchMessages, storeMarkThreadRead]);
+  }, [effectiveActiveId, fetchMessages, storeMarkThreadRead]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeMessages.length]);
 
+  function handleFilterChange(next: string) {
+    const params = new URLSearchParams(searchParams);
+    if (next === ALL_SHOWS) params.delete('showId');
+    else params.set('showId', next);
+    setSearchParams(params, { replace: true });
+  }
+
   const handleSend = async (body: string) => {
-    if (!activeThreadId || !showId) return;
-    await sendMessage(activeThreadId, showId, body);
+    if (!activeThread) return;
+    await sendMessage(activeThread.id, activeThread.show_id, body);
   };
 
   const handleTargetedSend = async (classId: string, body: string) => {
-    if (!showId) return;
-    await sendTargetedMessage(showId, classId, body);
+    if (!selectedShowId) return;
+    await sendTargetedMessage(selectedShowId, classId, body);
   };
 
-  if (isLoading) {
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <div className="max-w-sm rounded border border-destructive/40 bg-destructive/5 p-4 text-sm">
+          <p className="font-medium text-destructive">Couldn't load messages.</p>
+          <p className="mt-1 text-muted-foreground">{error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading && threads.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-pulse text-muted-foreground">Loading messages...</div>
@@ -97,30 +164,74 @@ export default function SecretaryMessagesPage() {
       <div
         className={cn(
           'w-full md:w-80 border-r flex flex-col shrink-0',
-          activeThreadId && 'hidden md:flex'
+          effectiveActiveId && 'hidden md:flex'
         )}
       >
-        <div className="p-4 border-b flex items-center justify-between">
+        <div className="p-4 border-b flex items-center justify-between gap-2">
           <h1 className="text-lg font-semibold">Messages</h1>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowTargetedModal(true)}
+            disabled={!selectedShowId}
             aria-label="Message class"
+            title={
+              selectedShowId
+                ? 'Send a targeted message to a class in this show'
+                : 'Select a show to send a targeted class message'
+            }
           >
             <Users className="h-4 w-4 mr-1" />
             Message Class
           </Button>
         </div>
-        <ThreadList
-          threads={showThreads}
-          activeThreadId={activeThreadId}
-          onSelectThread={setActiveThreadId}
-        />
+        <div className="border-b px-4 py-2">
+          <label className="sr-only" htmlFor="messages-show-filter">
+            Filter by show
+          </label>
+          <select
+            id="messages-show-filter"
+            value={filterShowId}
+            onChange={e => handleFilterChange(e.target.value)}
+            className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+          >
+            <option value={ALL_SHOWS}>All shows</option>
+            {shows.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {visibleThreads.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-muted-foreground">
+            <MessageSquare className="h-8 w-8 opacity-40" />
+            <p className="text-sm">
+              {selectedShowId
+                ? `No messages in ${showNameMap[selectedShowId] ?? 'this show'} yet.`
+                : 'No messages yet.'}
+            </p>
+            {selectedShowId && (
+              <button
+                type="button"
+                onClick={() => handleFilterChange(ALL_SHOWS)}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
+        ) : (
+          <ThreadList
+            threads={visibleThreads}
+            activeThreadId={effectiveActiveId}
+            onSelectThread={setActiveThreadId}
+          />
+        )}
       </div>
 
-      <div className={cn('flex-1 flex flex-col', !activeThreadId && 'hidden md:flex')}>
-        {activeThreadId ? (
+      <div className={cn('flex-1 flex flex-col', !effectiveActiveId && 'hidden md:flex')}>
+        {effectiveActiveId ? (
           <>
             <div className="md:hidden p-2 border-b">
               <Button variant="ghost" size="sm" onClick={() => setActiveThreadId(null)}>
@@ -150,12 +261,14 @@ export default function SecretaryMessagesPage() {
         )}
       </div>
 
-      <ComposeTargetedModal
-        open={showTargetedModal}
-        onClose={() => setShowTargetedModal(false)}
-        onSend={handleTargetedSend}
-        classes={classes}
-      />
+      {selectedShowId && (
+        <ComposeTargetedModal
+          open={showTargetedModal}
+          onClose={() => setShowTargetedModal(false)}
+          onSend={handleTargetedSend}
+          classes={classes}
+        />
+      )}
     </div>
   );
 }

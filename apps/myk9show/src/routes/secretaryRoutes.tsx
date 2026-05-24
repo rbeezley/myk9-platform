@@ -61,6 +61,7 @@ const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage')
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
+const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
 // Scoring pages
 const PaperScoresheetPage = lazy(() =>
   import('@/pages/scoring/PaperScoresheetPage').then(m => ({ default: m.PaperScoresheetPage }))
@@ -81,6 +82,18 @@ const ShowEditRedirect = () => {
 const UserDetailRedirect = () => {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={id ? `/people/${id}` : '/people'} replace />;
+};
+
+// Normalize the legacy /secretary/messages/:showId path to the canonical
+// query-param form so deep-links from Show Desk still work.
+const SecretaryMessagesShowIdRedirect = () => {
+  const { showId } = useParams<{ showId: string }>();
+  return (
+    <Navigate
+      to={showId ? `/secretary/messages?showId=${showId}` : '/secretary/messages'}
+      replace
+    />
+  );
 };
 
 const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
@@ -372,8 +385,20 @@ export const SecretaryRoutes = () => (
       }
     />
     <Route
-      path="/secretary/messages/:showId?"
-      element={<Navigate to="/secretary/dashboard" replace />}
+      path="/secretary/messages"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <SecretaryMessagesPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/messages/:showId"
+      element={<SecretaryMessagesShowIdRedirect />}
     />
 
     {/* People — browse and detail, accessible to secretaries and site admins */}

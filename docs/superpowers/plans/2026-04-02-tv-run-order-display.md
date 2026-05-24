@@ -50,7 +50,7 @@ apps/myk9show/src/components/shared/
 apps/myk9show/src/routes/publicRoutes.tsx       # Add /tv/:showId route
 apps/myk9show/src/routes/routeRegistry.ts       # Register for preloading
 apps/myk9show/src/lib/queryClient.ts            # Add TV query keys
-apps/myk9show/src/pages/secretary/ShowManagementPage.tsx  # Add QR code section
+apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx   # Add QR code section (ShowManagementPage was deleted in PR #314)
 ```
 
 ---
@@ -2279,11 +2279,11 @@ git commit -m "feat(tv): register /tv/:showId public route"
 
 **Files:**
 
-- Modify: `apps/myk9show/src/pages/secretary/ShowManagementPage.tsx`
+- Modify: `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx` (ShowManagementPage was deleted in PR #314)
 
 - [ ] **Step 1: Add TV Display section with QR code**
 
-Import QRCode and add a section to the ShowManagementPage. Look for the existing navigation items or card grid and add a new entry. The QR code links to `/tv/${showId}`.
+Import QRCode and add a section to `ShowWorkbenchPage` (or a new `TvDisplayCard` in the Setup tab tools). The QR code links to `/tv/${showId}`.
 
 Add to imports:
 
@@ -2345,8 +2345,8 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/myk9show/src/pages/secretary/ShowManagementPage.tsx
-git commit -m "feat(tv): add QR code and TV display link to secretary show management"
+git add apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx
+git commit -m "feat(tv): add QR code and TV display link to secretary workbench"
 ```
 
 ---

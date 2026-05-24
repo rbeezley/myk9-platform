@@ -182,6 +182,6 @@ describe('ClassDetailsPage header actions', () => {
 
     await user.click(screen.getByRole('menuitem', { name: /open in workbench/i }));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/secretary/shows/show-1?phase=today');
+    expect(screen.getByTestId('location')).toHaveTextContent('/secretary/shows/show-1?phase=show-desk');
   });
 });

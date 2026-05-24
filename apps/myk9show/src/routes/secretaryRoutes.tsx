@@ -109,7 +109,7 @@ function useSecretaryRedirectShowId(): { showId: string; isResolving: boolean } 
 const SecretaryShowPhaseRedirect = ({
   phase,
 }: {
-  phase: 'setup' | 'today' | 'wrap-up' | 'show-desk';
+  phase: 'setup' | 'show-desk';
 }) => {
   const { showId, isResolving } = useSecretaryRedirectShowId();
 
@@ -236,7 +236,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/day-of"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="today" />
+          <SecretaryShowPhaseRedirect phase="show-desk" />
         </ProtectedRoute>
       }
     />
@@ -244,7 +244,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/check-in"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowPhaseRedirect phase="today" />
+          <SecretaryShowPhaseRedirect phase="show-desk" />
         </ProtectedRoute>
       }
     />

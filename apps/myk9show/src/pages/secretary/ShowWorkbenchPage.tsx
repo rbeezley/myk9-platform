@@ -32,30 +32,24 @@ import { VenueMap } from '@/components/shows/overview/VenueMap';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
-import { LandingPageCard } from '@/features/premium/LandingPageCard';
-import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { getShowStyle } from '@/features/registries';
-import { AboutThisPhase } from '@/features/show-workbench/AboutThisPhase';
 import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
 import { ClassBroadcastCard } from '@/features/show-workbench/ClassBroadcastCard';
 import { buildClassBroadcastClassLabel } from '@/features/show-workbench/classBroadcast';
 import { IncidentCloseoutSummary } from '@/features/show-workbench/IncidentCloseoutSummary';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
-import { PhaseChecklist } from '@/features/show-workbench/PhaseChecklist';
 import { QuickBroadcastCard } from '@/features/show-workbench/QuickBroadcastCard';
-import { ShowWorkbenchAskQHelp } from '@/features/show-workbench/ShowWorkbenchAskQHelp';
 import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
+import { SetupAdaptiveHeader } from '@/features/show-workbench/SetupAdaptiveHeader';
+import { SetupPublishSection } from '@/features/show-workbench/SetupPublishSection';
+import { computeSetupReadinessSignals } from '@/features/show-workbench/setupReadinessSignals';
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
-import type {
-  PhaseChecklistContext,
-  ShowWorkbenchClassSummary,
-  ShowWorkbenchEntrySummary,
-} from '@/features/show-workbench/phaseChecklistDefinitions';
+import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
 import { isShowWorkbenchPhase, useActivePhase } from '@/hooks/useActivePhase';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -79,20 +73,6 @@ function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
       </div>
     </section>
   );
-}
-
-function toChecklistEntrySummary(entry: {
-  id?: string | null | undefined;
-  class_id?: string | null | undefined;
-  entry_status?: string | null | undefined;
-  check_in_status?: string | null | undefined;
-}): ShowWorkbenchEntrySummary {
-  return {
-    id: entry.id ?? undefined,
-    class_id: entry.class_id ?? undefined,
-    entry_status: entry.entry_status ?? undefined,
-    check_in_status: entry.check_in_status ?? undefined,
-  };
 }
 
 function textField(source: Record<string, unknown> | null | undefined, key: string): string | null {
@@ -229,11 +209,6 @@ export function ShowWorkbenchPage() {
     [associatedTrials, showEntries, trialClasses]
   );
 
-  const checklistEntries = useMemo(
-    () => showEntries.map(entry => toChecklistEntrySummary(entry)),
-    [showEntries]
-  );
-
   const incidentEntryOptions = useMemo(() => {
     const classById = new Map(showClasses.map(cls => [cls.id, cls]));
     return showEntries
@@ -241,18 +216,17 @@ export function ShowWorkbenchPage() {
       .filter((entry): entry is IncidentEntryOption => entry !== null);
   }, [showClasses, showEntries]);
 
-  const checklistContext = useMemo<PhaseChecklistContext | null>(
+  const setupSignals = useMemo(
     () =>
       currentShow
-        ? {
+        ? computeSetupReadinessSignals({
             show: currentShow,
             trials: associatedTrials,
             classes: showClasses,
-            entries: checklistEntries,
             judges: showJudgeRoster,
-          }
-        : null,
-    [associatedTrials, checklistEntries, currentShow, showClasses, showJudgeRoster]
+          })
+        : [],
+    [associatedTrials, currentShow, showClasses, showJudgeRoster]
   );
 
   const effectiveJudges = useMemo(
@@ -348,21 +322,11 @@ export function ShowWorkbenchPage() {
         <PrimaryTabsContent value="setup">
           <PhaseShell title="Setup" kicker="Before the show" />
           <div className="space-y-6">
-            <AboutThisPhase phase="setup" showId={currentShow.id} />
-            {checklistContext && (
-              <PhaseChecklist
-                key={`${currentShow.id}:setup`}
-                phase="setup"
-                showId={currentShow.id}
-                context={checklistContext}
-              />
-            )}
-            <ShowWorkbenchAskQHelp phase="setup" />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <PremiumDownloadCard showId={currentShow.id} showStaleBadge />
-              <LandingPageCard showId={currentShow.id} showStyle={getShowStyle(currentShow)} />
-            </div>
-
+            <SetupAdaptiveHeader signals={setupSignals} />
+            <SetupPublishSection
+              showId={currentShow.id}
+              showStyle={getShowStyle(currentShow)}
+            />
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr,340px]">
               <div className="space-y-6">
                 <ScheduleSummary showId={currentShow.id} />

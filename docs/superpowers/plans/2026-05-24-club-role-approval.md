@@ -21,11 +21,17 @@
 - Create: `supabase/migrations/20260524120000_club_access_requests.sql`
   - Owns the approval table, enum/check constraints, RLS, trigger update to `handle_new_user()`, and three RPCs.
 - Modify: `apps/myk9show/src/pages/SignUpPage.tsx`
-  - Updates role copy and collects club request fields when club access is requested.
+  - Updates role copy, supports `/sign-up?request=club`, and collects club request fields when club access is requested.
 - Modify: `apps/myk9show/src/hooks/useAuth.ts`
   - Extends signup metadata with club request fields.
+- Modify: `apps/myk9show/src/components/landing/v2/HeroPhotoLed.tsx`
+  - Adds a public "Start a club on myK9Show" entry point to signup with club request intent preselected.
+- Modify: `apps/myk9show/src/components/landing/v2/ClubFeatures.tsx`
+  - Adds a secondary club onboarding CTA in the clubs/secretaries section.
 - Test: `apps/myk9show/src/test/pages/SignUpPage.test.tsx`
-  - Proves signup wording and metadata payload.
+  - Proves signup wording, query-param preselection, and metadata payload.
+- Test: `apps/myk9show/src/components/landing/v2/__tests__/ClubOnboardingCta.test.tsx`
+  - Proves landing CTAs route to `/sign-up?request=club`.
 - Test: `apps/myk9show/src/test/auth/useAuth.test.ts`
   - Proves `signUp()` sends the metadata keys expected by the DB trigger.
 - Create: `apps/myk9show/src/features/access-requests/accessRequestTypes.ts`
@@ -80,6 +86,8 @@ where tgname in ('zz_grant_early_access_secretary', 'trg_enforce_club_id_for_sco
 ```
 
 Expected: no null-club `secretary` / `club_admin` rows remain, and the scoped-role constraint trigger exists. If `zz_grant_early_access_secretary` exists, include the compatibility fix in Step 3 so legacy early-access signup no longer attempts to insert a global secretary row.
+
+**Lifecycle rule:** pending club details must stay in `club_access_requests`; do not insert into `clubs` until `review_club_access_request(..., 'approved', ...)` runs. This prevents unapproved, duplicate, or spam clubs from becoming real platform clubs.
 
 - [ ] **Step 1: Write SQL regression coverage first**
 
@@ -548,8 +556,11 @@ git commit -m "feat(auth): add club access approval database model"
 **Files:**
 - Modify: `apps/myk9show/src/hooks/useAuth.ts`
 - Modify: `apps/myk9show/src/pages/SignUpPage.tsx`
+- Modify: `apps/myk9show/src/components/landing/v2/HeroPhotoLed.tsx`
+- Modify: `apps/myk9show/src/components/landing/v2/ClubFeatures.tsx`
 - Test: `apps/myk9show/src/test/auth/useAuth.test.ts`
 - Test: `apps/myk9show/src/test/pages/SignUpPage.test.tsx`
+- Test: `apps/myk9show/src/components/landing/v2/__tests__/ClubOnboardingCta.test.tsx`
 
 - [ ] **Step 1: Write failing hook metadata test**
 
@@ -686,17 +697,45 @@ it('submits club access request metadata', async () => {
     clubRequestNote: 'I am the trial chair.',
   });
 });
+
+it('preselects club request mode from the request query parameter', () => {
+  render(<SignUpPage />, { route: '/sign-up?request=club' });
+
+  expect(screen.getByLabelText('I help run a club or host shows')).toBeChecked();
+  expect(screen.getByLabelText('Club name')).toBeInTheDocument();
+});
 ```
 
 - [ ] **Step 5: Run signup page tests red**
 
 Run: `cd apps/myk9show && npx vitest run src/test/pages/SignUpPage.test.tsx`
 
-Expected: FAIL because the page still uses identity copy and has no club request fields.
+Expected: FAIL because the page still uses identity copy, has no club request fields, and does not read `request=club`.
 
 - [ ] **Step 6: Implement signup UI changes**
 
-In `apps/myk9show/src/pages/SignUpPage.tsx`, add state:
+In `apps/myk9show/src/pages/SignUpPage.tsx`, import `useSearchParams`:
+
+```typescript
+import { Link, useSearchParams } from 'react-router-dom';
+```
+
+Initialize club request mode from the query string:
+
+```typescript
+const [searchParams] = useSearchParams();
+const startsAsClubRequest = searchParams.get('request') === 'club';
+```
+
+Set the initial role state so `/sign-up?request=club` preselects the club request:
+
+```typescript
+const [selectedRoles, setSelectedRoles] = useState<string[]>(
+  startsAsClubRequest ? ['exhibitor', 'club_officer'] : ['exhibitor']
+);
+```
+
+Add state:
 
 ```typescript
 const [requestedClubName, setRequestedClubName] = useState('');
@@ -799,16 +838,89 @@ Replace the role section with request language:
 </div>
 ```
 
-- [ ] **Step 7: Run focused tests green**
+- [ ] **Step 7: Add landing-page club request entry points**
 
-Run: `cd apps/myk9show && npx vitest run src/test/auth/useAuth.test.ts src/test/pages/SignUpPage.test.tsx`
+Create `apps/myk9show/src/components/landing/v2/__tests__/ClubOnboardingCta.test.tsx`:
+
+```typescript
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it } from 'vitest';
+
+import { HeroPhotoLed } from '../HeroPhotoLed';
+import { ClubFeatures } from '../ClubFeatures';
+
+describe('club onboarding CTAs', () => {
+  it('links the hero club CTA to signup in club request mode', () => {
+    render(
+      <MemoryRouter>
+        <HeroPhotoLed />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('link', { name: /start a club on myk9show/i })).toHaveAttribute(
+      'href',
+      '/sign-up?request=club'
+    );
+  });
+
+  it('links the club section CTA to signup in club request mode', () => {
+    render(
+      <MemoryRouter>
+        <ClubFeatures />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('link', { name: /request club access/i })).toHaveAttribute(
+      'href',
+      '/sign-up?request=club'
+    );
+  });
+});
+```
+
+Update `apps/myk9show/src/components/landing/v2/HeroPhotoLed.tsx`:
+
+```tsx
+import { Link } from 'react-router-dom';
+```
+
+Place this link near the existing hero waitlist surface without replacing the waitlist form:
+
+```tsx
+<Link className="l-secondary-link" to="/sign-up?request=club">
+  Start a club on myK9Show
+</Link>
+```
+
+Update `apps/myk9show/src/components/landing/v2/ClubFeatures.tsx`:
+
+```tsx
+import { Link } from 'react-router-dom';
+```
+
+Add a concise CTA after the feature grid:
+
+```tsx
+<div className="l-section-cta">
+  <Link className="l-secondary-link" to="/sign-up?request=club">
+    Request club access
+  </Link>
+</div>
+```
+
+The request lifecycle remains: the form creates an exhibitor account and writes pending club details to `club_access_requests`; it does not create a `clubs` row until admin approval.
+
+- [ ] **Step 8: Run focused tests green**
+
+Run: `cd apps/myk9show && npx vitest run src/test/auth/useAuth.test.ts src/test/pages/SignUpPage.test.tsx src/components/landing/v2/__tests__/ClubOnboardingCta.test.tsx`
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add apps/myk9show/src/hooks/useAuth.ts apps/myk9show/src/pages/SignUpPage.tsx apps/myk9show/src/test/auth/useAuth.test.ts apps/myk9show/src/test/pages/SignUpPage.test.tsx
+git add apps/myk9show/src/hooks/useAuth.ts apps/myk9show/src/pages/SignUpPage.tsx apps/myk9show/src/components/landing/v2/HeroPhotoLed.tsx apps/myk9show/src/components/landing/v2/ClubFeatures.tsx apps/myk9show/src/test/auth/useAuth.test.ts apps/myk9show/src/test/pages/SignUpPage.test.tsx apps/myk9show/src/components/landing/v2/__tests__/ClubOnboardingCta.test.tsx
 git commit -m "feat(auth): collect club access requests at signup"
 ```
 
@@ -2100,7 +2212,9 @@ pnpm dev:show
 
 Open `/sign-up` and verify:
 
+- The landing page exposes a `Start a club on myK9Show` or `Request club access` link to `/sign-up?request=club`.
 - The role section says `I am interested in...`.
+- Opening `/sign-up?request=club` preselects `I help run a club or host shows`.
 - Choosing `I help run a club or host shows` reveals Club name, Club website, and Note fields.
 - Submitting without a club name shows `Enter the club name you want to manage.`
 

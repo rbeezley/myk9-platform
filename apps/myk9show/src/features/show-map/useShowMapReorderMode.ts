@@ -20,6 +20,10 @@ export interface ShowMapReorderEnterInput {
   classLabel: string;
 }
 
+function stripEntryPrefix(id: string): string {
+  return id.startsWith('entry:') ? id.slice('entry:'.length) : id;
+}
+
 export interface ShowMapActiveReorder {
   classId: string;
   classLabel: string;
@@ -62,11 +66,11 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
   // bound while a class is active so we don't intercept Escape elsewhere.
   useEffect(() => {
     if (!active) return undefined;
+    // INTENT: Don't stopPropagation — other open popovers/dialogs may
+    // legitimately want to close on the same Escape. We only react to the
+    // key, not consume it.
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        setActive(null);
-      }
+      if (event.key === 'Escape') setActive(null);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -116,9 +120,12 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
     (event: DragEndEvent) => {
       const current = activeRef.current;
       if (!current) return;
-      const activeId = String(event.active.id);
-      const overId = event.over ? String(event.over.id) : null;
-      if (!overId || activeId === overId) return;
+      // INTENT: useSortable id is the prefixed ShowMapNode id (entry:abc).
+      // The mutation looks entries up by their raw DB id — strip the prefix
+      // here or every drop silently no-ops.
+      const activeId = stripEntryPrefix(String(event.active.id));
+      const overId = event.over ? stripEntryPrefix(String(event.over.id)) : null;
+      if (!activeId || !overId || activeId === overId) return;
       persistMutation.mutate({ classId: current.classId, activeId, overId });
     },
     [persistMutation]

@@ -524,17 +524,32 @@ export function ShowMapStructureTable({
               onAction={onAction}
             />
           )}
-          {enableRowActions && node.type === 'class' && runOrderControls && (
-            <ShowMapRunOrderMenu
-              classId={node.id.replace(/^class:/, '')}
-              classLabel={node.label}
-              entryCount={node.childrenCount}
-              onAutoSort={runOrderControls.onAutoSort}
-              isAutoSorting={runOrderControls.isAutoSorting}
-              onEnterReorderMode={runOrderControls.onEnterReorderMode}
-              isReordering={isAnyReorderActive}
-            />
-          )}
+          {enableRowActions && node.type === 'class' && runOrderControls && (() => {
+            // INTENT: When the entry preview is truncated (synthetic 'more'
+            // child present), manual drag-and-drop reorder is disabled —
+            // dragging would silently shuffle entries that aren't on
+            // screen. Auto-sort still works because it always reads the
+            // full live entry list from the replicated table.
+            const classChildren = tree.childIdsByParentId[node.id] ?? [];
+            const isTruncated = classChildren.some(
+              childId => tree.nodesById[childId]?.type === 'more'
+            );
+            const enterReorderProp =
+              isTruncated ? undefined : runOrderControls.onEnterReorderMode;
+            return (
+              <ShowMapRunOrderMenu
+                classId={node.id.replace(/^class:/, '')}
+                classLabel={node.label}
+                entryCount={node.childrenCount}
+                onAutoSort={runOrderControls.onAutoSort}
+                isAutoSorting={runOrderControls.isAutoSorting}
+                {...(enterReorderProp !== undefined
+                  ? { onEnterReorderMode: enterReorderProp }
+                  : {})}
+                isReordering={isAnyReorderActive}
+              />
+            );
+          })()}
           {enableRowActions && (
             <ShowMapRowActionsMenu
               node={node}

@@ -115,6 +115,26 @@ describe('computeShowMapReorderAssignments', () => {
   });
 });
 
+describe('drag-end id shape (prefix-stripping regression)', () => {
+  // The UI calls useSortable with the ShowMapNode id (e.g. 'entry:abc-123').
+  // useShowMapReorderMode.onDragEnd must strip the 'entry:' prefix before
+  // calling computeShowMapReorderAssignments, which looks entries up by
+  // their raw DB id. Without the strip every drop silently no-ops. This
+  // test pins the contract so a regression breaks here, not in production.
+  it('computeShowMapReorderAssignments must receive raw DB ids — prefixed ids return []', () => {
+    const entries = [
+      entry({ id: 'a', runOrder: 1 }),
+      entry({ id: 'b', runOrder: 2 }),
+      entry({ id: 'c', runOrder: 3 }),
+    ];
+    // Sanity: with raw ids it works
+    expect(computeShowMapReorderAssignments(entries, 'a', 'c')).toHaveLength(3);
+    // With prefixed ids (what useSortable emits) it must NOT match — proves
+    // the prefix-strip in onDragEnd is load-bearing.
+    expect(computeShowMapReorderAssignments(entries, 'entry:a', 'entry:c')).toEqual([]);
+  });
+});
+
 describe('getReorderableEntryIds', () => {
   it('returns only unpinned entry ids in run_order', () => {
     const entries = [

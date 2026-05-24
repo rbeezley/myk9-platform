@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -527,5 +527,71 @@ describe('ShowWorkbenchPage', () => {
     renderWorkbench('/secretary/shows/show-1', null);
 
     expect(screen.getByTestId('sign-in')).toBeInTheDocument();
+  });
+
+  // Phase B5 integration coverage: the legacy "renders Today operational
+  // surfaces" + "renders Wrap-up links" tests were deleted alongside their
+  // tabs, but those tests proved that ShowWorkbenchPage actually composes the
+  // 7 desk-tool cards + 3 closeout links with the right props. The new
+  // component tests for ShowDeskToolsSheet + ShowDeskCloseoutSection only
+  // verify the shells (they pass stub children). This test fills the gap.
+  it('composes the 7 tool cards + 3 closeout links into the Show Desk tab', async () => {
+    const user = userEvent.setup();
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        order: '1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    mockTrialClasses = {
+      'trial-1': [
+        {
+          id: 'class-1',
+          element: 'Container',
+          level: 'Novice A',
+          section: 'A',
+          status: 'completed',
+        },
+      ],
+    };
+    mockShowEntries = [{ id: 'entry-1', class_id: 'class-1' }];
+
+    renderWorkbench('/secretary/shows/show-1?phase=show-desk');
+
+    // Tools sheet: open it and assert all 9 cards render with show-scoped data.
+    await user.click(await screen.findByRole('button', { name: /open tools panel/i }));
+    const dialog = await screen.findByRole('dialog', { name: /show desk tools/i });
+    expect(within(dialog).getByTestId('late-entry-action')).toHaveTextContent(
+      'Add late entry for show-1'
+    );
+    expect(within(dialog).getByRole('heading', { name: 'Hospitality' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Quick broadcast' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Message a class' })).toBeInTheDocument();
+    expect(within(dialog).getByTestId('incident-log-card')).toHaveTextContent(
+      'Incident log for show-1'
+    );
+    expect(
+      within(dialog).getByRole('heading', { name: 'Schedule delay script' })
+    ).toBeInTheDocument();
+    expect(within(dialog).getByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
+    expect(within(dialog).getByRole('heading', { name: 'Volunteers' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: /tasks & notes/i })).toBeInTheDocument();
+
+    // Closeout section: only renders when the show has a wrap-up-eligible
+    // class (we seeded class-1 as 'completed'). All 3 destination links
+    // present with the correct hrefs the legacy Wrap-up tab used. Resolve
+    // via the labeled text then walk up to the anchor — Button asChild +
+    // Link composes the accessible name differently than a plain anchor.
+    const closeout = await screen.findByTestId('show-desk-closeout-section');
+    const resultsControlLink = within(closeout).getByText('Results Control').closest('a');
+    expect(resultsControlLink).toHaveAttribute('href', '/secretary/results-control');
+    const reportsLink = within(closeout).getByText('Reports').closest('a');
+    expect(reportsLink).toHaveAttribute('href', '/secretary/reports');
+    const submitLink = within(closeout).getByText('Submit Results').closest('a');
+    expect(submitLink).toHaveAttribute('href', '/secretary/results-submission');
   });
 });

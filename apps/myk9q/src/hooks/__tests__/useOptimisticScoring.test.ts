@@ -7,6 +7,11 @@
  * 3. Silent failure when offline
  * 4. No rollback of optimistic updates
  * 5. Real-time subscriptions handle confirmation
+ * 6. Cache write passes isDirty=true (the wrapper calls it `queueMutation`
+ *    but it actually maps to `isDirty` in ReplicatedTable.set). This protects
+ *    the optimistic score row from being overwritten by a stale replication
+ *    pull via the dirty-row guard + mergeDirtyRow merge logic. Regression
+ *    for the scoring-sync-bug fix (2026-05-24). See project_scoring_sync_bug.md.
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
@@ -14,6 +19,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vite
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { submitScore } from '@/services/entryService';
 import { useOfflineQueueStore } from '@/stores/offlineQueueStore';
+import { replicatedEntriesTable } from '@/services/replication';
 
 // Hoist mock functions so they are available to the hoisted vi.mock factories
 const { mockMarkAsScored, mockSubmitScore, mockAddToQueue, mockUpdate } = vi.hoisted(() => ({
@@ -103,6 +109,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     mockSubmitScore.mockClear();
     mockAddToQueue.mockClear();
     mockUpdate.mockClear();
+    vi.mocked(replicatedEntriesTable.markAsScored).mockClear();
 
     // Set up default implementations
     vi.mocked(submitScore).mockResolvedValue(undefined);
@@ -514,6 +521,43 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       expect(uiUpdateTime).toBeLessThan(100); // Allow 100ms for test overhead
       expect(mockMarkAsScored).toHaveBeenCalled();
       expect(mockSubmitScore).toHaveBeenCalled();
+    });
+  });
+
+  // Regression for the scoring-sync-bug (project_scoring_sync_bug.md, 2026-05-24).
+  // The cache write must pass isDirty=true (the wrapper calls it `queueMutation`
+  // but it maps to `isDirty` in ReplicatedTable.set). isDirty=true marks the
+  // cache row `_syncStatus: 'pending'`, triggering the dirty-row guard and
+  // mergeDirtyRow logic that preserves the optimistic score from being
+  // overwritten by a stale replication pull. Before this fix the call passed
+  // `false`, so a pull between local write and server confirmation overwrote
+  // the optimistic score with stale server state. (Note: silent submitScore
+  // failures still bypass the toast pipeline — that's a separate deferred
+  // follow-up; see the memory file.)
+  describe('Regression: replicatedEntriesTable.markAsScored must mark cache row dirty', () => {
+    it('passes isDirty=true so optimistic score survives replication pull-overwrite', async () => {
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      // The third argument is `isDirty` (misnamed `queueMutation` on the
+      // wrapper). Must be `true` so the row is marked _syncStatus: 'pending'
+      // and the pull/merge logic preserves the optimistic score. If a future
+      // PR flips it back to `false`, the pull-overwrite bug returns — fail
+      // loudly here.
+      expect(replicatedEntriesTable.markAsScored).toHaveBeenCalledWith(
+        String(mockEntry.id),
+        expect.any(Object),
+        true
+      );
     });
   });
 });

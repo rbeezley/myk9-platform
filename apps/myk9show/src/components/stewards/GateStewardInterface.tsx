@@ -48,6 +48,7 @@ import {
   createMockEntries,
 } from './GateStewardInterface.helpers';
 import { GateStatsCards, GateEntryRow, GateEmptyState } from './GateStewardInterfaceComponents';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
   assignedRings = ['1', '2', '3', '4'],
@@ -335,11 +336,16 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Rings</SelectItem>
-                {assignedRings.map(ring => (
-                  <SelectItem key={ring} value={ring}>
-                    Ring {ring}
-                  </SelectItem>
-                ))}
+                {assignedRings.map(ring => {
+                  const ringLabel = formatRingLabel(ring);
+                  if (!ringLabel) return null;
+
+                  return (
+                    <SelectItem key={ring} value={ring}>
+                      {ringLabel}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
 

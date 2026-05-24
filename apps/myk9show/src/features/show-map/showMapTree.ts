@@ -15,6 +15,7 @@ import {
   getShowMapTrialHref,
 } from './showMapRoutes';
 import { getRegisteredBreedForOrganization } from '@/lib/dogRegistrationBreed';
+import { formatRingLabel } from '@/utils/ringLabel';
 import type {
   BuildShowMapTreeInput,
   ShowMapDisplayStatus,
@@ -47,13 +48,7 @@ function classRingLabel(cls: {
   ringName?: string | undefined;
 }) {
   if (cls.ringName?.trim()) return cls.ringName.trim();
-  if (typeof cls.ring === 'number' && cls.ring > 0) return `Ring ${cls.ring}`;
-  if (typeof cls.ring === 'string') {
-    const ring = cls.ring.trim();
-    if (!ring || ring === '0') return undefined;
-    return ring.toLowerCase().startsWith('ring') ? ring : `Ring ${ring}`;
-  }
-  return undefined;
+  return formatRingLabel(cls.ring) ?? undefined;
 }
 
 function entryClassId(entry: ShowMapEntryInput): string | undefined {

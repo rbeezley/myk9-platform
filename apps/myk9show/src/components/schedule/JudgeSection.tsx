@@ -2,6 +2,7 @@ import type { JudgeTimelineData } from './schedule-timeline.types';
 import { StatusDot } from './StatusDot';
 import { SpineLine } from './SpineLine';
 import { ElementAccordion } from './ElementAccordion';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface JudgeSectionProps {
   judge: JudgeTimelineData;
@@ -31,6 +32,7 @@ export function JudgeSection({ judge, onNavigateToClass }: JudgeSectionProps) {
     ? Math.abs(judge.judgeId.charCodeAt(0) + judge.judgeId.charCodeAt(1)) % JUDGE_COLORS.length
     : 0;
   const avatarColor = judge.judgeId ? JUDGE_COLORS[colorIndex] : 'bg-slate-500';
+  const ringLabel = formatRingLabel(judge.ringNumber);
 
   return (
     <div>
@@ -41,9 +43,7 @@ export function JudgeSection({ judge, onNavigateToClass }: JudgeSectionProps) {
           {getJudgeInitials(judge.judgeName)}
         </div>
         <span className="text-sm font-medium text-card-foreground">{judge.judgeName}</span>
-        {judge.ringNumber && (
-          <span className="ml-auto text-xs text-muted-foreground">Ring {judge.ringNumber}</span>
-        )}
+        {ringLabel && <span className="ml-auto text-xs text-muted-foreground">{ringLabel}</span>}
       </div>
 
       <div className="flex gap-3">

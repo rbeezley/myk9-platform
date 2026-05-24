@@ -3,6 +3,7 @@ import 'jspdf-autotable';
 import { Show, ShowClass } from '../../types/show-types';
 import { Dog } from '../../types/dog-types';
 import { User } from '../../types/show-types';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: Record<string, unknown>) => void;
@@ -280,8 +281,9 @@ class OfflineReportService {
 
       const ringAssignments = this.groupClassesByRing(data.classes);
       for (const [ring, classes] of Object.entries(ringAssignments)) {
+        const ringLabel = formatRingLabel(ring) ?? 'Unassigned';
         doc.setFontSize(10);
-        doc.text(`Ring ${ring}: ${classes.length} classes`, 20, yPosition);
+        doc.text(`${ringLabel}: ${classes.length} classes`, 20, yPosition);
         yPosition += 5;
       }
     }

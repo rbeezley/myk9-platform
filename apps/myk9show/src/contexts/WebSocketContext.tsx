@@ -1,6 +1,7 @@
 import React, { createContext, useEffect, useState, useCallback, useRef } from 'react';
 import { ExhibitorEvent, RingStatus, ExhibitorEntry, CheckInStatus } from '@/types/exhibitor-types';
 import { logger } from '@/services/LoggingService';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface WebSocketContextType {
   connected: boolean;
@@ -15,24 +16,23 @@ interface WebSocketContextType {
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
-
 interface WebSocketProviderProps {
   children: React.ReactNode;
   url?: string;
   exhibitorId: string;
 }
 
-const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ 
-  children, 
+const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
+  children,
   url = 'ws://localhost:3001/exhibitor',
-  exhibitorId 
+  exhibitorId,
 }) => {
   const [connected, setConnected] = useState(false);
   const [ringStatus, setRingStatus] = useState<Map<string, RingStatus>>(new Map());
   const [entryUpdates, setEntryUpdates] = useState<Map<string, ExhibitorEntry>>(new Map());
   const [notifications, setNotifications] = useState<ExhibitorEvent[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const subscribedClasses = useRef<Set<string>>(new Set());
@@ -79,10 +79,11 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         // Could trigger push notification here
         if ('Notification' in window && Notification.permission === 'granted') {
           const ringData = event.data as { ringNumber?: number };
+          const ringLabel = formatRingLabel(ringData.ringNumber);
           const notificationOptions: NotificationOptions = {
-            body: `You're needed at Ring ${ringData.ringNumber || 'Unknown'}`,
+            body: ringLabel ? `You're needed at ${ringLabel}` : "You're needed at the ring",
             icon: '/logo.png',
-            badge: '/badge.png'
+            badge: '/badge.png',
           };
           // Add vibrate if supported
           if ('vibrate' in navigator) {
@@ -114,23 +115,27 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         reconnectAttempts.current = 0;
 
         // Send authentication
-        ws.send(JSON.stringify({
-          type: 'auth',
-          exhibitorId,
-          timestamp: new Date().toISOString()
-        }));
+        ws.send(
+          JSON.stringify({
+            type: 'auth',
+            exhibitorId,
+            timestamp: new Date().toISOString(),
+          })
+        );
 
         // Re-subscribe to classes after reconnection
         subscribedClasses.current.forEach(classId => {
-          ws.send(JSON.stringify({
-            type: 'subscribe',
-            classId,
-            timestamp: new Date().toISOString()
-          }));
+          ws.send(
+            JSON.stringify({
+              type: 'subscribe',
+              classId,
+              timestamp: new Date().toISOString(),
+            })
+          );
         });
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = event => {
         try {
           const data: ExhibitorEvent = JSON.parse(event.data);
           handleMessage(data);
@@ -139,7 +144,7 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         }
       };
 
-      ws.onerror = (error) => {
+      ws.onerror = error => {
         logger.error('WebSocket error', 'websocket', { error });
       };
 
@@ -151,7 +156,10 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         // Attempt to reconnect using the ref to avoid circular dependency
         if (reconnectAttempts.current < maxReconnectAttempts) {
           reconnectAttempts.current++;
-          logger.info('Attempting to reconnect', 'websocket', { attempt: reconnectAttempts.current, maxAttempts: maxReconnectAttempts });
+          logger.info('Attempting to reconnect', 'websocket', {
+            attempt: reconnectAttempts.current,
+            maxAttempts: maxReconnectAttempts,
+          });
           reconnectTimeoutRef.current = setTimeout(() => connectRef.current(), reconnectDelay);
         }
       };
@@ -168,26 +176,30 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   // Subscribe to class updates
   const subscribe = useCallback((classId: string) => {
     subscribedClasses.current.add(classId);
-    
+
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'subscribe',
-        classId,
-        timestamp: new Date().toISOString()
-      }));
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'subscribe',
+          classId,
+          timestamp: new Date().toISOString(),
+        })
+      );
     }
   }, []);
 
   // Unsubscribe from class updates
   const unsubscribe = useCallback((classId: string) => {
     subscribedClasses.current.delete(classId);
-    
+
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'unsubscribe',
-        classId,
-        timestamp: new Date().toISOString()
-      }));
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'unsubscribe',
+          classId,
+          timestamp: new Date().toISOString(),
+        })
+      );
     }
   }, []);
 
@@ -214,10 +226,12 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   useEffect(() => {
     const pingInterval = setInterval(() => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'ping',
-          timestamp: new Date().toISOString()
-        }));
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'ping',
+            timestamp: new Date().toISOString(),
+          })
+        );
       }
     }, 30000); // Every 30 seconds
 
@@ -232,14 +246,10 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     subscribe,
     unsubscribe,
     clearNotifications,
-    lastUpdate
+    lastUpdate,
   };
 
-  return (
-    <WebSocketContext.Provider value={value}>
-      {children}
-    </WebSocketContext.Provider>
-  );
+  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };
 
 export { WebSocketContext, WebSocketProvider };

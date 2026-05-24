@@ -17,6 +17,7 @@ import {
 import type { CheckInStatus } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import type { GateEntry, GateStats } from './GateStewardInterface.types';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 /* ---------- Stats Cards ---------- */
 
@@ -84,63 +85,67 @@ export const GateEntryRow: React.FC<GateEntryRowProps> = ({
   entry,
   onStatusClick,
   onQuickStatusUpdate,
-}) => (
-  <div
-    className={cn(
-      'border-b last:border-b-0 p-4 hover:bg-muted/50 transition-colors',
-      entry.isUrgent && 'bg-orange-50 dark:bg-orange-950/20 border-orange-200',
-      entry.checkInStatus === 'conflict' && 'bg-red-50 dark:bg-red-950/20 border-red-200'
-    )}
-  >
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="font-mono">
-            #{entry.armband}
-          </Badge>
-          <Badge variant="secondary">Ring {entry.ring}</Badge>
-          {entry.isUrgent && (
-            <Badge variant="destructive" className="animate-pulse">
-              URGENT
-            </Badge>
-          )}
-        </div>
+}) => {
+  const ringLabel = formatRingLabel(entry.ring);
 
-        <div>
-          <div className="font-medium">{entry.dogName}</div>
-          <div className="text-sm text-muted-foreground">
-            {entry.handlerName} &bull; {entry.className}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Judge: {entry.judgeAssigned}
-            {entry.estimatedRunTime && (
-              <span> &bull; Est. {entry.estimatedRunTime.toLocaleTimeString()}</span>
+  return (
+    <div
+      className={cn(
+        'border-b last:border-b-0 p-4 hover:bg-muted/50 transition-colors',
+        entry.isUrgent && 'bg-orange-50 dark:bg-orange-950/20 border-orange-200',
+        entry.checkInStatus === 'conflict' && 'bg-red-50 dark:bg-red-950/20 border-red-200'
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="font-mono">
+              #{entry.armband}
+            </Badge>
+            {ringLabel && <Badge variant="secondary">{ringLabel}</Badge>}
+            {entry.isUrgent && (
+              <Badge variant="destructive" className="animate-pulse">
+                URGENT
+              </Badge>
             )}
           </div>
+
+          <div>
+            <div className="font-medium">{entry.dogName}</div>
+            <div className="text-sm text-muted-foreground">
+              {entry.handlerName} &bull; {entry.className}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Judge: {entry.judgeAssigned}
+              {entry.estimatedRunTime && (
+                <span> &bull; Est. {entry.estimatedRunTime.toLocaleTimeString()}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => onStatusClick(entry)}
+            className="hover:scale-105 transition-transform"
+          >
+            <CheckInStatusIndicator
+              status={entry.checkInStatus}
+              size="md"
+              showLabel={true}
+              showTooltip={true}
+            />
+          </button>
+
+          <CheckInQuickActions
+            currentStatus={entry.checkInStatus}
+            onUpdateStatus={status => onQuickStatusUpdate(entry, status)}
+          />
         </div>
       </div>
-
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => onStatusClick(entry)}
-          className="hover:scale-105 transition-transform"
-        >
-          <CheckInStatusIndicator
-            status={entry.checkInStatus}
-            size="md"
-            showLabel={true}
-            showTooltip={true}
-          />
-        </button>
-
-        <CheckInQuickActions
-          currentStatus={entry.checkInStatus}
-          onUpdateStatus={status => onQuickStatusUpdate(entry, status)}
-        />
-      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ---------- Empty State ---------- */
 

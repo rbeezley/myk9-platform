@@ -28,6 +28,7 @@ import {
 import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 import { FadeIn } from '@/components/layout/FadeIn';
 import { deriveJudgeDashboardStats, type JudgeClass } from './judgeStatsUtils';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 const JUDGE_TABS: PrimaryTabDef[] = [
   { id: 'today', label: 'Today', icon: CalendarDays },
@@ -249,49 +250,53 @@ const JudgeDashboard: React.FC = () => {
                 className="space-y-6"
               >
                 <TabsContent value="today" className="space-y-4">
-                  {assignments.map(judgeClass => (
-                    <div
-                      key={judgeClass.id}
-                      className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                      <div className="relative flex items-center gap-4">
-                        {getStatusIcon(judgeClass.status)}
-                        <div>
-                          <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
-                            {judgeClass.name}
-                          </h3>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                            <span>Ring {judgeClass.ringNumber}</span>
-                            <span>&bull;</span>
-                            <span>
-                              {judgeClass.scheduledTime.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                            <span>&bull;</span>
-                            <span>
-                              {judgeClass.completedEntries}/{judgeClass.totalEntries} entries
-                            </span>
+                  {assignments.map(judgeClass => {
+                    const ringLabel = formatRingLabel(judgeClass.ringNumber);
+
+                    return (
+                      <div
+                        key={judgeClass.id}
+                        className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                        <div className="relative flex items-center gap-4">
+                          {getStatusIcon(judgeClass.status)}
+                          <div>
+                            <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
+                              {judgeClass.name}
+                            </h3>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                              {ringLabel && <span>{ringLabel}</span>}
+                              {ringLabel && <span>&bull;</span>}
+                              <span>
+                                {judgeClass.scheduledTime.toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                              <span>&bull;</span>
+                              <span>
+                                {judgeClass.completedEntries}/{judgeClass.totalEntries} entries
+                              </span>
+                            </div>
                           </div>
                         </div>
+                        <div className="relative flex items-center gap-2">
+                          {getStatusBadge(judgeClass.status)}
+                          {judgeClass.status !== 'completed' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleStartJudging(judgeClass)}
+                              className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+                            >
+                              {judgeClass.status === 'in-progress' ? 'Continue' : 'Start'} Judging
+                              <ArrowRight className="h-4 w-4 ml-2" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <div className="relative flex items-center gap-2">
-                        {getStatusBadge(judgeClass.status)}
-                        {judgeClass.status !== 'completed' && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleStartJudging(judgeClass)}
-                            className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-                          >
-                            {judgeClass.status === 'in-progress' ? 'Continue' : 'Start'} Judging
-                            <ArrowRight className="h-4 w-4 ml-2" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {assignments.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-16">
@@ -326,35 +331,39 @@ const JudgeDashboard: React.FC = () => {
                   <div className="space-y-4">
                     {assignments
                       .filter(c => c.status === 'completed')
-                      .map(judgeClass => (
-                        <div
-                          key={judgeClass.id}
-                          className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-success-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                          <div className="relative flex items-center gap-4">
-                            {getStatusIcon(judgeClass.status)}
-                            <div>
-                              <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
-                                {judgeClass.name}
-                              </h3>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                                <span>Ring {judgeClass.ringNumber}</span>
-                                <span>&bull;</span>
-                                <span>{judgeClass.totalEntries} entries judged</span>
+                      .map(judgeClass => {
+                        const ringLabel = formatRingLabel(judgeClass.ringNumber);
+
+                        return (
+                          <div
+                            key={judgeClass.id}
+                            className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-success-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <div className="relative flex items-center gap-4">
+                              {getStatusIcon(judgeClass.status)}
+                              <div>
+                                <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
+                                  {judgeClass.name}
+                                </h3>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                                  {ringLabel && <span>{ringLabel}</span>}
+                                  {ringLabel && <span>&bull;</span>}
+                                  <span>{judgeClass.totalEntries} entries judged</span>
+                                </div>
                               </div>
                             </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="relative border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Results
+                            </Button>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="relative border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Results
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                     {assignments.filter(c => c.status === 'completed').length === 0 && (
                       <div className="flex flex-col items-center justify-center py-16">

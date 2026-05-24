@@ -28,6 +28,7 @@ import {
   List,
   Crown,
   Shield,
+  ShieldCheck,
   Compass,
   Search,
   FileBarChart,
@@ -110,6 +111,12 @@ export function buildUnifiedSidebarConfig(
             description: 'System overview',
           },
           { title: 'Users', href: '/admin/users', icon: Users, description: 'User accounts' },
+          {
+            title: 'Role Requests',
+            href: '/admin/role-requests',
+            icon: ShieldCheck,
+            description: 'Review elevated access',
+          },
           {
             title: 'Roles & Permissions',
             href: '/admin/permissions',

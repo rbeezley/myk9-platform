@@ -3413,6 +3413,57 @@ export type Database = {
         }
         Relationships: []
       }
+      role_requests: {
+        Row: {
+          auth_user_id: string
+          club_id: string | null
+          created_at: string
+          id: string
+          person_id: string
+          requested_role: string
+          requested_scope: string
+          requester_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_note: string | null
+          show_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          club_id?: string | null
+          created_at?: string
+          id?: string
+          person_id: string
+          requested_role: string
+          requested_scope?: string
+          requester_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_note?: string | null
+          show_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          club_id?: string | null
+          created_at?: string
+          id?: string
+          person_id?: string
+          requested_role?: string
+          requested_scope?: string
+          requester_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_note?: string | null
+          show_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       organization_agreements: {
         Row: {
           agreement_text: string
@@ -7430,6 +7481,19 @@ export type Database = {
           scope_type: string
           user_role_id: string
         }[]
+      }
+      approve_role_request: {
+        Args: {
+          p_club_id: string
+          p_request_id: string
+          p_reviewer_note?: string | null
+          p_show_id?: string | null
+        }
+        Returns: undefined
+      }
+      deny_role_request: {
+        Args: { p_request_id: string; p_reviewer_note?: string | null }
+        Returns: undefined
       }
       grant_show_official: {
         Args: { p_person_id: string; p_role_name: string; p_show_id: string }

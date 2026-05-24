@@ -1,20 +1,15 @@
-import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import {
-  ChevronDown,
-  ClipboardCheck,
   Eye,
   FileBarChart,
   ListChecks,
   ListTree,
-  Medal,
   Pencil,
   Send,
-  Wrench,
 } from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
@@ -68,13 +63,10 @@ import { CLASS_STATUS } from '@myk9/core';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
 
-const ShowMapTab = lazy(() => import('@/features/show-map/ShowMapTab'));
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
 
 const PHASE_TABS: PrimaryTabDef[] = [
   { id: 'setup', label: 'Setup', icon: ListChecks },
-  { id: 'today', label: 'Today', icon: ClipboardCheck },
-  { id: 'wrap-up', label: 'Wrap-up', icon: Medal },
   { id: 'show-desk', label: 'Show Desk', icon: ListTree },
 ];
 
@@ -86,30 +78,6 @@ function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
       </div>
     </section>
-  );
-}
-
-function TodayDeskToolsSection({ children }: { children: ReactNode }) {
-  return (
-    <Collapsible defaultOpen>
-      <section className="space-y-2" aria-label="Desk tools">
-        <CollapsibleTrigger className="rounded-md border bg-muted/20 px-3 py-3 text-left hover:no-underline">
-          <span className="flex min-w-0 items-start gap-3">
-            <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">Desk tools</span>
-              <span className="block text-xs font-normal text-muted-foreground">
-                Late entries, broadcasts, incidents, delay scripts, and access codes.
-              </span>
-            </span>
-          </span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="space-y-4 pt-1">{children}</div>
-        </CollapsibleContent>
-      </section>
-    </Collapsible>
   );
 }
 
@@ -405,131 +373,6 @@ export function ShowWorkbenchPage() {
                 <JudgesList judges={effectiveJudges} />
               </div>
             </div>
-          </div>
-        </PrimaryTabsContent>
-        <PrimaryTabsContent value="today">
-          <PhaseShell title="Today" kicker="Live operations" />
-          <div className="space-y-4">
-            <AboutThisPhase phase="today" showId={currentShow.id} />
-            {checklistContext && (
-              <PhaseChecklist
-                key={`${currentShow.id}:today`}
-                phase="today"
-                showId={currentShow.id}
-                context={checklistContext}
-              />
-            )}
-            <ShowWorkbenchAskQHelp phase="today" />
-            <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-              <ShowMapTab
-                show={currentShow}
-                trials={showMapTrials}
-                classes={showClasses}
-                entries={showEntries}
-                canManageShow
-                initialDayScope="today"
-                actionPhase="today"
-              />
-            </Suspense>
-            <TodayDeskToolsSection>
-              <WorkbenchLateEntryAction showId={currentShow.id} />
-              <JudgeHospitalityCard
-                showId={currentShow.id}
-                judges={effectiveJudges.map(judge => ({
-                  id: judge.judgeId,
-                  name: judge.judgeName,
-                }))}
-              />
-              <QuickBroadcastCard showId={currentShow.id} />
-              <ClassBroadcastCard
-                showId={currentShow.id}
-                classes={showClasses.map(cls => ({
-                  id: cls.id,
-                  label: buildClassBroadcastClassLabel({
-                    name: cls.name,
-                    section: cls.section,
-                  }),
-                  entryCount: cls.entryCount,
-                }))}
-              />
-              <IncidentLogCard
-                showId={currentShow.id}
-                entries={incidentEntryOptions}
-                judges={effectiveJudges.map(judge => ({
-                  id: judge.judgeId,
-                  name: judge.judgeName,
-                  personId: isValidUUID(judge.judgeId.trim()) ? judge.judgeId.trim() : null,
-                }))}
-              />
-              <ScheduleSlipScriptCard
-                showId={currentShow.id}
-                showName={currentShow.name}
-                defaultClassName={showClasses[0]?.name ?? ''}
-              />
-              <MyK9QAccessCard
-                showId={currentShow.id}
-                showName={currentShow.name}
-                showDate={currentShow.startDate}
-              />
-            </TodayDeskToolsSection>
-          </div>
-        </PrimaryTabsContent>
-        <PrimaryTabsContent value="wrap-up">
-          <PhaseShell title="Wrap-up" kicker="After the show" />
-          <div className="space-y-4">
-            <AboutThisPhase phase="wrap-up" showId={currentShow.id} />
-            {checklistContext && (
-              <PhaseChecklist
-                key={`${currentShow.id}:wrap-up`}
-                phase="wrap-up"
-                showId={currentShow.id}
-                context={checklistContext}
-              />
-            )}
-            <ShowWorkbenchAskQHelp phase="wrap-up" />
-            <ShowDayReconciliation entries={showEntries} />
-            <IncidentCloseoutSummary showId={currentShow.id} />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to="/secretary/results-control">
-                  <ListChecks className="h-5 w-5" />
-                  <span className="text-left">
-                    <span className="block font-medium">Results Control</span>
-                    <span className="block text-xs text-muted-foreground">Verify results</span>
-                  </span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to="/secretary/reports">
-                  <FileBarChart className="h-5 w-5" />
-                  <span className="text-left">
-                    <span className="block font-medium">Reports</span>
-                    <span className="block text-xs text-muted-foreground">Print and export</span>
-                  </span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to="/secretary/results-submission">
-                  <Send className="h-5 w-5" />
-                  <span className="text-left">
-                    <span className="block font-medium">Submit Results</span>
-                    <span className="block text-xs text-muted-foreground">Send final files</span>
-                  </span>
-                </Link>
-              </Button>
-            </div>
-            <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-              <ShowMapTab
-                show={currentShow}
-                trials={showMapTrials}
-                classes={showClasses}
-                entries={showEntries}
-                canManageShow
-                initialDayScope="all"
-                initialCompletionScope="completed"
-                actionPhase="wrap-up"
-              />
-            </Suspense>
           </div>
         </PrimaryTabsContent>
         <PrimaryTabsContent value="show-desk">

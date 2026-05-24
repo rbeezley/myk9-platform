@@ -6,39 +6,21 @@ export interface ExampleQuery {
 export interface SecretaryShowDayPrompt {
   label: string;
   prompt: string;
-  phases: Array<'setup' | 'today' | 'wrap-up'>;
+  phases: Array<'setup'>;
 }
 
+// INTENT: Phase B5 removed the Today and Wrap-up workbench tabs, so the
+// live-ops / closeout AskQ prompts that lived there have no surface to
+// render in. Only setup-phase prompts remain. The full live-ops prompt
+// set (scratch, move-up, ring delay, handler messaging, submission
+// checklist) is captured in the plan's deferred B7+ work — re-home them
+// to the Show Desk adaptive header's contextual help or a per-action
+// `?` popover when that surfaces.
 export const SECRETARY_SHOW_DAY_PROMPTS: SecretaryShowDayPrompt[] = [
-  {
-    label: 'Scratch or no-show',
-    prompt: 'What should I do if an exhibitor says their dog is a scratch or no-show today?',
-    phases: ['today'],
-  },
-  {
-    label: 'Move-up request',
-    prompt: 'What should I do if an exhibitor asks to move up after entries have closed?',
-    phases: ['today'],
-  },
   {
     label: 'Late entry help',
     prompt: 'What should I do if someone walks up and wants to enter on show day?',
-    phases: ['setup', 'today'],
-  },
-  {
-    label: 'Ring running behind',
-    prompt: 'What should I do if one ring is running behind schedule?',
-    phases: ['today'],
-  },
-  {
-    label: 'Message handler',
-    prompt: 'What should I say to a handler who has not checked in yet?',
-    phases: ['today'],
-  },
-  {
-    label: 'Submit results',
-    prompt: 'What should I check before submitting final results after the show?',
-    phases: ['wrap-up'],
+    phases: ['setup'],
   },
 ];
 

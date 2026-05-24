@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -381,10 +381,12 @@ describe('ShowWorkbenchPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('detail-hero')).toHaveTextContent('Bluegrass Classic');
     });
+    // Phase B5: only Setup + Show Desk remain. Today and Wrap-up tabs were
+    // removed; their surfaces are now reachable from Show Desk.
     expect(screen.getByRole('tab', { name: /Setup/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Today/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Wrap-up/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Show Desk/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^Today$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^Wrap-up$/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /preview public page/i })).toHaveAttribute(
       'href',
       '/shows/show-1'
@@ -393,10 +395,24 @@ describe('ShowWorkbenchPage', () => {
   });
 
   it('honors the phase URL param', async () => {
+    renderWorkbench('/secretary/shows/show-1?phase=setup');
+
+    const setupTab = await screen.findByRole('tab', { name: /Setup/ });
+    expect(setupTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('redirects legacy ?phase=today to Show Desk (Phase B5)', async () => {
     renderWorkbench('/secretary/shows/show-1?phase=today');
 
-    const todayTab = await screen.findByRole('tab', { name: /Today/ });
-    expect(todayTab).toHaveAttribute('aria-selected', 'true');
+    const showDeskTab = await screen.findByRole('tab', { name: /Show Desk/ });
+    expect(showDeskTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('redirects legacy ?phase=wrap-up to Show Desk (Phase B5)', async () => {
+    renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
+
+    const showDeskTab = await screen.findByRole('tab', { name: /Show Desk/ });
+    expect(showDeskTab).toHaveAttribute('aria-selected', 'true');
   });
 
   it('lands on Show Desk by default when no ?phase is provided (Phase B2a)', async () => {
@@ -423,9 +439,9 @@ describe('ShowWorkbenchPage', () => {
     const user = userEvent.setup();
     renderWorkbench();
 
-    await user.click(await screen.findByRole('tab', { name: /Wrap-up/ }));
+    await user.click(await screen.findByRole('tab', { name: /Setup/ }));
 
-    expect(screen.getByRole('tab', { name: /Wrap-up/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Setup/ })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('renders Setup panels without public-discovery panels', async () => {
@@ -448,174 +464,18 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.queryByTestId('myk9q-access')).not.toBeInTheDocument();
   });
 
-  it('renders Today operational surfaces with show-map data', async () => {
-    mockTrials = [
-      {
-        id: 'trial-1',
-        showId: 'show-1',
-        order: '1',
-        trialDate: '2026-03-22',
-        trialNumber: '1',
-        name: 'Trial 1',
-      },
-    ];
-    mockTrialClasses = {
-      'trial-1': [
-        {
-          id: 'class-1',
-          element: 'Container',
-          level: 'Novice A',
-          section: 'A',
-          status: 'scheduled',
-        },
-      ],
-    };
-    mockShowEntries = [{ id: 'entry-1', class_id: 'class-1' }];
-
-    renderWorkbench('/secretary/shows/show-1?phase=today');
-
-    expect(await screen.findByRole('heading', { name: 'About Today' })).toBeInTheDocument();
-    expect(screen.getByText(/keep rings moving/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Late entry help' })).toBeInTheDocument();
-    expect(await screen.findByText('Entries are loaded')).toBeInTheDocument();
-    const showMap = await screen.findByTestId('show-map-tab');
-    const deskTools = screen.getByRole('button', { name: /desk tools/i });
-    expect(showMap.compareDocumentPosition(deskTools) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING
-    );
-    expect(deskTools).toHaveAttribute('aria-expanded', 'true');
-
-    expect(screen.getByTestId('late-entry-action')).toHaveTextContent('Add late entry for show-1');
-    expect(screen.getByRole('heading', { name: 'Hospitality' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Quick broadcast' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Message a class' })).toBeInTheDocument();
-    expect(screen.getByTestId('incident-log-card')).toHaveTextContent('Incident log for show-1');
-    expect(screen.getByTestId('incident-log-card')).toHaveAttribute('data-entry-count', '1');
-    expect(screen.getByRole('heading', { name: 'Schedule delay script' })).toBeInTheDocument();
-    expect((screen.getByLabelText('PA script') as HTMLTextAreaElement).value).toContain(
-      'Container Novice A will start later than the posted schedule.'
-    );
-    expect(await screen.findByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
-    expect(showMap).toHaveAttribute('data-show-id', 'show-1');
-    expect(showMap).toHaveAttribute('data-trial-count', '1');
-    expect(showMap).toHaveAttribute('data-class-count', '1');
-    expect(showMap).toHaveAttribute('data-has-ring', 'false');
-    expect(showMap).toHaveAttribute('data-entry-count', '1');
-    expect(showMap).toHaveAttribute('data-can-manage', 'true');
-  });
-
-  it('renders Wrap-up links to existing closeout surfaces', async () => {
-    mockTrials = [
-      {
-        id: 'trial-1',
-        showId: 'show-1',
-        order: '1',
-        trialDate: '2026-03-22',
-        trialNumber: '1',
-        name: 'Trial 1',
-      },
-    ];
-    mockTrialClasses = {
-      'trial-1': [
-        {
-          id: 'class-1',
-          element: 'Container',
-          level: 'Novice A',
-          section: 'A',
-          status: 'completed',
-        },
-      ],
-    };
-    mockResultSubmissions = [
-      {
-        id: 'submission-1',
-        show_id: 'show-1',
-        trial_id: null,
-        submitted_at: '2026-03-22T20:00:00Z',
-        status: 'sent',
-      },
-    ];
-    mockShowEntries = [
-      {
-        id: 'late-cash',
-        class_id: 'class-1',
-        is_day_of_show: true,
-        entry_fee: 35,
-        payment_status: 'paid',
-        payment_method: 'cash',
-      },
-      {
-        id: 'early-online',
-        class_id: 'class-1',
-        is_day_of_show: false,
-        entry_fee: 30,
-        payment_status: 'paid',
-        payment_method: 'online',
-      },
-      {
-        id: 'paid-scratch',
-        class_id: 'class-1',
-        entry_fee: 35,
-        entry_status: 'scratched',
-        check_in_status: 'pulled',
-        payment_status: 'paid',
-      },
-    ];
-
-    renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
-
-    expect(await screen.findByRole('heading', { name: 'About Wrap-up' })).toBeInTheDocument();
-    expect(screen.getByText(/submit final files/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Show-day reconciliation' })).toBeInTheDocument();
-    expect(screen.getByTestId('incident-closeout-summary')).toHaveTextContent(
-      'Incident closeout for show-1'
-    );
-    expect(
-      within(screen.getByRole('group', { name: 'Collected late-entry fees' })).getByText('$35.00')
-    ).toBeInTheDocument();
-    expect(screen.getByText('1 pulled · 1 review')).toBeInTheDocument();
-    expect(
-      within(screen.getByRole('group', { name: 'Show entries' })).getByText('1 day-of')
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByRole('group', { name: 'Manual refund review' })).getByText(
-        '$35.00 paid entries'
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Submit results' })).toBeInTheDocument();
-    expect(await screen.findByText('Classes are complete')).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: /Results Control/ })).toHaveAttribute(
-      'href',
-      '/secretary/results-control'
-    );
-    expect(screen.getByRole('link', { name: /Reports/ })).toHaveAttribute(
-      'href',
-      '/secretary/reports'
-    );
-    expect(screen.getByRole('link', { name: /Submit Results/ })).toHaveAttribute(
-      'href',
-      '/secretary/results-submission'
-    );
-    const showMap = await screen.findByTestId('show-map-tab');
-    expect(showMap).toHaveAttribute('data-show-id', 'show-1');
-    expect(showMap).toHaveAttribute('data-initial-day-scope', 'all');
-    expect(showMap).toHaveAttribute('data-initial-completion-scope', 'completed');
-    expect(showMap).toHaveAttribute('data-action-phase', 'wrap-up');
-    expect(showMap).toHaveAttribute('data-submitted-trial-count', '1');
-    expect(screen.getByText(/wrap-up starts with completed entries/i)).toBeInTheDocument();
-  });
-
-  it('opens AskQ with a selected show-day prompt', async () => {
-    const user = userEvent.setup();
-    renderWorkbench('/secretary/shows/show-1?phase=today');
-
-    await user.click(await screen.findByRole('button', { name: 'Scratch or no-show' }));
-
-    expect(useAskQPanelStore.getState().isOpen).toBe(true);
-    expect(useAskQPanelStore.getState().suggestedPrompt).toBe(
-      'What should I do if an exhibitor says their dog is a scratch or no-show today?'
-    );
-  });
+  // Phase B5 removed the Today and Wrap-up workbench tabs entirely. Their
+  // surfaces are now reachable from Show Desk (tree, tools sheet, closeout
+  // section). The two former tests "renders Today operational surfaces" and
+  // "renders Wrap-up links to existing closeout surfaces" were exercising
+  // those deleted tabs and have been removed alongside the tabs themselves.
+  // The Tools sheet behavior is now covered by ShowDeskToolsSheet.test.tsx
+  // and the Closeout section by ShowDeskCloseoutSection.test.tsx.
+  //
+  // The "opens AskQ with a selected show-day prompt" test was also removed —
+  // the "Scratch or no-show" prompt it asserted was a Today-phase prompt that
+  // B5 dropped from SECRETARY_SHOW_DAY_PROMPTS. Setup-tab AskQ usage is
+  // covered by ShowWorkbenchAskQHelp.test.tsx.
 
   it('navigates to the existing edit surface', async () => {
     const user = userEvent.setup();

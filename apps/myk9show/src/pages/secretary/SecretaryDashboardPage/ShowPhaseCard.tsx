@@ -16,7 +16,7 @@ interface ShowPhaseCardProps {
   closedCount?: number | undefined;
 }
 
-const workbenchHref = (showId: string, phase: 'setup' | 'today' | 'wrap-up') =>
+const workbenchHref = (showId: string, phase: 'setup' | 'show-desk') =>
   `/secretary/shows/${showId}?phase=${phase}`;
 
 function TodayCard({
@@ -39,7 +39,7 @@ function TodayCard({
         </p>
       </div>
       <Button asChild size="sm" className="shrink-0">
-        <Link to={workbenchHref(show.id, 'today')}>
+        <Link to={workbenchHref(show.id, 'show-desk')}>
           <Play className="mr-1.5 h-3.5 w-3.5" />
           Go to show
         </Link>
@@ -138,7 +138,7 @@ function PastCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
         </p>
       </div>
       <Button asChild variant="ghost" size="sm" className="shrink-0 text-muted-foreground">
-        <Link to={workbenchHref(show.id, 'wrap-up')}>
+        <Link to={workbenchHref(show.id, 'show-desk')}>
           View
           <ArrowRight className="ml-1 h-3.5 w-3.5" />
         </Link>

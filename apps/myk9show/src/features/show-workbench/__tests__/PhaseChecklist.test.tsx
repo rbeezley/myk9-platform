@@ -94,30 +94,31 @@ describe('PhaseChecklist', () => {
 
   it('allows manual done and skip choices without changing auto-complete items', async () => {
     const { user } = render(
-      <PhaseChecklist phase="today" showId="show-1" context={todayContext} />
+      <PhaseChecklist phase="setup" showId="show-1" context={todayContext} />
     );
 
-    const entriesRow = itemRow('Entries are loaded');
-    await user.click(within(entriesRow).getByRole('button', { name: 'Mark done' }));
-    expect(within(entriesRow).getByText('Done')).toBeInTheDocument();
+    // Trials are added auto-completes from the trial fixture; mark a manual
+    // item open and confirm the auto item is unaffected.
+    const trialsRow = itemRow('Trials are added');
+    expect(within(trialsRow).getByText('Auto')).toBeInTheDocument();
 
-    const attentionRow = itemRow('Attention queue has been reviewed');
-    await user.click(within(attentionRow).getByRole('button', { name: 'Skip' }));
-    expect(within(attentionRow).getByText('Skipped')).toBeInTheDocument();
+    const exhibitorMaterialsRow = itemRow('Exhibitor materials are published');
+    await user.click(within(exhibitorMaterialsRow).getByRole('button', { name: 'Skip' }));
+    expect(within(exhibitorMaterialsRow).getByText('Skipped')).toBeInTheDocument();
 
-    expect(within(itemRow('Show Map is built')).getByText('Auto')).toBeInTheDocument();
+    expect(within(itemRow('Trials are added')).getByText('Auto')).toBeInTheDocument();
     await waitFor(() => {
-      expect(window.localStorage.getItem('myk9show:workbench-checklist:show-1:today')).toContain(
-        'today-entries-loaded'
+      expect(window.localStorage.getItem('myk9show:workbench-checklist:show-1:setup')).toContain(
+        'setup-exhibitor-materials'
       );
     });
   });
 
   it('clears manual choices', async () => {
     const { user } = render(
-      <PhaseChecklist phase="wrap-up" showId="show-1" context={context} />
+      <PhaseChecklist phase="setup" showId="show-1" context={context} />
     );
-    const row = itemRow('Results are reviewed');
+    const row = itemRow('Trials are added');
 
     await user.click(within(row).getByRole('button', { name: 'Skip' }));
     expect(within(row).getByText('Skipped')).toBeInTheDocument();
@@ -128,21 +129,21 @@ describe('PhaseChecklist', () => {
 
   it('clears a manual choice when live data auto-completes the same item', async () => {
     const { rerender, user } = render(
-      <PhaseChecklist phase="today" showId="show-1" context={context} />
+      <PhaseChecklist phase="setup" showId="show-1" context={context} />
     );
-    const row = itemRow('Show Map is built');
+    const row = itemRow('Trials are added');
 
     await user.click(within(row).getByRole('button', { name: 'Mark done' }));
-    expect(window.localStorage.getItem('myk9show:workbench-checklist:show-1:today')).toContain(
-      'today-tools-ready'
+    expect(window.localStorage.getItem('myk9show:workbench-checklist:show-1:setup')).toContain(
+      'setup-trials-added'
     );
 
-    rerender(<PhaseChecklist phase="today" showId="show-1" context={todayContext} />);
+    rerender(<PhaseChecklist phase="setup" showId="show-1" context={todayContext} />);
 
-    expect(within(itemRow('Show Map is built')).getByText('Auto')).toBeInTheDocument();
+    expect(within(itemRow('Trials are added')).getByText('Auto')).toBeInTheDocument();
     await waitFor(() => {
-      expect(window.localStorage.getItem('myk9show:workbench-checklist:show-1:today')).not.toContain(
-        'today-tools-ready'
+      expect(window.localStorage.getItem('myk9show:workbench-checklist:show-1:setup')).not.toContain(
+        'setup-trials-added'
       );
     });
   });

@@ -1,4 +1,6 @@
 import { ChevronDown, ChevronRight, FilterX } from 'lucide-react';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -8,8 +10,11 @@ import { getAttentionNodeIds, getPrimaryActionForNode } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
 import { ShowMapRunOrderMenu } from './ShowMapRunOrderMenu';
+import { ShowMapSortableEntryRow } from './ShowMapSortableEntryRow';
 import { DEFAULT_SHOW_MAP_SCOPE } from './showMapTimeScope';
 import type { ShowMapAutoSortKind } from './showMapRunOrderAutoSort';
+import { isShowMapEntryPinnedForReorder } from './showMapReorderMode';
+import type { ShowMapReorderModeControls } from './useShowMapReorderMode';
 import {
   getFirstVisibleKeyboardChildNodeId,
   getParentKeyboardNodeId,
@@ -54,8 +59,16 @@ interface ShowMapStructureTableProps {
           classLabel: string;
         }) => void;
         isAutoSorting: boolean;
+        onEnterReorderMode?:
+          | ((input: { classId: string; classLabel: string }) => void)
+          | undefined;
       }
     | undefined;
+  // When set, the active class is in drag-and-drop reorder mode. The tree
+  // wraps that class's entries in a SortableContext, swaps in the sortable
+  // entry row, and globally suppresses other interactive surfaces (row
+  // menus, primary buttons, navigation) until reorder mode exits.
+  reorderMode?: ShowMapReorderModeControls | undefined;
 }
 
 const INTERACTIVE_ROW_TARGET_SELECTOR =
@@ -220,13 +233,24 @@ export function ShowMapStructureTable({
   onToggle,
   onNavigate,
   onAction,
-  enableRowActions = true,
+  enableRowActions: enableRowActionsProp = true,
   scope = DEFAULT_SHOW_MAP_SCOPE,
   scopeNow = new Date(),
   attentionCountsByNodeId,
   onResetFilters,
   runOrderControls,
+  reorderMode,
 }: ShowMapStructureTableProps) {
+  // INTENT: While drag-and-drop reorder is active, the tree becomes modal:
+  // row menus, primary buttons, navigation links, and Enter/Space keyboard
+  // shortcuts are suppressed everywhere — the user is committed to one task
+  // (reorder this class) until they hit Escape or Done. Tree expand/collapse
+  // stays available so they can browse around.
+  const isAnyReorderActive = reorderMode?.isReordering ?? false;
+  const enableRowActions = enableRowActionsProp && !isAnyReorderActive;
+  const activeReorderClassNodeId = reorderMode?.active
+    ? `class:${reorderMode.active.classId}`
+    : undefined;
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
   const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>();
   const attentionNodeIds = useMemo(() => getAttentionNodeIds(tree), [tree]);
@@ -375,6 +399,22 @@ export function ShowMapStructureTable({
     const { isDimmed, ...scopeAttrs } = getShowMapNodeScopeAttrs(tree, node, scope, scopeNow);
 
     if (node.type === 'entry') {
+      const isReorderEntry =
+        activeReorderClassNodeId !== undefined && node.parentId === activeReorderClassNodeId;
+      if (isReorderEntry) {
+        return (
+          <ShowMapSortableEntryRow
+            key={nodeId}
+            node={node}
+            depth={depth}
+            isPinned={isShowMapEntryPinnedForReorder(node)}
+            isDimmed={isDimmed}
+            attentionCount={
+              attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0
+            }
+          />
+        );
+      }
       return (
         <li
           key={nodeId}
@@ -491,6 +531,8 @@ export function ShowMapStructureTable({
               entryCount={node.childrenCount}
               onAutoSort={runOrderControls.onAutoSort}
               isAutoSorting={runOrderControls.isAutoSorting}
+              onEnterReorderMode={runOrderControls.onEnterReorderMode}
+              isReordering={isAnyReorderActive}
             />
           )}
           {enableRowActions && (
@@ -532,6 +574,26 @@ export function ShowMapStructureTable({
       );
     }
 
+    const isReorderingThisClass =
+      node.type === 'class' && reorderMode?.active?.classId === node.id.replace(/^class:/, '');
+    const childList = isExpanded && hasChildren ? (
+      <ul role="group">{visibleChildIds.map(id => renderNode(id, depth + 1))}</ul>
+    ) : null;
+    const wrappedChildList =
+      isReorderingThisClass && childList && reorderMode ? (
+        <DndContext
+          sensors={reorderMode.sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={reorderMode.onDragEnd}
+        >
+          <SortableContext items={visibleChildIds} strategy={verticalListSortingStrategy}>
+            {childList}
+          </SortableContext>
+        </DndContext>
+      ) : (
+        childList
+      );
+
     return (
       <li
         key={nodeId}
@@ -543,16 +605,15 @@ export function ShowMapStructureTable({
         <div
           className={cn(
             'grid min-h-14 grid-cols-[minmax(260px,1.5fr)_minmax(150px,0.7fr)_minmax(170px,0.8fr)_minmax(160px,auto)] items-center gap-3 border-b px-3 py-2 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            isDimmed && 'opacity-60'
+            isDimmed && 'opacity-60',
+            isReorderingThisClass && 'border-primary/30 bg-primary/5'
           )}
           {...getRowActionOpenProps(node.id)}
         >
           {rowContent}
         </div>
 
-        {isExpanded && hasChildren && (
-          <ul role="group">{visibleChildIds.map(id => renderNode(id, depth + 1))}</ul>
-        )}
+        {wrappedChildList}
       </li>
     );
   };

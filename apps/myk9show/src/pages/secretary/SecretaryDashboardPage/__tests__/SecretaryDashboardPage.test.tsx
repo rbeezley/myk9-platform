@@ -36,8 +36,9 @@ vi.mock('@/store/messageStore', () => ({
     selector({ unreadCount: 0 }),
 }));
 
+const mockUseSecretaryTasks = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
-  useSecretaryTasks: () => ({ data: [] }),
+  useSecretaryTasks: (...args: unknown[]) => mockUseSecretaryTasks(...args),
   useCreateTask: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateTask: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteTask: () => ({ mutate: vi.fn(), isPending: false }),
@@ -62,11 +63,17 @@ function renderPage() {
 describe('SecretaryDashboardPage', () => {
   beforeEach(() => {
     mockPendingEntries = [];
+    mockUseSecretaryTasks.mockReturnValue({ data: [] });
     mockUseMissionControlData.mockReturnValue({
       shows: [],
       isLoading: false,
       classesByStage: new Map(),
     });
+  });
+
+  it("queries useSecretaryTasks with 'general' so the badge only counts personal tasks", () => {
+    renderPage();
+    expect(mockUseSecretaryTasks).toHaveBeenCalledWith('general');
   });
 
   it('does not show the empty state while post-login show sync is still loading', () => {

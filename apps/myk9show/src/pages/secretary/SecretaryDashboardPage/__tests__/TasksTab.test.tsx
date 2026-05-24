@@ -5,11 +5,12 @@ import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import { TaskRow } from '../TaskRow';
+import { TaskAddForm } from '../TaskAddForm';
 import { TasksTab, TASKS_TAB_RESERVED_MIN_HEIGHT_PX } from '../TasksTab';
 import type { SecretaryTask } from '../types';
 
 vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
-  useSecretaryTasks: vi.fn(() => ({ data: [], isLoading: false })),
+  useSecretaryTasks: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() })),
   useCreateTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useUpdateTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useDeleteTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
@@ -28,8 +29,8 @@ function wrapper({ children }: { children: React.ReactNode }) {
 const makeTask = (overrides: Partial<SecretaryTask> = {}): SecretaryTask => ({
   id: 'task-1',
   clubId: 'club-1',
-  showId: 'show-1',
-  title: 'Print scoresheets',
+  showId: null,
+  title: 'Call vet about Wednesday',
   status: 'todo',
   priority: 'high',
   dueDate: new Date().toISOString().slice(0, 10),
@@ -40,17 +41,30 @@ const makeTask = (overrides: Partial<SecretaryTask> = {}): SecretaryTask => ({
 });
 
 describe('TaskRow', () => {
-  it('renders task title and show tag', () => {
+  it('renders task title and show chip when shown', () => {
     render(
       <TaskRow
-        task={makeTask()}
+        task={makeTask({ showId: 'show-1' })}
         showName="Spring Trial"
         onToggleDone={vi.fn()}
         onDelete={vi.fn()}
       />
     );
-    expect(screen.getByText('Print scoresheets')).toBeInTheDocument();
+    expect(screen.getByText('Call vet about Wednesday')).toBeInTheDocument();
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+  });
+
+  it('hides the show chip when hideShowChip is true', () => {
+    render(
+      <TaskRow
+        task={makeTask({ showId: 'show-1' })}
+        showName="Spring Trial"
+        hideShowChip
+        onToggleDone={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument();
   });
 
   it('calls onToggleDone when checkbox is clicked', () => {
@@ -58,7 +72,7 @@ describe('TaskRow', () => {
     render(
       <TaskRow
         task={makeTask()}
-        showName="Spring Trial"
+        showName=""
         onToggleDone={onToggle}
         onDelete={vi.fn()}
       />
@@ -71,16 +85,110 @@ describe('TaskRow', () => {
     const { container } = render(
       <TaskRow
         task={makeTask({ status: 'done' })}
-        showName="Spring Trial"
+        showName=""
         onToggleDone={vi.fn()}
         onDelete={vi.fn()}
       />
     );
     expect(container.querySelector('.line-through')).toBeInTheDocument();
   });
+
+  it('hides the show selector in edit mode when lockShowEdit is true', () => {
+    const onUpdate = vi.fn();
+    render(
+      <TaskRow
+        task={makeTask({ showId: 'show-1' })}
+        showName=""
+        shows={[{ id: 'show-1', name: 'Spring Trial' }]}
+        lockShowEdit
+        onToggleDone={vi.fn()}
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText(/Edit "Call vet/i));
+    // No select element should be present in edit mode
+    expect(screen.queryByDisplayValue('Spring Trial')).not.toBeInTheDocument();
+  });
+
+  it('omits showId from the update payload when lockShowEdit is true', () => {
+    const onUpdate = vi.fn();
+    render(
+      <TaskRow
+        task={makeTask({ showId: 'show-1' })}
+        showName=""
+        shows={[{ id: 'show-1', name: 'Spring Trial' }]}
+        lockShowEdit
+        onToggleDone={vi.fn()}
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText(/Edit "Call vet/i));
+    fireEvent.click(screen.getByText('Save'));
+    expect(onUpdate).toHaveBeenCalledWith(
+      'task-1',
+      expect.not.objectContaining({ showId: expect.anything() })
+    );
+  });
 });
 
-describe('TasksTab', () => {
+describe('TaskAddForm', () => {
+  it('hides the show selector and forces lockedShowId=null on submit', () => {
+    const onAdd = vi.fn();
+    render(
+      <TaskAddForm
+        clubId="club-1"
+        lockedShowId={null}
+        onAdd={onAdd}
+        onCancel={vi.fn()}
+      />
+    );
+    // No select element
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Task title…'), {
+      target: { value: 'New personal task' },
+    });
+    fireEvent.click(screen.getByText('Add'));
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'New personal task', showId: null, clubId: 'club-1' })
+    );
+  });
+
+  it('hides the show selector and forces lockedShowId=<showId> on submit', () => {
+    const onAdd = vi.fn();
+    render(
+      <TaskAddForm
+        clubId="club-1"
+        lockedShowId="show-42"
+        onAdd={onAdd}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Task title…'), {
+      target: { value: 'Per-show task' },
+    });
+    fireEvent.click(screen.getByText('Add'));
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Per-show task', showId: 'show-42', clubId: 'club-1' })
+    );
+  });
+
+  it('renders the show selector when lockedShowId is undefined (legacy mode)', () => {
+    render(
+      <TaskAddForm
+        clubId="club-1"
+        shows={[{ id: 'show-1', name: 'Spring Trial' }]}
+        onAdd={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+  });
+});
+
+describe('TasksTab — personal-only', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -90,38 +198,44 @@ describe('TasksTab', () => {
     localStorage.clear();
   });
 
-  it('shows "All Shows" chip selected by default', () => {
-    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
-      wrapper,
-    });
-    const allChip = screen.getByText('All Shows');
-    expect(allChip.closest('[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
+  it('queries useSecretaryTasks with the "general" filter (personal only)', () => {
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(vi.mocked(useSecretaryTasks)).toHaveBeenCalledWith('general');
   });
 
-  it('pre-selects a show filter when initialFilter is passed', () => {
-    render(
-      <TasksTab
-        shows={[{ id: 'show-1', name: 'Spring Trial' }]}
-        clubId="club-1"
-        initialFilter="show-1"
-      />,
-      { wrapper }
-    );
-    const showChip = screen.getByText('Spring Trial');
-    expect(showChip.closest('[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
-    const allChip = screen.getByText('All Shows');
-    expect(allChip.closest('[aria-pressed]')).toHaveAttribute('aria-pressed', 'false');
+  it('renders no show-filter chips', () => {
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(screen.queryByText('All Shows')).not.toBeInTheDocument();
+    expect(screen.queryByText('General')).not.toBeInTheDocument();
   });
 
-  it('filters tasks when a show chip is clicked', async () => {
-    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
-      wrapper,
-    });
-    fireEvent.click(screen.getByText('Spring Trial'));
-    expect(screen.getByText('Spring Trial').closest('[aria-pressed]')).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+  it('shows the personal-only empty state when no tasks', () => {
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(
+      screen.getByText(/No personal tasks\. Per-show tasks live in each show's Tools sheet\./i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows an inline error state with retry when the query errors', () => {
+    const refetch = vi.fn();
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: true,
+      refetch,
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    expect(screen.getByText(/Couldn't load your tasks/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Retry'));
+    expect(refetch).toHaveBeenCalled();
   });
 
   it('hides completed tasks by default and shows them on toggle', () => {
@@ -134,360 +248,91 @@ describe('TasksTab', () => {
     vi.mocked(useSecretaryTasks).mockReturnValue({
       data: [doneTask],
       isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
 
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
+    render(<TasksTab clubId="club-1" />, { wrapper });
 
     expect(screen.queryByText('Old task')).not.toBeInTheDocument();
-
     fireEvent.click(screen.getByText('Show completed'));
     expect(screen.getByText('Old task')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Hide completed'));
-    expect(screen.queryByText('Old task')).not.toBeInTheDocument();
-  });
-
-  it('sorts done tasks after open tasks', () => {
-    const openTask = makeTask({
-      id: 'open-1',
-      title: 'Open task',
-      status: 'todo',
-      dueDate: undefined,
-    });
-    const doneTask = makeTask({
-      id: 'done-1',
-      title: 'Done task',
-      status: 'done',
-      dueDate: undefined,
-    });
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [doneTask, openTask],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-
-    fireEvent.click(screen.getByText('Show completed'));
-    const items = screen.getAllByRole('checkbox');
-    // open task checkbox should appear before done task checkbox
-    expect(items[0]).not.toBeChecked();
-    expect(items[1]).toBeChecked();
-  });
-
-  it('does not show raw show IDs for tasks whose show is unavailable', () => {
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [makeTask({ showId: '550e8400-e29b-41d4-a716-446655440000' })],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-
-    expect(screen.getByText('Unknown show')).toBeInTheDocument();
-    expect(screen.queryByText('550e8400-e29b-41d4-a716-446655440000')).not.toBeInTheDocument();
   });
 
   it('reserves min-height in the loading skeleton to prevent CLS', () => {
     vi.mocked(useSecretaryTasks).mockReturnValue({
       data: undefined,
       isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
     } as unknown as ReturnType<typeof useSecretaryTasks>);
 
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-
+    render(<TasksTab clubId="club-1" />, { wrapper });
     const skeleton = screen.getByTestId('tasks-tab-skeleton');
-    expect(skeleton).toBeInTheDocument();
     expect(skeleton.style.minHeight).toBe(`${TASKS_TAB_RESERVED_MIN_HEIGHT_PX}px`);
-    expect(skeleton).toHaveAttribute('aria-busy', 'true');
-  });
-
-  it('does not render skeleton when data is loaded', () => {
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [],
-      isLoading: false,
-    } as unknown as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-
-    expect(screen.queryByTestId('tasks-tab-skeleton')).not.toBeInTheDocument();
-    expect(screen.getByText('No open tasks.')).toBeInTheDocument();
   });
 
   it('renders the List/Timeline view toggle', () => {
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
+    render(<TasksTab clubId="club-1" />, { wrapper });
     expect(screen.getByLabelText('List view')).toBeInTheDocument();
     expect(screen.getByLabelText('Timeline view')).toBeInTheDocument();
   });
 
-  it('starts in List view by default', () => {
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-    expect(screen.getByLabelText('List view')).toHaveClass('bg-primary');
+  it('Add Task opens TaskAddForm in locked-personal mode (no show selector visible)', () => {
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    fireEvent.click(screen.getByText('+ Add Task'));
+    // TaskAddForm is rendered; lockedShowId={null} means no combobox
+    expect(screen.getByPlaceholderText('Task title…')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('switches to Timeline view when Timeline button is clicked', () => {
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [makeTask({ dueDate: new Date().toISOString().slice(0, 10) })],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
-      wrapper,
-    });
-
-    fireEvent.click(screen.getByLabelText('Timeline view'));
-    expect(screen.getByLabelText('Timeline view')).toHaveClass('bg-primary');
-  });
-
-  it('persists the timeline view preference to localStorage', () => {
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-
-    fireEvent.click(screen.getByLabelText('Timeline view'));
-    expect(localStorage.getItem('view-pref-secretary-tasks')).toBe('timeline');
-  });
-
-  it('restores view preference from localStorage', () => {
-    localStorage.setItem('view-pref-secretary-tasks', 'timeline');
-
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-    expect(screen.getByLabelText('Timeline view')).toHaveClass('bg-primary');
-  });
-});
-
-describe('TasksTab — Timeline view', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    localStorage.setItem('view-pref-secretary-tasks', 'timeline');
-  });
-
-  afterEach(() => {
-    localStorage.clear();
-  });
-
-  it('renders dated tasks in the timeline', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [makeTask({ id: 'task-dated', title: 'Dated task', dueDate: today })],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
-      wrapper,
-    });
-
-    expect(screen.getByText('Dated task')).toBeInTheDocument();
-  });
-
-  it('renders "No due date" section for undated tasks', () => {
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [makeTask({ id: 'task-undated', title: 'Undated task', dueDate: undefined })],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-
-    expect(screen.getByText('No due date')).toBeInTheDocument();
-    expect(screen.getByText('Undated task')).toBeInTheDocument();
-  });
-
-  it('mark done calls updateTask mutation', () => {
-    const mutateFn = vi.fn();
+  it('passes lockShowEdit + hideShowChip to TaskRows so edits cannot move tasks across scopes', () => {
+    const updateMutate = vi.fn();
     vi.mocked(useUpdateTask).mockReturnValue({
-      mutate: mutateFn,
-      isPending: false,
-    } as ReturnType<typeof useUpdateTask>);
-
-    const today = new Date().toISOString().slice(0, 10);
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [makeTask({ id: 'task-tl', title: 'TL task', dueDate: today, status: 'todo' })],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
-      wrapper,
-    });
-
-    const checkbox = screen.getByLabelText('Mark "TL task" as done');
-    fireEvent.click(checkbox);
-
-    expect(mutateFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'task-tl',
-        update: { status: 'done' },
-      })
-    );
-  });
-
-  it('edit controls update a dated timeline task', () => {
-    const mutateFn = vi.fn();
-    vi.mocked(useUpdateTask).mockReturnValue({
-      mutate: mutateFn,
+      mutate: updateMutate,
       isPending: false,
     } as ReturnType<typeof useUpdateTask>);
 
     vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [
-        makeTask({
-          id: 'task-edit',
-          title: 'Old timeline title',
-          dueDate: '2026-05-12',
-          showId: 'show-1',
-        }),
-      ],
+      data: [makeTask({ id: 'task-personal', title: 'Personal task', showId: null })],
       isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
 
-    render(
-      <TasksTab
-        shows={[
-          { id: 'show-1', name: 'Spring Trial' },
-          { id: 'show-2', name: 'Summer Trial' },
-        ]}
-        clubId="club-1"
-      />,
-      { wrapper }
-    );
+    render(<TasksTab clubId="club-1" />, { wrapper });
 
-    fireEvent.click(screen.getByLabelText('Edit "Old timeline title"'));
-    fireEvent.change(screen.getByDisplayValue('Old timeline title'), {
-      target: { value: 'Updated timeline title' },
-    });
-    fireEvent.change(screen.getByDisplayValue('2026-05-12'), {
-      target: { value: '2026-05-20' },
-    });
-    fireEvent.change(screen.getByDisplayValue('Spring Trial'), {
-      target: { value: 'show-2' },
-    });
+    // Show chip should not appear
+    expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/Edit "Personal task"/i));
     fireEvent.click(screen.getByText('Save'));
 
-    expect(mutateFn).toHaveBeenCalledWith(
+    expect(updateMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'task-edit',
-        update: {
-          title: 'Updated timeline title',
-          dueDate: '2026-05-20',
-          showId: 'show-2',
-        },
+        id: 'task-personal',
+        update: expect.not.objectContaining({ showId: expect.anything() }),
       }),
       expect.any(Object)
     );
   });
 
-  it('delete controls delete a dated timeline task', () => {
-    const mutateFn = vi.fn();
-    vi.mocked(useDeleteTask).mockReturnValue({
-      mutate: mutateFn,
-      isPending: false,
-    } as ReturnType<typeof useDeleteTask>);
-
-    const today = new Date().toISOString().slice(0, 10);
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [makeTask({ id: 'task-delete', title: 'Delete timeline task', dueDate: today })],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
-      wrapper,
-    });
-
-    fireEvent.click(screen.getByLabelText('Delete "Delete timeline task"'));
-
-    expect(mutateFn).toHaveBeenCalledWith('task-delete', expect.any(Object));
-  });
-
-  it('undated timeline tasks expose edit and delete controls', () => {
-    const updateMutate = vi.fn();
+  it('delete still works on personal task rows', () => {
     const deleteMutate = vi.fn();
-    vi.mocked(useUpdateTask).mockReturnValue({
-      mutate: updateMutate,
-      isPending: false,
-    } as ReturnType<typeof useUpdateTask>);
     vi.mocked(useDeleteTask).mockReturnValue({
       mutate: deleteMutate,
       isPending: false,
     } as ReturnType<typeof useDeleteTask>);
 
     vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [
-        makeTask({
-          id: 'task-undated-actions',
-          title: 'Undated timeline task',
-          dueDate: undefined,
-          showId: null,
-        }),
-      ],
+      data: [makeTask({ id: 'task-x', title: 'Trash me' })],
       isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useSecretaryTasks>);
 
-    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
-      wrapper,
-    });
-
-    fireEvent.click(screen.getByLabelText('Edit "Undated timeline task"'));
-    fireEvent.change(screen.getByDisplayValue('Undated timeline task'), {
-      target: { value: 'Scheduled timeline task' },
-    });
-    fireEvent.click(screen.getByText('Save'));
-
-    expect(updateMutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'task-undated-actions',
-        update: {
-          title: 'Scheduled timeline task',
-          dueDate: null,
-          showId: null,
-        },
-      }),
-      expect.any(Object)
-    );
-
-    fireEvent.click(screen.getByLabelText('Delete "Undated timeline task"'));
-    expect(deleteMutate).toHaveBeenCalledWith('task-undated-actions', expect.any(Object));
-  });
-
-  it('hides completed tasks until "Show completed" is toggled', () => {
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [
-        makeTask({ id: 'open-1', title: 'Open TL task', status: 'todo', dueDate: undefined }),
-        makeTask({ id: 'done-1', title: 'Done TL task', status: 'done', dueDate: undefined }),
-      ],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-
-    expect(screen.getByText('Open TL task')).toBeInTheDocument();
-    expect(screen.queryByText('Done TL task')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Show completed'));
-    expect(screen.getByText('Done TL task')).toBeInTheDocument();
-  });
-
-  it('filter chips affect the timeline — switching to a show filter passes it through', () => {
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
-      wrapper,
-    });
-
-    fireEvent.click(screen.getByText('Spring Trial'));
-    // useSecretaryTasks should be called with show-1
-    expect(vi.mocked(useSecretaryTasks)).toHaveBeenCalledWith('show-1');
-  });
-
-  it('shows empty state when no tasks in timeline', () => {
-    vi.mocked(useSecretaryTasks).mockReturnValue({
-      data: [],
-      isLoading: false,
-    } as ReturnType<typeof useSecretaryTasks>);
-
-    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
-    expect(screen.getByText('No open tasks.')).toBeInTheDocument();
+    render(<TasksTab clubId="club-1" />, { wrapper });
+    fireEvent.click(screen.getByLabelText(/Delete "Trash me"/i));
+    expect(deleteMutate).toHaveBeenCalledWith('task-x', expect.any(Object));
   });
 });

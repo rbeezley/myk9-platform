@@ -6,7 +6,7 @@ interface Show {
 }
 
 interface TaskAddFormProps {
-  shows: Show[];
+  shows?: Show[];
   clubId: string;
   onAdd: (input: {
     title: string;
@@ -15,9 +15,21 @@ interface TaskAddFormProps {
     dueDate?: string;
   }) => void;
   onCancel: () => void;
+  // When provided, the show selector is hidden and the value is forced on submit.
+  // Use `null` for personal-only tasks (dashboard), or a `showId` string for show-scoped
+  // creation (TasksNotesCard in Show Desk). When `undefined`, the legacy "any" selector
+  // is rendered using `shows`.
+  lockedShowId?: string | null;
 }
 
-export function TaskAddForm({ shows, clubId, onAdd, onCancel }: TaskAddFormProps) {
+export function TaskAddForm({
+  shows = [],
+  clubId,
+  onAdd,
+  onCancel,
+  lockedShowId,
+}: TaskAddFormProps) {
+  const isLocked = lockedShowId !== undefined;
   const [title, setTitle] = useState('');
   const [showId, setShowId] = useState<string>('general');
   const [dueDate, setDueDate] = useState('');
@@ -25,9 +37,10 @@ export function TaskAddForm({ shows, clubId, onAdd, onCancel }: TaskAddFormProps
   function submit() {
     const trimmed = title.trim();
     if (!trimmed) return;
+    const resolvedShowId = isLocked ? lockedShowId : showId === 'general' ? null : showId;
     onAdd({
       title: trimmed,
-      showId: showId === 'general' ? null : showId,
+      showId: resolvedShowId,
       clubId,
       ...(dueDate ? { dueDate } : {}),
     });
@@ -55,18 +68,20 @@ export function TaskAddForm({ shows, clubId, onAdd, onCancel }: TaskAddFormProps
         onChange={e => setDueDate(e.target.value)}
         className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
       />
-      <select
-        value={showId}
-        onChange={e => setShowId(e.target.value)}
-        className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
-      >
-        <option value="general">General</option>
-        {shows.map(s => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
+      {!isLocked && (
+        <select
+          value={showId}
+          onChange={e => setShowId(e.target.value)}
+          className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+        >
+          <option value="general">General</option>
+          {shows.map(s => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      )}
       <button
         onClick={submit}
         className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"

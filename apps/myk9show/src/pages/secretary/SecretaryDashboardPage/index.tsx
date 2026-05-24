@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,17 +31,17 @@ function greeting(): string {
 
 export function SecretaryDashboardPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { firstName } = useAuthContext();
-  const showIdParam = searchParams.get('showId') ?? undefined;
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
   const { shows, classesByStage, isLoading: showsLoading } = useMissionControlData();
 
   const { today, upcoming, draft, past, attentionNeeded: showAttentionItems } = useMyShows(shows);
 
-  const { data: allTasks = [] } = useSecretaryTasks();
-  const openTaskCount = allTasks.filter((t: SecretaryTask) => t.status === 'todo').length;
+  // Personal tasks only — per-show tasks are owned by the per-show TasksNotesCard
+  // in the Show Desk Tools sheet. See D2 of docs/plan-dashboard-refocus.md.
+  const { data: personalTasks = [] } = useSecretaryTasks('general');
+  const openTaskCount = personalTasks.filter((t: SecretaryTask) => t.status === 'todo').length;
 
   const unreadMessageCount = useMessageStore(s => s.unreadCount);
 
@@ -197,13 +197,7 @@ export function SecretaryDashboardPage() {
 
       {/* Tab Content */}
       <div className="flex-1 px-5 py-4">
-        {activeTab === 'tasks' && (
-          <TasksTab
-            shows={tabShows}
-            clubId={clubId}
-            {...(showIdParam ? { initialFilter: showIdParam } : {})}
-          />
-        )}
+        {activeTab === 'tasks' && <TasksTab clubId={clubId} />}
         {activeTab === 'messages' && <MessagesTab shows={tabShows} />}
       </div>
     </div>

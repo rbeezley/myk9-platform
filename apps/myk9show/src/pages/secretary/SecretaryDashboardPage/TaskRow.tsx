@@ -15,6 +15,14 @@ interface TaskRowProps {
   onToggleDone: (id: string) => void;
   onUpdate?: (id: string, update: UpdateTaskInput) => void;
   onDelete: (id: string) => void;
+  // When `true`, the show selector is hidden in edit mode and `showId` is
+  // omitted from update payloads — used by personal-only and show-scoped
+  // surfaces to prevent the row from moving a task across scopes.
+  lockShowEdit?: boolean;
+  // When `true`, the show-name chip is hidden in the row view (used by
+  // surfaces where every visible task belongs to the same scope, e.g. the
+  // dashboard's personal tasks list or the per-show TasksNotesCard).
+  hideShowChip?: boolean;
 }
 
 function borderColor(task: SecretaryTask): string {
@@ -34,6 +42,8 @@ export function TaskRow({
   onToggleDone,
   onUpdate,
   onDelete,
+  lockShowEdit = false,
+  hideShowChip = false,
 }: TaskRowProps) {
   const isDone = task.status === 'done';
   const [editing, setEditing] = useState(false);
@@ -54,7 +64,7 @@ export function TaskRow({
     onUpdate?.(task.id, {
       title: trimmed,
       dueDate: editDueDate || null,
-      showId: editShowId === 'general' ? null : editShowId,
+      ...(lockShowEdit ? {} : { showId: editShowId === 'general' ? null : editShowId }),
     });
     setEditing(false);
   }
@@ -82,18 +92,20 @@ export function TaskRow({
           onChange={e => setEditDueDate(e.target.value)}
           className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
         />
-        <select
-          value={editShowId}
-          onChange={e => setEditShowId(e.target.value)}
-          className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
-        >
-          <option value="general">General</option>
-          {shows.map(s => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+        {!lockShowEdit && (
+          <select
+            value={editShowId}
+            onChange={e => setEditShowId(e.target.value)}
+            className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+          >
+            <option value="general">General</option>
+            {shows.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        )}
         <button
           onClick={save}
           className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
@@ -128,9 +140,11 @@ export function TaskRow({
           {task.dueDate ? `Due ${format(new Date(task.dueDate), 'MMM d')}` : 'No due date'}
         </p>
       </div>
-      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-        {showName}
-      </span>
+      {!hideShowChip && (
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          {showName}
+        </span>
+      )}
       <button
         onClick={openEdit}
         className="text-muted-foreground hover:text-foreground"

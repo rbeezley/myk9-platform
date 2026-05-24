@@ -1,20 +1,66 @@
-import { ArrowRight, ClipboardList } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { ClipboardList, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  useSecretaryTasks,
+  useCreateTask,
+  useUpdateTask,
+  useDeleteTask,
+} from '@/hooks/queries/useSecretaryTasks';
+import { TaskRow } from '@/pages/secretary/SecretaryDashboardPage/TaskRow';
+import { TaskAddForm } from '@/pages/secretary/SecretaryDashboardPage/TaskAddForm';
+import type {
+  SecretaryTask,
+  UpdateTaskInput,
+} from '@/pages/secretary/SecretaryDashboardPage/types';
 
 interface TasksNotesCardProps {
   showId: string;
+  clubId: string;
 }
 
-// INTENT: Phase B3 — entry-point card for tasks/notes management. The full
-// tasks surface lives on the secretary dashboard (TasksTab); this card is
-// a clean handoff that shows the open-task count scoped to this show so
-// the secretary can decide whether the tab is worth opening.
-export function TasksNotesCard({ showId }: TasksNotesCardProps) {
-  const { data: tasks = [] } = useSecretaryTasks(showId);
-  const openCount = tasks.filter((t: { status: string }) => t.status === 'todo').length;
+// INTENT: Show Desk Tools sheet's per-show task manager (D2 of the dashboard
+// refocus). Owns the full create/edit/delete flow for tasks scoped to this
+// show — previously this card just showed a count and bounced to the
+// dashboard with `?showId=`, but D2 removes that round-trip and makes this
+// the sole home for per-show task management.
+export function TasksNotesCard({ showId, clubId }: TasksNotesCardProps) {
+  const { data: tasks = [], isLoading, isError, refetch } = useSecretaryTasks(showId);
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  const sorted = [...tasks].sort((a: SecretaryTask, b: SecretaryTask) => {
+    if (a.status !== b.status) return a.status === 'todo' ? -1 : 1;
+    const ad = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+    const bd = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+    return ad - bd;
+  });
+  const visible = showCompleted
+    ? sorted
+    : sorted.filter((t: SecretaryTask) => t.status !== 'done');
+  const openCount = tasks.filter((t: SecretaryTask) => t.status === 'todo').length;
+  const hasCompleted = sorted.some((t: SecretaryTask) => t.status === 'done');
+
+  function handleToggleDone(id: string) {
+    const task = tasks.find((t: SecretaryTask) => t.id === id);
+    if (!task) return;
+    updateTask.mutate({ id, update: { status: task.status === 'done' ? 'todo' : 'done' } });
+  }
+
+  function handleUpdate(id: string, update: UpdateTaskInput) {
+    updateTask.mutate({ id, update }, { onError: () => toast.error('Failed to update task.') });
+  }
+
+  function handleDelete(id: string) {
+    deleteTask.mutate(id, { onError: () => toast.error('Failed to delete task.') });
+  }
 
   return (
     <section className="rounded-md border bg-card p-4" aria-labelledby="tasks-notes-card-title">
@@ -24,7 +70,7 @@ export function TasksNotesCard({ showId }: TasksNotesCardProps) {
             Tasks &amp; Notes
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Per-show reminders, follow-ups, and notes. Cross-show tasks stay on the dashboard.
+            Reminders and follow-ups for this show. Personal tasks stay on the dashboard.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -40,14 +86,82 @@ export function TasksNotesCard({ showId }: TasksNotesCardProps) {
           <ClipboardList className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
         </div>
       </div>
-      <div className="mt-3">
-        <Button asChild variant="outline" size="sm" className="gap-2">
-          <Link to={`/secretary/dashboard?showId=${showId}`}>
-            Open tasks
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
+
+      <div className="mt-3 flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => setShowAddForm(v => !v)}
+          aria-expanded={showAddForm}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {showAddForm ? 'Close' : 'Add task'}
         </Button>
       </div>
+
+      {showAddForm && (
+        <div className="mt-3">
+          <TaskAddForm
+            clubId={clubId}
+            lockedShowId={showId}
+            onAdd={input => {
+              createTask.mutate(input, {
+                onSuccess: () => setShowAddForm(false),
+                onError: () => toast.error('Failed to add task. Please try again.'),
+              });
+            }}
+            onCancel={() => setShowAddForm(false)}
+          />
+        </div>
+      )}
+
+      {isError ? (
+        <div className="mt-3 flex items-center justify-between rounded border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
+          <span className="text-destructive">Couldn't load tasks for this show.</span>
+          <button
+            onClick={() => refetch()}
+            className="font-medium text-destructive underline hover:opacity-80"
+          >
+            Retry
+          </button>
+        </div>
+      ) : isLoading ? (
+        <div className="mt-3 flex flex-col gap-2" aria-busy="true" aria-label="Loading tasks">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-col gap-2">
+          {visible.length === 0 ? (
+            <p className="py-3 text-center text-xs text-muted-foreground">
+              No tasks for this show yet.
+            </p>
+          ) : (
+            visible.map(task => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                showName=""
+                hideShowChip
+                lockShowEdit
+                onToggleDone={handleToggleDone}
+                onUpdate={handleUpdate}
+                onDelete={handleDelete}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {hasCompleted && (
+        <button
+          onClick={() => setShowCompleted(v => !v)}
+          className="mt-3 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {showCompleted ? 'Hide completed' : 'Show completed'}
+        </button>
+      )}
     </section>
   );
 }

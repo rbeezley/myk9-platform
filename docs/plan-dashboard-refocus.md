@@ -67,31 +67,49 @@ Each phase is one PR. Order: dead code first (warm up), lowest-risk duplicate ne
 
 ---
 
-### D2 — Strip per-show task scoping from `TasksTab`
+### D2 — Strip per-show task scoping from `TasksTab` + build inline manager in `TasksNotesCard`
 
-**Why second:** the cleanest duplicate to resolve — same hook, same query key, same table. The TasksNotesCard already exists in Show Desk to absorb per-show task management.
+**[EXPANDED 2026-05-24 — structural finding]:** During D2 implementation, discovered that `TasksNotesCard.tsx:11-14` was only a *count-card* with a link back to the dashboard's per-show filter — there is NO per-show task management UI in the Show Desk Tools sheet today. The plan's repeated premise "per-show tasks live in the Show Desk Tools sheet" describes an intended B6.5 feature that was never built (only the entry-point card landed). If D2 just removed the dashboard's per-show capability, per-show tasks would become orphaned data. Same shape as the [Audit Route Liveness](../../../../.claude/projects/-Users-richardbeezley-AI-Projects-myk9-platform/memory/feedback_audit_route_liveness.md) trap.
+
+**Resolution (Option A, user-confirmed 2026-05-24):** D2 now bundles the missing prerequisite. Expand `TasksNotesCard` from a count-card into a full inline task manager. After that, the dashboard's per-show capability can be safely removed.
+
+**Why second:** the cleanest duplicate to resolve — same hook, same query key, same table. The expanded `TasksNotesCard` becomes the real per-show task home that the plan always assumed existed.
 
 **Scope:**
-- `TasksTab.tsx`: remove the `initialFilter` prop and the show-filter dropdown. The tab now shows only personal tasks (`useSecretaryTasks()` called with no arg, then filtered to `show_id === null`).
-- `SecretaryDashboardPage/index.tsx`: drop `searchParams.get('showId')` plumbing and the `initialFilter` prop pass-through (lines 36, 200–206 today). Also drop the `useSearchParams` import if no other consumer remains.
-- `SecretaryDashboardPage/index.tsx`: update `openTaskCount` to count personal open tasks only (`showId === null`), so the remaining Tasks badge does not include per-show work that moved to Show Desk.
-- `TaskAddForm.tsx` / `TaskRow.tsx`: add a personal-only dashboard mode or remove show selectors from the dashboard usage. New tasks created from the dashboard must send `showId: null`; editing a dashboard task must not be able to move it onto a show. Keep any reusable show-scoped behavior available only where Show Desk needs it.
-- `TasksNotesCard.tsx` (Show Desk): update the "View all" link target to `/secretary/dashboard` (no `?showId=` param). **Decision locked** — the secretary already knows the show context from the workbench; sending them to a dashboard that filtered by show is exactly the duplicate we're removing.
-- Update or delete tests that assert per-show filtering on the dashboard's TasksTab. Add a test that the dashboard TasksTab only renders tasks with `show_id === null`.
-- **[ADDED] Empty state:** if `personalTasks.length === 0`, render a quiet placeholder ("No personal tasks. Per-show tasks live in each show's Tools sheet."). Wire the second sentence to suggest the workflow change for users coming from a previous mental model.
-- **[ADDED] Error handling:** if `useSecretaryTasks()` errors, render a single-line inline error with retry button (mirror whatever pattern other dashboard cards use today — verify in audit before implementing).
-- Update the dashboard greeting/header copy if it currently implies per-show context.
+- **`TasksNotesCard.tsx` (NEW responsibility — was count-only, now full manager):**
+  - Render an inline collapsible task manager scoped to `showId` (mirrors TasksTab's list+add pattern).
+  - "+ Add task" button toggles an embedded `TaskAddForm` with `lockedShowId={showId}` so newly created tasks always land on the current show.
+  - List of `TaskRow`s for the show's open tasks, with `lockShowEdit` so editing cannot move a task off the show.
+  - Keep the count badge in the header. Remove the "Open tasks →" link (no longer needed — management happens here).
+  - Update the `// INTENT:` comment to reflect the new "full per-show task manager surface" responsibility.
+- **`TaskAddForm.tsx`:** add optional `lockedShowId?: string | null` prop. When defined, hide the show selector and force that value (string `showId` or `null` for personal) on submit. When undefined, behave as today (legacy callers).
+- **`TaskRow.tsx`:** add optional `lockShowEdit?: boolean` prop. When `true`, hide the show selector in edit mode and omit `showId` from update payloads.
+- **`TasksTab.tsx` (dashboard, now personal-only):**
+  - Remove the `initialFilter` prop and the show-filter chip row (`FilterChips`).
+  - Call `useSecretaryTasks('general')` to fetch personal tasks (`show_id IS NULL`) directly from the server — the hook already supports this filter value.
+  - Remove the `shows` and `clubId` props from the call sites that only existed for show-scoped UI. `clubId` is still needed for task creation (it's a not-null column).
+  - Pass `lockedShowId={null}` to embedded `TaskAddForm` so new dashboard tasks always have `showId === null`.
+  - Pass `lockShowEdit` to embedded `TaskRow` so dashboard editing cannot push a task onto a show.
+  - Remove show-name display from rows when in personal mode (no show to label).
+  - Update empty-state copy: "No personal tasks. Per-show tasks live in each show's Tools sheet."
+  - Add error state: inline error + retry if `useSecretaryTasks` errors (mirror pattern used elsewhere in dashboard cards).
+- **`SecretaryDashboardPage/index.tsx`:**
+  - Drop `useSearchParams` import + `showIdParam` plumbing.
+  - Drop `initialFilter` prop pass-through to `TasksTab` (lines 200–206).
+  - Narrow `openTaskCount` derivation — currently `useSecretaryTasks()` (all tasks) filtered by `status === 'todo'`; change to filter by `status === 'todo' && showId === null` so the badge counts only personal tasks. (Alternative: call `useSecretaryTasks('general')` directly for the badge data; check whether the existing call is needed for any other use first.)
 
 **Tests:**
-- `TasksTab.test.tsx`: rewrite to assert personal-only filter + no dropdown.
-- `TaskAddForm.test.tsx` / `TaskRow.test.tsx` (or TasksTab integration coverage): assert the dashboard path cannot create or edit a task with a non-null `showId`.
-- `TasksNotesCard.test.tsx`: assert the new link target.
-- `SecretaryDashboardPage.test.tsx`: assert no `?showId=` param plumbing and assert the Tasks badge counts only personal open tasks.
+- `TasksTab.test.tsx`: rewrite — assert chip-row gone; assert `useSecretaryTasks` invoked with `'general'`; assert renders only personal tasks; assert empty-state copy; assert error state surfaces.
+- `TaskAddForm.test.tsx` (new or expand): assert `lockedShowId={null}` hides the selector and submits `showId: null`; assert `lockedShowId='abc'` hides the selector and submits `showId: 'abc'`; assert undefined `lockedShowId` preserves legacy "any" behavior.
+- `TaskRow.test.tsx` (new or expand): assert `lockShowEdit` hides the show selector in edit mode and omits `showId` from updates.
+- `TasksNotesCard.test.tsx`: assert inline `TaskAddForm` renders when "+ Add task" clicked; assert created task has `showId={showId}`; assert `TaskRow` edits omit `showId`; assert NO link to `/secretary/dashboard` exists.
+- `SecretaryDashboardPage.test.tsx`: assert no `?showId=` param plumbing reaches `TasksTab`; assert badge counts only personal open tasks.
 
 **Acceptance:**
-- Dashboard TasksTab shows only `show_id IS NULL` tasks.
-- Per-show tasks are still creatable, editable, and viewable in the Show Desk Tools sheet.
-- The round-trip dashboard ↔ Show Desk for tasks is gone.
+- Dashboard TasksTab shows only `show_id IS NULL` tasks; no chip row.
+- Show Desk's `TasksNotesCard` is a fully self-contained per-show task manager — create/edit/delete all happen inline; no dashboard round-trip.
+- The two-homes pattern is gone: per-show tasks live ONLY in `TasksNotesCard`; personal tasks live ONLY on the dashboard.
+- Dashboard Tasks badge counts only personal open tasks.
 
 ---
 

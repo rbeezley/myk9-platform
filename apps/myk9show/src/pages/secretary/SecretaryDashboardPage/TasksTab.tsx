@@ -9,12 +9,10 @@ import {
 } from '@/hooks/queries/useSecretaryTasks';
 import { TaskRow } from './TaskRow';
 import { TaskAddForm } from './TaskAddForm';
-import { FilterChips } from './FilterChips';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskTimelineView } from './TaskTimelineView';
 import { useTaskViewPreference, TASK_VIEW_MODES } from './useTaskViewPreference';
-import { resolveTaskShowName } from './taskTimelineUtils';
 import type { SecretaryTask } from './types';
 
 // Reserve vertical space while the tasks query is in flight so deferred-load
@@ -24,37 +22,21 @@ import type { SecretaryTask } from './types';
 // layout space for deferred panels (CLS)".
 export const TASKS_TAB_RESERVED_MIN_HEIGHT_PX = 280;
 
-interface Show {
-  id: string;
-  name: string;
-}
-
 interface TasksTabProps {
-  shows: Show[];
   clubId: string;
-  initialFilter?: string;
 }
 
-type Filter = 'all' | 'general' | string;
-
-export function TasksTab({ shows, clubId, initialFilter }: TasksTabProps) {
-  const [filter, setFilter] = useState<Filter>(initialFilter ?? 'all');
+// Personal tasks only (show_id IS NULL). Per-show tasks are managed in
+// each show's Tools sheet via TasksNotesCard — see D2 of plan-dashboard-refocus.md.
+export function TasksTab({ clubId }: TasksTabProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [viewMode, setViewMode] = useTaskViewPreference();
 
-  const { data: tasks = [], isLoading } = useSecretaryTasks(filter === 'all' ? undefined : filter);
+  const { data: tasks = [], isLoading, isError, refetch } = useSecretaryTasks('general');
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-
-  const showNameMap = Object.fromEntries(shows.map(s => [s.id, s.name]));
-
-  const filterOptions = ['all', ...shows.map(s => s.id), 'general'].map(v => ({
-    value: v,
-    label:
-      v === 'all' ? 'All Shows' : v === 'general' ? 'General' : resolveTaskShowName(v, showNameMap),
-  }));
 
   const now = new Date();
   const sevenDays = new Date(now.getTime() + 7 * 86400000);
@@ -93,7 +75,6 @@ export function TasksTab({ shows, clubId, initialFilter }: TasksTabProps) {
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <FilterChips options={filterOptions} active={filter} onChange={setFilter} />
         <div className="ml-auto flex items-center gap-2">
           <ViewToggle modes={TASK_VIEW_MODES} active={viewMode} onChange={setViewMode} />
           {clubId && (
@@ -110,8 +91,8 @@ export function TasksTab({ shows, clubId, initialFilter }: TasksTabProps) {
       {showAddForm && (
         <div className="mb-3">
           <TaskAddForm
-            shows={shows}
             clubId={clubId}
+            lockedShowId={null}
             onAdd={input => {
               createTask.mutate(input, {
                 onSuccess: () => setShowAddForm(false),
@@ -123,7 +104,17 @@ export function TasksTab({ shows, clubId, initialFilter }: TasksTabProps) {
         </div>
       )}
 
-      {isLoading ? (
+      {isError ? (
+        <div className="flex items-center justify-between rounded border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
+          <span className="text-destructive">Couldn't load your tasks.</span>
+          <button
+            onClick={() => refetch()}
+            className="font-medium text-destructive underline hover:opacity-80"
+          >
+            Retry
+          </button>
+        </div>
+      ) : isLoading ? (
         <div
           data-testid="tasks-tab-skeleton"
           className="flex flex-col gap-2"
@@ -139,8 +130,8 @@ export function TasksTab({ shows, clubId, initialFilter }: TasksTabProps) {
       ) : viewMode === 'timeline' ? (
         <TaskTimelineView
           tasks={sorted}
-          shows={shows}
-          showIdFilter={filter}
+          shows={[]}
+          showIdFilter="general"
           showCompleted={showCompleted}
           onToggleDone={handleToggleDone}
           onUpdate={handleUpdate}
@@ -150,15 +141,16 @@ export function TasksTab({ shows, clubId, initialFilter }: TasksTabProps) {
         <div className="flex flex-col gap-2">
           {visible.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              {filter === 'all' ? 'No open tasks.' : 'No tasks for this show.'}
+              No personal tasks. Per-show tasks live in each show's Tools sheet.
             </p>
           ) : (
             visible.map(task => (
               <TaskRow
                 key={task.id}
                 task={task}
-                showName={resolveTaskShowName(task.showId, showNameMap)}
-                shows={shows}
+                showName=""
+                hideShowChip
+                lockShowEdit
                 onToggleDone={handleToggleDone}
                 onUpdate={handleUpdate}
                 onDelete={handleDelete}

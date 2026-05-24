@@ -1,0 +1,1536 @@
+# Club Role Approval Workflow Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a secure V1 approval workflow where site admins approve new clubs and first club admins, then approved club admins manage secretary access for their own club only.
+
+**Architecture:** Add a `club_access_requests` approval table plus security-definer RPCs for reviewing club requests and managing club-scoped secretary grants. Keep signup low-friction by storing request intent in auth metadata and materializing a pending request from the existing `handle_new_user()` trigger path. Harden `user_roles` so elevated role writes happen through authorized RPCs instead of direct client table mutations.
+
+**Tech Stack:** Supabase Postgres/RLS/RPCs, TypeScript, React, React Router, shadcn/ui, React Query/Vitest, existing myK9Show admin and club detail surfaces.
+
+---
+
+## File Structure
+
+- Create: `supabase/migrations/20260524120000_club_access_requests.sql`
+  - Owns the approval table, enum/check constraints, RLS, trigger update to `handle_new_user()`, and three RPCs.
+- Modify: `apps/myk9show/src/pages/SignUpPage.tsx`
+  - Updates role copy and collects club request fields when club access is requested.
+- Modify: `apps/myk9show/src/hooks/useAuth.ts`
+  - Extends signup metadata with club request fields.
+- Test: `apps/myk9show/src/test/pages/SignUpPage.test.tsx`
+  - Proves signup wording and metadata payload.
+- Test: `apps/myk9show/src/test/auth/useAuth.test.ts`
+  - Proves `signUp()` sends the metadata keys expected by the DB trigger.
+- Create: `apps/myk9show/src/features/access-requests/accessRequestTypes.ts`
+  - TypeScript types for request rows and review actions.
+- Create: `apps/myk9show/src/features/access-requests/accessRequestService.ts`
+  - Small Supabase service wrapper for listing and reviewing club access requests.
+- Create: `apps/myk9show/src/features/access-requests/useAccessRequests.ts`
+  - React Query hooks for the admin queue.
+- Create: `apps/myk9show/src/pages/admin/AccessRequestsPage.tsx`
+  - Site-admin queue UI.
+- Modify: `apps/myk9show/src/routes/adminRoutes.tsx`
+  - Registers `/admin/access-requests`.
+- Modify: `apps/myk9show/src/pages/admin/AdminDashboard/PlatformAdministrationSection.tsx`
+  - Adds an entry point to the access request queue.
+- Create: `apps/myk9show/src/features/club-secretaries/clubSecretaryService.ts`
+  - Calls secretary grant/revoke RPCs and fetches club-scoped secretary rows.
+- Modify: `apps/myk9show/src/components/clubs/ClubDetails/MembersTab.tsx`
+  - Adds the secretary management section for club admins.
+- Test: `apps/myk9show/src/features/access-requests/accessRequestService.test.ts`
+  - Proves RPC payloads and error handling.
+- Test: `apps/myk9show/src/features/club-secretaries/clubSecretaryService.test.ts`
+  - Proves club-scoped grant/revoke calls.
+- Create: `supabase/tests/club_access_requests.sql`
+  - SQL-level regression test covering RLS/RPC role boundaries if the repo's Supabase test harness is available.
+- Modify: `OPEN-TODOS.md`
+  - Mark this todo complete only after implementation and tests pass.
+
+## Task 1: Database Approval Model And RPC Boundary
+
+**Files:**
+- Create: `supabase/migrations/20260524120000_club_access_requests.sql`
+- Create: `supabase/tests/club_access_requests.sql`
+
+- [ ] **Step 1: Write SQL regression coverage first**
+
+Create `supabase/tests/club_access_requests.sql` with these assertions:
+
+```sql
+begin;
+
+select plan(8);
+
+select has_table('public', 'club_access_requests', 'club_access_requests table exists');
+select has_function('public', 'review_club_access_request', ARRAY['uuid', 'text', 'uuid', 'text', 'text'], 'review RPC exists');
+select has_function('public', 'grant_club_secretary', ARRAY['uuid', 'uuid'], 'grant secretary RPC exists');
+select has_function('public', 'revoke_club_secretary', ARRAY['uuid', 'uuid'], 'revoke secretary RPC exists');
+
+select col_is_fk('public', 'club_access_requests', 'requester_person_id', 'request links to people');
+select col_is_fk('public', 'club_access_requests', 'approved_club_id', 'approved request links to clubs');
+select policies_are('public', 'club_access_requests', ARRAY[
+  'club_access_requests_insert_own',
+  'club_access_requests_select_own_or_site_admin',
+  'club_access_requests_review_site_admin'
+]);
+select pass('RPC behavioral checks run in the app integration suite with seeded auth context');
+
+select * from finish();
+
+rollback;
+```
+
+- [ ] **Step 2: Run the SQL test red**
+
+Run: `supabase test db supabase/tests/club_access_requests.sql`
+
+Expected: FAIL because `club_access_requests` and RPCs do not exist yet. If the local Supabase test harness is not configured, record the exact CLI error in the PR notes and continue with migration lint plus app-level tests.
+
+- [ ] **Step 3: Add the migration**
+
+Create `supabase/migrations/20260524120000_club_access_requests.sql`:
+
+```sql
+begin;
+
+create table if not exists public.club_access_requests (
+  id uuid primary key default extensions.uuid_generate_v4(),
+  requester_person_id uuid not null references public.people(id) on delete cascade,
+  requester_auth_user_id uuid not null,
+  requested_club_name text not null check (length(trim(requested_club_name)) > 1),
+  requested_club_website text,
+  request_note text,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'denied')),
+  approved_club_id uuid references public.clubs(id) on delete set null,
+  reviewed_by uuid references public.people(id) on delete set null,
+  reviewed_at timestamptz,
+  review_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists club_access_requests_status_created_idx
+  on public.club_access_requests(status, created_at desc);
+
+create unique index if not exists club_access_requests_pending_person_club_unique
+  on public.club_access_requests(requester_person_id, lower(requested_club_name))
+  where status = 'pending';
+
+alter table public.club_access_requests enable row level security;
+
+drop policy if exists club_access_requests_insert_own on public.club_access_requests;
+create policy club_access_requests_insert_own
+  on public.club_access_requests
+  for insert
+  to authenticated
+  with check (requester_auth_user_id = auth.uid());
+
+drop policy if exists club_access_requests_select_own_or_site_admin on public.club_access_requests;
+create policy club_access_requests_select_own_or_site_admin
+  on public.club_access_requests
+  for select
+  to authenticated
+  using (
+    requester_auth_user_id = auth.uid()
+    or public.is_site_admin()
+  );
+
+drop policy if exists club_access_requests_review_site_admin on public.club_access_requests;
+create policy club_access_requests_review_site_admin
+  on public.club_access_requests
+  for update
+  to authenticated
+  using (public.is_site_admin())
+  with check (public.is_site_admin());
+
+drop policy if exists user_roles_insert on public.user_roles;
+drop policy if exists user_roles_update on public.user_roles;
+drop policy if exists user_roles_delete on public.user_roles;
+
+create policy user_roles_insert_site_admin_only
+  on public.user_roles
+  for insert
+  to authenticated
+  with check (public.is_site_admin());
+
+create policy user_roles_update_site_admin_only
+  on public.user_roles
+  for update
+  to authenticated
+  using (public.is_site_admin())
+  with check (public.is_site_admin());
+
+create policy user_roles_delete_site_admin_only
+  on public.user_roles
+  for delete
+  to authenticated
+  using (public.is_site_admin());
+
+create or replace function public.get_my_person_id()
+returns uuid
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select id
+  from public.people
+  where auth_user_id = auth.uid()
+  limit 1
+$$;
+
+create or replace function public.insert_club_access_request_from_signup(
+  p_person_id uuid,
+  p_auth_user_id uuid,
+  p_metadata jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_roles text[];
+  v_club_name text;
+begin
+  select coalesce(array_agg(value), array[]::text[])
+  into v_roles
+  from jsonb_array_elements_text(coalesce(p_metadata->'intended_roles', '[]'::jsonb)) as roles(value);
+
+  v_club_name := nullif(trim(coalesce(p_metadata->>'requested_club_name', '')), '');
+
+  if 'club_officer' = any(v_roles) and v_club_name is not null then
+    insert into public.club_access_requests (
+      requester_person_id,
+      requester_auth_user_id,
+      requested_club_name,
+      requested_club_website,
+      request_note
+    )
+    values (
+      p_person_id,
+      p_auth_user_id,
+      v_club_name,
+      nullif(trim(coalesce(p_metadata->>'requested_club_website', '')), ''),
+      nullif(trim(coalesce(p_metadata->>'club_request_note', '')), '')
+    )
+    on conflict do nothing;
+  end if;
+end;
+$$;
+
+create or replace function public.review_club_access_request(
+  p_request_id uuid,
+  p_decision text,
+  p_existing_club_id uuid default null,
+  p_club_name text default null,
+  p_review_note text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_request public.club_access_requests%rowtype;
+  v_reviewer_person_id uuid;
+  v_club_id uuid;
+  v_club_admin_role_id uuid;
+begin
+  if not public.is_site_admin() then
+    raise exception 'Only site admins can review club access requests' using errcode = '42501';
+  end if;
+
+  if p_decision not in ('approved', 'denied') then
+    raise exception 'Decision must be approved or denied' using errcode = '22023';
+  end if;
+
+  select * into v_request
+  from public.club_access_requests
+  where id = p_request_id
+  for update;
+
+  if not found then
+    raise exception 'Club access request not found' using errcode = 'P0002';
+  end if;
+
+  if v_request.status <> 'pending' then
+    raise exception 'Club access request has already been reviewed' using errcode = '23514';
+  end if;
+
+  select id into v_reviewer_person_id
+  from public.people
+  where auth_user_id = auth.uid()
+  limit 1;
+
+  if p_decision = 'denied' then
+    update public.club_access_requests
+    set status = 'denied',
+        reviewed_by = v_reviewer_person_id,
+        reviewed_at = now(),
+        review_note = p_review_note,
+        updated_at = now()
+    where id = p_request_id;
+
+    return null;
+  end if;
+
+  v_club_id := p_existing_club_id;
+
+  if v_club_id is null then
+    insert into public.clubs (name, website, created_by)
+    values (
+      coalesce(nullif(trim(p_club_name), ''), v_request.requested_club_name),
+      v_request.requested_club_website,
+      v_request.requester_person_id
+    )
+    returning id into v_club_id;
+  end if;
+
+  select id into v_club_admin_role_id
+  from public.roles
+  where name = 'club_admin';
+
+  if v_club_admin_role_id is null then
+    raise exception 'club_admin role is missing' using errcode = 'P0002';
+  end if;
+
+  insert into public.user_roles (user_id, role_id, club_id, granted_by, is_active)
+  values (v_request.requester_person_id, v_club_admin_role_id, v_club_id, v_reviewer_person_id, true)
+  on conflict (user_id, role_id, club_id, show_id)
+  do update set is_active = true,
+                granted_by = excluded.granted_by,
+                granted_at = now();
+
+  update public.club_access_requests
+  set status = 'approved',
+      approved_club_id = v_club_id,
+      reviewed_by = v_reviewer_person_id,
+      reviewed_at = now(),
+      review_note = p_review_note,
+      updated_at = now()
+  where id = p_request_id;
+
+  return v_club_id;
+end;
+$$;
+
+create or replace function public.grant_club_secretary(
+  p_person_id uuid,
+  p_club_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_person_id uuid;
+  v_secretary_role_id uuid;
+  v_assignment_id uuid;
+begin
+  if not (public.is_site_admin() or public.is_club_admin(p_club_id)) then
+    raise exception 'Only site admins or this club''s admins can grant secretary access' using errcode = '42501';
+  end if;
+
+  select id into v_actor_person_id
+  from public.people
+  where auth_user_id = auth.uid()
+  limit 1;
+
+  select id into v_secretary_role_id
+  from public.roles
+  where name = 'secretary';
+
+  if v_secretary_role_id is null then
+    raise exception 'secretary role is missing' using errcode = 'P0002';
+  end if;
+
+  insert into public.user_roles (user_id, role_id, club_id, granted_by, is_active)
+  values (p_person_id, v_secretary_role_id, p_club_id, v_actor_person_id, true)
+  on conflict (user_id, role_id, club_id, show_id)
+  do update set is_active = true,
+                granted_by = excluded.granted_by,
+                granted_at = now()
+  returning id into v_assignment_id;
+
+  return v_assignment_id;
+end;
+$$;
+
+create or replace function public.revoke_club_secretary(
+  p_person_id uuid,
+  p_club_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_secretary_role_id uuid;
+begin
+  if not (public.is_site_admin() or public.is_club_admin(p_club_id)) then
+    raise exception 'Only site admins or this club''s admins can revoke secretary access' using errcode = '42501';
+  end if;
+
+  select id into v_secretary_role_id
+  from public.roles
+  where name = 'secretary';
+
+  update public.user_roles
+  set is_active = false
+  where user_id = p_person_id
+    and role_id = v_secretary_role_id
+    and club_id = p_club_id
+    and show_id is null;
+end;
+$$;
+
+grant execute on function public.review_club_access_request(uuid, text, uuid, text, text) to authenticated;
+grant execute on function public.grant_club_secretary(uuid, uuid) to authenticated;
+grant execute on function public.revoke_club_secretary(uuid, uuid) to authenticated;
+grant execute on function public.insert_club_access_request_from_signup(uuid, uuid, jsonb) to supabase_auth_admin;
+
+notify pgrst, 'reload schema';
+
+commit;
+```
+
+- [ ] **Step 4: Update the existing new-user trigger function**
+
+In the same migration, replace `public.handle_new_user()` by copying the current body from `supabase/migrations/165_handle_new_user_agreed_to_tos.sql` and add this call immediately before `RETURN NEW;`:
+
+```sql
+  perform public.insert_club_access_request_from_signup(
+    new_person_id,
+    new.id,
+    new.raw_user_meta_data
+  );
+```
+
+Keep the existing exhibitor-profile and exhibitor-role creation logic unchanged.
+
+- [ ] **Step 5: Run database checks**
+
+Run: `supabase db lint`
+
+Expected: PASS.
+
+Run: `supabase test db supabase/tests/club_access_requests.sql`
+
+Expected: PASS, or the same documented local harness error from Step 2 if the harness is unavailable.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add supabase/migrations/20260524120000_club_access_requests.sql supabase/tests/club_access_requests.sql
+git commit -m "feat(auth): add club access approval database model"
+```
+
+## Task 2: Signup Request Copy And Metadata
+
+**Files:**
+- Modify: `apps/myk9show/src/hooks/useAuth.ts`
+- Modify: `apps/myk9show/src/pages/SignUpPage.tsx`
+- Test: `apps/myk9show/src/test/auth/useAuth.test.ts`
+- Test: `apps/myk9show/src/test/pages/SignUpPage.test.tsx`
+
+- [ ] **Step 1: Write failing hook metadata test**
+
+Add this test to `apps/myk9show/src/test/auth/useAuth.test.ts`:
+
+```typescript
+it('passes club access request metadata during signup', async () => {
+  const { result } = renderHook(() => useAuth());
+
+  await act(async () => {
+    await result.current.signUp('club@example.com', 'password123', {
+      firstName: 'Jane',
+      lastName: 'Doe',
+      roles: ['exhibitor', 'club_officer'],
+      requestedClubName: 'River City Scent Work Club',
+      requestedClubWebsite: 'https://rivercity.example',
+      clubRequestNote: 'I am the trial chair for our upcoming shows.',
+    });
+  });
+
+  expect(mockSupabase.auth.signUp).toHaveBeenCalledWith({
+    email: 'club@example.com',
+    password: 'password123',
+    options: {
+      data: {
+        first_name: 'Jane',
+        last_name: 'Doe',
+        intended_roles: ['exhibitor', 'club_officer'],
+        requested_club_name: 'River City Scent Work Club',
+        requested_club_website: 'https://rivercity.example',
+        club_request_note: 'I am the trial chair for our upcoming shows.',
+      },
+    },
+  });
+});
+```
+
+- [ ] **Step 2: Run the hook test red**
+
+Run: `cd apps/myk9show && npx vitest run src/test/auth/useAuth.test.ts -t "passes club access request metadata"`
+
+Expected: FAIL because the metadata type and payload do not include club request fields.
+
+- [ ] **Step 3: Extend `signUp()` metadata**
+
+In `apps/myk9show/src/hooks/useAuth.ts`, change the metadata type:
+
+```typescript
+metadata?: {
+  firstName?: string;
+  lastName?: string;
+  roles?: string[];
+  requestedClubName?: string;
+  requestedClubWebsite?: string;
+  clubRequestNote?: string;
+}
+```
+
+Then build the `options.data` object with conditional club request fields:
+
+```typescript
+const requestedClubName = metadata?.requestedClubName?.trim();
+const requestedClubWebsite = metadata?.requestedClubWebsite?.trim();
+const clubRequestNote = metadata?.clubRequestNote?.trim();
+
+const signupData: Record<string, string | string[]> = {
+  first_name: metadata?.firstName || 'First',
+  last_name: metadata?.lastName || 'Name',
+  ...(metadata?.roles?.length ? { intended_roles: metadata.roles } : {}),
+  ...(requestedClubName ? { requested_club_name: requestedClubName } : {}),
+  ...(requestedClubWebsite ? { requested_club_website: requestedClubWebsite } : {}),
+  ...(clubRequestNote ? { club_request_note: clubRequestNote } : {}),
+};
+```
+
+Use `signupData` in `supabase.auth.signUp()`.
+
+- [ ] **Step 4: Write failing signup page tests**
+
+Add tests to `apps/myk9show/src/test/pages/SignUpPage.test.tsx`:
+
+```typescript
+it('frames elevated signup roles as access requests', () => {
+  render(<SignUpPage />);
+
+  expect(screen.getByText('I am interested in...')).toBeInTheDocument();
+  expect(screen.getByLabelText('I show dogs')).toBeChecked();
+  expect(screen.getByLabelText('I help run a club or host shows')).toBeInTheDocument();
+  expect(screen.getByLabelText('I work as a show secretary')).toBeInTheDocument();
+  expect(
+    screen.getByText('Club and secretary access require approval before those tools appear.')
+  ).toBeInTheDocument();
+});
+
+it('requires a club name when requesting club admin access', async () => {
+  const user = userEvent.setup();
+  render(<SignUpPage />);
+
+  await user.click(screen.getByLabelText('I help run a club or host shows'));
+  await user.type(screen.getByLabelText('First name'), 'Jane');
+  await user.type(screen.getByLabelText('Last name'), 'Doe');
+  await user.type(screen.getByLabelText('Email address'), 'jane@example.com');
+  await user.type(screen.getByLabelText('Password'), 'password123');
+  await user.type(screen.getByLabelText('Confirm password'), 'password123');
+  await user.click(screen.getByLabelText(/I agree to the/i));
+  await user.click(screen.getByRole('button', { name: /sign up/i }));
+
+  expect(await screen.findByText('Enter the club name you want to manage.')).toBeInTheDocument();
+  expect(mockSignUp).not.toHaveBeenCalled();
+});
+
+it('submits club access request metadata', async () => {
+  const user = userEvent.setup();
+  render(<SignUpPage />);
+
+  await user.click(screen.getByLabelText('I help run a club or host shows'));
+  await user.type(screen.getByLabelText('First name'), 'Jane');
+  await user.type(screen.getByLabelText('Last name'), 'Doe');
+  await user.type(screen.getByLabelText('Email address'), 'jane@example.com');
+  await user.type(screen.getByLabelText('Password'), 'password123');
+  await user.type(screen.getByLabelText('Confirm password'), 'password123');
+  await user.type(screen.getByLabelText('Club name'), 'River City Scent Work Club');
+  await user.type(screen.getByLabelText('Club website'), 'https://rivercity.example');
+  await user.type(screen.getByLabelText('Note for myK9'), 'I am the trial chair.');
+  await user.click(screen.getByLabelText(/I agree to the/i));
+  await user.click(screen.getByRole('button', { name: /sign up/i }));
+
+  expect(mockSignUp).toHaveBeenCalledWith('jane@example.com', 'password123', {
+    firstName: 'Jane',
+    lastName: 'Doe',
+    roles: ['exhibitor', 'club_officer'],
+    requestedClubName: 'River City Scent Work Club',
+    requestedClubWebsite: 'https://rivercity.example',
+    clubRequestNote: 'I am the trial chair.',
+  });
+});
+```
+
+- [ ] **Step 5: Run signup page tests red**
+
+Run: `cd apps/myk9show && npx vitest run src/test/pages/SignUpPage.test.tsx`
+
+Expected: FAIL because the page still uses identity copy and has no club request fields.
+
+- [ ] **Step 6: Implement signup UI changes**
+
+In `apps/myk9show/src/pages/SignUpPage.tsx`, add state:
+
+```typescript
+const [requestedClubName, setRequestedClubName] = useState('');
+const [requestedClubWebsite, setRequestedClubWebsite] = useState('');
+const [clubRequestNote, setClubRequestNote] = useState('');
+```
+
+Before `setLoading(true)`, add:
+
+```typescript
+const requestsClubAccess = selectedRoles.includes('club_officer');
+
+if (requestsClubAccess && requestedClubName.trim().length < 2) {
+  setError('Enter the club name you want to manage.');
+  return;
+}
+```
+
+Update the `signUp()` call:
+
+```typescript
+await signUp(email, password, {
+  firstName: firstName.trim(),
+  lastName: lastName.trim(),
+  roles: selectedRoles,
+  requestedClubName: requestsClubAccess ? requestedClubName.trim() : undefined,
+  requestedClubWebsite: requestsClubAccess ? requestedClubWebsite.trim() : undefined,
+  clubRequestNote: requestsClubAccess ? clubRequestNote.trim() : undefined,
+});
+```
+
+Replace the role section with request language:
+
+```tsx
+<div className="mb-4">
+  <p className="mb-2 font-medium text-sm">I am interested in...</p>
+  <p className="text-sm text-muted-foreground mb-3">
+    Club and secretary access require approval before those tools appear.
+  </p>
+  <div className="space-y-1.5">
+    {[
+      { value: 'exhibitor', label: 'I show dogs' },
+      { value: 'club_officer', label: 'I help run a club or host shows' },
+      { value: 'secretary', label: 'I work as a show secretary' },
+    ].map(({ value, label }) => (
+      <label key={value} className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={selectedRoles.includes(value)}
+          onChange={e =>
+            setSelectedRoles(prev =>
+              e.target.checked ? [...prev, value] : prev.filter(r => r !== value)
+            )
+          }
+          className="h-4 w-4 rounded border-input accent-primary"
+        />
+        <span className="text-sm">{label}</span>
+      </label>
+    ))}
+  </div>
+  {selectedRoles.includes('club_officer') && (
+    <div className="mt-4 space-y-3 rounded-md border border-input p-3">
+      <div>
+        <label className="block mb-1 font-medium text-sm" htmlFor="requestedClubName">
+          Club name
+        </label>
+        <input
+          id="requestedClubName"
+          value={requestedClubName}
+          onChange={e => setRequestedClubName(e.target.value)}
+          className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+          autoComplete="organization"
+        />
+      </div>
+      <div>
+        <label className="block mb-1 font-medium text-sm" htmlFor="requestedClubWebsite">
+          Club website
+        </label>
+        <input
+          id="requestedClubWebsite"
+          value={requestedClubWebsite}
+          onChange={e => setRequestedClubWebsite(e.target.value)}
+          className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+          inputMode="url"
+        />
+      </div>
+      <div>
+        <label className="block mb-1 font-medium text-sm" htmlFor="clubRequestNote">
+          Note for myK9
+        </label>
+        <textarea
+          id="clubRequestNote"
+          value={clubRequestNote}
+          onChange={e => setClubRequestNote(e.target.value)}
+          className="w-full min-h-20 p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+        />
+      </div>
+    </div>
+  )}
+</div>
+```
+
+- [ ] **Step 7: Run focused tests green**
+
+Run: `cd apps/myk9show && npx vitest run src/test/auth/useAuth.test.ts src/test/pages/SignUpPage.test.tsx`
+
+Expected: PASS.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add apps/myk9show/src/hooks/useAuth.ts apps/myk9show/src/pages/SignUpPage.tsx apps/myk9show/src/test/auth/useAuth.test.ts apps/myk9show/src/test/pages/SignUpPage.test.tsx
+git commit -m "feat(auth): collect club access requests at signup"
+```
+
+## Task 3: Site Admin Access Request Queue
+
+**Files:**
+- Create: `apps/myk9show/src/features/access-requests/accessRequestTypes.ts`
+- Create: `apps/myk9show/src/features/access-requests/accessRequestService.ts`
+- Create: `apps/myk9show/src/features/access-requests/useAccessRequests.ts`
+- Create: `apps/myk9show/src/features/access-requests/accessRequestService.test.ts`
+- Create: `apps/myk9show/src/pages/admin/AccessRequestsPage.tsx`
+- Modify: `apps/myk9show/src/routes/adminRoutes.tsx`
+- Modify: `apps/myk9show/src/pages/admin/AdminDashboard/PlatformAdministrationSection.tsx`
+
+- [ ] **Step 1: Write service tests first**
+
+Create `apps/myk9show/src/features/access-requests/accessRequestService.test.ts`:
+
+```typescript
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { accessRequestService } from './accessRequestService';
+import { supabase } from '@/lib/supabase';
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+    rpc: vi.fn(),
+  },
+}));
+
+describe('accessRequestService', () => {
+  beforeEach(() => {
+    vi.mocked(supabase.from).mockReset();
+    vi.mocked(supabase.rpc).mockReset();
+  });
+
+  it('loads pending club access requests newest first', async () => {
+    const order = vi.fn().mockResolvedValue({ data: [], error: null });
+    const eq = vi.fn(() => ({ order }));
+    const select = vi.fn(() => ({ eq }));
+    vi.mocked(supabase.from).mockReturnValue({ select } as never);
+
+    await accessRequestService.listPending();
+
+    expect(supabase.from).toHaveBeenCalledWith('club_access_requests');
+    expect(select).toHaveBeenCalledWith(
+      'id, requester_person_id, requester_auth_user_id, requested_club_name, requested_club_website, request_note, status, approved_club_id, reviewed_by, reviewed_at, review_note, created_at, updated_at, requester:people!club_access_requests_requester_person_id_fkey(id, first_name, last_name, email)'
+    );
+    expect(eq).toHaveBeenCalledWith('status', 'pending');
+    expect(order).toHaveBeenCalledWith('created_at', { ascending: false });
+  });
+
+  it('approves a request through the review RPC', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'club-1', error: null } as never);
+
+    const clubId = await accessRequestService.approve({
+      requestId: 'request-1',
+      clubName: 'River City Scent Work Club',
+      reviewNote: 'Verified by email.',
+    });
+
+    expect(clubId).toBe('club-1');
+    expect(supabase.rpc).toHaveBeenCalledWith('review_club_access_request', {
+      p_request_id: 'request-1',
+      p_decision: 'approved',
+      p_existing_club_id: null,
+      p_club_name: 'River City Scent Work Club',
+      p_review_note: 'Verified by email.',
+    });
+  });
+
+  it('denies a request through the review RPC', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as never);
+
+    await accessRequestService.deny({
+      requestId: 'request-1',
+      reviewNote: 'Could not verify club authority.',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('review_club_access_request', {
+      p_request_id: 'request-1',
+      p_decision: 'denied',
+      p_existing_club_id: null,
+      p_club_name: null,
+      p_review_note: 'Could not verify club authority.',
+    });
+  });
+});
+```
+
+- [ ] **Step 2: Run service tests red**
+
+Run: `cd apps/myk9show && npx vitest run src/features/access-requests/accessRequestService.test.ts`
+
+Expected: FAIL because the service does not exist.
+
+- [ ] **Step 3: Add service types**
+
+Create `apps/myk9show/src/features/access-requests/accessRequestTypes.ts`:
+
+```typescript
+export interface ClubAccessRequest {
+  id: string;
+  requester_person_id: string;
+  requester_auth_user_id: string;
+  requested_club_name: string;
+  requested_club_website: string | null;
+  request_note: string | null;
+  status: 'pending' | 'approved' | 'denied';
+  approved_club_id: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  created_at: string;
+  updated_at: string;
+  requester?: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
+}
+
+export interface ApproveClubAccessRequestInput {
+  requestId: string;
+  existingClubId?: string | null;
+  clubName?: string | null;
+  reviewNote?: string | null;
+}
+
+export interface DenyClubAccessRequestInput {
+  requestId: string;
+  reviewNote?: string | null;
+}
+```
+
+- [ ] **Step 4: Add service**
+
+Create `apps/myk9show/src/features/access-requests/accessRequestService.ts`:
+
+```typescript
+import { supabase } from '@/lib/supabase';
+import type {
+  ApproveClubAccessRequestInput,
+  ClubAccessRequest,
+  DenyClubAccessRequestInput,
+} from './accessRequestTypes';
+
+const REQUEST_SELECT =
+  'id, requester_person_id, requester_auth_user_id, requested_club_name, requested_club_website, request_note, status, approved_club_id, reviewed_by, reviewed_at, review_note, created_at, updated_at, requester:people!club_access_requests_requester_person_id_fkey(id, first_name, last_name, email)';
+
+function throwIfError(error: unknown): asserts error is null {
+  if (error) {
+    const message = error instanceof Error ? error.message : 'Access request operation failed';
+    throw new Error(message);
+  }
+}
+
+export const accessRequestService = {
+  async listPending(): Promise<ClubAccessRequest[]> {
+    const { data, error } = await supabase
+      .from('club_access_requests')
+      .select(REQUEST_SELECT)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    throwIfError(error);
+    return (data ?? []) as ClubAccessRequest[];
+  },
+
+  async approve(input: ApproveClubAccessRequestInput): Promise<string | null> {
+    const { data, error } = await supabase.rpc('review_club_access_request', {
+      p_request_id: input.requestId,
+      p_decision: 'approved',
+      p_existing_club_id: input.existingClubId ?? null,
+      p_club_name: input.clubName ?? null,
+      p_review_note: input.reviewNote ?? null,
+    });
+
+    throwIfError(error);
+    return data as string | null;
+  },
+
+  async deny(input: DenyClubAccessRequestInput): Promise<void> {
+    const { error } = await supabase.rpc('review_club_access_request', {
+      p_request_id: input.requestId,
+      p_decision: 'denied',
+      p_existing_club_id: null,
+      p_club_name: null,
+      p_review_note: input.reviewNote ?? null,
+    });
+
+    throwIfError(error);
+  },
+};
+```
+
+- [ ] **Step 5: Add React Query hooks**
+
+Create `apps/myk9show/src/features/access-requests/useAccessRequests.ts`:
+
+```typescript
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { accessRequestService } from './accessRequestService';
+import type { ApproveClubAccessRequestInput, DenyClubAccessRequestInput } from './accessRequestTypes';
+
+export const accessRequestKeys = {
+  all: ['access-requests'] as const,
+  pending: () => [...accessRequestKeys.all, 'pending'] as const,
+};
+
+export function usePendingAccessRequests() {
+  return useQuery({
+    queryKey: accessRequestKeys.pending(),
+    queryFn: () => accessRequestService.listPending(),
+  });
+}
+
+export function useApproveAccessRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ApproveClubAccessRequestInput) => accessRequestService.approve(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: accessRequestKeys.all }),
+  });
+}
+
+export function useDenyAccessRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DenyClubAccessRequestInput) => accessRequestService.deny(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: accessRequestKeys.all }),
+  });
+}
+```
+
+- [ ] **Step 6: Create admin queue page**
+
+Create `apps/myk9show/src/pages/admin/AccessRequestsPage.tsx` with:
+
+```tsx
+import React, { useState } from 'react';
+import { Check, ShieldCheck, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { notifications } from '@/lib/notifications';
+import {
+  useApproveAccessRequest,
+  useDenyAccessRequest,
+  usePendingAccessRequests,
+} from '@/features/access-requests/useAccessRequests';
+import type { ClubAccessRequest } from '@/features/access-requests/accessRequestTypes';
+
+function requesterName(request: ClubAccessRequest) {
+  const first = request.requester?.first_name ?? '';
+  const last = request.requester?.last_name ?? '';
+  return `${first} ${last}`.trim() || request.requester?.email || 'Unknown requester';
+}
+
+const AccessRequestsPage: React.FC = () => {
+  const { data: requests = [], isLoading, error, refetch } = usePendingAccessRequests();
+  const approve = useApproveAccessRequest();
+  const deny = useDenyAccessRequest();
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [clubNames, setClubNames] = useState<Record<string, string>>({});
+
+  async function handleApprove(request: ClubAccessRequest) {
+    const clubName = (clubNames[request.id] ?? request.requested_club_name).trim();
+
+    try {
+      await approve.mutateAsync({
+        requestId: request.id,
+        clubName,
+        reviewNote: reviewNotes[request.id] ?? null,
+      });
+      notifications.success('Club access approved');
+    } catch (err) {
+      notifications.error(err instanceof Error ? err.message : 'Could not approve request');
+    }
+  }
+
+  async function handleDeny(request: ClubAccessRequest) {
+    try {
+      await deny.mutateAsync({
+        requestId: request.id,
+        reviewNote: reviewNotes[request.id] ?? null,
+      });
+      notifications.success('Club access denied');
+    } catch (err) {
+      notifications.error(err instanceof Error ? err.message : 'Could not deny request');
+    }
+  }
+
+  return (
+    <PageShell>
+      <PageHeader
+        breadcrumbs={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Access Requests', href: '/admin/access-requests' },
+        ]}
+        title="Access Requests"
+      />
+
+      {error && <ErrorState message="Failed to load access requests." onRetry={() => refetch()} />}
+
+      {!error && !isLoading && requests.length === 0 && (
+        <EmptyState
+          icon={ShieldCheck}
+          title="No pending access requests"
+          description="New club admin requests will appear here for approval."
+        />
+      )}
+
+      <div className="space-y-4">
+        {requests.map(request => (
+          <Card key={request.id}>
+            <CardHeader>
+              <CardTitle className="text-lg">{request.requested_club_name}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Requested by {requesterName(request)}
+                {request.requester?.email ? ` (${request.requester.email})` : ''}
+              </div>
+              {request.requested_club_website && (
+                <a
+                  href={request.requested_club_website}
+                  className="text-sm text-primary underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {request.requested_club_website}
+                </a>
+              )}
+              {request.request_note && <p className="text-sm">{request.request_note}</p>}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium" htmlFor={`club-${request.id}`}>
+                    Club name to create
+                  </label>
+                  <Input
+                    id={`club-${request.id}`}
+                    value={clubNames[request.id] ?? request.requested_club_name}
+                    onChange={event =>
+                      setClubNames(prev => ({ ...prev, [request.id]: event.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium" htmlFor={`note-${request.id}`}>
+                    Review note
+                  </label>
+                  <Textarea
+                    id={`note-${request.id}`}
+                    value={reviewNotes[request.id] ?? ''}
+                    onChange={event =>
+                      setReviewNotes(prev => ({ ...prev, [request.id]: event.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => handleApprove(request)} disabled={approve.isPending}>
+                  <Check className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+                <Button variant="outline" onClick={() => handleDeny(request)} disabled={deny.isPending}>
+                  <X className="h-4 w-4 mr-2" />
+                  Deny
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </PageShell>
+  );
+};
+
+export default AccessRequestsPage;
+```
+
+- [ ] **Step 7: Wire route and dashboard link**
+
+In `apps/myk9show/src/routes/adminRoutes.tsx`, add a lazy import and route:
+
+```typescript
+const AccessRequestsPage = createEnhancedLazy(
+  () => import('@/pages/admin/AccessRequestsPage'),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'AccessRequestsPage' }
+);
+```
+
+Add route:
+
+```tsx
+<Route
+  path="/admin/access-requests"
+  element={adminGuard(
+    <SuspenseWrapper>
+      <PageTransition>
+        <AccessRequestsPage />
+      </PageTransition>
+    </SuspenseWrapper>
+  )}
+/>
+```
+
+In `PlatformAdministrationSection.tsx`, add a card/link labeled `Access Requests` pointing to `/admin/access-requests`.
+
+- [ ] **Step 8: Run focused tests**
+
+Run: `cd apps/myk9show && npx vitest run src/features/access-requests/accessRequestService.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add apps/myk9show/src/features/access-requests apps/myk9show/src/pages/admin/AccessRequestsPage.tsx apps/myk9show/src/routes/adminRoutes.tsx apps/myk9show/src/pages/admin/AdminDashboard/PlatformAdministrationSection.tsx
+git commit -m "feat(admin): add club access request queue"
+```
+
+## Task 4: Club-Scoped Secretary Management
+
+**Files:**
+- Create: `apps/myk9show/src/features/club-secretaries/clubSecretaryService.ts`
+- Create: `apps/myk9show/src/features/club-secretaries/clubSecretaryService.test.ts`
+- Modify: `apps/myk9show/src/components/clubs/ClubDetails/MembersTab.tsx`
+
+- [ ] **Step 1: Write service tests first**
+
+Create `apps/myk9show/src/features/club-secretaries/clubSecretaryService.test.ts`:
+
+```typescript
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { supabase } from '@/lib/supabase';
+import { clubSecretaryService } from './clubSecretaryService';
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+    rpc: vi.fn(),
+  },
+}));
+
+describe('clubSecretaryService', () => {
+  beforeEach(() => {
+    vi.mocked(supabase.from).mockReset();
+    vi.mocked(supabase.rpc).mockReset();
+  });
+
+  it('grants secretary access for one club through the RPC', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'assignment-1', error: null } as never);
+
+    await clubSecretaryService.grantSecretary({ personId: 'person-1', clubId: 'club-1' });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('grant_club_secretary', {
+      p_person_id: 'person-1',
+      p_club_id: 'club-1',
+    });
+  });
+
+  it('revokes secretary access for one club through the RPC', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as never);
+
+    await clubSecretaryService.revokeSecretary({ personId: 'person-1', clubId: 'club-1' });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('revoke_club_secretary', {
+      p_person_id: 'person-1',
+      p_club_id: 'club-1',
+    });
+  });
+});
+```
+
+- [ ] **Step 2: Run service tests red**
+
+Run: `cd apps/myk9show && npx vitest run src/features/club-secretaries/clubSecretaryService.test.ts`
+
+Expected: FAIL because the service does not exist.
+
+- [ ] **Step 3: Add service**
+
+Create `apps/myk9show/src/features/club-secretaries/clubSecretaryService.ts`:
+
+```typescript
+import { supabase } from '@/lib/supabase';
+
+interface SecretaryMutationInput {
+  personId: string;
+  clubId: string;
+}
+
+function throwIfError(error: unknown): asserts error is null {
+  if (error) {
+    const message = error instanceof Error ? error.message : 'Secretary access operation failed';
+    throw new Error(message);
+  }
+}
+
+export const clubSecretaryService = {
+  async grantSecretary(input: SecretaryMutationInput): Promise<string | null> {
+    const { data, error } = await supabase.rpc('grant_club_secretary', {
+      p_person_id: input.personId,
+      p_club_id: input.clubId,
+    });
+
+    throwIfError(error);
+    return data as string | null;
+  },
+
+  async revokeSecretary(input: SecretaryMutationInput): Promise<void> {
+    const { error } = await supabase.rpc('revoke_club_secretary', {
+      p_person_id: input.personId,
+      p_club_id: input.clubId,
+    });
+
+    throwIfError(error);
+  },
+};
+```
+
+- [ ] **Step 4: Add club members UI slice**
+
+In `apps/myk9show/src/components/clubs/ClubDetails/MembersTab.tsx`, keep the current member list and add a small management section below it for `canManageMembers`. The first implementation can use an existing person picker if one is already used by the club member dialog; otherwise add a button that opens the existing Add Member flow and document in the button text that club secretaries are granted after selecting a person.
+
+Use this copy:
+
+```tsx
+<h3 className="text-lg font-semibold">Show Secretaries</h3>
+<p className="text-sm text-muted-foreground">
+  Secretaries added here can manage shows for this club only.
+</p>
+```
+
+Grant and revoke actions must call `clubSecretaryService.grantSecretary()` and `clubSecretaryService.revokeSecretary()` with `club.id`.
+
+- [ ] **Step 5: Run focused tests**
+
+Run: `cd apps/myk9show && npx vitest run src/features/club-secretaries/clubSecretaryService.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/myk9show/src/features/club-secretaries apps/myk9show/src/components/clubs/ClubDetails/MembersTab.tsx
+git commit -m "feat(clubs): manage club-scoped secretaries"
+```
+
+## Task 5: Show Secretary Selection Scope Audit
+
+**Files:**
+- Modify: `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.helpers.ts`
+- Modify: `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx`
+- Test: `apps/myk9show/src/test/components/wizard/ShowDetailsStep.helpers.test.tsx`
+- Test: `apps/myk9show/src/test/components/wizard/OfficialPicker.test.tsx`
+
+- [ ] **Step 1: Add the failing helper test**
+
+Add this test to `apps/myk9show/src/test/components/wizard/ShowDetailsStep.helpers.test.tsx`:
+
+```typescript
+describe('groupPeopleForOfficial club scoping', () => {
+  const clubASecretary = makeUser({
+    id: 'person-a',
+    firstName: 'Jane',
+    lastName: 'A',
+    roles: [UserRole.SECRETARY],
+    roleAssignments: [
+      { roleName: UserRole.SECRETARY, clubId: 'club-a', isActive: true },
+    ],
+  } as Partial<User> & { id: string });
+
+  const clubBSecretary = makeUser({
+    id: 'person-b',
+    firstName: 'Jane',
+    lastName: 'B',
+    roles: [UserRole.SECRETARY],
+    roleAssignments: [
+      { roleName: UserRole.SECRETARY, clubId: 'club-b', isActive: true },
+    ],
+  } as Partial<User> & { id: string });
+
+  it('suggests only secretaries scoped to the selected club', () => {
+    const result = groupPeopleForOfficial(
+      [clubASecretary, clubBSecretary],
+      [UserRole.SECRETARY],
+      '',
+      { clubId: 'club-a', requireScopedRole: true }
+    );
+
+    expect(result.suggested).toEqual([clubASecretary]);
+    expect(result.others).not.toContain(clubBSecretary);
+  });
+});
+```
+
+If `User` does not yet expose `roleAssignments`, add a local test-only cast as shown above and implement a narrow exported `OfficialRoleAssignment` interface in the helper file.
+
+- [ ] **Step 2: Run the helper test red**
+
+Run: `cd apps/myk9show && npx vitest run src/test/components/wizard/ShowDetailsStep.helpers.test.tsx -t "suggests only secretaries scoped to the selected club"`
+
+Expected: FAIL because `groupPeopleForOfficial()` currently accepts only three arguments and only checks broad `roles`.
+
+- [ ] **Step 3: Implement scoped official grouping**
+
+In `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.helpers.ts`, add:
+
+```typescript
+export interface OfficialRoleAssignment {
+  roleName: UserRole;
+  clubId: string | null;
+  showId?: string | null;
+  isActive: boolean;
+}
+
+interface OfficialGroupingOptions {
+  clubId?: string | null;
+  requireScopedRole?: boolean;
+}
+
+function hasSuggestedRole(
+  person: User & { roleAssignments?: OfficialRoleAssignment[] },
+  suggestedRoles: UserRole[],
+  options: OfficialGroupingOptions
+) {
+  if (!options.requireScopedRole) {
+    return person.roles?.some(role => suggestedRoles.includes(role as UserRole)) ?? false;
+  }
+
+  return (
+    person.roleAssignments?.some(
+      assignment =>
+        assignment.isActive &&
+        assignment.clubId === options.clubId &&
+        suggestedRoles.includes(assignment.roleName)
+    ) ?? false
+  );
+}
+```
+
+Change the helper signature and return logic:
+
+```typescript
+export function groupPeopleForOfficial(
+  people: User[],
+  suggestedRoles: UserRole[],
+  searchTerm: string,
+  options: OfficialGroupingOptions = {}
+): { suggested: User[]; others: User[] } {
+  const sorted = getAllPeopleSorted(people);
+  const filtered = filterPeopleByName(sorted, searchTerm);
+  const suggested = filtered.filter(person =>
+    hasSuggestedRole(person as User & { roleAssignments?: OfficialRoleAssignment[] }, suggestedRoles, options)
+  );
+  const suggestedIds = new Set(suggested.map(person => person.id));
+
+  return {
+    suggested,
+    others: options.requireScopedRole
+      ? []
+      : filtered.filter(person => !suggestedIds.has(person.id)),
+  };
+}
+```
+
+- [ ] **Step 4: Pass club scope from show details**
+
+In `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx`, pass the selected club id to the secretary picker:
+
+```tsx
+<OfficialPicker
+  label="Show Secretary"
+  required
+  selectedPersonId={show.officials.secretary[0]}
+  people={people}
+  suggestedRoles={[UserRole.SECRETARY]}
+  groupingOptions={{ clubId: show.clubId, requireScopedRole: true }}
+  {...(show.officials.secretary[0] === userWithRoles?.databaseUserId
+    ? { autoFillBadge: 'You' }
+    : {})}
+  onSelect={id =>
+    updateShowData({ officials: { ...show.officials, secretary: [id] } })
+  }
+  onCreatePerson={handleCreateOfficialPerson}
+/>
+```
+
+In `apps/myk9show/src/components/shows/wizard/steps/OfficialPicker.tsx`, add the optional prop:
+
+```typescript
+import type { OfficialRoleAssignment } from './ShowDetailsStep.helpers';
+
+interface OfficialGroupingOptions {
+  clubId?: string | null;
+  requireScopedRole?: boolean;
+}
+
+export interface OfficialPickerProps {
+  label: string;
+  required?: boolean;
+  selectedPersonId: string | undefined;
+  people: User[];
+  suggestedRoles: UserRole[];
+  groupingOptions?: OfficialGroupingOptions;
+  autoFillBadge?: string;
+  onSelect: (personId: string) => void;
+  onCreatePerson: (data: CreatePersonData) => Promise<string>;
+}
+```
+
+Then call:
+
+```typescript
+const { suggested, others } = groupPeopleForOfficial(
+  people,
+  suggestedRoles,
+  searchTerm,
+  groupingOptions
+);
+```
+
+- [ ] **Step 5: Add picker-level regression**
+
+Add this test to `apps/myk9show/src/test/components/wizard/OfficialPicker.test.tsx`:
+
+```typescript
+it('hides secretaries outside the selected club when scoped grouping is required', async () => {
+  const onSelect = vi.fn();
+  const clubASecretary = {
+    ...makeUser('club-a-secretary', 'Ada', [UserRole.SECRETARY]),
+    roleAssignments: [{ roleName: UserRole.SECRETARY, clubId: 'club-a', isActive: true }],
+  } as User;
+  const clubBSecretary = {
+    ...makeUser('club-b-secretary', 'Bea', [UserRole.SECRETARY]),
+    roleAssignments: [{ roleName: UserRole.SECRETARY, clubId: 'club-b', isActive: true }],
+  } as User;
+
+  renderWithProviders(
+    <OfficialPicker
+      label="Show Secretary"
+      selectedPersonId={undefined}
+      people={[clubASecretary, clubBSecretary]}
+      suggestedRoles={[UserRole.SECRETARY]}
+      groupingOptions={{ clubId: 'club-a', requireScopedRole: true }}
+      onSelect={onSelect}
+      onCreatePerson={vi.fn()}
+    />
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: /select show secretary/i }));
+
+  await waitFor(() => expect(screen.getByText('Ada Smith')).toBeInTheDocument());
+  expect(screen.queryByText('Bea Smith')).not.toBeInTheDocument();
+});
+```
+
+- [ ] **Step 6: Run the picker tests green**
+
+Run: `cd apps/myk9show && npx vitest run src/test/components/wizard/ShowDetailsStep.helpers.test.tsx src/test/components/wizard/OfficialPicker.test.tsx`
+
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.helpers.ts apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx apps/myk9show/src/components/shows/wizard/steps/OfficialPicker.tsx apps/myk9show/src/test/components/wizard/ShowDetailsStep.helpers.test.tsx apps/myk9show/src/test/components/wizard/OfficialPicker.test.tsx
+git commit -m "fix(auth): scope show secretary selection to club"
+```
+
+## Task 6: Verification And Todo Closeout
+
+**Files:**
+- Modify: `OPEN-TODOS.md`
+
+- [ ] **Step 1: Run focused test suite**
+
+Run:
+
+```bash
+cd apps/myk9show && npx vitest run \
+  src/test/auth/useAuth.test.ts \
+  src/test/pages/SignUpPage.test.tsx \
+  src/features/access-requests/accessRequestService.test.ts \
+  src/features/club-secretaries/clubSecretaryService.test.ts
+```
+
+Expected: PASS.
+
+- [ ] **Step 2: Run typecheck**
+
+Run: `pnpm typecheck`
+
+Expected: PASS.
+
+- [ ] **Step 3: Run lint**
+
+Run: `pnpm lint`
+
+Expected: PASS.
+
+- [ ] **Step 4: Mark todo complete**
+
+In `OPEN-TODOS.md`, change:
+
+```markdown
+- [ ] **Add an approval workflow for sign-up role requests**
+```
+
+to:
+
+```markdown
+- [x] **Add an approval workflow for sign-up role requests**
+```
+
+Append implementation notes with PR/commit references after the work is merged.
+
+- [ ] **Step 5: Commit closeout**
+
+```bash
+git add OPEN-TODOS.md
+git commit -m "docs: close club role approval todo"
+```
+
+## Self-Review
+
+- Spec coverage: The plan covers site-admin club approval, first club-admin grant, club-admin secretary grants, signup copy, scoped secretary selection, user_roles hardening, and tests.
+- Placeholder scan: No task relies on unspecified behavior; where a file must be identified by search, the exact search command and required assertion are included.
+- Type consistency: Metadata names use camelCase in TypeScript and snake_case in Supabase auth metadata. RPC names and argument names match between SQL and service tests.

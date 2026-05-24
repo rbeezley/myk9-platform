@@ -1,8 +1,27 @@
 # Plan — Workbench Collapse to Setup + Show Desk
 
 **Date:** 2026-05-22
-**Status:** Draft. Companion to [`plan-show-map-unified-tab.md`](plan-show-map-unified-tab.md) (Option A). PO chooses one.
+**Status:** **DONE** (2026-05-24). PO chose Option B; the full B0–B6 chain shipped.
 **Related prior plans:** [`plan-ia-show-map.md`](plan-ia-show-map.md), [`ia-review-show-map.md`](ia-review-show-map.md), [`plan-show-desk-sequencing.md`](plan-show-desk-sequencing.md)
+
+## Shipped — chain summary
+
+The workbench is now `[Setup, Show Desk]`. The legacy Today and Wrap-up tabs are gone. Show Desk owns the adaptive header (status pill, pending signals, guidance, Up Next, Running Now), the unified Show Map tree with phase-aware row badges and lifecycle-aware primary buttons, the 9-tool right-anchored Sheet, and a conditional Closeout section that only renders when at least one class is wrap-up-eligible.
+
+| Phase | PRs |
+|---|---|
+| B0 — Adaptive header scaffold | [#303](https://github.com/rbeezley/myk9-platform/pull/303), [#304](https://github.com/rbeezley/myk9-platform/pull/304) |
+| B1 — Action unification + check-in-conflict removal | [#305](https://github.com/rbeezley/myk9-platform/pull/305) |
+| B1 follow-ups — phase-aware attention count + trial wrap-up gate | [#306](https://github.com/rbeezley/myk9-platform/pull/306), [#307](https://github.com/rbeezley/myk9-platform/pull/307) |
+| B2a — Show Desk tab | [#308](https://github.com/rbeezley/myk9-platform/pull/308) |
+| B2b — Row-action enhancements (edit-score + class lifecycle) | [#310](https://github.com/rbeezley/myk9-platform/pull/310) |
+| B3 — Tools sheet (9 cards including B6.5's Volunteers + Tasks) | [#311](https://github.com/rbeezley/myk9-platform/pull/311), [#312](https://github.com/rbeezley/myk9-platform/pull/312) |
+| B4 — Conditional Closeout section | [#313](https://github.com/rbeezley/myk9-platform/pull/313) |
+| B4.5 — Detail-page audit + orphan cleanup | [#314](https://github.com/rbeezley/myk9-platform/pull/314) |
+| B5 — Remove Today + Wrap-up tabs | [#315](https://github.com/rbeezley/myk9-platform/pull/315) |
+| B6 — Cleanup (drop phase param, doc) | (this PR) |
+
+What didn't ship as planned: the live-ops AskQ prompt set (scratch/move-up/ring-delay/handler messaging/submit results) was deleted in B5 because its only venue was the Today tab. Re-homing those prompts in the adaptive header or per-action `?` popovers is captured for B7+. The Setup tab simplification (apply the same banner/AskQ/sprawled-cards template B1–B4 applied to Today/Wrap-up) is captured for a future B8.
 
 ## What this plan is and isn't
 

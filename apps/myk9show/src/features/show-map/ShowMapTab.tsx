@@ -26,7 +26,6 @@ interface ShowMapTabProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
   initialDayScope?: ShowMapDayScope | undefined;
   initialCompletionScope?: ShowMapCompletionScope | undefined;
-  actionPhase?: 'today' | 'wrap-up' | undefined;
   scopeNow?: Date | undefined;
   // When true, hide internal Guidance card, Up Next queue, and Running Now
   // strip — the parent (e.g., ShowDeskAdaptiveHeader) owns those surfaces.
@@ -164,7 +163,6 @@ function ShowMapTabStandalone(props: ShowMapTabProps) {
     classes: props.classes,
     entries: props.entries,
     showId: props.show.id,
-    phase: props.actionPhase,
     ...(props.scopeNow !== undefined && { scopeNow: props.scopeNow }),
     initialDayScope: props.initialDayScope ?? 'all',
     initialCompletionScope: props.initialCompletionScope ?? 'active',
@@ -178,7 +176,6 @@ function ShowMapTabView({
   classes,
   entries,
   canManageShow,
-  actionPhase,
   compact = false,
   state,
 }: ShowMapTabProps & { state: ShowMapWorkbenchState }) {
@@ -277,12 +274,6 @@ function ShowMapTabView({
           <p className="mt-1 text-sm text-muted-foreground">
             Scan the show by trial and class, then open the class you need.
           </p>
-          {actionPhase === 'wrap-up' && (
-            <p className="mt-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-              Wrap-up starts with completed entries across the full show. Use the filters to widen
-              or narrow what you see.
-            </p>
-          )}
         </div>
         <div
           className="flex flex-wrap gap-3"
@@ -342,7 +333,6 @@ function ShowMapTabView({
           onNavigate={navigateTo}
           onAction={executeAction}
           enableRowActions={canManageShow}
-          actionPhase={actionPhase}
           attentionCountsByNodeId={attentionCountsByNodeId}
           onResetFilters={resetFilters}
         />

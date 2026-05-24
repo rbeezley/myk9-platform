@@ -368,32 +368,9 @@ describe('ShowMapTab', () => {
     expect(screen.queryByRole('button', { name: /new trial/i })).not.toBeInTheDocument();
   });
 
-  it('frames the completed-scope default in wrap-up mode only', () => {
-    const props = {
-      show,
-      trials: [trial],
-      classes: [
-        {
-          id: 'class-1',
-          trialId: 'trial-1',
-          name: 'Interior Novice A',
-          status: 'Completed',
-        },
-      ],
-      entries: [],
-      canManageShow: true,
-      initialDayScope: 'all' as const,
-      initialCompletionScope: 'completed' as const,
-    };
-
-    const { rerender } = render(<ShowMapTab {...props} actionPhase="wrap-up" />);
-
-    expect(screen.getByText(/wrap-up starts with completed entries/i)).toBeInTheDocument();
-
-    rerender(<ShowMapTab {...props} actionPhase="today" />);
-
-    expect(screen.queryByText(/wrap-up starts with completed entries/i)).not.toBeInTheDocument();
-  });
+  // B6: the wrap-up subtitle and the actionPhase prop were removed alongside
+  // the Today/Wrap-up tabs. Show Desk is the only operational surface now;
+  // the unified tree doesn't need a "wrap-up starts with..." preamble.
 
   it('keeps the guidance action out of Up next and executes the next queued action', async () => {
     // Class is Not Started so the queue's top items are the not-yet-started
@@ -732,32 +709,8 @@ describe('ShowMapTab', () => {
     expect(within(tile).getByText('1')).toBeInTheDocument();
   });
 
-  it("does NOT count wrap-up work in the Need Attention summary when actionPhase='today'", () => {
-    // The legacy Today tab keeps its semantics during the migration window:
-    // wrap-up actions are filtered out, so the same fixture renders a 0.
-    render(
-      <ShowMapTab
-        show={show}
-        trials={[trial]}
-        classes={[
-          {
-            id: 'class-needs-signature',
-            trialId: 'trial-1',
-            name: 'Container Novice A',
-            status: 'Complete',
-          },
-        ]}
-        entries={[
-          { id: 'entry-1', class_id: 'class-needs-signature', is_scored: true },
-        ]}
-        canManageShow
-        actionPhase="today"
-      />
-    );
-
-    const labelEl = screen.getByText('Need Attention');
-    const tile = labelEl.parentElement;
-    if (!(tile instanceof HTMLElement)) throw new Error('Expected summary tile');
-    expect(within(tile).getByText('0')).toBeInTheDocument();
-  });
+  // B6: the actionPhase='today' filter variant was removed alongside the
+  // Today tab. The unified Need Attention summary always counts wrap-up
+  // work — covered by the "counts wrap-up work in the Need Attention
+  // summary when actionPhase is undefined" test above.
 });

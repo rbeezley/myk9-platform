@@ -25,7 +25,6 @@ import type { ShowMapAction } from './showMapActions';
 
 export interface UseShowMapWorkbenchStateInput extends BuildShowMapTreeInput {
   showId: string;
-  phase?: 'today' | 'wrap-up' | undefined;
   scopeNow?: Date | undefined;
   initialDayScope?: ShowMapDayScope | undefined;
   initialCompletionScope?: ShowMapCompletionScope | undefined;
@@ -47,7 +46,6 @@ export function useShowMapWorkbenchState({
   classes,
   entries,
   showId,
-  phase,
   scopeNow,
   initialDayScope = 'all',
   initialCompletionScope = 'active',
@@ -110,14 +108,14 @@ export function useShowMapWorkbenchState({
   const { executeAction } = executor;
 
   const attentionCountsByNodeId = useMemo(
-    () => getAttentionCountsByNodeId(tree, phase),
-    [phase, tree]
+    () => getAttentionCountsByNodeId(tree),
+    [tree]
   );
   const attentionCount = attentionCountsByNodeId.get(tree.root.id) ?? 0;
 
   const recommendedActions = useMemo(
-    () => getAllRecommendedActions('root', { tree, phase }),
-    [phase, tree]
+    () => getAllRecommendedActions('root', { tree }),
+    [tree]
   );
 
   const guidanceAction = recommendedActions.find(
@@ -138,11 +136,11 @@ export function useShowMapWorkbenchState({
 
   const priorityActions = useMemo(() => {
     const currentGuidanceKey = guidanceAction ? actionKey(guidanceAction) : null;
-    const actions = getRankedActions('root', { tree, phase });
+    const actions = getRankedActions('root', { tree });
     return currentGuidanceKey
       ? actions.filter(action => actionKey(action) !== currentGuidanceKey)
       : actions;
-  }, [phase, guidanceAction, tree]);
+  }, [guidanceAction, tree]);
 
   const runningNowItems = useMemo(
     () => getRunningNowItems(tree, scope, effectiveScopeNow),

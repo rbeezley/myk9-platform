@@ -40,7 +40,6 @@ interface ShowMapStructureTableProps {
   enableRowActions?: boolean | undefined;
   scope?: ShowMapScopeState | undefined;
   scopeNow?: Date | undefined;
-  actionPhase?: 'today' | 'wrap-up' | undefined;
   attentionCountsByNodeId?: ReadonlyMap<string, number> | undefined;
   onResetFilters?: (() => void) | undefined;
 }
@@ -210,16 +209,12 @@ export function ShowMapStructureTable({
   enableRowActions = true,
   scope = DEFAULT_SHOW_MAP_SCOPE,
   scopeNow = new Date(),
-  actionPhase,
   attentionCountsByNodeId,
   onResetFilters,
 }: ShowMapStructureTableProps) {
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
   const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>();
-  const attentionNodeIds = useMemo(
-    () => getAttentionNodeIds(tree, actionPhase),
-    [actionPhase, tree]
-  );
+  const attentionNodeIds = useMemo(() => getAttentionNodeIds(tree), [tree]);
   const visibleKeyboardNodeIds = useMemo(
     () =>
       getVisibleKeyboardNodeIds({
@@ -394,7 +389,6 @@ export function ShowMapStructureTable({
                   onNavigate={onNavigate}
                   onAction={onAction}
                   openSignal={actionMenuOpenSignals[node.id]}
-                  actionPhase={actionPhase}
                 />
               )}
             </div>
@@ -403,7 +397,7 @@ export function ShowMapStructureTable({
       );
     }
 
-    const primaryAction = getPrimaryActionForNode(node, { tree, phase: actionPhase });
+    const primaryAction = getPrimaryActionForNode(node, { tree });
 
     const rowContent = (
       <>
@@ -482,7 +476,6 @@ export function ShowMapStructureTable({
               onNavigate={onNavigate}
               onAction={onAction}
               openSignal={actionMenuOpenSignals[node.id]}
-              actionPhase={actionPhase}
             />
           )}
         </div>

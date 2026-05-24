@@ -184,6 +184,10 @@ function EntryIdentity({
   onNavigate,
 }: {
   node: ShowMapNode;
+  // INTENT: When onNavigate is undefined the row is non-navigable (e.g.
+  // tree-wide reorder mode is active). Render identity fields as plain
+  // text instead of buttons so the secretary can't context-switch into
+  // a detail page while a reorder save is pending.
   onNavigate?: ((href: string) => void) | undefined;
 }) {
   const display = node.entryDisplay;
@@ -195,10 +199,10 @@ function EntryIdentity({
     <div className="flex min-w-0 items-center gap-3">
       <ArmbandBadge armband={display.armband} className="size-12 rounded-[10px] text-base" />
       <div className="min-w-0">
-        {display.dogHref ? (
+        {display.dogHref && onNavigate ? (
           <button
             type="button"
-            onClick={() => onNavigate?.(display.dogHref!)}
+            onClick={() => onNavigate(display.dogHref!)}
             className="block max-w-full truncate rounded-sm text-left text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {display.dogName}
@@ -209,16 +213,16 @@ function EntryIdentity({
         {display.breed && (
           <div className="truncate text-sm text-muted-foreground">{display.breed}</div>
         )}
-        {display.handler && display.handlerHref && (
+        {display.handler && display.handlerHref && onNavigate && (
           <button
             type="button"
-            onClick={() => onNavigate?.(display.handlerHref!)}
+            onClick={() => onNavigate(display.handlerHref!)}
             className="block max-w-full truncate rounded-sm text-left text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {display.handler}
           </button>
         )}
-        {display.handler && !display.handlerHref && (
+        {display.handler && (!display.handlerHref || !onNavigate) && (
           <div className="truncate text-xs text-muted-foreground">{display.handler}</div>
         )}
       </div>
@@ -412,6 +416,12 @@ export function ShowMapStructureTable({
             attentionCount={
               attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0
             }
+            isPersisting={reorderMode?.isPersisting ?? false}
+            onKeyboardReorder={
+              reorderMode?.onKeyboardReorder
+                ? direction => reorderMode.onKeyboardReorder?.(node.id, direction)
+                : undefined
+            }
           />
         );
       }
@@ -430,7 +440,10 @@ export function ShowMapStructureTable({
             )}
             {...getRowActionOpenProps(node.id)}
           >
-            <EntryIdentity node={node} onNavigate={onNavigate} />
+            <EntryIdentity
+              node={node}
+              onNavigate={isAnyReorderActive ? undefined : onNavigate}
+            />
             <StatusCell
               node={node}
               attentionCount={attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0}
@@ -480,7 +493,11 @@ export function ShowMapStructureTable({
             )}
           </Button>
 
-          {node.href ? (
+          {/* INTENT: While drag-and-drop reorder mode is active the tree is
+              modal — let the label render as static text instead of a
+              navigation button so the secretary can't context-switch
+              mid-save and lose the reorder banner. */}
+          {node.href && !isAnyReorderActive ? (
             <button
               type="button"
               onClick={() => onNavigate?.(node.href!)}

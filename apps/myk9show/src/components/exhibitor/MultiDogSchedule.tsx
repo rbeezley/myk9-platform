@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ExhibitorEntry, CheckInStatus } from '@/types/exhibitor-types';
 import { cn } from '@/lib/utils';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface MultiDogScheduleProps {
   entries: ExhibitorEntry[];
@@ -29,6 +30,10 @@ interface DogGroup {
   dogId: string;
   dogName: string;
   entries: ExhibitorEntry[];
+}
+
+function entryRingLabel(entry: { ringNumber: number | null }): string | null {
+  return formatRingLabel(entry.ringNumber);
 }
 
 const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
@@ -223,53 +228,64 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
                     'p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800'
                 )}
               >
-                {slot.entries.map(entry => (
-                  <div
-                    key={entry.id}
-                    onClick={() =>
-                      startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))
-                    }
-                    className="bg-card dark:bg-warm-900 rounded-lg shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Dog className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {entry.dogCallName}
-                          </span>
-                          <span className="text-gray-600 dark:text-gray-400">#{entry.armband}</span>
+                {slot.entries.map(entry => {
+                  const ringLabel = entryRingLabel(entry);
+
+                  return (
+                    <div
+                      key={entry.id}
+                      onClick={() =>
+                        startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))
+                      }
+                      className="bg-card dark:bg-warm-900 rounded-lg shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Dog className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            <span className="font-medium text-gray-900 dark:text-gray-100">
+                              {entry.dogCallName}
+                            </span>
+                            <span className="text-gray-600 dark:text-gray-400">
+                              #{entry.armband}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                            {entry.className}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-600 dark:text-gray-400">
+                            {ringLabel && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {ringLabel}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              {entry.judgeName}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-700 dark:text-gray-300">
-                          {entry.className}
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-600 dark:text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            Ring {entry.ringNumber}
+                        <div className="text-right">
+                          <span
+                            className={cn(
+                              'text-sm font-medium',
+                              getStatusColor(entry.checkInStatus)
+                            )}
+                          >
+                            {entry.checkInStatus === 'checked-in' && (
+                              <CheckCircle className="w-4 h-4 inline" />
+                            )}
+                            {entry.checkInStatus === 'pulled' && (
+                              <XCircle className="w-4 h-4 inline" />
+                            )}
+                            {entry.checkInStatus.replace('-', ' ')}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            {entry.judgeName}
-                          </span>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <span
-                          className={cn('text-sm font-medium', getStatusColor(entry.checkInStatus))}
-                        >
-                          {entry.checkInStatus === 'checked-in' && (
-                            <CheckCircle className="w-4 h-4 inline" />
-                          )}
-                          {entry.checkInStatus === 'pulled' && (
-                            <XCircle className="w-4 h-4 inline" />
-                          )}
-                          {entry.checkInStatus.replace('-', ' ')}
-                        </span>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Connection line */}
@@ -320,29 +336,41 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
 
                 {isSelected && (
                   <div className="border-t border-gray-200 dark:border-warm-600 px-6 py-4 space-y-3">
-                    {group.entries.map(entry => (
-                      <div
-                        key={entry.id}
-                        onClick={() =>
-                          startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))
-                        }
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-warm-950 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-warm-900"
-                      >
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-gray-100">
-                            {entry.className}
-                          </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {formatTime(new Date(entry.scheduledTime!))} • Ring {entry.ringNumber}
-                          </div>
-                        </div>
-                        <span
-                          className={cn('text-sm font-medium', getStatusColor(entry.checkInStatus))}
+                    {group.entries.map(entry => {
+                      const details = [
+                        formatTime(new Date(entry.scheduledTime!)),
+                        entryRingLabel(entry),
+                      ]
+                        .filter(Boolean)
+                        .join(' • ');
+
+                      return (
+                        <div
+                          key={entry.id}
+                          onClick={() =>
+                            startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))
+                          }
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-warm-950 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-warm-900"
                         >
-                          {entry.checkInStatus.replace('-', ' ')}
-                        </span>
-                      </div>
-                    ))}
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-gray-100">
+                              {entry.className}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {details}
+                            </div>
+                          </div>
+                          <span
+                            className={cn(
+                              'text-sm font-medium',
+                              getStatusColor(entry.checkInStatus)
+                            )}
+                          >
+                            {entry.checkInStatus.replace('-', ' ')}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

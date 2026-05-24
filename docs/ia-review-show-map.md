@@ -5,6 +5,9 @@
 **Sources:** Route audit (`apps/myk9show/src/routes/`), codebase scan (`apps/myk9show/src/features/show-map/`), recent commit history (PRs #277–#288), architectural commitments (`docs/plan-show-day-sequencing.md`, `docs/plan-show-map-node-attrs-and-attention.md`)
 **Scope:** The `show-map` feature surface and the capabilities added during the row-actions / rewalk-gap workstream (commits between #277 "phase f row actions plan" and #288 "close phase 2 rewalk gaps").
 
+> **2026-05-24 addendum — workbench collapse landed.** The findings below were
+> the rationale for [`plan-show-map-workbench-collapse.md`](plan-show-map-workbench-collapse.md), which shipped as PRs #303–#315 (Phases B0–B6). The IA today is `[Setup, Show Desk]`; the Today and Wrap-up tabs documented as parallel surfaces in this review no longer exist. Show Desk owns the unified action set, the adaptive header, the 9-tool Sheet, and the conditional Closeout section. See the collapse plan's "Shipped — chain summary" for the PR-by-PR breakdown.
+
 ## What's in scope
 
 The show-map feature is mounted in three places:

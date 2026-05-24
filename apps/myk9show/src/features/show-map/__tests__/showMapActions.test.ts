@@ -497,7 +497,7 @@ describe('showMapActions', () => {
     expect(reviewAction!.why).toBe('Bella — Entry is waiting for secretary review');
   });
 
-  it("keeps wrap-up attention actions out of the legacy phase: 'today' action set", () => {
+  it('surfaces wrap-up attention actions in the unified action set', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -518,20 +518,21 @@ describe('showMapActions', () => {
       ],
     });
 
-    expect(
-      getRankedActions('root', { tree, phase: 'today' }).map(action => action.id)
-    ).not.toContain('collect-judge-signature');
-    expect(getRankedActions('root', { tree, phase: 'wrap-up' })).toEqual([
-      expect.objectContaining({
-        id: 'collect-judge-signature',
-        nodeId: 'class:class-needs-signature',
-        href: '/secretary/reports',
-        createsAttention: true,
-      }),
-    ]);
+    // B6: actions are always unified. The previous phase='today'/'wrap-up'
+    // filter variants were removed alongside the Today and Wrap-up tabs.
+    expect(getRankedActions('root', { tree })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'collect-judge-signature',
+          nodeId: 'class:class-needs-signature',
+          href: '/secretary/reports',
+          createsAttention: true,
+        }),
+      ])
+    );
   });
 
-  it('uses the shared phase-aware contract for recommended actions', () => {
+  it('surfaces wrap-up actions in the recommended set', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -552,15 +553,14 @@ describe('showMapActions', () => {
       ],
     });
 
-    expect(
-      getRecommendedActions('root', { tree, phase: 'today' }).map(action => action.id)
-    ).not.toContain('collect-judge-signature');
-    expect(getRecommendedActions('root', { tree, phase: 'wrap-up' })).toEqual([
-      expect.objectContaining({
-        id: 'collect-judge-signature',
-        why: 'Completed class still needs judge sign-off',
-      }),
-    ]);
+    expect(getRecommendedActions('root', { tree })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'collect-judge-signature',
+          why: 'Completed class still needs judge sign-off',
+        }),
+      ])
+    );
   });
 
   it('merges live-ops and wrap-up actions when phase is undefined (Show Desk unified mode)', () => {
@@ -605,75 +605,10 @@ describe('showMapActions', () => {
     expect(ids).toContain('review-entry');
   });
 
-  it('honors phase="today" by hiding wrap-up actions even when both apply', () => {
-    const tree = buildShowMapTree({
-      show,
-      trials: [trial],
-      classes: [
-        {
-          id: 'class-needs-signature',
-          trialId: 'trial-1',
-          name: 'Container Novice A',
-          status: 'Complete',
-        },
-        {
-          id: 'class-active',
-          trialId: 'trial-1',
-          name: 'Interior Novice A',
-          status: 'In Progress',
-        },
-      ],
-      entries: [
-        { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
-        {
-          id: 'entry-submitted',
-          class_id: 'class-active',
-          dog: { call_name: 'Scout' },
-          entry_status: 'submitted',
-        },
-      ],
-    });
-
-    const ids = getRankedActions('root', { tree, phase: 'today' }).map(action => action.id);
-
-    expect(ids).toContain('review-entry');
-    expect(ids).not.toContain('collect-judge-signature');
-  });
-
-  it('honors phase="wrap-up" by hiding live-ops actions even when both apply', () => {
-    const tree = buildShowMapTree({
-      show,
-      trials: [trial],
-      classes: [
-        {
-          id: 'class-needs-signature',
-          trialId: 'trial-1',
-          name: 'Container Novice A',
-          status: 'Complete',
-        },
-        {
-          id: 'class-active',
-          trialId: 'trial-1',
-          name: 'Interior Novice A',
-          status: 'In Progress',
-        },
-      ],
-      entries: [
-        { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
-        {
-          id: 'entry-submitted',
-          class_id: 'class-active',
-          dog: { call_name: 'Scout' },
-          entry_status: 'submitted',
-        },
-      ],
-    });
-
-    const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(action => action.id);
-
-    expect(ids).toContain('collect-judge-signature');
-    expect(ids).not.toContain('review-entry');
-  });
+  // B6: the phase='today' and phase='wrap-up' filter variants were removed
+  // alongside the Today and Wrap-up tabs (see Phase B5). The "merges
+  // live-ops and wrap-up actions when phase is undefined" test above
+  // covers the only remaining contract — the unified set is always merged.
 
   it('does not collide when the same node satisfies both a live-ops and a wrap-up action', () => {
     // A class that is `complete` (wrap-up: needs-signature) but the merged
@@ -744,7 +679,7 @@ describe('showMapActions', () => {
       ],
     });
 
-    expect(getAttentionActions('root', { tree, phase: 'wrap-up' })).toEqual([
+    expect(getAttentionActions('root', { tree })).toEqual([
       expect.objectContaining({
         id: 'review-results',
         nodeId: 'class:class-signed',
@@ -784,7 +719,7 @@ describe('showMapActions', () => {
         entries: [],
       });
 
-      const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(a => a.id);
+      const ids = getRankedActions('root', { tree }).map(a => a.id);
       expect(ids).not.toContain('submit-final-results');
     });
 
@@ -812,7 +747,7 @@ describe('showMapActions', () => {
         ],
       });
 
-      const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(a => a.id);
+      const ids = getRankedActions('root', { tree }).map(a => a.id);
       expect(ids).toContain('submit-final-results');
     });
 
@@ -846,7 +781,7 @@ describe('showMapActions', () => {
       const trialNode = tree.nodesById['trial:trial-1'];
       expect(trialNode?.wrapUpStatus?.value).toBe('needs-wrap-up');
 
-      const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(a => a.id);
+      const ids = getRankedActions('root', { tree }).map(a => a.id);
       expect(ids).toContain('collect-judge-signature');
       // NEEDS_WRAP_UP does not itself emit a trial-level action; that's by design.
       expect(ids).not.toContain('submit-final-results');
@@ -901,71 +836,11 @@ describe('showMapActions', () => {
       expect(counts.get('entry:entry-b')).toBe(1);
     });
 
-    it("matches legacy tree.root.attentionCount when phase='today' (entry attention only)", () => {
-      // The legacy attention-consistency contract (entry-only) is preserved
-      // for the cross-show dashboard, which only sees entry data. With
-      // phase='today', wrap-up actions are filtered out, so the root count
-      // should equal tree.root.attentionCount.
-      const tree = buildShowMapTree({
-        show,
-        trials: [trial],
-        classes: [
-          {
-            id: 'class-active',
-            trialId: 'trial-1',
-            name: 'Interior Novice A',
-            status: 'In Progress',
-          },
-          {
-            id: 'class-needs-signature',
-            trialId: 'trial-1',
-            name: 'Container Novice A',
-            status: 'Complete',
-          },
-        ],
-        entries: [
-          { id: 'e1', class_id: 'class-active', entry_status: 'submitted' },
-          { id: 'e2', class_id: 'class-active', entry_status: 'submitted' },
-          { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
-        ],
-      });
-
-      const counts = getAttentionCountsByNodeId(tree, 'today');
-
-      expect(counts.get(tree.root.id)).toBe(2);
-      expect(tree.root.attentionCount).toBe(2);
-    });
-
-    it("hides entry attention under phase='wrap-up' and counts only wrap-up nodes", () => {
-      const tree = buildShowMapTree({
-        show,
-        trials: [trial],
-        classes: [
-          {
-            id: 'class-active',
-            trialId: 'trial-1',
-            name: 'Interior Novice A',
-            status: 'In Progress',
-          },
-          {
-            id: 'class-needs-signature',
-            trialId: 'trial-1',
-            name: 'Container Novice A',
-            status: 'Complete',
-          },
-        ],
-        entries: [
-          { id: 'e1', class_id: 'class-active', entry_status: 'submitted' },
-          { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
-        ],
-      });
-
-      const counts = getAttentionCountsByNodeId(tree, 'wrap-up');
-
-      expect(counts.get(tree.root.id)).toBe(1);
-      expect(counts.get('class:class-needs-signature')).toBe(1);
-      expect(counts.get('class:class-active')).toBeUndefined();
-    });
+    // B6: phase-filter variants of getAttentionCountsByNodeId were removed
+    // alongside the Today/Wrap-up tabs. The unified count is the only
+    // contract — the rollup above already exercises it. The cross-show
+    // dashboard's entry-only contract still lives on
+    // tree.root.attentionCount (separate code path, untouched).
 
     it('returns an empty map when no node carries attention work', () => {
       const tree = buildShowMapTree({
@@ -1051,19 +926,10 @@ describe('showMapActions', () => {
       expect(ids).not.toContain('edit-score');
     });
 
-    it("does NOT emit edit-score under phase: 'wrap-up' (it's a live-ops action)", () => {
-      const tree = buildShowMapTree({
-        show,
-        trials: [trial],
-        classes: [
-          { id: 'class-active', trialId: 'trial-1', name: 'Interior', status: 'In Progress' },
-        ],
-        entries: [{ id: 'entry-1', class_id: 'class-active', dog: { call_name: 'Bella' } }],
-      });
-
-      const ids = getRankedActions('root', { tree, phase: 'wrap-up' }).map(a => a.id);
-      expect(ids).not.toContain('edit-score');
-    });
+    // B6: the phase: 'wrap-up' filter no longer exists. edit-score is in
+    // the unified action set whenever its predicate is satisfied —
+    // surfacing it everywhere is correct because Show Desk is the only
+    // operational surface now.
   });
 
   describe('class-row primary action lifecycle (B2b Pattern 3)', () => {

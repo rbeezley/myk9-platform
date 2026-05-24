@@ -65,7 +65,6 @@ export interface ShowMapAction {
 
 export interface ShowMapActionState {
   tree: ShowMapTree;
-  phase?: 'today' | 'wrap-up' | undefined;
 }
 
 export type ShowMapActionScope = 'root' | ShowMapNode;
@@ -445,20 +444,13 @@ function liveOpsActionsForNode(
   return [];
 }
 
-// INTENT: phase==='today' preserves the legacy Today-tab action set,
-// phase==='wrap-up' preserves the legacy Wrap-up-tab action set, and
-// phase===undefined yields the unified Show Desk action set (B1).
-function actionsForNode(
-  node: ShowMapNode,
-  tree: ShowMapTree,
-  phase: ShowMapActionState['phase']
-): ShowMapAction[] {
-  if (phase === 'today') {
-    return liveOpsActionsForNode(node, tree);
-  }
-  if (phase === 'wrap-up') {
-    return wrapUpActionsForNode(node);
-  }
+// INTENT: Show Desk is now the canonical (and only) operational surface, so
+// the action set is always the unified merge of live-ops + wrap-up. Phase B5
+// removed the Today and Wrap-up tabs that needed the filtered variants; B6
+// drops the now-dead phase parameter. The dedup invariant stays as a
+// safety net — it catches future contributors who accidentally emit the
+// same action id from both branches for the same node.
+function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
   const merged = [...liveOpsActionsForNode(node, tree), ...wrapUpActionsForNode(node)];
   assertNoActionCollision(merged);
   return merged;
@@ -494,7 +486,7 @@ export function getRankedActions(
 ): ShowMapAction[] {
   // INTENT: node scope aggregates descendants for root/attention surfaces; row menus use direct helpers.
   return scopedNodes(scope, state.tree)
-    .flatMap(node => actionsForNode(node, state.tree, state.phase))
+    .flatMap(node => actionsForNode(node, state.tree))
     .sort(compareShowMapActions);
 }
 
@@ -502,7 +494,7 @@ export function getDirectActionsForNode(
   node: ShowMapNode,
   state: ShowMapActionState
 ): ShowMapAction[] {
-  return actionsForNode(node, state.tree, state.phase).sort(compareShowMapActions);
+  return actionsForNode(node, state.tree).sort(compareShowMapActions);
 }
 
 export function getRecommendedActionsForNode(
@@ -539,12 +531,9 @@ export function getAttentionActions(
   return getRankedActions(scope, state).filter(action => action.createsAttention);
 }
 
-export function getAttentionNodeIds(
-  tree: ShowMapTree,
-  phase?: ShowMapActionState['phase']
-): Set<string> {
+export function getAttentionNodeIds(tree: ShowMapTree): Set<string> {
   const nodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree, phase })) {
+  for (const action of getAttentionActions('root', { tree })) {
     let node: ShowMapNode | undefined = tree.nodesById[action.nodeId];
     while (node) {
       nodeIds.add(node.id);
@@ -554,19 +543,15 @@ export function getAttentionNodeIds(
   return nodeIds;
 }
 
-// Phase-aware attention rollup. Each unique node that directly hosts an
+// Attention rollup keyed on nodeId. Each unique node that directly hosts an
 // attention action contributes +1 to itself and to every ancestor. The static
 // `node.attentionCount` baked into the tree is entry-only and cannot represent
-// unified-mode wrap-up work; this helper is the source of truth for any
-// surface (summary tile, row badges) whose count must match the
-// phase-aware Attention filter.
-export function getAttentionCountsByNodeId(
-  tree: ShowMapTree,
-  phase?: ShowMapActionState['phase']
-): Map<string, number> {
+// unified wrap-up work; this helper is the source of truth for any surface
+// (summary tile, row badges) whose count must match the Attention filter.
+export function getAttentionCountsByNodeId(tree: ShowMapTree): Map<string, number> {
   const counts = new Map<string, number>();
   const directNodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree, phase })) {
+  for (const action of getAttentionActions('root', { tree })) {
     directNodeIds.add(action.nodeId);
   }
   for (const directId of directNodeIds) {

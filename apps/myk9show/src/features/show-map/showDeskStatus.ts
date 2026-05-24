@@ -1,6 +1,5 @@
 import type { Show } from '@/types/show-types';
 import { getAttentionCountsByNodeId } from './showMapActions';
-import type { ShowMapActionState } from './showMapActions';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree, ShowMapTrialInput } from './showMapTypes';
 
@@ -15,7 +14,6 @@ export interface ComputeShowDeskStatusInput {
   show: Pick<Show, 'startDate' | 'endDate'>;
   trials: readonly ShowMapTrialInput[];
   tree: ShowMapTree;
-  phase?: ShowMapActionState['phase'];
   now?: Date;
 }
 
@@ -52,7 +50,6 @@ export function computeShowDeskStatus({
   // show.endDate only; the param shape is preserved so callers don't churn in B2.
   trials: _trials,
   tree,
-  phase,
   now,
 }: ComputeShowDeskStatusInput): ShowDeskStatusResult {
   const today = toLocalDateString(now ?? new Date());
@@ -63,9 +60,9 @@ export function computeShowDeskStatus({
   const totalClasses = classes.length;
   const completeClassCount = classes.filter(node => node.status?.kind === 'complete').length;
   const activeClassCount = classes.filter(node => node.status?.kind === 'active').length;
-  // Phase-aware: in unified mode (phase=undefined) wrap-up work counts too,
-  // matching the same source the Need Attention filter uses.
-  const attentionItems = getAttentionCountsByNodeId(tree, phase).get(tree.root.id) ?? 0;
+  // Match the same source the Need Attention filter uses so summary +
+  // filter never drift.
+  const attentionItems = getAttentionCountsByNodeId(tree).get(tree.root.id) ?? 0;
 
   const hasScoringActivity = classes.some(
     node => node.status?.kind === 'active' || node.status?.kind === 'complete'

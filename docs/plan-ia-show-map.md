@@ -1,9 +1,16 @@
 # Plan — Show Map IA Remediation
 
 **Date:** 2026-05-21
-**Status:** Active. IA-1 Option A approved and implemented; remaining IA follow-ups are tracked below.
+**Status:** Superseded by [`plan-show-map-workbench-collapse.md`](plan-show-map-workbench-collapse.md) — shipped 2026-05-24 as PRs #303–#315.
 **Source audit:** [`docs/ia-review-show-map.md`](ia-review-show-map.md)
 **Scope:** Address the 3 remaining High-priority findings from the show-map IA audit. Finding #2 ("Show Map" name) was withdrawn after PO confirmed sitemap-style naming was intentional.
+
+> **2026-05-24 addendum.** The remediation arc in this plan was overtaken by the
+> workbench collapse, which absorbed every High-priority finding into a single
+> coordinated chain: the duplicated-tab/duplicated-action concerns landed in B1
+> (unified action set), the navigation overload landed in B5 (Today + Wrap-up
+> tabs deleted). The findings here are kept for historical context; the live
+> remediation lives in the collapse plan and the merged PR chain.
 
 ## How to use this doc
 

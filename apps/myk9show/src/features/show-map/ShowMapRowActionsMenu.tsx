@@ -29,7 +29,6 @@ interface ShowMapRowActionsMenuProps {
     | ((action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void)
     | undefined;
   openSignal?: number | undefined;
-  actionPhase?: 'today' | 'wrap-up' | undefined;
 }
 
 function ActionContent({
@@ -56,17 +55,16 @@ export function ShowMapRowActionsMenu({
   onNavigate,
   onAction,
   openSignal,
-  actionPhase,
 }: ShowMapRowActionsMenuProps) {
   const [manualOpen, setManualOpen] = useState(false);
   const [dismissedOpenSignal, setDismissedOpenSignal] = useState(0);
   const isRootMenu = node.id === tree.root.id;
   const recommendedActions = isRootMenu
-    ? getRecommendedActions('root', { tree, phase: actionPhase })
-    : getRecommendedActionsForNode(node, { tree, phase: actionPhase });
+    ? getRecommendedActions('root', { tree })
+    : getRecommendedActionsForNode(node, { tree });
   const allActions = isRootMenu
-    ? getRankedActions('root', { tree, phase: actionPhase })
-    : getDirectActionsForNode(node, { tree, phase: actionPhase });
+    ? getRankedActions('root', { tree })
+    : getDirectActionsForNode(node, { tree });
   const signalOpen = Boolean(openSignal && openSignal !== dismissedOpenSignal);
   const isOpen = manualOpen || signalOpen;
 

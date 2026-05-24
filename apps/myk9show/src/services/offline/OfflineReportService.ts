@@ -324,7 +324,11 @@ class OfflineReportService {
       doc.setFontSize(10);
       doc.text(`Judge: ${classItem.judgeName}`, 20, yPosition);
       yPosition += 5;
-      doc.text(`Ring: ${classItem.ringNumber} | Time: ${classItem.scheduledTime}`, 20, yPosition);
+      doc.text(
+        `Ring: ${formatRingLabel(classItem.ringNumber) ?? 'Unassigned'} | Time: ${classItem.scheduledTime}`,
+        20,
+        yPosition
+      );
       yPosition += 5;
       doc.text(`Total Entries: ${(classItem.entries || []).length}`, 20, yPosition);
       yPosition += 15;

@@ -1,4 +1,24 @@
-import type { EmailTemplate, EntryTemplateVariables } from './EmailService.types';
+import { formatRingLabel } from '@/utils/ringLabel';
+import type { EmailTemplate, EntryTemplateVariables, ShowReminderData } from './EmailService.types';
+
+type TemplateRecord = Record<string, string | number | undefined>;
+
+function replaceConditionals(content: string, variables: TemplateRecord): string {
+  const ifRegex = /{{#if (\w+)}}(.*?){{\/if}}/gs;
+  return content.replace(ifRegex, (_match, condition, blockContent) => {
+    return variables[condition] ? blockContent : '';
+  });
+}
+
+export function normalizeShowReminderData(data: ShowReminderData): ShowReminderData {
+  return {
+    ...data,
+    entries: data.entries.map(entry => ({
+      ...entry,
+      ringNumber: formatRingLabel(entry.ringNumber) ?? '',
+    })),
+  };
+}
 
 /**
  * Replace template variables with actual values
@@ -6,19 +26,13 @@ import type { EmailTemplate, EntryTemplateVariables } from './EmailService.types
 export function replaceVariables(content: string, variables: EntryTemplateVariables): string {
   let result = content;
 
-  // Replace simple variables
-  for (const [key, value] of Object.entries(variables)) {
-    const regex = new RegExp(`{{${key}}}`, 'g');
-    result = result.replace(regex, String(value || ''));
-  }
-
   // Handle each loops (basic implementation)
   if (variables.entries && Array.isArray(variables.entries)) {
     const eachRegex = /{{#each entries}}(.*?){{\/each}}/gs;
     result = result.replace(eachRegex, (_match, content) => {
       return variables
-        .entries!.map((entry: Record<string, string | number>) => {
-          let entryContent = content;
+        .entries!.map((entry: TemplateRecord) => {
+          let entryContent = replaceConditionals(content, entry);
           for (const [key, value] of Object.entries(entry)) {
             const regex = new RegExp(`{{${key}}}`, 'g');
             entryContent = entryContent.replace(regex, String(value || ''));
@@ -46,10 +60,13 @@ export function replaceVariables(content: string, variables: EntryTemplateVariab
   }
 
   // Handle conditional blocks (basic implementation)
-  const ifRegex = /{{#if (\w+)}}(.*?){{\/if}}/gs;
-  result = result.replace(ifRegex, (_match, condition, content) => {
-    return variables[condition] ? content : '';
-  });
+  result = replaceConditionals(result, variables as TemplateRecord);
+
+  // Replace simple variables after loops so top-level names do not overwrite entry fields.
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`{{${key}}}`, 'g');
+    result = result.replace(regex, String(value || ''));
+  }
 
   return result;
 }
@@ -188,7 +205,7 @@ This email was sent by myK9Show. Please do not reply to this email.
             <h3 style="margin-top: 0; color: #374151;">Your Entries</h3>
             {{#each entries}}
             <div style="margin-bottom: 10px;">
-              <p><strong>{{dogName}}</strong> in {{className}}{{#if ringNumber}} (Ring {{ringNumber}}){{/if}}</p>
+              <p><strong>{{dogName}}</strong> in {{className}}{{#if ringNumber}} ({{ringNumber}}){{/if}}</p>
             </div>
             {{/each}}
           </div>
@@ -226,7 +243,7 @@ Check-in Time: {{checkInTime}}
 
 Your Entries:
 {{#each entries}}
-- {{dogName}} in {{className}}{{#if ringNumber}} (Ring {{ringNumber}}){{/if}}
+- {{dogName}} in {{className}}{{#if ringNumber}} ({{ringNumber}}){{/if}}
 {{/each}}
 
 Checklist:

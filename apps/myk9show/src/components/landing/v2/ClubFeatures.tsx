@@ -1,5 +1,6 @@
 import { Wifi, Clock, List } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 interface FeatureCard {
   icon: ReactNode;
@@ -76,6 +77,11 @@ export function ClubFeatures() {
               </div>
             </article>
           ))}
+        </div>
+        <div className="l-section-cta">
+          <Link className="l-secondary-link" to="/sign-up?request=club">
+            Request club access
+          </Link>
         </div>
       </div>
     </section>

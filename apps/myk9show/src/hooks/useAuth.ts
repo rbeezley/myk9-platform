@@ -140,17 +140,32 @@ export function useAuth() {
     async (
       email: string,
       password: string,
-      metadata?: { firstName?: string; lastName?: string; roles?: string[] }
+      metadata?: {
+        firstName?: string;
+        lastName?: string;
+        roles?: string[];
+        requestedClubName?: string;
+        requestedClubWebsite?: string;
+        clubRequestNote?: string;
+      }
     ) => {
+      const requestedClubName = metadata?.requestedClubName?.trim();
+      const requestedClubWebsite = metadata?.requestedClubWebsite?.trim();
+      const clubRequestNote = metadata?.clubRequestNote?.trim();
+      const signupData: Record<string, string | string[]> = {
+        first_name: metadata?.firstName || 'First',
+        last_name: metadata?.lastName || 'Name',
+        ...(metadata?.roles?.length ? { intended_roles: metadata.roles } : {}),
+        ...(requestedClubName ? { requested_club_name: requestedClubName } : {}),
+        ...(requestedClubWebsite ? { requested_club_website: requestedClubWebsite } : {}),
+        ...(clubRequestNote ? { club_request_note: clubRequestNote } : {}),
+      };
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            first_name: metadata?.firstName || 'First',
-            last_name: metadata?.lastName || 'Name',
-            ...(metadata?.roles?.length ? { intended_roles: metadata.roles } : {}),
-          },
+          data: signupData,
         },
       });
 

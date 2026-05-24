@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
@@ -18,7 +18,14 @@ const SignUp: React.FC = () => {
   const { signUp, signInWithGoogle, loading: authLoading } = useAuthContext();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(['exhibitor']);
+  const [searchParams] = useSearchParams();
+  const startsAsClubRequest = searchParams.get('request') === 'club';
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(
+    startsAsClubRequest ? ['exhibitor', 'club_officer'] : ['exhibitor']
+  );
+  const [requestedClubName, setRequestedClubName] = useState('');
+  const [requestedClubWebsite, setRequestedClubWebsite] = useState('');
+  const [clubRequestNote, setClubRequestNote] = useState('');
 
   const isLoading = loading || authLoading;
 
@@ -53,6 +60,15 @@ const SignUp: React.FC = () => {
       return;
     }
 
+    const requestsClubAccess = selectedRoles.includes('club_officer');
+    const trimmedClubName = requestedClubName.trim();
+    const trimmedClubWebsite = requestedClubWebsite.trim();
+    const trimmedClubRequestNote = clubRequestNote.trim();
+    if (requestsClubAccess && trimmedClubName.length < 2) {
+      setError('Enter the club name you want to manage.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -60,6 +76,13 @@ const SignUp: React.FC = () => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         roles: selectedRoles,
+        ...(requestsClubAccess ? { requestedClubName: trimmedClubName } : {}),
+        ...(requestsClubAccess && trimmedClubWebsite
+          ? { requestedClubWebsite: trimmedClubWebsite }
+          : {}),
+        ...(requestsClubAccess && trimmedClubRequestNote
+          ? { clubRequestNote: trimmedClubRequestNote }
+          : {}),
       });
       setEmailSent(true);
     } catch (error: unknown) {
@@ -257,12 +280,16 @@ const SignUp: React.FC = () => {
 
           {/* Role selection */}
           <div className="mb-4">
-            <p className="mb-2 font-medium text-sm">I am a… (select all that apply)</p>
+            <p className="mb-2 font-medium text-sm">I am interested in...</p>
+            <p className="text-sm text-muted-foreground mb-3">
+              Club access requires approval. Secretaries are added by an approved club admin after
+              their club is approved.
+            </p>
             <div className="space-y-1.5">
               {[
-                { value: 'exhibitor', label: 'Exhibitor (I show dogs)' },
-                { value: 'club_officer', label: 'Club officer / show host' },
-                { value: 'secretary', label: 'Show secretary' },
+                { value: 'exhibitor', label: 'I show dogs' },
+                { value: 'club_officer', label: 'I help run a club or host shows' },
+                { value: 'secretary', label: 'I work as a show secretary' },
               ].map(({ value, label }) => (
                 <label key={value} className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -279,6 +306,45 @@ const SignUp: React.FC = () => {
                 </label>
               ))}
             </div>
+            {selectedRoles.includes('club_officer') && (
+              <div className="mt-4 space-y-3 rounded-md border border-input p-3">
+                <div>
+                  <label className="block mb-1 font-medium text-sm" htmlFor="requestedClubName">
+                    Club name
+                  </label>
+                  <input
+                    id="requestedClubName"
+                    value={requestedClubName}
+                    onChange={e => setRequestedClubName(e.target.value)}
+                    className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    autoComplete="organization"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium text-sm" htmlFor="requestedClubWebsite">
+                    Club website
+                  </label>
+                  <input
+                    id="requestedClubWebsite"
+                    value={requestedClubWebsite}
+                    onChange={e => setRequestedClubWebsite(e.target.value)}
+                    className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    inputMode="url"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium text-sm" htmlFor="clubRequestNote">
+                    Note for myK9
+                  </label>
+                  <textarea
+                    id="clubRequestNote"
+                    value={clubRequestNote}
+                    onChange={e => setClubRequestNote(e.target.value)}
+                    className="w-full min-h-20 p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mb-6 flex items-start gap-2">

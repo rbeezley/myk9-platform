@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import { WaitlistFormLanding } from './WaitlistFormLanding';
 
 export function HeroPhotoLed() {
@@ -36,6 +38,11 @@ export function HeroPhotoLed() {
           </div>
           <div className="l-col-right">
             <WaitlistFormLanding emailInputId="l-wl-hero" />
+            <div className="l-section-cta">
+              <Link className="l-secondary-link" to="/sign-up?request=club">
+                Start a club on myK9Show
+              </Link>
+            </div>
           </div>
         </div>
       </div>

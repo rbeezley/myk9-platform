@@ -150,6 +150,36 @@ describe('useAuth', () => {
       expect(calledTables).not.toContain('people');
       expect(calledTables).not.toContain('exhibitor_profiles');
     });
+
+    it('passes club access request metadata during signup', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.signUp('club@example.com', 'password123', {
+          firstName: 'Jane',
+          lastName: 'Doe',
+          roles: ['exhibitor', 'club_officer'],
+          requestedClubName: 'River City Scent Work Club',
+          requestedClubWebsite: 'https://rivercity.example',
+          clubRequestNote: 'I am the trial chair for our upcoming shows.',
+        });
+      });
+
+      expect(mockSupabase.auth.signUp).toHaveBeenCalledWith({
+        email: 'club@example.com',
+        password: 'password123',
+        options: {
+          data: {
+            first_name: 'Jane',
+            last_name: 'Doe',
+            intended_roles: ['exhibitor', 'club_officer'],
+            requested_club_name: 'River City Scent Work Club',
+            requested_club_website: 'https://rivercity.example',
+            club_request_note: 'I am the trial chair for our upcoming shows.',
+          },
+        },
+      });
+    });
   });
 
   describe('signIn', () => {

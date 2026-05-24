@@ -70,7 +70,14 @@ export interface AuthContextType {
   signUp: (
     email: string,
     password: string,
-    metadata?: { firstName?: string; lastName?: string; roles?: string[] }
+    metadata?: {
+      firstName?: string;
+      lastName?: string;
+      roles?: string[];
+      requestedClubName?: string;
+      requestedClubWebsite?: string;
+      clubRequestNote?: string;
+    }
   ) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;

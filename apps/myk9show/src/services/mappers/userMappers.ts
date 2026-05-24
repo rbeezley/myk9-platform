@@ -31,6 +31,37 @@ export const extractRoles = (dbUser: Record<string, unknown>): UserRole[] => {
   return [];
 };
 
+export const extractRoleAssignments = (
+  dbUser: Record<string, unknown>
+): User['roleAssignments'] => {
+  const userRoles = dbUser.user_roles as
+    | Array<{
+        role: { name: string } | null;
+        club_id?: string | null;
+        show_id?: string | null;
+        is_active?: boolean | null;
+      }>
+    | undefined;
+
+  if (!Array.isArray(userRoles)) return [];
+
+  return userRoles
+    .map(roleAssignment => {
+      const roleName = roleAssignment.role?.name;
+      if (!roleName) return null;
+
+      return {
+        roleName: roleName as UserRole,
+        clubId: roleAssignment.club_id ?? null,
+        showId: roleAssignment.show_id ?? null,
+        isActive: roleAssignment.is_active ?? true,
+      };
+    })
+    .filter((assignment): assignment is NonNullable<User['roleAssignments']>[number] =>
+      Boolean(assignment)
+    );
+};
+
 /**
  * Convert UserInput (from userStore) to DbUserInsert (for database)
  */
@@ -103,6 +134,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
       : [],
 
     roles: extractRoles(dbUser),
+    roleAssignments: extractRoleAssignments(dbUser),
 
     // Judge qualifications - handle if present (from nested select)
     judgeQualifications: Array.isArray(dbUser.judge_qualifications)

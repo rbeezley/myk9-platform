@@ -126,14 +126,12 @@ const AccessRequestsPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label
-                    className="text-sm font-medium"
-                    htmlFor={`existing-club-${request.id}`}
-                  >
+                  <label className="text-sm font-medium" htmlFor={`existing-club-${request.id}`}>
                     Existing club ID
                   </label>
                   <Input
                     id={`existing-club-${request.id}`}
+                    className="font-mono text-sm"
                     value={existingClubIds[request.id] ?? ''}
                     onChange={event =>
                       setExistingClubIds(prev => ({ ...prev, [request.id]: event.target.value }))
@@ -141,8 +139,8 @@ const AccessRequestsPage: React.FC = () => {
                     placeholder="Leave blank to create a new club"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Use this only when the club already exists and this requester should become its
-                    club admin.
+                    Optional UUID. Use only when the club already exists and this requester should
+                    become its club admin.
                   </p>
                 </div>
                 <div>

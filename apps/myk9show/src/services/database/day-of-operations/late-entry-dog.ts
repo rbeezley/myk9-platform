@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { deleteUser, searchUsers } from '@/services/database/users';
+import { searchUsers } from '@/services/database/users';
 import type {
   CreateDayOfEntryDogInput,
   DayOfEntryDogResult,
@@ -109,7 +109,10 @@ export async function createDayOfEntryDog(
 
   if (dogError || !dogId) {
     if (createdOwnerId) {
-      await deleteUser(createdOwnerId);
+      await supabase.rpc('delete_show_managed_person', {
+        p_show_id: input.showId,
+        p_person_id: createdOwnerId,
+      });
     }
 
     return {

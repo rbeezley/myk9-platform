@@ -7409,6 +7409,10 @@ export type Database = {
         }
         Returns: string
       }
+      delete_show_managed_person: {
+        Args: { p_show_id: string; p_person_id: string }
+        Returns: undefined
+      }
       grant_club_secretary: {
         Args: { p_club_id: string; p_person_id: string }
         Returns: string

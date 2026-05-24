@@ -47,6 +47,8 @@ interface UserRoleWithJoinedRole extends UserRolesRow {
   role: RolesRow;
 }
 
+const SHOW_OFFICIAL_ROLE_NAMES = new Set(['secretary', 'chairman', 'steward']);
+
 /** Map a DB roles row to the app's Role interface */
 function toRole(row: RolesRow): Role {
   return {
@@ -180,6 +182,22 @@ export class RoleManager {
   ): Promise<boolean> {
     const clubId = scopeOptions?.clubId;
     const showId = scopeOptions?.showId;
+
+    if (showId && SHOW_OFFICIAL_ROLE_NAMES.has(roleName)) {
+      const { error } = await supabase.rpc('grant_show_official', {
+        p_person_id: userId,
+        p_role_name: roleName,
+        p_show_id: showId,
+      });
+
+      if (error) {
+        throw new Error(`Failed to grant show official role: ${error.message}`);
+      }
+
+      this.clearUserCache(userId);
+      logger.info('Granted show official role through RPC', 'rbac', { userId, roleName, showId });
+      return true;
+    }
 
     // Look up the role ID
     const { data: role, error: roleError } = await supabase

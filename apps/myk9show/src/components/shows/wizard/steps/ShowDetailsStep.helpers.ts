@@ -74,7 +74,7 @@ export interface OfficialGroupingOptions {
 }
 
 function hasSuggestedRole(
-  person: User & { roleAssignments?: OfficialRoleAssignment[] },
+  person: User,
   suggestedRoles: UserRole[],
   options: OfficialGroupingOptions
 ) {
@@ -100,13 +100,7 @@ export function groupPeopleForOfficial(
 ): { suggested: User[]; others: User[] } {
   const sorted = getAllPeopleSorted(people);
   const filtered = filterPeopleByName(sorted, searchTerm);
-  const suggested = filtered.filter(person =>
-    hasSuggestedRole(
-      person as User & { roleAssignments?: OfficialRoleAssignment[] },
-      suggestedRoles,
-      options
-    )
-  );
+  const suggested = filtered.filter(person => hasSuggestedRole(person, suggestedRoles, options));
   const suggestedIds = new Set(suggested.map(person => person.id));
 
   return {

@@ -19,7 +19,9 @@ export const getAllUsers = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, ${USER_ROLES_FK}(role:roles(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
+      .select(
+        `*, ${USER_ROLES_FK}(club_id, show_id, is_active, role:roles(name)), ${JUDGE_QUALIFICATIONS_SELECT}`
+      )
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
@@ -64,7 +66,7 @@ export const getUserById = async (id: string) => {
       .select(
         `
         *,
-        ${USER_ROLES_FK}(role:roles(name)),
+        ${USER_ROLES_FK}(club_id, show_id, is_active, role:roles(name)),
         dogs!dogs_owner_id_fkey(
           id,
           name,
@@ -409,7 +411,7 @@ export const searchUsers = async (searchTerm: string) => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, ${USER_ROLES_FK}(role:roles(name))`)
+      .select(`*, ${USER_ROLES_FK}(club_id, show_id, is_active, role:roles(name))`)
       .is('deleted_at', null)
       .or(
         `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
@@ -440,7 +442,7 @@ export const getUsersByRole = async (role: string) => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, ${USER_ROLES_FK}!inner(role:roles!inner(name))`)
+      .select(`*, ${USER_ROLES_FK}!inner(club_id, show_id, is_active, role:roles!inner(name))`)
       .eq('user_roles.is_active', true)
       .eq('user_roles.roles.name', role)
       .is('deleted_at', null)

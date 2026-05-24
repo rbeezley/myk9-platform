@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { supabase } from '@/lib/supabase';
-import { deleteUser, searchUsers } from '@/services/database/users';
+import { searchUsers } from '@/services/database/users';
 import { createDayOfEntryDog } from '../late-entry-dog';
 
 vi.mock('@/lib/supabase', () => ({
@@ -10,11 +10,9 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 vi.mock('@/services/database/users', () => ({
-  deleteUser: vi.fn(),
   searchUsers: vi.fn(),
 }));
 
-const deleteUserMock = vi.mocked(deleteUser);
 const searchUsersMock = vi.mocked(searchUsers);
 const rpcMock = vi.mocked(supabase.rpc);
 
@@ -23,9 +21,6 @@ describe('createDayOfEntryDog', () => {
     vi.clearAllMocks();
     searchUsersMock.mockResolvedValue({ data: [], error: null } as Awaited<
       ReturnType<typeof searchUsers>
-    >);
-    deleteUserMock.mockResolvedValue({ data: { id: 'person-1' }, error: null } as Awaited<
-      ReturnType<typeof deleteUser>
     >);
   });
 
@@ -118,7 +113,8 @@ describe('createDayOfEntryDog', () => {
   it('soft-deletes a newly-created exhibitor when dog creation fails', async () => {
     rpcMock
       .mockResolvedValueOnce({ data: 'person-created', error: null })
-      .mockResolvedValueOnce({ data: null, error: new Error('Dog insert failed') });
+      .mockResolvedValueOnce({ data: null, error: new Error('Dog insert failed') })
+      .mockResolvedValueOnce({ data: null, error: null });
 
     const result = await createDayOfEntryDog({
       showId: 'show-1',
@@ -127,7 +123,10 @@ describe('createDayOfEntryDog', () => {
       dogName: 'Rocket Fuel',
     });
 
-    expect(deleteUserMock).toHaveBeenCalledWith('person-created');
+    expect(rpcMock).toHaveBeenNthCalledWith(3, 'delete_show_managed_person', {
+      p_show_id: 'show-1',
+      p_person_id: 'person-created',
+    });
     expect(result).toEqual({ data: null, error: new Error('Dog insert failed') });
   });
 

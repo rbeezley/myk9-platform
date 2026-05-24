@@ -18,6 +18,14 @@ export interface User {
   membershipId?: string | undefined;
   clubAffiliations?: string[] | undefined;
   roles?: UserRole[] | undefined;
+  roleAssignments?:
+    | {
+        roleName: UserRole;
+        clubId: string | null;
+        showId: string | null;
+        isActive: boolean;
+      }[]
+    | undefined;
   judgeInfo?: JudgeInfo | undefined;
   judgeQualifications?: JudgeQualification[] | undefined; // Alias for judgeInfo.qualifications
   emergencyContact?:

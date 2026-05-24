@@ -119,6 +119,35 @@ describe('NextUpCard', () => {
     expect(screen.queryByText(/Dog \d+ of/)).not.toBeInTheDocument();
   });
 
+  it('hides ring text when ringNumber is null', () => {
+    render(
+      <NextUpCard
+        classData={makeClass({
+          scoredEntries: 0,
+          currentDogInRing: null,
+          totalEntries: 8,
+          ringNumber: null,
+        })}
+      />
+    );
+    expect(screen.getByText(/8 entries/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ring/)).not.toBeInTheDocument();
+  });
+
+  it('hides ring text when legacy data provides ringNumber 0', () => {
+    render(
+      <NextUpCard
+        classData={makeClass({
+          scoredEntries: 0,
+          currentDogInRing: null,
+          totalEntries: 8,
+          ringNumber: 0,
+        })}
+      />
+    );
+    expect(screen.queryByText(/Ring 0/)).not.toBeInTheDocument();
+  });
+
   it('hides progress bar when no scoring data', () => {
     render(
       <NextUpCard

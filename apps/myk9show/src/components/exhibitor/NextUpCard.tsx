@@ -16,6 +16,7 @@ import type { ShowDayClass } from '@/types/show-day-types';
 import { ArrowUp, Timer, LogIn } from 'lucide-react';
 import { CheckInStatusMenu } from './CheckInStatusMenu';
 import { computeDogsAhead, formatDogsAheadText } from '@/utils/dogsAhead';
+import { formatRingLabel } from '@/utils/ringLabel';
 
 interface NextUpCardProps {
   classData: ShowDayClass;
@@ -49,6 +50,7 @@ export function NextUpCard({
       : 0;
 
   const classLabel = formatClassLabel(classData.element, classData.level, classData.className);
+  const ringLabel = formatRingLabel(classData.ringNumber);
   const isNotCheckedIn = classData.entryStatus === 'no-status';
   const canCheckIn = !!onCheckInChange && selfCheckinEnabled;
 
@@ -125,9 +127,7 @@ export function NextUpCard({
           ) : (
             <>
               {classData.totalEntries} entr{classData.totalEntries !== 1 ? 'ies' : 'y'}
-              {classData.ringNumber != null && (
-                <span className="ml-2">&bull; Ring {classData.ringNumber}</span>
-              )}
+              {ringLabel && <span className="ml-2">&bull; {ringLabel}</span>}
             </>
           )}
         </p>

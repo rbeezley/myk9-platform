@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { CheckInStatus } from '@myk9/core';
@@ -6,7 +6,7 @@ import { useEntryStore } from '@/store/entryStore';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import type { Dog } from '@/types/dog-types';
 import { buildRunSheetEntries } from './buildRunSheetEntries';
-import type { SortMode, RunSheetEntry } from './types';
+import type { RunSheetEntry } from './types';
 
 interface UseRunSheetStateProps {
   rawEntries: RawEntryRow[];
@@ -17,8 +17,6 @@ interface UseRunSheetStateProps {
 }
 
 interface UseRunSheetStateReturn {
-  sortMode: SortMode;
-  onSort: (mode: SortMode) => void;
   sortedEntries: RunSheetEntry[];
   onCheckInStatus: (entryId: string, status: CheckInStatus) => Promise<void>;
 }
@@ -31,20 +29,12 @@ export function useRunSheetState({
   organization,
 }: UseRunSheetStateProps): UseRunSheetStateReturn {
   const queryClient = useQueryClient();
-  const [sortMode, setSortMode] = useState<SortMode>('runOrder');
-  const [randomSnapshot, setRandomSnapshot] = useState<RunSheetEntry[]>([]);
   const dogLookup = useMemo(() => new Map(dogs.map(dog => [dog.id, dog])), [dogs]);
 
-  const sortedEntries = useMemo(() => {
-    if (sortMode === 'random') return randomSnapshot;
-    return buildRunSheetEntries(rawEntries, sortMode, dogLookup, organization);
-  }, [rawEntries, sortMode, randomSnapshot, dogLookup, organization]);
-
-  const onSort = (mode: SortMode) => {
-    if (mode === 'random')
-      setRandomSnapshot(buildRunSheetEntries(rawEntries, 'random', dogLookup, organization));
-    setSortMode(mode);
-  };
+  const sortedEntries = useMemo(
+    () => buildRunSheetEntries(rawEntries, dogLookup, organization),
+    [rawEntries, dogLookup, organization]
+  );
 
   const onCheckInStatus = async (entryId: string, status: CheckInStatus) => {
     try {
@@ -55,10 +45,5 @@ export function useRunSheetState({
     }
   };
 
-  return {
-    sortMode,
-    onSort,
-    sortedEntries,
-    onCheckInStatus,
-  };
+  return { sortedEntries, onCheckInStatus };
 }

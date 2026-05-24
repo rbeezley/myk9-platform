@@ -13,11 +13,10 @@ import {
   getDogStatistics,
 } from '@/services/database/dogs';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { mapDatabaseToDog, mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
+import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
-import { replicatedDogsTable } from '@/services/replication';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
 // Roles that can see all dogs; mirrors useRoleBasedDogs. JUDGE is excluded —
@@ -39,12 +38,17 @@ export const useDogsQuery = () => {
   return useQuery({
     queryKey: [...queryKeys.dogs, personId, showAll],
     queryFn: async () => {
+      // `getAllDogs` already wraps `replicatedDogsTable.getAllDogs()` as its
+      // primary path via `withReplicationFallback` (see
+      // services/database/dogs/reads.ts:228-253). The previous hook-level
+      // fallback to `replicatedDogsTable.getAllDogs()` was therefore
+      // redundant — it re-fetched from the SAME source the inner function
+      // had just tried. For admins / secretaries who legitimately see zero
+      // dogs in the replicated store on first load, the double-fetch fired
+      // on every render until the cache warmed. See harden-backlog memory.
       const { data, error } = await getAllDogs(personId!, showAll);
-      if (!error && data && data.length > 0) return data;
-
-      // Fallback to replication layer (offline-first, service-role synced)
-      const replicatedDogs = await replicatedDogsTable.getAllDogs();
-      return replicatedDogs.map(d => mapReplicatedDogToDbRow(d)) as typeof data;
+      if (error) throw error;
+      return data ?? [];
     },
     enabled: !!personId,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache

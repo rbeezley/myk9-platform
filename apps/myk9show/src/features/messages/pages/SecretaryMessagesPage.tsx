@@ -34,8 +34,20 @@ export default function SecretaryMessagesPage() {
   const error = useMessageStore(s => s.error);
   const fetchMessages = useMessageStore(s => s.fetchMessages);
   const storeMarkThreadRead = useMessageStore(s => s.markThreadRead);
+  const subscribeMessages = useMessageStore(s => s.subscribe);
 
   const shows = useShowStore(s => s.shows);
+
+  // Widen the message subscription beyond what App-level useMessageSubscription
+  // provides (which scopes to exhibitorShowIds ∪ selectedShowId). The
+  // "All shows" filter promises threads from every managed show, so the
+  // page must subscribe its own union. The store mutex skips duplicates so
+  // re-subscribes on `shows` reference changes are safe.
+  const allShowIdsKey = useMemo(() => shows.map(s => s.id).sort().join(','), [shows]);
+  useEffect(() => {
+    if (!allShowIdsKey) return;
+    subscribeMessages(allShowIdsKey.split(','));
+  }, [allShowIdsKey, subscribeMessages]);
 
   const { sendMessage, sendTargetedMessage, isSending } = useMessageMutations();
 

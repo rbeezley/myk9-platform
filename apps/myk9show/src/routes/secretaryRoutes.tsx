@@ -387,7 +387,7 @@ export const SecretaryRoutes = () => (
     <Route
       path="/secretary/messages"
       element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <SecretaryMessagesPage />

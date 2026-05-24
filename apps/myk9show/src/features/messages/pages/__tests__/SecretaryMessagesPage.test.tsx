@@ -126,6 +126,19 @@ function renderAtUrl(url: string) {
 describe('SecretaryMessagesPage — all-shows mode', () => {
   beforeEach(() => {
     mockStoreState = baseStoreState;
+    baseStoreState.subscribe = vi.fn();
+  });
+
+  it('widens the message store subscription to ALL managed shows on mount', () => {
+    // Regression test for the audit-route-liveness trap: the App-level
+    // useMessageSubscription only covers exhibitorShowIds ∪ {selectedShowId},
+    // which is narrower than what the "All shows" filter promises. The page
+    // must subscribe its own union, otherwise the filter UI shows phantom
+    // empty states for shows that were never fetched.
+    renderAtUrl('/secretary/messages');
+    expect(baseStoreState.subscribe).toHaveBeenCalledWith(
+      expect.arrayContaining(['show-1', 'show-2'])
+    );
   });
 
   it('renders all threads across shows when no ?showId= filter is set', () => {

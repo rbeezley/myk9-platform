@@ -101,33 +101,18 @@ export function useOptimisticScoring() {
     // Mark as scored in local store (legacy Zustand store)
     markAsScored(entryId, optimisticResult);
 
-    // Update the replicated entries cache (IndexedDB) AND mark the row dirty
+    // Update the replicated entries cache (IndexedDB) and mark the row dirty
     // so the next replication pull won't overwrite the optimistic score.
+    // isDirty=true sets _syncStatus:'pending', triggering the dirty-row guard
+    // at ReplicatedTable.set() and mergeDirtyRow in syncReplicatedTable so the
+    // entries adapter preserves local scored values when remote arrives stale.
     //
-    // Naming nit: the third argument is called `queueMutation` on the wrapper
-    // but the base ReplicatedTable.set(id, data, isDirty=false, ...) takes
-    // it as `isDirty`. No MutationManager is wired to replicatedEntriesTable
-    // in production — the toast pipeline is NOT engaged by this flag. What
-    // the flag actually does:
-    //
-    //   1. Sets _syncStatus: 'pending' on the cache row.
-    //   2. Triggers the dirty-row guard at ReplicatedTable.ts:253 — clean
-    //      server pushes onto the row are skipped.
-    //   3. Triggers the mergeDirtyRow branch in syncReplicatedTable.ts:99-107.
-    //      The entries adapter's mergeDirtyRow preserves local scored values
-    //      when remote arrives stale.
-    //
-    // Previously this passed `false`, so the cache row was clean. A pull
-    // between local write and server confirmation would overwrite the
-    // optimistic score with stale server state. That's the "scored dog
-    // reverts when next dog is scored" symptom in project_scoring_sync_bug.md.
-    //
-    // DEFERRED follow-up: silent submitScore failures (RLS reject, transient
-    // network) still don't surface a toast — neither the offlineQueueStore
-    // path nor a wired MutationManager exists for scoring. Either wire
-    // replicatedEntriesTable.setMutationManager() in production, or have
-    // the onError below dispatch 'replication:sync-failed' directly. See
-    // project_scoring_sync_bug.md "Deferred follow-up" notes.
+    // Note: no MutationManager is attached to replicatedEntriesTable in
+    // production. The dirty bit functions as a read-side shield only — the
+    // actual server write goes through submitScore() below. If submitScore()
+    // fails the onError branch dispatches 'replication:sync-failed' so the
+    // existing SyncFailureToast listener fires; the dirty bit itself is never
+    // cleared (followup: add markAsSynced to base ReplicatedTable).
     try {
       const resultStatus = convertResultTextToStatus(optimisticResult);
       const searchTimeSeconds = scoreData.searchTime ? convertTimeToSeconds(scoreData.searchTime) : 0;
@@ -139,7 +124,7 @@ export function useOptimisticScoring() {
           search_time_seconds: searchTimeSeconds,
           total_faults: scoreData.faultCount,
         },
-        true // isDirty=true — protects optimistic score from pull-overwrite (see comment above)
+        true // isDirty=true — protects optimistic score from pull-overwrite
       );
       logger.log(`✅ [useOptimisticScoring] Updated replicated cache for entry ${entryId}`);
     } catch (cacheError) {
@@ -202,11 +187,27 @@ export function useOptimisticScoring() {
 
         // If offline, we already queued it, so don't show error
         if (!isOnline) {
-onSuccess?.(); // Still allow navigation
+          onSuccess?.(); // Still allow navigation
           return;
         }
 
-        // Real error - notify user
+        // Online failure — surface a toast via the existing sync-failed
+        // pipeline so the user knows the score didn't reach the server.
+        // SyncFailureToast.tsx and syncStatusStore.ts both listen for this
+        // event; detail.message and detail.failedTables satisfy both.
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('replication:sync-failed', {
+              detail: {
+                message: `Score for entry ${entryId} failed to sync: ${errorMessage}`,
+                failedTables: ['entries'],
+                errors: [errorMessage],
+              },
+            })
+          );
+        }
+
         onError?.(err);
       },
       onRollback: () => {

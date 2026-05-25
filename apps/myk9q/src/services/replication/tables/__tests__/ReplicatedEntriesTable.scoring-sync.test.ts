@@ -101,11 +101,11 @@ describe('ReplicatedEntriesTable: scoring sync (regression)', () => {
     const seed = makeEntry({ id: 'dog-1', is_scored: false });
     await table.set(seed.id, seed, false);
 
-    // Act 1 — user scores the dog locally. `markAsScored(..., queueMutation=true)`
-    // maps through to `set(entryId, updated, isDirty=true)`, which is what a
-    // real user action would do. We pass `true` here so the row is marked
-    // dirty and the Phase 1 guard applies. No MutationManager is attached, so
-    // the enqueue attempt just logs a warning and returns.
+    // Act 1 — user scores the dog locally. `markAsScored(..., isDirty=true)`
+    // delegates to `set(entryId, updated, isDirty=true)`, which is what a real
+    // user action would do. The row is marked dirty so the Phase 1 guard
+    // applies. No MutationManager is attached in this test — that's intentional;
+    // the production path's submitScore() is mocked out at a higher layer.
     await table.markAsScored(
       seed.id,
       {

@@ -7,11 +7,14 @@
  * 3. Silent failure when offline
  * 4. No rollback of optimistic updates
  * 5. Real-time subscriptions handle confirmation
- * 6. Cache write passes isDirty=true (the wrapper calls it `queueMutation`
- *    but it actually maps to `isDirty` in ReplicatedTable.set). This protects
- *    the optimistic score row from being overwritten by a stale replication
- *    pull via the dirty-row guard + mergeDirtyRow merge logic. Regression
- *    for the scoring-sync-bug fix (2026-05-24). See project_scoring_sync_bug.md.
+ * 6. Cache write passes isDirty=true so the optimistic score row is protected
+ *    from being overwritten by a stale replication pull via the dirty-row
+ *    guard + mergeDirtyRow logic. Regression for the scoring-sync-bug fix
+ *    (2026-05-24). See project_scoring_sync_bug.md.
+ * 7. When submitScore() fails while online, a 'replication:sync-failed'
+ *    CustomEvent is dispatched so the existing SyncFailureToast listener
+ *    surfaces a toast. Closes the "silent failure" gap left after the
+ *    Phase 1 dirty-bit fix.
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
@@ -525,15 +528,12 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
   });
 
   // Regression for the scoring-sync-bug (project_scoring_sync_bug.md, 2026-05-24).
-  // The cache write must pass isDirty=true (the wrapper calls it `queueMutation`
-  // but it maps to `isDirty` in ReplicatedTable.set). isDirty=true marks the
-  // cache row `_syncStatus: 'pending'`, triggering the dirty-row guard and
-  // mergeDirtyRow logic that preserves the optimistic score from being
-  // overwritten by a stale replication pull. Before this fix the call passed
-  // `false`, so a pull between local write and server confirmation overwrote
-  // the optimistic score with stale server state. (Note: silent submitScore
-  // failures still bypass the toast pipeline — that's a separate deferred
-  // follow-up; see the memory file.)
+  // The cache write must pass isDirty=true so the row is marked
+  // _syncStatus:'pending'. That triggers the dirty-row guard and mergeDirtyRow
+  // logic which preserves the optimistic score from being overwritten by a
+  // stale replication pull. Before this fix the call passed `false`, so a pull
+  // between local write and server confirmation overwrote the optimistic
+  // score with stale server state.
   describe('Regression: replicatedEntriesTable.markAsScored must mark cache row dirty', () => {
     it('passes isDirty=true so optimistic score survives replication pull-overwrite', async () => {
       const { result } = renderHook(() => useOptimisticScoring());
@@ -548,16 +548,112 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      // The third argument is `isDirty` (misnamed `queueMutation` on the
-      // wrapper). Must be `true` so the row is marked _syncStatus: 'pending'
-      // and the pull/merge logic preserves the optimistic score. If a future
-      // PR flips it back to `false`, the pull-overwrite bug returns — fail
-      // loudly here.
+      // The third argument is `isDirty`. Must be `true` so the row is marked
+      // _syncStatus:'pending' and the pull/merge logic preserves the
+      // optimistic score. If a future PR flips it back to `false`, the
+      // pull-overwrite bug returns — fail loudly here.
       expect(replicatedEntriesTable.markAsScored).toHaveBeenCalledWith(
         String(mockEntry.id),
         expect.any(Object),
         true
       );
+    });
+  });
+
+  // Regression for the silent-failure follow-up to the scoring-sync-bug.
+  // When submitScore() fails while online, we must dispatch
+  // 'replication:sync-failed' so the existing SyncFailureToast listener
+  // (apps/myk9q/src/components/ui/SyncFailureToast.tsx:142) and the
+  // syncStatusStore listener (apps/myk9q/src/stores/syncStatusStore.ts:170)
+  // both fire. detail.message and detail.failedTables satisfy both consumers.
+  describe('Regression: online submitScore failure dispatches replication:sync-failed', () => {
+    // The default `mockUpdate` (top of file) swallows serverUpdate rejections
+    // silently — it never invokes onError. The H2 fix lives in the onError
+    // branch, so we need a local mock that propagates failures into onError
+    // (which is what the real useOptimisticUpdate does after retries are
+    // exhausted).
+    const mockUpdateWithOnError = vi.fn(async ({ serverUpdate, onSuccess, onError }) => {
+      try {
+        await serverUpdate();
+        onSuccess?.();
+      } catch (err) {
+        onError?.(err);
+      }
+    });
+
+    beforeEach(async () => {
+      const { useOptimisticUpdate } = await import('@/hooks/useOptimisticUpdate');
+      vi.mocked(useOptimisticUpdate).mockReturnValue({
+        update: mockUpdateWithOnError as unknown as ReturnType<typeof useOptimisticUpdate>['update'],
+        isSyncing: false,
+        hasError: false,
+        error: null,
+        retryCount: 0,
+        clearError: vi.fn(),
+      });
+      mockUpdateWithOnError.mockClear();
+    });
+
+    it('dispatches a sync-failed CustomEvent when submitScore rejects while online', async () => {
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+      (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      const syncFailedCalls = dispatchSpy.mock.calls.filter(
+        ([event]) => event instanceof CustomEvent && event.type === 'replication:sync-failed'
+      );
+      expect(syncFailedCalls).toHaveLength(1);
+
+      const detail = (syncFailedCalls[0][0] as CustomEvent).detail;
+      expect(detail.failedTables).toEqual(['entries']);
+      expect(typeof detail.message).toBe('string');
+      expect(detail.message.length).toBeGreaterThan(0);
+
+      dispatchSpy.mockRestore();
+    });
+
+    it('does NOT dispatch sync-failed when offline (offline path is queued silently)', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        configurable: true,
+        value: false,
+      });
+      vi.mocked(useOfflineQueueStore).mockReturnValue({
+        addToQueue: mockAddToQueue,
+        isOnline: false,
+      } as unknown as ReturnType<typeof useOfflineQueueStore>);
+
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      const syncFailedCalls = dispatchSpy.mock.calls.filter(
+        ([event]) => event instanceof CustomEvent && event.type === 'replication:sync-failed'
+      );
+      expect(syncFailedCalls).toHaveLength(0);
+
+      dispatchSpy.mockRestore();
     });
   });
 });

@@ -52,6 +52,8 @@ This plan unifies the two apps under a single URL (`myk9show.com`) and a single 
 
 10. **Schema changes are required.** The original "no schema changes for phases 0–4" assumption is dropped. The current `push_subscriptions` table has only `id, user_id, endpoint, p256dh, auth, license_key, created_at` — no columns for role, per-show favorites, or presence. Phase 3b adds a new sibling table `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)` keyed on `(subscription_id, show_id)`. This separates per-device push state (which is durable across shows) from per-show ringside state (which is bounded to a single event). The fanout query joins `push_subscriptions → ringside_sessions` to resolve passcode recipients.
 
+11. **Write path for `ringside_sessions` is via a `SECURITY DEFINER` RPC, not direct table writes.** Anonymous passcode users have no `auth.uid()`, so account-based RLS would lock them out of writing — and they are the headline persona. The RPC `upsert_ringside_session(passcode_or_null, subscription_endpoint, show_id, favorited_armbands, route)` runs with elevated privileges, validates the credential (passcode against `mobile_app_lic_key` OR `auth.uid()` against the subscription's `user_id`), derives `license_key` + `role`, and upserts. Direct INSERT/UPDATE on `ringside_sessions` is denied to all client roles; only the RPC and the service-role edge function can write. This unifies the write path for both account and passcode identities behind a single validated entry point.
+
 ## Passcode format (canonical)
 
 The smart input and the underlying parser must agree on what a passcode looks like. Existing code has two formats in play:
@@ -173,7 +175,7 @@ The existing `push_subscriptions` table provides device-level subscription rows 
 - Primary key on `(subscription_id, show_id)`
 - Indexes on `(show_id, role)` for role broadcasts and `(show_id, last_seen_at)` for suppression queries
 
-A client heartbeat (every ~30s while the tab is foregrounded and the user is in `/at-show*`) upserts the row. Edge function joins through it to resolve passcode recipients AND to suppress push when the user is actively in the destination route.
+A client heartbeat (every ~30s while the tab is foregrounded and the user is in `/at-show*`) calls `upsert_ringside_session(...)` to write the row. The RPC is the trust boundary for both account and passcode identities — clients never INSERT/UPDATE `ringside_sessions` directly. Edge function joins through it to resolve passcode recipients AND to suppress push when the user is actively in the destination route.
 
 This is the schema change that the original plan denied; Locked Decision 10 reflects the correction. The separation from `push_subscriptions` matters because push subscriptions are per-device (durable across shows), while ringside sessions are per-(device, show) and prunable after a show ends.
 
@@ -226,6 +228,11 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 - A new `feature_flag_overrides(person_id uuid, flag_name text, enabled boolean, set_at timestamptz)` table — user-level override keyed by `people.id` (the canonical person table; there is no `profiles` table in this schema). PK on `(person_id, flag_name)`. Lets staff/testers preview before a show flips, and is reusable for future flags without another migration.
 - Homepage banner and `/at-show` route check both: the per-show flag AND the per-person override (override wins if present). When false, account holders see the legacy `ShowDayPage` until Phase 4 deletes it.
 
+**RLS on `feature_flag_overrides`:**
+- SELECT: a user reads only their own row, scoped by `person_id IN (SELECT id FROM people WHERE auth_user_id = auth.uid())`. Admins (per existing `is_site_admin()` predicate) read all rows.
+- INSERT / UPDATE / DELETE: admins only. Users do not self-grant previews — this is a staff-only tool.
+- Anonymous (passcode-only) users cannot read or write — they have no `people` row tied to `auth.uid()` and the flag is irrelevant to their UI path.
+
 ## Critical Files & Locations
 
 **myK9Show (existing, to be modified):**
@@ -246,10 +253,12 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 **Supabase:**
 - `show_messages`, `show_message_threads` — reuse as-is
 - `push_subscriptions` — **unchanged schema**; reuse the existing per-device subscription rows
-- **New table `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)`** — per-(device, show) state for ringside (Phase 3b migration)
+- **New table `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)`** — per-(device, show) state for ringside (Phase 3b migration). Direct client writes denied; mutations go through the RPC below.
 - **New table `feature_flag_overrides(person_id, flag_name, enabled, set_at)`** — per-person flag overrides (Phase 1 migration, shipped with the feature flag itself)
 - `send-targeted-message` edge function — extend to (a) fan out push, (b) resolve passcode-only recipients via `ringside_sessions`, (c) consult `ringside_sessions.last_seen_at` / `last_seen_route` for suppression
 - New RPC: `get_account_today_entries()` (no parameters; derives `person_id` from `auth.uid()`) for the auto-favorite predicate (Phase 0)
+- **New RPC: `upsert_ringside_session(passcode, subscription_endpoint, show_id, favorited_armbands, route)`** — `SECURITY DEFINER` write path for `ringside_sessions`; validates passcode against `mobile_app_lic_key` OR `auth.uid()` ownership of the subscription, then upserts (Phase 3b)
+- **New scheduled function: `prune_stale_ringside_sessions()`** — runs daily, deletes rows for shows that ended >7 days ago AND rows with `last_seen_at` older than 24h regardless of show (Phase 3b)
 
 **Tooling:**
 - `scripts/bootstrap-worktree.sh` — verify after `apps/myk9q` removal in Phase 6
@@ -299,16 +308,26 @@ This phase has no push delivery — it only fixes who the fanout *would* target.
 
 ### Phase 3b — Push delivery + presence-aware suppression
 
-1. **Schema:** the `ringside_sessions` table is created in Phase 3a step 1 (so its presence unblocks the fanout query). Phase 3b's schema work is limited to RLS policies on the new table — `subscription_id` matches a row in `push_subscriptions` owned by `auth.uid()` for SELECT/UPDATE; admin-only for cross-row visibility.
-2. **Client heartbeat:** in the shared ringside module, while the tab is foregrounded and the user is in `/at-show*`, upsert a `ringside_sessions` row every ~30s updating `last_seen_at`, `last_seen_route`, `role`, and `favorited_armbands`. Clear `last_seen_at` to NULL (or delete the row) on unmount/blur.
-3. Extend `send-targeted-message` to fan out push notifications via `push_subscriptions` after writing to `show_messages`, using the resolved recipient set from Phase 3a.
-4. Apply suppression: skip push if the recipient has a `ringside_sessions` row for this show with `last_seen_at` within the last 60s AND `last_seen_route` starting with `/at-show`.
-5. Push payload includes only `message_id`; client resolves the thread via RLS.
-6. **Error handling:** 404/410 from push service → delete subscription row in-transaction. Other 5xx → log + retry once with exponential backoff.
-7. **Concurrency:** idempotency key on send; dedupe at `show_messages`.
-8. **Batching:** recipient lists >50 chunked at 25 with `Promise.allSettled`.
-9. **Kill-switch:** `PUSH_FANOUT_ENABLED` env var on the edge function. Ship with `false`; flip to `true` for the pilot show.
-10. **Tests:** edge function unit tests (per-exhibitor, per-class, per-checked-in, all-show targets each fan out correctly including passcode recipients). Suppression tests using heartbeat fixtures. Stale-subscription cleanup test (seed a 404 endpoint, assert deletion). E2E: secretary composes → exhibitor receives push → tapping push opens correct inbox thread.
+1. **Schema:** the `ringside_sessions` table is created in Phase 3a step 1 (so its presence unblocks the fanout query). Phase 3b's schema work is the RLS policies and the write-path RPC. Direct INSERT/UPDATE/DELETE on `ringside_sessions` is **denied for all client roles** — including authenticated users. SELECT is allowed only for the service role (edge function context) and site admins. All client writes go through the `upsert_ringside_session(...)` `SECURITY DEFINER` RPC, which validates the credential (passcode against `mobile_app_lic_key` for anonymous callers, OR `auth.uid()` against the subscription's `user_id` for signed-in callers) before performing the upsert. This is the resolution for the cross-identity write path: passcode users have no `auth.uid()`, so account-based RLS would lock them out; routing all writes through the RPC unifies the path.
+2. **Client heartbeat:** in the shared ringside module, while the tab is foregrounded and the user is in `/at-show*`, call `upsert_ringside_session(...)` every ~30s passing the current `last_seen_route`, `role`, and `favorited_armbands`. The RPC sets `last_seen_at = now()` server-side (clients do not control timestamps). On unmount/blur, call `clear_ringside_session_presence(subscription_endpoint, show_id)` — a sibling RPC that sets `last_seen_at` to NULL without removing favorites.
+3. **Cleanup:** create scheduled function `prune_stale_ringside_sessions()` running via pg_cron daily at low-traffic hours:
+   - Delete rows where `show_id` references a show whose last trial ended >7 days ago (these shows are concluded; the data has no further use).
+   - Delete rows where `last_seen_at IS NULL OR last_seen_at < now() - interval '24 hours'` AND the show is concluded (handles abandoned passcode sessions and crashed tabs).
+   - Log row counts removed.
+4. Extend `send-targeted-message` to fan out push notifications via `push_subscriptions` after writing to `show_messages`, using the resolved recipient set from Phase 3a.
+5. Apply suppression: skip push if the recipient has a `ringside_sessions` row for this show with `last_seen_at` within the last 60s AND `last_seen_route` starting with `/at-show`.
+6. Push payload includes only `message_id`; client resolves the thread via RLS.
+7. **Error handling:** 404/410 from push service → delete subscription row in-transaction. Other 5xx → log + retry once with exponential backoff.
+8. **Concurrency:** idempotency key on send; dedupe at `show_messages`.
+9. **Batching:** recipient lists >50 chunked at 25 with `Promise.allSettled`.
+10. **Kill-switch:** `PUSH_FANOUT_ENABLED` env var on the edge function. Ship with `false`; flip to `true` for the pilot show.
+11. **Tests:**
+    - Edge function unit tests (per-exhibitor, per-class, per-checked-in, all-show targets each fan out correctly including passcode recipients).
+    - Suppression tests using heartbeat fixtures.
+    - Stale-subscription cleanup test (seed a 404 endpoint, assert deletion).
+    - **RPC authorization tests:** anonymous caller with valid passcode → upsert succeeds with correct `license_key`/`role`; anonymous caller with invalid passcode → rejected; authenticated caller upserting for a subscription they don't own → rejected; cross-identity attack (passcode argument provided AND `auth.uid()` present, with mismatched `user_id` on the subscription) → rejected.
+    - **Cleanup function tests:** seed a concluded show with `ringside_sessions` rows older than 7 days → `prune_stale_ringside_sessions()` removes them; rows on an active show or recent rows are untouched.
+    - E2E: secretary composes → exhibitor receives push → tapping push opens correct inbox thread.
 
 ### Phase 4 — Retire duplicated surfaces
 
@@ -343,7 +362,7 @@ Waits at least 30 days after Phase 4 redirect is live so stale PWA installs have
 ### Out of scope for this plan
 
 - Touching legacy `myk9q.com` (separate repo, Access-integrated, untouched).
-- Schema changes to `show_messages` (only `push_subscriptions` is touched).
+- Schema changes to `show_messages` or `push_subscriptions` (both reused as-is; all new schema goes into the new `ringside_sessions` and `feature_flag_overrides` tables).
 - Replacing the existing exhibitor inbox UI design.
 - Magic-link or SSO sign-in (could layer onto the email branch later).
 - Biometric / WebAuthn (different conversation).
@@ -391,3 +410,4 @@ Waits at least 30 days after Phase 4 redirect is live so stale PWA installs have
 - **2026-05-25** — Smart-input addendum merged in. Locked Decision 2 replaced; Locked Decisions 8–10 added. Phase 3 split into 3a (recipient identity) + 3b (push delivery). Admin (`a****`) routing added. Legacy passcode format made a Phase 0 prerequisite. Auto-favorite resolver predicate spelled out with `co_owner_id`. `MyK9QAccessCard` rebrand moved from Phase 5 to Phase 1. Presence storage columns added to `push_subscriptions` (corrects original "no schema changes" assumption).
 - **2026-05-25 (revision 2)** — Second review applied. Presence + role + per-show favorites moved off `push_subscriptions` into a new `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)` table (separates per-device push state from per-(device, show) ringside state). Replaced fictional `profiles.unified_ringside_preview` with a real `feature_flag_overrides` table keyed on `people.id`. Tightened RPC signature to `get_account_today_entries()` with no parameters (derives identity from `auth.uid()` to remove IDOR surface). Fixed misleading citation about `push_subscriptions` join surface — the *indexes* on `user_id`/`license_key` exist, but the *columns* for role/favorites do not; they live on the new table.
 - **2026-05-25 (revision 3)** — Third review applied. Added explicit Risk/Validation profile to the document header (High risk, Full validation). Default for the legacy-passcode Phase 0 prerequisite flipped from "decide A or B based on size" to "default to A unless the audit proves zero codes are distributed"; option B now requires a 60-day parallel-acceptance window plus secretary re-issue when chosen. Note: the third reviewer's findings #1, #2, #3 (schema, RPC parameter, profiles table) were already addressed in revision 2; the reviewer was looking at the consolidation commit before revision 2 had landed locally for them.
+- **2026-05-25 (revision 4)** — Fourth review applied. **Critical architectural fix:** added Locked Decision 11 establishing a `SECURITY DEFINER` RPC (`upsert_ringside_session`) as the unified write path for `ringside_sessions`. Anonymous passcode users have no `auth.uid()`, so the prior account-based RLS would have silently locked them out of writing — making the unification's headline persona invisible to the push fanout. The RPC validates a passcode argument OR `auth.uid()` ownership before upserting; direct table writes are denied. Also added: explicit RLS rules for `feature_flag_overrides` (users read own, admins read/write all), a scheduled cleanup function `prune_stale_ringside_sessions()` for ended-show and abandoned-session rows, and corresponding RPC-authorization + cleanup tests. Fixed stale out-of-scope bullet that claimed `push_subscriptions` was the touched schema.

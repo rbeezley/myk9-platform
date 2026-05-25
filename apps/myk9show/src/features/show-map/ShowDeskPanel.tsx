@@ -1,21 +1,41 @@
-import { useCallback, useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
 import { ShowDeskCloseoutSection } from './ShowDeskCloseoutSection';
 import { ShowDeskToolsSheet } from './ShowDeskToolsSheet';
 import { ShowMapReorderBanner } from './ShowMapReorderBanner';
+import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
+import { ShowMapReviewQueueSheet } from './ShowMapReviewQueueSheet';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import ShowMapTab from './ShowMapTab';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
+import { sourceIdFromShowMapNodeId } from './showMapActionMutations';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
+import {
+  buildReviewQueue,
+  reviewQueueTotalCount,
+} from './showMapReviewQueue';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
+import type { ShowMapActionGroup } from './showMapActionGroups';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ShowMapAction } from './showMapActions';
 import type { ShowDeskPendingSignalId } from './showDeskPendingSignals';
+
+const BULK_APPROVE_CONFIRMATION_THRESHOLD = 10;
 
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
@@ -77,7 +97,7 @@ export default function ShowDeskPanel({
     executor,
     navigateTo,
     guidanceAction,
-    priorityActions,
+    upNextGroups,
     runningNowItems,
     selectRunningNowClass,
     dismissGuidanceAction,
@@ -95,8 +115,90 @@ export default function ShowDeskPanel({
     messageAction,
     closeMessageDialog,
     confirmMessageHandler,
+    reviewAction,
+    closeReviewSheet,
+    confirmReviewApprove,
+    isApprovingReview,
+    bulkApproveEntries,
+    isBulkApproving,
     isExecuting,
   } = executor;
+
+  const reviewNode = reviewAction ? tree.nodesById[reviewAction.nodeId] : undefined;
+  const reviewParent = reviewNode?.parentId ? tree.nodesById[reviewNode.parentId] : undefined;
+
+  const reviewQueue = useMemo(() => buildReviewQueue(tree), [tree]);
+  const reviewQueueCount = useMemo(
+    () => reviewQueueTotalCount(reviewQueue),
+    [reviewQueue]
+  );
+  const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
+  const [bulkApproveRequest, setBulkApproveRequest] = useState<{
+    entryIds: string[];
+    label: string;
+    classId?: string | undefined;
+    source: 'group' | 'queue';
+  } | null>(null);
+
+  const closeReviewQueue = useCallback(() => setReviewQueueOpen(false), []);
+  const openReviewQueue = useCallback(() => setReviewQueueOpen(true), []);
+
+  const dispatchBulkApprove = useCallback(
+    (entryIds: string[], classId: string | undefined, source: 'group' | 'queue') => {
+      if (entryIds.length === 0) return;
+      bulkApproveEntries(entryIds, classId);
+      if (source === 'queue') setReviewQueueOpen(false);
+    },
+    [bulkApproveEntries]
+  );
+
+  const requestBulkApprove = useCallback(
+    (entryIds: string[], label: string, classId: string | undefined, source: 'group' | 'queue') => {
+      if (entryIds.length === 0) return;
+      if (entryIds.length >= BULK_APPROVE_CONFIRMATION_THRESHOLD) {
+        setBulkApproveRequest({
+          entryIds,
+          label,
+          source,
+          ...(classId ? { classId } : {}),
+        });
+      } else {
+        dispatchBulkApprove(entryIds, classId, source);
+      }
+    },
+    [dispatchBulkApprove]
+  );
+
+  const handleBulkApproveGroup = useCallback(
+    (group: ShowMapActionGroup) => {
+      const entryIds = group.items
+        .map(item => sourceIdFromShowMapNodeId(item.action.nodeId, 'entry'))
+        .filter((id): id is string => Boolean(id));
+      const repNode = tree.nodesById[group.representative.nodeId];
+      const dogName = repNode?.entryDisplay?.dogName ?? 'this dog';
+      const label = `${entryIds.length} ${entryIds.length === 1 ? 'entry' : 'entries'} for ${dogName}`;
+      requestBulkApprove(entryIds, label, group.representative.classId, 'group');
+    },
+    [requestBulkApprove, tree]
+  );
+
+  const handleQueueApprove = useCallback(
+    (entryIds: string[]) => {
+      const label = `${entryIds.length} ${entryIds.length === 1 ? 'entry' : 'entries'} from the review queue`;
+      requestBulkApprove(entryIds, label, undefined, 'queue');
+    },
+    [requestBulkApprove]
+  );
+
+  const confirmBulkApprove = useCallback(() => {
+    if (!bulkApproveRequest) return;
+    dispatchBulkApprove(
+      bulkApproveRequest.entryIds,
+      bulkApproveRequest.classId,
+      bulkApproveRequest.source
+    );
+    setBulkApproveRequest(null);
+  }, [bulkApproveRequest, dispatchBulkApprove]);
 
   const desk = useMemo(
     () => computeShowDeskStatus({ show, trials, tree }),
@@ -150,13 +252,16 @@ export default function ShowDeskPanel({
         showStatus={desk.status}
         statusSummary={desk.summary}
         guidanceAction={guidanceAction}
-        upNextActions={priorityActions}
+        upNextGroups={upNextGroups}
         runningNow={runningNowItems}
         pendingSignals={pendingSignals}
         onStartAction={startAction}
         onDismissGuidance={dismissGuidanceAction}
         onSelectRunning={selectRunningNowClass}
         onSelectPendingSignal={handlePendingSignal}
+        onBulkApproveGroup={canManageShow ? handleBulkApproveGroup : undefined}
+        onOpenReviewQueue={canManageShow ? openReviewQueue : undefined}
+        reviewQueueCount={reviewQueueCount}
       />
       {canManageShow && reorderMode.active && (
         <ShowMapReorderBanner
@@ -236,6 +341,48 @@ export default function ShowDeskPanel({
             }}
             onConfirm={body => confirmMessageHandler({ body })}
           />
+          <ShowMapEntryReviewSheet
+            key={reviewAction?.nodeId ?? 'review-sheet'}
+            open={Boolean(reviewAction)}
+            onClose={closeReviewSheet}
+            onApprove={confirmReviewApprove}
+            isApproving={isApprovingReview}
+            entryDisplay={reviewNode?.entryDisplay}
+            parentClassLabel={reviewParent?.label}
+          />
+          <ShowMapReviewQueueSheet
+            open={reviewQueueOpen}
+            onClose={closeReviewQueue}
+            groups={reviewQueue}
+            onApprove={handleQueueApprove}
+            isApproving={isBulkApproving}
+          />
+          <AlertDialog
+            open={bulkApproveRequest !== null}
+            onOpenChange={open => {
+              if (!open) setBulkApproveRequest(null);
+            }}
+          >
+            <AlertDialogContent data-testid="bulk-approve-confirmation">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Approve {bulkApproveRequest?.label}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  These entries will be marked as confirmed. Handlers will see their
+                  registrations move from "submitted" to "confirmed."
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isBulkApproving}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={confirmBulkApprove}
+                  disabled={isBulkApproving}
+                  data-testid="bulk-approve-confirm"
+                >
+                  Approve
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>

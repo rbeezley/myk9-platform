@@ -1,6 +1,10 @@
 import type { ShowMapAction, ShowMapActionId } from './showMapActions';
 
-export type ShowMapActionDialogKey = 'move-up-entry' | 'scratch-entry' | 'message-handler';
+export type ShowMapActionDialogKey =
+  | 'move-up-entry'
+  | 'scratch-entry'
+  | 'message-handler'
+  | 'review-entry';
 
 export type ShowMapActionMutationKey =
   | 'mark-checked-in'
@@ -45,7 +49,7 @@ export type ResolvedShowMapActionExecution =
     };
 
 export const showMapActionExecutionById = {
-  'review-entry': { kind: 'navigate' },
+  'review-entry': { kind: 'dialog', dialog: 'review-entry' },
   'edit-score': { kind: 'navigate' },
   'score-class': { kind: 'navigate' },
   'open-class': { kind: 'navigate' },

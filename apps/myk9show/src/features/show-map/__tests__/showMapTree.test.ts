@@ -79,6 +79,7 @@ describe('buildShowMapTree', () => {
     expect(tree.nodesById['entry:entry-1']?.entryDisplay).toEqual({
       armband: '12',
       dogName: 'Bella',
+      dogId: 'dog-1',
       breed: 'Labrador Retriever',
       handler: 'Jane Handler',
       handlerId: 'person-1',

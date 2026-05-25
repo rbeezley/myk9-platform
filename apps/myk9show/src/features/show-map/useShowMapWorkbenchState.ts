@@ -11,6 +11,7 @@ import {
   getRankedActions,
 } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
+import { groupActionsByEntity } from './showMapActionGroups';
 import { getRunningNowItems } from './showMapRunningNow';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
 import { useShowMapRunOrderAutoSort } from './useShowMapRunOrderAutoSort';
@@ -166,6 +167,11 @@ export function useShowMapWorkbenchState({
       : actions;
   }, [guidanceAction, tree]);
 
+  const upNextGroups = useMemo(
+    () => groupActionsByEntity(priorityActions, tree),
+    [priorityActions, tree]
+  );
+
   const runningNowItems = useMemo(
     () => getRunningNowItems(tree, scope, effectiveScopeNow),
     [effectiveScopeNow, scope, tree]
@@ -222,6 +228,7 @@ export function useShowMapWorkbenchState({
     dismissGuidanceAction,
     startGuidanceAction,
     priorityActions,
+    upNextGroups,
     runningNowItems,
     selectRunningNowClass,
     executor,

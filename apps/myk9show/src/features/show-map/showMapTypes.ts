@@ -69,6 +69,7 @@ export interface ShowMapNode {
 export interface ShowMapEntryDisplay {
   armband?: string | undefined;
   dogName: string;
+  dogId?: string | undefined;
   breed?: string | undefined;
   handler?: string | undefined;
   handlerId?: string | undefined;

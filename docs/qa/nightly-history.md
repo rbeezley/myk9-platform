@@ -18,7 +18,15 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
-### 2026-05-24
+### 2026-05-25
+
+- **Playwright command:** fail
+- **Route sweep:** partial — public-only spot check only; logged-in role groups skipped (no exhibitor/secretary/club-admin/judge credentials in `.env.local`, only `E2E_ADMIN_*`)
+- **Active specs:** Vitest 18/18; Playwright 36 passed, 7 failed, 1 did not run (5.0m)
+- **Failures:** `browse-shows-to-details.spec.ts:4`, `cross-role-workflows.spec.ts:32`, `secretary/show-wizard-officials.spec.ts:25`, `secretary/show-wizard-officials.spec.ts:47`, `secretary-entry-walk.spec.ts:20`, `uat/secretary/critical-path.spec.ts:91`, `uat/secretary/disposable-entry.spec.ts:48`. All tracked under `QA-MULTI-REGRESSION-010`. Evidence: `apps/myk9show/test-results/*/error-context.md` for the secretary specs (5 of 7).
+- **Fixes made:** none — failures span 6 unrelated surfaces (public browse, secretary dashboard, show wizard officials auto-fill, show wizard popover groups, secretary entry-walk submit, secretary entry management summary, UAT disposable entry seed read). Each is a product-vs-test judgment call that needs human review. Per task spec ("fix only clear, low-risk local issues"), no autonomous edits were attempted.
+- **Demotions/promotions:** none in this run. If specs remain red after 2026-05-26 nightly, demote from `Nightly Active` to `Nightly Candidates / Repair Queue` per the Flake Budget rule in `docs/qa/findings.md`.
+- **Notes:** Ran from clean synced `main`, then created local branch `codex/nightly-qa-2026-05-25` before edits. Phase 2 route sweep was scoped to a public-only smoke (`/shows` confirmed clean in isolation with no console or network errors, suggesting failure #1 is flake/order-dependence rather than a product regression). Logged-in role groups were not swept because secretary/exhibitor/club-admin/judge passwords are not in the local `.env*` files (only `E2E_ADMIN_*` is present). The previous run (2026-05-24) covered `122/122` route/viewport checks, so this is a gap created by missing local credentials rather than a regression in the sweep itself. Five PRs landed on `main` since the 2026-05-24 green run (#344-#348), all touching secretary surfaces — the recommended first triage step is to bisect against those.
 
 - **Playwright command:** pass after local environment repair
 - **Route sweep:** pass after harness/server reset

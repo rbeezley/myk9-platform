@@ -1,8 +1,10 @@
 # myK9Show + myK9Q Unification — Design Plan
 
 > **Status:** Active (consolidated 2026-05-25)
+> **Risk profile:** High — touches auth, DB schema, push notifications, routing, offline/ringside data path, and ends with deleting an app
+> **Validation profile:** Full — every phase requires unit + integration + Playwright + manual UAT before advancing; security review required on Phase 1 (smart input + rate limiting) and Phase 3a/3b (RPC + edge function authz); migration review required on Phase 0, Phase 1, Phase 3a/3b schema changes; pilot show + one clean show required before Phase 4 sunset
 > **Supersedes:** `2026-05-25-unify-addendum-smart-input.md` (merged into Locked Decision #2 and Phase 1)
-> **Review history:** verified 2026-05-25; reviewer findings on suppression, admin routing, legacy passcode, co-owner resolver, passcode fanout, and access-card branding applied in this revision.
+> **Review history:** three rounds — initial verify (2026-05-25), reviewer findings on suppression/admin/legacy/co-owner/fanout/access-card (2026-05-25 rev 1), reviewer findings on schema specificity (2026-05-25 rev 2), reviewer findings on legacy-passcode distribution risk + validation profile (2026-05-25 rev 3)
 
 ## Context
 
@@ -57,7 +59,22 @@ The smart input and the underlying parser must agree on what a passcode looks li
 - **myK9Q (`apps/myk9q/src/utils/auth.ts:72`)** accepts both legacy `myK9Q1-d8609f3b-d3fd43aa-6323a604` (4-part) and UUID (5-part) license keys, deriving 5-char passcodes from them.
 - **myK9Show (`apps/myk9show/src/utils/passcodes.ts:17`)** only derives from UUID.
 
-**Phase 0 prerequisite (blocking):** decide between (A) widening `apps/myk9show/src/utils/passcodes.ts` to accept both legacy and UUID formats, or (B) running a one-time data migration that converts all legacy `myK9Q1-...` license keys to UUID and re-deriving passcodes. Recommendation: (B) if the legacy set is small (audit before deciding); otherwise (A). Whichever is chosen, the smart-input regex, the passcode generator in `@myk9/core`, and the auth resolver must all use the same canonical shape.
+**Phase 0 prerequisite (blocking):** decide between:
+
+- **(A) Widen the parser to accept both formats.** `apps/myk9show/src/utils/passcodes.ts` derives passcodes from both legacy `myK9Q1-...` and UUID shapes. No existing codes are invalidated. Simpler rollback. **This is the default choice.**
+- **(B) One-time data migration converting legacy license keys to UUID, re-deriving passcodes.** Cleaner long-term, but **invalidates any passcodes already in circulation**. If a secretary has printed access cards, distributed codes via email, or given exhibitors paper handouts, option B silently breaks all of them.
+
+**Hard prerequisite for choosing B:** prove no legacy-format codes are currently distributed by auditing:
+1. `mobile_app_lic_key` rows: how many are legacy format vs. UUID?
+2. Show calendar: are any upcoming shows using legacy-format keys?
+3. Secretary outreach: have access cards been printed/sent for any active or near-future show?
+
+If any of these surface live legacy codes, choose A. If you must choose B despite live codes, the migration must:
+- Land a transition window of at least 60 days where both legacy and new derivations are accepted in parallel.
+- Notify affected secretaries with the new codes and a re-issue instruction.
+- Document a per-show rollback path (revert that show's `mobile_app_lic_key` to legacy, since the migration is per-row).
+
+**Recommendation: default to A.** B is only worth the risk if the legacy set is provably small AND not actively distributed. Document the decision and the audit results in the Phase 0 PR.
 
 After resolution: 5-character passcode, first char in `{a, j, s, e}` (admin, judge, steward, exhibitor), remaining four lowercase alphanumeric. Case-insensitive on input (normalize to lowercase before detection).
 
@@ -242,10 +259,7 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 
 ### Phase 0 — Extract & share (foundation)
 
-**Prerequisite (blocking):** resolve legacy passcode format. Audit existing `mobile_app_lic_key` rows in the unified Supabase project. If legacy `myK9Q1-...` keys exist in non-trivial number, either:
-- (A) widen `apps/myk9show/src/utils/passcodes.ts` and `@myk9/core` to derive passcodes from both legacy and UUID shapes, OR
-- (B) run a one-time migration converting legacy keys to UUID and re-deriving passcodes.
-Document the decision in the PR description. The smart-input regex, parser, and generator must agree end-to-end before Phase 1.
+**Prerequisite (blocking):** resolve legacy passcode format per the "Passcode format (canonical)" section above. Audit `mobile_app_lic_key` rows AND check whether any passcodes derived from legacy-format keys are already in circulation (printed access cards, secretary email handoffs, exhibitor wallets). **Default to option A (accept both formats) unless the audit proves zero codes are distributed.** Option B (migration + re-derivation) invalidates any in-circulation codes and requires a 60-day parallel-acceptance window plus secretary re-issue if attempted. Document the audit results and the chosen path in the Phase 0 PR description. The smart-input regex, parser, and generator must all agree on the canonical shape before Phase 1.
 
 1. Create `packages/ringside` containing extracted myK9Q UI, auth/passcode logic, and the shared notification module.
 2. Port the `isInRing` suppression idea from myK9Show's `useNotificationStore` into the shared notification module (still client-only at this phase; durable presence comes in Phase 3).
@@ -376,3 +390,4 @@ Waits at least 30 days after Phase 4 redirect is live so stale PWA installs have
 - **2026-05-17** — Initial plan.
 - **2026-05-25** — Smart-input addendum merged in. Locked Decision 2 replaced; Locked Decisions 8–10 added. Phase 3 split into 3a (recipient identity) + 3b (push delivery). Admin (`a****`) routing added. Legacy passcode format made a Phase 0 prerequisite. Auto-favorite resolver predicate spelled out with `co_owner_id`. `MyK9QAccessCard` rebrand moved from Phase 5 to Phase 1. Presence storage columns added to `push_subscriptions` (corrects original "no schema changes" assumption).
 - **2026-05-25 (revision 2)** — Second review applied. Presence + role + per-show favorites moved off `push_subscriptions` into a new `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)` table (separates per-device push state from per-(device, show) ringside state). Replaced fictional `profiles.unified_ringside_preview` with a real `feature_flag_overrides` table keyed on `people.id`. Tightened RPC signature to `get_account_today_entries()` with no parameters (derives identity from `auth.uid()` to remove IDOR surface). Fixed misleading citation about `push_subscriptions` join surface — the *indexes* on `user_id`/`license_key` exist, but the *columns* for role/favorites do not; they live on the new table.
+- **2026-05-25 (revision 3)** — Third review applied. Added explicit Risk/Validation profile to the document header (High risk, Full validation). Default for the legacy-passcode Phase 0 prerequisite flipped from "decide A or B based on size" to "default to A unless the audit proves zero codes are distributed"; option B now requires a 60-day parallel-acceptance window plus secretary re-issue when chosen. Note: the third reviewer's findings #1, #2, #3 (schema, RPC parameter, profiles table) were already addressed in revision 2; the reviewer was looking at the consolidation commit before revision 2 had landed locally for them.

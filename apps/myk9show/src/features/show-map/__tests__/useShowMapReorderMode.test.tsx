@@ -181,6 +181,48 @@ describe('useShowMapReorderMode — optimistic reorder overlay', () => {
   });
 });
 
+describe('useShowMapReorderMode — keyboard reorder optimistic overlay', () => {
+  it('commits the optimistic order synchronously in onKeyboardReorder and clears it onSettled', async () => {
+    // Hold the writes open so we can assert the overlay reflects the
+    // new order BEFORE the DB write settles. Mirrors the drag-end
+    // overlay test above — the keyboard path used to skip this and
+    // the focused row visibly snapped back until the refetch landed.
+    const writeResolvers: Array<() => void> = [];
+    updateEntryMock.mockImplementation(
+      () =>
+        new Promise<string | null>(resolve => {
+          writeResolvers.push(() => resolve('mutation-id'));
+        })
+    );
+    getEntriesByClassMock.mockResolvedValue([
+      entry({ id: 'a', armband: '10', runOrder: 1 }),
+      entry({ id: 'b', armband: '20', runOrder: 2 }),
+      entry({ id: 'c', armband: '30', runOrder: 3 }),
+    ]);
+
+    const { result } = renderHook(() => useShowMapReorderMode({ showId: 'show-1' }), {
+      wrapper: makeWrapper(),
+    });
+
+    act(() => result.current.enter({ classId: 'class-1', classLabel: 'Container Novice' }));
+
+    // Alt+ArrowDown on A: A swaps past B → expected new order [B, A, C].
+    await act(async () => {
+      await result.current.onKeyboardReorder('entry:a', 'down');
+    });
+
+    expect(result.current.getOptimisticOrder('class-1')).toEqual([
+      'entry:b',
+      'entry:a',
+      'entry:c',
+    ]);
+
+    await waitFor(() => expect(writeResolvers.length).toBeGreaterThan(0));
+    writeResolvers.forEach(fn => fn());
+    await waitFor(() => expect(result.current.getOptimisticOrder('class-1')).toBeUndefined());
+  });
+});
+
 describe('useShowMapReorderMode — Alt+Arrow keyboard reorder skips pinned neighbors', () => {
   it('Alt+ArrowDown on an unpinned entry hops past a pinned neighbor', async () => {
     // Layout: [A, B(pinned), C, D]. Alt+ArrowDown on A should move A to

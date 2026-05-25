@@ -20,7 +20,6 @@ const statusLabels: Record<RoleRequestStatus | 'all', string> = {
   pending: 'Pending',
   approved: 'Approved',
   denied: 'Denied',
-  cancelled: 'Cancelled',
 };
 
 const roleLabels: Record<RoleRequest['requestedRole'], string> = {
@@ -33,7 +32,6 @@ function StatusBadge({ status }: { status: RoleRequestStatus }) {
     pending: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
     approved: 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300',
     denied: 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300',
-    cancelled: 'border-muted bg-muted text-muted-foreground',
   };
 
   return (
@@ -158,7 +156,7 @@ export default function RoleRequestsPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        {(['all', 'pending', 'approved', 'denied', 'cancelled'] as const).map(status => (
+        {(['all', 'pending', 'approved', 'denied'] as const).map(status => (
           <button
             key={status}
             type="button"

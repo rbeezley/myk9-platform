@@ -4,6 +4,25 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Follow-ups from 2026-05-24 session
+
+Source: dashboard refocus PRs (#326, #328, #329, #330, #331, #332), scoring sync fix (#334), useDogsQuery fix (#337). Memory updates in `project_scoring_sync_bug.md` and `project_harden_backlog.md`.
+
+### Scoring sync (myK9Q) — PR #334 deferred work
+
+- [ ] **Wire the toast pipeline for scoring failures** — PR #334 closed the pull-overwrite half of the data-loss bug (cache row marked dirty via `isDirty=true` → `mergeDirtyRow` protects optimistic scores). But silent `submitScore` failures (RLS reject, transient network) still don't surface a toast. The `replication:sync-failed` listener exists at `apps/myk9q/src/components/ui/SyncFailureToast.tsx:142`. Two paths (pick one):
+  1. Wire `setMutationManager()` on `replicatedEntriesTable` in production (currently only test code does this) so `isDirty=true` actually queues a mutation that the toast pipeline catches on failure. Cleanest fix.
+  2. Dispatch `window.dispatchEvent(new CustomEvent('replication:sync-failed', {...}))` from `useOptimisticScoring`'s `onError` directly when `submitScore()` rejects. Smaller fix; doesn't unify the queue path.
+  See `project_scoring_sync_bug.md` "Deferred follow-up" section.
+- [ ] **Rename `queueMutation` parameter to `isDirty`** — On `apps/myk9q/src/services/replication/tables/ReplicatedEntriesTable.ts` (`markAsScored`, `updateEntryStatus`). The wrapper's parameter is misnamed — it actually maps to `isDirty` in `ReplicatedTable.set(id, data, isDirty=false, ...)`. The naming misled the PR #334 framing through commit message, comments, tests, PR description, and memory. Reviewer caught it; non-blocking nit deferred. Pure rename + call-site updates.
+- [ ] **Move placement calculation server-side, drop `submitScore`** — Architectural follow-up. PR #334 keeps `submitScore` for placement + class-completion side effects, accepting a benign happy-path double-write (queue UPDATE + submitScore UPDATE). The cleaner path is to move placement to a server-side trigger / RPC so scoring writes go through one queue path only. Eliminates the double-write and makes the toast-wiring follow-up above unambiguously clean.
+
+### Workbench-collapse leftovers
+
+- [ ] **Re-home AskQ phase prompts deleted in B8** — PR #321 (Phase B8, dashboard refocus companion) deleted `apps/myk9show/src/features/show-workbench/ShowWorkbenchAskQHelp.tsx`. That was a phase-filtered entry-point card surfacing prompts from `SECRETARY_SHOW_DAY_PROMPTS` (in `apps/myk9show/src/components/askq/askq-config.ts`). The prompts still exist in config but no UI now surfaces them in a phase-aware way. Pick: either remove the prompts entirely (confirm the global AskQ slide-out shipped via PR #230 is sufficient) OR re-home the phase-filtered card on a different workbench surface (Show Desk tools sheet? row-action menu?). Decision needed first, then implementation.
+
+---
+
 ## Lint debt from PR #196 — 2026-05-16
 
 `pnpm lint` is failing on `main` as of 2026-05-16. Both findings landed via [PR #196](https://github.com/rbeezley/myk9-platform/pull/196) (refactor(show): route core reads through data modules), which merged before GHA Quality Checks were running. GHA is unblocked again as of 2026-05-18 (repo flipped public) and Quality Checks runs on every PR, so these are now visible. Branch protection enforcement is tracked separately in `Pre-Launch Housekeeping` below.

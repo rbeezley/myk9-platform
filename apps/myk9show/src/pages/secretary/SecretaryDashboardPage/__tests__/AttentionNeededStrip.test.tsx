@@ -1,8 +1,30 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ComponentProps } from 'react';
 import { AttentionNeededStrip } from '../AttentionNeededStrip';
 import type { AttentionItem } from '@/hooks/useMyShows';
+
+// Capture every props payload `Link` was rendered with so we can assert no
+// handlers (onClick, etc.) are wired onto navigation anchors. The DOM-level
+// `onclick` attribute check is insufficient because React doesn't project
+// synthetic `onClick` handlers to the `onclick` HTML attribute.
+const linkPropCaptures: Array<Record<string, unknown>> = [];
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    Link: (props: ComponentProps<typeof actual.Link>) => {
+      linkPropCaptures.push(props as unknown as Record<string, unknown>);
+      return <actual.Link {...props} />;
+    },
+  };
+});
+
+beforeEach(() => {
+  linkPropCaptures.length = 0;
+});
 
 function renderStrip(items: AttentionItem[]) {
   return render(
@@ -68,5 +90,36 @@ describe('AttentionNeededStrip', () => {
     expect(container.querySelectorAll('button')).toHaveLength(0);
     // And the number of anchors equals the item count (no decorative-only buttons either).
     expect(container.querySelectorAll('a')).toHaveLength(2);
+  });
+
+  // L4 regression hardening: the original "no <button>" assertion above passes
+  // even if someone adds `<a href onClick={mutate}>` — a write surface masquerading
+  // as a link. Per user memory `feedback_modal_mode_suppression`, when locking a
+  // component as nav-only we must enumerate EVERY interactive primitive: button +
+  // anchor handlers + role="button" (tabIndex/onKeyDown patterns).
+  it('renders anchors with no onClick (or any other handler) wired up', () => {
+    renderStrip([
+      { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Item A', href: '/shows/s1' },
+      { showId: 's2', showName: 'Fall Classic', kind: 'info', text: 'Item B', href: '/shows/s2' },
+    ]);
+    // Sanity: the Link mock fired once per item.
+    expect(linkPropCaptures).toHaveLength(2);
+    // Each captured Link must not carry a handler prop. onClick is the load-bearing
+    // one (covers the leak shape), but we also block sibling handler shapes that
+    // a future PR might reach for.
+    const forbidden = ['onClick', 'onMouseDown', 'onMouseUp', 'onKeyDown', 'onKeyUp'];
+    for (const props of linkPropCaptures) {
+      for (const handler of forbidden) {
+        expect(props[handler]).toBeUndefined();
+      }
+    }
+  });
+
+  it('renders no role="button" elements (catches tabIndex + onKeyDown patterns)', () => {
+    renderStrip([
+      { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Item A', href: '/shows/s1' },
+      { showId: 's2', showName: 'Fall Classic', kind: 'info', text: 'Item B', href: '/shows/s2' },
+    ]);
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 });

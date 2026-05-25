@@ -36,18 +36,19 @@ This plan unifies the two apps under a single URL (`myk9show.com`) and a single 
 6. **Account-holder show-day flow:** Sign-in is sufficient. If they have entries in a show happening today, a banner takes them to `/at-show` with their dogs **pre-favorited automatically** from their entries. They never type a passcode for a show they're entered in.
 
 7. **Auto-favorite predicate (server-enforced, RLS-protected RPC):**
+   The RPC is `get_account_today_entries()` — **no parameters**. It derives `person_id` from `auth.uid()` internally; the caller cannot pass an account id. Predicate:
    ```sql
-   entries.handler_id = $person_id
+   entries.handler_id = $person_id (from auth.uid())
    OR dogs.owner_id    = $person_id
    OR dogs.co_owner_id = $person_id
    ```
-   scoped to shows happening today for the signed-in account. Covers co-ownership and junior/pro handlers without surfacing unrelated dogs. The client never receives unauthorized entry IDs.
+   scoped to shows happening today. Returns empty when unauthenticated rather than erroring. Covers co-ownership and junior/pro handlers without surfacing unrelated dogs. The client never receives unauthorized entry IDs and cannot impersonate another account by passing a different id.
 
 8. **Session precedence:** when a signed-in account enters a passcode in the smart input, the passcode role is granted *in addition to* the account session, scoped to that single show. The passcode does not impersonate the account; it temporarily expands role. Account session remains the source of truth for identity, audit trails, and push subscription ownership. UI confirms before attaching: *"You're signed in as [name]. Use this passcode to join [show] as a [role]?"*
 
 9. **Multi-show-today banner:** if the account has entries in >1 show today, the banner becomes a stacked list (one row per show) ordered by earliest class time. Single show → single CTA. Zero shows → no banner.
 
-10. **Schema changes are required.** The original "no schema changes for phases 0–4" assumption is dropped. Phase 3b adds presence storage (see Messaging Architecture below). The fanout query also needs to map passcode-only exhibitors via `(show_id, license_key, role, favorited_armbands)`, which depends on existing columns plus the new presence columns.
+10. **Schema changes are required.** The original "no schema changes for phases 0–4" assumption is dropped. The current `push_subscriptions` table has only `id, user_id, endpoint, p256dh, auth, license_key, created_at` — no columns for role, per-show favorites, or presence. Phase 3b adds a new sibling table `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)` keyed on `(subscription_id, show_id)`. This separates per-device push state (which is durable across shows) from per-show ringside state (which is bounded to a single event). The fanout query joins `push_subscriptions → ringside_sessions` to resolve passcode recipients.
 
 ## Passcode format (canonical)
 
@@ -139,19 +140,25 @@ The platform has two complementary systems that solve different parts of the mes
 **Recipient identity (the harder half).** The current `send-targeted-message` edge function (`supabase/functions/send-targeted-message/index.ts:69`) resolves class recipients exclusively via `entries → dogs → people.auth_user_id`. Passcode-only exhibitors have no `auth_user_id` and would silently never receive push under this query. The unification's headline persona is the passcode exhibitor, so the fanout must be extended to map recipients via:
 
 - `auth_user_id` (account exhibitors — existing path)
-- `(show_id, license_key, role='exhibitor', favorited_armbands ∋ target_armband)` (passcode exhibitors with manual favorites)
-- `(show_id, license_key, role)` for role-broadcast targets (all stewards, all judges, all admins)
+- `ringside_sessions` rows with `show_id = $show, role = 'exhibitor', favorited_armbands ∋ $target_armband` joined back to `push_subscriptions` (passcode exhibitors with manual favorites)
+- `ringside_sessions` rows with `show_id = $show, role = $role` joined back to `push_subscriptions` (role-broadcast targets: all stewards, all judges, all admins)
 - Checked-in entry list for "everyone checked in"
 
-The `push_subscriptions` table already keys on both `user_id` and `license_key` (see indexes in `supabase/migrations/004_myk9q_specific.sql:224`), so the join surface exists; the edge function query needs the second arm.
+The existing `push_subscriptions` table provides device-level subscription rows indexed on `user_id` and `license_key`, but **does not** carry role, per-show favorites, or presence data — those columns do not exist today. The new `ringside_sessions` table introduced by Phase 3b is what makes the passcode-recipient join possible; without it, the second arm of the fanout has nothing to query.
 
-**Presence storage (new — replaces client-only `isInRing`).** Phase 3 adds:
-- `push_subscriptions.last_seen_at` (timestamptz)
-- `push_subscriptions.last_seen_route` (text — e.g., `/at-show`, `/at-show/ring/N`)
-- A client heartbeat (every ~30s while the tab is foregrounded) updates both columns.
-- Edge function consults these during fanout to suppress push when the user is actively in the destination route.
+**Presence storage (new — replaces client-only `isInRing`).** Phase 3b creates `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)`:
+- `subscription_id uuid` FK to `push_subscriptions(id)` ON DELETE CASCADE
+- `show_id uuid` FK to `shows(id)`
+- `role text` — `'exhibitor' | 'steward' | 'judge' | 'admin'`
+- `favorited_armbands text[]` — exhibitor's manually favorited armbands for this show
+- `last_seen_at timestamptz`
+- `last_seen_route text` — e.g., `/at-show`, `/at-show/ring/N`
+- Primary key on `(subscription_id, show_id)`
+- Indexes on `(show_id, role)` for role broadcasts and `(show_id, last_seen_at)` for suppression queries
 
-This is the schema change that the original plan denied. It's small (two nullable columns, one heartbeat hook), but it makes "no schema changes" wrong; Locked Decision 10 reflects the correction.
+A client heartbeat (every ~30s while the tab is foregrounded and the user is in `/at-show*`) upserts the row. Edge function joins through it to resolve passcode recipients AND to suppress push when the user is actively in the destination route.
+
+This is the schema change that the original plan denied; Locked Decision 10 reflects the correction. The separation from `push_subscriptions` matters because push subscriptions are per-device (durable across shows), while ringside sessions are per-(device, show) and prunable after a show ends.
 
 **Unified flow:**
 
@@ -198,9 +205,9 @@ This is the schema change that the original plan denied. It's small (two nullabl
 
 ## Feature Flag
 
-- `shows.unified_ringside_enabled` (boolean column, default false) — per-show enablement so pilot clubs opt in independently.
-- `profiles.unified_ringside_preview` (boolean, default false) — user-level override for staff/testers.
-- Homepage banner and `/at-show` route check the flag at render time. When false, account holders see the legacy `ShowDayPage` until Phase 4 deletes it.
+- `shows.unified_ringside_enabled` (boolean column, default false) — per-show enablement so pilot clubs opt in independently. Note: this is on the existing `shows` table.
+- A new `feature_flag_overrides(person_id uuid, flag_name text, enabled boolean, set_at timestamptz)` table — user-level override keyed by `people.id` (the canonical person table; there is no `profiles` table in this schema). PK on `(person_id, flag_name)`. Lets staff/testers preview before a show flips, and is reusable for future flags without another migration.
+- Homepage banner and `/at-show` route check both: the per-show flag AND the per-person override (override wins if present). When false, account holders see the legacy `ShowDayPage` until Phase 4 deletes it.
 
 ## Critical Files & Locations
 
@@ -221,9 +228,11 @@ This is the schema change that the original plan denied. It's small (two nullabl
 
 **Supabase:**
 - `show_messages`, `show_message_threads` — reuse as-is
-- `push_subscriptions` — **add `last_seen_at` and `last_seen_route` columns** (Phase 3)
-- `send-targeted-message` edge function — extend to (a) fan out push, (b) resolve passcode-only recipients, (c) consult presence for suppression
-- New RPC: `get_account_today_entries(account_id)` for the auto-favorite predicate (Phase 2)
+- `push_subscriptions` — **unchanged schema**; reuse the existing per-device subscription rows
+- **New table `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)`** — per-(device, show) state for ringside (Phase 3b migration)
+- **New table `feature_flag_overrides(person_id, flag_name, enabled, set_at)`** — per-person flag overrides (Phase 1 migration, shipped with the feature flag itself)
+- `send-targeted-message` edge function — extend to (a) fan out push, (b) resolve passcode-only recipients via `ringside_sessions`, (c) consult `ringside_sessions.last_seen_at` / `last_seen_route` for suppression
+- New RPC: `get_account_today_entries()` (no parameters; derives `person_id` from `auth.uid()`) for the auto-favorite predicate (Phase 0)
 
 **Tooling:**
 - `scripts/bootstrap-worktree.sh` — verify after `apps/myk9q` removal in Phase 6
@@ -241,8 +250,8 @@ Document the decision in the PR description. The smart-input regex, parser, and 
 1. Create `packages/ringside` containing extracted myK9Q UI, auth/passcode logic, and the shared notification module.
 2. Port the `isInRing` suppression idea from myK9Show's `useNotificationStore` into the shared notification module (still client-only at this phase; durable presence comes in Phase 3).
 3. Have the existing `apps/myk9q` app consume the new package — verify it still builds and behaves identically.
-4. **Authorization:** implement Supabase RPC `get_account_today_entries(account_id)` returning entry IDs the signed-in account may favorite. Predicate per Locked Decision 7 (`handler_id = $person_id OR owner_id = $person_id OR co_owner_id = $person_id`, scoped to today's shows). RLS enforced on `entries`.
-5. **Tests:** unit tests for passcode role parsing (including both legacy + UUID derivation per Phase 0 prerequisite), push suppression logic, owner-or-handler-or-coowner favorite resolver (owner-only, handler-only, co-owner-only, all-three, none). Integration test confirming a tampered client cannot favorite entries that aren't theirs. Must be green before Phase 1.
+4. **Authorization:** implement Supabase RPC `get_account_today_entries()` (no parameters) returning entry IDs the signed-in account may favorite. The function derives `person_id` from `auth.uid()` internally by joining through `people.auth_user_id`; if unauthenticated, returns an empty result rather than erroring. Predicate per Locked Decision 7 (`handler_id = $person_id OR owner_id = $person_id OR co_owner_id = $person_id`, scoped to today's shows). RLS enforced on `entries` as a defense-in-depth layer beneath the RPC.
+5. **Tests:** unit tests for passcode role parsing (including both legacy + UUID derivation per Phase 0 prerequisite), push suppression logic, owner-or-handler-or-coowner favorite resolver (owner-only, handler-only, co-owner-only, all-three, none). Integration tests: (a) tampered client cannot favorite entries that aren't theirs (the RPC takes no parameters, so this is enforced by `auth.uid()` derivation); (b) calling the RPC while unauthenticated returns an empty result rather than erroring or leaking rows. Must be green before Phase 1.
 
 ### Phase 1 — Smart-input landing + `/at-show` route
 
@@ -257,26 +266,29 @@ Document the decision in the PR description. The smart-input regex, parser, and 
 ### Phase 2 — Account-holder show-day auto-routing
 
 1. Implement "Show today" banner on myK9Show homepage. Single CTA when one show today; stacked list ordered by earliest class time when multiple; hidden when zero.
-2. Implement auto-favorite logic: on banner-tap or `/at-show` mount, call `get_account_today_entries` and pre-favorite the returned IDs. Client never receives or trusts unrelated entry IDs.
+2. Implement auto-favorite logic: on banner-tap or `/at-show` mount, call `get_account_today_entries()` (no parameters — RPC derives identity from session) and pre-favorite the returned IDs. Client never receives or trusts unrelated entry IDs.
 3. **Tests:** unit tests covering owner-only, handler-only, co-owner-only, owner+handler, owner+co-owner, handler+co-owner, all-three, and zero-entry cases. Playwright spec covering banner appearance (single, multi, zero) + auto-favorite assertion. Authorization Playwright: account A attempts to favorite an entry owned by account B → RLS denial.
 
 ### Phase 3a — Recipient identity (extend fanout to reach passcode users)
 
 This phase has no push delivery — it only fixes who the fanout *would* target. Push delivery is Phase 3b.
 
-1. Extend `send-targeted-message` recipient resolution to query both:
+**Note:** Phase 3a depends on the `ringside_sessions` table that Phase 3b creates. Land 3b's migration first (table only, no client heartbeat yet), then Phase 3a's recipient resolution, then Phase 3b's remaining steps (heartbeat + push + suppression). The phase numbers reflect logical separation, not migration order.
+
+1. Migration: create `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)` as defined in Messaging Architecture. (Phase 3b will populate it; Phase 3a only needs the schema to exist for the query to compile.)
+2. Extend `send-targeted-message` recipient resolution to query both:
    - Account-keyed: existing `entries → dogs → people.auth_user_id` arm
-   - Passcode-keyed: `push_subscriptions` rows with matching `(show_id, license_key, role, favorited_armbands ∋ target_armband)` for per-armband targets; `(show_id, license_key, role)` for role broadcasts
-2. Add "Everyone checked in" recipient resolver (via checked-in entry list) and "Everyone in show" target (via `group_label`) to the existing edge function.
-3. Add "Everyone checked in" and "Everyone in show" target options to `SecretaryMessagesPage`'s `ComposeTargetedModal`.
-4. **Tests:** edge function unit tests confirming each target shape returns the correct recipient set including passcode users. Specific regression test: a passcode-only exhibitor with a favorited armband receives a per-class message.
+   - Passcode-keyed: `ringside_sessions` joined to `push_subscriptions` filtered by `show_id`, `role`, and `favorited_armbands ∋ target_armband` for per-armband targets; `(show_id, role)` for role broadcasts
+3. Add "Everyone checked in" recipient resolver (via checked-in entry list) and "Everyone in show" target (via `group_label`) to the existing edge function.
+4. Add "Everyone checked in" and "Everyone in show" target options to `SecretaryMessagesPage`'s `ComposeTargetedModal`.
+5. **Tests:** edge function unit tests confirming each target shape returns the correct recipient set including passcode users. Specific regression test: a passcode-only exhibitor with a `ringside_sessions` row favoriting an armband receives a per-class message.
 
 ### Phase 3b — Push delivery + presence-aware suppression
 
-1. **Schema:** add `last_seen_at timestamptz` and `last_seen_route text` columns to `push_subscriptions`. Migration NNN.
-2. **Client heartbeat:** in the shared ringside module, while the tab is foregrounded and the user is in `/at-show*`, POST a heartbeat every ~30s updating `last_seen_at` + `last_seen_route` for the current subscription. Clear on unmount.
+1. **Schema:** the `ringside_sessions` table is created in Phase 3a step 1 (so its presence unblocks the fanout query). Phase 3b's schema work is limited to RLS policies on the new table — `subscription_id` matches a row in `push_subscriptions` owned by `auth.uid()` for SELECT/UPDATE; admin-only for cross-row visibility.
+2. **Client heartbeat:** in the shared ringside module, while the tab is foregrounded and the user is in `/at-show*`, upsert a `ringside_sessions` row every ~30s updating `last_seen_at`, `last_seen_route`, `role`, and `favorited_armbands`. Clear `last_seen_at` to NULL (or delete the row) on unmount/blur.
 3. Extend `send-targeted-message` to fan out push notifications via `push_subscriptions` after writing to `show_messages`, using the resolved recipient set from Phase 3a.
-4. Apply suppression: skip push if `last_seen_at` is within the last 60s AND `last_seen_route` starts with `/at-show`.
+4. Apply suppression: skip push if the recipient has a `ringside_sessions` row for this show with `last_seen_at` within the last 60s AND `last_seen_route` starting with `/at-show`.
 5. Push payload includes only `message_id`; client resolves the thread via RLS.
 6. **Error handling:** 404/410 from push service → delete subscription row in-transaction. Other 5xx → log + retry once with exponential backoff.
 7. **Concurrency:** idempotency key on send; dedupe at `show_messages`.
@@ -339,7 +351,7 @@ Waits at least 30 days after Phase 4 redirect is live so stale PWA installs have
 
 **Push failure walk:** seed a stale push subscription (404 endpoint) → send targeted message → assert inbox is delivered, dead sub is cleaned, edge function returns `failed: 1, dead_subs_cleaned: 1`.
 
-**Authorization walk:** signed-in account A attempts to favorite an entry owned/handled by account B via direct RPC call → expect RLS denial.
+**Authorization walk:** signed-in account A calls `get_account_today_entries()` → receives only A's entries (the RPC has no parameter to tamper with). Anonymous client calls the RPC → empty result, no error. Account A attempts to insert a `ringside_sessions` row for a `subscription_id` owned by account B → expect RLS denial.
 
 **Bundle budget:** CI asserts homepage entry chunk size has not regressed beyond the budget set in Phase 1 step 1.
 
@@ -363,3 +375,4 @@ Waits at least 30 days after Phase 4 redirect is live so stale PWA installs have
 
 - **2026-05-17** — Initial plan.
 - **2026-05-25** — Smart-input addendum merged in. Locked Decision 2 replaced; Locked Decisions 8–10 added. Phase 3 split into 3a (recipient identity) + 3b (push delivery). Admin (`a****`) routing added. Legacy passcode format made a Phase 0 prerequisite. Auto-favorite resolver predicate spelled out with `co_owner_id`. `MyK9QAccessCard` rebrand moved from Phase 5 to Phase 1. Presence storage columns added to `push_subscriptions` (corrects original "no schema changes" assumption).
+- **2026-05-25 (revision 2)** — Second review applied. Presence + role + per-show favorites moved off `push_subscriptions` into a new `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)` table (separates per-device push state from per-(device, show) ringside state). Replaced fictional `profiles.unified_ringside_preview` with a real `feature_flag_overrides` table keyed on `people.id`. Tightened RPC signature to `get_account_today_entries()` with no parameters (derives identity from `auth.uid()` to remove IDOR surface). Fixed misleading citation about `push_subscriptions` join surface — the *indexes* on `user_id`/`license_key` exist, but the *columns* for role/favorites do not; they live on the new table.

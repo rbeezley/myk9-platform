@@ -27,7 +27,7 @@ Source: dashboard refocus PRs (#326, #328, #329, #330, #331, #332), scoring sync
 
 ### Workbench-collapse leftovers
 
-- [ ] **Re-home AskQ phase prompts deleted in B8** — PR #321 (Phase B8, dashboard refocus companion) deleted `apps/myk9show/src/features/show-workbench/ShowWorkbenchAskQHelp.tsx`. That was a phase-filtered entry-point card surfacing prompts from `SECRETARY_SHOW_DAY_PROMPTS` (in `apps/myk9show/src/components/askq/askq-config.ts`). The prompts still exist in config but no UI now surfaces them in a phase-aware way. Pick: either remove the prompts entirely (confirm the global AskQ slide-out shipped via PR #230 is sufficient) OR re-home the phase-filtered card on a different workbench surface (Show Desk tools sheet? row-action menu?). Decision needed first, then implementation.
+- [x] **Re-home AskQ phase prompts deleted in B8** — Resolved as dead-code removal. PR #321 (Phase B8) deleted `ShowWorkbenchAskQHelp.tsx`, the only consumer of `SECRETARY_SHOW_DAY_PROMPTS`. The global AskQ slide-out shipped via PR #230 is the sufficient help surface; the phase-filtered config sat unused for weeks with no surfaced user gap. Removed the dead `SECRETARY_SHOW_DAY_PROMPTS` export plus the orphaned `SecretaryShowDayPrompt` type from `apps/myk9show/src/components/askq/askq-config.ts`.
 
 ---
 

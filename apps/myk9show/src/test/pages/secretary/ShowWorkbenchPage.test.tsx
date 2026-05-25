@@ -469,10 +469,11 @@ describe('ShowWorkbenchPage', () => {
   // and the Closeout section by ShowDeskCloseoutSection.test.tsx.
   //
   // The "opens AskQ with a selected show-day prompt" test was also removed —
-  // the "Scratch or no-show" prompt it asserted was a Today-phase prompt that
-  // B5 dropped from SECRETARY_SHOW_DAY_PROMPTS. Phase B8 removed the
-  // Setup-tab AskQ help card entirely (along with the AboutThisPhase banner
-  // and PhaseChecklist) in favor of the signal-driven SetupAdaptiveHeader.
+  // the "Scratch or no-show" prompt it asserted was a Today-phase prompt
+  // dropped in B5. Phase B8 then removed the Setup-tab AskQ help card
+  // entirely (along with the AboutThisPhase banner and PhaseChecklist) in
+  // favor of the signal-driven SetupAdaptiveHeader. The phase-filtered
+  // prompt config itself was removed once no caller remained.
 
   it('navigates to the existing edit surface', async () => {
     const user = userEvent.setup();

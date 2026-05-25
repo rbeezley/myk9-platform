@@ -92,6 +92,12 @@ export function ShowMapSortableEntryRow({
             <button
               type="button"
               disabled={isPersisting}
+              // INTENT: `touchAction: 'none'` is critical on iOS Safari.
+              // Without it the browser's default `pan-y` on a touch
+              // target claims the touch for page scrolling and the
+              // TouchSensor activation timer in useShowMapReorderMode
+              // never fires — the secretary thinks drag is broken.
+              style={{ touchAction: 'none' }}
               className={cn(
                 'flex h-9 w-9 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:text-foreground active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 isPersisting && 'cursor-wait opacity-60'

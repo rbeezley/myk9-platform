@@ -3,11 +3,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
@@ -40,6 +41,17 @@ interface UseShowMapReorderModeInput {
 export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderModeInput) {
   const queryClient = useQueryClient();
   const [active, setActive] = useState<ShowMapActiveReorder | null>(null);
+  // INTENT: Optimistic order overlay per class. When the secretary drops a
+  // row we update this synchronously in onDragEnd so the visual order
+  // commits immediately; the DB write fires in parallel and onSettled
+  // clears the overlay + invalidates the source query so the next render
+  // falls back to server truth. Without this, slow networks left rows
+  // snapping back to their pre-drag position until the refetch landed.
+  // Keyed by classId (raw, no `class:` prefix); values are prefixed entry
+  // node IDs (`entry:abc`) matching the SortableContext items contract.
+  const [optimisticOrderByClassId, setOptimisticOrderByClassId] = useState<
+    Record<string, string[] | undefined>
+  >({});
   // Mirrored to a ref so the (stable-identity) drag-end handler sees the
   // latest active class without needing to be re-bound to every state change.
   const activeRef = useRef(active);
@@ -49,6 +61,13 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    // INTENT: iOS Safari's default `touch-action: pan-y` on the grip area
+    // wins against PointerSensor's touch-event coalescing — the browser
+    // claims the touch for page scrolling and the drag never activates.
+    // TouchSensor with a short delay + tolerance window gives a clean
+    // long-press activation that survives the scroll-vs-drag arbitration.
+    // Pair this with `touch-action: none` on the grip handle itself.
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -62,6 +81,12 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
 
   const exit = useCallback(() => {
     setActive(null);
+    // Clear any optimistic overlays — once the secretary leaves reorder
+    // mode the next render should reflect server truth (the most recent
+    // persist's onSettled has already invalidated, the refetch is in
+    // flight). Holding stale optimistic state would briefly show the
+    // pending order in the static tree on re-entry.
+    setOptimisticOrderByClassId({});
   }, []);
 
   // INTENT: Escape exits reorder mode. Bound to window so the secretary can
@@ -115,7 +140,19 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
       toast.error(getUserFriendlyError(error));
     },
     onSettled: (_data, _error, variables) => {
-      if (variables?.classId) invalidateForClass(variables.classId);
+      if (variables?.classId) {
+        // Clear the optimistic overlay BEFORE invalidating so the next
+        // render falls back to the freshly-refetched server order. On
+        // failure this naturally reverts the row to its pre-drag slot
+        // because the refetch returns unchanged data.
+        setOptimisticOrderByClassId(current => {
+          if (current[variables.classId] === undefined) return current;
+          const next = { ...current };
+          delete next[variables.classId];
+          return next;
+        });
+        invalidateForClass(variables.classId);
+      }
     },
   });
 
@@ -126,20 +163,38 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
   // final state.
   const isPersistingRef = useRef(false);
 
-  const onDragEnd = useCallback(
-    (event: DragEndEvent) => {
+  // INTENT: Builds the DndContext.onDragEnd handler with a snapshot of the
+  // current SortableContext items in closure. The structure table calls
+  // this per-render with `visibleChildIds` so onDragEnd can apply
+  // arrayMove synchronously and commit the optimistic overlay in the
+  // same frame as the drop. Without this, slow networks left rows
+  // visually snapping back to their pre-drag position until the DB write
+  // + refetch landed.
+  const buildOnDragEnd = useCallback(
+    (currentItems: readonly string[]) => (event: DragEndEvent) => {
       const current = activeRef.current;
       if (!current) return;
       if (isPersistingRef.current) return;
       // INTENT: useSortable id is the prefixed ShowMapNode id (entry:abc).
-      // The mutation looks entries up by their raw DB id — strip the prefix
-      // here or every drop silently no-ops.
-      const activeId = stripEntryPrefix(String(event.active.id));
-      const overId = event.over ? stripEntryPrefix(String(event.over.id)) : null;
+      // The mutation looks entries up by their raw DB id — strip the
+      // prefix here or every drop silently no-ops.
+      const activePrefixedId = String(event.active.id);
+      const overPrefixedId = event.over ? String(event.over.id) : null;
+      const activeId = stripEntryPrefix(activePrefixedId);
+      const overId = overPrefixedId ? stripEntryPrefix(overPrefixedId) : null;
       if (!activeId || !overId || activeId === overId) return;
+
+      const fromIndex = currentItems.indexOf(activePrefixedId);
+      const toIndex = currentItems.indexOf(overPrefixedId!);
+      const classId = current.classId;
+      if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+        const reordered = arrayMove([...currentItems], fromIndex, toIndex);
+        setOptimisticOrderByClassId(currentMap => ({ ...currentMap, [classId]: reordered }));
+      }
+
       isPersistingRef.current = true;
       persistMutation.mutate(
-        { classId: current.classId, activeId, overId },
+        { classId, activeId, overId },
         {
           onSettled: () => {
             isPersistingRef.current = false;
@@ -148,6 +203,20 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
       );
     },
     [persistMutation]
+  );
+
+  // INTENT: Back-compat shim — callers that don't (yet) provide the items
+  // snapshot get a non-optimistic drag-end. This keeps the optimistic
+  // path opt-in per call site; the structure table opts in by passing
+  // `visibleChildIds` via buildOnDragEnd above.
+  const onDragEnd = useCallback(
+    (event: DragEndEvent) => buildOnDragEnd([])(event),
+    [buildOnDragEnd]
+  );
+
+  const getOptimisticOrder = useCallback(
+    (classId: string): readonly string[] | undefined => optimisticOrderByClassId[classId],
+    [optimisticOrderByClassId]
   );
 
   // INTENT: Keyboard-driven move. The plan's accessibility criterion was
@@ -192,6 +261,15 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
     enter,
     exit,
     onDragEnd,
+    // Build a drag-end handler closed over the current SortableContext
+    // items so onDragEnd can apply arrayMove synchronously for optimistic
+    // UX. Per-render call; caller passes the items array it just used to
+    // build <SortableContext items={…}>.
+    buildOnDragEnd,
+    // Look up the optimistic order overlay for a class (returns
+    // `entry:…` prefixed node IDs or undefined when no overlay is
+    // active). Cleared in the mutation's onSettled.
+    getOptimisticOrder,
     onKeyboardReorder,
   };
 }

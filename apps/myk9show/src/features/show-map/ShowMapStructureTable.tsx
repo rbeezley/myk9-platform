@@ -608,17 +608,35 @@ export function ShowMapStructureTable({
 
     const isReorderingThisClass =
       node.type === 'class' && reorderMode?.active?.classId === node.id.replace(/^class:/, '');
+    // INTENT: Apply the hook's optimistic order overlay (if present for
+    // this class) so the SortableContext items + the rendered child list
+    // commit to the new positions in the same frame as the drop. Falls
+    // back to the tree's natural order once the persist settles and the
+    // overlay clears.
+    const reorderedChildIds = (() => {
+      if (!isReorderingThisClass || !reorderMode) return visibleChildIds;
+      const classId = node.id.replace(/^class:/, '');
+      const optimistic = reorderMode.getOptimisticOrder?.(classId);
+      if (!optimistic) return visibleChildIds;
+      const visibleSet = new Set(visibleChildIds);
+      // Take the optimistic order, but constrain to currently visible
+      // ids (filter may have changed). Append any not-yet-overlayed
+      // visible ids at the end so a new arrival doesn't disappear.
+      const ordered = optimistic.filter(id => visibleSet.has(id));
+      const remainder = visibleChildIds.filter(id => !ordered.includes(id));
+      return [...ordered, ...remainder];
+    })();
     const childList = isExpanded && hasChildren ? (
-      <ul role="group">{visibleChildIds.map(id => renderNode(id, depth + 1))}</ul>
+      <ul role="group">{reorderedChildIds.map(id => renderNode(id, depth + 1))}</ul>
     ) : null;
     const wrappedChildList =
       isReorderingThisClass && childList && reorderMode ? (
         <DndContext
           sensors={reorderMode.sensors}
           collisionDetection={closestCenter}
-          onDragEnd={reorderMode.onDragEnd}
+          onDragEnd={reorderMode.buildOnDragEnd(reorderedChildIds)}
         >
-          <SortableContext items={visibleChildIds} strategy={verticalListSortingStrategy}>
+          <SortableContext items={reorderedChildIds} strategy={verticalListSortingStrategy}>
             {childList}
           </SortableContext>
         </DndContext>

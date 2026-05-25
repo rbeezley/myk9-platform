@@ -240,9 +240,25 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
       if (targetIndex < 0 || targetIndex >= reorderable.length) return;
       const overId = reorderable[targetIndex];
       if (!overId) return;
+
+      // INTENT: Mirror onDragEnd's optimistic overlay so the visible
+      // order commits in the same frame as the keystroke (the same
+      // regression PR #348 fixed for drag). Derive from the mutation's
+      // assignment function so the overlay matches what the persist
+      // will write.
+      const classId = current.classId;
+      const assignments = computeShowMapReorderAssignments(entries, activeId, overId);
+      if (assignments.length > 0) {
+        const optimisticIds = assignments.map(a => `entry:${a.id}`);
+        setOptimisticOrderByClassId(currentMap => ({
+          ...currentMap,
+          [classId]: optimisticIds,
+        }));
+      }
+
       isPersistingRef.current = true;
       persistMutation.mutate(
-        { classId: current.classId, activeId, overId },
+        { classId, activeId, overId },
         {
           onSettled: () => {
             isPersistingRef.current = false;

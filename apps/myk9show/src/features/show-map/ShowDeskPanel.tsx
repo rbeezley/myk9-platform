@@ -18,17 +18,12 @@ import { ShowMapReorderBanner } from './ShowMapReorderBanner';
 import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
-import { ShowMapReviewQueueSheet } from './ShowMapReviewQueueSheet';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import ShowMapTab from './ShowMapTab';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { sourceIdFromShowMapNodeId } from './showMapActionMutations';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
-import {
-  buildReviewQueue,
-  reviewQueueTotalCount,
-} from './showMapReviewQueue';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type { ShowMapActionGroup } from './showMapActionGroups';
 import type { BuildShowMapTreeInput } from './showMapTypes';
@@ -127,43 +122,31 @@ export default function ShowDeskPanel({
   const reviewNode = reviewAction ? tree.nodesById[reviewAction.nodeId] : undefined;
   const reviewParent = reviewNode?.parentId ? tree.nodesById[reviewNode.parentId] : undefined;
 
-  const reviewQueue = useMemo(() => buildReviewQueue(tree), [tree]);
-  const reviewQueueCount = useMemo(
-    () => reviewQueueTotalCount(reviewQueue),
-    [reviewQueue]
-  );
-  const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
   const [bulkApproveRequest, setBulkApproveRequest] = useState<{
     entryIds: string[];
     label: string;
     classId?: string | undefined;
-    source: 'group' | 'queue';
   } | null>(null);
 
-  const closeReviewQueue = useCallback(() => setReviewQueueOpen(false), []);
-  const openReviewQueue = useCallback(() => setReviewQueueOpen(true), []);
-
   const dispatchBulkApprove = useCallback(
-    (entryIds: string[], classId: string | undefined, source: 'group' | 'queue') => {
+    (entryIds: string[], classId: string | undefined) => {
       if (entryIds.length === 0) return;
       bulkApproveEntries(entryIds, classId);
-      if (source === 'queue') setReviewQueueOpen(false);
     },
     [bulkApproveEntries]
   );
 
   const requestBulkApprove = useCallback(
-    (entryIds: string[], label: string, classId: string | undefined, source: 'group' | 'queue') => {
+    (entryIds: string[], label: string, classId: string | undefined) => {
       if (entryIds.length === 0) return;
       if (entryIds.length >= BULK_APPROVE_CONFIRMATION_THRESHOLD) {
         setBulkApproveRequest({
           entryIds,
           label,
-          source,
           ...(classId ? { classId } : {}),
         });
       } else {
-        dispatchBulkApprove(entryIds, classId, source);
+        dispatchBulkApprove(entryIds, classId);
       }
     },
     [dispatchBulkApprove]
@@ -177,28 +160,20 @@ export default function ShowDeskPanel({
       const repNode = tree.nodesById[group.representative.nodeId];
       const dogName = repNode?.entryDisplay?.dogName ?? 'this dog';
       const label = `${entryIds.length} ${entryIds.length === 1 ? 'entry' : 'entries'} for ${dogName}`;
-      requestBulkApprove(entryIds, label, group.representative.classId, 'group');
+      requestBulkApprove(entryIds, label, group.representative.classId);
     },
     [requestBulkApprove, tree]
   );
 
-  const handleQueueApprove = useCallback(
-    (entryIds: string[]) => {
-      const label = `${entryIds.length} ${entryIds.length === 1 ? 'entry' : 'entries'} from the review queue`;
-      requestBulkApprove(entryIds, label, undefined, 'queue');
-    },
-    [requestBulkApprove]
-  );
-
   const confirmBulkApprove = useCallback(() => {
     if (!bulkApproveRequest) return;
-    dispatchBulkApprove(
-      bulkApproveRequest.entryIds,
-      bulkApproveRequest.classId,
-      bulkApproveRequest.source
-    );
+    dispatchBulkApprove(bulkApproveRequest.entryIds, bulkApproveRequest.classId);
     setBulkApproveRequest(null);
   }, [bulkApproveRequest, dispatchBulkApprove]);
+
+  const openEntryManagement = useCallback(() => {
+    navigateTo(`/secretary/entries/${show.id}`);
+  }, [navigateTo, show.id]);
 
   const desk = useMemo(
     () => computeShowDeskStatus({ show, trials, tree }),
@@ -207,6 +182,14 @@ export default function ShowDeskPanel({
   const pendingSignals = useMemo(
     () => computeShowDeskPendingSignals({ tree, entries }),
     [entries, tree]
+  );
+  // Reuse the existing pending-signal computation as the source of truth for
+  // "N entries waiting" — no second counter, no risk of the two going out of
+  // sync. The "Manage entries" button surfaces this count and deep-links to
+  // Entries Management, which owns the show-wide bulk operations.
+  const pendingReviewCount = useMemo(
+    () => pendingSignals.find(s => s.id === 'entries-waiting-review')?.count ?? 0,
+    [pendingSignals]
   );
   const moveUpTargets = useMemo(
     () => buildMoveUpTargets(classes, moveUpAction?.classId),
@@ -260,8 +243,8 @@ export default function ShowDeskPanel({
         onSelectRunning={selectRunningNowClass}
         onSelectPendingSignal={handlePendingSignal}
         onBulkApproveGroup={canManageShow ? handleBulkApproveGroup : undefined}
-        onOpenReviewQueue={canManageShow ? openReviewQueue : undefined}
-        reviewQueueCount={reviewQueueCount}
+        onOpenEntryManagement={canManageShow ? openEntryManagement : undefined}
+        reviewQueueCount={pendingReviewCount}
       />
       {canManageShow && reorderMode.active && (
         <ShowMapReorderBanner
@@ -349,13 +332,6 @@ export default function ShowDeskPanel({
             isApproving={isApprovingReview}
             entryDisplay={reviewNode?.entryDisplay}
             parentClassLabel={reviewParent?.label}
-          />
-          <ShowMapReviewQueueSheet
-            open={reviewQueueOpen}
-            onClose={closeReviewQueue}
-            groups={reviewQueue}
-            onApprove={handleQueueApprove}
-            isApproving={isBulkApproving}
           />
           <AlertDialog
             open={bulkApproveRequest !== null}

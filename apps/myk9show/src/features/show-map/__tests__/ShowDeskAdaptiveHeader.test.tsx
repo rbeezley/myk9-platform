@@ -293,41 +293,41 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(onSelectPendingSignal).toHaveBeenCalledWith('entries-waiting-review');
   });
 
-  it('renders Review queue button when reviewQueueCount > 0 and onOpenReviewQueue is provided', () => {
-    const onOpenReviewQueue = vi.fn();
+  it('renders Manage entries link when reviewQueueCount > 0 and onOpenEntryManagement is provided', () => {
+    const onOpenEntryManagement = vi.fn();
     const { getByTestId } = render(
       <ShowDeskAdaptiveHeader
         {...baseProps}
-        onOpenReviewQueue={onOpenReviewQueue}
+        onOpenEntryManagement={onOpenEntryManagement}
         reviewQueueCount={42}
       />
     );
-    const button = getByTestId('open-review-queue');
-    expect(button.textContent).toContain('Review queue (42)');
+    const button = getByTestId('open-entry-management');
+    expect(button.textContent).toContain('Manage entries (42)');
   });
 
-  it('does not render Review queue button when reviewQueueCount is 0', () => {
+  it('does not render Manage entries link when reviewQueueCount is 0', () => {
     const { queryByTestId } = render(
       <ShowDeskAdaptiveHeader
         {...baseProps}
-        onOpenReviewQueue={vi.fn()}
+        onOpenEntryManagement={vi.fn()}
         reviewQueueCount={0}
       />
     );
-    expect(queryByTestId('open-review-queue')).toBeNull();
+    expect(queryByTestId('open-entry-management')).toBeNull();
   });
 
-  it('invokes onOpenReviewQueue when the Review queue button is clicked', async () => {
-    const onOpenReviewQueue = vi.fn();
+  it('invokes onOpenEntryManagement when the Manage entries link is clicked', async () => {
+    const onOpenEntryManagement = vi.fn();
     const { user, getByTestId } = render(
       <ShowDeskAdaptiveHeader
         {...baseProps}
-        onOpenReviewQueue={onOpenReviewQueue}
+        onOpenEntryManagement={onOpenEntryManagement}
         reviewQueueCount={5}
       />
     );
-    await user.click(getByTestId('open-review-queue'));
-    expect(onOpenReviewQueue).toHaveBeenCalledTimes(1);
+    await user.click(getByTestId('open-entry-management'));
+    expect(onOpenEntryManagement).toHaveBeenCalledTimes(1);
   });
 
   it('renders "Approve all N" button on expanded multi-item review-entry groups', async () => {

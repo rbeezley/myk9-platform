@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCheck, ChevronDown, ChevronRight } from 'lucide-react';
+import { CheckCheck, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ShowMapGuidanceCard } from './ShowMapGuidanceCard';
@@ -40,10 +40,15 @@ export interface ShowDeskAdaptiveHeaderProps {
   onSelectPendingSignal?: ((signalId: ShowDeskPendingSignalId) => void) | undefined;
   // When provided, the expanded view of multi-item review-entry groups
   // renders an "Approve all N" button that calls back with the group.
+  // Single-entry inline approve and per-dog bulk are in-flow workbench
+  // actions; show-wide bulk approve belongs to the Entries Management page
+  // (see CLAUDE.md surface-boundary rule), which is why this header only
+  // exposes a *link* to that page when there's a pending-review count.
   onBulkApproveGroup?: ((group: ShowMapActionGroup) => void) | undefined;
-  // When provided AND reviewQueueCount > 0, an "Open review queue" button
-  // appears in the pending-signals row as the entry point for bulk approve.
-  onOpenReviewQueue?: (() => void) | undefined;
+  // When provided AND reviewQueueCount > 0, a "Manage entries (N)" link
+  // appears in the pending-signals row. Clicking navigates to the canonical
+  // entries surface — workbench does not duplicate its table/bulk UI.
+  onOpenEntryManagement?: (() => void) | undefined;
   reviewQueueCount?: number;
 }
 
@@ -61,31 +66,31 @@ export function ShowDeskAdaptiveHeader({
   onSelectRunning,
   onSelectPendingSignal,
   onBulkApproveGroup,
-  onOpenReviewQueue,
+  onOpenEntryManagement,
   reviewQueueCount = 0,
 }: ShowDeskAdaptiveHeaderProps) {
   const visibleGroups = upNextGroups.slice(0, MAX_UP_NEXT);
-  const showReviewQueueButton = Boolean(onOpenReviewQueue) && reviewQueueCount > 0;
+  const showManageEntriesLink = Boolean(onOpenEntryManagement) && reviewQueueCount > 0;
 
   return (
     <header className="mb-4 flex flex-col gap-3" aria-label="Show Desk header">
       <StatusPill status={showStatus} summary={statusSummary} />
 
-      {(pendingSignals.length > 0 || showReviewQueueButton) && (
+      {(pendingSignals.length > 0 || showManageEntriesLink) && (
         <div className="flex flex-wrap items-center gap-2">
           {pendingSignals.length > 0 && (
             <PendingSignalsRow signals={pendingSignals} onSelect={onSelectPendingSignal} />
           )}
-          {showReviewQueueButton && (
+          {showManageEntriesLink && (
             <Button
               type="button"
-              variant="default"
+              variant="outline"
               size="sm"
-              onClick={onOpenReviewQueue}
-              data-testid="open-review-queue"
+              onClick={onOpenEntryManagement}
+              data-testid="open-entry-management"
             >
-              <CheckCheck className="h-4 w-4" />
-              Review queue ({reviewQueueCount})
+              <ExternalLink className="h-4 w-4" />
+              Manage entries ({reviewQueueCount})
             </Button>
           )}
         </div>

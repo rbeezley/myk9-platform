@@ -234,6 +234,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
     // cannot overwrite the optimistic score (scoring-sync-bug fix).
     await this.set(entryId, updated, isDirty);
 
+    if (isDirty) {
+      await this.queueMutation('UPDATE', entryId, {
+        id: entryId,
+        ...scoreData,
+        is_scored: true,
+        entry_status: 'completed',
+        updated_at: updated.updated_at,
+      });
+    }
+
     logger.log(`[${this.tableName}] Marked entry ${entryId} as scored`);
   }
 }

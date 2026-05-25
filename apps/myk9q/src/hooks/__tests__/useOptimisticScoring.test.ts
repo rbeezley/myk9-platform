@@ -139,20 +139,18 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
   });
 
   describe('Scenario 1: Online - Successful Sync', () => {
-    it('updates local stores immediately before API call', async () => {
+    it('updates local stores immediately before the replicated cache write', async () => {
       const { result } = renderHook(() => useOptimisticScoring());
 
-      let apiCallTime: number | null = null;
       let storeUpdateTime: number | null = null;
+      let cacheWriteTime: number | null = null;
 
       mockMarkAsScored.mockImplementation(() => {
         storeUpdateTime = Date.now();
       });
 
-      (submitScore as Mock).mockImplementation(async () => {
-        apiCallTime = Date.now();
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 100));
+      vi.mocked(replicatedEntriesTable.markAsScored).mockImplementation(async () => {
+        cacheWriteTime = Date.now();
       });
 
       await act(async () => {
@@ -174,12 +172,11 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         })
       );
 
-      // Assert timing: store update happened before or at same time as API call
+      // Assert timing: UI store update happened before the replicated queue write.
       expect(storeUpdateTime).not.toBeNull();
-      expect(apiCallTime).not.toBeNull();
-      if (storeUpdateTime && apiCallTime) {
-        // Store update must not come AFTER API call (can be same millisecond)
-        expect(storeUpdateTime).toBeLessThanOrEqual(apiCallTime);
+      expect(cacheWriteTime).not.toBeNull();
+      if (storeUpdateTime && cacheWriteTime) {
+        expect(storeUpdateTime).toBeLessThanOrEqual(cacheWriteTime);
       }
     });
 
@@ -196,16 +193,12 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      // Wait for async operations
-      await waitFor(() => {
-        expect(submitScore).toHaveBeenCalled();
-      });
-
       // Assert update hook was called (manages optimistic updates and retries)
       expect(mockUpdate).toHaveBeenCalled();
+      expect(submitScore).not.toHaveBeenCalled();
     });
 
-    it('syncs with database in background', async () => {
+    it('queues the replicated score update with database fields', async () => {
       const { result } = renderHook(() => useOptimisticScoring());
 
       await act(async () => {
@@ -218,17 +211,42 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      await waitFor(() => {
-        expect(submitScore).toHaveBeenCalledWith(
-          mockEntry.id,
-          expect.objectContaining({
-            resultText: 'Q',
-            searchTime: '1:23.45',
-          }),
-          undefined,
-          mockEntry.classId
-        );
+      expect(replicatedEntriesTable.markAsScored).toHaveBeenCalledWith(
+        String(mockEntry.id),
+        expect.objectContaining({
+          result_status: 'qualified',
+          search_time_seconds: 83.45,
+          total_faults: 0,
+        }),
+        true
+      );
+      expect(submitScore).not.toHaveBeenCalled();
+    });
+
+    it('does not call direct submitScore or side-channel markAsSynced for the normal scoring path', async () => {
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
       });
+
+      expect(replicatedEntriesTable.markAsScored).toHaveBeenCalledWith(
+        String(mockEntry.id),
+        expect.objectContaining({
+          result_status: 'qualified',
+          search_time_seconds: 83.45,
+          total_faults: 0,
+        }),
+        true
+      );
+      expect(submitScore).not.toHaveBeenCalled();
+      expect(replicatedEntriesTable.markAsSynced).not.toHaveBeenCalled();
     });
 
     it('updates stores immediately with optimistic data', async () => {
@@ -313,7 +331,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    it('adds score to offline queue when offline', async () => {
+    it('does not add a second offline-queue item when offline', async () => {
       const { result } = renderHook(() => useOptimisticScoring());
 
       await act(async () => {
@@ -326,15 +344,12 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      // Verify score was queued for later sync
-      expect(mockAddToQueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          entryId: mockEntry.id,
-          classId: mockEntry.classId,
-          armband: mockEntry.armband,
-          licenseKey: 'test-license-key-12345', // Required for background sync RLS
-        })
+      expect(replicatedEntriesTable.markAsScored).toHaveBeenCalledWith(
+        String(mockEntry.id),
+        expect.any(Object),
+        true
       );
+      expect(mockAddToQueue).not.toHaveBeenCalled();
     });
   });
 
@@ -440,14 +455,11 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         );
       });
 
-      // Should have at least 3 API calls (may be more with retries)
-      await waitFor(
-        () => {
-          expect(submitScore).toHaveBeenCalled();
-          expect((submitScore as Mock).mock.calls.length).toBeGreaterThanOrEqual(3);
-        },
-        { timeout: 10000 }
-      );
+      expect(replicatedEntriesTable.markAsScored).toHaveBeenCalled();
+      expect(
+        vi.mocked(replicatedEntriesTable.markAsScored).mock.calls.length
+      ).toBeGreaterThanOrEqual(3);
+      expect(submitScore).not.toHaveBeenCalled();
     }, 15000);
   });
 
@@ -482,8 +494,8 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         callOrder.push('markAsScored');
       });
 
-      (submitScore as Mock).mockImplementation(async () => {
-        callOrder.push('submitScore');
+      vi.mocked(replicatedEntriesTable.markAsScored).mockImplementation(async () => {
+        callOrder.push('replicatedMarkAsScored');
       });
 
       const { result } = renderHook(() => useOptimisticScoring());
@@ -500,7 +512,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
 
       await waitFor(
         () => {
-          expect(callOrder).toEqual(['markAsScored', 'submitScore']);
+          expect(callOrder).toEqual(['markAsScored', 'replicatedMarkAsScored']);
         },
         { timeout: 10000 }
       );
@@ -563,20 +575,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     });
   });
 
-  // Regression for the silent-failure follow-up to the scoring-sync-bug.
-  // When submitScore() fails while online, we must route the score into the
-  // offline queue (useOfflineQueueStore.addToQueue) so the existing
-  // useOfflineQueueProcessor (wired globally in App.tsx) retries it with
-  // exponential backoff. Permanent failures (max retries exhausted) land in
-  // failedItems which is already surfaced by SyncStatusPopover, SyncProgress,
-  // and OfflineIndicator.
-  //
-  // We must NOT dispatch the generic 'replication:sync-failed' event for
-  // scoring failures. That event's listener (SyncFailureToast.handleRetry)
-  // only calls refreshAllTables() — a pull — and then clears the failure.
-  // Clicking Retry would make the warning disappear without re-attempting
-  // the score submission, giving a false sense of recovery.
-  describe('Regression: online submitScore failure routes through offline queue (not generic toast)', () => {
+  describe('Regression: scoring uses the replicated mutation queue (not submitScore/offlineQueue)', () => {
     // The default `mockUpdate` (top of file) swallows serverUpdate rejections
     // silently — it never invokes onError. The recovery path lives in the
     // onError branch, so we need a local mock that propagates failures into
@@ -594,7 +593,9 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     beforeEach(async () => {
       const { useOptimisticUpdate } = await import('@/hooks/useOptimisticUpdate');
       vi.mocked(useOptimisticUpdate).mockReturnValue({
-        update: mockUpdateWithOnError as unknown as ReturnType<typeof useOptimisticUpdate>['update'],
+        update: mockUpdateWithOnError as unknown as ReturnType<
+          typeof useOptimisticUpdate
+        >['update'],
         isSyncing: false,
         hasError: false,
         error: null,
@@ -604,7 +605,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       mockUpdateWithOnError.mockClear();
     });
 
-    it('enqueues the failed score so useOfflineQueueProcessor can retry it', async () => {
+    it('does not call submitScore or enqueue into the legacy offline queue', async () => {
       (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
       const onError = vi.fn();
 
@@ -621,31 +622,12 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      // Offline path also enqueues — but this test runs online, so the only
-      // addToQueue call should come from the onError branch. Asserting the
-      // payload shape protects against shape drift that would break the
-      // queue processor's submitScore() retry call (entryService.ts).
-      expect(mockAddToQueue).toHaveBeenCalledTimes(1);
-      expect(mockAddToQueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          entryId: mockEntry.id,
-          classId: mockEntry.classId,
-          armband: mockEntry.armband,
-          className: mockEntry.className,
-          licenseKey: 'test-license-key-12345',
-          scoreData: expect.objectContaining({ resultText: 'Q' }),
-        })
-      );
-
-      // The caller's onError must still be invoked after enqueueing — scoresheets
-      // that wire onError rely on this to surface an inline error. Without this
-      // assertion a future refactor could drop the propagation silently.
-      expect(onError).toHaveBeenCalledTimes(1);
-      expect(onError).toHaveBeenCalledWith(expect.any(Error));
-      expect((onError.mock.calls[0][0] as Error).message).toBe('RLS reject: scores');
+      expect(submitScore).not.toHaveBeenCalled();
+      expect(mockAddToQueue).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
     });
 
-    it('logs and skips enqueue when context is missing (no classId), still invokes onError', async () => {
+    it('does not need class context to preserve the replicated score mutation', async () => {
       (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
       const loggerErrorSpy = vi.spyOn(logger, 'error');
       const onError = vi.fn();
@@ -663,21 +645,17 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      // Without classId, the score has no retry path — we expect a loud log,
-      // NO enqueue, AND the caller's onError to still fire so scoresheets that
-      // wire onError can surface an inline error to the judge.
-      expect(mockAddToQueue).not.toHaveBeenCalled();
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Cannot enqueue failed score'),
-        expect.objectContaining({
-          entryId: mockEntry.id,
-          hasClassId: false,
-          hasArmband: true,
-          hasClassName: true,
-          hasLicenseKey: true,
-        })
+      expect(replicatedEntriesTable.markAsScored).toHaveBeenCalledWith(
+        String(mockEntry.id),
+        expect.any(Object),
+        true
       );
-      expect(onError).toHaveBeenCalledTimes(1);
+      expect(mockAddToQueue).not.toHaveBeenCalled();
+      expect(loggerErrorSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Cannot enqueue failed score'),
+        expect.anything()
+      );
+      expect(onError).not.toHaveBeenCalled();
 
       loggerErrorSpy.mockRestore();
     });
@@ -729,10 +707,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      // Offline path enqueues exactly once (inside serverUpdate's
-      // `if (!isOnline)` branch). The onError handler's early-return for
-      // offline must NOT add a second copy.
-      expect(mockAddToQueue).toHaveBeenCalledTimes(1);
+      expect(mockAddToQueue).not.toHaveBeenCalled();
     });
 
     it('still skips dispatching the generic sync-failed event when offline', async () => {
@@ -769,15 +744,8 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     });
   });
 
-  // Regression for OPEN-TODOS.md "Clear the dirty bit after a successful
-  // submitScore" (added in PR #341, shipped 2026-05-25). Without this call,
-  // the cache row stays `_syncStatus: 'pending'` forever after a successful
-  // online submitScore, forcing every subsequent pull to take the wasteful
-  // mergeDirtyRow branch instead of normal resolveConflict. See
-  // project_scoring_sync_bug.md and packages/replication/src/core/ReplicatedTable.ts
-  // (`markAsSynced` method).
-  describe('Regression: clear dirty bit after successful online submitScore', () => {
-    it('calls replicatedEntriesTable.markAsSynced(entryId) on onSuccess', async () => {
+  describe('Regression: dirty bit is owned by MutationManager upload success', () => {
+    it('does NOT side-channel markAsSynced on hook success', async () => {
       const { result } = renderHook(() => useOptimisticScoring());
 
       await act(async () => {
@@ -790,11 +758,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      await waitFor(() => {
-        expect(replicatedEntriesTable.markAsSynced).toHaveBeenCalledWith(
-          String(mockEntry.id)
-        );
-      });
+      expect(replicatedEntriesTable.markAsSynced).not.toHaveBeenCalled();
     });
 
     it('does NOT call markAsSynced when submitScore fails (onError path)', async () => {

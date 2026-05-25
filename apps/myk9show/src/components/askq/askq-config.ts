@@ -3,27 +3,6 @@ export interface ExampleQuery {
   category: 'rules' | 'show-data' | 'app-help';
 }
 
-export interface SecretaryShowDayPrompt {
-  label: string;
-  prompt: string;
-  phases: Array<'setup'>;
-}
-
-// INTENT: Phase B5 removed the Today and Wrap-up workbench tabs, so the
-// live-ops / closeout AskQ prompts that lived there have no surface to
-// render in. Only setup-phase prompts remain. The full live-ops prompt
-// set (scratch, move-up, ring delay, handler messaging, submission
-// checklist) is captured in the plan's deferred B7+ work — re-home them
-// to the Show Desk adaptive header's contextual help or a per-action
-// `?` popover when that surfaces.
-export const SECRETARY_SHOW_DAY_PROMPTS: SecretaryShowDayPrompt[] = [
-  {
-    label: 'Late entry help',
-    prompt: 'What should I do if someone walks up and wants to enter on show day?',
-    phases: ['setup'],
-  },
-];
-
 export const EXAMPLE_QUERIES: ExampleQuery[] = [
   { text: 'What are the time limits for Excellent?', category: 'rules' },
   { text: 'Ring size requirements for Novice', category: 'rules' },

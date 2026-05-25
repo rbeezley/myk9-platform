@@ -23,6 +23,7 @@ import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { submitScore } from '@/services/entryService';
 import { useOfflineQueueStore } from '@/stores/offlineQueueStore';
 import { replicatedEntriesTable } from '@/services/replication';
+import { logger } from '@/utils/logger';
 
 // Hoist mock functions so they are available to the hoisted vi.mock factories
 const { mockMarkAsScored, mockSubmitScore, mockAddToQueue, mockUpdate } = vi.hoisted(() => ({
@@ -603,6 +604,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
 
     it('enqueues the failed score so useOfflineQueueProcessor can retry it', async () => {
       (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
+      const onError = vi.fn();
 
       const { result } = renderHook(() => useOptimisticScoring());
 
@@ -613,6 +615,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           armband: mockEntry.armband,
           className: mockEntry.className,
           scoreData: mockScoreData,
+          onError,
         });
       });
 
@@ -631,6 +634,50 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           scoreData: expect.objectContaining({ resultText: 'Q' }),
         })
       );
+
+      // The caller's onError must still be invoked after enqueueing — scoresheets
+      // that wire onError rely on this to surface an inline error. Without this
+      // assertion a future refactor could drop the propagation silently.
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+      expect((onError.mock.calls[0][0] as Error).message).toBe('RLS reject: scores');
+    });
+
+    it('logs and skips enqueue when context is missing (no classId), still invokes onError', async () => {
+      (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
+      const loggerErrorSpy = vi.spyOn(logger, 'error');
+      const onError = vi.fn();
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          // classId intentionally omitted — simulates a future caller forgetting it
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+          onError,
+        });
+      });
+
+      // Without classId, the score has no retry path — we expect a loud log,
+      // NO enqueue, AND the caller's onError to still fire so scoresheets that
+      // wire onError can surface an inline error to the judge.
+      expect(mockAddToQueue).not.toHaveBeenCalled();
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Cannot enqueue failed score'),
+        expect.objectContaining({
+          entryId: mockEntry.id,
+          hasClassId: false,
+          hasArmband: true,
+          hasClassName: true,
+          hasLicenseKey: true,
+        })
+      );
+      expect(onError).toHaveBeenCalledTimes(1);
+
+      loggerErrorSpy.mockRestore();
     });
 
     it('does NOT dispatch the generic replication:sync-failed toast (Retry would lie about recovery)', async () => {

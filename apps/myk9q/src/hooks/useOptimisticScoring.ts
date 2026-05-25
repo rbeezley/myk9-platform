@@ -101,20 +101,8 @@ export function useOptimisticScoring() {
     // Mark as scored in local store (legacy Zustand store)
     markAsScored(entryId, optimisticResult);
 
-    // Update the replicated entries cache (IndexedDB) and mark the row dirty
-    // so the next replication pull won't overwrite the optimistic score.
-    // isDirty=true sets _syncStatus:'pending', triggering the dirty-row guard
-    // at ReplicatedTable.set() and mergeDirtyRow in syncReplicatedTable so the
-    // entries adapter preserves local scored values when remote arrives stale.
-    //
-    // Note: no MutationManager is attached to replicatedEntriesTable in
-    // production. The dirty bit functions as a read-side shield only — the
-    // actual server write goes through submitScore() below. If submitScore()
-    // fails (online or offline) we hand the score to useOfflineQueueStore;
-    // useOfflineQueueProcessor (wired in App.tsx) retries submitScore() with
-    // exponential backoff. Permanent failures land in failedItems, surfaced
-    // by SyncStatusPopover/OfflineIndicator. Followup: add markAsSynced to
-    // base ReplicatedTable so the dirty bit can be cleared on success.
+    // Mark cache row dirty so the next pull's mergeDirtyRow preserves the
+    // local score. Server write is submitScore() below; see project_scoring_sync_bug.md.
     try {
       const resultStatus = convertResultTextToStatus(optimisticResult);
       const searchTimeSeconds = scoreData.searchTime ? convertTimeToSeconds(scoreData.searchTime) : 0;
@@ -194,16 +182,8 @@ export function useOptimisticScoring() {
           return;
         }
 
-        // Online failure — hand the score to useOfflineQueueStore so the
-        // useOfflineQueueProcessor (App.tsx:240) retries submitScore() with
-        // exponential backoff. After max retries the item lands in
-        // failedItems, which SyncStatusPopover / SyncProgress /
-        // OfflineIndicator already surface with working Retry buttons.
-        //
-        // We deliberately do NOT dispatch the generic 'replication:sync-failed'
-        // event here. That toast's Retry button only calls refreshAllTables()
-        // (a pull), so clicking it would clear the warning without
-        // re-attempting the score — false sense of recovery.
+        // Route to offline queue — useOfflineQueueProcessor retries submitScore.
+        // Don't dispatch sync-failed event; its Retry only refreshes data, not scores.
         const licenseKey = getSupabaseLicenseKey();
         if (classId && armband && className && licenseKey) {
           addToQueue({
@@ -215,10 +195,7 @@ export function useOptimisticScoring() {
             scoreData,
           });
         } else {
-          // Missing context (e.g., score submitted outside a classId-bearing
-          // surface). Can't enqueue, so the score is at risk of being lost.
-          // Log loudly; the scoresheet's onError (if wired) can surface an
-          // inline error to the judge.
+          // Score at risk of being lost — no retry path. Caller's onError can surface inline.
           logger.error(
             '❌ Cannot enqueue failed score — missing classId/armband/className/licenseKey',
             { entryId, hasClassId: !!classId, hasArmband: !!armband, hasClassName: !!className, hasLicenseKey: !!licenseKey }

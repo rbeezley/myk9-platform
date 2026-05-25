@@ -128,10 +128,14 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
         // Haptic feedback
         haptic.light();
 
-        // If online, trigger sync immediately
-        if (get().isOnline && !get().isSyncing) {
-          setTimeout(() => get().startSync(), 100);
-        }
+        // INTENT: do NOT call startSync() here. startSync only flips
+        // isSyncing=true; the actual queue processing lives in
+        // useOfflineQueueProcessor, whose useEffect already re-fires on the
+        // queue mutation above. The only path that clears isSyncing in
+        // steady-state is syncManager.processOfflineQueue (online-transition
+        // only), so scheduling startSync from this hot path used to latch
+        // the flag and silently wedge subsequent syncs. See test:
+        // `does not leave isSyncing latched true after addToQueue while online`.
       },
 
       removeFromQueue: async (id) => {

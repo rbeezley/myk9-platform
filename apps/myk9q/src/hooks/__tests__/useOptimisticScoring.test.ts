@@ -60,6 +60,7 @@ vi.mock('@/lib/supabase', () => ({
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     markAsScored: vi.fn().mockResolvedValue(undefined),
+    markAsSynced: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -114,6 +115,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     mockAddToQueue.mockClear();
     mockUpdate.mockClear();
     vi.mocked(replicatedEntriesTable.markAsScored).mockClear();
+    vi.mocked(replicatedEntriesTable.markAsSynced).mockClear();
 
     // Set up default implementations
     vi.mocked(submitScore).mockResolvedValue(undefined);
@@ -764,6 +766,73 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       expect(syncFailedCalls).toHaveLength(0);
 
       dispatchSpy.mockRestore();
+    });
+  });
+
+  // Regression for OPEN-TODOS.md "Clear the dirty bit after a successful
+  // submitScore" (added in PR #341, shipped 2026-05-25). Without this call,
+  // the cache row stays `_syncStatus: 'pending'` forever after a successful
+  // online submitScore, forcing every subsequent pull to take the wasteful
+  // mergeDirtyRow branch instead of normal resolveConflict. See
+  // project_scoring_sync_bug.md and packages/replication/src/core/ReplicatedTable.ts
+  // (`markAsSynced` method).
+  describe('Regression: clear dirty bit after successful online submitScore', () => {
+    it('calls replicatedEntriesTable.markAsSynced(entryId) on onSuccess', async () => {
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      await waitFor(() => {
+        expect(replicatedEntriesTable.markAsSynced).toHaveBeenCalledWith(
+          String(mockEntry.id)
+        );
+      });
+    });
+
+    it('does NOT call markAsSynced when submitScore fails (onError path)', async () => {
+      const { useOptimisticUpdate } = await import('@/hooks/useOptimisticUpdate');
+
+      // Force the mock update to route through onError instead of onSuccess.
+      const onErrorUpdate = vi.fn(async ({ serverUpdate, onError }) => {
+        try {
+          await serverUpdate();
+        } catch (err) {
+          onError?.(err);
+        }
+      });
+      vi.mocked(useOptimisticUpdate).mockReturnValueOnce({
+        update: onErrorUpdate,
+        isSyncing: false,
+        hasError: false,
+        error: null,
+        retryCount: 0,
+        clearError: vi.fn(),
+      } as ReturnType<typeof useOptimisticUpdate>);
+
+      vi.mocked(submitScore).mockRejectedValueOnce(new Error('Network error'));
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      // markAsSynced lives in the onSuccess branch only — never fires on failure.
+      expect(replicatedEntriesTable.markAsSynced).not.toHaveBeenCalled();
     });
   });
 });

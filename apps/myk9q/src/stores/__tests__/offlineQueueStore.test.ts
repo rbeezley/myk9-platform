@@ -230,3 +230,41 @@ describe('offlineQueueStore — integration with mutationQueue persistence', () 
     expect(useOfflineQueueStore.getState().queue).toHaveLength(0);
   });
 });
+
+describe('offlineQueueStore — sync flag invariants (addToQueue)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    resetOfflineQueueStore();
+  });
+
+  it('does not leave isSyncing latched true after addToQueue while online', async () => {
+    // INTENT: addToQueue used to schedule setTimeout(startSync, 100), which
+    // flipped isSyncing=true with no corresponding clear in the steady-state
+    // online path (only syncManager.processOfflineQueue calls syncComplete,
+    // and it only runs on offline→online transitions). This pins the
+    // contract: queueing a score while already online must not leave the
+    // store in a "syncing" state that blocks future work. Fake timers stay
+    // in place so a re-introduced setTimeout would surface here.
+    await useOfflineQueueStore.getState().addToQueue(baseScore);
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(useOfflineQueueStore.getState().isSyncing).toBe(false);
+  });
+
+  it('a second addToQueue is not blocked by stale isSyncing from the first', async () => {
+    // INTENT: the user-visible symptom of the wedge was "my second score
+    // doesn't sync." Pin that the queue keeps both items pending and
+    // ready for the processor to pick up, with no latched flag.
+    await useOfflineQueueStore.getState().addToQueue(baseScore);
+    await vi.advanceTimersByTimeAsync(500);
+
+    await useOfflineQueueStore.getState().addToQueue({ ...baseScore, entryId: 43 });
+    await vi.advanceTimersByTimeAsync(500);
+
+    const state = useOfflineQueueStore.getState();
+    expect(state.queue).toHaveLength(2);
+    expect(state.queue.every(item => item.status === 'pending')).toBe(true);
+    expect(state.isSyncing).toBe(false);
+  });
+});

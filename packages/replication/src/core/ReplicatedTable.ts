@@ -304,17 +304,22 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   async markAsSynced(id: string): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
-    const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
-      this.tableName,
-      normalizedId,
-    ])) as ReplicatedRow<T> | undefined;
+
+    // CRITICAL: read AND write must share a single readwrite transaction so a
+    // concurrent set(..., true) can't slip a fresh dirty mutation in between
+    // our get() and put() and get silently clobbered. The original split-tx
+    // version had this race; see PR #351 review finding #1.
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
 
     if (!existingRow || !existingRow.isDirty) {
-      // No-op: row absent, or already synced.
+      // No-op: row absent, or already synced. End the transaction cleanly.
+      await tx.done;
       return;
     }
 
-    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     await tx.store.put({
       ...existingRow,
       isDirty: false,

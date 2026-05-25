@@ -89,6 +89,23 @@ describe('OfficialPicker', () => {
     expect(screen.getByText('You')).toBeInTheDocument();
   });
 
+  it('falls back to the auto-fill label when selected person details are unavailable', () => {
+    renderWithProviders(
+      <OfficialPicker
+        label="Show Secretary"
+        selectedPersonId="missing-person"
+        people={[]}
+        suggestedRoles={[UserRole.SECRETARY]}
+        autoFillBadge="You"
+        onSelect={vi.fn()}
+        onCreatePerson={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'You' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Show Secretary auto-filled with current user')).toBeVisible();
+  });
+
   it('calls onSelect when a person is chosen from the popover', async () => {
     const onSelect = vi.fn();
     renderWithProviders(

@@ -157,6 +157,50 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
       expect(confirmedEntry!.statusHistory[3].status).toBe('confirmed');
       expect(confirmedEntry!.statusHistory[3].userId).toBe('secretary-user');
     });
+
+    it('should maintain the full audit trail with status, user, and reason', async () => {
+      const entryStore = useEntryStore.getState();
+
+      await entryStore.updateStatus(
+        entryId,
+        'submitted',
+        'exhibitor-user',
+        'Entry submitted by exhibitor'
+      );
+      await entryStore.updateStatus(
+        entryId,
+        'paid',
+        'payment-system',
+        'Payment confirmed via credit card'
+      );
+      await entryStore.updateStatus(
+        entryId,
+        'confirmed',
+        'secretary-user',
+        'Entry confirmed by show secretary'
+      );
+
+      const finalEntry = entryStore.getEntry(entryId);
+
+      expect(finalEntry?.statusHistory).toEqual([
+        expect.objectContaining({ status: 'draft' }),
+        expect.objectContaining({
+          status: 'submitted',
+          userId: 'exhibitor-user',
+          reason: 'Entry submitted by exhibitor',
+        }),
+        expect.objectContaining({
+          status: 'paid',
+          userId: 'payment-system',
+          reason: 'Payment confirmed via credit card',
+        }),
+        expect.objectContaining({
+          status: 'confirmed',
+          userId: 'secretary-user',
+          reason: 'Entry confirmed by show secretary',
+        }),
+      ]);
+    });
   });
 
   describe('Payment Processing', () => {

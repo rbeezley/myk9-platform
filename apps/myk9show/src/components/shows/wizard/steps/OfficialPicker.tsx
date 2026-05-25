@@ -46,6 +46,8 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const selectedName = getPersonName(people, selectedPersonId);
+  // People directory loading can fail independently of auth; keep an auto-filled
+  // selection visible even when the display name is unavailable.
   const selectedLabel =
     selectedName ?? (selectedPersonId && autoFillBadge ? autoFillBadge : undefined);
   const { suggested, others } = groupPeopleForOfficial(people, suggestedRoles, searchTerm);

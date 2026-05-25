@@ -24,7 +24,10 @@ export async function seedSecretaryEntry(testInfo: TestInfo): Promise<SecretaryU
   const suffix = runId.slice(-8);
   const dogName = `UAT Secretary Dog ${suffix}`;
   const className = `UAT Interior Novice A ${suffix}`;
-  const armband = `89${suffix.replace(/\D/g, '').slice(0, 3).padEnd(3, '0')}`;
+  const armband = await findAvailableArmband(
+    client,
+    `89${suffix.replace(/\D/g, '').slice(0, 3).padEnd(3, '0')}`
+  );
 
   const { data: person, error: personError } = await client
     .from('people')
@@ -157,10 +160,34 @@ function makeRunId(): string {
   return `uat_secretary_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
 }
 
+async function findAvailableArmband(client: SupabaseClient, base: string): Promise<string> {
+  for (let offset = 0; offset < 100; offset += 1) {
+    const candidate = `${Number(base) + offset}`;
+    const { data, error } = await client
+      .from('entries')
+      .select('id')
+      .eq('show_id', SHOW_ID)
+      .eq('armband', candidate)
+      .limit(1);
+
+    if (error) {
+      throw new Error(`UAT armband availability check failed: ${error.message}`);
+    }
+    if ((data ?? []).length === 0) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`No available UAT armband near ${base}`);
+}
+
 async function writeManifest(testInfo: TestInfo, data: unknown, phase: string) {
   const outputDir = path.resolve(process.cwd(), 'test-results', 'uat');
   await mkdir(outputDir, { recursive: true });
   const filePath = path.join(outputDir, `manifest-${testInfo.testId}-${phase}.json`);
   await writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-  await testInfo.attach(`uat-manifest-${phase}`, { path: filePath, contentType: 'application/json' });
+  await testInfo.attach(`uat-manifest-${phase}`, {
+    path: filePath,
+    contentType: 'application/json',
+  });
 }

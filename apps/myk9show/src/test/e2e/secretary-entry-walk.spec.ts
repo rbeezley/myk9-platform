@@ -20,28 +20,37 @@ test.describe('Secretary Entry Walk', () => {
   test('full wizard walk: search dog → select → pick class → submit', async ({ page }) => {
     const errors: string[] = [];
     const responseErrors: string[] = [];
+    const knownFindingResponses: string[] = [];
+    const knownFindingConsoleErrors: string[] = [];
+    let genericResource500Count = 0;
     page.on('console', msg => {
       if (msg.type() !== 'error') return;
       const text = msg.text();
+      if (text === 'Failed to load resource: the server responded with a status of 500 ()') {
+        genericResource500Count += 1;
+        return;
+      }
       if (
-        text === 'Failed to load resource: the server responded with a status of 500 ()' ||
         text.includes('Failed to load users') ||
         text.includes('Store operation failed {operation: loadUsers') ||
         text.includes('Database query failed')
       ) {
+        knownFindingConsoleErrors.push(text);
         return;
       }
       errors.push(`[${msg.type()}] ${text}`);
     });
     page.on('response', response => {
       const url = response.url();
-      if (
-        response.status() >= 400 &&
-        url.includes('/rest/v1/') &&
-        !url.includes('/rest/v1/people?') &&
-        !url.includes('/rest/v1/enrollments?select=*')
-      ) {
-        responseErrors.push(`${response.status()} ${url}`);
+      if (response.status() >= 400 && url.includes('/rest/v1/')) {
+        const message = `${response.status()} ${url}`;
+        // Open findings QA-NETWORK-ERROR-010/011 track these background Supabase
+        // timeouts. Keep this spec focused on the secretary entry wizard submit path.
+        if (url.includes('/rest/v1/people?') || url.includes('/rest/v1/enrollments?select=*')) {
+          knownFindingResponses.push(message);
+        } else {
+          responseErrors.push(message);
+        }
       }
     });
     page.on('pageerror', err =>
@@ -174,6 +183,11 @@ test.describe('Secretary Entry Walk', () => {
       timeout: 10000,
     });
     await expect(page.getByText(/^(Receipt|Fees received)\b/i)).toBeVisible();
-    expect([...errors, ...responseErrors]).toHaveLength(0);
+    expect(responseErrors).toEqual([]);
+    expect(errors).toEqual([]);
+    if (knownFindingConsoleErrors.length > 0) {
+      expect(knownFindingResponses.length).toBeGreaterThan(0);
+    }
+    expect(genericResource500Count).toBeLessThanOrEqual(knownFindingResponses.length);
   });
 });

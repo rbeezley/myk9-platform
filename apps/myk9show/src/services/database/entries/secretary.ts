@@ -33,7 +33,7 @@ export interface SecretaryEntry {
   registration_id: string | null;
   registration: {
     id: string;
-    confirmation_number: string;
+    confirmation_number: string | null;
     payment_status: string | null;
     payment_reference: string | null;
     total_amount: number | null;
@@ -177,7 +177,25 @@ export const getEntriesForShow = async (showId: string) => {
       throw createDatabaseError(error, 'entries', 'get_entries_for_show');
     }
 
-    return { data: data || [], error: null };
+    const entries = (data || []).map(entry => ({
+      ...entry,
+      registration:
+        entry.registration_id != null
+          ? {
+              id: entry.registration_id,
+              confirmation_number: null,
+              payment_status: null,
+              payment_reference: null,
+              total_amount: null,
+              paid_amount: null,
+              refund_amount: null,
+              refund_notes: null,
+              refunded_at: null,
+            }
+          : null,
+    }));
+
+    return { data: entries, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');

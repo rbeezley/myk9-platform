@@ -1,4 +1,4 @@
-export type RoleRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
+export type RoleRequestStatus = 'pending' | 'approved' | 'denied';
 export type RequestedRole = 'club_admin' | 'secretary';
 export type RequestedScope = 'club' | 'show';
 

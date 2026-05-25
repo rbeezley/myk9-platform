@@ -14,8 +14,6 @@ import { supabase } from '@/lib/supabase';
 
 /** Realtime subscription payload type for generic tables */
 type RealtimePayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
-import { useOfflineQueueStore } from '@/stores/offlineQueueStore';
-import { submitScore } from './entryService';
 import { subscriptionCleanup } from './subscriptionCleanup';
 import { logger } from '@/utils/logger';
 
@@ -254,55 +252,14 @@ for (const operation of operations) {
    * Manually trigger sync (for manual sync mode)
    */
   async manualSync(): Promise<void> {
-await this.processOfflineQueue();
     await this.processSyncQueue();
   }
-
-  /**
-   * Process offline queue
-   */
-  private async processOfflineQueue() {
-    const offlineQueue = useOfflineQueueStore.getState();
-    const pendingItems = offlineQueue.queue.filter(item => item.status === 'pending');
-
-    if (pendingItems.length === 0) {
-      return;
-    }
-
-offlineQueue.startSync();
-
-    const successIds: string[] = [];
-    const failedIds: string[] = [];
-
-    for (const item of pendingItems) {
-      offlineQueue.markAsSyncing(item.id);
-
-      try {
-        await submitScore(item.entryId, item.scoreData);
-        successIds.push(item.id);
-        await offlineQueue.markAsCompleted(item.id);
-      } catch (error) {
-        logger.error(`❌ Failed to sync item ${item.id}:`, error);
-        failedIds.push(item.id);
-        offlineQueue.markAsFailed(
-          item.id,
-          error instanceof Error ? error.message : 'Sync failed'
-        );
-      }
-    }
-
-    offlineQueue.syncComplete(successIds, failedIds);
-
-}
 
   /**
    * Handle coming online
    */
   private async handleOnline() {
-this.updateState({ status: 'syncing' });
-
-    // Process offline queue
-    await this.processOfflineQueue();
+    this.updateState({ status: 'syncing' });
 
     // Resume sync
     this.resumeSync();
@@ -312,7 +269,7 @@ this.updateState({ status: 'syncing' });
    * Handle going offline
    */
   private handleOffline() {
-this.updateState({ status: 'offline' });
+    this.updateState({ status: 'offline' });
 
     // Pause sync
     this.pauseSync();

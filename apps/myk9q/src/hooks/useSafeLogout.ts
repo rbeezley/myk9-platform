@@ -93,7 +93,9 @@ export function useSafeLogout(): UseSafeLogoutResult {
   // Get offline queue state (scores)
   const pendingScoreCount = useOfflineQueueStore((state) => state.getPendingCount());
   const isOnline = useOfflineQueueStore((state) => state.isOnline);
-  const isSyncing = useOfflineQueueStore((state) => state.isSyncing);
+  const isSyncing = useOfflineQueueStore((state) =>
+    state.queue.some(item => item.status === 'syncing')
+  );
 
   // Fetch pending mutations count on mount and periodically
   useEffect(() => {

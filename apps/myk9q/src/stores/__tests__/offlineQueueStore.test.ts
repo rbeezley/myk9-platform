@@ -238,21 +238,21 @@ describe('offlineQueueStore — sync flag invariants (addToQueue)', () => {
     resetOfflineQueueStore();
   });
 
-  it('does not leave isSyncing latched true after addToQueue while online', async () => {
-    // INTENT: addToQueue used to schedule setTimeout(startSync, 100), which
-    // flipped isSyncing=true with no corresponding clear in the steady-state
-    // online path (only syncManager.processOfflineQueue calls syncComplete,
-    // and it only runs on offline→online transitions). This pins the
-    // contract: queueing a score while already online must not leave the
-    // store in a "syncing" state that blocks future work. Fake timers stay
-    // in place so a re-introduced setTimeout would surface here.
+  it('does not mark scores as syncing after addToQueue while online', async () => {
+    // INTENT: addToQueue once scheduled a delayed queue-level sync kick,
+    // which could flip global syncing state with no steady-state clear.
+    // Queueing a score while already online must leave per-item statuses
+    // pending so useOfflineQueueProcessor remains the only owner that
+    // promotes items to syncing.
     await useOfflineQueueStore.getState().addToQueue(baseScore);
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(useOfflineQueueStore.getState().isSyncing).toBe(false);
+    expect(
+      useOfflineQueueStore.getState().queue.some(item => item.status === 'syncing')
+    ).toBe(false);
   });
 
-  it('a second addToQueue is not blocked by stale isSyncing from the first', async () => {
+  it('a second addToQueue is not blocked by stale syncing state from the first', async () => {
     // INTENT: the user-visible symptom of the wedge was "my second score
     // doesn't sync." Pin that the queue keeps both items pending and
     // ready for the processor to pick up, with no latched flag.
@@ -265,6 +265,45 @@ describe('offlineQueueStore — sync flag invariants (addToQueue)', () => {
     const state = useOfflineQueueStore.getState();
     expect(state.queue).toHaveLength(2);
     expect(state.queue.every(item => item.status === 'pending')).toBe(true);
-    expect(state.isSyncing).toBe(false);
+  });
+
+  it('coming online with pending scores does not mark scores as syncing', async () => {
+    await useOfflineQueueStore.getState().addToQueue(baseScore);
+
+    useOfflineQueueStore.getState().setOnlineStatus(false);
+    useOfflineQueueStore.getState().setOnlineStatus(true);
+
+    expect(
+      useOfflineQueueStore.getState().queue.some(item => item.status === 'syncing')
+    ).toBe(false);
+  });
+
+  it('hydrating pending scores does not schedule a stale syncing state', async () => {
+    vi.mocked(mutationQueue.getAll).mockResolvedValueOnce([
+      {
+        id: 'queued-score',
+        type: 'SUBMIT_SCORE',
+        data: {
+          ...baseScore,
+          id: 'queued-score',
+          timestamp: new Date().toISOString(),
+          retryCount: 0,
+          maxRetries: 3,
+          status: 'pending',
+          retryAt: null,
+        },
+        timestamp: Date.now(),
+        retries: 0,
+        status: 'pending',
+      },
+    ]);
+
+    await useOfflineQueueStore.getState().hydrate();
+    await vi.advanceTimersByTimeAsync(1500);
+
+    expect(useOfflineQueueStore.getState().queue).toHaveLength(1);
+    expect(
+      useOfflineQueueStore.getState().queue.some(item => item.status === 'syncing')
+    ).toBe(false);
   });
 });

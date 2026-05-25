@@ -54,6 +54,8 @@ export interface ApproveRoleRequestInput {
 }
 
 const REQUESTED_SCOPES: readonly RequestedScope[] = ['club', 'show'];
+const REQUESTED_ROLES: readonly RequestedRole[] = ['club_admin', 'secretary'];
+const ROLE_REQUEST_STATUSES: readonly RoleRequestStatus[] = ['pending', 'approved', 'denied'];
 
 function assertRequestedScope(value: string, requestId: string): RequestedScope {
   if ((REQUESTED_SCOPES as readonly string[]).includes(value)) {
@@ -62,6 +64,26 @@ function assertRequestedScope(value: string, requestId: string): RequestedScope 
   throw new Error(
     `mapDbRoleRequest: unknown requested_scope ${JSON.stringify(value)} on role_request ${requestId}. ` +
       `Expected one of ${REQUESTED_SCOPES.join(', ')}.`
+  );
+}
+
+function assertRequestedRole(value: string, requestId: string): RequestedRole {
+  if ((REQUESTED_ROLES as readonly string[]).includes(value)) {
+    return value as RequestedRole;
+  }
+  throw new Error(
+    `mapDbRoleRequest: unknown requested_role ${JSON.stringify(value)} on role_request ${requestId}. ` +
+      `Expected one of ${REQUESTED_ROLES.join(', ')}.`
+  );
+}
+
+function assertRoleRequestStatus(value: string, requestId: string): RoleRequestStatus {
+  if ((ROLE_REQUEST_STATUSES as readonly string[]).includes(value)) {
+    return value as RoleRequestStatus;
+  }
+  throw new Error(
+    `mapDbRoleRequest: unknown status ${JSON.stringify(value)} on role_request ${requestId}. ` +
+      `Expected one of ${ROLE_REQUEST_STATUSES.join(', ')}.`
   );
 }
 
@@ -74,12 +96,12 @@ export function mapDbRoleRequest(row: DbRoleRequestRow): RoleRequest {
     id: row.id,
     authUserId: row.auth_user_id,
     personId: row.person_id,
-    requestedRole: row.requested_role,
+    requestedRole: assertRequestedRole(row.requested_role, row.id),
     requestedScope: assertRequestedScope(row.requested_scope, row.id),
     clubId: row.club_id,
     clubName: row.club?.name ?? null,
     showId: row.show_id,
-    status: row.status,
+    status: assertRoleRequestStatus(row.status, row.id),
     requesterNote: row.requester_note,
     reviewerNote: row.reviewer_note,
     reviewedBy: row.reviewed_by,

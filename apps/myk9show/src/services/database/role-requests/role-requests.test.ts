@@ -79,6 +79,54 @@ describe('role request database service', () => {
     ).toThrow(/requested_scope.*platform/);
   });
 
+  it('throws when requested_role is outside the RequestedRole union', () => {
+    expect(() =>
+      mapDbRoleRequest({
+        id: 'request-bad',
+        auth_user_id: 'auth-1',
+        person_id: 'person-1',
+        // Intentionally bad value: simulates pre-CHECK drift or a future schema diverge.
+        requested_role: 'judge' as unknown as 'club_admin',
+        requested_scope: 'club',
+        club_id: null,
+        show_id: null,
+        status: 'pending',
+        requester_note: null,
+        reviewer_note: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        created_at: '2026-05-24T12:00:00Z',
+        updated_at: '2026-05-24T12:00:00Z',
+        person: null,
+        club: null,
+      })
+    ).toThrow(/requested_role.*judge/);
+  });
+
+  it('throws when status is outside the RoleRequestStatus union', () => {
+    expect(() =>
+      mapDbRoleRequest({
+        id: 'request-bad',
+        auth_user_id: 'auth-1',
+        person_id: 'person-1',
+        requested_role: 'club_admin',
+        requested_scope: 'club',
+        club_id: null,
+        show_id: null,
+        // Intentionally bad value: simulates pre-CHECK drift or a future schema diverge.
+        status: 'rejected' as unknown as 'denied',
+        requester_note: null,
+        reviewer_note: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        created_at: '2026-05-24T12:00:00Z',
+        updated_at: '2026-05-24T12:00:00Z',
+        person: null,
+        club: null,
+      })
+    ).toThrow(/status.*rejected/);
+  });
+
   it('reads all role requests newest first for site admins', async () => {
     mockSupabase.from.mockReturnValue(
       createChainableQuery({

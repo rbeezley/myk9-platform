@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { generateShowPasscodes, type ShowPasscodes } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
@@ -29,6 +30,14 @@ export interface SaveShowAtomicOnlineArgs {
 export interface SaveShowAtomicOnlineResult {
   showId: string;
   savedShow: Show;
+  /**
+   * Plaintext access passcodes for the new show — returned exactly once
+   * for the secretary's access card. `null` when the insert_show_passcodes
+   * RPC failed; the show itself still exists and the secretary can call
+   * regenerate_show_passcodes to retry. After this response is consumed
+   * the plaintexts cannot be recovered (only HMAC hashes are stored).
+   */
+  passcodes: ShowPasscodes | null;
 }
 
 /**
@@ -63,6 +72,33 @@ export async function saveShowAtomicOnline(
   )('create_show_with_children', rpcInput as unknown as Record<string, unknown>);
   if (rpcError) {
     throw new Error(rpcError.message);
+  }
+
+  // Generate the 4 role passcodes client-side using crypto.getRandomValues,
+  // then hand the plaintexts to insert_show_passcodes which hashes them
+  // server-side with the Vault pepper. The plaintexts only ever exist in
+  // this function's scope and the returned response — they are never
+  // logged, persisted, or sent anywhere else.
+  let passcodes: ShowPasscodes | null = generateShowPasscodes();
+  const { error: passcodeError } = await (
+    supabase.rpc as unknown as (
+      fn: string,
+      args: Record<string, unknown>
+    ) => Promise<{ error: { message: string } | null }>
+  )('insert_show_passcodes', {
+    p_show_id: showId,
+    p_codes: passcodes,
+  });
+  if (passcodeError) {
+    // The show row exists; a missing passcode set is recoverable via
+    // regenerate_show_passcodes from the show settings UI. Surface the
+    // failure as a warning, drop the plaintexts (they no longer match
+    // anything server-side), and let the caller proceed.
+    logger.warn('insert_show_passcodes failed — secretary must regenerate', 'wizard', {
+      showId,
+      error: passcodeError.message,
+    });
+    passcodes = null;
   }
 
   try {
@@ -164,5 +200,5 @@ export async function saveShowAtomicOnline(
 
   queryClient.invalidateQueries({ queryKey: ['shows', showId, 'schedule-timeline'] });
 
-  return { showId, savedShow };
+  return { showId, savedShow, passcodes };
 }

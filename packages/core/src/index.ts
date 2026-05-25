@@ -177,8 +177,14 @@ export {
   type CheckInStatusConfig,
 } from './constants/check-in-status';
 
-// Passcode derivation utilities
-export { generatePasscodesFromShowId, type ShowPasscodes } from './utils/passcodes';
+// Passcode utilities (random + legacy derivation)
+export {
+  generatePasscodesFromShowId,
+  generateRoleCode,
+  generateShowPasscodes,
+  type ShowPasscodes,
+  type ShowPasscodeRole,
+} from './utils/passcodes';
 
 // Nationals scoring constants
 export {

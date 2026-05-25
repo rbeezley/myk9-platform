@@ -7,11 +7,14 @@
  * 3. Silent failure when offline
  * 4. No rollback of optimistic updates
  * 5. Real-time subscriptions handle confirmation
- * 6. Cache write passes isDirty=true (the wrapper calls it `queueMutation`
- *    but it actually maps to `isDirty` in ReplicatedTable.set). This protects
- *    the optimistic score row from being overwritten by a stale replication
- *    pull via the dirty-row guard + mergeDirtyRow merge logic. Regression
- *    for the scoring-sync-bug fix (2026-05-24). See project_scoring_sync_bug.md.
+ * 6. Cache write passes isDirty=true so the optimistic score row is protected
+ *    from being overwritten by a stale replication pull via the dirty-row
+ *    guard + mergeDirtyRow logic. Regression for the scoring-sync-bug fix
+ *    (2026-05-24). See project_scoring_sync_bug.md.
+ * 7. When submitScore() fails while online, a 'replication:sync-failed'
+ *    CustomEvent is dispatched so the existing SyncFailureToast listener
+ *    surfaces a toast. Closes the "silent failure" gap left after the
+ *    Phase 1 dirty-bit fix.
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
@@ -20,6 +23,7 @@ import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { submitScore } from '@/services/entryService';
 import { useOfflineQueueStore } from '@/stores/offlineQueueStore';
 import { replicatedEntriesTable } from '@/services/replication';
+import { logger } from '@/utils/logger';
 
 // Hoist mock functions so they are available to the hoisted vi.mock factories
 const { mockMarkAsScored, mockSubmitScore, mockAddToQueue, mockUpdate } = vi.hoisted(() => ({
@@ -525,15 +529,12 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
   });
 
   // Regression for the scoring-sync-bug (project_scoring_sync_bug.md, 2026-05-24).
-  // The cache write must pass isDirty=true (the wrapper calls it `queueMutation`
-  // but it maps to `isDirty` in ReplicatedTable.set). isDirty=true marks the
-  // cache row `_syncStatus: 'pending'`, triggering the dirty-row guard and
-  // mergeDirtyRow logic that preserves the optimistic score from being
-  // overwritten by a stale replication pull. Before this fix the call passed
-  // `false`, so a pull between local write and server confirmation overwrote
-  // the optimistic score with stale server state. (Note: silent submitScore
-  // failures still bypass the toast pipeline — that's a separate deferred
-  // follow-up; see the memory file.)
+  // The cache write must pass isDirty=true so the row is marked
+  // _syncStatus:'pending'. That triggers the dirty-row guard and mergeDirtyRow
+  // logic which preserves the optimistic score from being overwritten by a
+  // stale replication pull. Before this fix the call passed `false`, so a pull
+  // between local write and server confirmation overwrote the optimistic
+  // score with stale server state.
   describe('Regression: replicatedEntriesTable.markAsScored must mark cache row dirty', () => {
     it('passes isDirty=true so optimistic score survives replication pull-overwrite', async () => {
       const { result } = renderHook(() => useOptimisticScoring());
@@ -548,16 +549,221 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         });
       });
 
-      // The third argument is `isDirty` (misnamed `queueMutation` on the
-      // wrapper). Must be `true` so the row is marked _syncStatus: 'pending'
-      // and the pull/merge logic preserves the optimistic score. If a future
-      // PR flips it back to `false`, the pull-overwrite bug returns — fail
-      // loudly here.
+      // The third argument is `isDirty`. Must be `true` so the row is marked
+      // _syncStatus:'pending' and the pull/merge logic preserves the
+      // optimistic score. If a future PR flips it back to `false`, the
+      // pull-overwrite bug returns — fail loudly here.
       expect(replicatedEntriesTable.markAsScored).toHaveBeenCalledWith(
         String(mockEntry.id),
         expect.any(Object),
         true
       );
+    });
+  });
+
+  // Regression for the silent-failure follow-up to the scoring-sync-bug.
+  // When submitScore() fails while online, we must route the score into the
+  // offline queue (useOfflineQueueStore.addToQueue) so the existing
+  // useOfflineQueueProcessor (wired globally in App.tsx) retries it with
+  // exponential backoff. Permanent failures (max retries exhausted) land in
+  // failedItems which is already surfaced by SyncStatusPopover, SyncProgress,
+  // and OfflineIndicator.
+  //
+  // We must NOT dispatch the generic 'replication:sync-failed' event for
+  // scoring failures. That event's listener (SyncFailureToast.handleRetry)
+  // only calls refreshAllTables() — a pull — and then clears the failure.
+  // Clicking Retry would make the warning disappear without re-attempting
+  // the score submission, giving a false sense of recovery.
+  describe('Regression: online submitScore failure routes through offline queue (not generic toast)', () => {
+    // The default `mockUpdate` (top of file) swallows serverUpdate rejections
+    // silently — it never invokes onError. The recovery path lives in the
+    // onError branch, so we need a local mock that propagates failures into
+    // onError (which is what the real useOptimisticUpdate does after retries
+    // are exhausted).
+    const mockUpdateWithOnError = vi.fn(async ({ serverUpdate, onSuccess, onError }) => {
+      try {
+        await serverUpdate();
+        onSuccess?.();
+      } catch (err) {
+        onError?.(err);
+      }
+    });
+
+    beforeEach(async () => {
+      const { useOptimisticUpdate } = await import('@/hooks/useOptimisticUpdate');
+      vi.mocked(useOptimisticUpdate).mockReturnValue({
+        update: mockUpdateWithOnError as unknown as ReturnType<typeof useOptimisticUpdate>['update'],
+        isSyncing: false,
+        hasError: false,
+        error: null,
+        retryCount: 0,
+        clearError: vi.fn(),
+      });
+      mockUpdateWithOnError.mockClear();
+    });
+
+    it('enqueues the failed score so useOfflineQueueProcessor can retry it', async () => {
+      (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
+      const onError = vi.fn();
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+          onError,
+        });
+      });
+
+      // Offline path also enqueues — but this test runs online, so the only
+      // addToQueue call should come from the onError branch. Asserting the
+      // payload shape protects against shape drift that would break the
+      // queue processor's submitScore() retry call (entryService.ts).
+      expect(mockAddToQueue).toHaveBeenCalledTimes(1);
+      expect(mockAddToQueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          licenseKey: 'test-license-key-12345',
+          scoreData: expect.objectContaining({ resultText: 'Q' }),
+        })
+      );
+
+      // The caller's onError must still be invoked after enqueueing — scoresheets
+      // that wire onError rely on this to surface an inline error. Without this
+      // assertion a future refactor could drop the propagation silently.
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+      expect((onError.mock.calls[0][0] as Error).message).toBe('RLS reject: scores');
+    });
+
+    it('logs and skips enqueue when context is missing (no classId), still invokes onError', async () => {
+      (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
+      const loggerErrorSpy = vi.spyOn(logger, 'error');
+      const onError = vi.fn();
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          // classId intentionally omitted — simulates a future caller forgetting it
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+          onError,
+        });
+      });
+
+      // Without classId, the score has no retry path — we expect a loud log,
+      // NO enqueue, AND the caller's onError to still fire so scoresheets that
+      // wire onError can surface an inline error to the judge.
+      expect(mockAddToQueue).not.toHaveBeenCalled();
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Cannot enqueue failed score'),
+        expect.objectContaining({
+          entryId: mockEntry.id,
+          hasClassId: false,
+          hasArmband: true,
+          hasClassName: true,
+          hasLicenseKey: true,
+        })
+      );
+      expect(onError).toHaveBeenCalledTimes(1);
+
+      loggerErrorSpy.mockRestore();
+    });
+
+    it('does NOT dispatch the generic replication:sync-failed toast (Retry would lie about recovery)', async () => {
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+      (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      const syncFailedCalls = dispatchSpy.mock.calls.filter(
+        ([event]) => event instanceof CustomEvent && event.type === 'replication:sync-failed'
+      );
+      expect(syncFailedCalls).toHaveLength(0);
+
+      dispatchSpy.mockRestore();
+    });
+
+    it('does NOT enqueue twice on offline failures (offline path already queued inside serverUpdate)', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        configurable: true,
+        value: false,
+      });
+      vi.mocked(useOfflineQueueStore).mockReturnValue({
+        addToQueue: mockAddToQueue,
+        isOnline: false,
+      } as unknown as ReturnType<typeof useOfflineQueueStore>);
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      // Offline path enqueues exactly once (inside serverUpdate's
+      // `if (!isOnline)` branch). The onError handler's early-return for
+      // offline must NOT add a second copy.
+      expect(mockAddToQueue).toHaveBeenCalledTimes(1);
+    });
+
+    it('still skips dispatching the generic sync-failed event when offline', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        configurable: true,
+        value: false,
+      });
+      vi.mocked(useOfflineQueueStore).mockReturnValue({
+        addToQueue: mockAddToQueue,
+        isOnline: false,
+      } as unknown as ReturnType<typeof useOfflineQueueStore>);
+
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      const syncFailedCalls = dispatchSpy.mock.calls.filter(
+        ([event]) => event instanceof CustomEvent && event.type === 'replication:sync-failed'
+      );
+      expect(syncFailedCalls).toHaveLength(0);
+
+      dispatchSpy.mockRestore();
     });
   });
 });

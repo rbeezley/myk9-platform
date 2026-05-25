@@ -101,33 +101,8 @@ export function useOptimisticScoring() {
     // Mark as scored in local store (legacy Zustand store)
     markAsScored(entryId, optimisticResult);
 
-    // Update the replicated entries cache (IndexedDB) AND mark the row dirty
-    // so the next replication pull won't overwrite the optimistic score.
-    //
-    // Naming nit: the third argument is called `queueMutation` on the wrapper
-    // but the base ReplicatedTable.set(id, data, isDirty=false, ...) takes
-    // it as `isDirty`. No MutationManager is wired to replicatedEntriesTable
-    // in production — the toast pipeline is NOT engaged by this flag. What
-    // the flag actually does:
-    //
-    //   1. Sets _syncStatus: 'pending' on the cache row.
-    //   2. Triggers the dirty-row guard at ReplicatedTable.ts:253 — clean
-    //      server pushes onto the row are skipped.
-    //   3. Triggers the mergeDirtyRow branch in syncReplicatedTable.ts:99-107.
-    //      The entries adapter's mergeDirtyRow preserves local scored values
-    //      when remote arrives stale.
-    //
-    // Previously this passed `false`, so the cache row was clean. A pull
-    // between local write and server confirmation would overwrite the
-    // optimistic score with stale server state. That's the "scored dog
-    // reverts when next dog is scored" symptom in project_scoring_sync_bug.md.
-    //
-    // DEFERRED follow-up: silent submitScore failures (RLS reject, transient
-    // network) still don't surface a toast — neither the offlineQueueStore
-    // path nor a wired MutationManager exists for scoring. Either wire
-    // replicatedEntriesTable.setMutationManager() in production, or have
-    // the onError below dispatch 'replication:sync-failed' directly. See
-    // project_scoring_sync_bug.md "Deferred follow-up" notes.
+    // Mark cache row dirty so the next pull's mergeDirtyRow preserves the
+    // local score. Server write is submitScore() below; see project_scoring_sync_bug.md.
     try {
       const resultStatus = convertResultTextToStatus(optimisticResult);
       const searchTimeSeconds = scoreData.searchTime ? convertTimeToSeconds(scoreData.searchTime) : 0;
@@ -139,7 +114,7 @@ export function useOptimisticScoring() {
           search_time_seconds: searchTimeSeconds,
           total_faults: scoreData.faultCount,
         },
-        true // isDirty=true — protects optimistic score from pull-overwrite (see comment above)
+        true // isDirty=true — protects optimistic score from pull-overwrite
       );
       logger.log(`✅ [useOptimisticScoring] Updated replicated cache for entry ${entryId}`);
     } catch (cacheError) {
@@ -200,13 +175,33 @@ export function useOptimisticScoring() {
       onError: (err) => {
         logger.error('❌ Score submission failed:', err);
 
-        // If offline, we already queued it, so don't show error
+        // Offline: the serverUpdate branch above already enqueued the score.
+        // Don't enqueue again here and don't surface as an error to the user.
         if (!isOnline) {
-onSuccess?.(); // Still allow navigation
+          onSuccess?.(); // Still allow navigation
           return;
         }
 
-        // Real error - notify user
+        // Route to offline queue — useOfflineQueueProcessor retries submitScore.
+        // Don't dispatch sync-failed event; its Retry only refreshes data, not scores.
+        const licenseKey = getSupabaseLicenseKey();
+        if (classId && armband && className && licenseKey) {
+          addToQueue({
+            entryId,
+            armband,
+            classId,
+            className,
+            licenseKey,
+            scoreData,
+          });
+        } else {
+          // Score at risk of being lost — no retry path. Caller's onError can surface inline.
+          logger.error(
+            '❌ Cannot enqueue failed score — missing classId/armband/className/licenseKey',
+            { entryId, hasClassId: !!classId, hasArmband: !!armband, hasClassName: !!className, hasLicenseKey: !!licenseKey }
+          );
+        }
+
         onError?.(err);
       },
       onRollback: () => {

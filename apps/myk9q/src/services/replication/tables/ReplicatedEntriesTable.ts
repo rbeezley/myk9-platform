@@ -179,7 +179,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
    * Helper: Update entry status (optimistic update)
    * Used for check-in flow
    */
-  async updateEntryStatus(entryId: string, newStatus: string, queueMutation = true): Promise<void> {
+  async updateEntryStatus(entryId: string, newStatus: string, isDirty = true): Promise<void> {
     const entry = await this.get(entryId);
     if (!entry) {
       throw new Error(`Entry ${entryId} not found`);
@@ -192,8 +192,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
       updated_at: new Date().toISOString(),
     };
 
-    // Mark as dirty to queue for sync
-    await this.set(entryId, updated, queueMutation);
+    // isDirty=true marks the row _syncStatus:'pending', which triggers the
+    // dirty-row guard at ReplicatedTable.set() so subsequent stale pulls
+    // cannot overwrite the local change.
+    await this.set(entryId, updated, isDirty);
 
     logger.log(
       `[${this.tableName}] Updated entry ${entryId} status: ${entry.entry_status} → ${newStatus}`
@@ -211,7 +213,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
       total_faults?: number;
       result_status?: string;
     },
-    queueMutation = true
+    isDirty = true
   ): Promise<void> {
     const entry = await this.get(entryId);
     if (!entry) {
@@ -227,8 +229,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
       updated_at: new Date().toISOString(),
     };
 
-    // Mark as dirty to queue for sync
-    await this.set(entryId, updated, queueMutation);
+    // isDirty=true marks the row _syncStatus:'pending', which triggers the
+    // dirty-row guard at ReplicatedTable.set() so a stale replication pull
+    // cannot overwrite the optimistic score (scoring-sync-bug fix).
+    await this.set(entryId, updated, isDirty);
 
     logger.log(`[${this.tableName}] Marked entry ${entryId} as scored`);
   }

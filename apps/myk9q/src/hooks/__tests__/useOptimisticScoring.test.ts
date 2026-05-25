@@ -561,17 +561,24 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
   });
 
   // Regression for the silent-failure follow-up to the scoring-sync-bug.
-  // When submitScore() fails while online, we must dispatch
-  // 'replication:sync-failed' so the existing SyncFailureToast listener
-  // (apps/myk9q/src/components/ui/SyncFailureToast.tsx:142) and the
-  // syncStatusStore listener (apps/myk9q/src/stores/syncStatusStore.ts:170)
-  // both fire. detail.message and detail.failedTables satisfy both consumers.
-  describe('Regression: online submitScore failure dispatches replication:sync-failed', () => {
+  // When submitScore() fails while online, we must route the score into the
+  // offline queue (useOfflineQueueStore.addToQueue) so the existing
+  // useOfflineQueueProcessor (wired globally in App.tsx) retries it with
+  // exponential backoff. Permanent failures (max retries exhausted) land in
+  // failedItems which is already surfaced by SyncStatusPopover, SyncProgress,
+  // and OfflineIndicator.
+  //
+  // We must NOT dispatch the generic 'replication:sync-failed' event for
+  // scoring failures. That event's listener (SyncFailureToast.handleRetry)
+  // only calls refreshAllTables() — a pull — and then clears the failure.
+  // Clicking Retry would make the warning disappear without re-attempting
+  // the score submission, giving a false sense of recovery.
+  describe('Regression: online submitScore failure routes through offline queue (not generic toast)', () => {
     // The default `mockUpdate` (top of file) swallows serverUpdate rejections
-    // silently — it never invokes onError. The H2 fix lives in the onError
-    // branch, so we need a local mock that propagates failures into onError
-    // (which is what the real useOptimisticUpdate does after retries are
-    // exhausted).
+    // silently — it never invokes onError. The recovery path lives in the
+    // onError branch, so we need a local mock that propagates failures into
+    // onError (which is what the real useOptimisticUpdate does after retries
+    // are exhausted).
     const mockUpdateWithOnError = vi.fn(async ({ serverUpdate, onSuccess, onError }) => {
       try {
         await serverUpdate();
@@ -594,7 +601,39 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       mockUpdateWithOnError.mockClear();
     });
 
-    it('dispatches a sync-failed CustomEvent when submitScore rejects while online', async () => {
+    it('enqueues the failed score so useOfflineQueueProcessor can retry it', async () => {
+      (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      // Offline path also enqueues — but this test runs online, so the only
+      // addToQueue call should come from the onError branch. Asserting the
+      // payload shape protects against shape drift that would break the
+      // queue processor's submitScore() retry call (entryService.ts).
+      expect(mockAddToQueue).toHaveBeenCalledTimes(1);
+      expect(mockAddToQueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          licenseKey: 'test-license-key-12345',
+          scoreData: expect.objectContaining({ resultText: 'Q' }),
+        })
+      );
+    });
+
+    it('does NOT dispatch the generic replication:sync-failed toast (Retry would lie about recovery)', async () => {
       const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
       (submitScore as Mock).mockRejectedValue(new Error('RLS reject: scores'));
 
@@ -613,17 +652,41 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       const syncFailedCalls = dispatchSpy.mock.calls.filter(
         ([event]) => event instanceof CustomEvent && event.type === 'replication:sync-failed'
       );
-      expect(syncFailedCalls).toHaveLength(1);
-
-      const detail = (syncFailedCalls[0][0] as CustomEvent).detail;
-      expect(detail.failedTables).toEqual(['entries']);
-      expect(typeof detail.message).toBe('string');
-      expect(detail.message.length).toBeGreaterThan(0);
+      expect(syncFailedCalls).toHaveLength(0);
 
       dispatchSpy.mockRestore();
     });
 
-    it('does NOT dispatch sync-failed when offline (offline path is queued silently)', async () => {
+    it('does NOT enqueue twice on offline failures (offline path already queued inside serverUpdate)', async () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        configurable: true,
+        value: false,
+      });
+      vi.mocked(useOfflineQueueStore).mockReturnValue({
+        addToQueue: mockAddToQueue,
+        isOnline: false,
+      } as unknown as ReturnType<typeof useOfflineQueueStore>);
+
+      const { result } = renderHook(() => useOptimisticScoring());
+
+      await act(async () => {
+        await result.current.submitScoreOptimistically({
+          entryId: mockEntry.id,
+          classId: mockEntry.classId,
+          armband: mockEntry.armband,
+          className: mockEntry.className,
+          scoreData: mockScoreData,
+        });
+      });
+
+      // Offline path enqueues exactly once (inside serverUpdate's
+      // `if (!isOnline)` branch). The onError handler's early-return for
+      // offline must NOT add a second copy.
+      expect(mockAddToQueue).toHaveBeenCalledTimes(1);
+    });
+
+    it('still skips dispatching the generic sync-failed event when offline', async () => {
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
         configurable: true,

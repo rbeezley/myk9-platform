@@ -110,9 +110,11 @@ export function useOptimisticScoring() {
     // Note: no MutationManager is attached to replicatedEntriesTable in
     // production. The dirty bit functions as a read-side shield only — the
     // actual server write goes through submitScore() below. If submitScore()
-    // fails the onError branch dispatches 'replication:sync-failed' so the
-    // existing SyncFailureToast listener fires; the dirty bit itself is never
-    // cleared (followup: add markAsSynced to base ReplicatedTable).
+    // fails (online or offline) we hand the score to useOfflineQueueStore;
+    // useOfflineQueueProcessor (wired in App.tsx) retries submitScore() with
+    // exponential backoff. Permanent failures land in failedItems, surfaced
+    // by SyncStatusPopover/OfflineIndicator. Followup: add markAsSynced to
+    // base ReplicatedTable so the dirty bit can be cleared on success.
     try {
       const resultStatus = convertResultTextToStatus(optimisticResult);
       const searchTimeSeconds = scoreData.searchTime ? convertTimeToSeconds(scoreData.searchTime) : 0;
@@ -185,26 +187,41 @@ export function useOptimisticScoring() {
       onError: (err) => {
         logger.error('❌ Score submission failed:', err);
 
-        // If offline, we already queued it, so don't show error
+        // Offline: the serverUpdate branch above already enqueued the score.
+        // Don't enqueue again here and don't surface as an error to the user.
         if (!isOnline) {
           onSuccess?.(); // Still allow navigation
           return;
         }
 
-        // Online failure — surface a toast via the existing sync-failed
-        // pipeline so the user knows the score didn't reach the server.
-        // SyncFailureToast.tsx and syncStatusStore.ts both listen for this
-        // event; detail.message and detail.failedTables satisfy both.
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('replication:sync-failed', {
-              detail: {
-                message: `Score for entry ${entryId} failed to sync: ${errorMessage}`,
-                failedTables: ['entries'],
-                errors: [errorMessage],
-              },
-            })
+        // Online failure — hand the score to useOfflineQueueStore so the
+        // useOfflineQueueProcessor (App.tsx:240) retries submitScore() with
+        // exponential backoff. After max retries the item lands in
+        // failedItems, which SyncStatusPopover / SyncProgress /
+        // OfflineIndicator already surface with working Retry buttons.
+        //
+        // We deliberately do NOT dispatch the generic 'replication:sync-failed'
+        // event here. That toast's Retry button only calls refreshAllTables()
+        // (a pull), so clicking it would clear the warning without
+        // re-attempting the score — false sense of recovery.
+        const licenseKey = getSupabaseLicenseKey();
+        if (classId && armband && className && licenseKey) {
+          addToQueue({
+            entryId,
+            armband,
+            classId,
+            className,
+            licenseKey,
+            scoreData,
+          });
+        } else {
+          // Missing context (e.g., score submitted outside a classId-bearing
+          // surface). Can't enqueue, so the score is at risk of being lost.
+          // Log loudly; the scoresheet's onError (if wired) can surface an
+          // inline error to the judge.
+          logger.error(
+            '❌ Cannot enqueue failed score — missing classId/armband/className/licenseKey',
+            { entryId, hasClassId: !!classId, hasArmband: !!armband, hasClassName: !!className, hasLicenseKey: !!licenseKey }
           );
         }
 

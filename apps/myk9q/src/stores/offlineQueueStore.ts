@@ -54,7 +54,6 @@ export interface QueuedScore {
 interface OfflineQueueState {
   queue: QueuedScore[];
   isOnline: boolean;
-  isSyncing: boolean;
   lastSyncAttempt: string | null;
   failedItems: QueuedScore[];
 
@@ -65,8 +64,6 @@ interface OfflineQueueState {
 
   // Sync Actions
   setOnlineStatus: (isOnline: boolean) => void;
-  startSync: () => void;
-  syncComplete: (successIds: string[], failedIds: string[]) => void;
   retryFailed: () => void;
   clearCompleted: () => void;
 
@@ -89,7 +86,6 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
     (set, get) => ({
       queue: [],
       isOnline: navigator.onLine,
-      isSyncing: false,
       lastSyncAttempt: null,
       failedItems: [],
 
@@ -137,14 +133,9 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
         // Haptic feedback
         haptic.light();
 
-        // INTENT: do NOT call startSync() here. startSync only flips
-        // isSyncing=true; the actual queue processing lives in
-        // useOfflineQueueProcessor, whose useEffect already re-fires on the
-        // queue mutation above. The only path that clears isSyncing in
-        // steady-state is syncManager.processOfflineQueue (online-transition
-        // only), so scheduling startSync from this hot path used to latch
-        // the flag and silently wedge subsequent syncs. See test:
-        // `does not leave isSyncing latched true after addToQueue while online`.
+        // INTENT: queue processing lives in useOfflineQueueProcessor, whose
+        // effect re-fires on the queue mutation above. Do not flip a global
+        // syncing flag here; per-item syncing state is the source of truth.
       },
 
       removeFromQueue: async (id) => {
@@ -171,54 +162,6 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
 
       setOnlineStatus: (isOnline) => {
         set({ isOnline });
-
-        // Start sync when coming online
-        if (isOnline && get().queue.some(item => item.status === 'pending')) {
-          get().startSync();
-        }
-      },
-
-      startSync: () => {
-        const { isOnline, isSyncing, queue } = get();
-
-        if (!isOnline || isSyncing || !queue.some(item => item.status === 'pending')) {
-          return;
-        }
-
-        set({
-          isSyncing: true,
-          lastSyncAttempt: new Date().toISOString()
-        });
-      },
-
-      syncComplete: (successIds, failedIds) => {
-        set((state) => {
-          const updatedQueue = state.queue.map(item => {
-            if (successIds.includes(item.id)) {
-              return { ...item, status: 'completed' as const };
-            }
-            if (failedIds.includes(item.id)) {
-              return {
-                ...item,
-                status: 'failed' as const,
-                retryCount: item.retryCount + 1
-              };
-            }
-            return item;
-          });
-
-          const failedItems = updatedQueue.filter(
-            item => item.status === 'failed' && item.retryCount >= item.maxRetries
-          );
-
-          return {
-            queue: updatedQueue.filter(
-              item => item.status !== 'completed' && !failedItems.includes(item)
-            ),
-            failedItems: [...state.failedItems, ...failedItems],
-            isSyncing: false
-          };
-        });
       },
 
       retryFailed: () => {
@@ -235,11 +178,6 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
             failedItems: []
           };
         });
-
-        // Trigger sync
-        if (get().isOnline) {
-          get().startSync();
-        }
       },
 
       clearCompleted: () => {
@@ -281,7 +219,12 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
       },
 
       markAsSyncing: (id) => {
-        get().updateQueueItem(id, { status: 'syncing' });
+        set((state) => ({
+          queue: state.queue.map(item =>
+            item.id === id ? { ...item, status: 'syncing' as const } : item
+          ),
+          lastSyncAttempt: new Date().toISOString(),
+        }));
       },
 
       markAsFailed: (id, error) => {
@@ -300,8 +243,9 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
               retryCount: nextRetryCount,
               retryAt: null,
             };
+            const queue = state.queue.filter(q => q.id !== id);
             return {
-              queue: state.queue.filter(q => q.id !== id),
+              queue,
               failedItems: [...state.failedItems, terminalItem],
             };
           }
@@ -321,16 +265,20 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
             retryCount: nextRetryCount,
             retryAt: Date.now() + delayMs,
           };
+          const queue = state.queue.map(q => (q.id === id ? retryItem : q));
           return {
-            queue: state.queue.map(q => (q.id === id ? retryItem : q)),
+            queue,
           };
         });
       },
 
       markAsCompleted: async (id) => {
-        set((state) => ({
-          queue: state.queue.filter(item => item.id !== id)
-        }));
+        set((state) => {
+          const queue = state.queue.filter(item => item.id !== id);
+          return {
+            queue,
+          };
+        });
 
         // Remove from IndexedDB
         try {
@@ -351,10 +299,6 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
 
           if (scores.length > 0) {
             set({ queue: scores });
-            // Auto-sync if online
-            if (get().isOnline) {
-              setTimeout(() => get().startSync(), 1000);
-            }
           }
         } catch (error) {
           logger.error('❌ Failed to hydrate offline queue:', error);

@@ -18,7 +18,6 @@ export const resetOfflineQueueStore = () => {
     queue: [],
     failedItems: [],
     isOnline: true,
-    isSyncing: false,
     lastSyncAttempt: null,
   });
 };

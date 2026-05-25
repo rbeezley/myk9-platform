@@ -1,41 +1,14 @@
 import { vi } from 'vitest';
 import { syncManager } from './syncManager';
 import { supabase } from '../lib/supabase';
-import { useOfflineQueueStore } from '../stores/offlineQueueStore';
-import * as entryService from './entryService';
 
 /** Shorthand for the Supabase realtime channel return type */
 type SupabaseChannel = ReturnType<typeof supabase.channel>;
-
-/** Inferred type for the offline queue store state */
-type OfflineQueueState = ReturnType<typeof useOfflineQueueStore.getState>;
-
-/** Mock shape for the offline queue store state used in tests */
-interface MockOfflineQueueState {
-  queue: Array<{ id: string; entryId: number; scoreData: { time: number }; status: string }>;
-  startSync: ReturnType<typeof vi.fn>;
-  markAsSyncing: ReturnType<typeof vi.fn>;
-  markAsCompleted: ReturnType<typeof vi.fn>;
-  markAsFailed: ReturnType<typeof vi.fn>;
-  syncComplete: ReturnType<typeof vi.fn>;
-}
 
 // Mock the supabase client
 vi.mock('../lib/supabase', () => ({
   supabase: {
     channel: vi.fn(),
-  },
-}));
-
-// Mock the entryService
-vi.mock('./entryService', () => ({
-  submitScore: vi.fn(),
-}));
-
-// Mock the offlineQueueStore
-vi.mock('../stores/offlineQueueStore', () => ({
-  useOfflineQueueStore: {
-    getState: vi.fn(),
   },
 }));
 
@@ -340,70 +313,11 @@ describe('SyncManager', () => {
   });
 
   describe('manualSync', () => {
-    test('should process offline queue and sync queue', async () => {
-      const mockOfflineState: MockOfflineQueueState = {
-        queue: [],
-        startSync: vi.fn(),
-        markAsSyncing: vi.fn(),
-        markAsCompleted: vi.fn(),
-        markAsFailed: vi.fn(),
-        syncComplete: vi.fn(),
-      };
-
-      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(
-        mockOfflineState as unknown as OfflineQueueState
-      );
-
+    test('should process only syncManager queued operations', async () => {
       await syncManager.manualSync();
 
-      expect(useOfflineQueueStore.getState).toHaveBeenCalled();
-    });
-
-    test('should process pending offline queue items', async () => {
-      const mockOfflineState: MockOfflineQueueState = {
-        queue: [
-          { id: '1', entryId: 101, scoreData: { time: 30 }, status: 'pending' },
-          { id: '2', entryId: 102, scoreData: { time: 35 }, status: 'pending' },
-        ],
-        startSync: vi.fn(),
-        markAsSyncing: vi.fn(),
-        markAsCompleted: vi.fn(),
-        markAsFailed: vi.fn(),
-        syncComplete: vi.fn(),
-      };
-
-      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(
-        mockOfflineState as unknown as OfflineQueueState
-      );
-      vi.mocked(entryService.submitScore).mockResolvedValue(true);
-
-      await syncManager.manualSync();
-
-      expect(mockOfflineState.startSync).toHaveBeenCalled();
-      expect(mockOfflineState.markAsSyncing).toHaveBeenCalledTimes(2);
-      expect(entryService.submitScore).toHaveBeenCalledTimes(2);
-      expect(mockOfflineState.markAsCompleted).toHaveBeenCalledTimes(2);
-    });
-
-    test('should handle failed offline queue items', async () => {
-      const mockOfflineState: MockOfflineQueueState = {
-        queue: [{ id: '1', entryId: 101, scoreData: { time: 30 }, status: 'pending' }],
-        startSync: vi.fn(),
-        markAsSyncing: vi.fn(),
-        markAsCompleted: vi.fn(),
-        markAsFailed: vi.fn(),
-        syncComplete: vi.fn(),
-      };
-
-      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(
-        mockOfflineState as unknown as OfflineQueueState
-      );
-      vi.mocked(entryService.submitScore).mockRejectedValue(new Error('Network error'));
-
-      await syncManager.manualSync();
-
-      expect(mockOfflineState.markAsFailed).toHaveBeenCalledWith('1', 'Network error');
-      expect(mockOfflineState.syncComplete).toHaveBeenCalledWith([], ['1']);
+      const state = syncManager.getState();
+      expect(state.pendingChanges).toBe(0);
     });
   });
 
@@ -469,19 +383,6 @@ describe('SyncManager', () => {
 
   describe('network event handlers', () => {
     test('should handle online event', async () => {
-      const mockOfflineState: MockOfflineQueueState = {
-        queue: [],
-        startSync: vi.fn(),
-        markAsSyncing: vi.fn(),
-        markAsCompleted: vi.fn(),
-        markAsFailed: vi.fn(),
-        syncComplete: vi.fn(),
-      };
-
-      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(
-        mockOfflineState as unknown as OfflineQueueState
-      );
-
       // Trigger online event
       if (onlineEventHandler) {
         await onlineEventHandler();

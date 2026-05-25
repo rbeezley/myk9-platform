@@ -166,7 +166,7 @@ export function useOfflineStatus(): OfflineStatus {
     networkDetectionService.getNetworkInfo()
   );
 
-  const { queue, isSyncing, failedItems, retryFailed } = useOfflineQueueStore();
+  const { queue, failedItems, retryFailed } = useOfflineQueueStore();
 
   // Calculate counts from queue
   const counts = useMemo<OfflineStatusCounts>(() => {
@@ -180,6 +180,8 @@ export function useOfflineStatus(): OfflineStatus {
       total: pending + syncing + failed,
     };
   }, [queue, failedItems]);
+
+  const isSyncing = counts.syncing > 0;
 
   // Listen to online/offline events
   useEffect(() => {

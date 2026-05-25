@@ -29,16 +29,17 @@ export function SyncProgress({
   showDetailed = false,
   position = 'bottom-right'
 }: SyncProgressProps) {
-  const { queue, isSyncing, failedItems } = useOfflineQueueStore();
+  const { queue, failedItems } = useOfflineQueueStore();
   const [isManuallyHidden, setIsManuallyHidden] = useState(false);
 
   const pendingCount = queue.filter(q => q.status === 'pending').length;
   const syncingCount = queue.filter(q => q.status === 'syncing').length;
+  const isSyncing = syncingCount > 0;
   const failedCount = failedItems.length;
   const totalCount = pendingCount + syncingCount + failedCount;
 
   // Determine visibility based on activity
-  const hasActivity = isSyncing || syncingCount > 0 || failedCount > 0 || pendingCount > 0;
+  const hasActivity = isSyncing || failedCount > 0 || pendingCount > 0;
   const isVisible = hasActivity && !isManuallyHidden;
 
   if (!isVisible) return null;

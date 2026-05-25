@@ -19,7 +19,6 @@ export function useOfflineQueueProcessor() {
   const {
     queue,
     isOnline,
-    isSyncing,
     getNextItemToSync,
     getNextRetryAt,
     markAsSyncing,
@@ -124,15 +123,14 @@ export function useOfflineQueueProcessor() {
 
   // Process queue when online and items are pending.
   // The retry timer is intentionally NOT cleared in this effect's cleanup —
-  // unrelated state changes (isSyncing flipping, queue churn) would otherwise
-  // stomp a pending backoff timer between failure and re-attempt. Unmount
-  // cleanup lives in the separate effect below.
+  // unrelated queue churn would otherwise stomp a pending backoff timer
+  // between failure and re-attempt. Unmount cleanup lives below.
   useEffect(() => {
-    if (!isOnline || isSyncing) return;
+    if (!isOnline) return;
     const hasPending = queue.some(item => item.status === 'pending');
     if (!hasPending) return;
     drainAndScheduleNext();
-  }, [isOnline, queue, isSyncing, drainAndScheduleNext]);
+  }, [isOnline, queue, drainAndScheduleNext]);
 
   // Clean up any outstanding retry timer on unmount only.
   useEffect(() => {
@@ -150,6 +148,6 @@ export function useOfflineQueueProcessor() {
     pendingCount: queue.filter(item => item.status === 'pending').length,
     failedCount: queue.filter(item => item.status === 'failed').length,
     isOnline,
-    isSyncing,
+    isSyncing: queue.some(item => item.status === 'syncing'),
   };
 }

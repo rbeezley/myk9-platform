@@ -284,6 +284,58 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Mark a previously-dirty row as synced after the server has confirmed
+   * receipt of a locally-applied mutation through a side channel (e.g., a
+   * direct submitScore() call that doesn't go through MutationManager).
+   *
+   * The natural `set(id, data, false)` path would be blocked by the dirty-row
+   * guard at line 253 above — that guard exists to stop real-time pushes from
+   * clobbering pending local mutations. Here we KNOW the server has the row's
+   * current state, so the guard would be wrong; this method bypasses it via
+   * a direct IDB put that preserves the existing data and version.
+   *
+   * No-ops if the row doesn't exist or is already clean (idempotent).
+   *
+   * @see project_scoring_sync_bug.md — added 2026-05-25 to close the
+   *   "online happy-path leaves _syncStatus:'pending' forever" follow-up
+   *   from PR #341. Without this, every subsequent replication pull takes
+   *   the wasteful mergeDirtyRow branch instead of normal resolveConflict.
+   */
+  async markAsSynced(id: string): Promise<void> {
+    const db = await this.init();
+    const normalizedId = String(id);
+
+    // CRITICAL: read AND write must share a single readwrite transaction so a
+    // concurrent set(..., true) can't slip a fresh dirty mutation in between
+    // our get() and put() and get silently clobbered. The original split-tx
+    // version had this race; see PR #351 review finding #1.
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    if (!existingRow || !existingRow.isDirty) {
+      // No-op: row absent, or already synced. End the transaction cleanly.
+      await tx.done;
+      return;
+    }
+
+    await tx.store.put({
+      ...existingRow,
+      isDirty: false,
+      syncStatus: 'synced',
+      lastSyncedAt: Date.now(),
+    });
+    await tx.done;
+
+    this.logger.log(
+      `[${this.tableName}] Marked row ${normalizedId} as synced (was dirty)`
+    );
+
+    this.notifyListeners();
+  }
+
+  /**
    * Delete a row from local cache
    */
   async delete(id: string): Promise<void> {

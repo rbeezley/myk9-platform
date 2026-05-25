@@ -170,6 +170,21 @@ export function useOptimisticScoring() {
         return { entryId, scoreData };
       },
       onSuccess: () => {
+        // Clear the dirty bit on the cache row. PR #334 set isDirty=true
+        // to protect the optimistic score from pull-overwrite; now that
+        // submitScore() has succeeded, the server has the row's current
+        // state and we can safely mark it synced. Without this, every
+        // subsequent pull takes the wasteful mergeDirtyRow branch instead
+        // of normal resolveConflict. See project_scoring_sync_bug.md +
+        // OPEN-TODOS.md "Clear the dirty bit after successful submitScore."
+        replicatedEntriesTable.markAsSynced(String(entryId)).catch((err: unknown) => {
+          // Non-fatal: cache cleanup failure doesn't affect correctness,
+          // just leaves the row dirty until next sync cycle's mergeDirtyRow.
+          logger.warn(
+            '⚠️ [useOptimisticScoring] markAsSynced failed — row stays dirty until next pull merges it',
+            err
+          );
+        });
         onSuccess?.();
       },
       onError: (err) => {

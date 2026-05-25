@@ -116,6 +116,98 @@ describe('ReplicatedTable', () => {
     });
   });
 
+  // markAsSynced bypasses the dirty-row guard at set():253. Use this after a
+  // side-channel server confirmation (e.g., direct submitScore() that doesn't
+  // route through MutationManager) so the cache row stops triggering the
+  // wasteful mergeDirtyRow branch on every subsequent pull. See
+  // project_scoring_sync_bug.md.
+  describe('markAsSynced', () => {
+    it('clears isDirty on a previously-dirty row', async () => {
+      const entity: TestEntity = { id: '1', name: 'Rex' };
+      await table.set('1', entity, true);
+
+      let row = await table.getReplicatedRow('1');
+      expect(row?.isDirty).toBe(true);
+      expect(row?.syncStatus).toBe('pending');
+
+      await table.markAsSynced('1');
+
+      row = await table.getReplicatedRow('1');
+      expect(row?.isDirty).toBe(false);
+      expect(row?.syncStatus).toBe('synced');
+    });
+
+    it('preserves the row data and version when clearing the dirty bit', async () => {
+      const entity: TestEntity = { id: '1', name: 'Rex' };
+      await table.set('1', entity, true);
+      const before = await table.getReplicatedRow('1');
+
+      await table.markAsSynced('1');
+
+      const after = await table.getReplicatedRow('1');
+      expect(after?.data).toEqual(before?.data);
+      expect(after?.version).toBe(before?.version);
+    });
+
+    it('is a no-op for a non-existent row', async () => {
+      await expect(table.markAsSynced('does-not-exist')).resolves.not.toThrow();
+      const row = await table.getReplicatedRow('does-not-exist');
+      expect(row).toBeNull();
+    });
+
+    it('is a no-op for a row that is already clean (idempotent)', async () => {
+      const entity: TestEntity = { id: '1', name: 'Rex' };
+      await table.set('1', entity, false); // clean from the start
+      const before = await table.getReplicatedRow('1');
+
+      await table.markAsSynced('1');
+
+      const after = await table.getReplicatedRow('1');
+      expect(after?.data).toEqual(before?.data);
+      expect(after?.version).toBe(before?.version);
+      expect(after?.isDirty).toBe(false);
+    });
+
+    it('allows a subsequent server push (set with isDirty=false) to overwrite the row', async () => {
+      // Regression: the original bug was that set(id, data, false) was BLOCKED
+      // by the dirty-row guard. After markAsSynced, the row should be clean
+      // and the natural set(..., false) path should work normally.
+      const entity: TestEntity = { id: '1', name: 'Rex' };
+      await table.set('1', entity, true);
+      await table.markAsSynced('1');
+
+      await expect(table.set('1', { id: '1', name: 'Rex from server' }, false)).resolves.not.toThrow();
+      const result = await table.get('1');
+      expect(result?.name).toBe('Rex from server');
+    });
+
+    // Race-condition regression for PR #351 review finding #1. The original
+    // split-transaction implementation did get() in one tx, then put() in a
+    // second tx — leaving a window in which a concurrent set(..., true) could
+    // mark the row dirty AND have that dirty bit silently clobbered when the
+    // put landed. The fix collapses both into a single readwrite transaction.
+    // This test pins the race closed.
+    it('does NOT clobber a concurrent dirty mutation that lands between read and write', async () => {
+      const entity: TestEntity = { id: '1', name: 'Rex' };
+      await table.set('1', entity, true);
+
+      // Fire markAsSynced without awaiting, then immediately fire a follow-up
+      // dirty set. With a single-transaction implementation, the set must
+      // either land BEFORE markAsSynced's get (in which case its data wins
+      // and the put doesn't clobber it) or AFTER markAsSynced's put (in
+      // which case it correctly re-dirties the row). Either way, the final
+      // state must reflect the NEWER data and a DIRTY status — never the
+      // older data with isDirty=false.
+      const pending = table.markAsSynced('1');
+      await table.set('1', { id: '1', name: 'Updated' }, true);
+      await pending;
+
+      const final = await table.getReplicatedRow('1');
+      expect(final?.data.name).toBe('Updated');
+      expect(final?.isDirty).toBe(true);
+    });
+  });
+
   describe('getAll', () => {
     it('should return empty array when no data', async () => {
       const results = await table.getAll();

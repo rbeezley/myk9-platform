@@ -106,6 +106,81 @@ describe('useShowMapReorderMode — in-flight guard', () => {
   });
 });
 
+describe('useShowMapReorderMode — optimistic reorder overlay', () => {
+  it('commits the optimistic order synchronously in onDragEnd and clears it onSettled', async () => {
+    const writeResolvers: Array<() => void> = [];
+    updateEntryMock.mockImplementation(
+      () =>
+        new Promise<string | null>(resolve => {
+          writeResolvers.push(() => resolve('mutation-id'));
+        })
+    );
+    getEntriesByClassMock.mockResolvedValue([
+      entry({ id: 'a', armband: '10', runOrder: 1 }),
+      entry({ id: 'b', armband: '20', runOrder: 2 }),
+      entry({ id: 'c', armband: '30', runOrder: 3 }),
+    ]);
+
+    const { result } = renderHook(() => useShowMapReorderMode({ showId: 'show-1' }), {
+      wrapper: makeWrapper(),
+    });
+
+    act(() => result.current.enter({ classId: 'class-1', classLabel: 'Container Novice' }));
+
+    // Simulate the SortableContext call: structure table passes the
+    // current visible items + the drag event.
+    const items = ['entry:a', 'entry:b', 'entry:c'];
+    const dragEvent: DragEndEvent = {
+      active: { id: 'entry:a' },
+      over: { id: 'entry:c' },
+    } as DragEndEvent;
+
+    act(() => result.current.buildOnDragEnd(items)(dragEvent));
+
+    // Immediately after the drop the optimistic overlay reflects the
+    // new order — no waiting for the DB write.
+    expect(result.current.getOptimisticOrder('class-1')).toEqual([
+      'entry:b',
+      'entry:c',
+      'entry:a',
+    ]);
+
+    // Wait for the mutation to dispatch its updateEntry calls, then
+    // resolve them all and confirm the overlay clears so the next
+    // render falls back to server truth.
+    await waitFor(() => expect(writeResolvers.length).toBeGreaterThan(0));
+    writeResolvers.forEach(fn => fn());
+    await waitFor(() => expect(result.current.getOptimisticOrder('class-1')).toBeUndefined());
+  });
+
+  it('exit() clears any pending optimistic overlays', async () => {
+    updateEntryMock.mockResolvedValue('mutation-id');
+    getEntriesByClassMock.mockResolvedValue([
+      entry({ id: 'a', armband: '10', runOrder: 1 }),
+      entry({ id: 'b', armband: '20', runOrder: 2 }),
+    ]);
+
+    const { result } = renderHook(() => useShowMapReorderMode({ showId: 'show-1' }), {
+      wrapper: makeWrapper(),
+    });
+    act(() => result.current.enter({ classId: 'class-1', classLabel: 'Container Novice' }));
+
+    const items = ['entry:a', 'entry:b'];
+    act(() =>
+      result.current.buildOnDragEnd(items)({
+        active: { id: 'entry:a' },
+        over: { id: 'entry:b' },
+      } as DragEndEvent)
+    );
+
+    // Drain the in-flight persist before exit so the ref-guard releases.
+    await waitFor(() => expect(result.current.isPersisting).toBe(false));
+
+    act(() => result.current.exit());
+    expect(result.current.getOptimisticOrder('class-1')).toBeUndefined();
+  });
+});
+
 describe('useShowMapReorderMode — Alt+Arrow keyboard reorder skips pinned neighbors', () => {
   it('Alt+ArrowDown on an unpinned entry hops past a pinned neighbor', async () => {
     // Layout: [A, B(pinned), C, D]. Alt+ArrowDown on A should move A to

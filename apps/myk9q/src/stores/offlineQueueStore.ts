@@ -45,6 +45,10 @@ export interface QueuedScore {
   maxRetries: number;
   lastError?: string;
   status: 'pending' | 'syncing' | 'failed' | 'completed';
+  // Epoch ms when this item becomes eligible for re-sync. Set by markAsFailed
+  // during exponential backoff so the item stays 'pending' but is gated from
+  // immediate re-selection. null/undefined = eligible now.
+  retryAt?: number | null;
 }
 
 interface OfflineQueueState {
@@ -70,11 +74,15 @@ interface OfflineQueueState {
   getPendingCount: () => number;
   getFailedCount: () => number;
   getNextItemToSync: () => QueuedScore | null;
+  /** Earliest future retryAt across pending items, or null if none waiting. */
+  getNextRetryAt: () => number | null;
   markAsSyncing: (id: string) => void;
   markAsFailed: (id: string, error: string) => void;
   markAsCompleted: (id: string) => Promise<void>;
   hydrate: () => Promise<void>;
 }
+
+const BACKOFF_BASE_MS = 1000;
 
 export const useOfflineQueueStore = create<OfflineQueueState>()(
   devtools(
@@ -92,7 +100,8 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
           timestamp: new Date().toISOString(),
           retryCount: 0,
           maxRetries: 3,
-          status: 'pending'
+          status: 'pending',
+          retryAt: null,
         };
 
         // Add to state
@@ -210,10 +219,11 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
 
       retryFailed: () => {
         set((state) => {
-          const itemsToRetry = state.failedItems.map(item => ({
+          const itemsToRetry: QueuedScore[] = state.failedItems.map(item => ({
             ...item,
-            status: 'pending' as const,
-            retryCount: 0
+            status: 'pending',
+            retryCount: 0,
+            retryAt: null,
           }));
 
           return {
@@ -243,8 +253,27 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
       },
 
       getNextItemToSync: () => {
-        const pending = get().queue.find(item => item.status === 'pending');
+        const now = Date.now();
+        const pending = get().queue.find(
+          item =>
+            item.status === 'pending' &&
+            (item.retryAt == null || item.retryAt <= now)
+        );
         return pending || null;
+      },
+
+      getNextRetryAt: () => {
+        const now = Date.now();
+        const waiting = get()
+          .queue.filter(
+            item =>
+              item.status === 'pending' &&
+              item.retryAt != null &&
+              item.retryAt > now
+          )
+          .map(item => item.retryAt as number);
+        if (waiting.length === 0) return null;
+        return Math.min(...waiting);
       },
 
       markAsSyncing: (id) => {
@@ -256,24 +285,39 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
           const item = state.queue.find(q => q.id === id);
           if (!item) return state;
 
-          const updatedItem = {
-            ...item,
-            status: 'failed' as const,
-            lastError: error,
-            retryCount: item.retryCount + 1
-          };
+          const nextRetryCount = item.retryCount + 1;
 
-          if (updatedItem.retryCount >= updatedItem.maxRetries) {
+          // Max retries reached → move to failedItems (terminal state).
+          if (nextRetryCount >= item.maxRetries) {
+            const terminalItem: QueuedScore = {
+              ...item,
+              status: 'failed',
+              lastError: error,
+              retryCount: nextRetryCount,
+              retryAt: null,
+            };
             return {
               queue: state.queue.filter(q => q.id !== id),
-              failedItems: [...state.failedItems, updatedItem]
+              failedItems: [...state.failedItems, terminalItem],
             };
           }
 
+          // Non-terminal failure → keep item 'pending' with backoff retryAt
+          // so getNextItemToSync re-selects it after the delay. Without this,
+          // the previous implementation parked items in 'failed' state where
+          // no selector would ever pick them up.
+          // Exponential backoff: 1s, 2s, 4s (uses pre-increment count to
+          // match the original cadence — first retry waits ~1s, not 2s).
+          const delayMs = Math.pow(2, item.retryCount) * BACKOFF_BASE_MS;
+          const retryItem: QueuedScore = {
+            ...item,
+            status: 'pending',
+            lastError: error,
+            retryCount: nextRetryCount,
+            retryAt: Date.now() + delayMs,
+          };
           return {
-            queue: state.queue.map(q =>
-              q.id === id ? updatedItem : q
-            )
+            queue: state.queue.map(q => (q.id === id ? retryItem : q)),
           };
         });
       },

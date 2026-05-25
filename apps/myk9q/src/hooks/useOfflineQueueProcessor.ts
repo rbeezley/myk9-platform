@@ -21,6 +21,7 @@ export function useOfflineQueueProcessor() {
     isOnline,
     isSyncing,
     getNextItemToSync,
+    getNextRetryAt,
     markAsSyncing,
     markAsCompleted,
     markAsFailed,
@@ -28,22 +29,23 @@ export function useOfflineQueueProcessor() {
   } = useOfflineQueueStore();
 
   const processingRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest-ref so the retry timer always invokes the current drain closure.
+  const drainRef = useRef<() => void>(() => {});
 
   /**
-   * Process all pending items in the queue
+   * Drain all currently eligible queue items. Backoff is owned by the store
+   * (markAsFailed sets retryAt; getNextItemToSync gates on it), so this loop
+   * never blocks on a slow item — each failure releases the loop and the
+   * scheduler below re-pokes when the next retryAt elapses.
    */
   const processQueue = useCallback(async () => {
-while (true) {
-      // Get next pending item
+    while (true) {
       const item = getNextItemToSync();
-      if (!item) {
-break;
-      }
+      if (!item) break;
 
-      // Mark as syncing
       markAsSyncing(item.id);
-try {
-        // Submit score to server
+      try {
         await submitScore(
           item.entryId,
           item.scoreData,
@@ -51,31 +53,11 @@ try {
           item.classId
         );
 
-// Mark as completed (this removes from queue)
         await markAsCompleted(item.id);
-
-        // Note: Real-time subscription will handle clearing pending change in LocalStateManager
-        // This matches the online flow where we don't manually clear pending changes
-
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         logger.error(`❌ Failed to sync score for entry ${item.entryId}:`, error);
-
-        // Check if we should retry
-        if (item.retryCount < item.maxRetries) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          markAsFailed(item.id, errorMessage);
-// Exponential backoff: 1s, 2s, 4s
-          const delay = Math.pow(2, item.retryCount) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
-        } else {
-          // Max retries reached - keep in failed state
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          markAsFailed(item.id, errorMessage);
-          logger.error(`❌ Max retries reached for entry ${item.entryId}, keeping in failed queue`);
-
-          // Move to next item instead of blocking entire queue
-          continue;
-        }
+        markAsFailed(item.id, errorMessage);
       }
     }
   }, [getNextItemToSync, markAsSyncing, markAsCompleted, markAsFailed]);
@@ -83,11 +65,11 @@ try {
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => {
-setOnlineStatus(true);
+      setOnlineStatus(true);
     };
 
     const handleOffline = () => {
-setOnlineStatus(false);
+      setOnlineStatus(false);
     };
 
     window.addEventListener('online', handleOnline);
@@ -102,24 +84,58 @@ setOnlineStatus(false);
     };
   }, [setOnlineStatus]);
 
-  // Process queue when online and items are pending
-  useEffect(() => {
-    // Don't process if offline, already processing, or no pending items
-    if (!isOnline || processingRef.current || isSyncing) {
-      return;
-    }
-
-    const hasPending = queue.some(item => item.status === 'pending');
-    if (!hasPending) {
-      return;
-    }
-
-    // Start processing queue
+  // Self-rescheduling drain: process eligible items, then if any items are
+  // still gated on backoff, set one timer for the earliest retryAt and recurse
+  // when it fires. Idempotent — safe to invoke from the effect, the timer,
+  // or directly. Consolidates to at most one active timer.
+  const drainAndScheduleNext = useCallback(() => {
+    if (processingRef.current) return;
     processingRef.current = true;
     processQueue().finally(() => {
       processingRef.current = false;
+
+      if (retryTimerRef.current != null) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+      const nextRetryAt = getNextRetryAt();
+      if (nextRetryAt == null) return;
+
+      const delay = Math.max(0, nextRetryAt - Date.now());
+      retryTimerRef.current = setTimeout(() => {
+        retryTimerRef.current = null;
+        drainRef.current();
+      }, delay);
     });
-  }, [isOnline, queue, isSyncing, processQueue]);
+  }, [processQueue, getNextRetryAt]);
+
+  // Keep drainRef pointing at the latest drainAndScheduleNext so recursive
+  // timer-callback invocations always run with current store closures.
+  useEffect(() => {
+    drainRef.current = drainAndScheduleNext;
+  }, [drainAndScheduleNext]);
+
+  // Process queue when online and items are pending.
+  // The retry timer is intentionally NOT cleared in this effect's cleanup —
+  // unrelated state changes (isSyncing flipping, queue churn) would otherwise
+  // stomp a pending backoff timer between failure and re-attempt. Unmount
+  // cleanup lives in the separate effect below.
+  useEffect(() => {
+    if (!isOnline || isSyncing) return;
+    const hasPending = queue.some(item => item.status === 'pending');
+    if (!hasPending) return;
+    drainAndScheduleNext();
+  }, [isOnline, queue, isSyncing, drainAndScheduleNext]);
+
+  // Clean up any outstanding retry timer on unmount only.
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current != null) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Return queue stats for debugging
   return {

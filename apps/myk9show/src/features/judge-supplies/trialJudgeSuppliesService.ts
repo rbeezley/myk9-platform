@@ -2,17 +2,13 @@ import { supabase } from '@/services/database/supabaseClient';
 import { getSupplyTemplate } from './templates';
 import type { JudgeKey, RegistryId, TrialJudgeSupplyRow } from './types';
 
-// Cast: trial_judge_supplies not yet in generated Database types (src/types/supabase.ts)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
-
 const SELECT_COLUMNS =
   'id, trial_id, person_id, judge_name, item_label, included, note, sort_order, is_custom, created_at, updated_at';
 
 export const trialJudgeSuppliesService = {
   /** All rows for one trial, sorted for grouping by judge. */
   async listForTrial(trialId: string): Promise<TrialJudgeSupplyRow[]> {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('trial_judge_supplies')
       .select(SELECT_COLUMNS)
       .eq('trial_id', trialId)
@@ -25,7 +21,7 @@ export const trialJudgeSuppliesService = {
 
   /** All rows for every trial in a show. Single round-trip for the print artifact. */
   async listForShow(showId: string): Promise<TrialJudgeSupplyRow[]> {
-    const { data: trials, error: trialsError } = await db
+    const { data: trials, error: trialsError } = await supabase
       .from('trials')
       .select('id')
       .eq('show_id', showId);
@@ -34,7 +30,7 @@ export const trialJudgeSuppliesService = {
     const trialIds: string[] = (trials ?? []).map((t: { id: string }) => t.id);
     if (trialIds.length === 0) return [];
 
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('trial_judge_supplies')
       .select(SELECT_COLUMNS)
       .in('trial_id', trialIds)
@@ -74,7 +70,7 @@ export const trialJudgeSuppliesService = {
       is_custom: false,
     }));
 
-    const { error } = await db
+    const { error } = await supabase
       .from('trial_judge_supplies')
       .insert(rowsToInsert);
 
@@ -86,7 +82,7 @@ export const trialJudgeSuppliesService = {
 
   /** Rows for a single (trial, judge) pair. */
   async listForJudge(trialId: string, judge: JudgeKey): Promise<TrialJudgeSupplyRow[]> {
-    let query = db
+    let query = supabase
       .from('trial_judge_supplies')
       .select(SELECT_COLUMNS)
       .eq('trial_id', trialId);
@@ -105,7 +101,7 @@ export const trialJudgeSuppliesService = {
     id: string,
     patch: Partial<Pick<TrialJudgeSupplyRow, 'included' | 'note' | 'sort_order' | 'item_label'>>
   ): Promise<TrialJudgeSupplyRow> {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('trial_judge_supplies')
       .update(patch)
       .eq('id', id)
@@ -125,7 +121,7 @@ export const trialJudgeSuppliesService = {
     sort_order: number;
     note?: string | null;
   }): Promise<TrialJudgeSupplyRow> {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('trial_judge_supplies')
       .insert({
         trial_id: args.trial_id,
@@ -146,7 +142,7 @@ export const trialJudgeSuppliesService = {
 
   /** Delete a custom row. Caller must verify is_custom = true; DB does not enforce. */
   async deleteCustomRow(id: string): Promise<void> {
-    const { error } = await db
+    const { error } = await supabase
       .from('trial_judge_supplies')
       .delete()
       .eq('id', id)

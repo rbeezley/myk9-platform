@@ -1,9 +1,5 @@
 /**
  * Supabase queries for user_milestones table.
- *
- * Note: user_milestones is defined in migration 051 but not yet in the
- * generated Supabase types. We use the schema-free `.from()` escape hatch
- * and cast results to our own interface.
  */
 
 import { supabase } from '../supabaseClient';
@@ -15,13 +11,9 @@ export interface UserMilestone {
   tip_dismissed: boolean;
 }
 
-// Schema-free client for tables not yet in generated types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
-
 /** Fetch all milestones for the current user. */
 export async function getUserMilestones() {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from('user_milestones')
     .select('*')
     .order('achieved_at', { ascending: false });
@@ -37,7 +29,7 @@ export async function achieveMilestone(milestoneKey: string) {
   } = await supabase.auth.getUser();
   if (!user) return { data: null, error: new Error('Not authenticated') };
 
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from('user_milestones')
     .upsert(
       {
@@ -62,7 +54,7 @@ export async function dismissMilestoneTip(milestoneKey: string) {
   } = await supabase.auth.getUser();
   if (!user) return { data: null, error: new Error('Not authenticated') };
 
-  const { error } = await db
+  const { error } = await supabase
     .from('user_milestones')
     .update({ tip_dismissed: true })
     .eq('user_id', user.id)

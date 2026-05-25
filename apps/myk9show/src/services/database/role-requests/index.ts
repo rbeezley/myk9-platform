@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import type { Database } from '@/types/supabase';
 import {
   mapDbRoleRequest,
   type ApproveRoleRequestInput,
@@ -36,12 +37,15 @@ export async function approveRoleRequest(
   requestId: string,
   input: ApproveRoleRequestInput
 ): Promise<void> {
-  const { error } = await supabase.rpc('approve_role_request', {
+  const args: Database['public']['Functions']['approve_role_request']['Args'] = {
     p_request_id: requestId,
     p_club_id: input.clubId,
-    p_show_id: input.showId ?? null,
-    p_reviewer_note: input.reviewerNote ?? null,
-  });
+    // Conditional spread, not ?? null: generated Args mark these optional, not nullable.
+    ...(input.showId != null ? { p_show_id: input.showId } : {}),
+    ...(input.reviewerNote != null ? { p_reviewer_note: input.reviewerNote } : {}),
+  };
+
+  const { error } = await supabase.rpc('approve_role_request', args);
 
   if (error) throw error;
 }

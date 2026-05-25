@@ -944,6 +944,76 @@ export type Database = {
           },
         ]
       }
+      club_access_requests: {
+        Row: {
+          approved_club_id: string | null
+          created_at: string
+          id: string
+          request_note: string | null
+          requested_club_name: string
+          requested_club_website: string | null
+          requester_auth_user_id: string
+          requester_person_id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_club_id?: string | null
+          created_at?: string
+          id?: string
+          request_note?: string | null
+          requested_club_name: string
+          requested_club_website?: string | null
+          requester_auth_user_id: string
+          requester_person_id: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_club_id?: string | null
+          created_at?: string
+          id?: string
+          request_note?: string | null
+          requested_club_name?: string
+          requested_club_website?: string | null
+          requester_auth_user_id?: string
+          requester_person_id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_access_requests_approved_club_id_fkey"
+            columns: ["approved_club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_access_requests_requester_person_id_fkey"
+            columns: ["requester_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_access_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_members: {
         Row: {
           club_id: string
@@ -1048,6 +1118,71 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_premium_templates: {
+        Row: {
+          accommodations: Json
+          additional_notes: string | null
+          awards_description: string | null
+          club_id: string
+          cover_image_url: string | null
+          created_at: string
+          hospitality_notes: string | null
+          id: string
+          is_default: boolean
+          name: string
+          style: string
+          trial_type: string | null
+          updated_at: string
+          vet_clinic_address: string | null
+          vet_clinic_name: string | null
+          vet_clinic_phone: string | null
+        }
+        Insert: {
+          accommodations?: Json
+          additional_notes?: string | null
+          awards_description?: string | null
+          club_id: string
+          cover_image_url?: string | null
+          created_at?: string
+          hospitality_notes?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          style?: string
+          trial_type?: string | null
+          updated_at?: string
+          vet_clinic_address?: string | null
+          vet_clinic_name?: string | null
+          vet_clinic_phone?: string | null
+        }
+        Update: {
+          accommodations?: Json
+          additional_notes?: string | null
+          awards_description?: string | null
+          club_id?: string
+          cover_image_url?: string | null
+          created_at?: string
+          hospitality_notes?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          style?: string
+          trial_type?: string | null
+          updated_at?: string
+          vet_clinic_address?: string | null
+          vet_clinic_name?: string | null
+          vet_clinic_phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_premium_templates_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
             referencedColumns: ["id"]
           },
         ]
@@ -1475,6 +1610,9 @@ export type Database = {
           class_id: string | null
           comped: boolean | null
           comped_reason: string | null
+          confirmation_email_message_id: string | null
+          confirmation_email_sent_at: string | null
+          confirmation_email_status: string
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -1482,8 +1620,8 @@ export type Database = {
           disqualification_reason: string | null
           dog_id: string | null
           entry_fee: number | null
-          entry_status: string | null
           entry_source: string
+          entry_status: string | null
           final_placement: number | null
           handler: string | null
           handler_id: string | null
@@ -1551,6 +1689,9 @@ export type Database = {
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
+          confirmation_email_message_id?: string | null
+          confirmation_email_sent_at?: string | null
+          confirmation_email_status?: string
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -1558,8 +1699,8 @@ export type Database = {
           disqualification_reason?: string | null
           dog_id?: string | null
           entry_fee?: number | null
-          entry_status?: string | null
           entry_source?: string
+          entry_status?: string | null
           final_placement?: number | null
           handler?: string | null
           handler_id?: string | null
@@ -1627,6 +1768,9 @@ export type Database = {
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
+          confirmation_email_message_id?: string | null
+          confirmation_email_sent_at?: string | null
+          confirmation_email_status?: string
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -1634,8 +1778,8 @@ export type Database = {
           disqualification_reason?: string | null
           dog_id?: string | null
           entry_fee?: number | null
-          entry_status?: string | null
           entry_source?: string
+          entry_status?: string | null
           final_placement?: number | null
           handler?: string | null
           handler_id?: string | null
@@ -3413,57 +3557,6 @@ export type Database = {
         }
         Relationships: []
       }
-      role_requests: {
-        Row: {
-          auth_user_id: string
-          club_id: string | null
-          created_at: string
-          id: string
-          person_id: string
-          requested_role: string
-          requested_scope: string
-          requester_note: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          reviewer_note: string | null
-          show_id: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          auth_user_id: string
-          club_id?: string | null
-          created_at?: string
-          id?: string
-          person_id: string
-          requested_role: string
-          requested_scope?: string
-          requester_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          reviewer_note?: string | null
-          show_id?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          auth_user_id?: string
-          club_id?: string | null
-          created_at?: string
-          id?: string
-          person_id?: string
-          requested_role?: string
-          requested_scope?: string
-          requester_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          reviewer_note?: string | null
-          show_id?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       organization_agreements: {
         Row: {
           agreement_text: string
@@ -3576,6 +3669,7 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          is_early_adopter: boolean
           last_name: string
           license_key: string | null
           phone: string | null
@@ -3598,6 +3692,7 @@ export type Database = {
           email?: string | null
           first_name: string
           id?: string
+          is_early_adopter?: boolean
           last_name: string
           license_key?: string | null
           phone?: string | null
@@ -3620,6 +3715,7 @@ export type Database = {
           email?: string | null
           first_name?: string
           id?: string
+          is_early_adopter?: boolean
           last_name?: string
           license_key?: string | null
           phone?: string | null
@@ -3738,6 +3834,163 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      platform_waitlist: {
+        Row: {
+          access_granted_at: string | null
+          access_invite_sent_at: string | null
+          beta_invited_at: string | null
+          created_at: string
+          current_system: string | null
+          email: string
+          id: string
+          ip_address: unknown
+          name: string | null
+          notes: string | null
+          notified_at: string | null
+          role: string | null
+          source: string
+          sports: string[] | null
+          switch_reason: string | null
+          unsubscribed_at: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          access_granted_at?: string | null
+          access_invite_sent_at?: string | null
+          beta_invited_at?: string | null
+          created_at?: string
+          current_system?: string | null
+          email: string
+          id?: string
+          ip_address?: unknown
+          name?: string | null
+          notes?: string | null
+          notified_at?: string | null
+          role?: string | null
+          source: string
+          sports?: string[] | null
+          switch_reason?: string | null
+          unsubscribed_at?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          access_granted_at?: string | null
+          access_invite_sent_at?: string | null
+          beta_invited_at?: string | null
+          created_at?: string
+          current_system?: string | null
+          email?: string
+          id?: string
+          ip_address?: unknown
+          name?: string | null
+          notes?: string | null
+          notified_at?: string | null
+          role?: string | null
+          source?: string
+          sports?: string[] | null
+          switch_reason?: string | null
+          unsubscribed_at?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      premium_generations: {
+        Row: {
+          club_id: string
+          field_overrides: Json
+          generated_at: string
+          id: string
+          narrative_edits: Json
+          org: string
+          show_id: string
+          template_id: string | null
+        }
+        Insert: {
+          club_id: string
+          field_overrides?: Json
+          generated_at?: string
+          id?: string
+          narrative_edits?: Json
+          org: string
+          show_id: string
+          template_id?: string | null
+        }
+        Update: {
+          club_id?: string
+          field_overrides?: Json
+          generated_at?: string
+          id?: string
+          narrative_edits?: Json
+          org?: string
+          show_id?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_generations_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "premium_generations_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "club_premium_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_codes: {
         Row: {
@@ -4144,6 +4397,128 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "roles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_requests: {
+        Row: {
+          auth_user_id: string
+          club_id: string | null
+          created_at: string
+          id: string
+          person_id: string
+          requested_role: string
+          requested_scope: string
+          requester_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_note: string | null
+          show_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          club_id?: string | null
+          created_at?: string
+          id?: string
+          person_id: string
+          requested_role: string
+          requested_scope?: string
+          requester_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_note?: string | null
+          show_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          club_id?: string | null
+          created_at?: string
+          id?: string
+          person_id?: string
+          requested_role?: string
+          requested_scope?: string
+          requester_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_note?: string | null
+          show_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_requests_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "role_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "role_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "role_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "role_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "role_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
           },
         ]
       }
@@ -4634,6 +5009,268 @@ export type Database = {
           },
         ]
       }
+      show_incidents: {
+        Row: {
+          action_taken: string | null
+          class_id: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string | null
+          description: string | null
+          dog_id: string | null
+          dog_name: string | null
+          entry_id: string | null
+          handler_id: string | null
+          handler_name: string | null
+          id: string
+          incident_type: string
+          judge_id: string | null
+          judge_name: string | null
+          occurred_at: string
+          severity: string
+          show_id: string
+          summary: string
+          trial_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_taken?: string | null
+          class_id?: string | null
+          created_at?: string
+          created_by: string
+          created_by_name?: string | null
+          description?: string | null
+          dog_id?: string | null
+          dog_name?: string | null
+          entry_id?: string | null
+          handler_id?: string | null
+          handler_name?: string | null
+          id?: string
+          incident_type: string
+          judge_id?: string | null
+          judge_name?: string | null
+          occurred_at?: string
+          severity?: string
+          show_id: string
+          summary: string
+          trial_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_taken?: string | null
+          class_id?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_name?: string | null
+          description?: string | null
+          dog_id?: string | null
+          dog_name?: string | null
+          entry_id?: string | null
+          handler_id?: string | null
+          handler_name?: string | null
+          id?: string
+          incident_type?: string
+          judge_id?: string | null
+          judge_name?: string | null
+          occurred_at?: string
+          severity?: string
+          show_id?: string
+          summary?: string
+          trial_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_incidents_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_entry_with_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_handler_id_fkey"
+            columns: ["handler_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_judge_id_fkey"
+            columns: ["judge_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "trials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_incidents_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "show_incidents_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["trial_id"]
+          },
+        ]
+      }
       show_message_threads: {
         Row: {
           created_at: string
@@ -4957,6 +5594,8 @@ export type Database = {
           accept_check_payments: boolean
           address: string | null
           allow_non_owner_handlers: boolean | null
+          brand_color: string
+          cc_secretary_on_exhibitor_emails: boolean
           city: string | null
           club_id: string | null
           confirmation_message: string | null
@@ -4970,6 +5609,10 @@ export type Database = {
           end_date: string
           entry_close_date: string | null
           entry_open_date: string | null
+          experience_is_published: boolean
+          experience_published_at: string | null
+          experience_published_content: Json
+          experience_published_style: string | null
           id: string
           license_key: string | null
           location: string | null
@@ -4984,7 +5627,8 @@ export type Database = {
           name: string
           organization: string
           pre_entry_fee: number | null
-          cc_secretary_on_exhibitor_emails: boolean
+          published_premium_at: string | null
+          published_premium_url: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -4992,6 +5636,7 @@ export type Database = {
           starting_armband_number: number
           state: string | null
           status: string | null
+          style: string
           updated_at: string | null
           venue_name: string | null
           venue_wifi_network: string | null
@@ -5005,6 +5650,8 @@ export type Database = {
           accept_check_payments?: boolean
           address?: string | null
           allow_non_owner_handlers?: boolean | null
+          brand_color?: string
+          cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
           club_id?: string | null
           confirmation_message?: string | null
@@ -5018,6 +5665,10 @@ export type Database = {
           end_date: string
           entry_close_date?: string | null
           entry_open_date?: string | null
+          experience_is_published?: boolean
+          experience_published_at?: string | null
+          experience_published_content?: Json
+          experience_published_style?: string | null
           id?: string
           license_key?: string | null
           location?: string | null
@@ -5031,8 +5682,9 @@ export type Database = {
           max_total_entries?: number | null
           name: string
           organization: string
-          cc_secretary_on_exhibitor_emails?: boolean
           pre_entry_fee?: number | null
+          published_premium_at?: string | null
+          published_premium_url?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -5040,6 +5692,7 @@ export type Database = {
           starting_armband_number?: number
           state?: string | null
           status?: string | null
+          style?: string
           updated_at?: string | null
           venue_name?: string | null
           venue_wifi_network?: string | null
@@ -5053,6 +5706,8 @@ export type Database = {
           accept_check_payments?: boolean
           address?: string | null
           allow_non_owner_handlers?: boolean | null
+          brand_color?: string
+          cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
           club_id?: string | null
           confirmation_message?: string | null
@@ -5066,6 +5721,10 @@ export type Database = {
           end_date?: string
           entry_close_date?: string | null
           entry_open_date?: string | null
+          experience_is_published?: boolean
+          experience_published_at?: string | null
+          experience_published_content?: Json
+          experience_published_style?: string | null
           id?: string
           license_key?: string | null
           location?: string | null
@@ -5079,8 +5738,9 @@ export type Database = {
           max_total_entries?: number | null
           name?: string
           organization?: string
-          cc_secretary_on_exhibitor_emails?: boolean
           pre_entry_fee?: number | null
+          published_premium_at?: string | null
+          published_premium_url?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -5088,6 +5748,7 @@ export type Database = {
           starting_armband_number?: number
           state?: string | null
           status?: string | null
+          style?: string
           updated_at?: string | null
           venue_name?: string | null
           venue_wifi_network?: string | null
@@ -5859,6 +6520,105 @@ export type Database = {
           },
           {
             foreignKeyName: "trial_checklist_state_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["trial_id"]
+          },
+        ]
+      }
+      trial_judge_supplies: {
+        Row: {
+          created_at: string
+          id: string
+          included: boolean
+          is_custom: boolean
+          item_label: string
+          judge_name: string
+          note: string | null
+          person_id: string | null
+          sort_order: number
+          trial_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          included?: boolean
+          is_custom?: boolean
+          item_label: string
+          judge_name: string
+          note?: string | null
+          person_id?: string | null
+          sort_order?: number
+          trial_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          included?: boolean
+          is_custom?: boolean
+          item_label?: string
+          judge_name?: string
+          note?: string | null
+          person_id?: string | null
+          sort_order?: number
+          trial_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trial_judge_supplies_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "trials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
             columns: ["trial_id"]
             isOneToOne: false
             referencedRelation: "view_stats_summary"
@@ -7348,11 +8108,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      approve_role_request: {
+        Args: {
+          p_club_id: string
+          p_request_id: string
+          p_reviewer_note?: string
+          p_show_id?: string
+        }
+        Returns: undefined
+      }
       assign_armband: {
         Args: { p_dog_id: string; p_show_id: string }
         Returns: number
       }
+      can_insert_club_access_request: {
+        Args: { p_auth_user_id: string }
+        Returns: boolean
+      }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
+      can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
+      can_manage_show_person: {
+        Args: { check_person_id: string }
+        Returns: boolean
+      }
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean }
       check_class_availability: {
         Args: { p_class_id: string }
@@ -7364,6 +8142,30 @@ export type Database = {
           waitlist_position: number
         }[]
       }
+      create_show_managed_dog: {
+        Args: {
+          p_akc_number?: string
+          p_breed: string
+          p_call_name?: string
+          p_microchip_number?: string
+          p_name: string
+          p_owner_id: string
+          p_sex?: string
+          p_show_id: string
+          p_ukc_number?: string
+        }
+        Returns: string
+      }
+      create_show_managed_person: {
+        Args: {
+          p_email?: string
+          p_first_name: string
+          p_last_name: string
+          p_phone?: string
+          p_show_id: string
+        }
+        Returns: string
+      }
       create_show_with_children: {
         Args: {
           p_classes: Json
@@ -7374,6 +8176,14 @@ export type Database = {
         Returns: string
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      delete_show_managed_person: {
+        Args: { p_person_id: string; p_show_id: string }
+        Returns: undefined
+      }
+      deny_role_request: {
+        Args: { p_request_id: string; p_reviewer_note?: string }
+        Returns: undefined
+      }
       get_admin_user_list: {
         Args: { show_deleted?: boolean }
         Returns: {
@@ -7482,18 +8292,9 @@ export type Database = {
           user_role_id: string
         }[]
       }
-      approve_role_request: {
-        Args: {
-          p_club_id: string
-          p_request_id: string
-          p_reviewer_note?: string | null
-          p_show_id?: string | null
-        }
-        Returns: undefined
-      }
-      deny_role_request: {
-        Args: { p_request_id: string; p_reviewer_note?: string | null }
-        Returns: undefined
+      grant_club_secretary: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: string
       }
       grant_show_official: {
         Args: { p_person_id: string; p_role_name: string; p_show_id: string }
@@ -7505,6 +8306,18 @@ export type Database = {
         Returns: boolean
       }
       increment_promo_usage: { Args: { promo_id: string }; Returns: undefined }
+      insert_club_access_request_from_signup: {
+        Args: { p_auth_user_id: string; p_metadata: Json; p_person_id: string }
+        Returns: undefined
+      }
+      insert_signup_role_requests: {
+        Args: {
+          p_auth_user_id: string
+          p_intended_roles: Json
+          p_person_id: string
+        }
+        Returns: undefined
+      }
       is_club_admin: { Args: { check_club_id?: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       is_show_official: { Args: { check_show_id: string }; Returns: boolean }
@@ -7516,6 +8329,20 @@ export type Database = {
       promote_waitlist_entry: {
         Args: { p_deadline_hours?: number; p_waitlist_entry_id: string }
         Returns: string
+      }
+      review_club_access_request: {
+        Args: {
+          p_club_name?: string
+          p_decision: string
+          p_existing_club_id?: string
+          p_request_id: string
+          p_review_note?: string
+        }
+        Returns: string
+      }
+      revoke_club_secretary: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: undefined
       }
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }

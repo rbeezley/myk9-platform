@@ -151,3 +151,19 @@ When Auto Mode is active, the "execute immediately" guidance does NOT extend to 
 - Posting to Slack, email, or any external service
 
 Adding rows to a shared DB is not "destructive" but is still shared-system mutation. One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type.
+
+**Exception — docs-only changes may go direct to `main`.** When a commit touches *only* documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. **In scope:**
+
+- `docs/**/*.md` (including `docs/plans/`, `docs/superpowers/`, `docs/ux-audits/`, etc.)
+- `apps/*/docs/**/*.md`
+- Top-level tracking/reference docs: `OPEN-TODOS.md`, `TO-DOS.md`, `README.md`, `CONTEXT.md`, `DESIGN.md`, `PRODUCT.md`, `TECHNICAL_DEBT.md`, `DEFERRED-WORK.md`, `INTENT.md` (additions/clarifications only — substantive intent changes still PR)
+- `packages/*/README.md`, `supabase/functions/*/README.md` (reference docs, not deployment configs)
+
+**Out of scope — still requires a PR:**
+
+- `CLAUDE.md`, `AGENTS.md` (load-bearing project instructions)
+- `.claude/**`, `.github/**` (settings, hooks, workflows)
+- Any commit that *also* touches non-doc files — mixed commits go through PR
+- Deletions or rewrites of plans authored by others, even if the file is in scope
+
+Verify the commit's filelist matches the scope before pushing. If anything outside the in-scope list is staged, open a PR instead.

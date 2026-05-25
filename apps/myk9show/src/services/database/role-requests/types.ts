@@ -53,6 +53,18 @@ export interface ApproveRoleRequestInput {
   reviewerNote?: string | null;
 }
 
+const REQUESTED_SCOPES: readonly RequestedScope[] = ['club', 'show'];
+
+function assertRequestedScope(value: string, requestId: string): RequestedScope {
+  if ((REQUESTED_SCOPES as readonly string[]).includes(value)) {
+    return value as RequestedScope;
+  }
+  throw new Error(
+    `mapDbRoleRequest: unknown requested_scope ${JSON.stringify(value)} on role_request ${requestId}. ` +
+      `Expected one of ${REQUESTED_SCOPES.join(', ')}.`
+  );
+}
+
 export function mapDbRoleRequest(row: DbRoleRequestRow): RoleRequest {
   const firstName = row.person?.first_name?.trim() ?? '';
   const lastName = row.person?.last_name?.trim() ?? '';
@@ -63,7 +75,7 @@ export function mapDbRoleRequest(row: DbRoleRequestRow): RoleRequest {
     authUserId: row.auth_user_id,
     personId: row.person_id,
     requestedRole: row.requested_role,
-    requestedScope: row.requested_scope,
+    requestedScope: assertRequestedScope(row.requested_scope, row.id),
     clubId: row.club_id,
     clubName: row.club?.name ?? null,
     showId: row.show_id,

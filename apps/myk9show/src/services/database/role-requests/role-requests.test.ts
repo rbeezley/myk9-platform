@@ -55,6 +55,30 @@ describe('role request database service', () => {
     });
   });
 
+  it('throws when requested_scope is outside the RequestedScope union', () => {
+    expect(() =>
+      mapDbRoleRequest({
+        id: 'request-bad',
+        auth_user_id: 'auth-1',
+        person_id: 'person-1',
+        requested_role: 'club_admin',
+        // Intentionally bad value: simulates pre-CHECK drift or a future schema diverge.
+        requested_scope: 'platform' as unknown as 'club',
+        club_id: null,
+        show_id: null,
+        status: 'pending',
+        requester_note: null,
+        reviewer_note: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        created_at: '2026-05-24T12:00:00Z',
+        updated_at: '2026-05-24T12:00:00Z',
+        person: null,
+        club: null,
+      })
+    ).toThrow(/requested_scope.*platform/);
+  });
+
   it('reads all role requests newest first for site admins', async () => {
     mockSupabase.from.mockReturnValue(
       createChainableQuery({
@@ -64,7 +88,7 @@ describe('role request database service', () => {
             auth_user_id: 'auth-1',
             person_id: 'person-1',
             requested_role: 'secretary',
-            requested_scope: 'platform',
+            requested_scope: 'club',
             club_id: null,
             show_id: null,
             status: 'pending',

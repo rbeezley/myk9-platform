@@ -104,6 +104,7 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
   return {
     armband: readString(entry, 'armband') ?? readString(entry, 'armband_number'),
     dogName: entryDogName(entry) ?? 'Unknown',
+    dogId,
     breed: entryRegisteredBreed(entry, organization),
     handler: entryHandlerName(entry),
     handlerId,

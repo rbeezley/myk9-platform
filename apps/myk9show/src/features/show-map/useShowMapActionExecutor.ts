@@ -4,6 +4,10 @@ import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import {
+  bulkUpdateEntryStatus,
+  updateEntryStatus,
+} from '@/services/database/entries/secretary';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
@@ -98,6 +102,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   const [scratchAction, setScratchAction] = useState<ShowMapAction | null>(null);
   const [moveUpAction, setMoveUpAction] = useState<ShowMapAction | null>(null);
   const [messageAction, setMessageAction] = useState<ShowMapAction | null>(null);
+  const [reviewAction, setReviewAction] = useState<ShowMapAction | null>(null);
   const [lastMoveUp, setLastMoveUp] = useState<LastShowMapMoveUp | null>(null);
   const moveUpClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
@@ -363,6 +368,47 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
   });
 
+  const bulkApproveMutation = useMutation({
+    mutationFn: async ({ entryIds }: { entryIds: string[]; classId?: string | undefined }) => {
+      if (entryIds.length === 0) return [];
+      const result = await bulkUpdateEntryStatus(entryIds, 'confirmed');
+      if (result.error) throw result.error;
+      return result.data;
+    },
+    onSuccess: (_data, { entryIds }) => {
+      const count = entryIds.length;
+      toast.success(
+        count === 1 ? 'Entry approved' : `${count} entries approved`
+      );
+    },
+    onError: error => {
+      toast.error(getUserFriendlyError(error));
+    },
+    onSettled: (_data, _error, variables) => {
+      invalidateShowMapActionQueries(variables?.classId);
+    },
+  });
+
+  const approveEntryMutation = useMutation({
+    mutationFn: async ({ action }: { action: ShowMapAction }) => {
+      const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
+      if (!entryId) throw new Error('Unable to find the entry for this action.');
+      const result = await updateEntryStatus(entryId, 'confirmed');
+      if (result.error) throw result.error;
+      return result.data;
+    },
+    onSuccess: () => {
+      toast.success('Entry approved');
+      setReviewAction(null);
+    },
+    onError: error => {
+      toast.error(getUserFriendlyError(error));
+    },
+    onSettled: (_data, _error, variables) => {
+      invalidateShowMapActionQueries(variables?.action.classId);
+    },
+  });
+
   const messageHandlerMutation = useMutation({
     mutationFn: async ({ action, body }: { action: ShowMapAction; body: string }) => {
       const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
@@ -398,6 +444,10 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
         setMessageAction(action);
         return;
       }
+      if (execution.kind === 'dialog' && execution.dialog === 'review-entry') {
+        setReviewAction(action);
+        return;
+      }
       if (execution.kind === 'mutation') {
         mutation.mutate({ action, execution });
       }
@@ -427,10 +477,23 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     confirmMessageHandler: ({ body }: ConfirmShowMapMessageInput) => {
       if (messageAction) messageHandlerMutation.mutate({ action: messageAction, body });
     },
+    reviewAction,
+    closeReviewSheet: () => setReviewAction(null),
+    confirmReviewApprove: () => {
+      if (reviewAction) approveEntryMutation.mutate({ action: reviewAction });
+    },
+    isApprovingReview: approveEntryMutation.isPending,
+    bulkApproveEntries: (entryIds: string[], classId?: string) => {
+      if (entryIds.length === 0) return;
+      bulkApproveMutation.mutate({ entryIds, classId });
+    },
+    isBulkApproving: bulkApproveMutation.isPending,
     isExecuting:
       mutation.isPending ||
       scratchMutation.isPending ||
       moveUpMutation.isPending ||
-      messageHandlerMutation.isPending,
+      messageHandlerMutation.isPending ||
+      approveEntryMutation.isPending ||
+      bulkApproveMutation.isPending,
   };
 }

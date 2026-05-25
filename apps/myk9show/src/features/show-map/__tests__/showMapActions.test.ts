@@ -89,8 +89,10 @@ describe('showMapActions', () => {
       id: 'review-entry',
       nodeId: 'entry:entry-submitted',
       label: 'Review entry',
-      href: '/shows/show-1/trials/trial-1/classes/class-active',
     });
+    // review-entry is a dialog action now (opens the entry review sheet)
+    // and intentionally carries no href.
+    expect(actions[0].href).toBeUndefined();
     expect(actions.map(action => action.id)).toContain('score-class');
   });
 

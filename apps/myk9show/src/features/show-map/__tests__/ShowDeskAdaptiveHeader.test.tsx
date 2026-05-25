@@ -3,6 +3,7 @@ import { ListTree } from 'lucide-react';
 import { render } from '@/test/utils/testUtils';
 import { ShowDeskAdaptiveHeader } from '../ShowDeskAdaptiveHeader';
 import type { ShowMapAction } from '../showMapActions';
+import type { ShowMapActionGroup } from '../showMapActionGroups';
 import type { ShowDeskShowStatus } from '../showDeskStatus';
 
 function makeAction(overrides: Partial<ShowMapAction> = {}): ShowMapAction {
@@ -18,11 +19,32 @@ function makeAction(overrides: Partial<ShowMapAction> = {}): ShowMapAction {
   } as ShowMapAction;
 }
 
+function singleGroup(action: ShowMapAction): ShowMapActionGroup {
+  return {
+    key: `${action.id}:node:${action.nodeId}`,
+    representative: action,
+    count: 1,
+    items: [{ action }],
+  };
+}
+
+function multiGroup(
+  key: string,
+  items: { action: ShowMapAction; disambiguator?: string }[]
+): ShowMapActionGroup {
+  return {
+    key,
+    representative: items[0].action,
+    count: items.length,
+    items,
+  };
+}
+
 const baseProps = {
   showStatus: 'show-in-progress' as ShowDeskShowStatus,
   statusSummary: '3 of 5 classes complete · 2 entries need attention',
   guidanceAction: undefined,
-  upNextActions: [],
+  upNextGroups: [] as readonly ShowMapActionGroup[],
   runningNow: [],
   pendingSignals: [],
   onStartAction: vi.fn(),
@@ -62,14 +84,18 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(onStartAction).toHaveBeenCalledWith(guidanceAction);
   });
 
-  it('renders all three up-next actions with Open buttons', () => {
-    const actions = [
-      makeAction({ id: 'score-class', nodeId: 'class:a', label: 'Score class A' }),
-      makeAction({ id: 'mark-checked-in', nodeId: 'entry:b', label: 'Check in entry B' }),
-      makeAction({ id: 'message-handler', nodeId: 'entry:c', label: 'Message handler C' }),
+  it('renders single-item up-next groups with Open buttons', () => {
+    const groups = [
+      singleGroup(makeAction({ id: 'score-class', nodeId: 'class:a', label: 'Score class A' })),
+      singleGroup(
+        makeAction({ id: 'mark-checked-in', nodeId: 'entry:b', label: 'Check in entry B' })
+      ),
+      singleGroup(
+        makeAction({ id: 'message-handler', nodeId: 'entry:c', label: 'Message handler C' })
+      ),
     ];
     const { getAllByRole, getByText } = render(
-      <ShowDeskAdaptiveHeader {...baseProps} upNextActions={actions} />
+      <ShowDeskAdaptiveHeader {...baseProps} upNextGroups={groups} />
     );
     expect(getByText('Score class A')).toBeInTheDocument();
     expect(getByText('Check in entry B')).toBeInTheDocument();
@@ -78,14 +104,111 @@ describe('ShowDeskAdaptiveHeader', () => {
     expect(openButtons).toHaveLength(3);
   });
 
-  it('caps up-next at three even when more actions are supplied', () => {
-    const actions = Array.from({ length: 5 }, (_, i) =>
-      makeAction({ id: 'score-class', nodeId: `class:${i}`, label: `Action ${i}` })
+  it('caps up-next at three groups even when more are supplied', () => {
+    const groups = Array.from({ length: 5 }, (_, i) =>
+      singleGroup(makeAction({ id: 'score-class', nodeId: `class:${i}`, label: `Action ${i}` }))
     );
     const { getAllByRole } = render(
-      <ShowDeskAdaptiveHeader {...baseProps} upNextActions={actions} />
+      <ShowDeskAdaptiveHeader {...baseProps} upNextGroups={groups} />
     );
     expect(getAllByRole('button', { name: /open/i })).toHaveLength(3);
+  });
+
+  it('renders a count badge and collapses by default for multi-item groups', () => {
+    const action = (cls: string) =>
+      makeAction({
+        id: 'review-entry',
+        nodeId: `entry:bravo-${cls}`,
+        label: 'Review entry',
+        why: '#100 · Bravo · Test Secretary — Entry is waiting for secretary review',
+      });
+    const group = multiGroup('review-entry:dog:dog-bravo', [
+      { action: action('a'), disambiguator: 'Container Novice' },
+      { action: action('b'), disambiguator: 'Interior Novice' },
+      { action: action('c'), disambiguator: 'Exterior Novice' },
+    ]);
+
+    const { getByTestId, queryByTestId, getByText, queryByText } = render(
+      <ShowDeskAdaptiveHeader {...baseProps} upNextGroups={[group]} />
+    );
+
+    // Count badge shows ×3.
+    expect(getByTestId('up-next-group-count').textContent).toBe('×3');
+    // Context appears on the summary line.
+    expect(
+      getByText(/#100 · Bravo · Test Secretary — across 3 classes/)
+    ).toBeInTheDocument();
+    // Children are collapsed: no class-label disambiguators visible yet.
+    expect(queryByText('Container Novice')).toBeNull();
+    expect(queryByText('Interior Novice')).toBeNull();
+    expect(queryByText('Exterior Novice')).toBeNull();
+    expect(queryByTestId('up-next-group-children')).toBeNull();
+  });
+
+  it('expands a multi-item group when the chevron is clicked and shows per-class child rows', async () => {
+    const action = (cls: string) =>
+      makeAction({
+        id: 'review-entry',
+        nodeId: `entry:bravo-${cls}`,
+        label: 'Review entry',
+        why: '#100 · Bravo · Test Secretary — Entry is waiting for secretary review',
+      });
+    const group = multiGroup('review-entry:dog:dog-bravo', [
+      { action: action('a'), disambiguator: 'Container Novice' },
+      { action: action('b'), disambiguator: 'Interior Novice' },
+      { action: action('c'), disambiguator: 'Exterior Novice' },
+    ]);
+
+    const { user, getByRole, getByText, getAllByRole, getByTestId } = render(
+      <ShowDeskAdaptiveHeader {...baseProps} upNextGroups={[group]} />
+    );
+
+    const toggle = getByRole('button', { name: /Review entry/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    expect(getByText('Container Novice')).toBeInTheDocument();
+    expect(getByText('Interior Novice')).toBeInTheDocument();
+    expect(getByText('Exterior Novice')).toBeInTheDocument();
+    expect(getByTestId('up-next-group-children')).toBeInTheDocument();
+
+    // Each child has its own Open button.
+    expect(getAllByRole('button', { name: /open/i })).toHaveLength(3);
+  });
+
+  it('invokes onStartAction with the specific child action when its Open is clicked', async () => {
+    const onStartAction = vi.fn();
+    const bravoA = makeAction({
+      id: 'review-entry',
+      nodeId: 'entry:bravo-a',
+      label: 'Review entry',
+      why: '#100 · Bravo — issue',
+    });
+    const bravoB = makeAction({
+      id: 'review-entry',
+      nodeId: 'entry:bravo-b',
+      label: 'Review entry',
+      why: '#100 · Bravo — issue',
+    });
+    const group = multiGroup('review-entry:dog:dog-bravo', [
+      { action: bravoA, disambiguator: 'Container Novice' },
+      { action: bravoB, disambiguator: 'Interior Novice' },
+    ]);
+
+    const { user, getByRole, getAllByRole } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        upNextGroups={[group]}
+        onStartAction={onStartAction}
+      />
+    );
+
+    await user.click(getByRole('button', { name: /Review entry/i }));
+    const openButtons = getAllByRole('button', { name: /open/i });
+    expect(openButtons).toHaveLength(2);
+    await user.click(openButtons[1]);
+    expect(onStartAction).toHaveBeenCalledWith(bravoB);
   });
 
   it('renders no pending signals row when the list is empty', () => {
@@ -168,6 +291,116 @@ describe('ShowDeskAdaptiveHeader', () => {
     );
     await user.click(getByText('5 entries waiting for review'));
     expect(onSelectPendingSignal).toHaveBeenCalledWith('entries-waiting-review');
+  });
+
+  it('renders Manage entries link when reviewQueueCount > 0 and onOpenEntryManagement is provided', () => {
+    const onOpenEntryManagement = vi.fn();
+    const { getByTestId } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        onOpenEntryManagement={onOpenEntryManagement}
+        reviewQueueCount={42}
+      />
+    );
+    const button = getByTestId('open-entry-management');
+    expect(button.textContent).toContain('Manage entries (42)');
+  });
+
+  it('does not render Manage entries link when reviewQueueCount is 0', () => {
+    const { queryByTestId } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        onOpenEntryManagement={vi.fn()}
+        reviewQueueCount={0}
+      />
+    );
+    expect(queryByTestId('open-entry-management')).toBeNull();
+  });
+
+  it('invokes onOpenEntryManagement when the Manage entries link is clicked', async () => {
+    const onOpenEntryManagement = vi.fn();
+    const { user, getByTestId } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        onOpenEntryManagement={onOpenEntryManagement}
+        reviewQueueCount={5}
+      />
+    );
+    await user.click(getByTestId('open-entry-management'));
+    expect(onOpenEntryManagement).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders "Approve all N" button on expanded multi-item review-entry groups', async () => {
+    const onBulkApproveGroup = vi.fn();
+    const action = (cls: string) =>
+      makeAction({
+        id: 'review-entry',
+        nodeId: `entry:bravo-${cls}`,
+        label: 'Review entry',
+        why: '#100 · Bravo · Test Secretary — Entry is waiting for secretary review',
+      });
+    const group = multiGroup('review-entry:dog:dog-bravo', [
+      { action: action('a'), disambiguator: 'Container Novice' },
+      { action: action('b'), disambiguator: 'Interior Novice' },
+      { action: action('c'), disambiguator: 'Exterior Novice' },
+    ]);
+
+    const { user, getByRole, queryByTestId, getByTestId } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        upNextGroups={[group]}
+        onBulkApproveGroup={onBulkApproveGroup}
+      />
+    );
+
+    // Collapsed by default — bulk approve button is hidden.
+    expect(queryByTestId('up-next-group-bulk-approve')).toBeNull();
+
+    // Expand the group.
+    await user.click(getByRole('button', { name: /Review entry/i }));
+
+    const banner = getByTestId('up-next-group-bulk-approve');
+    expect(banner.textContent).toContain('Approve all 3');
+    await user.click(banner.querySelector('button')!);
+    expect(onBulkApproveGroup).toHaveBeenCalledWith(group);
+  });
+
+  it('does not render the bulk-approve banner when onBulkApproveGroup is not provided', async () => {
+    const action = (cls: string) =>
+      makeAction({ id: 'review-entry', nodeId: `entry:bravo-${cls}`, label: 'Review entry' });
+    const group = multiGroup('review-entry:dog:dog-bravo', [
+      { action: action('a'), disambiguator: 'A' },
+      { action: action('b'), disambiguator: 'B' },
+    ]);
+
+    const { user, getByRole, queryByTestId } = render(
+      <ShowDeskAdaptiveHeader {...baseProps} upNextGroups={[group]} />
+    );
+    await user.click(getByRole('button', { name: /Review entry/i }));
+    expect(queryByTestId('up-next-group-bulk-approve')).toBeNull();
+  });
+
+  it('does not render the bulk-approve banner for non-review-entry groups even when expanded', async () => {
+    const action = (i: number) =>
+      makeAction({
+        id: 'mark-checked-in',
+        nodeId: `entry:checkin-${i}`,
+        label: 'Mark checked in',
+      });
+    const group = multiGroup('mark-checked-in:dog:dog-x', [
+      { action: action(0), disambiguator: 'A' },
+      { action: action(1), disambiguator: 'B' },
+    ]);
+
+    const { user, getByRole, queryByTestId } = render(
+      <ShowDeskAdaptiveHeader
+        {...baseProps}
+        upNextGroups={[group]}
+        onBulkApproveGroup={vi.fn()}
+      />
+    );
+    await user.click(getByRole('button', { name: /Mark checked in/i }));
+    expect(queryByTestId('up-next-group-bulk-approve')).toBeNull();
   });
 
   it('renders running now items and invokes onSelectRunning', async () => {

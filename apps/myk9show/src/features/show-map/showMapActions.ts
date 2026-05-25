@@ -138,15 +138,6 @@ function withHref(action: Omit<ShowMapAction, 'href'>, href: string | undefined)
   return href ? { ...action, href } : action;
 }
 
-function nearestHref(tree: ShowMapTree, node: ShowMapNode): string | undefined {
-  let current: ShowMapNode | undefined = node;
-  while (current) {
-    if (current.href) return current.href;
-    current = current.parentId ? tree.nodesById[current.parentId] : undefined;
-  }
-  return undefined;
-}
-
 function entryContextLabel(node: ShowMapNode): string {
   const display = node.entryDisplay;
   if (!display) return '';
@@ -228,24 +219,18 @@ function liveOpsActionsForNode(
 ): ShowMapAction[] {
   if (node.type === 'entry') {
     const actions: ShowMapAction[] = [];
-    const href = nearestHref(tree, node);
     const classId = sourceIdFromNodeId(node.parentId, 'class');
     if (node.status?.value === 'submitted') {
-      actions.push(
-        withHref(
-          {
-            id: 'review-entry',
-            nodeId: node.id,
-            label: 'Review entry',
-            why: withEntryContext(node, 'Entry is waiting for secretary review'),
-            priority: 85,
-            icon: ClipboardList,
-            recommended: true,
-            createsAttention: true,
-          },
-          href
-        )
-      );
+      actions.push({
+        id: 'review-entry',
+        nodeId: node.id,
+        label: 'Review entry',
+        why: withEntryContext(node, 'Entry is waiting for secretary review'),
+        priority: 85,
+        icon: ClipboardList,
+        recommended: true,
+        createsAttention: true,
+      });
     }
     // Edit score deep-links into the paper-scoring screen at this entry's
     // row. Surfaces in two situations:

@@ -40,6 +40,7 @@ export async function approveRoleRequest(
   const args: Database['public']['Functions']['approve_role_request']['Args'] = {
     p_request_id: requestId,
     p_club_id: input.clubId,
+    // Conditional spread, not ?? null: generated Args mark these optional, not nullable.
     ...(input.showId != null ? { p_show_id: input.showId } : {}),
     ...(input.reviewerNote != null ? { p_reviewer_note: input.reviewerNote } : {}),
   };

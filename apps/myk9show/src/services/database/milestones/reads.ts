@@ -1,6 +1,5 @@
 /**
  * Supabase queries for user_milestones table.
- *
  */
 
 import { supabase } from '../supabaseClient';

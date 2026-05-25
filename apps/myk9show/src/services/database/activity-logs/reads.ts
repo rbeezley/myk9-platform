@@ -1,6 +1,5 @@
 /**
  * Supabase queries for the activity_log table (generic record activity).
- *
  */
 
 import { supabase } from '../supabaseClient';

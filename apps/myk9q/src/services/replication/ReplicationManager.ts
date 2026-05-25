@@ -157,6 +157,7 @@ export class ReplicationManager {
     }
 
     this.tables.set(tableName, table);
+    table.setMutationManager(this.syncEngine.getMutationManager());
     logger.log(`[ReplicationManager] Registered table: ${tableName}`);
 
     // Subscribe to real-time changes via ConnectionManager

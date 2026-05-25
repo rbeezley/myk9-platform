@@ -24,7 +24,12 @@ import {
   isRetryableError,
   TIMEOUT_PRESETS,
 } from './mutation-utils';
-import { MUTATION_OPERATIONS, type PendingMutation, type SyncResult } from './types';
+import {
+  MUTATION_OPERATIONS,
+  type PendingMutation,
+  type ReplicatedRow,
+  type SyncResult,
+} from './types';
 
 // ============================================
 // CONSTANTS
@@ -307,6 +312,7 @@ export class MutationManager {
 
         try {
           await this.executeMutation(mutation);
+          await this.markReplicatedRowSynced(db, mutation);
 
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
 
@@ -489,6 +495,27 @@ export class MutationManager {
       default:
         throw new Error(`Unknown operation: ${operation}`);
     }
+  }
+
+  private async markReplicatedRowSynced(
+    db: Awaited<ReturnType<typeof databaseManager.getDatabase>>,
+    mutation: PendingMutation
+  ): Promise<void> {
+    if (mutation.operation === 'DELETE') return;
+
+    const key = [mutation.tableName, String(mutation.rowId)];
+    const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
+      | ReplicatedRow<unknown>
+      | undefined;
+
+    if (!existingRow?.isDirty) return;
+
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+      ...existingRow,
+      isDirty: false,
+      syncStatus: 'synced',
+      lastSyncedAt: Date.now(),
+    });
   }
 
   // ========================================

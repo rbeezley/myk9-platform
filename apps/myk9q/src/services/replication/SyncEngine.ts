@@ -193,6 +193,10 @@ export class SyncEngine {
     return this.mutationManager.uploadPendingMutations();
   }
 
+  getMutationManager(): MutationManager {
+    return this.mutationManager;
+  }
+
   /**
    * Clear all pending mutations (call on logout/show switch)
    * Prevents stale mutations from previous shows being uploaded

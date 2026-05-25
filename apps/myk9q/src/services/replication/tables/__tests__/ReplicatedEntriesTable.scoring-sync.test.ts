@@ -93,6 +93,11 @@ describe('ReplicatedEntriesTable: scoring sync (regression)', () => {
   });
 
   afterEach(async () => {
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      configurable: true,
+      value: true,
+    });
     await deleteDB(TEST_DB_NAME);
   });
 
@@ -203,6 +208,83 @@ describe('ReplicatedEntriesTable: scoring sync (regression)', () => {
       result_status: 'qualified',
       search_time_seconds: 52,
     });
+  });
+
+  it('queues the scoring mutation when markAsScored writes a dirty score', async () => {
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      configurable: true,
+      value: false,
+    });
+    const { stub, updateCalls } = makeSupabaseStub();
+    const mutationManager = new MutationManager(
+      stub as unknown as ConstructorParameters<typeof MutationManager>[0],
+      { maxRetries: 1, retryBackoffBase: 10 }
+    );
+    table.setMutationManager(mutationManager);
+
+    const seed = makeEntry({ id: 'dog-queue', is_scored: false });
+    await table.set(seed.id, seed, false);
+
+    await table.markAsScored(
+      seed.id,
+      {
+        search_time_seconds: 47,
+        total_faults: 2,
+        result_status: 'qualified',
+      },
+      true
+    );
+
+    expect(await mutationManager.getPendingCount()).toBe(1);
+
+    const results = await mutationManager.uploadPendingMutations();
+
+    expect(results).toHaveLength(1);
+    expect(results[0].success).toBe(true);
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0]).toMatchObject({
+      table: 'entries',
+      id: seed.id,
+      payload: {
+        id: seed.id,
+        is_scored: true,
+        entry_status: 'completed',
+        result_status: 'qualified',
+        search_time_seconds: 47,
+        total_faults: 2,
+      },
+    });
+  });
+
+  it('marks the dirty replicated row clean after its queued mutation uploads', async () => {
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      configurable: true,
+      value: false,
+    });
+    const { stub } = makeSupabaseStub();
+    const mutationManager = new MutationManager(
+      stub as unknown as ConstructorParameters<typeof MutationManager>[0],
+      { maxRetries: 1, retryBackoffBase: 10 }
+    );
+    table.setMutationManager(mutationManager);
+
+    const seed = makeEntry({ id: 'dog-cleanup', is_scored: false });
+    await table.set(seed.id, seed, false);
+    await table.markAsScored(
+      seed.id,
+      { search_time_seconds: 39, total_faults: 0, result_status: 'qualified' },
+      true
+    );
+
+    expect((await table.getReplicatedRow(seed.id))?.isDirty).toBe(true);
+
+    await mutationManager.uploadPendingMutations();
+
+    const uploadedRow = await table.getReplicatedRow(seed.id);
+    expect(uploadedRow?.isDirty).toBe(false);
+    expect(uploadedRow?.syncStatus).toBe('synced');
   });
 
   it('preserves local dirty state through a batchSet (Phase 2 guard)', async () => {

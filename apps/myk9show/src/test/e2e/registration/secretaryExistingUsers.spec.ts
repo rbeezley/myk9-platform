@@ -1,20 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
+import { signInAsSecretary as signInSecretary } from '../uat/shared/auth';
 
-const SECRETARY_EMAIL = 'secretary@myk9t.com';
-const SECRETARY_PASSWORD = 'TestPass4567!';
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 
 async function signInAsSecretary(page: Page) {
-  await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(SECRETARY_EMAIL);
-  await page.getByTestId('password-input').fill(SECRETARY_PASSWORD);
-  await page.getByTestId('sign-in-button').click();
-  await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
+  await signInSecretary(page, `/secretary/register/${SHOW_ID}`);
 }
 
 async function gotoRegistration(page: Page) {
-  await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });
+  if (!new URL(page.url()).pathname.startsWith(`/secretary/register/${SHOW_ID}`)) {
+    await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
+  }
   await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
     timeout: 15000,
   });
@@ -22,14 +18,15 @@ async function gotoRegistration(page: Page) {
 
 async function searchDog(page: Page, name: string) {
   const search = page.getByPlaceholder(/Search all dogs/i);
-  await search.fill(name);
-  await page.waitForResponse(
+  const responsePromise = page.waitForResponse(
     response =>
       response.url().includes('/rest/v1/dogs') &&
       response.request().method() === 'GET' &&
       response.url().toLowerCase().includes(name.toLowerCase()),
     { timeout: 10000 }
   );
+  await search.fill(name);
+  await responsePromise;
 }
 
 test.describe('Secretary registration for existing users', () => {

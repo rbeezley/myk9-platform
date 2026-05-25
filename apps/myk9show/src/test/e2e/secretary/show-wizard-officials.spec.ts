@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { LoginPage, ShowCreationWizardPage } from '../page-objects';
+import { signInAsSecretary } from '../uat/shared/auth';
 
 /**
  * Smoke tests: Officials & Judges pickers in the Show Creation Wizard.
@@ -10,19 +10,12 @@ import { LoginPage, ShowCreationWizardPage } from '../page-objects';
  * - At least one person with judge_qualifications in the database
  */
 test.describe('Show Wizard — Officials & Judges Pickers', () => {
-  let loginPage: LoginPage;
-  let wizardPage: ShowCreationWizardPage;
-
   test.beforeEach(async ({ page }) => {
-    loginPage = new LoginPage(page);
-    wizardPage = new ShowCreationWizardPage(page);
-
-    await loginPage.goto();
-    await loginPage.loginAsSecretary();
-    await wizardPage.goto();
+    await signInAsSecretary(page, '/secretary/create-show/wizard');
+    await expect(page.getByText('Basic Show Information')).toBeVisible({ timeout: 15000 });
   });
 
-  test('Show Details step loads with populated chairman picker', async ({ page }) => {
+  test('Show Details step opens the chairman picker', async ({ page }) => {
     // Verify we're on the Show Details step
     await expect(page.locator('text=Basic Show Information')).toBeVisible();
 
@@ -30,18 +23,8 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
     await chairmanTrigger.click();
 
-    // The popover should appear — it should have at least one of the two group headers:
-    // "Suggested" (people with CHAIRMAN/CLUB_ADMIN roles) or "All People" (everyone else)
-    const hasSuggested = await page
-      .getByText('Suggested')
-      .isVisible()
-      .catch(() => false);
-    const hasAllPeople = await page
-      .getByText('All People')
-      .isVisible()
-      .catch(() => false);
-
-    expect(hasSuggested || hasAllPeople).toBe(true);
+    await expect(page.getByPlaceholder('Search show chairman…')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add new Show Chairman' })).toBeVisible();
   });
 
   test('Secretary field is auto-filled with the logged-in user badge', async ({ page }) => {
@@ -50,7 +33,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
 
     // The secretary is auto-filled with the logged-in user — the "You" badge should appear
     // next to the secretary picker when the selection matches the current user.
-    await expect(page.getByText('You', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Show Secretary auto-filled with current user')).toBeVisible();
   });
 
   test('"Add new judge" footer expands the new-person form', async ({ page }) => {

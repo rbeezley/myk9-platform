@@ -46,6 +46,8 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const selectedName = getPersonName(people, selectedPersonId);
+  const selectedLabel =
+    selectedName ?? (selectedPersonId && autoFillBadge ? autoFillBadge : undefined);
   const { suggested, others } = groupPeopleForOfficial(people, suggestedRoles, searchTerm);
 
   const handleOpenAddNew = () => {
@@ -115,7 +117,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
           id={triggerId}
           open={open}
           onOpenChange={setOpen}
-          triggerLabel={selectedName ?? `Select ${label}`}
+          triggerLabel={selectedLabel ?? `Select ${label}`}
           searchPlaceholder={`Search ${label.toLowerCase()}…`}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -140,9 +142,10 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
         />
       )}
 
-      {autoFillBadge && selectedName && !showCreateForm && (
+      {autoFillBadge && selectedPersonId && !showCreateForm && (
         <Badge
           variant="outline"
+          aria-label={`${label} auto-filled with current user`}
           className="text-[10px] px-1.5 py-0 text-indigo-400 border-indigo-400/30"
         >
           {autoFillBadge}

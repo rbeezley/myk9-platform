@@ -79,28 +79,37 @@ Copy this block for each new finding.
 
 ## Open Findings
 
-### QA-MULTI-REGRESSION-010
+### QA-NETWORK-ERROR-010
 
 - **Status:** open
 - **Severity:** high
-- **Role:** all (public + secretary surfaces)
-- **Surface:** see Failing specs below
-- **Suite category:** nightly
-- **Pattern:** silent-no-op, missing-feedback, test-flake (mixed — needs triage)
-- **Detected by:** Playwright
-- **Evidence:** 2026-05-25 Nightly Playwright run (`pnpm test:e2e:clean ... --project=chromium --workers=1 --timeout=90000 --retries=0`) finished `36 passed, 7 failed, 1 did not run` in 5.0m. Promoted Vitest Nightly passed `18/18` in 3.7s. Failing specs:
-  1. `src/test/e2e/browse-shows-to-details.spec.ts:4:3 › should load public browse shows without authentication` — `getByRole('heading', { name: 'Shows' })` not visible within 15s. Post-run isolated dev-server probe of `/shows` rendered the heading immediately with no console errors and no failed network requests, so this is likely order-dependent flake rather than a product regression.
-  2. `src/test/e2e/cross-role-workflows.spec.ts:32:3 › secretary can land on the current command center` — `/secretary/dashboard` rendered with `New Show` button visible but `Tasks` button (`getByRole('button', { name: /Tasks/ })`) not found. Either the dashboard surface shipped a label/affordance change or the Tasks affordance was removed.
-  3. `src/test/e2e/secretary/show-wizard-officials.spec.ts:25:3 › Show Details step loads with populated chairman picker` — Chairman popover opened but neither `Suggested` nor `All People` group header was visible. Either the popover stayed closed, was empty, or the group headers were refactored.
-  4. `src/test/e2e/secretary/show-wizard-officials.spec.ts:47:3 › Secretary field is auto-filled with the logged-in user badge` — `getByText('You', { exact: true })` not visible. Snapshot confirms the wizard renders both pickers (`Show Chairman`, `Show Secretary`) but the Secretary trigger reads `Select Show Secretary` (no auto-fill). The `autoFillBadge: 'You'` branch at `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx:452` is gated on `show.officials.secretary[0] === userWithRoles?.databaseUserId`, so either initialization no longer pre-fills the secretary or `databaseUserId` is undefined for the seeded user.
-  5. `src/test/e2e/secretary-entry-walk.spec.ts:20:3 › full wizard walk` — `waitForResponse` on `POST /rest/v1/rpc/submit_show_entries` timed out at 15s. The wizard reached step 4 (`nextBtn4` was enabled) but the submit RPC never fired.
-  6. `src/test/e2e/uat/secretary/critical-path.spec.ts:91:3 › entry management exposes review, waitlist, armband, and export controls` — On `/secretary/entries/:showId`, `New Entry` and `Export CSV` buttons were visible but `Total Entries`, `Need review`, `Confirmed entries` summary text was missing.
-  7. `src/test/e2e/uat/secretary/disposable-entry.spec.ts:48:3 › secretary can find, assign armband, accept, and check in a disposable entry` — Search for the freshly seeded `UAT Secretary Dog 1_e75a08` returned no rows within 10s. Manifest attachment confirms the seed write reported success, so the failure is in the read path (`/secretary/entries/:showId` search) or replication lag.
-- **User impact:** Multiple secretary core surfaces lack their expected affordances or summary data, and a fresh disposable-entry workflow cannot be completed end-to-end. Public Browse Shows works in isolation but the nightly proof for it is unreliable.
-- **Intent check:** Harms the secretary "That was easy" target feeling on at least four flows (command center, show wizard officials auto-fill, entry management summary, disposable entry walk).
-- **Fix owner:** Mixed — needs human triage. Likely owners: `apps/myk9show/src/pages/secretary/Dashboard*`, `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx`, `apps/myk9show/src/components/shows/wizard/steps/OfficialPicker.tsx`, `apps/myk9show/src/pages/secretary/EntriesManagementPage*`, entry-walk submit path, UAT seed manifest replication.
-- **Proof required:** Each failing spec passes in isolation with `--retries=0`, then the full active Nightly Playwright command from `docs/qa/e2e-suite-map.md` passes `--retries=0`.
-- **Notes:** No code, test, or schema changes were made in this nightly run because the failures span six unrelated surfaces and require product/test-drift judgment calls. Five recent merges on `main` (#344-#348) touched secretary auth/route/UI surfaces — that is the most likely change-window to investigate. The 2026-05-24 nightly was `44/44` and `122/122` route checks, so the regressions landed in the last day.
+- **Role:** all authenticated roles
+- **Surface:** global user-directory load through `getAllUsers()`
+- **Suite category:** route sweep
+- **Pattern:** network-error
+- **Detected by:** audit-pages
+- **Evidence:** 2026-05-25 long-settle route sweep failed `18/24` route/viewport checks after authenticated pages rendered. Common failure: `500 GET /rest/v1/people?select=*%2Cuser_roles!user_roles_user_id_fkey(...),judge_qualifications(...)&deleted_at=is.null&order=last_name.asc,first_name.asc`, followed by `Failed to load users` and `Store operation failed {operation: loadUsers}` console errors. Direct read-only isolation as `secretary@myk9t.com` showed broad `people` selects time out with Postgres `57014` after ~8.1s, while the self-profile query by `auth_user_id` returns in ~108ms.
+- **User impact:** Authenticated routes can render, but background user-directory loads fail. People pickers and admin/user surfaces may be empty or degraded, and the console/network noise can hide more specific route failures.
+- **Intent check:** Harms the secretary and admin target feelings by making user-backed controls unreliable after the page appears ready.
+- **Fix owner:** `apps/myk9show/src/services/database/users/reads.ts`, `apps/myk9show/src/store/userStore.ts`, and the Supabase `people`/role/qualification RLS/query path.
+- **Proof required:** Broad `people` query returns without `57014`, then the long-settle route sweep passes for desktop and 375px routes without owned 4xx/5xx responses.
+- **Notes:** Not auto-fixed in Nightly because this crosses RLS/query-design boundaries. The local product fix in this run only kept the show-secretary auto-fill visible when the broad people directory is unavailable.
+
+### QA-NETWORK-ERROR-011
+
+- **Status:** open
+- **Severity:** high
+- **Role:** exhibitor | judge
+- **Surface:** offline replication full-entry sync
+- **Suite category:** route sweep
+- **Pattern:** network-error
+- **Detected by:** audit-pages
+- **Evidence:** 2026-05-25 long-settle route sweep failed authenticated exhibitor and judge routes with `500 GET /rest/v1/entries?select=*&updated_at=gt.1970-01-01T00%3A00%3A00.000Z&order=updated_at.asc`, plus `[entries] Sync failed: Supabase query failed: canceling statement due to statement timeout`. The same run showed public routes clean and club-admin `/club-admin/members` clean.
+- **User impact:** Routes still render, but offline entry replication may silently fail for roles that depend on cached entry data.
+- **Intent check:** Harms exhibitor confidence and judge reliability because entry-backed data can be stale even when the page looks loaded.
+- **Fix owner:** `packages/replication` entry sync path, `apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`, and the Supabase `entries` RLS/indexing path.
+- **Proof required:** The full-entry replication request returns without `57014`, then the long-settle route sweep passes for exhibitor and judge routes at desktop and 375px.
+- **Notes:** Not auto-fixed in Nightly because this is the offline/shared-data layer and may require query narrowing, indexing, or RLS changes.
 
 ## Closed Findings
 

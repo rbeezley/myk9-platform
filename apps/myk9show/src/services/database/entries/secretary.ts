@@ -121,6 +121,8 @@ export const getEntriesForShow = async (showId: string) => {
   const startTime = Date.now();
 
   try {
+    // Keep enrollment details out of this hot path. The nested enrollment join currently
+    // times out under secretary RLS, while the entry/dog/class data renders the page.
     const { data, error } = await supabase
       .from('entries')
       .select(
@@ -146,17 +148,6 @@ export const getEntriesForShow = async (showId: string) => {
         check_in_status,
         withdrawal_reason,
         registration_id,
-        registration:registration_id (
-          id,
-          confirmation_number,
-          payment_status,
-          payment_reference,
-          total_amount,
-          paid_amount,
-          refund_amount,
-          refund_notes,
-          refunded_at
-        ),
         dog:dog_id (
           id,
           name,

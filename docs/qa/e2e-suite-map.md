@@ -53,7 +53,7 @@ npx vitest run \
   src/hooks/useInfiniteScroll.performanceCaching.test.ts
 ```
 
-Phase 2 runs stable Chromium checks. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus online-entry repairs on 2026-05-14 promoted the following stable checks. This command was verified with retries disabled on 2026-05-23: `44 passed (2.4m)`.
+Phase 2 runs stable Chromium checks. Wave 1 repairs on 2026-05-12, follow-up repairs on 2026-05-13, and the cross-role plus online-entry repairs on 2026-05-14 promoted the following stable checks. This command was verified with retries disabled on 2026-05-25: `42 passed (2.8m)`.
 
 ```bash
 cd apps/myk9show
@@ -150,7 +150,7 @@ These specs are in the current scheduled Nightly routine. Do not add to this tab
 | `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`                | Public browse-to-detail navigation.                          |
 | `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                   | Current public, secretary, exhibitor, and judge route smoke. |
 | `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts`                | Public Browse Shows mobile layout and touch targets.         |
-| `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`         | Core entry store workflow and audit trail.                   |
+| `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`         | Core entry store workflow.                                   |
 | `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts` | Exhibitor online-entry journey through receipt.              |
 | `apps/myk9show/src/test/e2e/registration/index.spec.ts`                     | Maintained registration spec inventory guard.                |
 | `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`    | Stable secretary existing-user registration guard.           |

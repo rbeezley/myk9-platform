@@ -17,7 +17,7 @@ Source: dashboard refocus PRs (#326, #328, #329, #330, #331, #332), scoring sync
 
 ### Auth / RLS hardening (from 2026-05-25 nightly review)
 
-- [ ] **Fix bulk-insert bypass on `can_insert_club_access_request`** — Sibling vulnerability of the H1 found in PR #342 review. `supabase/migrations/20260524120000_club_access_requests.sql:31-56` uses the same WITH CHECK + STABLE count pattern: a multi-row PostgREST INSERT can submit many rows in one statement, each seeing the same pre-statement snapshot, bypassing the 3-pending cap. Same fix shape as PR #342 — REVOKE INSERT from authenticated, drop the policy, add SECURITY DEFINER RPC `submit_club_access_request(...)` with `pg_advisory_xact_lock` for per-user serialization. No client UI calls direct INSERT today (mirrors role_requests), so the fix is migration-only. Open as a follow-up PR after #342 lands.
+- [x] **Fix bulk-insert bypass on `can_insert_club_access_request`** — Shipped via PR #343 (merged 2026-05-25). Migration `20260525140000_club_access_requests_submit_rpc.sql` drops the vulnerable WITH CHECK + STABLE count policy and replaces it with `submit_club_access_request(...)` SECURITY DEFINER RPC. Same fix shape as PR #342. Signup trigger path unchanged.
 
 ### Workbench-collapse leftovers
 

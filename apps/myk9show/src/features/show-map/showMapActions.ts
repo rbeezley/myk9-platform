@@ -138,15 +138,6 @@ function withHref(action: Omit<ShowMapAction, 'href'>, href: string | undefined)
   return href ? { ...action, href } : action;
 }
 
-function nearestHref(tree: ShowMapTree, node: ShowMapNode): string | undefined {
-  let current: ShowMapNode | undefined = node;
-  while (current) {
-    if (current.href) return current.href;
-    current = current.parentId ? tree.nodesById[current.parentId] : undefined;
-  }
-  return undefined;
-}
-
 function entryContextLabel(node: ShowMapNode): string {
   const display = node.entryDisplay;
   if (!display) return '';

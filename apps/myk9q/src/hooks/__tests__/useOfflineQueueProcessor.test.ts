@@ -113,4 +113,37 @@ describe('useOfflineQueueProcessor — retry behavior', () => {
 
     unmount();
   }, 15000);
+
+  it('does not burn retry budget while offline — bails the drain', async () => {
+    const submitSpy = vi.mocked(entryService.submitScore);
+    submitSpy.mockRejectedValue(new Error('would-be transient'));
+
+    const { unmount } = renderHook(() => useOfflineQueueProcessor());
+
+    // First attempt fires online, fails, schedules backoff.
+    await act(async () => {
+      await useOfflineQueueStore.getState().addToQueue(baseScore);
+    });
+    await waitFor(() => expect(submitSpy).toHaveBeenCalledTimes(1), {
+      timeout: 1000,
+    });
+
+    // User goes offline mid-backoff.
+    act(() => {
+      useOfflineQueueStore.setState({ isOnline: false });
+    });
+
+    // Wait past the 1s backoff window. If the offline-bail guard is
+    // missing, submitScore fires a second time and consumes retry budget.
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    expect(submitSpy).toHaveBeenCalledTimes(1);
+    // Item is still around with retryCount=1 (from the first failure),
+    // ready to resume when isOnline flips back to true.
+    expect(useOfflineQueueStore.getState().queue).toHaveLength(1);
+    expect(useOfflineQueueStore.getState().queue[0].retryCount).toBe(1);
+    expect(useOfflineQueueStore.getState().failedItems).toHaveLength(0);
+
+    unmount();
+  }, 10000);
 });

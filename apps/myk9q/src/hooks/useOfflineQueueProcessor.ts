@@ -90,6 +90,13 @@ export function useOfflineQueueProcessor() {
   // or directly. Consolidates to at most one active timer.
   const drainAndScheduleNext = useCallback(() => {
     if (processingRef.current) return;
+    // Bail when offline — both timer-driven re-pokes AND the main effect
+    // flow through here, so without this guard a backoff timer that fires
+    // mid-outage would call submitScore, fail, increment retryCount, and
+    // potentially exhaust retries purely because the user is offline.
+    // When isOnline flips back to true, the main effect re-runs (isOnline
+    // is a dep) and drainAndScheduleNext is called again.
+    if (!useOfflineQueueStore.getState().isOnline) return;
     processingRef.current = true;
     processQueue().finally(() => {
       processingRef.current = false;

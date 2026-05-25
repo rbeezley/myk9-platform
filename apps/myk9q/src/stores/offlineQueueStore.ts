@@ -306,8 +306,9 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
           // so getNextItemToSync re-selects it after the delay. Without this,
           // the previous implementation parked items in 'failed' state where
           // no selector would ever pick them up.
-          // Exponential backoff: 1s, 2s, 4s (uses pre-increment count to
-          // match the original cadence — first retry waits ~1s, not 2s).
+          // Backoff schedule with maxRetries=3: 1s after attempt 1, 2s after
+          // attempt 2. (Attempt 3's failure is terminal, so 2^2*1000=4s is
+          // never used; bump maxRetries to 4 if a third backoff tier is added.)
           const delayMs = Math.pow(2, item.retryCount) * BACKOFF_BASE_MS;
           const retryItem: QueuedScore = {
             ...item,

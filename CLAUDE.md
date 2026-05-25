@@ -12,6 +12,20 @@ This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixi
 
 **Before making UX-facing changes, read [`docs/INTENT.md`](docs/INTENT.md).** It defines the emotional intent behind each role's experience. Every optimization, refactoring, or "improvement" to user-facing code should preserve the target feeling for that role. If code has an `// INTENT:` comment, do not remove or change the described behavior without explicit approval.
 
+## Current development phase — consolidate, don't duplicate
+
+The project is **pre-launch with no real users yet** (both monorepo apps). The current phase is focused on **simplifying and consolidating** — making a smooth, intuitive, logical workflow across the app. We are **not** in a phase of building new isolated features or adding more surface area.
+
+This shapes every UX decision. Before proposing a new page, sheet, dialog, or affordance:
+
+1. **Search for the existing surface first.** If a feature looks like it duplicates an existing page (e.g., "approve entries" exists on both the workbench *and* the Entries Management page), that is a smell. Add a *link* between the surfaces; do not reimplement.
+2. **A fast path is not always new UI.** If the user needs a quicker way to do something that exists on page B, the answer is often a deep-link from page A to page B with filters pre-applied — not a re-implementation on page A.
+3. **One concern, one page.** When in doubt about whether work belongs on page A or page B, ask. Don't guess by adding both. The workbench-collapse plan ([`docs/plan-show-map-workbench-collapse.md`](docs/plan-show-map-workbench-collapse.md)) is the precedent: it deleted Today + Wrap-up tabs not because they were wrong, but because their concerns belonged in fewer places.
+4. **State the duplication question explicitly when proposing a feature.** Before building, answer: *"Does this duplicate an existing page? If so, why is duplication justified instead of a link?"* If the answer is "yes, no strong justification," narrow scope before writing code.
+5. **Deletions are a feature.** Removing a redundant surface is as valuable as adding a missing one — often more so at this phase. If you find yourself building something that overlaps an existing page, propose deleting the overlap.
+
+The mental model: the user's experience is a single coherent workflow, not a menu of independent screens. Every new affordance either tightens that workflow or fragments it. Default to tightening.
+
 ## Development Principles
 
 1. **Don't guess or assume** — Verify facts, check actual code, ask if uncertain

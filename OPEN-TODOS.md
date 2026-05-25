@@ -4,6 +4,12 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Platform Unification — myK9Show + myK9Q
+
+- [ ] **Execute myK9Show + myK9Q unification plan** — Absorb myK9Q's ringside UI into myK9Show as `/at-show` backed by a shared `packages/ringside`, unify the messaging pipeline (inbox + push + suppression), and eventually delete `apps/myk9q`. Phases 0–6 (foundation → at-show route → auto-routing for entered exhibitors → unified messaging → retire duplicated surfaces → branding/copy → app deletion). Full plan in [docs/plans/2026-05-17-unify-myk9show-myk9q.md](docs/plans/2026-05-17-unify-myk9show-myk9q.md). Context in TO-DOS.md § "Platform Unification — myK9Show + myK9Q — 2026-05-25 10:39".
+
+---
+
 ## Follow-ups from 2026-05-24 session
 
 Source: dashboard refocus PRs (#326, #328, #329, #330, #331, #332), scoring sync fix (#334), useDogsQuery fix (#337). Memory updates in `project_scoring_sync_bug.md` and `project_harden_backlog.md`.

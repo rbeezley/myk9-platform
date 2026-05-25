@@ -398,7 +398,11 @@ export const SecretaryRoutes = () => (
     />
     <Route
       path="/secretary/messages/:showId"
-      element={<SecretaryMessagesShowIdRedirect />}
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}>
+          <SecretaryMessagesShowIdRedirect />
+        </ProtectedRoute>
+      }
     />
 
     {/* People — browse and detail, accessible to secretaries and site admins */}

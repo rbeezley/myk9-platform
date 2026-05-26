@@ -1,73 +1,34 @@
 /**
- * Authentication utilities for myK9Q passcode system
- * Handles parsing mobile_app_lic_key into role-based passcodes
- */
-import { generatePasscodesFromShowId } from '@myk9/core';
-
-export type UserRole = 'admin' | 'judge' | 'steward' | 'exhibitor';
-
-export interface PasscodeResult {
-  role: UserRole;
-  licenseKey: string;
-  isValid: boolean;
-}
-
-export interface UserPermissions {
-  canViewPasscodes: boolean;
-  canAccessScoresheet: boolean;
-  canChangeRunOrder: boolean;
-  canCheckInDogs: boolean;
-  canScore: boolean;
-  canManageClasses: boolean;
-}
-
-/**
- * Parses a 5-character passcode to extract role and license key parts
- * Format: [Role Prefix][4 digits from license key]
+ * Legacy passcode derivation utilities for myK9Q.
  *
- * @param passcode - 5 character passcode (e.g., "ad860", "j9f3b")
- * @returns PasscodeResult with role, license key parts, and validity
+ * The functions below derive a show's 4 passcodes from its
+ * `mobile_app_lic_key` (legacy) or show UUID. This is the
+ * pre-`validate_passcode` path — superseded by the HMAC-pepper RPC
+ * deployed in 2026-05 (see show_passcodes table + validate_passcode
+ * Edge Function). They remain in place because `services/authService.ts`
+ * still calls `validatePasscodeAgainstLicenseKey` as an offline-mode
+ * fallback. Once that fallback is reworked to consume the
+ * server-side `show_passcodes` cache (separate task), these can be
+ * deleted along with the legacy derivation entirely.
+ *
+ * Pure types / parsing helpers / permissions moved to `@myk9/ringside`
+ * (PR C of the ringside extraction). This file re-exports them for
+ * backwards compatibility — any new code should import from
+ * `@myk9/ringside` directly.
  */
-export function parsePasscode(passcode: string): PasscodeResult {
-  if (!passcode || passcode.length !== 5) {
-    return {
-      role: 'exhibitor',
-      licenseKey: '',
-      isValid: false,
-    };
-  }
 
-  const rolePrefix = passcode.charAt(0).toLowerCase();
-  const digits = passcode.slice(1);
+import { generatePasscodesFromShowId } from '@myk9/core';
+import { parsePasscode } from '@myk9/ringside';
 
-  let role: UserRole;
-  switch (rolePrefix) {
-    case 'a':
-      role = 'admin';
-      break;
-    case 'j':
-      role = 'judge';
-      break;
-    case 's':
-      role = 'steward';
-      break;
-    case 'e':
-      role = 'exhibitor';
-      break;
-    default:
-      return {
-        role: 'exhibitor',
-        licenseKey: '',
-        isValid: false,
-      };
-  }
+// ── Re-exports from @myk9/ringside ──────────────────────────────────────
+// Kept so existing `import { UserRole } from '@/utils/auth'` callsites
+// outside the consumers updated in PR C continue to resolve. Drop in a
+// follow-up cleanup PR once we've audited that no third-party / dynamic
+// imports rely on this file.
+export type { UserRole, UserPermissions, PasscodeResult } from '@myk9/ringside';
+export { parsePasscode, getPermissionsForRole } from '@myk9/ringside';
 
-  return {
-    role,
-    licenseKey: digits,
-    isValid: true,
-  };
-}
+// ── Legacy derivation (myK9Q-only, staged for removal) ──────────────────
 
 /**
  * Generates all 4 passcodes from a mobile_app_lic_key
@@ -114,7 +75,7 @@ export function generatePasscodesFromLicenseKey(mobileAppLicKey: string): {
 export function validatePasscodeAgainstLicenseKey(
   passcode: string,
   mobileAppLicKey: string
-): PasscodeResult | null {
+) {
   const parsedPasscode = parsePasscode(passcode);
   if (!parsedPasscode.isValid) return null;
 
@@ -130,60 +91,4 @@ export function validatePasscodeAgainstLicenseKey(
     ...parsedPasscode,
     licenseKey: mobileAppLicKey,
   };
-}
-
-/**
- * Gets user permissions based on role
- *
- * @param role - User role
- * @returns UserPermissions object
- */
-export function getPermissionsForRole(role: UserRole): UserPermissions {
-  switch (role) {
-    case 'admin':
-      return {
-        canViewPasscodes: true,
-        canAccessScoresheet: true,
-        canChangeRunOrder: true,
-        canCheckInDogs: true,
-        canScore: true,
-        canManageClasses: true,
-      };
-    case 'judge':
-      return {
-        canViewPasscodes: false,
-        canAccessScoresheet: true,
-        canChangeRunOrder: true,
-        canCheckInDogs: true,
-        canScore: true,
-        canManageClasses: true,
-      };
-    case 'steward':
-      return {
-        canViewPasscodes: false,
-        canAccessScoresheet: false,
-        canChangeRunOrder: true,
-        canCheckInDogs: true,
-        canScore: false,
-        canManageClasses: false,
-      };
-    case 'exhibitor':
-      return {
-        canViewPasscodes: false,
-        canAccessScoresheet: false,
-        canChangeRunOrder: false,
-        canCheckInDogs: true,
-        canScore: false,
-        canManageClasses: false,
-      };
-    default:
-      return {
-        canViewPasscodes: false,
-        canAccessScoresheet: false,
-        canChangeRunOrder: false,
-        canCheckInDogs: false,
-        canScore: false,
-        canManageClasses: false,
-      };
-  }
 }

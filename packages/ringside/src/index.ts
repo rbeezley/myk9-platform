@@ -11,6 +11,10 @@
  * package root so internal layout can change without breaking them.
  */
 
+// ── Auth ─────────────────────────────────────────────────────────────────
+export type { UserRole, UserPermissions, PasscodeResult } from './auth/passcodes';
+export { parsePasscode, getPermissionsForRole } from './auth/passcodes';
+
 // ── Utils ────────────────────────────────────────────────────────────────
 export {
   parseSmartTime,

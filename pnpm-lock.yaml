@@ -47,6 +47,9 @@ importers:
       '@myk9/replication':
         specifier: workspace:*
         version: link:../../packages/replication
+      '@myk9/ringside':
+        specifier: workspace:*
+        version: link:../../packages/ringside
       '@myk9/scoring':
         specifier: workspace:*
         version: link:../../packages/scoring
@@ -647,6 +650,60 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.1.7
+        version: 4.1.7(@edge-runtime/vm@3.2.0)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@27.4.0(@noble/hashes@1.8.0))(vite@7.3.3(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.8.2))
+
+  packages/ringside:
+    devDependencies:
+      '@myk9/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      '@types/react':
+        specifier: ^19.2.10
+        version: 19.2.15
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.15)
+      '@vitest/coverage-v8':
+        specifier: ^4.0.18
+        version: 4.1.7(vitest@4.1.7)
+      autoprefixer:
+        specifier: ^10.4.23
+        version: 10.5.0(postcss@8.5.15)
+      jsdom:
+        specifier: ^27.4.0
+        version: 27.4.0(@noble/hashes@1.8.0)
+      postcss:
+        specifier: ^8.5.10
+        version: 8.5.15
+      postcss-cli:
+        specifier: ^11.0.1
+        version: 11.0.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.3)
+      postcss-import:
+        specifier: ^16.1.1
+        version: 16.1.1(postcss@8.5.15)
+      react:
+        specifier: ^19.2.4
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.6(react@19.2.6)
+      rimraf:
+        specifier: ^6.1.2
+        version: 6.1.3
+      tailwindcss:
+        specifier: ^3.4.19
+        version: 3.4.19(tsx@4.22.3)(yaml@2.8.2)
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@3.4.19(tsx@4.22.3)(yaml@2.8.2))
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.3)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.18
         version: 4.1.7(@edge-runtime/vm@3.2.0)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@27.4.0(@noble/hashes@1.8.0))(vite@7.3.3(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.8.2))
 
   packages/scoring:

@@ -35,11 +35,27 @@ interface MyK9QAccessCardProps {
    * validate-passcode Edge Function refuses to legacy-validate any show
    * that has show_passcodes rows. The derived codes therefore no longer
    * authenticate, so showing them to a secretary would distribute
-   * non-working codes. When `passcodes` is absent we now surface a
-   * "Generate new codes" affordance that calls regenerate_show_passcodes
-   * server-side and displays the result exactly once.
+   * non-working codes. When `passcodes` is absent the card defers to the
+   * `canRegenerate` flag — see below.
    */
   passcodes?: ShowPasscodes | null;
+  /**
+   * When `true` AND no `passcodes` prop is supplied, the card renders a
+   * confirm-gated "Generate new codes" CTA that invokes
+   * regenerate_show_passcodes. When `false` (default), the empty state
+   * renders nothing — preventing the destructive regeneration UI from
+   * appearing on public-facing surfaces (e.g., the Show Overview tab for
+   * non-managers, where `visibleRoles` is filtering to exhibitor-only
+   * but the empty state would otherwise short-circuit that filter).
+   *
+   * Note this is a UX-placement signal, not an authorization check. The
+   * `regenerate_show_passcodes` RPC enforces its own RBAC server-side
+   * (site_admin / club_admin / trial_secretary). Passing
+   * `canRegenerate={true}` from a route that is already RBAC-gated to
+   * the right roles is correct; passing it from a public/overview
+   * surface is not.
+   */
+  canRegenerate?: boolean;
 }
 
 type RegenerateRpcRow = {
@@ -55,6 +71,7 @@ export function MyK9QAccessCard({
   showDate,
   visibleRoles,
   passcodes: providedPasscodes,
+  canRegenerate = false,
 }: MyK9QAccessCardProps) {
   const [generatedPasscodes, setGeneratedPasscodes] = useState<ShowPasscodes | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -140,7 +157,17 @@ export function MyK9QAccessCard({
   // Empty state — no plaintexts available. The hashes exist server-side
   // (every show has them after the Phase 0 backfill), but plaintexts are
   // recoverable only by regenerating, which invalidates the old set.
+  //
+  // If the caller hasn't opted in to the destructive regenerate flow via
+  // `canRegenerate`, render nothing rather than expose the regenerate CTA
+  // on a surface where it doesn't belong (e.g., the public-facing Show
+  // Overview tab). This also keeps the `visibleRoles` filter meaningful:
+  // a surface that asks to only show the Exhibitor row never gets the
+  // empty-state CTA short-circuit.
   if (!passcodes) {
+    if (!canRegenerate) {
+      return null;
+    }
     return (
       <Card>
         <CardHeader>

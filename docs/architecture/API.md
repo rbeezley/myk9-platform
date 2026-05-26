@@ -243,7 +243,7 @@ Server-side passcode validation with IP-based rate limiting for the myK9Q passco
 
 | Detail     | Value                                                      |
 | ---------- | ---------------------------------------------------------- |
-| **Source** | `apps/myk9q/supabase/functions/validate-passcode/index.ts` |
+| **Source** | `supabase/functions/validate-passcode/index.ts`            |
 | **Method** | `POST`                                                     |
 | **Auth**   | None (this IS the authentication endpoint)                 |
 

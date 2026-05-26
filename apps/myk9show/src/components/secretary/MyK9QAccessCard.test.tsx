@@ -124,22 +124,36 @@ describe('MyK9QAccessCard', () => {
     expect(window.open).toHaveBeenCalledWith('', '_blank', expect.any(String));
   });
 
-  it('renders the empty state when no passcodes are provided', () => {
-    // After the show_passcodes backfill, deriving codes from the UUID
-    // is unsafe — those codes no longer authenticate. The component now
-    // surfaces a "Generate new codes" CTA instead of silent legacy
-    // fallback. Critically: NO 5-char code may render in this state.
-    renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} />);
-    expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
+  it('renders nothing when no passcodes are provided and canRegenerate is false', () => {
+    // Public-facing surfaces (e.g., Show Overview tab for non-managers)
+    // must not surface the destructive regenerate CTA — the empty-state
+    // path used to short-circuit visibleRoles and render the button
+    // anyway. canRegenerate defaults to false, so this is the safe
+    // default. Critically: NO 5-char code, NO regenerate button.
+    const { container } = renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} />);
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByRole('button', { name: /generate new codes/i })).not.toBeInTheDocument();
     // The previously-derived code (e979f) must NOT leak through.
     expect(screen.queryByText('e979f')).not.toBeInTheDocument();
     expect(screen.queryByText('ae025')).not.toBeInTheDocument();
   });
 
-  it('renders the empty state when passcodes prop is explicitly null', () => {
-    renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} passcodes={null} />);
-    expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
+  it('renders nothing when passcodes prop is explicitly null and canRegenerate is false', () => {
+    const { container } = renderWithProviders(
+      <MyK9QAccessCard showId={TEST_SHOW_ID} passcodes={null} />
+    );
+    expect(container.firstChild).toBeNull();
     expect(screen.queryByText('ae025')).not.toBeInTheDocument();
+  });
+
+  it('shows the regenerate CTA only when canRegenerate is true', () => {
+    // Settings / Workbench routes explicitly opt in by passing
+    // canRegenerate. Those routes are RBAC-gated upstream by the router,
+    // so the prop signals "this UX surface is the right place for the
+    // destructive button," not "the user is authorized" (the RPC
+    // enforces that server-side).
+    renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} canRegenerate />);
+    expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
   });
 
   it('regenerates and displays fresh codes when the user confirms', async () => {
@@ -149,7 +163,7 @@ describe('MyK9QAccessCard', () => {
     });
 
     const { user } = renderWithProviders(
-      <MyK9QAccessCard showId={TEST_SHOW_ID} showName="Spring Trial" />
+      <MyK9QAccessCard showId={TEST_SHOW_ID} showName="Spring Trial" canRegenerate />
     );
 
     await user.click(screen.getByRole('button', { name: /generate new codes/i }));
@@ -174,7 +188,7 @@ describe('MyK9QAccessCard', () => {
       error: { message: 'not authorized' },
     });
 
-    const { user } = renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} />);
+    const { user } = renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} canRegenerate />);
 
     await user.click(screen.getByRole('button', { name: /generate new codes/i }));
     const generateConfirm = await screen.findByRole('button', { name: /^generate$/i });

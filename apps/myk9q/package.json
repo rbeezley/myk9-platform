@@ -34,6 +34,7 @@
     "@myk9/core": "workspace:*",
     "@myk9/pwa-update": "workspace:*",
     "@myk9/replication": "workspace:*",
+    "@myk9/ringside": "workspace:*",
     "@myk9/scoring": "workspace:*",
     "@myk9/scoring-ui": "workspace:*",
     "@myk9/secretary": "workspace:*",

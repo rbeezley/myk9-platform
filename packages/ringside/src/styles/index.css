@@ -1,0 +1,17 @@
+/**
+ * @myk9/ringside — package stylesheet.
+ *
+ * Consumers import this via `import '@myk9/ringside/styles'` to get the
+ * package's compiled CSS. Until ringside ships actual components,
+ * Tailwind's content scan returns empty and only `@tailwind base` (the
+ * reset/preflight) produces output — that's fine, it's a valid no-op
+ * stylesheet that proves the pipeline works end-to-end.
+ *
+ * As components land in PR B onward, their utility classes become
+ * scannable and Tailwind generates the corresponding rules into the
+ * compiled output.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

@@ -265,12 +265,56 @@ serve(async req => {
     let matchedShow: any = null;
     let validationResult: PasscodeResult | null = null;
 
-    for (const show of shows || []) {
-      const result = validatePasscodeAgainstLicenseKey(passcode, show.id);
-      if (result) {
-        matchedShow = show;
-        validationResult = result;
-        break;
+    // 1. Try the new HMAC-pepper lookup first. show_passcodes is populated
+    // by insert_show_passcodes for every show created via the unified
+    // wizard. This bridges new server-generated codes during the
+    // Phase 0 PR-1 → PR-2 transition: until packages/ringside ships, both
+    // the new RPC lookup and the legacy UUID-derivation scan are tried.
+    const { data: rpcRows, error: rpcError } = await supabaseClient.rpc('validate_passcode', {
+      p_code: passcode.toLowerCase(),
+    });
+    if (rpcError) {
+      console.warn('[Auth] validate_passcode RPC failed; falling back to legacy scan:', rpcError);
+    } else if (Array.isArray(rpcRows) && rpcRows.length > 0) {
+      const row = rpcRows[0] as { show_id: string; role: string };
+      const showRow = (shows || []).find((s: { id: string }) => s.id === row.show_id);
+      if (showRow) {
+        matchedShow = showRow;
+        validationResult = {
+          role: row.role as PasscodeResult['role'],
+          licenseKey: row.show_id,
+          isValid: true,
+        };
+      }
+    }
+
+    // 2. Fall back to the legacy UUID-derivation scan — but ONLY over shows
+    // that don't yet have show_passcodes rows. Once a show is "migrated"
+    // (insert_show_passcodes has run for it) its random codes are the only
+    // valid ones; accepting the deterministic UUID-derived codes too would
+    // leak admin/judge access to anyone holding the show id (which is
+    // effectively public — it's in every URL). The set of migrated shows
+    // shrinks the legacy accept-list to zero once PR #2's backfill lands;
+    // the fallback then becomes dead code that PR #2 can remove.
+    if (!matchedShow) {
+      const { data: migratedRows, error: migratedErr } = await supabaseClient
+        .from('show_passcodes')
+        .select('show_id');
+      if (migratedErr) {
+        console.warn('[Auth] show_passcodes membership query failed; refusing legacy scan to avoid double-accept:', migratedErr);
+      } else {
+        const migratedShowIds = new Set(
+          (migratedRows || []).map((r: { show_id: string }) => r.show_id)
+        );
+        for (const show of shows || []) {
+          if (migratedShowIds.has(show.id)) continue;
+          const result = validatePasscodeAgainstLicenseKey(passcode, show.id);
+          if (result) {
+            matchedShow = show;
+            validationResult = result;
+            break;
+          }
+        }
       }
     }
 

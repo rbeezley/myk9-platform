@@ -70,4 +70,35 @@ describe('MyK9QAccessCard', () => {
     const { container } = renderWithProviders(<MyK9QAccessCard showId="not-a-uuid" />);
     expect(container.firstChild).toBeNull();
   });
+
+  it('prefers the passcodes prop over the UUID-derived fallback when provided', () => {
+    // The wizard's success overlay passes server-generated plaintexts that
+    // match show_passcodes rows. Those must win over the legacy derivation
+    // — otherwise the secretary would distribute codes that don't validate.
+    renderWithProviders(
+      <MyK9QAccessCard
+        showId={TEST_SHOW_ID}
+        passcodes={{
+          admin: 'aq8m2',
+          judge: 'j7xk0',
+          steward: 's4nf3',
+          exhibitor: 'eh2p9',
+        }}
+      />
+    );
+    expect(screen.getByText('aq8m2')).toBeInTheDocument();
+    expect(screen.getByText('j7xk0')).toBeInTheDocument();
+    expect(screen.getByText('s4nf3')).toBeInTheDocument();
+    expect(screen.getByText('eh2p9')).toBeInTheDocument();
+    // Derived codes for this UUID must NOT appear.
+    expect(screen.queryByText('ae025')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the UUID-derived passcodes when the passcodes prop is null', () => {
+    // The fallback bridges existing shows during the PR-1/PR-2 transition
+    // window: they have no show_passcodes rows yet, and myK9Q's legacy
+    // validator still accepts the derived codes.
+    renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} passcodes={null} />);
+    expect(screen.getByText('ae025')).toBeInTheDocument();
+  });
 });

@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import type { ShowPasscodes } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
@@ -29,6 +30,14 @@ export interface SaveShowAtomicOnlineArgs {
 export interface SaveShowAtomicOnlineResult {
   showId: string;
   savedShow: Show;
+  /**
+   * Plaintext access passcodes for the new show — returned exactly once
+   * for the secretary's access card. `null` when the insert_show_passcodes
+   * RPC failed; the show itself still exists and the secretary can call
+   * regenerate_show_passcodes to retry. After this response is consumed
+   * the plaintexts cannot be recovered (only HMAC hashes are stored).
+   */
+  passcodes: ShowPasscodes | null;
 }
 
 /**
@@ -63,6 +72,41 @@ export async function saveShowAtomicOnline(
   )('create_show_with_children', rpcInput as unknown as Record<string, unknown>);
   if (rpcError) {
     throw new Error(rpcError.message);
+  }
+
+  // Ask the database to generate + hash + insert the 4 role passcodes in a
+  // single SECURITY DEFINER call. Generation is server-side (not client-side)
+  // because the global UNIQUE(passcode_hash) constraint can collide and the
+  // client has no way to detect collisions before submitting — the function
+  // retries internally on conflict. The returned plaintexts are the only
+  // copy that will ever exist outside the database; they flow through the
+  // result type for the access-card UI to display once.
+  let passcodes: ShowPasscodes | null = null;
+  const { data: passcodeRows, error: passcodeError } = await (
+    supabase.rpc as unknown as (
+      fn: string,
+      args: Record<string, unknown>
+    ) => Promise<{
+      data: Array<{ admin: string; judge: string; steward: string; exhibitor: string }> | null;
+      error: { message: string } | null;
+    }>
+  )('insert_show_passcodes', { p_show_id: showId });
+  if (passcodeError) {
+    // The show row exists; a missing passcode set is recoverable via
+    // regenerate_show_passcodes from the show settings UI. Surface the
+    // failure as a warning and let the caller proceed.
+    logger.warn('insert_show_passcodes failed — secretary must regenerate', 'wizard', {
+      showId,
+      error: passcodeError.message,
+    });
+  } else if (passcodeRows && passcodeRows.length > 0) {
+    const row = passcodeRows[0]!;
+    passcodes = {
+      admin: row.admin,
+      judge: row.judge,
+      steward: row.steward,
+      exhibitor: row.exhibitor,
+    };
   }
 
   try {
@@ -164,5 +208,5 @@ export async function saveShowAtomicOnline(
 
   queryClient.invalidateQueries({ queryKey: ['shows', showId, 'schedule-timeline'] });
 
-  return { showId, savedShow };
+  return { showId, savedShow, passcodes };
 }

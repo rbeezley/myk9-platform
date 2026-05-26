@@ -224,6 +224,59 @@ describe('saveShowAtomicOnline', () => {
     ).rejects.toThrow(/Failed to assign 1 official role/);
   });
 
+  it('calls insert_show_passcodes(p_show_id) with no codes payload and surfaces the returned plaintexts', async () => {
+    const serverPlaintexts = {
+      admin: 'aq8m2',
+      judge: 'j7xk0',
+      steward: 's4nf3',
+      exhibitor: 'eh2p9',
+    };
+    rpcMock.mockImplementation(async (fn: string) => {
+      if (fn === 'insert_show_passcodes') return { data: [serverPlaintexts], error: null };
+      return { error: null };
+    });
+
+    const result = await saveShowAtomicOnline({
+      show: baseShow,
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient: makeQueryClient(),
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const passcodeCall = rpcMock.mock.calls.find((c) => c[0] === 'insert_show_passcodes');
+    expect(passcodeCall).toBeDefined();
+    // The new signature takes ONLY p_show_id — generation is server-side so
+    // there's no p_codes payload (client can't detect UNIQUE collisions).
+    expect(passcodeCall![1]).toEqual({ p_show_id: result.showId });
+
+    // Server-generated plaintexts flow back to the caller via result.passcodes.
+    expect(result.passcodes).toEqual(serverPlaintexts);
+  });
+
+  it('returns passcodes: null and warns when insert_show_passcodes fails (show still created)', async () => {
+    rpcMock.mockImplementation(async (fn: string) => {
+      if (fn === 'insert_show_passcodes') return { data: null, error: { message: 'pepper missing' } };
+      return { error: null };
+    });
+
+    const result = await saveShowAtomicOnline({
+      show: baseShow,
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient: makeQueryClient(),
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.passcodes).toBeNull();
+    expect(result.showId).toBeTruthy();
+    expect(result.savedShow.name).toBe('Test Show');
+  });
+
   it('skips addShowLegacy when the show is already in the store (idempotent retry)', async () => {
     rpcMock.mockResolvedValue({ error: null });
 

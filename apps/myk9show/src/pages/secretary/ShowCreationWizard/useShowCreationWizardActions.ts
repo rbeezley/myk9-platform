@@ -7,6 +7,7 @@ import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import type { ShowPasscodes } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { useWizardStore } from '@/store/wizardStore';
@@ -73,7 +74,13 @@ function classDataToReplicatedClass(
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
   setIsLoading: (loading: boolean) => void;
-  onCreated?: (showId: string, showName: string) => void;
+  /**
+   * Called once the show row exists. `passcodes` carries the freshly-generated
+   * plaintexts from insert_show_passcodes — exactly once. Null if the passcode
+   * insert failed (the show still saved); the secretary can recover via
+   * regenerate_show_passcodes from the show settings UI.
+   */
+  onCreated?: (showId: string, showName: string, passcodes: ShowPasscodes | null) => void;
 }
 
 export function useShowCreationWizardActions({
@@ -236,7 +243,7 @@ export function useShowCreationWizardActions({
         // multi-step flow below, which could leave orphaned rows on partial
         // failure. Edit-mode and offline paths still use the multi-step flow.
         if (!editMode?.showId && isOnline) {
-          const { showId: realShowId, savedShow } = await saveShowAtomicOnline({
+          const { showId: realShowId, savedShow, passcodes } = await saveShowAtomicOnline({
             show,
             trials,
             judgeDetails,
@@ -259,7 +266,7 @@ export function useShowCreationWizardActions({
           if (status === 'draft') {
             navigate(`/shows/${realShowId}`);
           } else if (onCreatedRef.current) {
-            onCreatedRef.current(realShowId, savedShow.name);
+            onCreatedRef.current(realShowId, savedShow.name, passcodes);
           } else {
             navigate('/secretary/dashboard');
           }
@@ -388,7 +395,10 @@ export function useShowCreationWizardActions({
         if (status === 'draft') {
           navigate(`/shows/${realShowId}`);
         } else if (onCreatedRef.current) {
-          onCreatedRef.current(realShowId, savedShow.name);
+          // Offline / edit path has no insert_show_passcodes wiring yet — pass
+          // null so the access card falls back to the legacy UUID derivation
+          // (still in sync with myK9Q's legacy validator until PR #2).
+          onCreatedRef.current(realShowId, savedShow.name, null);
         } else {
           navigate('/secretary/dashboard');
         }

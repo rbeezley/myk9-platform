@@ -10,6 +10,16 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Launch Readiness Audit Findings — 2026-05-26
+
+Source: first scorecard-driven secretary golden-path audit in [docs/goals/audits/2026-05-26-secretary-launch-readiness-audit.md](docs/goals/audits/2026-05-26-secretary-launch-readiness-audit.md).
+
+- [ ] **[P1] Entry Management renders a false zero-entry state after entry query failure** — Expected: Headline's pending entries are reviewable from Entry Management. Actual: `/secretary/entries/18802fc0-1558-4dc3-902d-989edef4df3c` logs a Supabase 500 for the entries query and renders `0` entries with no user-facing error. Evidence: [04-entry-management-zero-after-500.png](docs/goals/audits/artifacts/2026-05-26-secretary/04-entry-management-zero-after-500.png).
+- [ ] **[P1] Show Desk next-action ranking promotes wrap-up work before the show is ready** — Expected: the primary recommendation reflects the next valid secretary action for the current show phase/date. Actual: Show Desk says `0 of 40 classes complete` but recommends `Collect judge signature`. Evidence: [02-show-desk-headline.png](docs/goals/audits/artifacts/2026-05-26-secretary/02-show-desk-headline.png).
+- [ ] **[P2] Next Best Action report routing is too generic** — Expected: a specific signature/report action opens the exact relevant report or workflow. Actual: `Start` opens `/secretary/reports` with `check-in-sheet` selected. Evidence: [03-next-action-reports-target.png](docs/goals/audits/artifacts/2026-05-26-secretary/03-next-action-reports-target.png).
+
+---
+
 ## Follow-ups from 2026-05-24 session
 
 Source: dashboard refocus PRs (#326, #328, #329, #330, #331, #332), scoring sync fix (#334), useDogsQuery fix (#337). Memory updates in `project_scoring_sync_bug.md` and `project_harden_backlog.md`.

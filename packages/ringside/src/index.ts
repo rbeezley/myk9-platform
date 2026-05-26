@@ -23,3 +23,7 @@ export {
   secondsToTime,
   compareTime,
 } from './utils/timeInputParsing';
+
+// ── Stores ───────────────────────────────────────────────────────────────
+export { useEntryStore, createEntryStore } from './stores/entryStore';
+export type { Entry, EntryStatus } from './stores/entryStore';

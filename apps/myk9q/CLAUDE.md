@@ -65,7 +65,7 @@ await replicatedClassesTable.updateClassStatus(classId, status);
 
 ### Three-Tier Pattern
 
-1. **Stores** (Zustand): `entryStore`, `scoringStore`, `timerStore`
+1. **Stores** (Zustand): `entryStore` and `scoringStore` are thin shims that re-export from `@myk9/ringside` and `@myk9/scoring`; `useTimerStore` lives in `@myk9/scoring`
 2. **Services**: Business logic and Supabase communication
 3. **Components/Pages**: React UI with `@/` path alias
 

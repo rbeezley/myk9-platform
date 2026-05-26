@@ -1,4 +1,9 @@
-// Central export for all Zustand stores
+// Central export for all Zustand stores.
+//
+// Domain stores (entryStore, scoringStore) are re-exported through
+// `@myk9/ringside` and `@myk9/scoring`; the local files here are thin
+// shims that forward to those packages. Timer/scoring hooks live in
+// `@myk9/scoring` and should be imported directly from there.
 export { useScoringStore } from './scoringStore';
 export type { QualifyingResult, CompetitionType } from './scoringStore';
 
@@ -7,9 +12,6 @@ export type { Entry } from './entryStore';
 
 export { useOfflineQueueStore } from './offlineQueueStore';
 export type { QueuedScore } from './offlineQueueStore';
-
-export { useTimerStore } from './timerStore';
-export type { TimerArea } from './timerStore';
 
 export { useAnnouncementStore } from './announcementStore';
 export type { Announcement, AnnouncementRead } from './announcementStore';

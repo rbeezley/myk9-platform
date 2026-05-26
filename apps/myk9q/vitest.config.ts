@@ -37,8 +37,15 @@ export default defineConfig({
     hookTimeout: 10000,
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-    },
+    // Array form + regex-anchored `@myk9/ringside` so the alias doesn't
+    // prefix-match `@myk9/ringside/styles`. See vite.config.ts for the
+    // full rationale.
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, 'src') },
+      {
+        find: /^@myk9\/ringside$/,
+        replacement: path.resolve(__dirname, '../../packages/ringside/src/index.ts'),
+      },
+    ],
   },
 });

@@ -264,8 +264,24 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    // Array form (rather than object) so we can mix string and regex
+    // matchers. Strings prefix-match in Vite — handy for `@` covering
+    // `@/components/...`, but actively wrong for `@myk9/ringside` because
+    // it eats the `@myk9/ringside/styles` CSS subpath and tries to load
+    // `packages/ringside/src/index.ts/styles` (ENOTDIR). Regex anchors
+    // pin the bare-package alias to the exact specifier and leave the
+    // /styles subpath resolving via package exports.
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // Resolve the bare-package JS import to source so app
+      // dev/build/test commands don't require packages/ringside/dist.
+      // The /styles subpath is intentionally NOT aliased — it resolves
+      // to dist/styles/index.css (compiled Tailwind) via the package's
+      // exports map, which is what production builds and dev need.
+      {
+        find: /^@myk9\/ringside$/,
+        replacement: path.resolve(__dirname, '../../packages/ringside/src/index.ts'),
+      },
+    ],
   },
 });

@@ -131,6 +131,10 @@ Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render
 
 Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
 
+### Codex second opinion (optional)
+
+For high-stakes diffs — RLS, migrations, payment flows, auth, RBAC seed data — run `/codex:review` alongside the standard `/review` to get a non-Claude model's read. The value is independent failure modes: Codex (GPT-5) often catches issues both Claude reviewers miss for the same reason, and vice versa. Skip on docs and trivial fixes. The review gate is intentionally OFF — opt in per PR, don't gate every stop.
+
 ## Debugging seed-data / config bugs
 
 Before writing a migration or code fix for a "why doesn't this data flow" bug, **inventory every related table up front** with a single query pass: the role table(s), the permission/config table(s), and the join/link table(s). Writing one migration, pushing it, then discovering a second missing row in a different table is a sign you didn't survey first. For RBAC specifically: check `roles`, `permissions`, and `role_permissions` in the same query batch before writing any `INSERT`. This also means `systematic-debugging`'s full four-phase ceremony can be collapsed when the data path is obvious — go straight to Phase 1 Step 4 (gather evidence across all layers at once).

@@ -27,11 +27,18 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// CORS configuration - restrict to known app domains
+// CORS configuration - restrict to known app domains.
+// myk9-platform-myk9q.vercel.app is the unified-platform myK9Q staging
+// surface; without it staging POSTs are rejected at the preflight, the
+// fetch in authService.ts throws, and we silently fall back to the
+// client-side legacy validator — which cannot validate the new
+// HMAC-hashed random show_passcodes, so every staging login fails.
 const ALLOWED_ORIGINS = [
   'https://myk9q.com',
   'https://www.myk9q.com',
   'https://app.myk9q.com',
+  'https://myk9-platform-myk9q.vercel.app',
+  'https://myk9-platform-myk9show.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',

@@ -47,6 +47,12 @@ export function ShowOverviewTab({ show, canManageShow = false, judges }: ShowOve
           <MyK9QAccessCard
             showId={show.id}
             showName={show.name}
+            // canRegenerate is gated on canManageShow so the public/exhibitor
+            // view never sees the destructive regenerate CTA. Without this,
+            // the empty-state path (no passcodes prop, which is always the
+            // case on this surface) would render the regenerate button
+            // before visibleRoles filtering could narrow the view.
+            canRegenerate={canManageShow}
             {...(!canManageShow ? { visibleRoles: ['Exhibitor'] } : {})}
           />
         </div>

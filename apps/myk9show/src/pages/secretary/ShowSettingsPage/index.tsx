@@ -110,6 +110,7 @@ export default function ShowSettingsPage() {
       {selectedShowId && (
         <MyK9QAccessCard
           showId={selectedShowId}
+          canRegenerate
           {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
         />
       )}

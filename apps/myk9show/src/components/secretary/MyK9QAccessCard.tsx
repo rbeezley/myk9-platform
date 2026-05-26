@@ -1,11 +1,21 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Copy, Link, Printer } from 'lucide-react';
+import { AlertCircle, Copy, KeyRound, Link, Loader2, Printer } from 'lucide-react';
 import type { ShowPasscodes } from '@myk9/core';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { notifications } from '@/lib/notifications';
-import { generatePasscodesFromShowId } from '@/utils/passcodes';
+import { supabase } from '@/lib/supabase';
 
 interface MyK9QAccessCardProps {
   showId: string;
@@ -14,16 +24,46 @@ interface MyK9QAccessCardProps {
   /** If provided, only rows whose role is in this array are shown. Defaults to all roles. */
   visibleRoles?: string[];
   /**
-   * Authoritative server-generated plaintexts from insert_show_passcodes
-   * (returned exactly once at show creation). When provided these are
-   * displayed verbatim — they match the show_passcodes hash table. When
-   * absent we fall back to the legacy UUID-derivation, which still matches
-   * what myK9Q's legacy validator accepts for existing shows that have no
-   * show_passcodes rows yet. Once Phase 0 PR #2 switches the validator and
-   * runs the backfill, this fallback path should be removed.
+   * Authoritative server-generated plaintexts from insert_show_passcodes /
+   * regenerate_show_passcodes (returned exactly once). When provided these
+   * are displayed verbatim — they match the show_passcodes hash table.
+   *
+   * The previous version of this component fell back to deriving codes
+   * from the show UUID when no `passcodes` prop was passed. That fallback
+   * is gone: migration 20260526013506_show_passcodes_backfill provisions
+   * a full set of random hashed codes for every existing show, and the
+   * validate-passcode Edge Function refuses to legacy-validate any show
+   * that has show_passcodes rows. The derived codes therefore no longer
+   * authenticate, so showing them to a secretary would distribute
+   * non-working codes. When `passcodes` is absent the card defers to the
+   * `canRegenerate` flag — see below.
    */
   passcodes?: ShowPasscodes | null;
+  /**
+   * When `true` AND no `passcodes` prop is supplied, the card renders a
+   * confirm-gated "Generate new codes" CTA that invokes
+   * regenerate_show_passcodes. When `false` (default), the empty state
+   * renders nothing — preventing the destructive regeneration UI from
+   * appearing on public-facing surfaces (e.g., the Show Overview tab for
+   * non-managers, where `visibleRoles` is filtering to exhibitor-only
+   * but the empty state would otherwise short-circuit that filter).
+   *
+   * Note this is a UX-placement signal, not an authorization check. The
+   * `regenerate_show_passcodes` RPC enforces its own RBAC server-side
+   * (site_admin / club_admin / trial_secretary). Passing
+   * `canRegenerate={true}` from a route that is already RBAC-gated to
+   * the right roles is correct; passing it from a public/overview
+   * surface is not.
+   */
+  canRegenerate?: boolean;
 }
+
+type RegenerateRpcRow = {
+  admin: string;
+  judge: string;
+  steward: string;
+  exhibitor: string;
+};
 
 export function MyK9QAccessCard({
   showId,
@@ -31,22 +71,56 @@ export function MyK9QAccessCard({
   showDate,
   visibleRoles,
   passcodes: providedPasscodes,
+  canRegenerate = false,
 }: MyK9QAccessCardProps) {
-  const passcodes = providedPasscodes ?? generatePasscodesFromShowId(showId);
+  const [generatedPasscodes, setGeneratedPasscodes] = useState<ShowPasscodes | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
-  if (!passcodes) return null;
-
-  // Capture narrowed value so TypeScript can see it's non-null inside closures
-  const codes = passcodes;
-  const exhibitorUrl = `https://myk9q.com/login?code=${codes.exhibitor}`;
+  // Server-provided plaintexts (wizard) take precedence over any locally
+  // regenerated set; otherwise we display whatever the regenerate flow
+  // returned in this session. Until either fires, we render the empty
+  // state with the "Generate new codes" CTA.
+  const passcodes = providedPasscodes ?? generatedPasscodes;
 
   async function copyToClipboard(text: string) {
     await navigator.clipboard.writeText(text);
     notifications.success(`Copied: ${text}`);
   }
 
-  function printSlip() {
+  async function handleRegenerate() {
+    setIsRegenerating(true);
+    try {
+      const { data, error } = await (
+        supabase.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>
+        ) => Promise<{ data: RegenerateRpcRow[] | null; error: { message: string } | null }>
+      )('regenerate_show_passcodes', { p_show_id: showId });
+
+      if (error || !data || data.length === 0) {
+        notifications.error(
+          error?.message ?? 'Could not generate new codes. Please try again.'
+        );
+        return;
+      }
+
+      const row = data[0]!;
+      setGeneratedPasscodes({
+        admin: row.admin,
+        judge: row.judge,
+        steward: row.steward,
+        exhibitor: row.exhibitor,
+      });
+      notifications.success('New codes generated — copy or print them now.');
+    } finally {
+      setIsRegenerating(false);
+      setConfirmOpen(false);
+    }
+  }
+
+  function printSlip(exhibitorCode: string) {
     const svgMarkup = qrContainerRef.current?.innerHTML ?? '';
     const win = window.open('', '_blank', 'width=400,height=600');
     if (!win) return;
@@ -70,7 +144,7 @@ export function MyK9QAccessCard({
     <div class="show-name">${showName ?? 'Dog Show'}</div>
     ${showDate ? `<div class="show-date">${showDate}</div>` : ''}
     <div class="qr">${svgMarkup}</div>
-    <div class="code">${codes.exhibitor}</div>
+    <div class="code">${exhibitorCode}</div>
     <div class="url">myk9q.com</div>
   </div>
 </body>
@@ -79,6 +153,76 @@ export function MyK9QAccessCard({
     win.focus();
     win.print();
   }
+
+  // Empty state — no plaintexts available. The hashes exist server-side
+  // (every show has them after the Phase 0 backfill), but plaintexts are
+  // recoverable only by regenerating, which invalidates the old set.
+  //
+  // If the caller hasn't opted in to the destructive regenerate flow via
+  // `canRegenerate`, render nothing rather than expose the regenerate CTA
+  // on a surface where it doesn't belong (e.g., the public-facing Show
+  // Overview tab). This also keeps the `visibleRoles` filter meaningful:
+  // a surface that asks to only show the Exhibitor row never gets the
+  // empty-state CTA short-circuit.
+  if (!passcodes) {
+    if (!canRegenerate) {
+      return null;
+    }
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>myK9Q Access Codes</CardTitle>
+          <CardDescription>
+            Codes for this show were generated server-side and aren't displayed again for security.
+            Generate a fresh set below — the old codes will stop working.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <p>
+              Anyone holding the previous codes will lose access after you regenerate. Make sure
+              you're ready to redistribute them.
+            </p>
+          </div>
+          <Button
+            onClick={() => setConfirmOpen(true)}
+            disabled={isRegenerating}
+            className="w-full gap-2"
+          >
+            {isRegenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <KeyRound className="h-4 w-4" />
+            )}
+            Generate new codes
+          </Button>
+
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Generate new myK9Q codes?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This replaces the current codes for {showName ?? 'this show'}. Anyone using the
+                  old codes will be locked out and must be given the new ones.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isRegenerating}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRegenerate} disabled={isRegenerating}>
+                  {isRegenerating ? 'Generating…' : 'Generate'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Capture narrowed value so TypeScript can see it's non-null inside closures
+  const codes = passcodes;
+  const exhibitorUrl = `https://myk9q.com/login?code=${codes.exhibitor}`;
 
   const allRows = [
     { role: 'Admin', code: codes.admin },
@@ -93,7 +237,8 @@ export function MyK9QAccessCard({
       <CardHeader>
         <CardTitle>myK9Q Access Codes</CardTitle>
         <CardDescription>
-          Share these with your team to access this show in the myK9Q ringside app
+          Share these with your team to access this show in the myK9Q ringside app. They will not
+          be shown again — copy or print them now.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -135,7 +280,7 @@ export function MyK9QAccessCard({
                   variant="outline"
                   size="sm"
                   className="h-7 gap-1.5 text-xs"
-                  onClick={printSlip}
+                  onClick={() => printSlip(codes.exhibitor)}
                 >
                   <Printer className="h-3 w-3" />
                   Print slip

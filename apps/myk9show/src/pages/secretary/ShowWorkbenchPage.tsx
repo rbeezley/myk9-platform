@@ -387,6 +387,7 @@ export function ShowWorkbenchPage() {
                     showId={currentShow.id}
                     showName={currentShow.name}
                     showDate={currentShow.startDate}
+                    canRegenerate
                   />
                   <VolunteersCard showId={currentShow.id} />
                   <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />

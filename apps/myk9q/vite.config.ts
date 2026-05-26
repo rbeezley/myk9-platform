@@ -264,21 +264,24 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      // Resolve @myk9/ringside to its source rather than ./dist/index.js so
-      // app dev/build/test commands work without first running
-      // `pnpm --filter @myk9/ringside build`. Without this, a clean or stale
-      // packages/ringside/dist produces `TypeError: parsePasscode is not a
-      // function` (and worse, sometimes silent missing-export resolves) in
-      // any consumer that imports from the package.
-      //
-      // The package's pre-built CSS at dist/styles/index.css still resolves
-      // through `@myk9/ringside/styles` package exports — that subpath is
-      // only loaded by main.tsx and is covered by the worktree bootstrap's
-      // package build. If/when dev workflow needs source CSS too, mirror
-      // this with a second alias for the styles subpath.
-      '@myk9/ringside': path.resolve(__dirname, '../../packages/ringside/src/index.ts'),
-    },
+    // Array form (rather than object) so we can mix string and regex
+    // matchers. Strings prefix-match in Vite — handy for `@` covering
+    // `@/components/...`, but actively wrong for `@myk9/ringside` because
+    // it eats the `@myk9/ringside/styles` CSS subpath and tries to load
+    // `packages/ringside/src/index.ts/styles` (ENOTDIR). Regex anchors
+    // pin the bare-package alias to the exact specifier and leave the
+    // /styles subpath resolving via package exports.
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // Resolve the bare-package JS import to source so app
+      // dev/build/test commands don't require packages/ringside/dist.
+      // The /styles subpath is intentionally NOT aliased — it resolves
+      // to dist/styles/index.css (compiled Tailwind) via the package's
+      // exports map, which is what production builds and dev need.
+      {
+        find: /^@myk9\/ringside$/,
+        replacement: path.resolve(__dirname, '../../packages/ringside/src/index.ts'),
+      },
+    ],
   },
 });

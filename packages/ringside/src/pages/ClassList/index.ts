@@ -12,7 +12,12 @@ export type {
   TrialInfo,
   ClassListData,
   ClassStatusValue,
+  SortOrder,
+  CombinedFilter,
+  PrintDialogState,
+  SortOption,
 } from './types';
+export { SORT_OPTIONS } from './types';
 
 export {
   shouldCombineAllSections,
@@ -24,3 +29,18 @@ export {
   isCombinedEntry,
   getClassIds,
 } from './utils/noviceClassGrouping';
+
+export {
+  getContextualPreview,
+  getFormattedStatus,
+  getStatusColor,
+  getStatusLabel,
+} from './utils/statusFormatting';
+
+export {
+  isMaxTimeSet,
+  shouldShowMaxTimeWarning,
+  isEmptyDataError,
+  filterClasses,
+  sortClasses,
+} from './ClassList.helpers';

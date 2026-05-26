@@ -1,6 +1,6 @@
 import React from 'react';
 import { ClassCard } from './ClassCard';
-import { getStatusColor, getFormattedStatus } from './utils/statusFormatting';
+import { getStatusColor, getFormattedStatus } from '@myk9/ringside';
 import { useShowAccent } from '@/hooks/useShowAccent';
 import type { ClassEntry } from './hooks/useClassListData';
 import type { UserPermissions } from '../../utils/auth';

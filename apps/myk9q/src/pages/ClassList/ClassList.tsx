@@ -34,15 +34,16 @@ import {
   groupSectionedClasses,
   shouldCombineAllSections,
 } from '@myk9/ringside';
-import type { PrintDialogState, CombinedFilter } from './ClassList.types';
-import { SORT_OPTIONS } from './ClassList.types';
 import {
+  SORT_OPTIONS,
   isMaxTimeSet,
   shouldShowMaxTimeWarning,
   isEmptyDataError,
   filterClasses,
   sortClasses,
-} from './ClassList.helpers';
+  type PrintDialogState,
+  type CombinedFilter,
+} from '@myk9/ringside';
 import {
   ClassListLoading,
   ClassListError,

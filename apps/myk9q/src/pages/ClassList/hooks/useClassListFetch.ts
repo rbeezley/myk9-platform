@@ -46,65 +46,17 @@ interface VisibilityOverride {
   preset: 'open' | 'standard' | 'review';
 }
 
-export interface ClassEntry {
-  id: number;
-  element: string;
-  level: string;
-  section: string;
-  class_name: string;
-  class_order: number;
-  judge_name: string;
-  entry_count: number;
-  completed_count: number;
-  class_status:
-    | 'no-status'
-    | 'setup'
-    | 'briefing'
-    | 'break'
-    | 'start_time'
-    | 'in_progress'
-    | 'offline-scoring'
-    | 'completed';
-  is_scoring_finalized?: boolean;
-  is_favorite: boolean;
-  time_limit_seconds?: number;
-  time_limit_area2_seconds?: number;
-  time_limit_area3_seconds?: number;
-  area_count?: number;
-  start_time?: string;
-  briefing_time?: string;
-  break_until?: string;
-  planned_start_time?: string;
-  last_result_at?: string;
-  pairedClassId?: number;
-  self_checkin_enabled?: boolean;
-  visibility_preset?: 'open' | 'standard' | 'review';
-  dogs: {
-    id: number;
-    armband: number;
-    call_name: string;
-    breed: string;
-    handler: string;
-    in_ring: boolean;
-    checkin_status: number;
-    is_scored: boolean;
-    exhibitor_order: number;
-  }[];
-}
-
-export interface TrialInfo {
-  trial_name: string;
-  trial_date: string;
-  trial_number: number;
-  total_classes: number;
-  pending_classes: number;
-  completed_classes: number;
-}
-
-export interface ClassListData {
-  trialInfo: TrialInfo | null;
-  classes: ClassEntry[];
-}
+// ClassEntry / TrialInfo / ClassListData type definitions moved to
+// @myk9/ringside in PR E0 (see packages/ringside/src/pages/ClassList/types.ts).
+// Imported for local use AND re-exported so legacy import paths
+// (`from './useClassListFetch'`, `from './useClassListData'`) keep
+// working unchanged.
+import type {
+  ClassEntry,
+  TrialInfo,
+  ClassListData,
+} from '@myk9/ringside';
+export type { ClassEntry, TrialInfo, ClassListData };
 
 // ============================================================
 // QUERY KEYS (centralized for easy invalidation)

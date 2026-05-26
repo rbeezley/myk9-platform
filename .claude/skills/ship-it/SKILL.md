@@ -60,9 +60,78 @@ Fix failures. Repeat until all pass. **Max 10 iterations** — stop and report i
 
 ---
 
-## Step 3b: Simplify
+## Step 3a: SQL Compile-Check (conditional)
 
-Invoke `/simplify` (the local skill at `.claude/skills/simplify/SKILL.md`). It launches three parallel agents — efficiency, quality, reuse — auto-fixes safe wins (dead code, unused imports, trivial dupes), and proposes the judgment calls.
+If the diff contains any `.sql` files under `supabase/migrations/`, compile-check them against a real Postgres instance BEFORE the JS-focused passes run. `pnpm typecheck` does not parse SQL, and the harden agent in Step 3c reads files but does not execute them — both blind spots that have shipped `db push`-failing migrations to PR review.
+
+The most common failures this catches:
+- **`%ROWTYPE` against a function** — only resolves against relations/composites; functions that `RETURNS TABLE (...)` produce anonymous result rows, not registered types. Use `record` instead.
+- **Function/column references to objects that don't exist yet** in the migration sequence
+- **Missing `;` terminators, malformed DO blocks, plpgsql syntax errors**
+- **GRANT/REVOKE on functions whose signature doesn't match the new definition** (PostgreSQL silently keeps the old grant; the new function gets a different OID and the GRANT goes to the wrong target — caught by re-applying from scratch)
+
+```bash
+SQL_FILES=$(git diff --name-only origin/main...HEAD | grep -E '^supabase/migrations/.*\.sql$' || true)
+
+if [ -z "$SQL_FILES" ]; then
+  : # No migrations in diff — skip
+elif ! psql -d postgres -tA -c "SELECT 1" >/dev/null 2>&1; then
+  echo "WARN: SQL compile-check skipped — no local Postgres reachable."
+  echo "      Install: brew install postgresql && brew services start postgresql"
+  echo "      Migrations in diff will be unverified until \`supabase db push\`:"
+  for f in $SQL_FILES; do echo "        - $f"; done
+else
+  TEST_DB="ship_it_check_$$"
+  createdb "$TEST_DB" >/dev/null 2>&1 || { echo "createdb failed — abort compile-check"; exit 1; }
+
+  # Apply ALL migrations in numerical order to a fresh DB so cross-migration
+  # references (helpers, tables, RPCs created by earlier migrations) resolve.
+  # The new migration only being syntactically valid in isolation isn't enough.
+  FAILED=""
+  for f in supabase/migrations/*.sql; do
+    if ! psql -d "$TEST_DB" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1; then
+      FAILED="$f"
+      break
+    fi
+  done
+
+  if [ -n "$FAILED" ]; then
+    echo "Compile-check FAILED at: $FAILED"
+    echo "Re-run for full error:"
+    echo "  psql -d $TEST_DB -v ON_ERROR_STOP=1 -f $FAILED"
+    # Leave the test DB intact so the operator can inspect state if needed.
+    # Drop with: dropdb $TEST_DB
+    exit 1
+  fi
+
+  dropdb "$TEST_DB" >/dev/null 2>&1
+  echo "SQL compile-check passed for migrations in diff:"
+  for f in $SQL_FILES; do echo "  ✓ $f"; done
+fi
+```
+
+**Failure handling:** if compile-check fails, the test DB is left intact (NOT dropped) so the operator can inspect state and re-run the failing migration interactively. The failure message includes the exact command to reproduce. Stop the pipeline and report.
+
+**No local Postgres caveat:** the skill skips with a warning rather than failing. This is deliberate — environments without a local DB shouldn't block shipping JS-only changes that happen to share a branch with SQL. But the warning calls out the unverified surface explicitly so it doesn't get lost in PR review.
+
+**Why not `supabase db reset --local`:** that requires Docker, which isn't reliably available on every dev machine (and explicitly wasn't during the session that motivated this step). Plain `psql + createdb/dropdb` works wherever PostgreSQL is installed — broader coverage than the Supabase CLI's Docker path.
+
+---
+
+## Step 3b: Simplify (conditional)
+
+`/simplify` is JS/TS focused — its three agents (efficiency, quality, reuse) look for unused imports, dead code, trivial dupes. A SQL-only or docs-only diff has nothing for them to find.
+
+```bash
+# Files where /simplify has no surface to attack.
+SIMPLIFY_SKIP='\.(md|mdx|txt|sql|css|scss|snap)$|^docs/|/(i18n|locales|fixtures|__fixtures__|__snapshots__)/|^supabase/migrations/|^(pnpm-lock\.yaml|package-lock\.json)$'
+JS_FILES=$(git diff --name-only origin/main...HEAD | grep -vE "$SIMPLIFY_SKIP" | wc -l | tr -d ' ')
+```
+
+- If `JS_FILES == 0` → skip Step 3b with note: "no JS/TS surface in diff, simplify skipped"
+- Otherwise → invoke `/simplify`
+
+`/simplify` (the local skill at `.claude/skills/simplify/SKILL.md`) launches three parallel agents — efficiency, quality, reuse — auto-fixes safe wins (dead code, unused imports, trivial dupes), and proposes the judgment calls.
 
 Apply the auto-fixes it lands. Address any `critical` proposals before proceeding. For `high`/`medium` proposals, apply the obvious ones and skip the rest unless they're cheap.
 
@@ -110,6 +179,45 @@ Harden launches three parallel agents (edge cases, state corruption, security) a
 - If harden returns `FAIL` (critical findings remain after auto-fix, or 3+ high findings unfixed) → stop the pipeline and report. Do not proceed to commit. Surface the unfixed findings to the user and wait for direction.
 
 If any harden auto-fixes landed, re-run the test loop (Step 3) before proceeding.
+
+### When SQL migrations are in the diff — augment the harden prompt
+
+The default harden agents read files but don't model the relational schema as a whole. They miss a class of bugs where a write-path filter (added in this migration) has no symmetric read-path filter (already-existing query that doesn't yet know about the new filter). The canonical example: a backfill that excludes `deleted_at IS NOT NULL` shows, but the validation RPC or edge function still iterates them and authenticates against derived codes.
+
+When `git diff --name-only origin/main...HEAD | grep -q '^supabase/migrations/'` matches, prepend the following to the harden agents' security-pass prompt:
+
+```
+SQL CROSS-CUT AUDIT — this diff modifies the database schema or functions.
+Before scoring this PASS:
+
+1. Enumerate every WHERE clause, JOIN condition, and CHECK constraint
+   the migration ADDS or CHANGES on any table.
+
+2. For each such filter, grep the repo for OTHER queries that touch the
+   same table without the same filter:
+     - `git grep -E "from\s+(public\.)?<table>" -- '*.sql' '*.ts' '*.tsx'`
+     - Edge functions in supabase/functions/
+     - Replicated table classes in apps/*/services/replication/
+     - Direct supabase.from('<table>') calls in apps/*/src/
+
+3. For each match, ask: does this read path need the same filter to be
+   coherent with the write-path semantics the migration is enforcing?
+   Common patterns where the answer is YES:
+     - Soft-delete (deleted_at IS NULL) — must apply to lookups too
+     - Multi-tenant isolation (org_id = ...) — must apply to every read
+     - Status gates (status IN ('active', ...)) — must apply to listings
+
+4. If the answer is YES and the read path doesn't have the filter,
+   flag as `critical` — the write path provisioned data the read path
+   leaks back out.
+
+5. Also check `GRANT EXECUTE TO <role>` statements: if the function
+   signature changed (different return type, different parameter list),
+   PostgreSQL treats it as a new function with a new OID. The old
+   GRANT does NOT carry over. Re-GRANT explicitly in the same migration.
+```
+
+Auto-fixes for findings of this class should add the symmetric filter at every read site identified, not just the most-recently-touched one.
 
 ---
 
@@ -232,7 +340,13 @@ git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
 
 ## Step 9: Handoff Doc
 
-Output this summary after cleanup:
+Output this summary after cleanup. Include the shared-system follow-ups section ONLY if the merged diff contains changes that need a post-merge operator action — otherwise omit that section entirely.
+
+```bash
+# Compute post-merge follow-ups from the merged diff
+MIGRATIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep -c '^supabase/migrations/' || echo 0)
+FUNCTIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep -E '^(supabase|apps/[^/]+/supabase)/functions/' | sed -E 's|.*/functions/([^/]+)/.*|\1|' | sort -u)
+```
 
 ```
 ## Ship It — Complete
@@ -245,7 +359,20 @@ Review rounds: <N>
 
 Shipped:
 - <one bullet per completed plan task>
+
+[If MIGRATIONS_CHANGED > 0]
+Post-merge follow-ups (operator action required):
+- supabase db push --linked   # applies <N> new migration(s)
+
+[For each function in FUNCTIONS_CHANGED]
+- supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+  (touched: <relative path>)
+
+[If both apply, sequence matters: db push BEFORE functions deploy when the
+function calls a newly-created RPC or expects a new column.]
 ```
+
+Both shared-system actions require explicit user confirmation per CLAUDE.md Auto Mode rules. The handoff lists them but does NOT run them — the operator decides timing.
 
 ---
 
@@ -258,6 +385,8 @@ Shipped:
 - Use `pnpm`, never `npm` or `npx`
 - Never add scope beyond the plan
 - Max 10 test-fix iterations, max 5 review rounds — escalate if limits hit
+- If SQL migrations are in the diff, the SQL compile-check (Step 3a) MUST run and pass — or skip with a logged warning if no local Postgres. Never commit a migration without at least the warning being surfaced.
+- Never run `supabase db push` or `supabase functions deploy` automatically — these are operator actions surfaced in the handoff doc per CLAUDE.md Auto Mode rules.
 
 ## Edge Cases
 
@@ -266,3 +395,7 @@ Shipped:
 **Squash-merge false negative:** `git log origin/main..HEAD` shows commits after a squash-merge because SHAs differ. Always use `gh pr view --json state` to confirm merge status.
 
 **Pre-existing typecheck failures:** If typecheck fails on files this branch did NOT touch, stop and report — do not silently fix pre-existing breakage.
+
+**SQL compile-check left a test DB behind:** if Step 3a's `psql` call fails partway through (e.g., a migration errors), the script leaves `ship_it_check_<pid>` undropped on purpose so the operator can inspect state. If a previous failed run still has a DB lying around, drop it explicitly: `dropdb ship_it_check_<pid>` — or list orphans with `psql -c "SELECT datname FROM pg_database WHERE datname LIKE 'ship_it_check_%'"`. The next run uses a different `$$` so won't collide, but unused DBs accumulate until cleaned.
+
+**`psql` is installed but no server is running:** the Step 3a detection runs `psql -d postgres -c "SELECT 1"` which fails fast (~50ms) if no server is listening. The skill correctly skips with a warning in that case. On macOS the typical fix is `brew services start postgresql`; on Linux it's `sudo systemctl start postgresql` or running a docker container.

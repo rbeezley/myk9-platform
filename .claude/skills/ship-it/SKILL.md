@@ -62,59 +62,53 @@ Fix failures. Repeat until all pass. **Max 10 iterations** — stop and report i
 
 ## Step 3a: SQL Compile-Check (conditional)
 
-If the diff contains any `.sql` files under `supabase/migrations/`, compile-check them against a real Postgres instance BEFORE the JS-focused passes run. `pnpm typecheck` does not parse SQL, and the harden agent in Step 3c reads files but does not execute them — both blind spots that have shipped `db push`-failing migrations to PR review.
+If the diff contains any `.sql` files under `supabase/migrations/`, compile-check them against a Supabase-compatible shadow database BEFORE the JS-focused passes run. `pnpm typecheck` does not parse SQL, and the harden agent in Step 3c reads files but does not execute them — both blind spots that have shipped `db push`-failing migrations to PR review.
 
 The most common failures this catches:
 - **`%ROWTYPE` against a function** — only resolves against relations/composites; functions that `RETURNS TABLE (...)` produce anonymous result rows, not registered types. Use `record` instead.
 - **Function/column references to objects that don't exist yet** in the migration sequence
 - **Missing `;` terminators, malformed DO blocks, plpgsql syntax errors**
-- **GRANT/REVOKE on functions whose signature doesn't match the new definition** (PostgreSQL silently keeps the old grant; the new function gets a different OID and the GRANT goes to the wrong target — caught by re-applying from scratch)
+
+What this check does NOT catch — these still need the harden audit in Step 3c:
+- **Stale GRANT/REVOKE on a prior signature when a new overload is added.** A second `validate_passcode(text, text)` next to the existing `validate_passcode(text)` gets a new OID; a copy-pasted `GRANT EXECUTE ON FUNCTION validate_passcode(text)` succeeds (it targets the *old* signature) and the new overload remains ungranted. The migration applies cleanly — the bug surfaces at call time. The harden prompt in Step 3c includes the signature-audit check; do not rely on the compile step alone.
+
+**Strategy:** use `supabase db reset --local`, which spins up the Supabase-flavored Postgres in Docker (with `auth.users`, `authenticated`/`anon`/`service_role` roles, `auth.*` helpers, `extensions` schema, `supabase_vault`, `pg_net`, `pg_cron`, etc.) and replays every migration in `supabase/migrations/` from scratch. A plain `createdb` + `psql` shadow DB does NOT work here — this repo's migrations reference Supabase cluster objects (`authenticated`, `anon`, `auth.users`, `supabase_vault`, `pg_net`, `pg_cron`) that don't exist in a vanilla Postgres cluster, and the check would fail before reaching the new migration.
 
 ```bash
 SQL_FILES=$(git diff --name-only origin/main...HEAD | grep -E '^supabase/migrations/.*\.sql$' || true)
 
 if [ -z "$SQL_FILES" ]; then
   : # No migrations in diff — skip
-elif ! psql -d postgres -tA -c "SELECT 1" >/dev/null 2>&1; then
-  echo "WARN: SQL compile-check skipped — no local Postgres reachable."
-  echo "      Install: brew install postgresql && brew services start postgresql"
+elif ! command -v supabase >/dev/null 2>&1; then
+  echo "WARN: SQL compile-check skipped — supabase CLI not found."
+  echo "      Install: brew install supabase/tap/supabase"
+  echo "      Migrations in diff will be unverified until \`supabase db push\`:"
+  for f in $SQL_FILES; do echo "        - $f"; done
+elif ! docker info >/dev/null 2>&1; then
+  echo "WARN: SQL compile-check skipped — Docker not running (required by \`supabase db reset --local\`)."
+  echo "      Start Docker Desktop, then re-run."
   echo "      Migrations in diff will be unverified until \`supabase db push\`:"
   for f in $SQL_FILES; do echo "        - $f"; done
 else
-  TEST_DB="ship_it_check_$$"
-  createdb "$TEST_DB" >/dev/null 2>&1 || { echo "createdb failed — abort compile-check"; exit 1; }
-
-  # Apply ALL migrations in numerical order to a fresh DB so cross-migration
-  # references (helpers, tables, RPCs created by earlier migrations) resolve.
-  # The new migration only being syntactically valid in isolation isn't enough.
-  FAILED=""
-  for f in supabase/migrations/*.sql; do
-    if ! psql -d "$TEST_DB" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1; then
-      FAILED="$f"
-      break
-    fi
-  done
-
-  if [ -n "$FAILED" ]; then
-    echo "Compile-check FAILED at: $FAILED"
-    echo "Re-run for full error:"
-    echo "  psql -d $TEST_DB -v ON_ERROR_STOP=1 -f $FAILED"
-    # Leave the test DB intact so the operator can inspect state if needed.
-    # Drop with: dropdb $TEST_DB
+  # supabase db reset --local: stops/starts the local stack, drops the shadow
+  # DB, replays every migration in supabase/migrations/ in order against a
+  # Supabase-flavored Postgres. Exits non-zero on the first migration that
+  # fails to apply.
+  if ! supabase db reset --local --debug 2>&1 | tee /tmp/ship-it-db-reset.log; then
+    echo "Compile-check FAILED. Full log: /tmp/ship-it-db-reset.log"
+    echo "Re-run interactively: supabase db reset --local --debug"
     exit 1
   fi
-
-  dropdb "$TEST_DB" >/dev/null 2>&1
   echo "SQL compile-check passed for migrations in diff:"
   for f in $SQL_FILES; do echo "  ✓ $f"; done
 fi
 ```
 
-**Failure handling:** if compile-check fails, the test DB is left intact (NOT dropped) so the operator can inspect state and re-run the failing migration interactively. The failure message includes the exact command to reproduce. Stop the pipeline and report.
+**Failure handling:** the full reset log is preserved at `/tmp/ship-it-db-reset.log` so the operator can scan for the first ERROR line. The local Supabase stack stays running for interactive inspection (`supabase status` shows the connection string; `psql "$(supabase status -o env | grep DB_URL | cut -d= -f2-)"`). Stop the pipeline and report.
 
-**No local Postgres caveat:** the skill skips with a warning rather than failing. This is deliberate — environments without a local DB shouldn't block shipping JS-only changes that happen to share a branch with SQL. But the warning calls out the unverified surface explicitly so it doesn't get lost in PR review.
+**No Docker / no Supabase CLI caveat:** the skill skips with a warning rather than failing. This is deliberate — environments without Docker shouldn't block shipping JS-only changes that happen to share a branch with SQL. But the warning calls out the unverified surface explicitly so it doesn't get lost in PR review.
 
-**Why not `supabase db reset --local`:** that requires Docker, which isn't reliably available on every dev machine (and explicitly wasn't during the session that motivated this step). Plain `psql + createdb/dropdb` works wherever PostgreSQL is installed — broader coverage than the Supabase CLI's Docker path.
+**Why not vanilla `psql + createdb`:** this repo's migrations depend on Supabase cluster objects (`authenticated`/`anon`/`service_role` roles, `auth.users`, `supabase_vault`, `pg_net`, `pg_cron`). Replaying them against a plain Postgres cluster fails at the first GRANT against `authenticated` or the first reference to `auth.users` — long before reaching the migration under review. `supabase db reset --local` is the only path that gives an honest signal on this codebase.
 
 ---
 
@@ -343,8 +337,12 @@ git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
 Output this summary after cleanup. Include the shared-system follow-ups section ONLY if the merged diff contains changes that need a post-merge operator action — otherwise omit that section entirely.
 
 ```bash
-# Compute post-merge follow-ups from the merged diff
-MIGRATIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep -c '^supabase/migrations/' || echo 0)
+# Compute post-merge follow-ups from the merged diff.
+# NOTE on `grep -c ... | wc -l` vs `grep -c ... || echo 0`:
+# `grep -c` with zero matches prints "0" but exits 1, so `|| echo 0` produces
+# "0\n0" and breaks any later numeric comparison. Pipe matched lines through
+# `wc -l` instead — always single-line, always 0 on empty input.
+MIGRATIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep '^supabase/migrations/' | wc -l | tr -d ' ')
 FUNCTIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep -E '^(supabase|apps/[^/]+/supabase)/functions/' | sed -E 's|.*/functions/([^/]+)/.*|\1|' | sort -u)
 ```
 

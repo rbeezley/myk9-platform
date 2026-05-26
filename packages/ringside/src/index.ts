@@ -15,6 +15,27 @@
 export type { UserRole, UserPermissions, PasscodeResult } from './auth/passcodes';
 export { parsePasscode, getPermissionsForRole } from './auth/passcodes';
 
+// ── Context (Q5 DI surface) ──────────────────────────────────────────────
+export type {
+  RingsideAuth,
+  RingsideShowContext,
+  RingsideReplication,
+  RingsidePrefetch,
+  RingsideContextValue,
+  RingsideProviderProps,
+  ClassStatusUpdateFields,
+  ClassStatusValue,
+} from './context';
+export {
+  RingsideProvider,
+  useRingside,
+  useRingsideAuth,
+  useRingsideReplication,
+  useRingsidePrefetch,
+  useRingsidePermission,
+  useShowOrg,
+} from './context';
+
 // ── Utils ────────────────────────────────────────────────────────────────
 export {
   parseSmartTime,

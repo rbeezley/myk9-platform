@@ -33,6 +33,11 @@
 --   - trials.deleted_at       — predicate: legacy entries skip (trial_id NULL),
 --                               modern entries require trials live
 --   - classes.deleted_at      — same pattern as trials
+--   - people.deleted_at       — filtered in `me` CTE (a soft-deleted account
+--                               cannot resolve to a live person_id)
+--   - dogs.deleted_at         — predicate guards owner/co_owner matches so
+--                               a soft-deleted dog cannot pull entries
+--                               through its owner relationship
 -- The `clubs.deleted_at` cascade is handled by the existing FK chain
 -- (club soft-delete also marks shows soft-deleted in callers; not
 -- re-asserted here).
@@ -64,9 +69,14 @@ as $func$
     -- auth.uid() returns NULL for unauthenticated callers; the LIMIT 1
     -- + EXISTS check below means the function naturally returns an
     -- empty result rather than erroring in that case.
+    -- deleted_at IS NULL prevents a soft-deleted account from
+    -- resolving here — SECURITY DEFINER bypasses the people-table
+    -- RLS policies that would normally enforce this (see migration
+    -- 111_restrict_people_select_to_authenticated).
     select id as person_id
     from public.people
     where auth_user_id = auth.uid()
+      and deleted_at is null
     limit 1
   ),
   today_shows as (
@@ -92,6 +102,13 @@ as $func$
     -- classes. The split keeps pre-migration-182 rows visible.
     and (e.trial_id is null or t.deleted_at is null)
     and (e.class_id is null or c.deleted_at is null)
+    -- Dog soft-delete guard, same skip-if-NULL shape as trials/classes.
+    -- A soft-deleted dog must not pull its entries through the owner
+    -- or co_owner paths. If the entry happens to have NULL dog_id
+    -- (anomalous, but defensively handled), the owner/co_owner
+    -- predicates can't match anyway (NULL comparisons return NULL),
+    -- so the handler path is the only way through — which is correct.
+    and (e.dog_id is null or d.deleted_at is null)
     and (
       e.handler_id = (select person_id from me)
       or d.owner_id = (select person_id from me)

@@ -27,3 +27,16 @@ export {
 // ── Stores ───────────────────────────────────────────────────────────────
 export { useEntryStore, createEntryStore } from './stores/entryStore';
 export type { Entry, EntryStatus } from './stores/entryStore';
+
+// ── Pages: ClassList ─────────────────────────────────────────────────────
+export type { ClassEntry, TrialInfo, ClassListData } from './pages/ClassList';
+export {
+  shouldCombineAllSections,
+  findPairedNoviceClass,
+  findPairedSectionedClass,
+  groupNoviceClasses,
+  groupSectionedClasses,
+  isCombinedNoviceEntry,
+  isCombinedEntry,
+  getClassIds,
+} from './pages/ClassList';

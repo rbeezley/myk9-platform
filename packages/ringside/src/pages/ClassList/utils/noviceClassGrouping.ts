@@ -8,7 +8,7 @@
  * Extracted from ClassList.tsx for better testability and reusability.
  */
 
-import type { ClassEntry } from '../hooks/useClassListData';
+import type { ClassEntry } from '../types';
 
 /**
  * Check if the organization uses A/B sections for all levels

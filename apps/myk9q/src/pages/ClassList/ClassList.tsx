@@ -33,7 +33,7 @@ import {
   findPairedSectionedClass,
   groupSectionedClasses,
   shouldCombineAllSections,
-} from './utils/noviceClassGrouping';
+} from '@myk9/ringside';
 import type { PrintDialogState, CombinedFilter } from './ClassList.types';
 import { SORT_OPTIONS } from './ClassList.types';
 import {

@@ -19,6 +19,24 @@
 -- (mirrors the `getActiveShows` predicate used elsewhere in the
 -- replication layer — same naive timezone semantics).
 --
+-- Show scoping uses COALESCE(e.show_id, t.show_id) rather than a pure
+-- trial-id join because migration 003 made BOTH columns nullable, and
+-- the pre-migration-182 `submit_show_entries` only populated show_id
+-- on inserted entries (trial_id was left NULL on legacy rows; 182
+-- changed future inserts to populate it but did not backfill). An
+-- INNER JOIN on trial_id would silently drop those legacy rows.
+--
+-- Soft-delete filters (closes the SECURITY DEFINER bypass surface that
+-- normal RLS-restricted queries would block automatically):
+--   - shows.deleted_at        — filtered in `today_shows` CTE
+--   - entries.deleted_at      — filtered in WHERE
+--   - trials.deleted_at       — predicate: legacy entries skip (trial_id NULL),
+--                               modern entries require trials live
+--   - classes.deleted_at      — same pattern as trials
+-- The `clubs.deleted_at` cascade is handled by the existing FK chain
+-- (club soft-delete also marks shows soft-deleted in callers; not
+-- re-asserted here).
+--
 -- Withdrawn / scratched entries are excluded — those entries aren't
 -- at the show today and shouldn't be auto-favorited. The exclusion
 -- list matches the partial index in migration 003
@@ -59,11 +77,21 @@ as $func$
   )
   select e.id as entry_id
   from public.entries e
-  join public.trials t on t.id = e.trial_id
-  join today_shows s on s.id = t.show_id
+  -- LEFT JOINs throughout so a NULL parent column doesn't drop the row
+  -- before the OR-of-3 person predicate runs. Soft-delete and existence
+  -- checks happen in WHERE so the semantics are explicit.
+  left join public.trials t on t.id = e.trial_id
+  left join public.classes c on c.id = e.class_id
+  join today_shows s on s.id = coalesce(e.show_id, t.show_id)
   left join public.dogs d on d.id = e.dog_id
   where exists (select 1 from me)
+    and e.deleted_at is null
     and e.entry_status not in ('withdrawn', 'scratched')
+    -- Legacy entry (trial_id NULL) skips the trial-live check entirely;
+    -- modern entries require trials.deleted_at IS NULL. Same shape for
+    -- classes. The split keeps pre-migration-182 rows visible.
+    and (e.trial_id is null or t.deleted_at is null)
+    and (e.class_id is null or c.deleted_at is null)
     and (
       e.handler_id = (select person_id from me)
       or d.owner_id = (select person_id from me)

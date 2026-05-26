@@ -28,7 +28,10 @@
     "test:coverage": "vitest run --coverage",
     "clean": "rimraf dist"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@myk9/core": "workspace:*",
+    "zustand": "^5.0.13"
+  },
   "devDependencies": {
     "@myk9/test-utils": "workspace:*",
     "@types/react": "^19.2.10",

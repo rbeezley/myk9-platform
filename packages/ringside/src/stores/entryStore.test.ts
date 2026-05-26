@@ -12,8 +12,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useEntryStore } from '../entryStore';
-import type { Entry, EntryStatus } from '../entryStore';
+import { useEntryStore } from './entryStore';
+import type { Entry, EntryStatus } from './entryStore';
 
 // Helper to create mock entries
 const createMockEntry = (overrides?: Partial<Entry>): Entry => ({

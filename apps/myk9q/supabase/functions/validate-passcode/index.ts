@@ -288,15 +288,32 @@ serve(async req => {
       }
     }
 
-    // 2. Fall back to the legacy UUID-derivation scan for existing shows
-    // that have no show_passcodes rows yet (no backfill in PR #1).
+    // 2. Fall back to the legacy UUID-derivation scan — but ONLY over shows
+    // that don't yet have show_passcodes rows. Once a show is "migrated"
+    // (insert_show_passcodes has run for it) its random codes are the only
+    // valid ones; accepting the deterministic UUID-derived codes too would
+    // leak admin/judge access to anyone holding the show id (which is
+    // effectively public — it's in every URL). The set of migrated shows
+    // shrinks the legacy accept-list to zero once PR #2's backfill lands;
+    // the fallback then becomes dead code that PR #2 can remove.
     if (!matchedShow) {
-      for (const show of shows || []) {
-        const result = validatePasscodeAgainstLicenseKey(passcode, show.id);
-        if (result) {
-          matchedShow = show;
-          validationResult = result;
-          break;
+      const { data: migratedRows, error: migratedErr } = await supabaseClient
+        .from('show_passcodes')
+        .select('show_id');
+      if (migratedErr) {
+        console.warn('[Auth] show_passcodes membership query failed; refusing legacy scan to avoid double-accept:', migratedErr);
+      } else {
+        const migratedShowIds = new Set(
+          (migratedRows || []).map((r: { show_id: string }) => r.show_id)
+        );
+        for (const show of shows || []) {
+          if (migratedShowIds.has(show.id)) continue;
+          const result = validatePasscodeAgainstLicenseKey(passcode, show.id);
+          if (result) {
+            matchedShow = show;
+            validationResult = result;
+            break;
+          }
         }
       }
     }

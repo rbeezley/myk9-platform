@@ -242,7 +242,9 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       `[${this.tableName}] LRU eviction complete: ${evictedCount} rows evicted, new size ${(currentSize / 1024 / 1024).toFixed(2)} MB`
     );
 
-    this.notifyListeners();
+    void this.notifyListeners().catch(error => {
+      this.logger.error(`[${this.tableName}] Failed to notify listeners after eviction:`, error);
+    });
 
     return evictedCount;
   }
@@ -283,10 +285,15 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       clearTimeout(this.notifyDebounceTimer);
     }
 
-    this.notifyDebounceTimer = setTimeout(async () => {
-      await this.actuallyNotifyListeners();
-      this.notifyDebounceTimer = null;
-      this.hasNotifiedLeadingEdge = false;
+    this.notifyDebounceTimer = setTimeout(() => {
+      void this.actuallyNotifyListeners()
+        .catch(error => {
+          this.logger.error(`[${this.tableName}] Failed to notify listeners:`, error);
+        })
+        .finally(() => {
+          this.notifyDebounceTimer = null;
+          this.hasNotifiedLeadingEdge = false;
+        });
     }, NOTIFY_DEBOUNCE_MS);
   }
 

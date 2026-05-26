@@ -24,6 +24,7 @@ import type { ReplicatedTable, SyncResult } from '@myk9/replication';
 /** Typed mock shape for SyncEngine */
 interface MockSyncEngine {
   isNetworkOnline: Mock;
+  getMutationManager: Mock;
   clearAllMutations: Mock;
   destroy: Mock;
 }
@@ -76,6 +77,12 @@ interface ManagerTestInternals {
 vi.mock('../SyncEngine', () => ({
   SyncEngine: vi.fn(function (this: MockSyncEngine) {
     this.isNetworkOnline = vi.fn(() => true);
+    this.getMutationManager = vi.fn(() => ({
+      queueMutation: vi.fn(),
+      getPendingCount: vi.fn().mockResolvedValue(0),
+      clearAllMutations: vi.fn().mockResolvedValue(undefined),
+      destroy: vi.fn(),
+    }));
     this.clearAllMutations = vi.fn().mockResolvedValue(undefined);
     this.destroy = vi.fn();
   }),
@@ -207,6 +214,7 @@ describe('ReplicationManager', () => {
 
     // Create a mock table
     mockTable = {
+      setMutationManager: vi.fn(),
       clearCache: vi.fn().mockResolvedValue(undefined),
       getCacheStats: vi.fn().mockResolvedValue({
         rowCount: 100,
@@ -473,6 +481,7 @@ describe('ReplicationManager', () => {
     it('should handle errors when clearing individual table caches', async () => {
       const loggerModule = await import('@/utils/logger');
       const errorTable = {
+        setMutationManager: vi.fn(),
         clearCache: vi.fn().mockRejectedValue(new Error('Clear failed')),
         getCacheStats: vi
           .fn()
@@ -513,6 +522,7 @@ describe('ReplicationManager', () => {
     it('should sort cache stats by size descending', async () => {
       // Add a larger table
       const largeTable = {
+        setMutationManager: vi.fn(),
         clearCache: vi.fn().mockResolvedValue(undefined),
         getCacheStats: vi.fn().mockResolvedValue({
           rowCount: 500,
@@ -792,6 +802,7 @@ describe('ReplicationManager', () => {
   describe('Lifecycle', () => {
     it('should stop replication and cleanup tables', async () => {
       const cleanupTable = {
+        setMutationManager: vi.fn(),
         clearCache: vi.fn().mockResolvedValue(undefined),
         getCacheStats: vi
           .fn()
@@ -810,6 +821,7 @@ describe('ReplicationManager', () => {
     it('should handle cleanup errors gracefully', async () => {
       const loggerModule = await import('@/utils/logger');
       const errorTable = {
+        setMutationManager: vi.fn(),
         clearCache: vi.fn().mockResolvedValue(undefined),
         getCacheStats: vi
           .fn()
@@ -927,6 +939,7 @@ describe('ReplicationManager', () => {
       });
 
       const cleanupTable = {
+        setMutationManager: vi.fn(),
         clearCache: vi.fn().mockResolvedValue(undefined),
         getCacheStats: vi
           .fn()

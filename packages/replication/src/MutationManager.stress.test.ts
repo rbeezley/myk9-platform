@@ -13,8 +13,9 @@ import { MutationManager, type MutationManagerOptions } from './MutationManager'
 import type { PendingMutation } from './types';
 import type { Logger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
-import { openDB, type IDBPDatabase } from 'idb';
+import type { IDBPDatabase } from 'idb';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
 
 // ---------------------------------------------------------------------------
 // Harness helpers (mirrored from MutationManager.test.ts)
@@ -92,13 +93,7 @@ describe('MutationManager: large-queue stress', () => {
     // sequentially (~22s total), producing spurious TimeoutErrors.
     vi.useRealTimers();
 
-    mockDb = await openDB(STRESS_DB_NAME, 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(REPLICATION_STORES.PENDING_MUTATIONS)) {
-          db.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, { keyPath: 'id' });
-        }
-      },
-    });
+    mockDb = await createMutationManagerTestDb(STRESS_DB_NAME);
 
     vi.spyOn(databaseManager, 'getDatabase').mockResolvedValue(mockDb);
 

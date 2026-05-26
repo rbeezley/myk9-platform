@@ -277,6 +277,39 @@ describe('ReplicatedTableCacheManager', () => {
       expect(callback.mock.calls.length).toBeGreaterThanOrEqual(1);
       expect(callback.mock.calls.length).toBeLessThanOrEqual(3);
     });
+
+    it('should clear debounce state when trailing notification fails', async () => {
+      const error = new Error('read failed');
+      const logger = { log: vi.fn(), warn: vi.fn(), error: vi.fn() };
+      let readCount = 0;
+
+      const rejectingManager = new ReplicatedTableCacheManager<TestEntity>(
+        tableName,
+        () => TTL_MS,
+        logger,
+        async () => db,
+        async () => {
+          readCount++;
+          if (readCount === 1) return [];
+          throw error;
+        }
+      );
+
+      await rejectingManager.notifyListeners();
+      await new Promise(r => setTimeout(r, 150));
+
+      const internals = rejectingManager as unknown as {
+        notifyDebounceTimer: ReturnType<typeof setTimeout> | null;
+        hasNotifiedLeadingEdge: boolean;
+      };
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to notify listeners'),
+        error
+      );
+      expect(internals.notifyDebounceTimer).toBeNull();
+      expect(internals.hasNotifiedLeadingEdge).toBe(false);
+    });
   });
 
   describe('refreshTimestamps', () => {

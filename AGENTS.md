@@ -119,6 +119,14 @@ Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render
 
 **Assertion-first for value-sensitive bugs.** When a bug involves a specific value going to a specific place (enum string to a DB column, key in a response object, header in an HTTP call), write the `expect(...).toHaveBeenCalledWith(...)` line first and run it red before touching the implementation. A failing test proves the current wrong value; the fix then flips it green. This catches silent overwrites that visual inspection and typechecking miss.
 
+### PR reviews
+
+When asked to review a PR, run focused verification by default when practical:
+
+- Inspect the diff for defects first.
+- Run relevant unit tests, package builds/typecheck, or narrow app builds tied to the changed files.
+- If a suite hangs or exceeds 60 seconds without useful output, stop and report it.
+- Skip verification only for docs-only changes or when blocked, and say why.
 
 ## Workflow
 

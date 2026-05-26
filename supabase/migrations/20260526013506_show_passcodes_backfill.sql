@@ -41,10 +41,12 @@
 -- the UNIQUE, the other no-ops via ON CONFLICT).
 --
 -- SOFT-DELETED SHOWS — excluded from the backfill (`where deleted_at is
--- null`). validate_passcode does not currently filter by deleted_at, so
--- generating passcodes for a soft-deleted show would provision live
--- access to a deleted resource. If a show is restored, the secretary
--- can call regenerate_show_passcodes to provision codes at that time.
+-- null`). validate_passcode is updated below in this same migration to
+-- also filter `deleted_at IS NULL` server-side, and the edge function's
+-- legacy scan filters at the query level. Together these close the
+-- soft-delete validation gap across both new-RPC and legacy paths. If
+-- a show is restored, the secretary can call regenerate_show_passcodes
+-- to provision codes at that time.
 --
 -- The FK CASCADE on show_passcodes handles hard-deleted shows.
 

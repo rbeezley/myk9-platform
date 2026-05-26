@@ -207,8 +207,22 @@ serve(async req => {
         .maybeSingle();
 
       if (showErr) {
-        console.error('[Auth] Show lookup error:', showErr);
-      } else if (showRow) {
+        // The RPC proved the passcode is valid, but we couldn't load the
+        // show's display fields. Surfacing this as `invalid_passcode` would
+        // (a) lie to the user about an authoritative auth failure and
+        // (b) waste a rate-limit attempt on a server-side fault. Return 500
+        // instead — same shape the legacy bulk-shows error path used, and
+        // the same shape the RPC-error branch above returns. The login
+        // attempt is intentionally NOT recorded here (matches the RPC
+        // error path) because the failure is server-side, not credential-
+        // related, and rate-limit counters should track credential probes.
+        console.error('[Auth] Show lookup error after successful RPC match:', showErr);
+        return new Response(JSON.stringify({ error: 'Database error' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (showRow) {
         matchedShow = showRow as ShowRow;
         matchedRole = row.role;
       }

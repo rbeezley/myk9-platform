@@ -33,7 +33,15 @@
       "eslint-plugin-react-hooks": "7.0.1",
       "@supabase/supabase-js": "2.93.3",
       "undici": "^7.16.0",
-      "path-to-regexp": "^8.2.0"
+      "path-to-regexp": "^8.2.0",
+      "@isaacs/brace-expansion": "5.0.1",
+      "@vercel/python-analysis>minimatch": "10.2.5",
+      "@vercel/python-analysis>smol-toml": "1.6.1",
+      "@vercel/static-config>ajv": "8.20.0",
+      "serialize-javascript": "7.0.5",
+      "workbox-build": "7.4.1",
+      "ws": "8.20.1",
+      "yaml": "2.8.3"
     }
   }
 }

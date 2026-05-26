@@ -7,7 +7,12 @@
  * downstream importers.
  */
 
-export type { ClassEntry, TrialInfo, ClassListData } from './types';
+export type {
+  ClassEntry,
+  TrialInfo,
+  ClassListData,
+  ClassStatusValue,
+} from './types';
 
 export {
   shouldCombineAllSections,

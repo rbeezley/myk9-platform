@@ -15,6 +15,21 @@
  * of this fetched-class shape.
  */
 
+/**
+ * Persisted class-status values. Lifted to its own named type so the
+ * Q5 DI surface (`RingsideReplication.updateClassStatus`) and this
+ * data shape stay in sync — extending in one place updates both.
+ */
+export type ClassStatusValue =
+  | 'no-status'
+  | 'setup'
+  | 'briefing'
+  | 'break'
+  | 'start_time'
+  | 'in_progress'
+  | 'offline-scoring'
+  | 'completed';
+
 export interface ClassEntry {
   id: number;
   element: string;
@@ -25,15 +40,7 @@ export interface ClassEntry {
   judge_name: string;
   entry_count: number;
   completed_count: number;
-  class_status:
-    | 'no-status'
-    | 'setup'
-    | 'briefing'
-    | 'break'
-    | 'start_time'
-    | 'in_progress'
-    | 'offline-scoring'
-    | 'completed';
+  class_status: ClassStatusValue;
   is_scoring_finalized?: boolean;
   is_favorite: boolean;
   time_limit_seconds?: number;

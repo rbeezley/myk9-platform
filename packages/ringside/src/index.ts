@@ -5,13 +5,17 @@
  * /at-show route. See docs/plans/phase-0-ringside-package.md for the
  * extraction plan and PR sequencing.
  *
- * This file is intentionally empty in PR A — the scaffold's only job is
- * to prove the package builds, the workspace wiring resolves, and host
- * apps can import the namespace without errors. Real exports land
- * starting in PR B (shared types + utilities).
+ * Public surface — keep this file as the single barrel re-export.
+ * Subpath imports (e.g. `from '@myk9/ringside/utils/timeInputParsing'`)
+ * are intentionally NOT supported; consumers always import from the
+ * package root so internal layout can change without breaking them.
  */
 
-// Sentinel export so the compiled bundle is non-empty and the build
-// confirms a successful round-trip through tsup. Removed once PR B
-// lands real exports.
-export const RINGSIDE_PACKAGE_VERSION = '0.0.1';
+// ── Utils ────────────────────────────────────────────────────────────────
+export {
+  parseSmartTime,
+  isValidTimeFormat,
+  timeToSeconds,
+  secondsToTime,
+  compareTime,
+} from './utils/timeInputParsing';

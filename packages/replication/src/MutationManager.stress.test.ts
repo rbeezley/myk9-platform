@@ -94,6 +94,16 @@ describe('MutationManager: large-queue stress', () => {
 
     mockDb = await openDB(STRESS_DB_NAME, 1, {
       upgrade(db) {
+        if (!db.objectStoreNames.contains(REPLICATION_STORES.REPLICATED_TABLES)) {
+          const store = db.createObjectStore(REPLICATION_STORES.REPLICATED_TABLES, {
+            keyPath: ['tableName', 'id'],
+          });
+          store.createIndex('tableName', 'tableName', { unique: false });
+          store.createIndex('tableName_lastSyncedAt', ['tableName', 'lastSyncedAt'], {
+            unique: false,
+          });
+          store.createIndex('isDirty', 'isDirty', { unique: false });
+        }
         if (!db.objectStoreNames.contains(REPLICATION_STORES.PENDING_MUTATIONS)) {
           db.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, { keyPath: 'id' });
         }

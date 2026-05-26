@@ -2,14 +2,16 @@
 
 Companion to [`2026-05-17-unify-myk9show-myk9q.md`](./2026-05-17-unify-myk9show-myk9q.md) §Phase 0 steps 4–6. This doc resolves the open shape questions before any code lands.
 
-**Status:** rev 2 — decisions locked, audits returned, ready for PR A.
+**Status:** rev 4 — decisions locked, audits returned, ready for PR A.
 
-**Date:** 2026-05-26 (rev 2 same-day)
+**Date:** 2026-05-26 (rev 4 same-day)
 **Owner:** TBD (waiting for assignment)
 
 **Changelog:**
 - rev 1 (initial): surfaced five open questions, recommended defaults, proposed 8-PR sequencing.
 - rev 2 (2026-05-26 PM): user locked Q1=Tailwind / Q2=extend-existing / Q3=hook-only / Q4=audit-then-defer-Nationals / Q5=audit-then-decide. Audits returned in §3. PR order tightened.
+- rev 3 (drafted, never committed): user reversed Q4 to extract Nationals along with the generic scoresheets on the assumption that the monorepo's `apps/myk9q/` had the working version worth preserving.
+- rev 4 (2026-05-26 PM): rev 3 reversed after a quick audit revealed the monorepo's 1409 LOC of Nationals code is a **stale partial port**; the working version lives in the separate production myK9Q v3 repo (not accessible from this machine). Defer Nationals to a future PR that ports directly from prod — extracting the stale monorepo copy would enshrine a known-broken version into the shared package. Q4 reverts to: extract generic scoresheets, defer Nationals.
 
 ---
 
@@ -93,24 +95,35 @@ with `suppression.ts` already exporting `shouldSuppress(preferences, { isInRing 
 
 **Decision:** `packages/ringside` exports `usePasscodeAuth()` / `useCurrentPasscodeRole()` hooks. Each host app keeps its own top-level `AuthProvider` and decides how to merge passcode + account session per Locked Decision 8 (signed-in user attaching a passcode = host's confirmation step).
 
-### Q4 — Scoresheets: **extract baseline, defer Nationals** ✅
+### Q4 — Scoresheets: **extract generic, defer Nationals to a prod-repo port** ✅
 
 **Audit inventory:**
 ```
-AKC/AKCFastCatScoresheet.tsx                    — generic
-AKC/AKCScentWorkScoresheet.tsx                  — generic
-AKC/AKCScentWorkScoresheetRouter.tsx            — generic
-AKC/AKCNationalsScoresheet.tsx                  — **Nationals-specific**
-AKC/components/NationalsConfirmationDialog.tsx  — **Nationals-specific**
-ASCA/ASCAScentDetectionScoresheet.tsx           — generic
-components/NationalsPointsDisplay.tsx           — **Nationals-specific**
+AKC/AKCFastCatScoresheet.tsx                    — generic, extract in PR F
+AKC/AKCScentWorkScoresheet.tsx                  — generic, extract in PR F
+AKC/AKCScentWorkScoresheetRouter.tsx            — generic, extract in PR F
+AKC/AKCNationalsScoresheet.tsx                  — Nationals (stale; see below)
+AKC/components/NationalsConfirmationDialog.tsx  — Nationals (stale; see below)
+ASCA/ASCAScentDetectionScoresheet.tsx           — generic, extract in PR F
+components/NationalsPointsDisplay.tsx           — Nationals (stale; see below)
 components/TimerDisplay.tsx, AreaInputs.tsx,
 ScoreConfirmationDialog.tsx, etc.               — generic shared components
 ```
 
-**Decision per user:** move the generic scoresheets in PR F. Leave `AKCNationalsScoresheet.tsx`, `NationalsConfirmationDialog.tsx`, and `NationalsPointsDisplay.tsx` in `apps/myk9q/` for now — they couple to `nationalsStore` and have their own deferred follow-up work. A future PR can extract them after the rest of ringside stabilizes.
+**Critical context (surfaced 2026-05-26):** the monorepo's `apps/myk9q/` Nationals files total 1409 LOC across `AKCNationalsScoresheet.tsx`, `NationalsConfirmationDialog.tsx`, `NationalsPointsDisplay.tsx`, `nationalsStore.ts` (461 lines), `useNationalsScoring.ts`, `useNationalsCounters.ts`. Despite the size, this is a **stale partial port**. The canonical working version lives in the separate production myK9Q v3 repo, which is not accessible from this machine.
 
-This keeps PR F under the size budget and avoids dragging Nationals scoring's complexity into the first extraction wave.
+**Decision per user (rev 4):** do NOT extract the monorepo's stale Nationals copy into `packages/ringside`. Enshrining a known-broken implementation into the shared package would create a debug trap for whoever next touches Nationals — they'd find a substantial-looking codebase that doesn't actually work, with no clear flag that it's stale.
+
+**PR F therefore covers ONLY the generic scoresheets:**
+- AKC FastCat, AKC ScentWork (+ Router), ASCA ScentDetection
+- Generic shared components (`TimerDisplay`, `AreaInputs`, `ScoreConfirmationDialog`, etc.)
+
+**Nationals deferred to a future PR (out of Phase 0):** port the working Nationals implementation from the prod myK9Q v3 repo *directly into* `packages/ringside`, alongside the new auth model. This is a fresh port — not a migration of the monorepo's stale copy. Tracked as a new follow-up task.
+
+**Knock-on effects:**
+- PR D (stores) excludes `nationalsStore.ts` — it's stale and won't be needed until the prod-repo port lands.
+- PR D excludes `useNationalsScoring`/`useNationalsCounters` hooks for the same reason.
+- The 1409 LOC of stale Nationals code in `apps/myk9q/` stays where it is for now. Removing it adds scope and may break the existing monorepo myK9Q dev experience without notice — leave for the prod-port PR to clean up as it lands.
 
 ### Q5 — Replication: **NOT duplication, leave layered** ✅
 
@@ -142,10 +155,21 @@ Goal: each PR is < ~500 LOC moved, builds green, ships independently. Updated or
 | **D** | Move ringside domain stores | medium | `entryStore`, `scoringStore`, `timerStore`. The table-subclass question from Q5 surfaces here — likely resolved via a DI hook. |
 | **E1** | Move ClassList page + hooks | medium | Largest single move. Split E1/E2 to stay under size budget. |
 | **E2** | Move EntryList + ShowDetails (ClassTable) | medium | |
-| **F** | Move generic scoresheets | medium | AKC FastCat, AKC ScentWork (+ Router), ASCA ScentDetection, generic components. **Defer** `AKCNationalsScoresheet`, `NationalsConfirmationDialog`, `NationalsPointsDisplay` per Q4. |
+| **F** | Move generic scoresheets | medium | AKC FastCat, AKC ScentWork (+ Router), ASCA ScentDetection, generic components. **Skip** `AKCNationalsScoresheet`, `NationalsConfirmationDialog`, `NationalsPointsDisplay` per Q4 — those are stale in the monorepo and will be fresh-ported from the prod myK9Q v3 repo in a separate follow-up. |
 | **G** | Move dialogs + remaining ringside hooks | low | Mop-up. |
 
-**Stop point for Phase 0:** PRs A–G finished, `apps/myk9q` builds + tests pass, `apps/myk9show` does not yet consume ringside (that's Phase 1's `/at-show` route work). Nationals scoresheet remains in-app pending a separate follow-up.
+**Stop point for Phase 0:** PRs A–G finished, `apps/myk9q` builds + tests pass, `apps/myk9show` does not yet consume ringside (that's Phase 1's `/at-show` route work). Stale Nationals code remains in `apps/myk9q/` pending the prod-repo port follow-up.
+
+### 4.2a — Out-of-Phase-0 follow-up (Nationals port)
+
+Tracked as a separate task (not part of this plan's PR sequence):
+
+> **Port Nationals scoresheets from prod myK9Q v3 → `packages/ringside`.** Replace the stale 1409 LOC currently in `apps/myk9q/`. Requires:
+> 1. Access to the prod myK9Q v3 repo
+> 2. The new auth model rewired in (passcode lookup via `validate_passcode`, no license-key derivation)
+> 3. Coordination with whatever `nationalsStore` shape ringside uses by then (PR D will have set the precedent)
+>
+> Schedule: "we won't need them for a while" per user, so low priority. Tagged for the future Nationals-active sprint.
 
 ### 4.2 Guardrails per PR
 

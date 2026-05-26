@@ -255,9 +255,20 @@ serve(async req => {
     // The bug was symptomless until now because myK9Q's client-side
     // authService.ts does its own scan and never invokes this function.
     // The Phase 1 smart input WILL invoke it, so fix-while-touching.
+    //
+    // SOFT-DELETE FILTER (deleted_at IS NULL) — closes the same
+    // soft-delete gap the validate_passcode RPC closes server-side. Both
+    // the new-RPC-result `find` AND the legacy UUID-derivation scan
+    // iterate this list; filtering at the query keeps soft-deleted shows
+    // out of both paths in one place. validate_passcode now also filters
+    // server-side (migration 20260526013506), so this filter is
+    // defense-in-depth on the edge-function side and required correctness
+    // on the legacy-scan side until the legacy fallback is deleted in the
+    // next sub-PR.
     const { data: shows, error: showsError } = await supabaseClient
       .from('shows')
       .select('id, name, start_date, organization')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (showsError) {

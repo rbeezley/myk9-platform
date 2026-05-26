@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import type { ShowPasscodes } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { AlertTriangle, ArrowLeft, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
@@ -40,7 +41,17 @@ const ShowCreationWizardPage: React.FC = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [validationExpanded, setValidationExpanded] = useState(false);
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
-  const [createdShow, setCreatedShow] = useState<{ id: string; name: string } | null>(null);
+  const [createdShow, setCreatedShow] = useState<{
+    id: string;
+    name: string;
+    /**
+     * Server-generated plaintext passcodes returned from insert_show_passcodes.
+     * Null when the passcode insert failed — the access card falls back to the
+     * legacy UUID-derivation in that case so the secretary still gets working
+     * codes for the existing-show fallback path.
+     */
+    passcodes: ShowPasscodes | null;
+  } | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,7 +99,7 @@ const ShowCreationWizardPage: React.FC = () => {
     useShowCreationWizardActions({
       editMode,
       setIsLoading,
-      onCreated: (id, name) => setCreatedShow({ id, name }),
+      onCreated: (id, name, passcodes) => setCreatedShow({ id, name, passcodes }),
     });
 
   // Reset wizard state when entering fresh create mode (not edit mode)
@@ -462,7 +473,11 @@ const ShowCreationWizardPage: React.FC = () => {
               <p className="mt-1 text-muted-foreground">{createdShow.name}</p>
             </div>
             <div className="w-full max-w-md">
-              <MyK9QAccessCard showId={createdShow.id} showName={createdShow.name} />
+              <MyK9QAccessCard
+                showId={createdShow.id}
+                showName={createdShow.name}
+                passcodes={createdShow.passcodes}
+              />
             </div>
             <Button
               size="lg"

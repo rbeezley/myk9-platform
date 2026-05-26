@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { generateShowPasscodes, type ShowPasscodes } from '@myk9/core';
+import type { ShowPasscodes } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
@@ -74,31 +74,39 @@ export async function saveShowAtomicOnline(
     throw new Error(rpcError.message);
   }
 
-  // Generate the 4 role passcodes client-side using crypto.getRandomValues,
-  // then hand the plaintexts to insert_show_passcodes which hashes them
-  // server-side with the Vault pepper. The plaintexts only ever exist in
-  // this function's scope and the returned response — they are never
-  // logged, persisted, or sent anywhere else.
-  let passcodes: ShowPasscodes | null = generateShowPasscodes();
-  const { error: passcodeError } = await (
+  // Ask the database to generate + hash + insert the 4 role passcodes in a
+  // single SECURITY DEFINER call. Generation is server-side (not client-side)
+  // because the global UNIQUE(passcode_hash) constraint can collide and the
+  // client has no way to detect collisions before submitting — the function
+  // retries internally on conflict. The returned plaintexts are the only
+  // copy that will ever exist outside the database; they flow through the
+  // result type for the access-card UI to display once.
+  let passcodes: ShowPasscodes | null = null;
+  const { data: passcodeRows, error: passcodeError } = await (
     supabase.rpc as unknown as (
       fn: string,
       args: Record<string, unknown>
-    ) => Promise<{ error: { message: string } | null }>
-  )('insert_show_passcodes', {
-    p_show_id: showId,
-    p_codes: passcodes,
-  });
+    ) => Promise<{
+      data: Array<{ admin: string; judge: string; steward: string; exhibitor: string }> | null;
+      error: { message: string } | null;
+    }>
+  )('insert_show_passcodes', { p_show_id: showId });
   if (passcodeError) {
     // The show row exists; a missing passcode set is recoverable via
     // regenerate_show_passcodes from the show settings UI. Surface the
-    // failure as a warning, drop the plaintexts (they no longer match
-    // anything server-side), and let the caller proceed.
+    // failure as a warning and let the caller proceed.
     logger.warn('insert_show_passcodes failed — secretary must regenerate', 'wizard', {
       showId,
       error: passcodeError.message,
     });
-    passcodes = null;
+  } else if (passcodeRows && passcodeRows.length > 0) {
+    const row = passcodeRows[0]!;
+    passcodes = {
+      admin: row.admin,
+      judge: row.judge,
+      steward: row.steward,
+      exhibitor: row.exhibitor,
+    };
   }
 
   try {

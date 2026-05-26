@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Copy, Link, Printer } from 'lucide-react';
+import type { ShowPasscodes } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { notifications } from '@/lib/notifications';
@@ -12,10 +13,26 @@ interface MyK9QAccessCardProps {
   showDate?: string;
   /** If provided, only rows whose role is in this array are shown. Defaults to all roles. */
   visibleRoles?: string[];
+  /**
+   * Authoritative server-generated plaintexts from insert_show_passcodes
+   * (returned exactly once at show creation). When provided these are
+   * displayed verbatim — they match the show_passcodes hash table. When
+   * absent we fall back to the legacy UUID-derivation, which still matches
+   * what myK9Q's legacy validator accepts for existing shows that have no
+   * show_passcodes rows yet. Once Phase 0 PR #2 switches the validator and
+   * runs the backfill, this fallback path should be removed.
+   */
+  passcodes?: ShowPasscodes | null;
 }
 
-export function MyK9QAccessCard({ showId, showName, showDate, visibleRoles }: MyK9QAccessCardProps) {
-  const passcodes = generatePasscodesFromShowId(showId);
+export function MyK9QAccessCard({
+  showId,
+  showName,
+  showDate,
+  visibleRoles,
+  passcodes: providedPasscodes,
+}: MyK9QAccessCardProps) {
+  const passcodes = providedPasscodes ?? generatePasscodesFromShowId(showId);
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
   if (!passcodes) return null;

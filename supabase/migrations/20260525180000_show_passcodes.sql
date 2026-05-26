@@ -47,18 +47,22 @@ end
 $$;
 
 -- 3. The table.
+-- UNIQUE(passcode_hash) is critical for validate_passcode correctness: with
+-- ~1.7M codes per role and thousands of shows, birthday-bound collisions
+-- become likely without the constraint, and a valid code could resolve to
+-- the wrong show. The generation RPCs retry on conflict via
+-- _generate_unique_role_code (see helper below).
 create table if not exists public.show_passcodes (
   id            uuid primary key default extensions.uuid_generate_v4(),
   show_id       uuid not null references public.shows(id) on delete cascade,
   role          text not null check (role in ('admin', 'judge', 'steward', 'exhibitor')),
-  passcode_hash text not null,
+  passcode_hash text not null unique,
   created_at    timestamptz not null default now(),
   unique (show_id, role)
 );
 
-create index if not exists show_passcodes_hash_idx
-  on public.show_passcodes (passcode_hash);
-
+-- UNIQUE constraint already creates a btree index on passcode_hash; no
+-- separate index needed for lookup.
 create index if not exists show_passcodes_show_id_idx
   on public.show_passcodes (show_id);
 
@@ -171,10 +175,57 @@ $$;
 
 revoke all on function public._random_role_code(text) from public;
 
--- 7. validate_passcode(p_code text) — public RPC for the smart input.
--- Returns the matching {show_id, role} or NULL. Anonymous-callable; the
--- application layer enforces rate limiting (see plan "Security (smart
--- input)" section).
+-- 7. Internal helper: generate a per-role code that does not collide with
+-- any existing hashed code. Used by both insert_show_passcodes and
+-- regenerate_show_passcodes. Retries up to MAX_ATTEMPTS times if a candidate
+-- code's HMAC collides with an already-stored hash. With 36^4 = 1,679,616
+-- codes per role, conflicts are rare until the codebase hits hundreds of
+-- thousands of shows.
+create or replace function public._generate_unique_role_code(p_role text)
+returns table (plaintext text, hash text)
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_attempt int := 0;
+  v_max_attempts constant int := 12;
+  v_plain text;
+  v_hash text;
+begin
+  loop
+    v_attempt := v_attempt + 1;
+    v_plain := public._random_role_code(p_role);
+    v_hash := public._hash_passcode(v_plain);
+
+    if not exists (
+      select 1 from public.show_passcodes sp where sp.passcode_hash = v_hash
+    ) then
+      plaintext := v_plain;
+      hash := v_hash;
+      return next;
+      return;
+    end if;
+
+    if v_attempt >= v_max_attempts then
+      raise exception 'failed to generate a unique % passcode after % attempts '
+        'over a ~1.7M-value namespace; the passcode space may be saturated',
+        p_role, v_max_attempts
+        using errcode = '55000';
+    end if;
+  end loop;
+end
+$$;
+
+revoke all on function public._generate_unique_role_code(text) from public;
+
+-- 8. validate_passcode(p_code text) — service-role-only RPC for the smart
+-- input's edge function. NOT granted to anon/authenticated: a public grant
+-- would let any client brute-force the ~6.7M-code namespace through
+-- Supabase PostgREST, bypassing the rate-limited edge function path. The
+-- Phase 1 smart-input lands on an edge function that calls this RPC with
+-- the service role.
 create or replace function public.validate_passcode(p_code text)
 returns table (show_id uuid, role text)
 language plpgsql
@@ -199,14 +250,18 @@ end
 $$;
 
 revoke all on function public.validate_passcode(text) from public;
-grant execute on function public.validate_passcode(text) to anon, authenticated;
+-- Intentionally no grant to anon or authenticated. Only service_role
+-- (which bypasses GRANT requirements via BYPASSRLS + owner privileges)
+-- may invoke this. Phase 1's smart-input edge function uses the service
+-- role; direct client access is prohibited.
 
 comment on function public.validate_passcode(text) is
   'Looks up a 5-char show passcode via HMAC-SHA256 hash and returns the '
-  '(show_id, role) pair or no rows. Anonymous-callable; rate-limit at the '
-  'application layer.';
+  '(show_id, role) pair or no rows. Service-role-only — must be invoked '
+  'from a rate-limited edge function, never directly from a browser, or '
+  'brute-force enumeration of the ~6.7M-code namespace becomes trivial.';
 
--- 8. Internal authorization check shared by insert + regenerate.
+-- 9. Internal authorization check shared by insert + regenerate.
 -- Mirrors create_show_with_children: site_admin, club_admin (for the show's
 -- club), or trial_secretary (for the show's club) may generate codes.
 create or replace function public._can_manage_show_passcodes(p_show_id uuid)
@@ -239,23 +294,31 @@ $$;
 
 revoke all on function public._can_manage_show_passcodes(uuid) from public;
 
--- 9. insert_show_passcodes — called from the show-creation flow.
--- Client generates plaintexts client-side (with crypto.getRandomValues),
--- passes them as a jsonb object {admin, judge, steward, exhibitor}; this
--- RPC hashes them server-side (so the Vault pepper never leaves the DB)
--- and inserts the 4 rows atomically.
-create or replace function public.insert_show_passcodes(
-  p_show_id uuid,
-  p_codes   jsonb
+-- 10. insert_show_passcodes — called from the show-creation flow.
+-- Generates 4 fresh random codes server-side (with retry-on-collision via
+-- _generate_unique_role_code), inserts the hashed rows, and returns the
+-- plaintexts to the caller. Server-side generation rather than accepting
+-- client input avoids a race where the client cannot detect a UNIQUE
+-- collision before submitting; the function retries internally instead.
+--
+-- Fails if the show already has any passcode rows — use
+-- regenerate_show_passcodes to overwrite.
+create or replace function public.insert_show_passcodes(p_show_id uuid)
+returns table (
+  admin     text,
+  judge     text,
+  steward   text,
+  exhibitor text
 )
-returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
-  v_role text;
-  v_code text;
+  v_admin     record;
+  v_judge     record;
+  v_steward   record;
+  v_exhibitor record;
 begin
   if p_show_id is null then
     raise exception 'p_show_id is required' using errcode = '22023';
@@ -266,42 +329,42 @@ begin
       using errcode = '42501';
   end if;
 
-  -- Validate all 4 roles are present before any insert; surface a clear
-  -- error rather than letting NOT NULL violations leak.
-  foreach v_role in array array['admin','judge','steward','exhibitor'] loop
-    v_code := p_codes ->> v_role;
-    if nullif(v_code, '') is null then
-      raise exception 'p_codes is missing role %', v_role
-        using errcode = '22023';
-    end if;
-    if length(v_code) <> 5 then
-      raise exception 'p_codes.% must be exactly 5 characters', v_role
-        using errcode = '22023';
-    end if;
-  end loop;
+  if exists (
+    select 1 from public.show_passcodes sp where sp.show_id = p_show_id
+  ) then
+    raise exception 'show % already has passcodes; use regenerate_show_passcodes', p_show_id
+      using errcode = '23505';
+  end if;
 
-  foreach v_role in array array['admin','judge','steward','exhibitor'] loop
-    v_code := p_codes ->> v_role;
-    insert into public.show_passcodes (show_id, role, passcode_hash)
-    values (p_show_id, v_role, public._hash_passcode(v_code))
-    on conflict (show_id, role) do update
-      set passcode_hash = excluded.passcode_hash,
-          created_at    = now();
-  end loop;
+  v_admin     := public._generate_unique_role_code('admin');
+  v_judge     := public._generate_unique_role_code('judge');
+  v_steward   := public._generate_unique_role_code('steward');
+  v_exhibitor := public._generate_unique_role_code('exhibitor');
+
+  insert into public.show_passcodes (show_id, role, passcode_hash) values
+    (p_show_id, 'admin',     v_admin.hash),
+    (p_show_id, 'judge',     v_judge.hash),
+    (p_show_id, 'steward',   v_steward.hash),
+    (p_show_id, 'exhibitor', v_exhibitor.hash);
+
+  return query
+    select v_admin.plaintext, v_judge.plaintext, v_steward.plaintext, v_exhibitor.plaintext;
 end
 $$;
 
-revoke all on function public.insert_show_passcodes(uuid, jsonb) from public;
-grant execute on function public.insert_show_passcodes(uuid, jsonb) to authenticated;
+revoke all on function public.insert_show_passcodes(uuid) from public;
+grant execute on function public.insert_show_passcodes(uuid) to authenticated;
 
-comment on function public.insert_show_passcodes(uuid, jsonb) is
-  'Hashes plaintext passcodes via HMAC-SHA256 + Vault pepper and inserts/'
-  'updates the 4 rows for a show. Caller must be site_admin, club_admin, '
-  'or trial_secretary for the show''s club.';
+comment on function public.insert_show_passcodes(uuid) is
+  'Generates 4 fresh random 5-char passcodes for a show server-side, inserts '
+  'their hashes, and returns the plaintexts exactly once. Fails if the show '
+  'already has passcodes. Caller must be site_admin, club_admin, or '
+  'trial_secretary for the show''s club.';
 
--- 10. regenerate_show_passcodes — admin/secretary "lost the codes, give
--- me new ones" path. Generates plaintexts server-side, replaces all 4
--- rows, returns the new plaintexts exactly once to the caller.
+-- 11. regenerate_show_passcodes — admin/secretary "lost the codes, give
+-- me new ones" path. Server-side generation (same _generate_unique_role_code
+-- helper as insert_show_passcodes), upserts on (show_id, role), returns the
+-- plaintexts exactly once.
 create or replace function public.regenerate_show_passcodes(p_show_id uuid)
 returns table (
   admin     text,
@@ -314,10 +377,10 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_admin     text;
-  v_judge     text;
-  v_steward   text;
-  v_exhibitor text;
+  v_admin     record;
+  v_judge     record;
+  v_steward   record;
+  v_exhibitor record;
 begin
   if p_show_id is null then
     raise exception 'p_show_id is required' using errcode = '22023';
@@ -328,21 +391,22 @@ begin
       using errcode = '42501';
   end if;
 
-  v_admin     := public._random_role_code('admin');
-  v_judge     := public._random_role_code('judge');
-  v_steward   := public._random_role_code('steward');
-  v_exhibitor := public._random_role_code('exhibitor');
+  v_admin     := public._generate_unique_role_code('admin');
+  v_judge     := public._generate_unique_role_code('judge');
+  v_steward   := public._generate_unique_role_code('steward');
+  v_exhibitor := public._generate_unique_role_code('exhibitor');
 
   insert into public.show_passcodes (show_id, role, passcode_hash) values
-    (p_show_id, 'admin',     public._hash_passcode(v_admin)),
-    (p_show_id, 'judge',     public._hash_passcode(v_judge)),
-    (p_show_id, 'steward',   public._hash_passcode(v_steward)),
-    (p_show_id, 'exhibitor', public._hash_passcode(v_exhibitor))
+    (p_show_id, 'admin',     v_admin.hash),
+    (p_show_id, 'judge',     v_judge.hash),
+    (p_show_id, 'steward',   v_steward.hash),
+    (p_show_id, 'exhibitor', v_exhibitor.hash)
   on conflict (show_id, role) do update
     set passcode_hash = excluded.passcode_hash,
         created_at    = now();
 
-  return query select v_admin, v_judge, v_steward, v_exhibitor;
+  return query
+    select v_admin.plaintext, v_judge.plaintext, v_steward.plaintext, v_exhibitor.plaintext;
 end
 $$;
 
@@ -351,8 +415,8 @@ grant execute on function public.regenerate_show_passcodes(uuid) to authenticate
 
 comment on function public.regenerate_show_passcodes(uuid) is
   'Generates 4 fresh random 5-char passcodes for a show server-side, '
-  'replaces existing rows, and returns the plaintexts exactly once. Caller '
-  'must be site_admin, club_admin, or trial_secretary for the show''s club. '
-  'After this call the plaintexts cannot be recovered — only the hashes.';
+  'overwrites any existing rows, and returns the plaintexts exactly once. '
+  'Caller must be site_admin, club_admin, or trial_secretary for the show''s '
+  'club. After this call the plaintexts cannot be recovered — only the hashes.';
 
 commit;

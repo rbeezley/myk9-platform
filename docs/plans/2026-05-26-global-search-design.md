@@ -120,14 +120,33 @@ This is the right data-model shape regardless of search — secretaries cannot t
 
 ## Phasing
 
-**Phase 0 — Prereqs.**
-- Audit `dogs.SELECT`, `people.SELECT`, `shows.SELECT`, `clubs.SELECT`, `classes.SELECT`, `entries.SELECT` RLS policies. Document gaps.
-- If dogs/people aren't platform-readable on basic identifying fields, ship that data-model migration first. Search v1 is blocked on it.
+**Phase 0 — Prereqs.** ✅ Audit complete (2026-05-26).
 
-**Phase 1 — Search v1.** One PR, one migration, one feature flag (`global_search_v2`).
-- Migration: `pg_trgm` extension (if needed), GIN trigram indexes, partial index on `entries.armband`, `search_global` RPC.
+RLS findings on `public` schema:
+
+| Table | Current SELECT policy | Search impact |
+|---|---|---|
+| `dogs` | owner / co-owner / show-dog-manager / **any judge** / site admin | ⚠️ Secretary cannot discover platform-wide dogs not in their show |
+| `people` | own row / show-person-manager / site admin | ⚠️ Secretary cannot discover platform-wide handlers/owners not in their show |
+| `shows` | public for published statuses; secretary/admin otherwise | ✅ OK |
+| `clubs` | fully public (`true`) | ✅ OK |
+| `classes` | public for published shows; club admin/secretary/site admin otherwise | ✅ OK |
+| `entries` | show-manager / handler / dog-owner (auth); anon TV-mode for published shows | ✅ OK for armband search inside scope |
+| `armbands` (separate table) | fully public (`true`) | ✅ OK — but confirm during implementation which table is source of truth for armband lookup |
+
+**Required prerequisite migration** (ship before Phase 1 RPC):
+
+- `search_dogs_directory(query text)` — `SECURITY DEFINER` function returning only whitelisted public-identifier columns from `dogs` (id, call_name, breed, owner display name). Bypasses `dogs.SELECT` for discovery; never exposes DOB / microchip / registration / medical fields.
+- `search_people_directory(query text)` — `SECURITY DEFINER` function returning only (id, display_name, public handler ID) from `people`. Never exposes address / phone / email / emergency contacts.
+- Main `dogs.SELECT` and `people.SELECT` policies stay restrictive — unchanged.
+- The `search_global` RPC routes through these directory functions for cross-scope dog/people discovery, and uses normal table reads (RLS enforced) for in-scope records and for shows/clubs/classes/entries.
+
+This lets a secretary find "Rex" platform-wide and create an entry with the existing dog record — without leaking sensitive columns from dogs they don't have a relationship with.
+
+**Phase 1 — Search v1.** One PR, one migration, one feature flag.
+- Migration: `pg_trgm` extension (if needed), GIN trigram indexes, partial index on `entries.armband`, `search_global` RPC, plus `search_dogs_directory` and `search_people_directory` `SECURITY DEFINER` helpers (see Phase 0 for why).
 - Frontend: refactor `CommandPalette.tsx` to call the RPC; add show-scope detection via `useLocation()`; add AskQ row launcher; add offline fallback against existing stores; add `in_scope` affordance switch for dogs/people.
-- Dark-launch via GrowthBook.
+- Gate: add `globalSearchV2: false` to `src/config/features.ts`; flip to `true` when ready. Matches existing flag-and-redeploy pattern (no GrowthBook in the codebase today).
 
 **Phase 2 — Replicated search (unification phase).** Replicate six searchable tables (or denormalized view) to IndexedDB. Swap offline fallback to local-first query. Same RPC contract, same render shape — no UI changes.
 
@@ -151,7 +170,7 @@ This is the right data-model shape regardless of search — secretaries cannot t
 
 ## Open items for implementation planning
 
-- Existing `dogs.SELECT` / `people.SELECT` RLS shape — must inspect before sizing Phase 0.
 - Specific Zustand store shapes for the offline fallback — verify all needed display fields are present in the loaded stores.
 - Entry detail slide-over component — confirm whether one already exists or needs building.
-- GrowthBook flag wiring — confirm flag-evaluation hook exists in myK9Show.
+- Armband data location — confirm whether `entries.armband` or `public.armbands` is the source of truth for armband-number lookup (or whether both join into the result).
+- Whitelist of public-identifier columns for `search_dogs_directory` and `search_people_directory` — final decision goes into the prerequisite migration.

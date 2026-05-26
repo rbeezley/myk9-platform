@@ -68,7 +68,11 @@ declare
   v_show_id uuid;
   v_role text;
   v_role_count int;
-  v_unique public._generate_unique_role_code%rowtype;
+  -- Matches the pattern in insert_show_passcodes / regenerate_show_passcodes.
+  -- `function_name%rowtype` is NOT a valid PL/pgSQL row-type reference
+  -- (%ROWTYPE only resolves against relations/composites, not functions
+  -- that happen to RETURN TABLE rows). Use plain `record`.
+  v_unique record;
   v_processed_shows int := 0;
   v_skipped_shows int := 0;
 begin
@@ -121,5 +125,61 @@ begin
     v_processed_shows, v_skipped_shows;
 end
 $$;
+
+-- Close the soft-delete validation gap. The base migration's
+-- validate_passcode did a bare lookup against show_passcodes, but rows
+-- belonging to soft-deleted shows would still return matches —
+-- provisioning live authentication to a resource the app refuses to
+-- render. The legacy edge-function bridge in apps/myk9q/supabase/
+-- functions/validate-passcode/index.ts has the same gap on the
+-- fallback side (deleted shows still get legacy-scanned). The bridge
+-- update lands in the same PR's edge-function code change so the
+-- protection is consistent across both paths.
+--
+-- Effect: a soft-deleted show is unauthenticatable via any code, even
+-- if show_passcodes rows still exist for it (they're not cascaded by
+-- soft delete — only by hard delete via the FK CASCADE). On restore,
+-- the secretary can either reuse the still-present rows (if codes were
+-- known) or call regenerate_show_passcodes.
+
+create or replace function public.validate_passcode(p_code text)
+returns table (show_id uuid, role text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_hash text;
+begin
+  v_hash := public._hash_passcode(p_code);
+  if v_hash is null then
+    return;
+  end if;
+
+  return query
+    select sp.show_id, sp.role
+      from public.show_passcodes sp
+      join public.shows s on s.id = sp.show_id
+     where sp.passcode_hash = v_hash
+       and s.deleted_at is null
+     limit 1;
+end
+$$;
+
+comment on function public.validate_passcode(text) is
+  'Looks up a 5-char show passcode via HMAC-SHA256 hash and returns the '
+  '(show_id, role) pair or no rows. Service-role-only — must be invoked '
+  'from a rate-limited edge function, never directly from a browser, or '
+  'brute-force enumeration of the ~6.7M-code namespace becomes trivial. '
+  'Soft-deleted shows (shows.deleted_at IS NOT NULL) return no match, '
+  'closing the live-access-to-deleted-resource gap.';
+
+-- Re-grant is a no-op (the function name + arg list is identical so the
+-- existing grant to service_role carries over from the base migration),
+-- but stated explicitly so a fresh-env replay or a `db reset` produces
+-- the same final state.
+revoke all on function public.validate_passcode(text) from public;
+grant execute on function public.validate_passcode(text) to service_role;
 
 commit;

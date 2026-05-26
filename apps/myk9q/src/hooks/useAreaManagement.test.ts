@@ -8,8 +8,12 @@ import { renderHook, act } from '@testing-library/react';
 import { useAreaManagement } from './useAreaManagement';
 import type { AreaScore } from '../services/scoresheets/areaInitialization';
 
-// Mock parseSmartTime
-vi.mock('../utils/timeInputParsing', () => ({
+// Mock parseSmartTime. Mock target follows the SUT's import path, which
+// moved from '../utils/timeInputParsing' to '@myk9/ringside' as part of
+// the PR-B extraction. vi.mock requires an exact string match against
+// the import specifier the SUT uses — without this rewrite the mock
+// silently never fires and the real parser runs.
+vi.mock('@myk9/ringside', () => ({
   parseSmartTime: vi.fn((input: string) => {
     // Simple mock: convert "230" to "2:30", keep valid formats
     if (/^\d{3,4}$/.test(input)) {

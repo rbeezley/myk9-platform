@@ -9,15 +9,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Phase 0 PR A — proves the @myk9/ringside workspace package resolves and
-// its compiled stylesheet loads. The import is currently a no-op (the
-// package exports only a sentinel constant); real ringside code lands
-// starting in PR B. See docs/plans/phase-0-ringside-package.md.
-import { RINGSIDE_PACKAGE_VERSION } from '@myk9/ringside';
+// Phase 0 — the @myk9/ringside package's compiled stylesheet. Required
+// for ringside-styled components once they land in PRs C+. Real ringside
+// code is now consumed inline by hooks/components, so no proof-of-life
+// sentinel import is needed here (was added in PR A and retired in PR B).
 import '@myk9/ringside/styles';
-// Reference the constant once so the import doesn't get tree-shaken away
-// before PR B introduces real consumers.
-void RINGSIDE_PACKAGE_VERSION;
 import { registerSW } from 'virtual:pwa-register';
 import { setupPwaUpdate, applyPwaUpdate } from '@myk9/pwa-update';
 import { serviceWorkerManager } from './utils/serviceWorkerUtils';

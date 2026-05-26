@@ -30,7 +30,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { initializeAreas, type AreaScore } from '../services/scoresheets/areaInitialization';
-import { parseSmartTime } from '../utils/timeInputParsing';
+import { parseSmartTime } from '@myk9/ringside';
 
 export interface UseAreaManagementOptions {
   /** Scent work element (e.g., 'Interior', 'Container') */

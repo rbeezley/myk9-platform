@@ -240,10 +240,14 @@ serve(async req => {
       );
     }
 
-    // Fetch all shows to check passcode
+    // Fetch all shows to check passcode. Column is `style`, not `type` —
+    // historical rename that the legacy edge function never picked up
+    // because myK9Q's client-side authService.ts does its own scan and
+    // never actually invokes this function. The Phase 1 smart input WILL
+    // invoke it, so fix-while-touching.
     const { data: shows, error: showsError } = await supabaseClient
       .from('shows')
-      .select('id, name, start_date, organization, type')
+      .select('id, name, start_date, organization, style')
       .order('created_at', { ascending: false });
 
     if (showsError) {
@@ -357,7 +361,7 @@ serve(async req => {
       showDate: matchedShow.start_date,
       licenseKey: matchedShow.id,
       org: matchedShow.organization || '',
-      competition_type: matchedShow.type || 'Regular',
+      competition_type: matchedShow.style || 'Regular',
     };
 
     return new Response(

@@ -36,8 +36,9 @@ test.describe('Cross-role workflow smoke', () => {
       page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Tasks/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Messages/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Personal tasks' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Add Task/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Messages' })).toBeVisible();
   });
 
   test('exhibitor can land on My Entries and continue to show discovery', async ({ page }) => {

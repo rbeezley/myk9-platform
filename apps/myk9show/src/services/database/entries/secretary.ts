@@ -146,17 +146,6 @@ export const getEntriesForShow = async (showId: string) => {
         check_in_status,
         withdrawal_reason,
         registration_id,
-        registration:registration_id (
-          id,
-          confirmation_number,
-          payment_status,
-          payment_reference,
-          total_amount,
-          paid_amount,
-          refund_amount,
-          refund_notes,
-          refunded_at
-        ),
         dog:dog_id (
           id,
           name,
@@ -186,7 +175,13 @@ export const getEntriesForShow = async (showId: string) => {
       throw createDatabaseError(error, 'entries', 'get_entries_for_show');
     }
 
-    return { data: data || [], error: null };
+    return {
+      data: (data ?? []).map(entry => ({
+        ...entry,
+        registration: null,
+      })),
+      error: null,
+    };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');

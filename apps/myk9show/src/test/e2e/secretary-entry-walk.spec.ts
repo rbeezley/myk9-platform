@@ -16,15 +16,78 @@ async function signInAsSecretary(page: import('@playwright/test').Page) {
   await page.waitForLoadState('networkidle');
 }
 
+async function preventSharedWrites(page: import('@playwright/test').Page) {
+  await page.route('**/rest/v1/enrollments**', async route => {
+    const request = route.request();
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+      return;
+    }
+
+    if (request.method() !== 'POST') return route.fallback();
+
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'secretary-walk-enrollment',
+        show_id: TEST_SHOW_ID,
+        handler_id: 'secretary-walk-handler',
+        confirmation_number: 'MK9-WALK01',
+        payment_status: 'paid',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+    });
+  });
+
+  await page.route('**/rest/v1/rpc/assign_armband', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify('9002'),
+    });
+  });
+
+  await page.route('**/rest/v1/entries**', async route => {
+    const request = route.request();
+    if (request.method() !== 'PATCH') return route.fallback();
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{ id: 'secretary-walk-entry-1', armband: '9002' }]),
+    });
+  });
+}
+
 test.describe('Secretary Entry Walk', () => {
   test('full wizard walk: search dog → select → pick class → submit', async ({ page }) => {
     const errors: string[] = [];
+    const failedResponses: string[] = [];
     page.on('console', msg => {
-      if (msg.type() === 'error') errors.push(`[${msg.type()}] ${msg.text()}`);
+      if (msg.type() !== 'error') return;
+      if (msg.text().startsWith('Failed to load resource:')) return;
+      errors.push(`[${msg.type()}] ${msg.text()}`);
     });
     page.on('pageerror', err =>
       errors.push(`[pageerror] ${err.message}: ${err.stack?.slice(0, 200)}`)
     );
+    page.on('response', response => {
+      const status = response.status();
+      if (status < 400) return;
+
+      const url = response.url();
+      if (!url.includes('127.0.0.1:5173') && !url.includes('sojmvhhwsjxmfistvzbe.supabase.co')) {
+        return;
+      }
+
+      failedResponses.push(`${status} ${response.request().method()} ${url}`);
+    });
 
     await page.route('**/functions/v1/send-registration-email', async route => {
       await route.fulfill({
@@ -60,6 +123,7 @@ test.describe('Secretary Entry Walk', () => {
       });
     });
 
+    await preventSharedWrites(page);
     await signInAsSecretary(page);
     await page.goto(`/secretary/register/${TEST_SHOW_ID}`);
     await page.waitForSelector('text=Select Dogs', { timeout: 10000 });
@@ -154,6 +218,7 @@ test.describe('Secretary Entry Walk', () => {
       timeout: 10000,
     });
     await expect(page.getByText(/^Receipt\b/i)).toBeVisible();
+    expect(failedResponses).toHaveLength(0);
     expect(errors).toHaveLength(0);
   });
 });

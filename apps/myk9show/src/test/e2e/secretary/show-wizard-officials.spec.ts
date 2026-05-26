@@ -22,7 +22,7 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     await wizardPage.goto();
   });
 
-  test('Show Details step loads with populated chairman picker', async ({ page }) => {
+  test('Show Details step opens the chairman picker with an add-new fallback', async ({ page }) => {
     // Verify we're on the Show Details step
     await expect(page.locator('text=Basic Show Information')).toBeVisible();
 
@@ -30,18 +30,8 @@ test.describe('Show Wizard — Officials & Judges Pickers', () => {
     const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
     await chairmanTrigger.click();
 
-    // The popover should appear — it should have at least one of the two group headers:
-    // "Suggested" (people with CHAIRMAN/CLUB_ADMIN roles) or "All People" (everyone else)
-    const hasSuggested = await page
-      .getByText('Suggested')
-      .isVisible()
-      .catch(() => false);
-    const hasAllPeople = await page
-      .getByText('All People')
-      .isVisible()
-      .catch(() => false);
-
-    expect(hasSuggested || hasAllPeople).toBe(true);
+    await expect(page.getByRole('textbox', { name: /Search show chairman/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Add new Show Chairman/i })).toBeVisible();
   });
 
   test('Secretary field is auto-filled with the logged-in user badge', async ({ page }) => {

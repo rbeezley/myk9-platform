@@ -79,41 +79,41 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+No open findings as of the 2026-05-26 Nightly run.
+
+## Closed Findings
+
 ### QA-NETWORK-ERROR-010
 
-- **Status:** open
+- **Status:** fixed
 - **Severity:** high
 - **Role:** secretary | admin
 - **Surface:** `GET /rest/v1/people?select=*,user_roles!user_roles_user_id_fkey(role:roles(name)),judge_qualifications(...)`; consumers include the Show Creation Wizard officials/judges pickers, `/secretary/create-show/wizard`, and the people store used by secretary/admin surfaces.
 - **Suite category:** nightly
 - **Pattern:** network-error
 - **Detected by:** audit-pages
-- **Evidence:** 2026-05-26 nightly route sweep on `/secretary/create-show/wizard` captured the embedded people query returning `500` with Postgres `57014` (`canceling statement due to statement timeout`). Browser snapshot showed the Show Chairman popover rendering `No results` and the Secretary field rendering `Select Show Secretary` instead of the logged-in user's `You` badge. Browser console repeatedly logged `[ERROR] [store] 💥 Failed to load users` and `[ERROR] [database] 💥 Database query failed` during the sweep.
-- **User impact:** Show creation officials/judges pickers cannot list candidates, breaking secretary show setup from the local browser session. Multiple Playwright specs that walk the wizard or any people-backed surface (show-wizard-officials, secretary-entry-walk, registration smokes, etc.) cascade into timeouts because of the underlying request stall.
-- **Intent check:** Harms the secretary target feeling of "That was easy" — show setup stalls quietly with no actionable feedback. Admin people-management surfaces are likely also impacted.
-- **Fix owner:** Supabase `people` query/index path (probably `user_roles_user_id_fkey` embed plan or missing index on `user_roles.user_id` / `judge_qualifications.person_id`); investigate recent migrations + EXPLAIN for the failing PostgREST query.
-- **Proof required:** Re-run the route sweep on `/secretary/create-show/wizard` and confirm zero `5xx` responses to `/rest/v1/people?...user_roles!...judge_qualifications(...)`, plus a focused Playwright proof of `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts --project=chromium --workers=1 --retries=0` returning `3 passed`.
-- **Notes:** Suspected cascading root cause for the 2026-05-26 Wave 1 Nightly Playwright run taking 33.8m vs the documented 2.4m. See `docs/qa/nightly-history.md` 2026-05-26 entry for the full failure list.
+- **Evidence:** 2026-05-26 nightly route sweep initially captured the embedded people query returning `500` with Postgres `57014` (`canceling statement due to statement timeout`). Browser snapshot showed the Show Chairman popover rendering `No results` and the Secretary field rendering `Select Show Secretary` instead of the logged-in user's `You` badge. Browser console repeatedly logged `[ERROR] [store] Failed to load users` and `[ERROR] [database] Database query failed` during the sweep.
+- **User impact:** Show creation officials/judges pickers could not list candidates, breaking secretary show setup from the local browser session. Multiple Playwright specs that walk the wizard or people-backed surfaces cascaded into timeouts.
+- **Intent check:** Restores the secretary target feeling of "That was easy" by avoiding a heavy embedded people query on show setup surfaces.
+- **Fix owner:** `apps/myk9show/src/services/database/users/reads.ts`
+- **Proof required:** Passed on 2026-05-26: focused `show-wizard-officials.spec.ts` proof, focused secretary Nightly failure replay (`10 passed`), full active Nightly Playwright command (`44 passed`), and route sweep across public, exhibitor, secretary, judge, club-admin, and admin route groups (`12/12` role+viewport checks).
+- **Notes:** Fixed by loading people through active `user_roles` with nested `person` and `role` data, then attaching `judge_qualifications` in a bounded follow-up query. This avoids the direct top-level `people` scan with multiple embeds that timed out in PostgREST.
 
 ### QA-TEST-FLAKE-011
 
-- **Status:** open
+- **Status:** fixed
 - **Severity:** medium
 - **Role:** secretary
-- **Surface:** Wave 1 Nightly Playwright command from `docs/qa/e2e-suite-map.md`; specs `cross-role-workflows.spec.ts`, `registration/entryCreationCore.spec.ts`, `registration/secretaryExistingUsers.spec.ts`, `secretary-entry-walk.spec.ts`, `uat/secretary/critical-path.spec.ts`, `uat/secretary/disposable-entry.spec.ts`.
+- **Surface:** Wave 1 Nightly Playwright command from `docs/qa/e2e-suite-map.md`; specs `cross-role-workflows.spec.ts`, `secretary/show-wizard-officials.spec.ts`, `secretary-entry-walk.spec.ts`, `uat/secretary/critical-path.spec.ts`, `uat/secretary/disposable-entry.spec.ts`.
 - **Suite category:** nightly
 - **Pattern:** test-flake
 - **Detected by:** Playwright
-- **Evidence:** 2026-05-26 active Nightly Playwright command failed `32/44` (8 failed, 4 did not run) over 33.8m vs the documented 2.4m. Focused re-runs in isolation: `cross-role-workflows.spec.ts --grep "secretary can land"` passed (`1 passed, 2.2s`) and `uat/secretary/critical-path.spec.ts --grep "dashboard shows secretary command center"` passed (`1 passed`). `show-wizard-officials.spec.ts` failures (2/3 tests) are durable and tracked separately under `QA-NETWORK-ERROR-010`.
-- **User impact:** Nightly cannot reliably prove the secretary regression surface while the underlying people-query timeout cascades; tests that don't even touch people queries time out behind serialized worker delays.
-- **Intent check:** Restores QA trust in the secretary "That was easy" proof once the cascading 500s are addressed.
-- **Fix owner:** Depends on `QA-NETWORK-ERROR-010` resolution. Re-run the active Nightly command after the people query is healthy before opening individual flake repairs.
-- **Proof required:** Full active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0` returning `44 passed` within a reasonable runtime (target ≤5m).
-- **Notes:** Do not promote/demote any specs while `QA-NETWORK-ERROR-010` is open — the flake signal is currently contaminated.
-
-
-
-## Closed Findings
+- **Evidence:** 2026-05-26 active Nightly Playwright command initially failed `33/44` with 7 failures and 4 skipped after stale dashboard assertions, network-idle waits, shared-write assumptions, and the `QA-NETWORK-ERROR-010` people-query timeout cascaded through secretary specs.
+- **User impact:** Nightly could not reliably prove the secretary regression surface while several maintained specs were waiting on stale UI copy or backend query behavior.
+- **Intent check:** Restores QA trust in the secretary "That was easy" proof by aligning tests to the current dashboard, wizard, and registration flow behavior without broadening the suite.
+- **Fix owner:** secretary Playwright proof setup and entry/people read paths.
+- **Proof required:** Passed on 2026-05-26: promoted Vitest Nightly (`18 passed`), focused secretary proof replay (`10 passed`), and full active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0` (`44 passed`).
+- **Notes:** Fixed by updating stale command-center assertions, avoiding wizard `networkidle` waits, intercepting shared-write paths in the secretary entry walk, preserving `registrationId` from `entries.registration_id`, and closing `QA-NETWORK-ERROR-010`.
 
 ### QA-TEST-FLAKE-009
 

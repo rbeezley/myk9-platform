@@ -1,13 +1,22 @@
 // Users-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
-import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
+import type { DbUser, DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
+
+const JUDGE_QUALIFICATIONS_COLUMNS = `
+  id, person_id, organization, qualification_level, disciplines, judge_number,
+  date_obtained, expiration_date, is_active
+`;
+
+const PEOPLE_LIST_COLUMNS = `
+  id, first_name, last_name, email, phone, street_address, city, state,
+  zip_code, profile_image, auth_user_id, agreed_to_tos_at, bio, country,
+  created_at, deleted_at, deleted_by, is_early_adopter, license_key,
+  status, updated_at
+`;
 
 // Shared select fragment for judge qualifications join
-const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
-  id, organization, qualification_level, disciplines, judge_number,
-  date_obtained, expiration_date, is_active
-)`;
+const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(${JUDGE_QUALIFICATIONS_COLUMNS})`;
 
 // FK hint to disambiguate user_roles → people (two FKs: user_id and granted_by)
 const USER_ROLES_FK = 'user_roles!user_roles_user_id_fkey';
@@ -17,20 +26,60 @@ export const getAllUsers = async () => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('people')
-      .select(`*, ${USER_ROLES_FK}(role:roles(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
-      .is('deleted_at', null)
-      .order('last_name', { ascending: true })
-      .order('first_name', { ascending: true });
+    const { data: roleRows, error } = await supabase
+      .from('user_roles')
+      .select(
+        `user_id, role:roles(name), person:people!user_roles_user_id_fkey(${PEOPLE_LIST_COLUMNS})`
+      )
+      .eq('is_active', true)
+      .limit(500);
+
+    const peopleById = new Map<string, Record<string, unknown>>();
+    const rolesByUserId = new Map<string, Array<{ role: { name: string } | null }>>();
+    const qualificationsByPersonId = new Map<string, Array<Record<string, unknown>>>();
+
+    if (!error) {
+      for (const roleRow of roleRows ?? []) {
+        const rawPerson = roleRow.person;
+        const person = (Array.isArray(rawPerson) ? rawPerson[0] : rawPerson) as
+          | Record<string, unknown>
+          | null
+          | undefined;
+        if (!person || person.deleted_at) continue;
+
+        peopleById.set(person.id as string, person);
+        const existing = rolesByUserId.get(roleRow.user_id) ?? [];
+        existing.push({
+          role: Array.isArray(roleRow.role) ? (roleRow.role[0] ?? null) : (roleRow.role ?? null),
+        });
+        rolesByUserId.set(roleRow.user_id, existing);
+      }
+
+      const peopleIds = [...peopleById.keys()];
+      const { data: qualifications, error: qualificationsError } = await supabase
+        .from('judge_qualifications')
+        .select(JUDGE_QUALIFICATIONS_COLUMNS)
+        .in('person_id', peopleIds);
+
+      if (qualificationsError) {
+        throw createDatabaseError(qualificationsError, 'judge_qualifications', 'select_for_people');
+      }
+
+      for (const qualification of qualifications ?? []) {
+        const personId = qualification.person_id;
+        const existing = qualificationsByPersonId.get(personId) ?? [];
+        existing.push(qualification);
+        qualificationsByPersonId.set(personId, existing);
+      }
+    }
 
     const duration = Date.now() - startTime;
 
     // Enhanced debug logging
     logger.debug('🔍 Database query result:', 'database', {
       data: {
-        data: data?.slice(0, 3), // First 3 for debugging
-        dataLength: data?.length,
+        data: Array.from(peopleById.values()).slice(0, 3), // First 3 for debugging
+        dataLength: peopleById.size,
         error: error?.message,
         tableName: 'user',
         supabaseUrl: 'hidden_for_security',
@@ -44,7 +93,19 @@ export const getAllUsers = async () => {
       throw createDatabaseError(error, 'user', 'select_all');
     }
 
-    return { data: data || [], error: null };
+    const users = Array.from(peopleById.values())
+      .sort((a, b) => {
+        const aName = `${String(a.last_name ?? '')} ${String(a.first_name ?? '')}`;
+        const bName = `${String(b.last_name ?? '')} ${String(b.first_name ?? '')}`;
+        return aName.localeCompare(bName);
+      })
+      .map(person => ({
+        ...person,
+        user_roles: rolesByUserId.get(person.id as string) ?? [],
+        judge_qualifications: qualificationsByPersonId.get(person.id as string) ?? [],
+      }));
+
+    return { data: users as unknown as DbUser[], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_all');

@@ -69,8 +69,7 @@ export class ShowCreationWizardPage {
 
   // ========== Navigation Actions ==========
   async goto() {
-    await this.page.goto('/secretary/create-show/wizard');
-    await this.page.waitForLoadState('networkidle');
+    await this.page.goto('/secretary/create-show/wizard', { waitUntil: 'domcontentloaded' });
     // Wait for the wizard form to be visible - use multiple selectors for resilience
     // Some browsers may render text differently
     try {

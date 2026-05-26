@@ -240,6 +240,78 @@ describe('authService', () => {
       expect(result?.classes).toEqual([]);
     });
 
+    test('passes the UUID showId straight through when the Edge Function succeeds', async () => {
+      // Regression: the Edge Function returns `showData.showId` as a UUID
+      // string (shows.id is now uuid). The enrichShowData call previously
+      // did `parseInt(showData.showId)` which returned NaN, so the
+      // `.eq('show_id', NaN)` query loaded zero trials and login appeared
+      // successful but the app rendered empty. This test pins the fix
+      // by asserting `.eq('show_id', <uuid string>)` is called with the
+      // raw UUID — never with NaN, never with parseInt'd output.
+      const SHOW_UUID = 'b9e2842b-1010-be37-9b3e-9eaaaaaaaaaa';
+
+      mockFetch.mockReset();
+      mockFetch.mockResolvedValue({
+        status: 200,
+        ok: true,
+        json: async () => ({
+          success: true,
+          role: 'admin',
+          showData: {
+            showId: SHOW_UUID,
+            showName: 'UUID Show',
+            clubName: '',
+            showDate: '2026-06-01',
+            licenseKey: SHOW_UUID,
+            org: 'AKC',
+            competition_type: 'Regular',
+          },
+        }),
+      } as unknown as Response);
+
+      const trialsEq = vi.fn().mockReturnThis();
+      const trialsOrder = vi.fn().mockResolvedValue({ data: [], error: null });
+      const classesIn = vi.fn().mockReturnThis();
+      const classesOrder = vi.fn().mockResolvedValue({ data: [], error: null });
+
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'trials') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: trialsEq,
+              order: trialsOrder,
+            }),
+            eq: trialsEq,
+            order: trialsOrder,
+          } as unknown as SupabaseQueryChain;
+        }
+        if (table === 'classes') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: classesIn,
+              order: classesOrder,
+            }),
+            in: classesIn,
+            order: classesOrder,
+          } as unknown as SupabaseQueryChain;
+        }
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(),
+        } as unknown as SupabaseQueryChain;
+      });
+
+      const result = await authenticatePasscode('aa260');
+
+      expect(result).not.toBeNull();
+      expect(result?.showId).toBe(SHOW_UUID);
+      // Critical assertion — the show_id filter must use the raw UUID,
+      // not parseInt(UUID) === NaN.
+      expect(trialsEq).toHaveBeenCalledWith('show_id', SHOW_UUID);
+      expect(trialsEq).not.toHaveBeenCalledWith('show_id', NaN);
+    });
+
     test('should handle empty trials array', async () => {
       vi.spyOn(authUtils, 'validatePasscodeAgainstLicenseKey').mockReturnValue({
         role: 'admin',

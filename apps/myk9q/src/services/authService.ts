@@ -209,11 +209,19 @@ async function enrichShowData(baseShowData: {
   org: string;
   competition_type: string;
 }): Promise<ShowData> {
-  // Get trials for this show
+  // Get trials for this show.
+  //
+  // baseShowData.showId is the raw `shows.id` value returned by the
+  // validate-passcode Edge Function. After the unified-platform schema
+  // landed, `shows.id` is a UUID string — `parseInt(...)` returned NaN
+  // and the resulting `.eq('show_id', NaN)` matched zero rows, so
+  // passcode logins succeeded but loaded an empty app. Pass the value
+  // through unchanged; Supabase will coerce a numeric string for any
+  // legacy integer-id environment that still survives.
   const { data: trials, error: trialsError } = await supabase
     .from('trials')
     .select('*')
-    .eq('show_id', parseInt(baseShowData.showId))
+    .eq('show_id', baseShowData.showId)
     .order('date', { ascending: true });
 
   if (trialsError) {

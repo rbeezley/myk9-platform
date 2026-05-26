@@ -60,9 +60,81 @@ Fix failures. Repeat until all pass. **Max 10 iterations** — stop and report i
 
 ---
 
-## Step 3b: Simplify
+## Step 3a: SQL Compile-Check (conditional)
 
-Invoke `/simplify` (the local skill at `.claude/skills/simplify/SKILL.md`). It launches three parallel agents — efficiency, quality, reuse — auto-fixes safe wins (dead code, unused imports, trivial dupes), and proposes the judgment calls.
+If the diff contains any `.sql` files under `supabase/migrations/`, compile-check them against a Supabase-compatible shadow database BEFORE the JS-focused passes run. `pnpm typecheck` does not parse SQL, and the harden agent in Step 3c reads files but does not execute them — both blind spots that have shipped `db push`-failing migrations to PR review.
+
+The most common failures this catches:
+- **`%ROWTYPE` against a function** — only resolves against relations/composites; functions that `RETURNS TABLE (...)` produce anonymous result rows, not registered types. Use `record` instead.
+- **Function/column references to objects that don't exist yet** in the migration sequence
+- **Missing `;` terminators, malformed DO blocks, plpgsql syntax errors**
+
+What this check does NOT catch — these still need the harden audit in Step 3c:
+- **Stale GRANT/REVOKE on a prior signature when a new overload is added.** A second `validate_passcode(text, text)` next to the existing `validate_passcode(text)` gets a new OID; a copy-pasted `GRANT EXECUTE ON FUNCTION validate_passcode(text)` succeeds (it targets the *old* signature) and the new overload remains ungranted. The migration applies cleanly — the bug surfaces at call time. The harden prompt in Step 3c includes the signature-audit check; do not rely on the compile step alone.
+
+**Strategy:** use `supabase db reset --local`, which spins up the Supabase-flavored Postgres in Docker (with `auth.users`, `authenticated`/`anon`/`service_role` roles, `auth.*` helpers, `extensions` schema, `supabase_vault`, `pg_net`, `pg_cron`, etc.) and replays every migration in `supabase/migrations/` from scratch. A plain `createdb` + `psql` shadow DB does NOT work here — this repo's migrations reference Supabase cluster objects (`authenticated`, `anon`, `auth.users`, `supabase_vault`, `pg_net`, `pg_cron`) that don't exist in a vanilla Postgres cluster, and the check would fail before reaching the new migration.
+
+```bash
+SQL_FILES=$(git diff --name-only origin/main...HEAD | grep -E '^supabase/migrations/.*\.sql$' || true)
+
+if [ -z "$SQL_FILES" ]; then
+  : # No migrations in diff — skip
+elif ! command -v supabase >/dev/null 2>&1; then
+  echo "WARN: SQL compile-check skipped — supabase CLI not found."
+  echo "      Install: brew install supabase/tap/supabase"
+  echo "      Migrations in diff will be unverified until \`supabase db push\`:"
+  for f in $SQL_FILES; do echo "        - $f"; done
+elif ! docker info >/dev/null 2>&1; then
+  echo "WARN: SQL compile-check skipped — Docker not running (required by \`supabase db reset --local\`)."
+  echo "      Start Docker Desktop, then re-run."
+  echo "      Migrations in diff will be unverified until \`supabase db push\`:"
+  for f in $SQL_FILES; do echo "        - $f"; done
+else
+  # supabase db reset --local: stops/starts the local stack, drops the shadow
+  # DB, replays every migration in supabase/migrations/ in order against a
+  # Supabase-flavored Postgres. Exits non-zero on the first migration that
+  # fails to apply.
+  #
+  # IMPORTANT: capture the reset's exit code BEFORE the tee pipeline. Without
+  # `pipefail` the shell uses the last pipeline element's exit code (tee, which
+  # virtually always succeeds), so a failed reset would silently fall through
+  # to the "passed" branch. Two-line form is more portable than `set -o pipefail`
+  # — works the same under bash, zsh, and `sh` posix mode.
+  supabase db reset --local --debug > /tmp/ship-it-db-reset.log 2>&1
+  RESET_STATUS=$?
+  cat /tmp/ship-it-db-reset.log
+  if [ $RESET_STATUS -ne 0 ]; then
+    echo "Compile-check FAILED (supabase db reset exit=$RESET_STATUS). Full log: /tmp/ship-it-db-reset.log"
+    echo "Re-run interactively: supabase db reset --local --debug"
+    exit 1
+  fi
+  echo "SQL compile-check passed for migrations in diff:"
+  for f in $SQL_FILES; do echo "  ✓ $f"; done
+fi
+```
+
+**Failure handling:** the full reset log is preserved at `/tmp/ship-it-db-reset.log` so the operator can scan for the first ERROR line. The local Supabase stack stays running for interactive inspection (`supabase status` shows the connection string; `psql "$(supabase status -o env | grep DB_URL | cut -d= -f2-)"`). Stop the pipeline and report.
+
+**No Docker / no Supabase CLI caveat:** the skill skips with a warning rather than failing. This is deliberate — environments without Docker shouldn't block shipping JS-only changes that happen to share a branch with SQL. But the warning calls out the unverified surface explicitly so it doesn't get lost in PR review.
+
+**Why not vanilla `psql + createdb`:** this repo's migrations depend on Supabase cluster objects (`authenticated`/`anon`/`service_role` roles, `auth.users`, `supabase_vault`, `pg_net`, `pg_cron`). Replaying them against a plain Postgres cluster fails at the first GRANT against `authenticated` or the first reference to `auth.users` — long before reaching the migration under review. `supabase db reset --local` is the only path that gives an honest signal on this codebase.
+
+---
+
+## Step 3b: Simplify (conditional)
+
+`/simplify` is JS/TS focused — its three agents (efficiency, quality, reuse) look for unused imports, dead code, trivial dupes. A SQL-only or docs-only diff has nothing for them to find.
+
+```bash
+# Files where /simplify has no surface to attack.
+SIMPLIFY_SKIP='\.(md|mdx|txt|sql|css|scss|snap)$|^docs/|/(i18n|locales|fixtures|__fixtures__|__snapshots__)/|^supabase/migrations/|^(pnpm-lock\.yaml|package-lock\.json)$'
+JS_FILES=$(git diff --name-only origin/main...HEAD | grep -vE "$SIMPLIFY_SKIP" | wc -l | tr -d ' ')
+```
+
+- If `JS_FILES == 0` → skip Step 3b with note: "no JS/TS surface in diff, simplify skipped"
+- Otherwise → invoke `/simplify`
+
+`/simplify` (the local skill at `.claude/skills/simplify/SKILL.md`) launches three parallel agents — efficiency, quality, reuse — auto-fixes safe wins (dead code, unused imports, trivial dupes), and proposes the judgment calls.
 
 Apply the auto-fixes it lands. Address any `critical` proposals before proceeding. For `high`/`medium` proposals, apply the obvious ones and skip the rest unless they're cheap.
 
@@ -110,6 +182,45 @@ Harden launches three parallel agents (edge cases, state corruption, security) a
 - If harden returns `FAIL` (critical findings remain after auto-fix, or 3+ high findings unfixed) → stop the pipeline and report. Do not proceed to commit. Surface the unfixed findings to the user and wait for direction.
 
 If any harden auto-fixes landed, re-run the test loop (Step 3) before proceeding.
+
+### When SQL migrations are in the diff — augment the harden prompt
+
+The default harden agents read files but don't model the relational schema as a whole. They miss a class of bugs where a write-path filter (added in this migration) has no symmetric read-path filter (already-existing query that doesn't yet know about the new filter). The canonical example: a backfill that excludes `deleted_at IS NOT NULL` shows, but the validation RPC or edge function still iterates them and authenticates against derived codes.
+
+When `git diff --name-only origin/main...HEAD | grep -q '^supabase/migrations/'` matches, prepend the following to the harden agents' security-pass prompt:
+
+```
+SQL CROSS-CUT AUDIT — this diff modifies the database schema or functions.
+Before scoring this PASS:
+
+1. Enumerate every WHERE clause, JOIN condition, and CHECK constraint
+   the migration ADDS or CHANGES on any table.
+
+2. For each such filter, grep the repo for OTHER queries that touch the
+   same table without the same filter:
+     - `git grep -E "from\s+(public\.)?<table>" -- '*.sql' '*.ts' '*.tsx'`
+     - Edge functions in supabase/functions/
+     - Replicated table classes in apps/*/services/replication/
+     - Direct supabase.from('<table>') calls in apps/*/src/
+
+3. For each match, ask: does this read path need the same filter to be
+   coherent with the write-path semantics the migration is enforcing?
+   Common patterns where the answer is YES:
+     - Soft-delete (deleted_at IS NULL) — must apply to lookups too
+     - Multi-tenant isolation (org_id = ...) — must apply to every read
+     - Status gates (status IN ('active', ...)) — must apply to listings
+
+4. If the answer is YES and the read path doesn't have the filter,
+   flag as `critical` — the write path provisioned data the read path
+   leaks back out.
+
+5. Also check `GRANT EXECUTE TO <role>` statements: if the function
+   signature changed (different return type, different parameter list),
+   PostgreSQL treats it as a new function with a new OID. The old
+   GRANT does NOT carry over. Re-GRANT explicitly in the same migration.
+```
+
+Auto-fixes for findings of this class should add the symmetric filter at every read site identified, not just the most-recently-touched one.
 
 ---
 
@@ -232,7 +343,17 @@ git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
 
 ## Step 9: Handoff Doc
 
-Output this summary after cleanup:
+Output this summary after cleanup. Include the shared-system follow-ups section ONLY if the merged diff contains changes that need a post-merge operator action — otherwise omit that section entirely.
+
+```bash
+# Compute post-merge follow-ups from the merged diff.
+# NOTE on `grep -c ... | wc -l` vs `grep -c ... || echo 0`:
+# `grep -c` with zero matches prints "0" but exits 1, so `|| echo 0` produces
+# "0\n0" and breaks any later numeric comparison. Pipe matched lines through
+# `wc -l` instead — always single-line, always 0 on empty input.
+MIGRATIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep '^supabase/migrations/' | wc -l | tr -d ' ')
+FUNCTIONS_CHANGED=$(gh pr diff $PR_NUMBER --name-only | grep -E '^(supabase|apps/[^/]+/supabase)/functions/' | sed -E 's|.*/functions/([^/]+)/.*|\1|' | sort -u)
+```
 
 ```
 ## Ship It — Complete
@@ -245,7 +366,20 @@ Review rounds: <N>
 
 Shipped:
 - <one bullet per completed plan task>
+
+[If MIGRATIONS_CHANGED > 0]
+Post-merge follow-ups (operator action required):
+- supabase db push --linked   # applies <N> new migration(s)
+
+[For each function in FUNCTIONS_CHANGED]
+- supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+  (touched: <relative path>)
+
+[If both apply, sequence matters: db push BEFORE functions deploy when the
+function calls a newly-created RPC or expects a new column.]
 ```
+
+Both shared-system actions require explicit user confirmation per CLAUDE.md Auto Mode rules. The handoff lists them but does NOT run them — the operator decides timing.
 
 ---
 
@@ -258,6 +392,8 @@ Shipped:
 - Use `pnpm`, never `npm` or `npx`
 - Never add scope beyond the plan
 - Max 10 test-fix iterations, max 5 review rounds — escalate if limits hit
+- If SQL migrations are in the diff, the SQL compile-check (Step 3a) MUST run and pass — or skip with a logged warning if `supabase` CLI is missing or Docker is not running. Never commit a migration without at least the warning being surfaced.
+- Never run `supabase db push` or `supabase functions deploy` automatically — these are operator actions surfaced in the handoff doc per CLAUDE.md Auto Mode rules.
 
 ## Edge Cases
 
@@ -266,3 +402,7 @@ Shipped:
 **Squash-merge false negative:** `git log origin/main..HEAD` shows commits after a squash-merge because SHAs differ. Always use `gh pr view --json state` to confirm merge status.
 
 **Pre-existing typecheck failures:** If typecheck fails on files this branch did NOT touch, stop and report — do not silently fix pre-existing breakage.
+
+**SQL compile-check left the local stack running:** Step 3a does not stop the Supabase local stack on failure — the operator may want to `psql` into it for inspection. To tear it down after debugging: `supabase stop`. The reset log lives at `/tmp/ship-it-db-reset.log` and is overwritten on each run (no orphan accumulation).
+
+**Docker is installed but not running:** the Step 3a detection runs `docker info` which fails fast if the Docker daemon isn't reachable. The skill skips with a warning in that case. On macOS the typical fix is to launch Docker Desktop; on Linux it's `sudo systemctl start docker` (or `colima start` if using Colima).

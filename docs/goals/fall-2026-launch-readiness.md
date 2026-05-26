@@ -30,6 +30,8 @@ Use `OPEN-TODOS.md` as the default backlog. Prefer existing plan documents when 
 
 Do not invent a new backlog unless the current one is insufficient or stale. When the backlog and this goal disagree, use this goal as the prioritization frame and update the backlog honestly.
 
+Use [`docs/goals/fall-2026-launch-readiness-scorecard.md`](fall-2026-launch-readiness-scorecard.md) to define what "launch-ready" means and to convert readiness gaps into backlog tasks.
+
 ## Execution Style
 
 Work one small PR at a time unless explicitly asked to parallelize.

@@ -266,6 +266,19 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Resolve @myk9/ringside to its source rather than ./dist/index.js so
+      // app dev/build/test commands work without first running
+      // `pnpm --filter @myk9/ringside build`. Without this, a clean or stale
+      // packages/ringside/dist produces `TypeError: parsePasscode is not a
+      // function` (and worse, sometimes silent missing-export resolves) in
+      // any consumer that imports from the package.
+      //
+      // The package's pre-built CSS at dist/styles/index.css still resolves
+      // through `@myk9/ringside/styles` package exports — that subpath is
+      // only loaded by main.tsx and is covered by the worktree bootstrap's
+      // package build. If/when dev workflow needs source CSS too, mirror
+      // this with a second alias for the styles subpath.
+      '@myk9/ringside': path.resolve(__dirname, '../../packages/ringside/src/index.ts'),
     },
   },
 });

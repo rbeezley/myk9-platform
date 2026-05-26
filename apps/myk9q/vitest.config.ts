@@ -39,6 +39,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      // Mirror the vite.config.ts alias for the same reason: tests must
+      // resolve @myk9/ringside to source so a missing or stale
+      // packages/ringside/dist doesn't break `cd apps/myk9q && npx vitest`.
+      // See the longer comment in vite.config.ts.
+      '@myk9/ringside': path.resolve(__dirname, '../../packages/ringside/src/index.ts'),
     },
   },
 });

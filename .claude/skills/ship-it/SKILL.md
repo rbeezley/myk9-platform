@@ -94,8 +94,17 @@ else
   # DB, replays every migration in supabase/migrations/ in order against a
   # Supabase-flavored Postgres. Exits non-zero on the first migration that
   # fails to apply.
-  if ! supabase db reset --local --debug 2>&1 | tee /tmp/ship-it-db-reset.log; then
-    echo "Compile-check FAILED. Full log: /tmp/ship-it-db-reset.log"
+  #
+  # IMPORTANT: capture the reset's exit code BEFORE the tee pipeline. Without
+  # `pipefail` the shell uses the last pipeline element's exit code (tee, which
+  # virtually always succeeds), so a failed reset would silently fall through
+  # to the "passed" branch. Two-line form is more portable than `set -o pipefail`
+  # — works the same under bash, zsh, and `sh` posix mode.
+  supabase db reset --local --debug > /tmp/ship-it-db-reset.log 2>&1
+  RESET_STATUS=$?
+  cat /tmp/ship-it-db-reset.log
+  if [ $RESET_STATUS -ne 0 ]; then
+    echo "Compile-check FAILED (supabase db reset exit=$RESET_STATUS). Full log: /tmp/ship-it-db-reset.log"
     echo "Re-run interactively: supabase db reset --local --debug"
     exit 1
   fi
@@ -383,7 +392,7 @@ Both shared-system actions require explicit user confirmation per CLAUDE.md Auto
 - Use `pnpm`, never `npm` or `npx`
 - Never add scope beyond the plan
 - Max 10 test-fix iterations, max 5 review rounds — escalate if limits hit
-- If SQL migrations are in the diff, the SQL compile-check (Step 3a) MUST run and pass — or skip with a logged warning if no local Postgres. Never commit a migration without at least the warning being surfaced.
+- If SQL migrations are in the diff, the SQL compile-check (Step 3a) MUST run and pass — or skip with a logged warning if `supabase` CLI is missing or Docker is not running. Never commit a migration without at least the warning being surfaced.
 - Never run `supabase db push` or `supabase functions deploy` automatically — these are operator actions surfaced in the handoff doc per CLAUDE.md Auto Mode rules.
 
 ## Edge Cases
@@ -394,6 +403,6 @@ Both shared-system actions require explicit user confirmation per CLAUDE.md Auto
 
 **Pre-existing typecheck failures:** If typecheck fails on files this branch did NOT touch, stop and report — do not silently fix pre-existing breakage.
 
-**SQL compile-check left a test DB behind:** if Step 3a's `psql` call fails partway through (e.g., a migration errors), the script leaves `ship_it_check_<pid>` undropped on purpose so the operator can inspect state. If a previous failed run still has a DB lying around, drop it explicitly: `dropdb ship_it_check_<pid>` — or list orphans with `psql -c "SELECT datname FROM pg_database WHERE datname LIKE 'ship_it_check_%'"`. The next run uses a different `$$` so won't collide, but unused DBs accumulate until cleaned.
+**SQL compile-check left the local stack running:** Step 3a does not stop the Supabase local stack on failure — the operator may want to `psql` into it for inspection. To tear it down after debugging: `supabase stop`. The reset log lives at `/tmp/ship-it-db-reset.log` and is overwritten on each run (no orphan accumulation).
 
-**`psql` is installed but no server is running:** the Step 3a detection runs `psql -d postgres -c "SELECT 1"` which fails fast (~50ms) if no server is listening. The skill correctly skips with a warning in that case. On macOS the typical fix is `brew services start postgresql`; on Linux it's `sudo systemctl start postgresql` or running a docker container.
+**Docker is installed but not running:** the Step 3a detection runs `docker info` which fails fast if the Docker daemon isn't reachable. The skill skips with a warning in that case. On macOS the typical fix is to launch Docker Desktop; on Linux it's `sudo systemctl start docker` (or `colima start` if using Colima).

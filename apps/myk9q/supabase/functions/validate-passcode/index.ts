@@ -265,12 +265,39 @@ serve(async req => {
     let matchedShow: any = null;
     let validationResult: PasscodeResult | null = null;
 
-    for (const show of shows || []) {
-      const result = validatePasscodeAgainstLicenseKey(passcode, show.id);
-      if (result) {
-        matchedShow = show;
-        validationResult = result;
-        break;
+    // 1. Try the new HMAC-pepper lookup first. show_passcodes is populated
+    // by insert_show_passcodes for every show created via the unified
+    // wizard. This bridges new server-generated codes during the
+    // Phase 0 PR-1 → PR-2 transition: until packages/ringside ships, both
+    // the new RPC lookup and the legacy UUID-derivation scan are tried.
+    const { data: rpcRows, error: rpcError } = await supabaseClient.rpc('validate_passcode', {
+      p_code: passcode.toLowerCase(),
+    });
+    if (rpcError) {
+      console.warn('[Auth] validate_passcode RPC failed; falling back to legacy scan:', rpcError);
+    } else if (Array.isArray(rpcRows) && rpcRows.length > 0) {
+      const row = rpcRows[0] as { show_id: string; role: string };
+      const showRow = (shows || []).find((s: { id: string }) => s.id === row.show_id);
+      if (showRow) {
+        matchedShow = showRow;
+        validationResult = {
+          role: row.role as PasscodeResult['role'],
+          licenseKey: row.show_id,
+          isValid: true,
+        };
+      }
+    }
+
+    // 2. Fall back to the legacy UUID-derivation scan for existing shows
+    // that have no show_passcodes rows yet (no backfill in PR #1).
+    if (!matchedShow) {
+      for (const show of shows || []) {
+        const result = validatePasscodeAgainstLicenseKey(passcode, show.id);
+        if (result) {
+          matchedShow = show;
+          validationResult = result;
+          break;
+        }
       }
     }
 

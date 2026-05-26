@@ -250,10 +250,12 @@ end
 $$;
 
 revoke all on function public.validate_passcode(text) from public;
--- Intentionally no grant to anon or authenticated. Only service_role
--- (which bypasses GRANT requirements via BYPASSRLS + owner privileges)
--- may invoke this. Phase 1's smart-input edge function uses the service
--- role; direct client access is prohibited.
+-- Intentionally no grant to anon or authenticated. The only caller is the
+-- rate-limited validate-passcode edge function, which authenticates with
+-- the service_role JWT. BYPASSRLS on service_role does NOT bypass function
+-- ACLs, so the GRANT below is mandatory — without it the edge function
+-- gets "permission denied for function validate_passcode".
+grant execute on function public.validate_passcode(text) to service_role;
 
 comment on function public.validate_passcode(text) is
   'Looks up a 5-char show passcode via HMAC-SHA256 hash and returns the '

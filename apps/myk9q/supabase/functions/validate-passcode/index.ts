@@ -240,14 +240,24 @@ serve(async req => {
       );
     }
 
-    // Fetch all shows to check passcode. Column is `style`, not `type` —
-    // historical rename that the legacy edge function never picked up
-    // because myK9Q's client-side authService.ts does its own scan and
-    // never actually invokes this function. The Phase 1 smart input WILL
-    // invoke it, so fix-while-touching.
+    // Fetch all shows to check passcode. The legacy column `type` no longer
+    // exists — it was renamed to `organization` (the AKC/UKC sanctioning
+    // body), which is already selected and surfaced as `org` below. There
+    // is NO direct successor column for what `type` was used for in the
+    // original `competition_type` assignment (Nationals vs Regular); that
+    // distinction now lives elsewhere in the schema. See the TODO at the
+    // competition_type assignment for the wiring needed before Phase 1.
+    //
+    // (Earlier revisions of this fix mistakenly substituted `shows.style`,
+    // which is the premium landing experience from migration 195 —
+    // monogram/heritage — and not a competition-context field.)
+    //
+    // The bug was symptomless until now because myK9Q's client-side
+    // authService.ts does its own scan and never invokes this function.
+    // The Phase 1 smart input WILL invoke it, so fix-while-touching.
     const { data: shows, error: showsError } = await supabaseClient
       .from('shows')
-      .select('id, name, start_date, organization, style')
+      .select('id, name, start_date, organization')
       .order('created_at', { ascending: false });
 
     if (showsError) {
@@ -361,7 +371,19 @@ serve(async req => {
       showDate: matchedShow.start_date,
       licenseKey: matchedShow.id,
       org: matchedShow.organization || '',
-      competition_type: matchedShow.style || 'Regular',
+      // TODO(phase-1): wire the real Nationals/Regular source before the
+      // smart-input edge function starts invoking this path in production.
+      // Downstream consumers (apps/myk9q/src/contexts/AuthContext.tsx,
+      // apps/myk9q/src/utils/sortableEntryCardUtils.ts) interpret
+      // `competition_type` as Nationals-vs-Regular routing context. The
+      // original `matchedShow.type` column was renamed to `organization`
+      // (now surfaced as `org` above), so there's no longer a direct
+      // column to map from — the right source is likely a per-trial or
+      // per-show flag added separately. Defaulting to 'Regular' preserves
+      // the original code's fallback semantics (the `|| 'Regular'` always
+      // fired because the column was broken anyway), but suppresses
+      // Nationals-only behavior — track in Phase 1 follow-up.
+      competition_type: 'Regular',
     };
 
     return new Response(

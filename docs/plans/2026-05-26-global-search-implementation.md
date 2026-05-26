@@ -103,6 +103,15 @@ mcp__supabase__list_tables  schemas: ["public"]
 
 Inspect the column lists for `dogs`, `people`, `shows`, `clubs`, `classes`, `entries`, `armbands`. Note the actual column names (e.g., is it `call_name` or `name`? `show_name` or `name`?).
 
+**Step 1b [ADDED]: Verify `entries.armband` column type.** The plan casts it to text in A7. Run:
+
+```sql
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'entries' AND column_name = 'armband';
+```
+
+If `integer` or `smallint`, the `::text` cast in A7 is correct. If already `text`, drop the cast (cheaper). If a different name (`armband_number`?), update every reference in A4 and A7 to match. Document the result in the migration's header comment so future readers don't have to re-derive.
+
 **Step 2:** Write migration with confirmed column names. Template:
 
 ```sql
@@ -162,6 +171,72 @@ Expected: all created indexes present.
 git add supabase/migrations/*_global_search_indexes.sql
 git commit -m "feat(db): add trigram indexes for global search"
 ```
+
+---
+
+### Task A4b [ADDED]: Per-user rate limit on `search_global`
+
+**Why:** Design rule #15. Without enforcement, a buggy client (or stuck `useEffect` loop) can hit the RPC at keystroke frequency. Postgres-side limiting keeps the safety check on the same boundary as RLS.
+
+**Files:**
+- Modify: same `_search_global_rpc.sql` migration once A7 lands, OR add a separate `_search_global_rate_limit.sql` migration ahead of A7. Sequence-wise, do this as part of A7 so the limit ships with the RPC, not after.
+
+**Step 1:** Add a counter table.
+
+```sql
+CREATE TABLE IF NOT EXISTS public.search_global_rate (
+  user_id uuid NOT NULL,
+  minute_bucket timestamptz NOT NULL,
+  call_count int NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, minute_bucket)
+);
+
+-- Auto-cleanup: rows older than 5 minutes are useless
+CREATE INDEX IF NOT EXISTS idx_search_global_rate_bucket
+  ON public.search_global_rate (minute_bucket);
+```
+
+**Step 2:** At the top of `search_global` (before the main query), add:
+
+```sql
+DECLARE
+  current_user_id uuid := auth.uid();
+  current_bucket  timestamptz := date_trunc('minute', now());
+  current_count   int;
+  RATE_LIMIT      constant int := 60;
+BEGIN
+  IF current_user_id IS NOT NULL THEN
+    INSERT INTO public.search_global_rate (user_id, minute_bucket, call_count)
+    VALUES (current_user_id, current_bucket, 1)
+    ON CONFLICT (user_id, minute_bucket)
+    DO UPDATE SET call_count = public.search_global_rate.call_count + 1
+    RETURNING call_count INTO current_count;
+
+    IF current_count > RATE_LIMIT THEN
+      RAISE EXCEPTION 'rate_limit_exceeded' USING ERRCODE = 'P0001';
+    END IF;
+  END IF;
+
+  -- ... existing query body ...
+END;
+```
+
+Anonymous callers (`auth.uid() IS NULL`) skip the limit — they hit anon-policy results only, and edge-level rate limiting (if/when added) covers them.
+
+**Step 3:** Frontend handles `rate_limit_exceeded`. In `useGlobalSearch.ts`, catch the error code and set `setError(new Error('rate_limit'))` without falling back to stores (the user is fine, just over budget). Render a subtle "Search rate limit reached — pause typing" hint in the palette for 60s.
+
+**Step 4:** Test on the branch:
+
+```sql
+-- Run 61 times rapidly from a single authenticated session; the 61st should raise
+SELECT * FROM public.search_global('Bud', null, 8);
+```
+
+Expected: 61st call raises `rate_limit_exceeded`.
+
+**Step 5:** Cleanup cron / housekeeping. Add a `pg_cron` job (or document for ops) to `DELETE FROM public.search_global_rate WHERE minute_bucket < now() - interval '5 minutes';` every 5 minutes. If `pg_cron` isn't enabled, file as a follow-up; for v1 the table will grow at ~1 row/user/minute which is tolerable.
+
+**Step 6:** Commit alongside A7.
 
 ---
 
@@ -229,6 +304,11 @@ BEGIN
     ) AS rank
   FROM public.dogs d
   LEFT JOIN public.people p ON p.id = d.owner_id
+  -- [EXPANDED — verification gap #28] Co-owner: if dogs.co_owner_id is non-null, append
+  -- " & <co-owner display>" to owner_display_name. Implement via a second LEFT JOIN aliased
+  -- as co and CONCAT_WS the names. Confirm during implementation that `co_owner_id` is the
+  -- actual column (it is, per the RLS policy in design doc Phase 0). Keep the field a single
+  -- text column — the frontend doesn't need to know about the join.
   WHERE d.deleted_at IS NULL
     AND (
       d.call_name % query
@@ -576,6 +656,106 @@ Expected: armband 47 from that show ranks first if present.
 git add supabase/migrations/*_search_global_rpc.sql
 git commit -m "feat(db): add search_global RPC for unified record search"
 ```
+
+---
+
+### Task A7b [ADDED]: RPC ranking & trigram contract tests
+
+**Why:** Verification gaps #19, #20. Without these, ranking regressions ship silently.
+
+**Files:**
+- Create: `supabase/tests/search_global_ranking.sql`
+
+**Step 1:** Seed two known fixture rows on the branch (or use existing data — pick a dog whose `call_name` contains "Retriever" or similar fuzz target, and an entry with a known armband).
+
+**Step 2:** Write assertions.
+
+```sql
+-- Assertion 1: trigram fuzz — "retriev" matches "Retriever" in dog breed or registered name
+DO $$
+DECLARE hit_count int;
+BEGIN
+  SELECT count(*) INTO hit_count
+  FROM public.search_global('retriev', null, 8)
+  WHERE record_type = 'dog' AND (display ILIKE '%retriev%' OR subtitle ILIKE '%retriev%');
+  IF hit_count = 0 THEN
+    RAISE EXCEPTION 'trigram fuzz failed: "retriev" returned no dog rows';
+  END IF;
+END $$;
+
+-- Assertion 2: exact armband outranks fuzzy dog-name when scoped to a show
+DO $$
+DECLARE first_row record;
+BEGIN
+  SELECT record_type, display, rank INTO first_row
+  FROM public.search_global('47', '<known-show-id-with-armband-47>', 8)
+  ORDER BY rank DESC
+  LIMIT 1;
+  IF first_row.record_type <> 'entry' THEN
+    RAISE EXCEPTION 'armband ranking failed: top result was % (display: %), expected entry',
+      first_row.record_type, first_row.display;
+  END IF;
+END $$;
+
+-- Assertion 3: in_scope=true ranks above in_scope=false for the same display
+-- (cross-scope dog directory hits should not beat in-scope reads)
+DO $$
+DECLARE in_scope_rank real; out_scope_rank real;
+BEGIN
+  -- Pick a dog name that appears both in caller's scope and outside (set up fixtures accordingly)
+  SELECT rank INTO in_scope_rank
+  FROM public.search_global('<test-name>', null, 8)
+  WHERE record_type = 'dog' AND in_scope = true LIMIT 1;
+  SELECT rank INTO out_scope_rank
+  FROM public.search_global('<test-name>', null, 8)
+  WHERE record_type = 'dog' AND in_scope = false LIMIT 1;
+  IF in_scope_rank IS NOT NULL AND out_scope_rank IS NOT NULL THEN
+    IF in_scope_rank <= out_scope_rank THEN
+      RAISE EXCEPTION 'in_scope dog should outrank out-of-scope dog (% vs %)',
+        in_scope_rank, out_scope_rank;
+    END IF;
+  END IF;
+END $$;
+```
+
+**Step 3:** Run via MCP. Expected: no exceptions raised.
+
+**Step 4:** Commit.
+
+```bash
+git add supabase/tests/search_global_ranking.sql
+git commit -m "test(db): contract tests for search_global ranking and trigram matching"
+```
+
+---
+
+### Task A7c [ADDED]: Performance baseline via `EXPLAIN ANALYZE`
+
+**Why:** Verification gap #24. The plan's p95 budgets are wishful without a measurement step.
+
+**Step 1:** Pick three representative queries — short (`'47'`), medium (`'Buddy'`), long (`'open A novice golden'`).
+
+**Step 2:** For each, run on the branch:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT * FROM public.search_global('Buddy', null, 8);
+```
+
+And the show-scoped variant:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT * FROM public.search_global('47', '<some-show-id>', 8);
+```
+
+**Step 3:** Record `Execution Time` for each. Acceptance:
+- Show-scoped: < 200ms.
+- Global: < 500ms.
+
+**Step 4:** If either budget is exceeded, do NOT proceed to Phase B. Investigate: missing index? Trigram threshold too low (`SET pg_trgm.similarity_threshold = 0.3;` may help)? A single union branch dominating? Iterate on A4/A7 until budgets hold on the branch's data volume.
+
+**Step 5:** Document numbers in the migration's header comment so future regressions have a baseline. No git commit specific to this task — verification only.
 
 ---
 
@@ -1001,7 +1181,20 @@ Run: `npx vitest run src/test/components/common/CommandPalette.test.tsx -t "out-
 ))}
 ```
 
-**Step 3:** Stub `openEntryCreate` — for v1 it can navigate to the existing entry-creation route with the dog/person pre-selected. Confirm the route exists during implementation; if not, file a follow-up task and use a placeholder toast for now (open item flagged in design doc).
+**Step 3:** Stub `openEntryCreate` — for v1 it can navigate to the existing entry-creation route with the dog/person pre-selected.
+
+**Step 3a [ADDED — verification gap #30]:** Before writing the stub, confirm the route exists. Run:
+
+```
+Grep: route path matching /entries/new OR /shows/.+/entries/new
+```
+
+If the route exists, use it. If it does NOT exist, do NOT block this task — instead:
+1. Render the out-of-scope row with a placeholder action that fires a `toast.info('Entry creation flow coming soon')`.
+2. File an OPEN-TODOS entry: *"Entry-creation deep link from global search palette (search v1 followup)"*.
+3. Note in the PR description that the affordance ships visible but inert pending the route.
+
+This way C3 lands on schedule and the deep-link is tracked separately.
 
 **Step 4:** Run test. Expected: PASS.
 
@@ -1036,15 +1229,18 @@ Run test. Expected: FAIL.
 
 **Step 2:** Confirm `useAskQPanelStore` exposes an `open(opts)` action (verify by reading [store/useAskQPanelStore.ts](../../apps/myk9show/src/store/useAskQPanelStore.ts)). If the API differs, adjust the call to match.
 
-**Step 3:** Render the AskQ row when `searchInput.trim().length > 0`:
+**Step 3:** Render the AskQ row when `searchInput.trim().length > 0`. [EXPANDED — verification gap #16] Sanitize the query via a local helper before passing into the AskQ store, even though AskQ itself sanitizes too. Defense in depth.
 
 ```tsx
+import { sanitizeForPrompt } from '@/lib/sanitizeForPrompt'; // new helper, see Step 3a
+
 {searchInput.trim().length > 0 && (
   <>
     <CommandSeparator />
     <CommandItem
       onSelect={() => {
-        useAskQPanelStore.getState().open({ suggestedPrompt: searchInput, showId: scopedShowId });
+        const safe = sanitizeForPrompt(searchInput);
+        useAskQPanelStore.getState().open({ suggestedPrompt: safe, showId: scopedShowId });
         onOpenChange(false);
       }}
       className="opacity-70"
@@ -1056,6 +1252,51 @@ Run test. Expected: FAIL.
   </>
 )}
 ```
+
+**Step 3a [ADDED]:** Build the `sanitizeForPrompt` helper. This is the single source of truth flagged in the [ai-ux-adaptation doc](../ai-ux-adaptation.md) — wire it up here, reuse it for future AI features.
+
+Create `apps/myk9show/src/lib/sanitizeForPrompt.ts`:
+
+```typescript
+/**
+ * Sanitize user-supplied text before it travels into an LLM prompt.
+ * Treats input as data, not instructions. Defense-in-depth with server-side limits.
+ */
+export function sanitizeForPrompt(raw: string): string {
+  if (typeof raw !== 'string') return '';
+  // Strip control chars except whitespace
+  const stripped = raw.replace(/[ -]/g, '').trim();
+  // Hard length cap — server enforces 100 too
+  const capped = stripped.slice(0, 100);
+  return capped;
+}
+```
+
+Create unit test at `apps/myk9show/src/test/lib/sanitizeForPrompt.test.ts`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { sanitizeForPrompt } from '@/lib/sanitizeForPrompt';
+
+describe('sanitizeForPrompt', () => {
+  it('returns trimmed input unchanged for safe queries', () => {
+    expect(sanitizeForPrompt('  buddy  ')).toBe('buddy');
+  });
+  it('strips control characters', () => {
+    expect(sanitizeForPrompt('hello world')).toBe('helloworld');
+  });
+  it('caps length at 100', () => {
+    const long = 'a'.repeat(200);
+    expect(sanitizeForPrompt(long).length).toBe(100);
+  });
+  it('returns empty string for non-string input', () => {
+    // @ts-expect-error testing runtime safety
+    expect(sanitizeForPrompt(null)).toBe('');
+  });
+});
+```
+
+Run tests; expected PASS.
 
 **Step 4:** Run tests. Expected: PASS.
 
@@ -1097,6 +1338,8 @@ Expected: FAIL.
   </CommandItem>
 )}
 ```
+
+[EXPANDED — verification gap #29] **Explicit decision: no automatic broaden.** If a show-scoped search returns zero results, do NOT auto-broaden to global. The "Search across all shows →" row is the user's deliberate action. Reasons: (a) auto-broaden surprises the user with results from shows they didn't intend to search; (b) zero scoped results often means a typo, which auto-broaden would mask; (c) one click is cheap, surprise is expensive. Document this in the component as a comment so future maintainers don't "improve" it away.
 
 `setBroadenToGlobal(true)` causes the next `useGlobalSearch` call to pass `showId: null`. Add the state to the component:
 
@@ -1408,6 +1651,60 @@ Refer to the design doc's "Success criteria" section. All four must hold before 
 - RLS canary test (Task A8 + D5) green.
 - Secretary entry-creation E2E (Task D3) green.
 - AskQ click-through ≥5% after one month of release (post-launch metric — not a v1 blocker, but logged for promotion to Phase 2).
+
+## Appendix [ADDED] — gap fills from /verify-plan
+
+### Recent-searches preservation test (gap #13)
+
+Add to the palette test file at C2:
+
+```typescript
+it('preserves recent searches behavior under globalSearchV2 flag', () => {
+  // Seed useRecentSearches with two items
+  // Render palette with empty input
+  expect(screen.getAllByTestId('recent-search-row')).toHaveLength(2);
+});
+```
+
+Run this test in both flag-on and flag-off states. Expected: PASS both.
+
+### Migration rollback runbook (gap #26)
+
+If `search_global` misbehaves in production after E1 merge:
+
+1. **First action: flip the flag.** `globalSearchV2: false` in `features.ts`, ship a one-line PR, merge. UI reverts to legacy palette behavior. Buys time without touching the DB.
+2. **If DB-side rollback is also needed** (RPC consuming runaway CPU, lock contention on the rate-limit table):
+   ```sql
+   -- Disable the function without dropping it (preserves migration history)
+   REVOKE EXECUTE ON FUNCTION public.search_global(text, uuid, int) FROM authenticated, anon;
+   ```
+   Apply as a hotfix migration. Frontend then errors → fallback path renders.
+3. **Index rollback is last resort.** Indexes are non-blocking to read but cost write amplification on `dogs`/`people`/`entries`/etc. If writes spike, drop the trigram indexes:
+   ```sql
+   DROP INDEX CONCURRENTLY IF EXISTS public.idx_dogs_call_name_trgm;
+   -- etc.
+   ```
+   Use `CONCURRENTLY` to avoid locking the underlying table. Indexes can be re-added later.
+4. **Directory functions stay.** Even with the RPC revoked, the `SECURITY DEFINER` directory functions are no-ops without a caller; no need to drop them in a rollback.
+
+Document this runbook in the PR description at E2 so on-call reviewers know what to do without re-deriving it.
+
+### Alerting on RPC errors / latency (gap #31)
+
+After E3 canary flip, before declaring done:
+
+1. Confirm `frontend_logs` table (or whatever the project's log sink is) is receiving `global_search.rpc` events.
+2. Add a query alert (Supabase log sink, existing observability stack — confirm during implementation): trigger when in any rolling 5-minute window:
+   - Error rate on `global_search.rpc` exceeds 2%, OR
+   - p95 latency exceeds 600ms global / 250ms scoped (slightly above success criteria to account for legitimate noise).
+3. Alert destination: the same channel that handles existing production alerts.
+4. If the project doesn't have a query-alert mechanism wired up yet, file an OPEN-TODOS entry for "Search v1 alerting" and document in the v1 launch note that the first 7 days require manual log review every 24h.
+
+### Entry-creation route follow-up (gap #30)
+
+Already inline at Task C3 — if the route doesn't exist, file OPEN-TODOS and ship inert. No additional appendix needed.
+
+---
 
 ## Skills referenced
 

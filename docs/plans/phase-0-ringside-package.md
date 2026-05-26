@@ -2,10 +2,14 @@
 
 Companion to [`2026-05-17-unify-myk9show-myk9q.md`](./2026-05-17-unify-myk9show-myk9q.md) §Phase 0 steps 4–6. This doc resolves the open shape questions before any code lands.
 
-**Status:** draft — awaiting answers to the open questions in §3 before implementation starts.
+**Status:** rev 2 — decisions locked, audits returned, ready for PR A.
 
-**Date:** 2026-05-26
+**Date:** 2026-05-26 (rev 2 same-day)
 **Owner:** TBD (waiting for assignment)
+
+**Changelog:**
+- rev 1 (initial): surfaced five open questions, recommended defaults, proposed 8-PR sequencing.
+- rev 2 (2026-05-26 PM): user locked Q1=Tailwind / Q2=extend-existing / Q3=hook-only / Q4=audit-then-defer-Nationals / Q5=audit-then-decide. Audits returned in §3. PR order tightened.
 
 ---
 
@@ -62,52 +66,86 @@ Survey of `apps/myk9q/src/` against the package boundary. Each row gets a verdic
 | `hooks/useNotifications` + `contexts/NotificationContext` | Already a `packages/notifications` exists with `suppression.ts`. Is the in-ring suppression idea referenced in plan §step 5 already implemented there? Need to compare. |
 | `services/` (everything not under `replication/`) | Many services may be myK9Q-app-specific glue. Audit row-by-row. |
 
-## 3. Open design questions (need answers before code)
+## 3. Decisions (locked) + audit findings
 
-**Q1. Theme contract.** myK9Q ships semantic CSS (no Tailwind). myK9Show ships shadcn/ui + Tailwind. `packages/ringside` will mount in both. Options:
-   - **3a.** Ringside emits semantic CSS classes; each host app provides the stylesheet (clean separation, but two stylesheets to maintain in sync).
-   - **3b.** Ringside emits inline styles / CSS-in-JS (no host dependency, but breaks myK9Show's design-token system).
-   - **3c.** Ringside is theme-agnostic primitives; each host wraps in its own component layer (most flexible, most ceremony).
-   - **Recommendation:** 3a — keep semantic class names, ship a `ringside.css` from the package, let each app extend with overrides. Matches myK9Q's current shape exactly. myK9Show wraps with a thin Tailwind shim where needed.
+### Q1 — Theme: **Tailwind, with package-bundled CSS** ✅
 
-**Q2. Notifications package relationship.** `packages/notifications/` already exists with `sound.ts`, `push.ts`, `suppression.ts`, `handlers.ts`. Plan §step 5 says "Port the `isInRing` suppression idea from myK9Show's `useNotificationStore` into the shared notification module." Verify:
-   - Is the existing `suppression.ts` already the shared module the plan wanted?
-   - If yes: step 5 is partly done — just need to confirm the `isInRing` predicate is there.
-   - If no: extend the existing module rather than creating a parallel ringside-notifications.
-   - **Action item:** read `packages/notifications/src/suppression.ts` before drafting the implementation PR.
+**Decision:** ringside uses Tailwind internally. The package ships a pre-built `dist/styles.css` so myK9Q consumes the compiled output without needing a Tailwind toolchain.
 
-**Q3. Auth context boundary.** myK9Q's `AuthContext` currently knows about passcodes. myK9Show's auth context knows about email-password sessions. After Phase 0 the smart input is one field that resolves to either path. Options:
-   - **3a.** Ringside package exports a `usePasscodeAuth()` hook that returns role + show. Host apps own the top-level auth context and decide how to merge passcode + account session (per Locked Decision 8).
-   - **3b.** Ringside package owns a full `AuthProvider` and both apps mount it. (Couples host app to ringside's auth model.)
-   - **Recommendation:** 3a. The "session precedence" rule is a host-app concern (signed-in user attaching a passcode = host's confirmation step), not a ringside concern.
+**Why this overrides the original "semantic CSS" recommendation:** Phase 6 deletes `apps/myk9q` entirely. Optimizing the package for the *temporary* host (myK9Q) over the *destination* (myK9Show) is backwards. Tailwind in the package gives myK9Show clean integration; myK9Q just imports a stylesheet — its own components keep using semantic CSS, no app-level Tailwind toolchain required, no CLAUDE.md constraint violated.
 
-**Q4. Scoresheet scope.** Scoresheets are currently in `pages/scoresheets/AKC/`, `UKC/`, `ASCA/`. Are these:
-   - **3a.** Pure judge-UI that anyone with a `j****` passcode sees? → goes in ringside
-   - **3b.** Coupled to myK9Q's scoring sync layer? → audit before move
-   - **3c.** Some scoresheets are myK9Q-only (e.g., Nationals)? → split, move common, keep myK9Q-specific in app
-   - **Action item:** spot-check imports in `pages/scoresheets/AKC/CheckInBox.tsx` and one ASCA scoresheet to see how deep the coupling goes.
+**Implementation note:** `tsup` (already used by `@myk9/scoring-ui`) can bundle CSS alongside JS via the `loader: { '.css': 'css' }` config. Reference the build of `@myk9/ui` for the exact shape.
 
-**Q5. `services/replication/` status.** `@myk9/replication` already exists as a workspace package. Two possibilities:
-   - The myK9Q `services/replication/` directory is a *legacy copy* that should be deleted in favor of the package — partial overlap with #15-style cleanup.
-   - The myK9Q copy is the canonical one, and `@myk9/replication` is a stub or a different concern.
-   - **Action item:** diff `apps/myk9q/src/services/replication/` vs `packages/replication/src/` before any ringside extraction. If duplicated, fix that first (it's a cheap consolidation win and clears a confusion source for #16).
+### Q2 — Notifications: **extend `packages/notifications`** ✅
+
+**Audit finding:** the existing package is already richer than the plan implied. It contains:
+```
+handlers.ts  push.ts  sound.ts  suppression.ts
+types.ts     voice.ts voice-text.ts
+```
+with `suppression.ts` already exporting `shouldSuppress(preferences, { isInRing })`. Plan step §5 ("port the `isInRing` suppression idea") is **already done** in the package itself.
+
+**The actual gap:** myK9Q is NOT consuming the package. Its `hooks/useNotifications.ts` imports from `@/services/notificationService` (local); `contexts/NotificationContext.tsx` imports `@/services/notificationSoundService` (local). There's a parallel implementation in `apps/myk9q/src/services/` that should switch to `@myk9/notifications`.
+
+**Adjustment:** the ringside extraction does NOT include "port notifications" — the package is already correct. Instead, a sibling cleanup PR migrates myK9Q's notification call-sites to `@myk9/notifications` (independent of ringside, can ship in parallel or even before PR A). Treating it as a pre-extraction tidy: smaller scope, isolated risk.
+
+### Q3 — Auth: **package exports a hook, host owns the provider** ✅
+
+**Decision:** `packages/ringside` exports `usePasscodeAuth()` / `useCurrentPasscodeRole()` hooks. Each host app keeps its own top-level `AuthProvider` and decides how to merge passcode + account session per Locked Decision 8 (signed-in user attaching a passcode = host's confirmation step).
+
+### Q4 — Scoresheets: **extract baseline, defer Nationals** ✅
+
+**Audit inventory:**
+```
+AKC/AKCFastCatScoresheet.tsx                    — generic
+AKC/AKCScentWorkScoresheet.tsx                  — generic
+AKC/AKCScentWorkScoresheetRouter.tsx            — generic
+AKC/AKCNationalsScoresheet.tsx                  — **Nationals-specific**
+AKC/components/NationalsConfirmationDialog.tsx  — **Nationals-specific**
+ASCA/ASCAScentDetectionScoresheet.tsx           — generic
+components/NationalsPointsDisplay.tsx           — **Nationals-specific**
+components/TimerDisplay.tsx, AreaInputs.tsx,
+ScoreConfirmationDialog.tsx, etc.               — generic shared components
+```
+
+**Decision per user:** move the generic scoresheets in PR F. Leave `AKCNationalsScoresheet.tsx`, `NationalsConfirmationDialog.tsx`, and `NationalsPointsDisplay.tsx` in `apps/myk9q/` for now — they couple to `nationalsStore` and have their own deferred follow-up work. A future PR can extract them after the rest of ringside stabilizes.
+
+This keeps PR F under the size budget and avoids dragging Nationals scoring's complexity into the first extraction wave.
+
+### Q5 — Replication: **NOT duplication, leave layered** ✅
+
+**Audit finding:** `apps/myk9q/src/services/replication/` and `packages/replication/src/` are **not** parallel implementations. They're a two-layer architecture:
+
+| Layer | Location | Content |
+|---|---|---|
+| Primitives | `packages/replication/src/` | `MutationManager.ts`, `syncReplicatedTable.ts`, conflict resolution, mutation utilities, types |
+| Orchestration | `apps/myk9q/src/services/replication/` | `ReplicationManager`, `SyncEngine`, `PrefetchManager`, `myk9qDependencies.ts`, `initReplication.ts`, table-specific subclasses |
+
+Import counts confirm both are live: 30 myK9Q files import from `@myk9/replication`, 19 from `@/services/replication`. The local layer wraps the package and adds myK9Q-specific bootstrap.
+
+**Decision:** no deduplication needed. The orchestration layer is app-specific and stays in `apps/myk9q/` for now. When the future `/at-show` route mounts ringside, myK9Show will need its own orchestration layer — that's a Phase 1 question, not Phase 0. **Treat `services/replication/` as host-app territory, do not move into ringside.**
+
+The one nuance: any table-specific subclasses under `services/replication/tables/` that ringside UI directly imports become a question — likely they should stay app-side and ringside consumes them through a dependency-injection hook. Confirmed during PR D when the ringside stores actually need them.
 
 ## 4. Proposed extraction strategy
 
 ### 4.1 Sequencing — small PRs, not one big bang
 
-Goal: each PR is < ~500 LOC moved, builds green, ships independently. Order:
+Goal: each PR is < ~500 LOC moved, builds green, ships independently. Updated order after audit findings (PR H from rev 1 dropped — Q2 finding rendered it unnecessary):
 
-1. **PR A — Package scaffold.** Create `packages/ringside/{package.json, tsconfig.json, tsup.config.ts, src/index.ts}`. No code moved yet — just the empty workspace package that builds and is consumed by `apps/myk9q` as a no-op import. Confirm Turbo/pnpm sees it.
-2. **PR B — Move shared types + pure utilities.** Things with no React or store dependencies: type defs, status enum, date helpers, etc. Each move replaces app-internal imports with `@myk9/ringside` imports. Smallest possible move.
-3. **PR C — Move passcode auth hook.** Just `useAuth`/`usePasscodeAuth` + the underlying `validate_passcode` client call. Per Q3, do NOT move the top-level `AuthProvider` — leave that in `apps/myk9q`, have it consume the new hook.
-4. **PR D — Move ringside domain stores.** `entryStore`, `scoringStore`, `timerStore`. These are the load-bearing state. Verify hooks that depend on them still resolve via the new package paths.
-5. **PR E — Move ClassList + EntryList + their hooks.** The biggest single move. Probably needs to land in two PRs (E1, E2) to stay under the size budget.
-6. **PR F — Move scoresheets.** Pending Q4 resolution. May fork into common-vs-myK9Q-specific.
-7. **PR G — Move dialogs + remaining ringside hooks.** Mop-up.
-8. **PR H — Wire the in-ring notification suppression (plan §step 5).** Pending Q2 — likely just a single hook + a test, not a move.
+| # | Title | Risk | Notes |
+|---|---|---|---|
+| **Pre-A** | Migrate `apps/myk9q` notification call-sites to `@myk9/notifications` | low | Independent cleanup uncovered by Q2 audit. Ships in parallel; not gated on PR A. Optional but recommended before PR G. |
+| **A** | Package scaffold | trivial | `package.json` + `tsconfig.json` + `tsup.config.ts` with Tailwind + CSS bundling per Q1. Empty `src/index.ts`. `apps/myk9q` consumes as no-op import. |
+| **B** | Move shared types + pure utilities | low | Type defs, status enums, date helpers — anything with no React or store deps. |
+| **C** | Move passcode auth hook | low | Export `usePasscodeAuth()` only, NOT the AuthProvider per Q3. Verify the new `validate_passcode` RPC call replaces any residual license-key derivation. |
+| **D** | Move ringside domain stores | medium | `entryStore`, `scoringStore`, `timerStore`. The table-subclass question from Q5 surfaces here — likely resolved via a DI hook. |
+| **E1** | Move ClassList page + hooks | medium | Largest single move. Split E1/E2 to stay under size budget. |
+| **E2** | Move EntryList + ShowDetails (ClassTable) | medium | |
+| **F** | Move generic scoresheets | medium | AKC FastCat, AKC ScentWork (+ Router), ASCA ScentDetection, generic components. **Defer** `AKCNationalsScoresheet`, `NationalsConfirmationDialog`, `NationalsPointsDisplay` per Q4. |
+| **G** | Move dialogs + remaining ringside hooks | low | Mop-up. |
 
-**Stop point for Phase 0:** PRs A–H finished, `apps/myk9q` builds + tests pass, `apps/myk9show` does not yet consume ringside (that's Phase 1's `/at-show` route work).
+**Stop point for Phase 0:** PRs A–G finished, `apps/myk9q` builds + tests pass, `apps/myk9show` does not yet consume ringside (that's Phase 1's `/at-show` route work). Nationals scoresheet remains in-app pending a separate follow-up.
 
 ### 4.2 Guardrails per PR
 
@@ -132,8 +170,11 @@ Even after the per-PR guardrails pass:
 - **Removing `apps/myk9q` entirely.** Phase 6's task. The extraction makes that possible but doesn't trigger it.
 - **`services/replication/` consolidation.** If Q5 reveals duplication, it's a one-PR side quest, but it's not gated on Phase 0 closure.
 
-## 6. Decision needed from you
+## 6. Ready to start
 
-Before I write code: please answer Q1–Q5 above (or sign off on the recommendations as written). Q2 and Q5 in particular require a quick diff between `packages/notifications/src/suppression.ts` + `apps/myk9q/src/services/replication/` and their app-side counterparts — I'll do that read-only audit and report back if you want me to before you decide. Just say "audit Q2/Q5 first" and I'll come back with a one-page comparison instead of starting on PR A.
+All five questions answered; audits done. Two entry points are valid:
 
-Otherwise: I take Q1=3a / Q2=extend existing / Q3=3a / Q4=verdict-after-audit / Q5=audit-and-deduplicate as the working assumptions, and start with PR A (scaffold) which is risk-free under any answer.
+- **Pre-A (Q2 byproduct):** migrate `apps/myk9q`'s notification call-sites from local `services/notificationService` / `notificationSoundService` to `@myk9/notifications`. Independent of ringside, smaller scope, immediately useful. Could ship first or last — owner's call.
+- **PR A:** scaffold `packages/ringside` with Tailwind + CSS bundling per Q1. No code moved, just the empty package + workspace wiring. Risk-free under any future answer.
+
+Default proceed order: **PR A first** (the extraction's foundation), Pre-A interleaves at any point before PR G.

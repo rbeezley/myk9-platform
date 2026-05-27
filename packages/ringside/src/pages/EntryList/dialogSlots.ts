@@ -46,15 +46,22 @@ import type { Entry } from '../../stores/entryStore';
 // =============================================================================
 
 /**
- * Run-order preset choices for `RunOrderDialog`. Matches the eleven
- * presets the apps/myk9q dialog renders:
+ * Run-order preset choices accepted by `RunOrderDialog.onApplyOrder`
+ * and handled by the host's `runOrderService`:
  *  - section ordering: a-then-b / b-then-a, each asc + desc
  *  - combined ordering: asc + desc
- *  - randomized: random-all (whole class) or random-sections (within
- *    each A/B group)
+ *  - randomized: `random-all` (whole class), `random-sections` (within
+ *    each A/B group), `random` (section-scoped shuffle from the
+ *    Section A/B + Random Shuffle flow)
  *  - armband sort: armband-asc + armband-desc
  *  - manual: opens the drag-to-reorder mode instead of applying a
  *    preset (callback consumers branch on this value)
+ *
+ * Twelve values total. The union must match what `runOrderService`
+ * actually accepts in its switch — verified against the host's
+ * `getPresetDescription` Record — not just what the host's own
+ * `RunOrderPreset` type union literally lists. (The host's own union
+ * is currently narrower than its Record; flagged as a follow-up.)
  *
  * New presets land here first, then the host renders them.
  */
@@ -67,6 +74,7 @@ export type RunOrderPreset =
   | 'combined-desc'
   | 'random-all'
   | 'random-sections'
+  | 'random'
   | 'armband-asc'
   | 'armband-desc'
   | 'manual';

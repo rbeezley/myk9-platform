@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-27
+
+- **Playwright command:** fail; stopped after exceeding the QA hang rule
+- **Route sweep:** pass
+- **Active specs:** Vitest 18/18; Playwright stopped after 24/44 passed, 4 failed, and 16 did not run; route sweep 12/12 role+viewport checks
+- **Failures:** Active Playwright command from `docs/qa/e2e-suite-map.md` failed on `cross-role-workflows.spec.ts` secretary command center, `registration/entryCreationCore.spec.ts` status workflow, `registration/secretaryExistingUsers.spec.ts` existing-user search, and `registration/singleDogSingleClass.spec.ts`. The runner was stopped after several failures reported excessive runtimes (`16.8m`, `15.5m`, and `6.4m`), per the 60-second hang guidance. Finding opened: `QA-TEST-FLAKE-010`.
+- **Fixes made:** docs only. Existing open PR `#372` (`fix(qa): stabilize May 26 nightly checks`) already contains the product/test fixes and green proof for the same mainline failure class, so this run did not duplicate those changes.
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`, then switched to `codex/nightly-qa-2026-05-27` before recording docs. Proofs: promoted Vitest Nightly passed (`18 passed`); active Playwright Nightly failed and was stopped; temporary route sweep across public, exhibitor, secretary, judge, club-admin, and admin route groups at desktop plus 375px mobile passed (`12/12`) and the temporary spec was removed. Next step: merge or otherwise resolve PR `#372`, sync `main`, then re-run the exact active Nightly Playwright command with `--retries=0`.
+
 ### 2026-05-24
 
 - **Playwright command:** pass after local environment repair

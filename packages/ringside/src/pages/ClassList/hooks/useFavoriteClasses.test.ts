@@ -94,18 +94,64 @@ describe('localStorage read', () => {
     expect(result.current.favoriteClasses).toEqual(new Set());
   });
 
-  test('malformed JSON does not crash; falls back to empty (loaded flag remains false on error)', async () => {
+  test('malformed JSON recovers cleanly: empty set, corrupt data overwritten, future toggles persist', async () => {
     localStorage.setItem(storageKey(LICENSE, TRIAL), '{not valid json');
 
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
 
-    // The hook catches the parse error and logs — favorites stays empty,
-    // favoritesLoaded stays false because the error path returns before
-    // setFavoritesLoaded(true). Documenting current behavior.
-    await waitFor(() => {
-      expect(result.current.favoriteClasses).toEqual(new Set());
-    });
+    await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
+
+    // Recovery contract: set is empty, console.error logged the parse
+    // failure, AND favoritesLoaded flipped to true so the save effect
+    // is unblocked. The save effect immediately writes the (empty)
+    // current state, which has the side effect of overwriting the
+    // corrupt string with a valid empty JSON array. Either way the
+    // corrupt payload is gone.
+    expect(result.current.favoriteClasses).toEqual(new Set());
     expect(console.error).toHaveBeenCalled();
+    expect(localStorage.getItem(storageKey(LICENSE, TRIAL))).toBe(
+      JSON.stringify([])
+    );
+
+    // Prove the recovery isn't theoretical: a toggle after the bad load
+    // persists normally — this is the bug the recovery fix prevents
+    // (previously favoritesLoaded stayed false and the save-effect guard
+    // silently dropped the write).
+    act(() => result.current.toggleFavorite(7));
+    expect(localStorage.getItem(storageKey(LICENSE, TRIAL))).toBe(
+      JSON.stringify([7])
+    );
+  });
+
+  test('valid JSON of the wrong shape (e.g. an object) is treated as corrupt and recovers', async () => {
+    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify({ classes: [1, 2] }));
+
+    const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
+
+    await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
+    expect(result.current.favoriteClasses).toEqual(new Set());
+    // Save effect overwrites the wrong-shape payload with an empty array.
+    expect(localStorage.getItem(storageKey(LICENSE, TRIAL))).toBe(
+      JSON.stringify([])
+    );
+  });
+
+  test('mixed-type array filters non-numeric entries; cleaned array is then persisted', async () => {
+    // Defensive — historical data might be a mix of strings and numbers.
+    // We keep the numeric ids, drop the rest, and the save-effect rewrites
+    // the cleaned array back to localStorage (self-healing storage).
+    localStorage.setItem(
+      storageKey(LICENSE, TRIAL),
+      JSON.stringify([1, 'bad', 2, null, 3])
+    );
+
+    const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
+
+    await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
+    expect(result.current.favoriteClasses).toEqual(new Set([1, 2, 3]));
+    expect(localStorage.getItem(storageKey(LICENSE, TRIAL))).toBe(
+      JSON.stringify([1, 2, 3])
+    );
   });
 });
 

@@ -46,9 +46,17 @@ import type { Entry } from '../../stores/entryStore';
 // =============================================================================
 
 /**
- * Run-order preset choices for `RunOrderDialog`. Matches the eight
- * presets the apps/myk9q dialog renders. New presets land here first,
- * then the host renders them.
+ * Run-order preset choices for `RunOrderDialog`. Matches the eleven
+ * presets the apps/myk9q dialog renders:
+ *  - section ordering: a-then-b / b-then-a, each asc + desc
+ *  - combined ordering: asc + desc
+ *  - randomized: random-all (whole class) or random-sections (within
+ *    each A/B group)
+ *  - armband sort: armband-asc + armband-desc
+ *  - manual: opens the drag-to-reorder mode instead of applying a
+ *    preset (callback consumers branch on this value)
+ *
+ * New presets land here first, then the host renders them.
  */
 export type RunOrderPreset =
   | 'a-then-b-asc'
@@ -58,7 +66,10 @@ export type RunOrderPreset =
   | 'combined-asc'
   | 'combined-desc'
   | 'random-all'
-  | 'random-sections';
+  | 'random-sections'
+  | 'armband-asc'
+  | 'armband-desc'
+  | 'manual';
 
 /** Section scope a run-order preset applies to. `'all'` ignores sections. */
 export type RunOrderScope = 'all' | 'A' | 'B';

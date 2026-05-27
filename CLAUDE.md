@@ -157,6 +157,12 @@ Before writing a migration or code fix for a "why doesn't this data flow" bug, *
 
 - Before writing a migration that references existing rows (e.g., permissions), QUERY the target table first to confirm referenced values exist.
 - Run migration commands from the worktree linked to Supabase, not the main repo.
+- **Every `CREATE TABLE public.<name>` must include explicit `GRANT`s** to `anon` / `authenticated` / `service_role` as appropriate. As of Oct 30, 2026 Supabase no longer auto-exposes new `public` tables to the Data API (PostgREST / GraphQL / `supabase-js`); without a grant the table will silently 404 from the client. Template:
+  ```sql
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table> TO authenticated;
+  GRANT SELECT ON public.<table> TO anon;  -- only if anon should read
+  ```
+  Match the access level the table actually needs — never blanket-grant write to `anon`. Grants are orthogonal to RLS; both are still required.
 
 ## Auto Mode — shared-system writes
 

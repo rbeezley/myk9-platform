@@ -129,3 +129,35 @@ export {
   type StatusOperationResult,
   type UseClassStatusReturn,
 } from './pages/ClassList';
+
+// ── Pages: EntryList (PR E2a — pure helpers + hooks) ─────────────────────
+// Data-fetching hooks (useEntryListData, useEntryListDataHelpers) stay
+// app-side until PR E2b establishes a services slot for the supabase
+// client and entry/visibility services.
+export type {
+  SortOrder as EntryListSortOrder,
+  PrintDialogType as EntryListPrintDialogType,
+  PrintDialogState as EntryListPrintDialogState,
+  ResetConfirmState,
+  OrgData,
+} from './pages/EntryList';
+
+export type { StatusBorderClass, StatusConfig } from './pages/EntryList';
+export {
+  normalizeResultText,
+  getResultClassName,
+  isNonQualifyingResult,
+  getStatusBorderClass,
+  getPlacementEmoji,
+  getPlacementText,
+  getStatusConfig,
+  isNationalsCompetition,
+  getDisplayTime,
+} from './pages/EntryList';
+
+export { useEntryListFilters } from './pages/EntryList';
+export type { TabType, SortType, SectionFilter } from './pages/EntryList';
+
+export { useResetScore } from './pages/EntryList';
+
+export { useDragAndDropEntries } from './pages/EntryList';

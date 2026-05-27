@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { ClassEntry } from './useClassListData';
+import type { ClassEntry } from '../types';
 
 /**
  * Popup position for menu positioning

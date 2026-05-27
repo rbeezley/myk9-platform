@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@myk9/ui';
 
 /** Tailwind styles for ClassCardSkeleton */
 const styles = {

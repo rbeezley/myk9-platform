@@ -9,7 +9,7 @@
 
 import { useEffect, useCallback } from 'react';
 import type { SupabaseClient, RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type { ClassEntry } from './useClassListData';
+import type { ClassEntry } from '../types';
 
 /**
  * Record type for class data in real-time updates

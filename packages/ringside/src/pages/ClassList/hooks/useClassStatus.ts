@@ -8,9 +8,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { ClassEntry } from './useClassListData';
+import type { ClassEntry } from '../types';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { logger } from '@/utils/logger';
+import { logger } from '@myk9/core';
 
 /**
  * Result type for status operations

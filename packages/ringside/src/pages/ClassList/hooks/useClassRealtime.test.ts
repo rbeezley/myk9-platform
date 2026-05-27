@@ -12,7 +12,7 @@ import { renderHook } from '@testing-library/react';
 import { vi, type Mock } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useClassRealtime } from './useClassRealtime';
-import type { ClassEntry } from './useClassListData';
+import type { ClassEntry } from '../types';
 
 type RealtimeHandler = (payload: {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';

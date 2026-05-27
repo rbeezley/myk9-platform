@@ -343,14 +343,19 @@ describe('useEntryListData — refresh()', () => {
     expect(syncTable).toHaveBeenCalledTimes(4); // 2 (first) + 2 (third)
   });
 
-  // NOTE: a "refresh is stable across re-renders" test was prototyped here
-  // and removed because the SUT puts the whole `query` object in the
-  // useCallback dep array (`[licenseKey, query]`). `query` is a fresh
-  // reference every render in React Query v5, so `refresh` is NOT actually
-  // stable — despite the SUT's comment claiming it is to prevent infinite
-  // loops in CombinedEntryList's mount effect. Locking in either the broken
-  // current behavior or the intended stable behavior would change scope of
-  // this purely-additive test backfill PR. Bug flagged as a follow-up task.
+  it('refresh is stable across re-renders (useCallback dep contract)', async () => {
+    vi.mocked(fetchFromReplicationCache).mockResolvedValue({ entries: [], classInfo: null });
+
+    const { result, rerender } = renderHook(() => useEntryListData({ classId: 'cls-1' }), {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() => expect(fetchFromReplicationCache).toHaveBeenCalled());
+
+    const first = result.current.refresh;
+    rerender();
+    expect(result.current.refresh).toBe(first);
+  });
 
   it('refresh(true) swallows a sync error and still refetches (offline fallback)', async () => {
     vi.mocked(fetchFromReplicationCache).mockResolvedValue({ entries: [], classInfo: null });

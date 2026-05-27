@@ -202,7 +202,10 @@ export const useEntryListData = ({ classId, classIdA, classIdB, isDraggingRef }:
   // Refetch function with optional forceSync
   // forceSync: if true, syncs with server before reading cache (for user-initiated refresh)
   // CRITICAL: Wrapped in useCallback to prevent infinite loops in components that use
-  // refresh as a useEffect dependency (e.g., CombinedEntryList's mount effect)
+  // refresh as a useEffect dependency (e.g., useEntryListEffects' max-time auto-apply
+  // effect at useEntryListEffects.ts:104). Depend on `query.refetch` — which is
+  // referentially stable in React Query v5 — NOT the whole `query` object, which is
+  // a fresh reference every render and would defeat the useCallback.
   const refresh = useCallback(async (forceSync: boolean = false) => {
     // Prevent concurrent force syncs
     if (forceSync && isSyncingRef.current) {
@@ -230,7 +233,7 @@ export const useEntryListData = ({ classId, classIdA, classIdB, isDraggingRef }:
 
     // Refetch from cache (which is now updated if sync succeeded)
     await query.refetch();
-  }, [licenseKey, query]);
+  }, [licenseKey, query.refetch]);
 
   return {
     entries: query.data?.entries || EMPTY_ENTRIES,

@@ -172,3 +172,32 @@ export { useDragAndDropEntries } from './pages/EntryList';
 // PR E2b
 export { useEntryListData } from './pages/EntryList';
 export type { UseEntryListDataOptions } from './pages/EntryList';
+
+// PR E2c — dialog DI surface for the EntryList page (consumed by E2d).
+// All slot types ship as `type` exports — no runtime symbols yet, the
+// page components arrive in E2d.
+export type {
+  EntryListDialogSlots,
+  CheckinStatusDialogProps,
+  ClassOptionsDialogProps,
+  ClassStatusDialogProps,
+  ClassRequirementsDialogProps,
+  ClassSettingsDialogProps,
+  MaxTimeDialogProps,
+  RunOrderDialogProps,
+  ScoresheetPrintDialogProps,
+  NoStatsDialogProps,
+  AreaCountSelectionDialogProps,
+  RunOrderPreset,
+  RunOrderScope,
+  RenumberMode,
+  PrintSortOrder,
+  // CheckInStatus is intentionally NOT re-exported here — it's just an
+  // alias for `EntryStatus` which is already exported above. Consumers
+  // should use `EntryStatus`. The page-level barrel keeps the alias
+  // accessible for callers who want the name to match the dialog prop
+  // type.
+  AreaCountRequirements,
+  ClassOptionsData,
+  MaxTimeClassData,
+} from './pages/EntryList';

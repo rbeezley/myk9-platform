@@ -162,12 +162,16 @@ interface SupabaseError {
 }
 
 function isSupabaseError(error: unknown): error is SupabaseError {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as Record<string, unknown>).message === 'string'
-  );
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as Record<string, unknown>;
+  if (typeof candidate.message !== 'string') return false;
+  // Reject DOMException and other web/idb errors that share { message: string }
+  // but use a numeric `code` — `code?.startsWith(...)` would TypeError on those
+  // and abort the whole upload batch via the outer catch in uploadPendingMutations.
+  if ('code' in candidate && candidate.code !== undefined && typeof candidate.code !== 'string') {
+    return false;
+  }
+  return true;
 }
 
 /**

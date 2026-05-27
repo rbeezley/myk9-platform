@@ -79,7 +79,21 @@ Copy this block for each new finding.
 
 ## Open Findings
 
-_None currently._
+### QA-TEST-FLAKE-010
+
+- **Status:** open
+- **Severity:** medium
+- **Role:** secretary
+- **Surface:** Wave 1 Nightly Playwright command from `docs/qa/e2e-suite-map.md`; failures observed in `cross-role-workflows.spec.ts`, `registration/entryCreationCore.spec.ts`, `registration/secretaryExistingUsers.spec.ts`, and `registration/singleDogSingleClass.spec.ts`.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-05-27 active Nightly Playwright command was stopped per the QA hang rule after the runner reported long-running failures (`entryCreationCore.spec.ts` status workflow at 16.8m, `secretaryExistingUsers.spec.ts` existing-user search at 15.5m, and `singleDogSingleClass.spec.ts` at 6.4m). The same mainline branch also failed the secretary command-center assertion in `cross-role-workflows.spec.ts`. Route sweep passed separately (`12/12` role+viewport checks), so this is isolated to the active Playwright gate rather than a broad route-health outage.
+- **User impact:** Nightly cannot currently prove the trusted secretary/registration baseline from `main`; results are contaminated by already-diagnosed stale assertions and slow registration specs.
+- **Intent check:** Restores QA trust around the secretary "That was easy" proof once the active Nightly gate is green again.
+- **Fix owner:** Existing open stabilization PR `#372` (`codex/nightly-qa-2026-05-26`) already contains the low-risk fixes and green proof for this failure class. Do not duplicate product fixes in this docs-only record.
+- **Proof required:** Merge or otherwise resolve PR `#372`, sync `main`, then rerun the exact active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0` and confirm `44 passed`.
+- **Notes:** Opened from the 2026-05-27 run because `main` still does not include the May 26 stabilization branch. Close this finding when the green proof is present on `main`.
 
 ## Closed Findings
 

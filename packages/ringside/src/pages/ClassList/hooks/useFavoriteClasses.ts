@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { logger } from '@/utils/logger';
+import { logger } from '@myk9/core';
 
 /**
  * Hook return type

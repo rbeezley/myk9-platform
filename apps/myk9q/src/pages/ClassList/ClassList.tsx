@@ -24,7 +24,7 @@ import {
   type ReportDependencies,
   type ReportOperationResult,
 } from './hooks/usePrintReports';
-import { useFavoriteClasses } from './hooks/useFavoriteClasses';
+import { useFavoriteClasses } from '@myk9/ringside';
 import {
   ScoresheetPrintDialog,
   type PrintSortOrder,

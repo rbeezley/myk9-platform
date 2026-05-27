@@ -114,3 +114,9 @@ export {
   type PopupPosition,
   type UseClassDialogsReturn,
 } from './pages/ClassList';
+
+// Favorites hook (PR E1c — dedupe + move)
+export {
+  useFavoriteClasses,
+  type UseFavoriteClassesReturn,
+} from './pages/ClassList';

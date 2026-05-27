@@ -54,6 +54,10 @@ export function generatePasscodesFromLicenseKey(mobileAppLicKey: string): {
   // Legacy format: myK9Q1-8hex-8hex-8hex (two roles share parts[1], sliced at different offsets)
   const parts = mobileAppLicKey.split('-');
   if (parts.length === 4) {
+    // Defensive: empty segments (e.g. "myK9Q1---") would silently produce
+    // empty derived passcodes, which then match any caller passing "" through
+    // `validatePasscodeAgainstLicenseKey`. Reject up front instead.
+    if (!parts[1] || !parts[2] || !parts[3]) return null;
     return {
       admin: `a${parts[1].slice(0, 4)}`,
       judge: `j${parts[1].slice(4, 8)}`,

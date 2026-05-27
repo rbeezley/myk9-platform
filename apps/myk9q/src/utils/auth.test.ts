@@ -36,6 +36,22 @@ describe('generatePasscodesFromLicenseKey', () => {
     const result = generatePasscodesFromLicenseKey('');
     expect(result).toBeNull();
   });
+
+  // Defensive guard regression — see auth.ts:60. A 4-segment string with
+  // all hex segments blank would otherwise produce empty derived passcodes
+  // (e.g. "a", "j") that could match a caller passing the empty string into
+  // validatePasscodeAgainstLicenseKey. The guard rejects up front.
+  test('rejects 4-segment license key with all hex segments empty', () => {
+    expect(generatePasscodesFromLicenseKey('myK9Q1---')).toBeNull();
+  });
+
+  test('rejects 4-segment license key with one empty middle segment', () => {
+    expect(generatePasscodesFromLicenseKey('myK9Q1-d8609f3b--6323a604')).toBeNull();
+  });
+
+  test('rejects 4-segment license key with empty trailing segment', () => {
+    expect(generatePasscodesFromLicenseKey('myK9Q1-d8609f3b-d3fd43aa-')).toBeNull();
+  });
 });
 
 describe('generatePasscodesFromLicenseKey — UUID format', () => {

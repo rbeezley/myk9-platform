@@ -10,6 +10,17 @@ on:
       - '.vscode/**'
       - 'LICENSE'
       - '.gitignore'
+  # Also run on direct pushes to main (post-merge commits) so coverage drift
+  # and other regressions surface on the branch they landed on, not on the
+  # next contributor's PR. See PR #391 follow-up.
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.vscode/**'
+      - 'LICENSE'
+      - '.gitignore'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,7 +35,10 @@ jobs:
     name: Quality Checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event.pull_request.draft == false
+    # On push events `github.event.pull_request` is null, and `null.draft == false`
+    # evaluates to false in GHA expressions — which would silently skip CI on main.
+    # Allow push runs through unconditionally; gate only PRs on non-draft.
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
 
     steps:
       - uses: actions/checkout@v6

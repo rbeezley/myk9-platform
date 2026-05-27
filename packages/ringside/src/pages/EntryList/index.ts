@@ -13,6 +13,11 @@
  * its data-shape and DI-surface types. The helpers file
  * (`useEntryListDataHelpers.ts`) stays app-side as the host's
  * implementation of the `EntryListDataDependencies` slot.
+ *
+ * PR E2c — `EntryListDialogSlots`: dialog DI surface for the 10
+ * dialogs ringside's EntryList page renders. Slot types ship ahead
+ * of the page itself (E2d) so the interface can be reviewed in
+ * isolation. Host components stay physically in apps/myk9q.
  */
 
 // ── Types (moved from CombinedEntryList.types.ts) ────────────────────────
@@ -55,3 +60,32 @@ export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 // as the host's binding for the `EntryListDataDependencies` slot.
 export { useEntryListData } from './hooks/useEntryListData';
 export type { UseEntryListDataOptions } from './hooks/useEntryListData';
+
+// ── Dialog DI surface (PR E2c) ──────────────────────────────────────────
+// `EntryListDialogSlots` is the shape ringside's EntryList page (PR E2d)
+// will accept from the host. Per-dialog Props interfaces are co-located
+// so the contract is single-sourced; supporting unions (RunOrderPreset,
+// PrintSortOrder, etc.) live alongside.
+export type {
+  EntryListDialogSlots,
+  // Per-dialog prop interfaces
+  CheckinStatusDialogProps,
+  ClassOptionsDialogProps,
+  ClassStatusDialogProps,
+  ClassRequirementsDialogProps,
+  ClassSettingsDialogProps,
+  MaxTimeDialogProps,
+  RunOrderDialogProps,
+  ScoresheetPrintDialogProps,
+  NoStatsDialogProps,
+  AreaCountSelectionDialogProps,
+  // Supporting types
+  RunOrderPreset,
+  RunOrderScope,
+  RenumberMode,
+  PrintSortOrder,
+  CheckInStatus,
+  AreaCountRequirements,
+  ClassOptionsData,
+  MaxTimeClassData,
+} from './dialogSlots';

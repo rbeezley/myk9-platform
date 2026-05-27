@@ -1,7 +1,6 @@
-import type { ClassEntry } from './hooks/useClassListData';
-import type { SortOrder } from './ClassList.types';
-import { getClassDisplayStatus } from '../../utils/statusUtils';
-import { getLevelSortOrder } from '../../lib/utils';
+import type { ClassEntry, SortOrder } from './types';
+import { getClassDisplayStatus } from '../../utils/classStatus';
+import { getLevelSortOrder } from '../../utils/levelSort';
 
 /** Check if max times are set for a class */
 export function isMaxTimeSet(classEntry: ClassEntry): boolean {

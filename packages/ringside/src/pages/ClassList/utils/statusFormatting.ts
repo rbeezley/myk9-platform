@@ -5,8 +5,8 @@
  * Complements the global statusUtils.ts with ClassList-specific formatting logic.
  */
 
-import type { ClassEntry } from '../hooks/useClassListData';
-import { getClassDisplayStatus } from '@/utils/statusUtils';
+import type { ClassEntry } from '../types';
+import { getClassDisplayStatus } from '../../../utils/classStatus';
 
 /**
  * Get contextual preview text for a class based on its current status

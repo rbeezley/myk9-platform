@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   Info,
 } from 'lucide-react';
-import { getStaleDataStatus, formatStaleTime } from '../../utils/staleDataUtils';
+import { getStaleDataStatus, formatStaleTime } from '@myk9/ringside';
 import { UserPermissions } from '../../utils/auth';
 import { ClassDetailsPopover } from '@/components/dialogs/ClassDetailsPopover';
 import { BottomSheet } from '@/components/ui/BottomSheet';

@@ -45,12 +45,44 @@ export {
   compareTime,
 } from './utils/timeInputParsing';
 
+// Class-status detection + display (moved from apps/myk9q statusUtils in PR E1a)
+export type {
+  ClassStatus,
+  ClassDog,
+  ClassStatusInput,
+  FormattedStatus,
+} from './utils/classStatus';
+export {
+  getClassDisplayStatus,
+  getClassStatusColor,
+  getFormattedClassStatus,
+} from './utils/classStatus';
+
+// Level sort + stale-data helpers (moved from apps/myk9q in PR E1a)
+export { getLevelSortOrder } from './utils/levelSort';
+export type { StaleDataStatus } from './utils/staleDataUtils';
+export {
+  getStaleDataStatus,
+  formatStaleTime,
+} from './utils/staleDataUtils';
+
 // ── Stores ───────────────────────────────────────────────────────────────
 export { useEntryStore, createEntryStore } from './stores/entryStore';
 export type { Entry, EntryStatus } from './stores/entryStore';
 
 // ── Pages: ClassList ─────────────────────────────────────────────────────
-export type { ClassEntry, TrialInfo, ClassListData } from './pages/ClassList';
+export type {
+  ClassEntry,
+  TrialInfo,
+  ClassListData,
+  SortOrder,
+  CombinedFilter,
+  PrintDialogState,
+  SortOption,
+} from './pages/ClassList';
+export { SORT_OPTIONS } from './pages/ClassList';
+
+// Section grouping (PR E0)
 export {
   shouldCombineAllSections,
   findPairedNoviceClass,
@@ -60,4 +92,17 @@ export {
   isCombinedNoviceEntry,
   isCombinedEntry,
   getClassIds,
+} from './pages/ClassList';
+
+// Status formatting + sort/filter helpers (PR E1a)
+export {
+  getContextualPreview,
+  getFormattedStatus,
+  getStatusColor,
+  getStatusLabel,
+  isMaxTimeSet,
+  shouldShowMaxTimeWarning,
+  isEmptyDataError,
+  filterClasses,
+  sortClasses,
 } from './pages/ClassList';

@@ -671,6 +671,9 @@ importers:
       '@myk9/core':
         specifier: workspace:*
         version: link:../core
+      '@myk9/ui':
+        specifier: workspace:*
+        version: link:../ui
       zustand:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@19.2.15)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))

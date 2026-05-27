@@ -106,3 +106,11 @@ export {
   filterClasses,
   sortClasses,
 } from './pages/ClassList';
+
+// Presentational + hook surface (PR E1b)
+export { ClassCardSkeleton, ClassCardSkeletonList } from './pages/ClassList';
+export {
+  useClassDialogs,
+  type PopupPosition,
+  type UseClassDialogsReturn,
+} from './pages/ClassList';

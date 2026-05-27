@@ -5,7 +5,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import { useClassDialogs } from './useClassDialogs';
-import type { ClassEntry } from './useClassListData';
+import type { ClassEntry } from '../types';
 
 // Sample test data
 const mockClassEntry: ClassEntry = {

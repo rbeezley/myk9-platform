@@ -44,3 +44,11 @@ export {
   filterClasses,
   sortClasses,
 } from './ClassList.helpers';
+
+// Presentational + hook surface (PR E1b)
+export { ClassCardSkeleton, ClassCardSkeletonList } from './ClassCardSkeleton';
+export {
+  useClassDialogs,
+  type PopupPosition,
+  type UseClassDialogsReturn,
+} from './hooks/useClassDialogs';

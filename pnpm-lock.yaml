@@ -681,6 +681,9 @@ importers:
       '@myk9/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+      '@supabase/supabase-js':
+        specifier: 2.93.3
+        version: 2.93.3
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1

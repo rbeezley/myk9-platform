@@ -16,9 +16,12 @@ import { ClassListHeader } from './ClassListHeader';
 import { ClassCardGrid } from './ClassCardGrid';
 import { ClassListDialogs } from './ClassListDialogs';
 import { useClassListData, ClassEntry } from './hooks/useClassListData';
-import { useClassDialogs } from '@myk9/ringside';
-import { useClassStatus, type StatusDependencies } from './hooks/useClassStatus';
-import { useClassRealtime } from './hooks/useClassRealtime';
+import {
+  useClassDialogs,
+  useClassStatus,
+  useClassRealtime,
+  type StatusDependencies,
+} from '@myk9/ringside';
 import {
   usePrintReports,
   type ReportDependencies,

@@ -120,3 +120,12 @@ export {
   useFavoriteClasses,
   type UseFavoriteClassesReturn,
 } from './pages/ClassList';
+
+// Class-status + realtime hooks (PR E1d — already-DI'd; no RingsideProvider needed)
+export {
+  useClassStatus,
+  useClassRealtime,
+  type StatusDependencies,
+  type StatusOperationResult,
+  type UseClassStatusReturn,
+} from './pages/ClassList';

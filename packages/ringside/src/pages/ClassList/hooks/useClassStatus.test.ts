@@ -5,7 +5,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import { useClassStatus, type StatusDependencies } from './useClassStatus';
-import type { ClassEntry } from './useClassListData';
+import type { ClassEntry } from '../types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Mock Supabase client

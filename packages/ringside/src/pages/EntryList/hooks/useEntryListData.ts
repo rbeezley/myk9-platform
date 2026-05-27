@@ -188,12 +188,14 @@ export const useEntryListData = ({
   // user-initiated refresh).
   // CRITICAL: Wrapped in useCallback to prevent infinite loops in
   // components that use refresh as a useEffect dependency (e.g.,
-  // CombinedEntryList's mount effect).
-  //
-  // Note: a pre-existing bug from before the move puts the whole `query`
-  // object in this dep array, which means refresh isn't actually stable
-  // across renders (PR #399 follow-up task tracks the fix). Preserved
-  // here to keep this PR purely a move, no behavioral change.
+  // useEntryListEffects' max-time auto-apply effect at
+  // useEntryListEffects.ts:104). Depend on `query.refetch` — which is
+  // referentially stable in React Query v5 — NOT the whole `query`
+  // object, which is a fresh reference every render and would defeat
+  // the useCallback. (Fix propagated from PR #401 during the E2b merge;
+  // the original app-side fix targeted the pre-move location of this
+  // file, so the fix is re-applied here in ringside where the hook now
+  // lives.)
   const refresh = useCallback(
     async (forceSync: boolean = false) => {
       if (forceSync && isSyncingRef.current) {
@@ -218,7 +220,7 @@ export const useEntryListData = ({
       // Refetch from cache (which is now updated if sync succeeded).
       await query.refetch();
     },
-    [licenseKey, query, forceSyncEntriesAndClasses],
+    [licenseKey, query.refetch, forceSyncEntriesAndClasses],
   );
 
   return {

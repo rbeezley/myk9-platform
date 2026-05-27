@@ -262,6 +262,25 @@ describe('useEntryListData — refresh()', () => {
     expect(deps.forceSyncEntriesAndClasses).toHaveBeenCalledTimes(2);
   });
 
+  it('refresh is stable across re-renders (useCallback dep contract)', async () => {
+    // Regression net for PR #401: `refresh`'s dep array uses
+    // `query.refetch` (referentially stable in React Query v5), not the
+    // whole `query` object (fresh ref each render). If a future refactor
+    // flips it back, `useEntryListEffects`'s max-time auto-apply effect
+    // and CombinedEntryList's mount effect would loop. The cardinality
+    // test is "rerender without input changes → same function identity."
+    const deps = makeDeps();
+    const { result, rerender } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() => expect(deps.fetchSingleClass).toHaveBeenCalled());
+
+    const first = result.current.refresh;
+    rerender();
+    expect(result.current.refresh).toBe(first);
+  });
+
   it('refresh(true) swallows a sync error and still refetches (offline fallback)', async () => {
     const deps = makeDeps({
       forceSyncEntriesAndClasses: vi.fn().mockRejectedValue(new Error('Offline')),

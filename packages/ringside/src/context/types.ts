@@ -124,7 +124,19 @@ export interface RingsideReplication {
  * the boundary minimal and lets the host adapter strip metadata.
  */
 export interface RingsidePrefetch {
-  /** Returns the cached data for `key`, or `null` if not present. */
+  /**
+   * Returns the cached data for `key`, or `null` if not present.
+   *
+   * @remarks
+   * **Host adapter contract:** the underlying host singleton in
+   * `apps/myk9q/src/services/replication/PrefetchCacheManager.ts` returns a
+   * `PrefetchCacheEntry<T>` envelope (`{ key, data, timestamp, ttl?, size? }`),
+   * not a bare `T`. Adapters wiring this capability MUST strip the envelope
+   * and return `entry.data` (or `null` if the entry is absent / expired).
+   * The boundary type here is intentionally unwrapped so ringside callers
+   * never see host-internal cache metadata — see the design note at the top
+   * of the `RingsidePrefetch` block.
+   */
   get: <T = unknown>(key: string) => Promise<T | null>;
 }
 

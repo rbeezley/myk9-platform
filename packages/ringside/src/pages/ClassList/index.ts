@@ -52,3 +52,9 @@ export {
   type PopupPosition,
   type UseClassDialogsReturn,
 } from './hooks/useClassDialogs';
+
+// Favorites hook (PR E1c — dedupe + move from apps/myk9q)
+export {
+  useFavoriteClasses,
+  type UseFavoriteClassesReturn,
+} from './hooks/useFavoriteClasses';

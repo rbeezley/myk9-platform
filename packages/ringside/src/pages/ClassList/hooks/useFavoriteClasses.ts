@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { logger } from '@/utils/logger';
+import { logger } from '@myk9/core';
 
 /**
  * Hook return type
@@ -92,18 +92,37 @@ return new Set();
   // Load favorites from localStorage on mount
   useEffect(() => {
     const loadFavorites = () => {
+      const favoritesKey = `favorites_${licenseKey || 'default'}_${trialId}`;
       try {
-        const favoritesKey = `favorites_${licenseKey || 'default'}_${trialId}`;
         const savedFavorites = localStorage.getItem(favoritesKey);
-if (savedFavorites) {
-          const favoriteIds = JSON.parse(savedFavorites) as number[];
-setFavoriteClasses(new Set(favoriteIds));
+        if (savedFavorites) {
+          const parsed = JSON.parse(savedFavorites);
+          if (Array.isArray(parsed)) {
+            // Filter to numeric ids — defends against accidental corruption
+            // (e.g. a string snuck in) while still preserving valid entries.
+            const ids = parsed.filter((id): id is number => typeof id === 'number');
+            setFavoriteClasses(new Set(ids));
+          } else {
+            // Valid JSON, wrong shape — treat as corrupt.
+            throw new Error('Stored favorites payload is not an array');
+          }
         } else {
-setFavoriteClasses(new Set());
+          setFavoriteClasses(new Set());
         }
         setFavoritesLoaded(true);
       } catch (error) {
+        // Recovery contract: log, clear the corrupt key so the next
+        // session starts clean, reset state to empty, and mark loaded
+        // so future toggles persist normally instead of being silently
+        // dropped by the save guard.
         logger.error('Error loading favorites from localStorage:', error);
+        try {
+          localStorage.removeItem(favoritesKey);
+        } catch (removeError) {
+          logger.error('Error clearing corrupt favorites key:', removeError);
+        }
+        setFavoriteClasses(new Set());
+        setFavoritesLoaded(true);
       }
     };
 

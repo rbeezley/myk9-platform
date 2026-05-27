@@ -1,247 +1,144 @@
 /**
- * useEntryListData - Entry list data fetching hook
+ * Shim — implementation moved to @myk9/ringside in PR E2b.
  *
- * Refactored to use React Query for consistency with useClassListData.
- * Supports drag-and-drop by skipping cache invalidation during drag operations.
+ * See packages/ringside/src/pages/EntryList/hooks/useEntryListData.ts
+ * and docs/plans/phase-0-ringside-package.md for the extraction plan.
+ *
+ * The package hook takes `dependencies: EntryListDataDependencies` as a
+ * required injected prop (matching the direct-arg DI pattern from PR E1d's
+ * `StatusDependencies`). This shim binds the apps/myk9q implementations —
+ * `useAuth`, `ensureReplicationManager`, and the four fetcher functions
+ * in `useEntryListDataHelpers` — and forwards the rest of the options
+ * through. Existing callers in EntryList.tsx and CombinedEntryList.tsx
+ * keep working unchanged.
+ *
+ * The helpers file (`useEntryListDataHelpers.ts`) stays here as the
+ * host's implementation of the fetch slot — it's app-specific code that
+ * reaches for supabase, entryService, the replicated tables, and the
+ * visibility service. Nothing about those concerns belongs in ringside.
  */
 
-import { useEffect, useRef, useCallback, MutableRefObject } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import {
+  useEntryListData as useEntryListDataBase,
+  type EntryListDataDependencies,
+  type UseEntryListDataOptions,
+} from '@myk9/ringside';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
-import { logger } from '@/utils/logger';
-import type { UserRole } from '@/utils/auth';
-
-// Import types and helper functions from extracted module
-import type { ClassInfo, EntryListData } from './useEntryListDataHelpers';
 import {
   fetchFromReplicationCache,
   fetchFromSupabase,
   fetchCombinedFromReplicationCache,
-  fetchCombinedFromSupabase
+  fetchCombinedFromSupabase,
 } from './useEntryListDataHelpers';
-import { Entry } from '@/stores/entryStore';
 
-// Re-export types for consumers
-export type { ClassInfo, EntryListData };
+// Re-export the data-shape types so existing callers can keep importing
+// them from this path.
+export type { ClassInfo, EntryListData } from '@myk9/ringside';
 
-// ============================================================
-// QUERY KEYS (centralized for easy invalidation)
-// ============================================================
+// Public option shape the host exposes — same as the package's shape
+// minus the `dependencies` slot, which the shim wires internally.
+export type AppUseEntryListDataOptions = Omit<UseEntryListDataOptions, 'dependencies'>;
 
-export const entryListKeys = {
-  all: (classId: string) => ['entryList', classId] as const,
-  combined: (classIdA: string, classIdB: string) => ['entryList', 'combined', classIdA, classIdB] as const,
-};
-
-// Stable empty array to prevent infinite re-renders
-const EMPTY_ENTRIES: Entry[] = [];
-
-interface UseEntryListDataOptions {
-  classId?: string;
-  classIdA?: string;
-  classIdB?: string;
-  /** Ref to check if drag operation is in progress - skips auto-refresh when true */
-  isDraggingRef?: MutableRefObject<boolean>;
-}
-
-/**
- * Shared hook for fetching and caching entry list data using React Query.
- * Supports both single class and combined class views.
- * Respects drag-and-drop operations by skipping cache invalidation during drags.
- */
-export const useEntryListData = ({ classId, classIdA, classIdB, isDraggingRef }: UseEntryListDataOptions) => {
+export const useEntryListData = (options: AppUseEntryListDataOptions) => {
   const { showContext, role } = useAuth();
-  const queryClient = useQueryClient();
 
-  const isCombinedView = !!(classIdA && classIdB);
+  // Hoist licenseKey to a local const so the useMemo deps array can
+  // reference it directly. Inlining `showContext?.licenseKey` in the
+  // deps trips the React Compiler's "preserve manual memoization" lint
+  // — it infers `showContext` (less specific) and refuses to match a
+  // more-specific declared dep. Pulling licenseKey out makes the
+  // declared dep and the inferred dep match exactly.
   const licenseKey = showContext?.licenseKey;
-  const userRole: UserRole = (role as UserRole) || 'exhibitor';
 
-  // Track if we're currently doing a force sync to prevent concurrent syncs
-  const isSyncingRef = useRef(false);
+  // Memoize the deps object so the ringside hook's useEffect doesn't
+  // re-subscribe on every render. Auth identity (role + licenseKey) is
+  // the only "real" input — the fetcher functions are module-level and
+  // referentially stable forever, so they don't need to be in the deps.
+  const dependencies = useMemo<EntryListDataDependencies>(
+    () => ({
+      auth: { role, showContext: licenseKey ? { licenseKey } : null },
 
-  // Query key depends on view type
-  const queryKey = isCombinedView
-    ? entryListKeys.combined(classIdA!, classIdB!)
-    : entryListKeys.all(classId || '');
+      fetchSingleClass: async (classId, licenseKey, userRole) => {
+        // Replication cache first, Supabase fallback — pre-move SUT behavior.
+        const cacheResult = await fetchFromReplicationCache(classId, licenseKey, userRole);
+        if (cacheResult) return cacheResult;
+        return fetchFromSupabase(classId, licenseKey, userRole);
+      },
 
-  // Single class fetch function
-  const fetchSingleClass = async (): Promise<EntryListData> => {
-    if (!classId || !licenseKey) {
-      return { entries: [], classInfo: null };
-    }
+      fetchCombinedClasses: async (classIdA, classIdB, licenseKey, userRole) => {
+        const cacheResult = await fetchCombinedFromReplicationCache(
+          classIdA,
+          classIdB,
+          licenseKey,
+          userRole,
+        );
+        if (cacheResult) return cacheResult;
+        return fetchCombinedFromSupabase(classIdA, classIdB, licenseKey, userRole);
+      },
 
-    logger.log('🔄 Fetching entries from replicated cache...');
-    const cacheResult = await fetchFromReplicationCache(classId, licenseKey, userRole);
-    if (cacheResult) {
-      return cacheResult;
-    }
-
-    // Fall back to Supabase
-    return fetchFromSupabase(classId, licenseKey, userRole);
-  };
-
-  // Combined class fetch function
-  const fetchCombinedClasses = async (): Promise<EntryListData> => {
-    if (!classIdA || !classIdB || !licenseKey) {
-      return { entries: [], classInfo: null };
-    }
-
-    logger.log('🔄 Fetching combined entries from replicated cache...');
-    const cacheResult = await fetchCombinedFromReplicationCache(classIdA, classIdB, licenseKey, userRole);
-    if (cacheResult) {
-      return cacheResult;
-    }
-
-    // Fall back to Supabase
-    return fetchCombinedFromSupabase(classIdA, classIdB, licenseKey, userRole);
-  };
-
-  // Use React Query for data fetching
-  const query = useQuery({
-    queryKey,
-    queryFn: isCombinedView ? fetchCombinedClasses : fetchSingleClass,
-    enabled: isCombinedView
-      ? !!(classIdA && classIdB && licenseKey)
-      : !!(classId && licenseKey),
-    staleTime: 30 * 1000, // 30 seconds - entries can change frequently during scoring
-    gcTime: 5 * 60 * 1000, // 5 minutes cache
-    networkMode: 'always', // Run query even offline, will use cached data
-    retry: false, // Don't retry when offline
-    refetchOnWindowFocus: false, // Disabled - cache subscriptions handle updates
-    refetchOnReconnect: false, // Disabled - cache subscriptions handle updates
-  });
-
-  // Subscribe to replication table changes to invalidate React Query cache
-  // CRITICAL: This ensures UI updates when background syncAll() completes
-  // Also respects drag-and-drop by skipping invalidation during drags
-  useEffect(() => {
-    let unsubscribeEntries: (() => void) | undefined;
-    let unsubscribeClasses: (() => void) | undefined;
-    let isMounted = true;
-    // Track if we've done the initial callback for each subscription
-    // subscribe() immediately calls back with current data - we need to skip that
-    let entriesInitialDone = false;
-    let classesInitialDone = false;
-    // Debounce invalidation to coalesce rapid notifications (leading + trailing edge)
-    let invalidationTimeout: ReturnType<typeof setTimeout> | null = null;
-    const INVALIDATION_DEBOUNCE_MS = 500;
-
-    const setupSubscriptions = async () => {
-      try {
-        const manager = await ensureReplicationManager();
-        const entriesTable = manager.getTable('entries');
-        const classesTable = manager.getTable('classes');
-
-        if (!entriesTable || !classesTable || !isMounted) return;
-
-        // Build query key for invalidation (using current values from closure)
-        const currentQueryKey = isCombinedView
-          ? entryListKeys.combined(classIdA!, classIdB!)
-          : entryListKeys.all(classId || '');
-
-        // Debounced invalidation function - coalesces rapid notifications
-        const debouncedInvalidate = () => {
-          if (!isMounted) return;
-          // Skip invalidation during drag operations to prevent snap-back
-          if (isDraggingRef?.current) {
-            logger.log('⏸️ Skipping entry list refresh during drag operation');
-            return;
-          }
-          // Clear any pending invalidation
-          if (invalidationTimeout) {
-            clearTimeout(invalidationTimeout);
-          }
-          // Schedule invalidation after debounce period
-          invalidationTimeout = setTimeout(() => {
-            if (!isMounted) return;
-            if (isDraggingRef?.current) return;
-            logger.log('🔄 Invalidating entry list query after debounce');
-            queryClient.invalidateQueries({ queryKey: currentQueryKey });
-          }, INVALIDATION_DEBOUNCE_MS);
-        };
-
-        // Subscribe to entries table changes
-        unsubscribeEntries = entriesTable.subscribe(() => {
-          // Skip the immediate callback that subscribe() triggers
-          if (!entriesInitialDone) {
-            entriesInitialDone = true;
-            return;
-          }
-          debouncedInvalidate();
-        });
-
-        // Subscribe to classes table changes (affects classInfo)
-        unsubscribeClasses = classesTable.subscribe(() => {
-          // Skip the immediate callback that subscribe() triggers
-          if (!classesInitialDone) {
-            classesInitialDone = true;
-            return;
-          }
-          debouncedInvalidate();
-        });
-
-        logger.log('✅ EntryList replication subscriptions ready');
-      } catch (error) {
-        logger.error('❌ Error setting up entry list replication subscriptions:', error);
-      }
-    };
-
-    setupSubscriptions();
-
-    return () => {
-      isMounted = false;
-      if (invalidationTimeout) clearTimeout(invalidationTimeout);
-      if (unsubscribeEntries) unsubscribeEntries();
-      if (unsubscribeClasses) unsubscribeClasses();
-    };
-  // Use primitive values in deps, not queryKey array (new reference each render = infinite loop)
-  }, [queryClient, classId, classIdA, classIdB, isCombinedView, isDraggingRef]);
-
-  // Refetch function with optional forceSync
-  // forceSync: if true, syncs with server before reading cache (for user-initiated refresh)
-  // CRITICAL: Wrapped in useCallback to prevent infinite loops in components that use
-  // refresh as a useEffect dependency (e.g., useEntryListEffects' max-time auto-apply
-  // effect at useEntryListEffects.ts:104). Depend on `query.refetch` — which is
-  // referentially stable in React Query v5 — NOT the whole `query` object, which is
-  // a fresh reference every render and would defeat the useCallback.
-  const refresh = useCallback(async (forceSync: boolean = false) => {
-    // Prevent concurrent force syncs
-    if (forceSync && isSyncingRef.current) {
-      logger.log('⏸️ Force sync already in progress, skipping...');
-      return;
-    }
-
-    if (forceSync && licenseKey) {
-      isSyncingRef.current = true;
-      try {
-        logger.log('🔄 Force sync requested - syncing entries and classes from server...');
+      forceSyncEntriesAndClasses: async licenseKey => {
         const manager = await ensureReplicationManager();
         await Promise.all([
           manager.syncTable('entries', { licenseKey }),
           manager.syncTable('classes', { licenseKey }),
         ]);
-        logger.log('✅ Force sync complete');
-      } catch (syncError) {
-        // Sync failed (likely offline) - continue with cached data
-        logger.warn('⚠️ Sync failed (offline?), using cached data:', syncError);
-      } finally {
-        isSyncingRef.current = false;
-      }
-    }
+      },
 
-    // Refetch from cache (which is now updated if sync succeeded)
-    await query.refetch();
-  }, [licenseKey, query.refetch]);
+      subscribeToReplicationChanges: cb => {
+        // The pre-move SUT had inline "skip initial callback" logic here —
+        // the package contract says hosts own that semantics now. The
+        // ReplicatedTable subscribe() implementation fires immediately
+        // with current data on subscribe, so we filter the first call
+        // per table.
+        let unsubEntries: (() => void) | undefined;
+        let unsubClasses: (() => void) | undefined;
+        let entriesInitialDone = false;
+        let classesInitialDone = false;
+        let cancelled = false;
 
-  return {
-    entries: query.data?.entries || EMPTY_ENTRIES,
-    classInfo: query.data?.classInfo || null,
-    isStale: query.isStale,
-    isRefreshing: query.isFetching,
-    fetchError: query.error as Error | null,
-    refresh,
-    isCombinedView
-  };
+        (async () => {
+          try {
+            const manager = await ensureReplicationManager();
+            if (cancelled) return;
+            const entriesTable = manager.getTable('entries');
+            const classesTable = manager.getTable('classes');
+            if (!entriesTable || !classesTable) return;
+
+            unsubEntries = entriesTable.subscribe(() => {
+              if (!entriesInitialDone) {
+                entriesInitialDone = true;
+                return;
+              }
+              cb();
+            });
+            unsubClasses = classesTable.subscribe(() => {
+              if (!classesInitialDone) {
+                classesInitialDone = true;
+                return;
+              }
+              cb();
+            });
+          } catch {
+            // Replication manager init failure — pre-move SUT logged the
+            // error and continued. We swallow silently here; the host can
+            // log via its own logger if it cares.
+          }
+        })();
+
+        return () => {
+          cancelled = true;
+          unsubEntries?.();
+          unsubClasses?.();
+        };
+      },
+    }),
+    // Rebuilt only when auth identity changes. The fetcher imports are
+    // module-stable so eslint-react-hooks correctly omits them from the
+    // deps suggestion.
+    [role, licenseKey],
+  );
+
+  return useEntryListDataBase({ ...options, dependencies });
 };

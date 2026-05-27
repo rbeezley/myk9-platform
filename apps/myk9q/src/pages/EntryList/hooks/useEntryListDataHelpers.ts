@@ -40,35 +40,15 @@ function calcAreaCount(
 // =============================================================================
 // TYPE DEFINITIONS
 // =============================================================================
+//
+// `ClassInfo` and `EntryListData` moved to @myk9/ringside in PR E2b
+// (alongside the useEntryListData hook that returns them). Imported here
+// so the in-file helpers (buildSingleClassInfo, fetchFromSupabase, etc.)
+// keep their return-type annotations resolving, and re-exported so
+// existing app-side importers of this module keep working unchanged.
 
-export interface ClassInfo {
-  className: string;
-  element: string;
-  level: string;
-  section?: string;
-  trialId?: number;
-  trialDate?: string;
-  trialNumber?: string;
-  judgeName?: string;
-  judgeNameB?: string;
-  actualClassId?: number;
-  actualClassIdA?: number;
-  actualClassIdB?: number;
-  selfCheckin?: boolean;
-  classStatus?: string;
-  totalEntries?: number;
-  completedEntries?: number;
-  timeLimit?: string;
-  timeLimit2?: string;
-  timeLimit3?: string;
-  areas?: number;
-  visibilityPreset?: 'open' | 'standard' | 'review';
-}
-
-export interface EntryListData {
-  entries: Entry[];
-  classInfo: ClassInfo | null;
-}
+import type { ClassInfo, EntryListData } from '@myk9/ringside';
+export type { ClassInfo, EntryListData };
 
 // =============================================================================
 // VISIBILITY HELPERS

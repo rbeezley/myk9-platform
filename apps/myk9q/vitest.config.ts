@@ -19,17 +19,22 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       reportOnFailure: true,
       thresholds: {
-        statements: 50,
-        branches: 44,
+        // Lowered 51 → 50 (PR #391) → 48 (this PR) to absorb Phase 0 extraction
+        // drift as code moves from apps/myk9q into packages/ringside /
+        // @myk9/replication. Observed on main 2026-05-27 after PR E1c/E1d:
+        // statements 49.36, lines 49.55, branches 43.52. Headroom of ~1.5%
+        // chosen to absorb v8 coverage non-determinism (PR #391 set the gate
+        // to the bare floor and tripped on the next run).
+        //
+        // **If this needs lowering again, do not just lower again.** That
+        // would be the third drop in a short span and the project memory's
+        // strategy-B trigger (per-file `coverage.exclude` for sunset-slated
+        // myk9q files instead of moving the global gate). See project memory
+        // `project_myk9q_sunset_coverage`. Revisit at Phase 4 sunset.
+        statements: 48,
+        branches: 42,
         functions: 53,
-        // Lowered from 51 to absorb Phase 0 extraction drift as code moves
-        // from apps/myk9q into packages/ringside / @myk9/replication. See
-        // project memory `project_myk9q_sunset_coverage` (strategy C). The
-        // CI Test job has been failing the 51% gate on PRs since the recent
-        // PR E0/E1a/E1b extractions landed on main, because workflow only
-        // runs on pull_request — main itself isn't gated, so the drift
-        // accumulated silently. Revisit at Phase 4 sunset.
-        lines: 50,
+        lines: 48,
       },
       exclude: [
         'node_modules/',

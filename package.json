@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "prettier": "^3.8.3",
-    "turbo": "^2.9.14",
+    "turbo": "^2.9.15",
     "vitest": "^4.1.7"
   },
   "packageManager": "pnpm@9.15.9",

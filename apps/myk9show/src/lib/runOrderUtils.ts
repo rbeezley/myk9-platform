@@ -1,4 +1,23 @@
-export type RunOrderPreset =
+import type { RunOrderPreset as RingsideRunOrderPreset } from '@myk9/ringside';
+
+/**
+ * myK9Show exposes a deliberately narrower run-order preset surface than
+ * the canonical `RunOrderPreset` in `@myk9/ringside` (which serves the
+ * full myK9Q ringside flow). myK9Show's RunOrderDialog UI does not
+ * render buttons for `'combined-asc' | 'combined-desc' | 'random-all'`,
+ * so accepting them at the type boundary would create dead union
+ * members whose runtime would fall to the armband-asc default branch
+ * below — silently wrong for `'random-all'` in particular.
+ *
+ * `Extract` pins the local union as a structural subset of the
+ * canonical union: if any of these member names is later removed from
+ * `@myk9/ringside`, this type narrows further and every call site
+ * narrowing on it breaks at compile time — the desired regression
+ * alarm. To widen myK9Show's surface, add the new member here AND
+ * extend the switch in `calculateRunOrder` to handle it explicitly.
+ */
+export type RunOrderPreset = Extract<
+  RingsideRunOrderPreset,
   | 'armband-asc'
   | 'armband-desc'
   | 'random'
@@ -7,7 +26,8 @@ export type RunOrderPreset =
   | 'a-then-b-asc'
   | 'a-then-b-desc'
   | 'b-then-a-asc'
-  | 'b-then-a-desc';
+  | 'b-then-a-desc'
+>;
 
 export interface RunOrderEntry {
   id: string;

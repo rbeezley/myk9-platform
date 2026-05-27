@@ -278,6 +278,9 @@ importers:
       '@myk9/replication':
         specifier: workspace:*
         version: link:../../packages/replication
+      '@myk9/ringside':
+        specifier: workspace:*
+        version: link:../../packages/ringside
       '@myk9/scoring':
         specifier: workspace:*
         version: link:../../packages/scoring

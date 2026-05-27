@@ -6,19 +6,14 @@ import type { RunOrderScope, RenumberMode } from '../../services/runOrderService
 import './shared-dialog.css';
 import './RunOrderDialog.css';
 
-export type RunOrderPreset =
-  | 'a-then-b-asc'
-  | 'a-then-b-desc'
-  | 'b-then-a-asc'
-  | 'b-then-a-desc'
-  | 'combined-asc'
-  | 'combined-desc'
-  | 'random-all'
-  | 'random-sections'
-  | 'armband-asc'
-  | 'armband-desc'
-  | 'random'
-  | 'manual';
+// RunOrderPreset is canonically defined in @myk9/ringside (see
+// packages/ringside/src/pages/EntryList/dialogSlots.ts). Imported here
+// for local use AND re-exported so existing imports from this file
+// continue to resolve (notably services/runOrderService.ts and the
+// EntryList page tree). New code should import directly from
+// '@myk9/ringside'.
+import type { RunOrderPreset } from '@myk9/ringside';
+export type { RunOrderPreset };
 
 interface RunOrderDialogProps {
   isOpen: boolean;

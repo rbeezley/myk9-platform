@@ -30,6 +30,16 @@ Estimates assume Dependabot closes the stale `vite@8.x`, `rollup<2.80.0`, `brace
 3. **Dev-only deps last.** Vulnerabilities only exercised at build / lint / type-check time are lower priority than runtime ones — but still tracked.
 4. **No silent dismissals.** "Won't fix" is a documented decision in this plan, not a Dependabot alert dismissal.
 
+## Dependabot grouping guardrail
+
+The `npm-minor-patch` catch-all group in `.github/dependabot.yml` must exclude direct dependencies that are pinned by root `pnpm.overrides`. Otherwise Dependabot can open misleading PRs where package manifests show a version bump, but `pnpm-lock.yaml` still resolves the package to the pinned override.
+
+Current direct overridden deps excluded from the catch-all group:
+
+- `@supabase/*`
+- `eslint-plugin-react-hooks`
+- `workbox-build`
+
 ## Ordering rationale
 
 Order by *risk × exploitability × ease*:

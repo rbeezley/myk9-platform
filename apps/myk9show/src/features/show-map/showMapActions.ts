@@ -153,6 +153,44 @@ function withEntryContext(node: ShowMapNode, why: string): string {
   return context ? `${context} — ${why}` : why;
 }
 
+// INTENT: Wrap-up priorities sit BELOW the live-ops band by construction.
+//
+// Why this band exists
+// --------------------
+// `getRecommendedActions('root', tree)` aggregates actions across the
+// whole show tree and ranks by priority. Without a priority band, a
+// single class with `wrapUpStatus = NEEDS_JUDGE_SIGNATURE` would float
+// to #1 globally and dominate Show Desk's primary recommendation —
+// even when 39 other classes haven't started yet. The 2026-05-26
+// secretary launch-readiness audit caught exactly that case: "0 of
+// 40 classes complete" with Show Desk recommending `Collect judge
+// signature`.
+//
+// Live-ops priority band (live operations during show-day)
+// ---------------------------------------------------------
+// - score-class:         70
+// - mark-class-started:  62
+// - mark-class-complete: 58
+//
+// Wrap-up priority band (post-class housekeeping)
+// -----------------------------------------------
+// Ordered chronologically — the secretary collects signatures, then
+// reviews results, then submits to the registry. The band sits
+// entirely below live-ops; the within-band order matches the
+// natural wrap-up sequence.
+// - collect-judge-signature: 55  (was 95 — see audit)
+// - review-results:          52  (was 60)
+// - submit-final-results:    50
+//
+// Wrap-up actions stay `recommended: true` so they still surface on
+// the specific class/trial node's Recommendations list. The
+// demotion only affects show-scope ranking — live-ops dominates
+// when both bands have candidates.
+//
+// Out of scope for this fix: gating wrap-up recommendations on show
+// phase/date (the audit's broader recommendation). That requires
+// threading show-phase signal through the action selector and is
+// tracked as a follow-up.
 function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
   if (node.type === 'class') {
     if (node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE) {
@@ -162,7 +200,7 @@ function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
           nodeId: node.id,
           label: 'Collect judge signature',
           why: 'Completed class still needs judge sign-off',
-          priority: 95,
+          priority: 55,
           href: '/secretary/reports',
           icon: PenLine,
           recommended: true,
@@ -181,7 +219,7 @@ function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
           nodeId: node.id,
           label: 'Review results',
           why: 'Confirm placements before final submission',
-          priority: 60,
+          priority: 52,
           href: '/secretary/results-control',
           icon: FileText,
           recommended: true,

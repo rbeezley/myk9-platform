@@ -38,8 +38,21 @@ interface UseEntryManagementDataReturn {
   entries: EntryManagementEntry[];
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
   isLoading: boolean;
+  /**
+   * Action errors — failures from `useEntryManagementActions` (export,
+   * bulk status, comp/uncomp, etc.). Rendered inline at the top of
+   * the page so the entries table stays usable. NOT used to gate
+   * main-content render; see `loadError` for that.
+   */
   error: string | null;
   setError: (error: string | null) => void;
+  /**
+   * Load errors — failures from `loadEntries` itself. Separated from
+   * `error` so a one-off action failure doesn't hide a successfully
+   * loaded entries table behind a "Couldn't load entries" card.
+   * Set to `null` at the start of each `loadEntries` call.
+   */
+  loadError: string | null;
   loadEntries: (showId: string) => Promise<void>;
 
   // Computed
@@ -83,7 +96,10 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   // Entry data
   const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // Action errors (multiplexed channel — see interface doc).
   const [error, setError] = useState<string | null>(null);
+  // Load-specific errors (only set by `loadEntries`; never by actions).
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadShows = useCallback(async () => {
     setIsLoadingShows(true);
@@ -103,12 +119,12 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
   const loadEntries = useCallback(async (showId: string) => {
     setIsLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const { data, error: queryError } = await getEntriesForShow(showId);
 
       if (queryError) {
-        setError('Failed to load entries');
+        setLoadError('Failed to load entries');
         logger.error('Error loading entries:', 'secretary', {}, queryError as Error);
         return;
       }
@@ -176,7 +192,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
       setEntries(transformedEntries);
     } catch (err) {
-      setError('Failed to load entries');
+      setLoadError('Failed to load entries');
       logger.error('Error loading entries:', 'secretary', {}, err as Error);
     } finally {
       setIsLoading(false);
@@ -324,6 +340,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     isLoading,
     error,
     setError,
+    loadError,
     loadEntries,
     stats,
     tabCounts,

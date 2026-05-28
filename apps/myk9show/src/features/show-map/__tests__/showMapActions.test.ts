@@ -790,6 +790,147 @@ describe('showMapActions', () => {
     });
   });
 
+  describe('priority bands — wrap-up never outranks live-ops at root scope', () => {
+    /*
+      Regression for the 2026-05-26 secretary launch-readiness audit
+      (PR #418). Audit screenshot 02 caught Show Desk recommending
+      `Collect judge signature` while the headline read "0 of 40 classes
+      complete" — exactly the mis-ranking these tests now lock in.
+
+      The fix in `wrapUpActionsForNode` demotes the entire wrap-up
+      action set below the live-ops band so that, when a show has
+      mixed-state classes, the show-scope ranking always promotes the
+      next live-ops step (start a class, score an active class) before
+      surfacing post-class housekeeping.
+    */
+
+    it('ranks `mark-class-started` above `collect-judge-signature` when both exist', () => {
+      // The exact audit scenario: one class needs judge signature
+      // (stale wrap-up status), another class has not started yet.
+      // The secretary's next operational move is to start the
+      // not-started class, not to collect a signature.
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-not-started',
+            trialId: 'trial-1',
+            name: 'Interior Novice B',
+            status: 'Not Started',
+          },
+        ],
+        entries: [
+          {
+            id: 'entry-needs-signature',
+            class_id: 'class-needs-signature',
+            is_scored: true,
+          },
+        ],
+      });
+
+      const ranked = getRankedActions('root', { tree });
+      const startIdx = ranked.findIndex(a => a.id === 'mark-class-started');
+      const signIdx = ranked.findIndex(a => a.id === 'collect-judge-signature');
+
+      expect(startIdx, 'mark-class-started must appear').toBeGreaterThanOrEqual(0);
+      expect(signIdx, 'collect-judge-signature must appear').toBeGreaterThanOrEqual(0);
+      expect(startIdx).toBeLessThan(signIdx);
+    });
+
+    it('ranks `score-class` above `collect-judge-signature` when both exist', () => {
+      // A class in progress should always win over wrap-up work.
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-active',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'In Progress',
+          },
+        ],
+        entries: [
+          {
+            id: 'entry-needs-signature',
+            class_id: 'class-needs-signature',
+            is_scored: true,
+          },
+        ],
+      });
+
+      const ranked = getRankedActions('root', { tree });
+      const scoreIdx = ranked.findIndex(a => a.id === 'score-class');
+      const signIdx = ranked.findIndex(a => a.id === 'collect-judge-signature');
+
+      expect(scoreIdx, 'score-class must appear').toBeGreaterThanOrEqual(0);
+      expect(signIdx, 'collect-judge-signature must appear').toBeGreaterThanOrEqual(0);
+      expect(scoreIdx).toBeLessThan(signIdx);
+    });
+
+    it('preserves the wrap-up chronological order: collect-judge-signature > review-results > submit-final-results', () => {
+      // Within the wrap-up band, the chronological flow must hold:
+      // sign → review → submit. The demotion below live-ops should
+      // not flatten this ordering.
+      const tree = buildShowMapTree({
+        show,
+        trials: [
+          {
+            ...trial,
+            status: 'Complete',
+            resultSubmittedAt: null,
+          } as SyncableTrial,
+        ],
+        classes: [
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-signed',
+            trialId: 'trial-1',
+            name: 'Interior Novice A',
+            status: 'Complete',
+          },
+        ],
+        entries: [
+          // class-needs-signature: scored, no judge signature → NEEDS_JUDGE_SIGNATURE
+          { id: 'entry-1', class_id: 'class-needs-signature', is_scored: true },
+          // class-signed: scored AND signed → SIGNED_BY_JUDGE → review-results
+          {
+            id: 'entry-2',
+            class_id: 'class-signed',
+            is_scored: true,
+            judge_signature_timestamp: '2026-05-18',
+          },
+        ],
+      });
+
+      const ranked = getRankedActions('root', { tree });
+      const signIdx = ranked.findIndex(a => a.id === 'collect-judge-signature');
+      const reviewIdx = ranked.findIndex(a => a.id === 'review-results');
+
+      expect(signIdx, 'collect-judge-signature must appear').toBeGreaterThanOrEqual(0);
+      expect(reviewIdx, 'review-results must appear').toBeGreaterThanOrEqual(0);
+      expect(signIdx).toBeLessThan(reviewIdx);
+    });
+  });
+
   describe('getAttentionCountsByNodeId', () => {
     it('rolls per-node attention up to root in unified (phase=undefined) mode', () => {
       // 2 submitted entries on class-active (live-ops) + 1 unsigned-complete

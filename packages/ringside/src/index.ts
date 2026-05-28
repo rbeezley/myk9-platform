@@ -178,9 +178,13 @@ export {
   RegularResultBadges,
   ResultBadges,
   StatusBadgeContent,
-  // Header helper components
+  // Header helper components. `TrialInfo` is aliased to
+  // `EntryListTrialInfo` to avoid collision with the ClassList type
+  // of the same name (exported on line 76). Matches the handoff's
+  // documented pattern for cross-page name collisions (precedent:
+  // `SortOrder` → `EntryListSortOrder`).
   ActionsDropdownMenu,
-  TrialInfo,
+  TrialInfo as EntryListTrialInfo,
   ClassStatusBadge,
   SectionsBadge,
   getStatusBadge,

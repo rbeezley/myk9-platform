@@ -6,9 +6,13 @@
 // stays for in-tree EntryListHeader.tsx that hasn't been moved yet
 // (E2d-2b).
 
+// `TrialInfo` is aliased at the @myk9/ringside root barrel as
+// `EntryListTrialInfo` to avoid collision with the ClassList type of
+// the same name. The shim renames it back so existing in-app imports
+// (`import { TrialInfo } from './entryListHeaderHelpers'`) stay green.
 export {
   ActionsDropdownMenu,
-  TrialInfo,
+  EntryListTrialInfo as TrialInfo,
   ClassStatusBadge,
   SectionsBadge,
   getStatusBadge,

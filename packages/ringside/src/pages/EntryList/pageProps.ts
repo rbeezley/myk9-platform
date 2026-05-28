@@ -49,7 +49,7 @@
  * and the rationale for keeping the hooks themselves host-side.
  */
 
-import type { ComponentType, Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
+import type { ComponentType, Dispatch, MutableRefObject, ReactNode, RefObject, SetStateAction } from 'react';
 import type { Entry } from '../../stores/entryStore';
 import type { EntryListData, ClassInfo, SortOrder, PrintDialogState } from './types';
 import type { EntryListDialogSlots } from './dialogSlots';
@@ -458,6 +458,79 @@ export interface EntryListUiActions {
   // call them (e.g. handleApplyRunOrder forces sortOrder = 'run').
   setActiveTab: (tab: TabType) => void;
   setSortOrder: (sort: SortType) => void;
+  setSearchTerm: (term: string) => void;
+}
+
+// =============================================================================
+// EntryListDerived — read-only derived data from useEntryListFilters
+// =============================================================================
+
+/**
+ * Read-only derived data the shim's `useEntryListFilters` call
+ * produces. Threaded into the page so it doesn't re-call the hook
+ * (single source of truth for filter state + derivations).
+ *
+ * Why a separate bag rather than mixed into uiState?
+ * --------------------------------------------------
+ * `uiState` is paired 1:1 with `uiActions` setters. This bag is
+ * derived data — there's no setter for `pendingEntries` because it's
+ * computed from `localEntries + filter inputs`. Separating keeps the
+ * mental model clear: uiState is what you store, derived is what you
+ * compute.
+ *
+ * Path A architecture (locked in PR E2d-2b)
+ * -----------------------------------------
+ * Shim calls `useEntryListFilters` (pure ringside hook), threads both
+ * setters (into `uiActions`) and derived values (here) into the page.
+ * Page renders. The page does NOT call the filter hook itself, so the
+ * shim's `useEntryListHandlers` invocation has access to the filter
+ * setters it needs as deps.
+ */
+export interface EntryListDerived {
+  /** Current active tab — pending or completed entries. */
+  activeTab: TabType;
+  /** Current sort order. */
+  sortOrder: SortType;
+  /** Current search term filtering visible entries. */
+  searchTerm: string;
+  /**
+   * Entries after applying search + sort. Tab-agnostic — the page
+   * splits this into `pendingEntries` / `completedEntries`.
+   */
+  filteredEntries: Entry[];
+  /** Filtered entries with `isScored === false`. */
+  pendingEntries: Entry[];
+  /** Filtered entries with `isScored === true`. */
+  completedEntries: Entry[];
+  /** Pending or completed depending on `activeTab`. */
+  currentEntries: Entry[];
+  /**
+   * Counts from the unfiltered `localEntries` array (NOT
+   * `filteredEntries`). Used by the tab badges so the inactive tab
+   * still shows its actual count when a search filter is applied to
+   * the active tab.
+   */
+  entryCounts: { pending: number; completed: number };
+}
+
+/**
+ * Drag-and-drop state from the shim's `useDragAndDropEntries` call.
+ * Same Path A rationale as `EntryListDerived` — pure ringside hook
+ * owned by the shim so the resulting handlers can be threaded into
+ * the page consistently.
+ */
+export interface EntryListDrag {
+  sensors: import('@dnd-kit/core').SensorDescriptor<import('@dnd-kit/core').SensorOptions>[];
+  handleDragStart: (event: import('@dnd-kit/core').DragStartEvent) => void;
+  handleDragEnd: (event: import('@dnd-kit/core').DragEndEvent) => Promise<void>;
+  /**
+   * Ref the data + effects hooks read to suppress sync-driven state
+   * resets during a drag. Mutated by `useDragAndDropEntries` (start
+   * → true, end → false). The shim owns the ref and passes the same
+   * instance to `useEntryListData`, `useEntryListEffects`, and the
+   * page (which threads it into its drag hook).
+   */
+  isDraggingRef: MutableRefObject<boolean>;
 }
 
 // =============================================================================
@@ -508,6 +581,12 @@ export interface EntryListPageProps {
   /** Setters paired with `uiState`. */
   uiActions: EntryListUiActions;
 
+  /** Derived data + filter state from the shim's `useEntryListFilters` call. */
+  derived: EntryListDerived;
+
+  /** Drag-and-drop sensors + handlers from the shim's `useDragAndDropEntries` call. */
+  drag: EntryListDrag;
+
   /** Host-injected dialog components — see PR E2c. */
   dialogs: EntryListDialogSlots;
 
@@ -532,6 +611,19 @@ export interface EntryListPageProps {
         | 'canChangeRunOrder'
         | 'canManageClasses',
     ) => boolean;
+    /**
+     * Precomputed by the shim from
+     * `hasRuleDefinedMaxTimes(parseOrganizationData(showContext.org)) || !canModifyClassSettings`.
+     * True means the ClassOptionsDialog should hide the "Set Max Time"
+     * option (org rule fixes max times, or user lacks permission).
+     */
+    hideMaxTimeOption: boolean;
+    /**
+     * Precomputed by the shim from `!hasRole(['admin', 'judge'])`.
+     * True means the ClassOptionsDialog should hide the "Settings"
+     * option.
+     */
+    hideSettingsOption: boolean;
   };
 }
 
@@ -603,6 +695,15 @@ export interface CombinedEntryListPageProps {
   uiActions: CombinedEntryListUiActions;
 
   /**
+   * Derived data + filter state from the shim's `useEntryListFilters`
+   * call (combined-view variant — includes section filter).
+   */
+  derived: CombinedEntryListDerived;
+
+  /** Drag-and-drop state from the shim's `useDragAndDropEntries` call. */
+  drag: EntryListDrag;
+
+  /**
    * Subset of dialog slots actually rendered by the combined page.
    * Forces the type-checker to point out if a future change tries to
    * render a dialog the combined page doesn't take.
@@ -647,6 +748,18 @@ export interface CombinedEntryListPageProps {
    * route string the page should push, or null when no route applies.
    */
   getScoresheetNavigationRoute: (entry: Entry) => string | null;
+
+  /**
+   * Per-entry scoresheet prefetch. Wraps the host's
+   * `usePrefetch().prefetch(...)` + `preloadScoresheetByType(...)` +
+   * `getScoresheetRoute(...)` for a single entry. The page calls this
+   * once for the focused entry and then again for the next 1-2
+   * pending entries (lookahead loop runs in the page).
+   *
+   * No-ops when the entry is scored, has no route, or the host's
+   * scoresheet router declines.
+   */
+  onPrefetchScoresheet: (entry: Entry) => void;
 }
 
 /**
@@ -716,6 +829,32 @@ export interface CombinedEntryListUiActions {
   setActiveTab: (tab: 'pending' | 'completed') => void;
   setSearchTerm: (term: string) => void;
   setSectionFilter: (filter: 'all' | 'A' | 'B') => void;
+}
+
+/**
+ * Combined-page derived data. Wider than `EntryListDerived` —
+ * includes the section filter (`'all' | 'A' | 'B'`) and the
+ * per-section tab counts. `sortedEntries` is exposed because the
+ * combined page applies its own custom comparator
+ * (`compareEntries(a, b, sortOrder)`) downstream of the filter hook;
+ * the shim computes this once and threads it in.
+ */
+export interface CombinedEntryListDerived {
+  activeTab: 'pending' | 'completed';
+  searchTerm: string;
+  sectionFilter: 'all' | 'A' | 'B';
+  /** Entries after search + section filter, before custom sort. */
+  filteredEntries: Entry[];
+  /** `filteredEntries` after `compareEntries(a, b, sortOrder)`. */
+  sortedEntries: Entry[];
+  /** Sorted entries with `isScored === false`. */
+  pendingEntries: Entry[];
+  /** Sorted entries with `isScored === true`. */
+  completedEntries: Entry[];
+  /** Pending or completed depending on `activeTab`. */
+  currentEntries: Entry[];
+  /** Counts derived from `localEntries`. */
+  entryCounts: { pending: number; completed: number };
 }
 
 // Re-export ClassInfo for downstream consumers building these bags

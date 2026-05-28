@@ -1,69 +1,94 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { usePermission } from '../../hooks/usePermission';
-import { usePrefetch } from '@/hooks/usePrefetch';
-import { ErrorState, TabBar, Tab, SortOption } from '../../components/ui';
-import { RunOrderPreset } from '../../components/dialogs/RunOrderDialog';
-import { Clock, CheckCircle, ArrowUpDown, Trophy, RefreshCw } from 'lucide-react';
-import { Entry } from '../../stores/entryStore';
-import { applyRunOrderPresetScoped } from '../../services/runOrderService';
-import type { RunOrderScope, RenumberMode } from '../../services/runOrderService';
-import type { PrintSortOrder } from '../../components/dialogs/ScoresheetPrintDialog';
-import { getScoresheetRoute } from '../../services/scoresheetRouter';
-import { preloadScoresheetByType } from '../../utils/scoresheetPreloader';
+/**
+ * CombinedEntryList host shim.
+ *
+ * The combined-view page moved into `@myk9/ringside` as
+ * `CombinedEntryListPage` in PR E2d-2b. This shim is now the
+ * host-coupled layer:
+ *  - Reads useParams (for classIdA/classIdB), useAuth, usePermission
+ *  - Owns 10 useState slots (mirrors `CombinedEntryListUiState`)
+ *  - Calls `useEntryListData`, `useEntryListActions`, `useEntryHandlers`
+ *    (ringside), `useEntryListFilters`, `useDragAndDropEntries`
+ *  - Computes combined-view derived data (`sortedEntries`, splits,
+ *    `currentEntries`) via ringside's `compareEntries`
+ *  - Binds service-coupled callbacks for ringside: `onPrintSortOrder`,
+ *    `onApplyRunOrder`, `getScoresheetNavigationRoute`,
+ *    `onPrefetchScoresheet`
+ *  - Assembles dialog subset + layout slots
+ *  - Renders `<CombinedEntryListPage {...all-the-bags} />`
+ *
+ * Combined view does NOT call `useEntryListEffects` (no max-time or
+ * area-count auto-open behavior in combined mode).
+ */
+
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  CombinedEntryListPage,
+  useEntryHandlers,
+  compareEntries,
+  getScoresheetNavigationRoute as ringsideGetScoresheetNavigationRoute,
+} from '@myk9/ringside';
+// App-local hook shims that inject DI deps into the underlying
+// ringside hooks (useEntryListData) / wrap with extra app concerns
+// (useDragAndDropEntries).
 import {
   useEntryListData,
   useEntryListActions,
   useEntryListFilters,
   useDragAndDropEntries,
 } from './hooks';
-import { EntryListHeader, EntryListContent } from './components';
-import { CombinedEntryListDialogs } from './CombinedEntryListDialogs';
-import { logger } from '@/utils/logger';
-import {
-  compareEntries,
-  getScoresheetNavigationRoute,
-  useEntryHandlers,
-} from './CombinedEntryList.helpers';
+import type { Entry } from '../../stores/entryStore';
+import { useAuth } from '../../contexts/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
+import { usePrefetch } from '@/hooks/usePrefetch';
+import { applyRunOrderPresetScoped } from '../../services/runOrderService';
+import { getScoresheetRoute } from '../../services/scoresheetRouter';
+import { preloadScoresheetByType } from '../../utils/scoresheetPreloader';
 import { dispatchPrintAction } from './CombinedEntryList.print';
 import type { SortOrder, PrintDialogState } from './CombinedEntryList.types';
-import './EntryList.css';
 
-// Re-export types for external consumers
+// Dialog slot implementations (4 dialogs for the combined view).
+import { CheckinStatusDialog } from '../../components/dialogs/CheckinStatusDialog';
+import { RunOrderDialog } from '../../components/dialogs/RunOrderDialog';
+import { ScoresheetPrintDialog } from '../../components/dialogs/ScoresheetPrintDialog';
+
+// Layout slot implementations (full 10-primitive set — combined view
+// uses the same layout as single-class).
+import {
+  HamburgerMenu,
+  CompactOfflineIndicator,
+  SyncIndicator,
+  RefreshIndicator,
+  FilterTriggerButton,
+  ErrorState,
+  PullToRefresh,
+  FilterPanel,
+} from '../../components/ui';
+import { DogCard } from '../../components/DogCard';
+import { ClassDetailsPopover } from '../../components/dialogs/ClassDetailsPopover';
+
+// Re-export types for external consumers (the original
+// CombinedEntryList.tsx had these re-exports — preserving for compat).
 export type { SortOrder, PrintDialogState, ResetConfirmState } from './CombinedEntryList.types';
 
 export const CombinedEntryList: React.FC = () => {
   const { classIdA, classIdB } = useParams<{ classIdA: string; classIdB: string }>();
-  const navigate = useNavigate();
-  const { showContext } = useAuth();
-  const { hasPermission } = usePermission();
+  const { showContext, role } = useAuth();
+  const { hasPermission, hasRole } = usePermission();
   const { prefetch } = usePrefetch();
 
-  // Drag state ref
   const isDraggingRef = useRef<boolean>(false);
 
-  // Data management using shared hook
+  // Data + actions
   const { entries, classInfo, isRefreshing, fetchError, refresh } = useEntryListData({
     classIdA,
     classIdB,
   });
+  const actions = useEntryListActions(refresh);
 
-  // NOTE: React Query automatically fetches on mount when enabled: true
-
-  // Actions using shared hook
-  const {
-    handleStatusChange: handleStatusChangeHook,
-    handleResetScore: handleResetScoreHook,
-    handleMarkInRing,
-    handleMarkCompleted,
-    isSyncing,
-    hasError,
-  } = useEntryListActions(refresh);
-
-  // Local UI state
+  // 10 useState slots — mirrors CombinedEntryListUiState exactly.
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
-  const [_manualOrder, setManualOrder] = useState<Entry[]>([]);
+  const [, setManualOrder] = useState<Entry[]>([]);
   const [sortOrder, setSortOrder] = useState<SortOrder>('section-armband');
   const [isLoaded, setIsLoaded] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -73,7 +98,8 @@ export const CombinedEntryList: React.FC = () => {
   const [selfCheckinDisabledDialog, setSelfCheckinDisabledDialog] = useState(false);
   const [printDialogState, setPrintDialogState] = useState<PrintDialogState>({ type: null });
 
-  // Filters using shared hook
+  // Pure ringside filter hook (Path A — shim-side so combinedHandlers
+  // can be built with consistent setters).
   const {
     activeTab,
     setActiveTab,
@@ -89,61 +115,33 @@ export const CombinedEntryList: React.FC = () => {
     supportSectionFilter: true,
   });
 
-  // Status, reset, and menu handlers (extracted to reduce component size)
-  const {
-    activeStatusPopup,
-    setActiveStatusPopup,
-    handleStatusClick,
-    handleStatusChange,
-    activeResetMenu,
-    resetMenuPosition,
-    handleResetMenuClick,
-    handleResetScore,
-    resetConfirmDialog,
-    confirmResetScore,
-    cancelResetScore,
-    closeResetMenu,
-  } = useEntryHandlers({
+  // Combined-view custom sort using ringside's compareEntries.
+  // useEntryListFilters already section-filters; we re-sort here
+  // because the hook's default sort doesn't know about
+  // 'section-armband'.
+  const sortedEntries = useMemo(
+    () => [...filteredEntries].sort((a, b) => compareEntries(a, b, sortOrder)),
+    [filteredEntries, sortOrder]
+  );
+
+  const pendingEntries = useMemo(() => sortedEntries.filter(e => !e.isScored), [sortedEntries]);
+  const completedEntries = useMemo(() => sortedEntries.filter(e => e.isScored), [sortedEntries]);
+  const currentEntries = activeTab === 'pending' ? pendingEntries : completedEntries;
+
+  // Combined-handlers bag from ringside's pure hook.
+  const combinedHandlers = useEntryHandlers({
     localEntries,
     setLocalEntries,
     entries,
-    handleMarkInRing,
-    handleMarkCompleted,
-    handleStatusChangeHook,
-    handleResetScoreHook,
+    handleMarkInRing: actions.handleMarkInRing,
+    handleMarkCompleted: actions.handleMarkCompleted,
+    handleStatusChangeHook: actions.handleStatusChange,
+    handleResetScoreHook: actions.handleResetScore,
     refresh,
     setActiveTab,
   });
 
-  // Sync local entries with fetched data
-  useEffect(() => {
-    if (entries.length > 0 && !isDraggingRef.current) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: syncing external data to local state
-      setLocalEntries(entries);
-    }
-  }, [entries]);
-
-  // Initial load animation
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Apply section filter and custom sorting
-  const sectionFilteredEntries =
-    sectionFilter === 'all'
-      ? filteredEntries
-      : filteredEntries.filter(e => e.section === sectionFilter);
-
-  const sortedEntries = useMemo(() => {
-    return [...sectionFilteredEntries].sort((a, b) => compareEntries(a, b, sortOrder));
-  }, [sectionFilteredEntries, sortOrder]);
-
-  const pendingEntries = sortedEntries.filter(e => !e.isScored);
-  const completedEntries = sortedEntries.filter(e => e.isScored);
-  const currentEntries = activeTab === 'pending' ? pendingEntries : completedEntries;
-
-  // Drag and drop
+  // Drag (pure ringside hook).
   const { sensors, handleDragStart, handleDragEnd } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
@@ -152,305 +150,155 @@ export const CombinedEntryList: React.FC = () => {
     setManualOrder,
   });
 
-  // Scoresheet route helper
-  const getScoreSheetRoute = useCallback(
-    (entry: Entry): string => {
-      return getScoresheetRoute({
-        org: showContext?.org || '',
-        element: entry.element || '',
-        level: entry.level || '',
-        classId: entry.classId,
-        entryId: entry.id,
-        competition_type: showContext?.competition_type || 'Regular',
-      });
+  // Sync local entries with fetched data (skip while dragging).
+  useEffect(() => {
+    if (entries.length > 0 && !isDraggingRef.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: syncing external data to local state
+      setLocalEntries(entries);
+    }
+  }, [entries]);
+
+  // Initial load animation.
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoaded(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // ── Service-coupled callbacks for ringside ───────────────────────
+
+  const onPrintSortOrder = useCallback(
+    (
+      type: 'check-in' | 'results-a' | 'results-b' | 'scoresheet-a' | 'scoresheet-b' | null,
+      sortOrderArg: 'run-order' | 'armband' | 'placement'
+    ) => {
+      dispatchPrintAction(type, sortOrderArg, classInfo, showContext?.org || '', entries);
     },
-    [showContext?.org, showContext?.competition_type]
+    [classInfo, showContext?.org, entries]
   );
 
-  // Prefetch handler
-  const handleEntryPrefetch = useCallback(
-    (entry: Entry) => {
-      if (entry.isScored || !showContext?.org) return;
-
-      const route = getScoreSheetRoute(entry);
-      preloadScoresheetByType(showContext.org, entry.element || '');
-
-      prefetch(`scoresheet-${entry.id}`, async () => ({ entryId: entry.id, route, entry }), {
-        ttl: 30,
-        priority: 3,
-      });
-
-      const currentIndex = pendingEntries.findIndex(e => e.id === entry.id);
-      if (currentIndex !== -1) {
-        const nextEntries = pendingEntries.slice(currentIndex + 1, currentIndex + 3);
-        nextEntries.forEach((nextEntry, offset) => {
-          const nextRoute = getScoreSheetRoute(nextEntry);
-          prefetch(
-            `scoresheet-${nextEntry.id}`,
-            async () => ({ entryId: nextEntry.id, route: nextRoute, entry: nextEntry }),
-            { ttl: 30, priority: 2 - offset }
-          );
-        });
-      }
-    },
-    [showContext, prefetch, pendingEntries, getScoreSheetRoute]
-  );
-
-  // Score click handler (combined view navigation)
-  const handleScoreClick = useCallback(
-    (entry: Entry) => {
-      if (entry.isScored) return;
-
-      if (!hasPermission('canScore')) {
-        alert('You do not have permission to score entries.');
-        return;
-      }
-
-      const pairedClassId =
-        entry.classId === parseInt(classIdA!) ? parseInt(classIdB!) : parseInt(classIdA!);
-
-      const route = getScoresheetNavigationRoute(showContext?.org || '', entry);
-      if (route) {
-        navigate(route, { state: { pairedClassId } });
-      }
-    },
-    [hasPermission, classIdA, classIdB, showContext?.org, navigate]
-  );
-
-  // Run order handlers
-  const handleApplyRunOrder = useCallback(
-    async (preset: RunOrderPreset, scope?: RunOrderScope, renumberMode?: RenumberMode) => {
-      try {
-        const reorderedEntries = await applyRunOrderPresetScoped(
-          localEntries,
-          preset,
-          scope || 'all',
-          renumberMode || 'renumber'
-        );
-        setLocalEntries(reorderedEntries);
-        setRunOrderDialogOpen(false);
-        setShowSuccessMessage(true);
-        setSortOrder('run');
-        setTimeout(() => setShowSuccessMessage(false), 2000);
-        await refresh();
-      } catch (error) {
-        logger.error('Error applying run order:', error);
-        setRunOrderDialogOpen(false);
-      }
+  const onApplyRunOrder = useCallback(
+    async (
+      preset: Parameters<typeof applyRunOrderPresetScoped>[1],
+      scope?: Parameters<typeof applyRunOrderPresetScoped>[2],
+      renumberMode?: Parameters<typeof applyRunOrderPresetScoped>[3]
+    ) => {
+      const reordered = await applyRunOrderPresetScoped(
+        localEntries,
+        preset,
+        scope || 'all',
+        renumberMode || 'renumber'
+      );
+      setLocalEntries(reordered);
+      await refresh();
     },
     [localEntries, refresh]
   );
 
-  const handleOpenDragMode = useCallback(() => {
-    setRunOrderDialogOpen(false);
-    setManualOrder([...currentEntries]);
-    setIsDragMode(true);
-    setSortOrder('run');
-  }, [currentEntries]);
+  const getScoresheetNavigationRoute = useCallback(
+    (entry: Entry) => ringsideGetScoresheetNavigationRoute(showContext?.org || '', entry),
+    [showContext?.org]
+  );
 
-  // Print sort order handler
-  const handlePrintSortOrder = useCallback(
-    (selectedSortOrder: PrintSortOrder) => {
-      const type = printDialogState.type;
-      setPrintDialogState({ type: null });
-      dispatchPrintAction(type, selectedSortOrder, classInfo, showContext?.org || '', entries);
+  const onPrefetchScoresheet = useCallback(
+    (entry: Entry) => {
+      if (entry.isScored || !showContext?.org) return;
+      const route = getScoresheetRoute({
+        org: showContext.org,
+        element: entry.element || '',
+        level: entry.level || '',
+        classId: entry.classId,
+        entryId: entry.id,
+        competition_type: showContext.competition_type || 'Regular',
+      });
+      preloadScoresheetByType(showContext.org, entry.element || '');
+      prefetch(`scoresheet-${entry.id}`, async () => ({ entryId: entry.id, route, entry }), {
+        ttl: 30,
+        priority: 3,
+      });
     },
-    [printDialogState.type, classInfo, showContext?.org, entries]
+    [showContext, prefetch]
   );
 
-  // Tab configuration
-  const sectionTabs: Tab[] = useMemo(
-    () => [
-      { id: 'all', label: 'All Sections', count: entries.length },
-      { id: 'A', label: 'Section A', count: entries.filter(e => e.section === 'A').length },
-      { id: 'B', label: 'Section B', count: entries.filter(e => e.section === 'B').length },
-    ],
-    [entries]
-  );
-
-  const statusTabs: Tab[] = useMemo(
-    () => [
-      { id: 'pending', label: 'Pending', icon: <Clock size={16} />, count: entryCounts.pending },
-      {
-        id: 'completed',
-        label: 'Completed',
-        icon: <CheckCircle size={16} />,
-        count: entryCounts.completed,
-      },
-    ],
-    [entryCounts]
-  );
-
-  const sortOptions: SortOption[] = useMemo(() => {
-    const options: SortOption[] = [
-      { value: 'section-armband', label: 'Section & Armband', icon: <ArrowUpDown size={16} /> },
-      { value: 'run', label: 'Run Order', icon: <ArrowUpDown size={16} /> },
-      { value: 'armband', label: 'Armband', icon: <ArrowUpDown size={16} /> },
-    ];
-    if (activeTab === 'completed') {
-      options.push({ value: 'placement', label: 'Placement', icon: <Trophy size={16} /> });
-    }
-    return options;
-  }, [activeTab]);
-
-  const hasActiveFilters = searchTerm.length > 0 || sortOrder !== 'section-armband';
-
-  // Loading state
-  if (!entries.length && !fetchError) {
-    return (
-      <div className="entry-list-container">
-        <div className="flex items-center justify-center" style={{ minHeight: '50vh' }}>
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 text-muted-foreground animate-spin mx-auto mb-2" />
-            <p className="text-muted-foreground">Loading combined entries...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (fetchError) {
-    return (
-      <div className="entry-list-container">
-        <ErrorState
-          message={`Failed to load entries: ${fetchError.message || 'Please check your connection and try again.'}`}
-          onRetry={refresh}
-          isRetrying={isRefreshing}
-        />
-      </div>
-    );
-  }
+  // Precompute org/role booleans (combined view doesn't use these
+  // directly — page contract still requires them for type alignment).
+  const canModifyClassSettings = hasRole(['admin', 'judge']);
+  const hideMaxTimeOption = !canModifyClassSettings;
+  const hideSettingsOption = !canModifyClassSettings;
 
   return (
-    <div className={`entry-list-container${isLoaded ? ' loaded' : ''}`} data-loaded={isLoaded}>
-      <EntryListHeader
-        classInfo={classInfo}
-        isRefreshing={isRefreshing}
-        isSyncing={isSyncing}
-        hasError={hasError}
-        hasActiveFilters={hasActiveFilters}
-        onFilterClick={() => setIsFilterPanelOpen(true)}
-        onRefresh={() => refresh(true)}
-        showSectionsBadge={true}
-        actionsMenu={{
-          showRunOrder: hasPermission('canChangeRunOrder'),
-          onRunOrderClick: () => setRunOrderDialogOpen(true),
-          printOptions: [
-            {
-              label: 'Check-In Sheet (A & B)',
-              onClick: () => setPrintDialogState({ type: 'check-in' }),
-              icon: 'checkin',
-            },
-            {
-              label: 'Results - Section A',
-              onClick: () => setPrintDialogState({ type: 'results-a' }),
-              icon: 'results',
-              disabled: completedEntries.filter(e => e.section === 'A').length === 0,
-            },
-            {
-              label: 'Results - Section B',
-              onClick: () => setPrintDialogState({ type: 'results-b' }),
-              icon: 'results',
-              disabled: completedEntries.filter(e => e.section === 'B').length === 0,
-            },
-            {
-              label: 'Scoresheet - Section A',
-              onClick: () => setPrintDialogState({ type: 'scoresheet-a' }),
-              icon: 'scoresheet',
-            },
-            {
-              label: 'Scoresheet - Section B',
-              onClick: () => setPrintDialogState({ type: 'scoresheet-b' }),
-              icon: 'scoresheet',
-            },
-          ],
-        }}
-      />
-
-      {/* Section Filter Tabs */}
-      <TabBar
-        tabs={sectionTabs}
-        activeTab={sectionFilter}
-        onTabChange={tabId => setSectionFilter(tabId as 'all' | 'A' | 'B')}
-        className="full-width"
-      />
-
-      {/* Status Tabs */}
-      <TabBar
-        tabs={statusTabs}
-        activeTab={activeTab}
-        onTabChange={tabId => setActiveTab(tabId as 'pending' | 'completed')}
-      />
-
-      <div className="entry-list-scrollable">
-        <div className="entry-list-content">
-          <EntryListContent
-            entries={currentEntries}
-            activeTab={activeTab}
-            isDragMode={isDragMode}
-            showContext={showContext}
-            classInfo={classInfo}
-            hasPermission={hasPermission}
-            onEntryClick={handleScoreClick}
-            onStatusClick={handleStatusClick}
-            onResetMenuClick={handleResetMenuClick}
-            onSelfCheckinDisabled={() => setSelfCheckinDisabledDialog(true)}
-            onPrefetch={handleEntryPrefetch}
-            showSectionBadges={true}
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onOpenDragMode={handleOpenDragMode}
-          />
-        </div>
-      </div>
-
-      <CombinedEntryListDialogs
-        isFilterPanelOpen={isFilterPanelOpen}
-        onFilterClose={() => setIsFilterPanelOpen(false)}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        sortOptions={sortOptions}
-        sortOrder={sortOrder}
-        onSortChange={order => {
-          setSortOrder(order);
-          setIsDragMode(false);
-        }}
-        resultsLabel={
-          searchTerm
-            ? `${filteredEntries.length} of ${localEntries.length} entries`
-            : `${currentEntries.length} entries`
-        }
-        activeStatusPopup={activeStatusPopup}
-        onStatusPopupClose={() => setActiveStatusPopup(null)}
-        onStatusChange={handleStatusChange}
-        localEntries={localEntries}
-        hasCanScorePermission={hasPermission('canScore')}
-        runOrderDialogOpen={runOrderDialogOpen}
-        onRunOrderClose={() => setRunOrderDialogOpen(false)}
-        onApplyRunOrder={handleApplyRunOrder}
-        onOpenDragMode={handleOpenDragMode}
-        activeResetMenu={activeResetMenu}
-        resetMenuPosition={resetMenuPosition}
-        onResetScore={handleResetScore}
-        onResetMenuClose={closeResetMenu}
-        resetConfirmDialog={resetConfirmDialog}
-        onConfirmReset={confirmResetScore}
-        onCancelReset={cancelResetScore}
-        selfCheckinDisabledDialog={selfCheckinDisabledDialog}
-        onSelfCheckinDisabledClose={() => setSelfCheckinDisabledDialog(false)}
-        printDialogState={printDialogState}
-        onPrintDialogClose={() => setPrintDialogState({ type: null })}
-        onPrintSortOrder={handlePrintSortOrder}
-        showSuccessMessage={showSuccessMessage}
-        isDragMode={isDragMode}
-        onDoneClick={() => {
-          setIsDragMode(false);
-          setSortOrder('run');
-        }}
-      />
-    </div>
+    <CombinedEntryListPage
+      classIds={{ a: classIdA, b: classIdB }}
+      data={{ entries, classInfo }}
+      dataStatus={{ isRefreshing, fetchError, refresh }}
+      actions={actions}
+      combinedHandlers={combinedHandlers}
+      uiState={{
+        localEntries,
+        sortOrder,
+        isLoaded,
+        isFilterPanelOpen,
+        runOrderDialogOpen,
+        showSuccessMessage,
+        isDragMode,
+        selfCheckinDisabledDialog,
+        printDialogState,
+      }}
+      uiActions={{
+        setLocalEntries,
+        setManualOrder,
+        setSortOrder,
+        setIsLoaded,
+        setIsFilterPanelOpen,
+        setRunOrderDialogOpen,
+        setShowSuccessMessage,
+        setIsDragMode,
+        setSelfCheckinDisabledDialog,
+        setPrintDialogState,
+        setActiveTab,
+        setSearchTerm,
+        setSectionFilter,
+      }}
+      derived={{
+        activeTab,
+        searchTerm,
+        sectionFilter,
+        filteredEntries,
+        sortedEntries,
+        pendingEntries,
+        completedEntries,
+        currentEntries,
+        entryCounts,
+      }}
+      drag={{ sensors, handleDragStart, handleDragEnd, isDraggingRef }}
+      dialogs={{
+        CheckinStatusDialog,
+        RunOrderDialog,
+        ScoresheetPrintDialog,
+      }}
+      layout={{
+        HamburgerMenu,
+        CompactOfflineIndicator,
+        SyncIndicator,
+        RefreshIndicator,
+        FilterTriggerButton,
+        FilterPanel,
+        DogCard,
+        PullToRefresh,
+        ErrorState,
+        ClassDetailsPopover,
+      }}
+      context={{
+        role,
+        showContext,
+        hasPermission,
+        hideMaxTimeOption,
+        hideSettingsOption,
+      }}
+      onPrintSortOrder={onPrintSortOrder}
+      onApplyRunOrder={onApplyRunOrder}
+      getScoresheetNavigationRoute={getScoresheetNavigationRoute}
+      onPrefetchScoresheet={onPrefetchScoresheet}
+    />
   );
 };
 

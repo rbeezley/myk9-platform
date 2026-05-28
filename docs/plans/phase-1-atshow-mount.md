@@ -85,5 +85,31 @@ Smart-input landing; account+passcode merge + confirmation step; post-credential
 ---
 
 ## Open questions for the owner (carried into 1a)
-1. **Spike scope confirm:** EntryList as the first mounted page (vs. ClassList)? EntryList exercises the richest contract (dialogs + drag + scoring), so it's the strongest proof — but it's also the most slots to wire.
-2. **Slot strategy:** if myK9Show is missing layout-slot equivalents, prefer thin per-slot shims (fast) over building polished components now (the polish belongs to a later `/at-show` UI sprint per Q1)?
+1. **Spike scope confirm:** EntryList as the first mounted page (vs. ClassList)? ✅ EntryList (owner, 2026-05-28).
+2. **Slot strategy:** ✅ thin per-slot shims for the ~14 missing chrome slots (owner, 2026-05-28); polish is the later `/at-show` UI sprint.
+
+---
+
+## Phase 1a implementation findings (2026-05-28, during build)
+
+Foundation landed: `ringsideAuthAdapter.ts` (+ 8 tests) maps myK9Show 7-role RBAC → ringside 4-role + `canAccess`. Committed `a398c0d2`.
+
+Build also surfaced **dual-schema impedance** between myK9Show and ringside that needs owner decisions before the replication + data adapters can be written faithfully (verify-don't-guess):
+
+### Finding A — class-status vocabulary mismatch (decision needed)
+- ringside `ClassStatusValue`: `no-status | setup | briefing | break | start_time | in_progress | offline-scoring | completed`
+- myK9Show DB CHECK (`mapClassStatusToDb`): `setup | in_progress | completed | cancelled | upcoming`
+- Only `setup`/`in_progress`/`completed` overlap. ringside's `briefing`/`break`/`start_time`/`offline-scoring`/`no-status` have no faithful myK9Show target.
+- **Decision:** lossy mapping for the spike (`briefing`/`break`/`start_time`/`offline-scoring` → `in_progress`; `no-status` → `upcoming`) with an `// INTENT` note, OR a follow-up that widens myK9Show's status vocabulary. Recommend lossy-for-spike.
+
+### Finding B — missing class time-field columns (decision needed)
+- ringside `ClassStatusUpdateFields` = `{ briefing_time?, break_until?, start_time? }`.
+- myK9Show `ReplicatedClass` has `startTime` / `actual_start_time` but **no `briefing_time` / `break_until`** columns.
+- **Decision:** drop `briefing_time`/`break_until` in the spike adapter (map `start_time` → `startTime` only), OR migration adding the columns. Recommend drop-for-spike; revisit if the `/at-show` class-status UI needs them.
+
+### Finding C — method name + entry-shape transform (mechanical, but careful)
+- myK9Show classes table exposes `updateClass(classId, updates)`, not myK9Q's `updateClassStatus` — the replication adapter wraps `updateClass`.
+- `fetchSingleClass`/`fetchCombinedClasses` must transform myK9Show `ReplicatedEntry` (DB-row shape from `getEntriesByClass`) → ringside `Entry` (entryStore normalized shape, ~40 fields) and build `ClassInfo` from the classes/trials tables. This is the largest remaining adapter; field mapping must be verified against both schemas (no guessing).
+
+### Remaining 1a build order (unchanged, gated on A/B decisions)
+2. replication + prefetch adapters (needs A/B decisions) → 3. data-dependency adapter (Finding C) → 4. `useEntryListActions`/`useEntryListHandlers` host hooks → 5. ~14 thin slot shims + ~6 prop-adapter shims → 6. host shim page + uiState → 7. route + flag + CSS → 8. integration tests + smoke.

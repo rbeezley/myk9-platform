@@ -1,5 +1,5 @@
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
-import type { Database } from '@/types/supabase';
+import type { Database, TablesUpdate } from '@/types/supabase';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { mapReplicatedTrialToDbRow } from '@/services/mappers/trialMappers';
@@ -441,7 +441,7 @@ export const updateTrial = async (id: string, updates: DbTrialUpdate) => {
 
 // Soft delete a trial
 export const deleteTrial = async (id: string, deletedBy?: string) => {
-  const updateData: Record<string, unknown> = {
+  const updateData: TablesUpdate<'trials'> = {
     deleted_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -466,15 +466,13 @@ export const hardDeleteTrial = async (id: string) => {
 
 // Restore a soft-deleted trial (admin only)
 export const restoreTrial = async (id: string, restoredBy?: string) => {
-  const updateData: Record<string, unknown> = {
+  void restoredBy;
+
+  const updateData: TablesUpdate<'trials'> = {
     deleted_at: null,
     deleted_by: null,
     updated_at: new Date().toISOString(),
   };
-
-  if (restoredBy) {
-    updateData.updated_by = restoredBy;
-  }
 
   return await supabase.from('trials').update(updateData).eq('id', id).select('id, name').single();
 };

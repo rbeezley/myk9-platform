@@ -14,6 +14,7 @@
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import type { TablesUpdate } from '@/types/supabase';
 
 /**
  * Day-of pull — re-exported from the canonical lifecycle seam. The lifecycle
@@ -218,14 +219,32 @@ export const updateRefundStatus = async (
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
+    const { data: entry, error: entryError } = await supabase
       .from('entries')
-      .update({
-        refund_status: refundStatus,
-        refund_amount: refundAmount,
-        updated_at: new Date().toISOString(),
-      })
+      .select('registration_id')
       .eq('id', entryId)
+      .single();
+
+    if (entryError) {
+      throw createDatabaseError(entryError, 'entries', 'select_refund_registration');
+    }
+
+    if (!entry.registration_id) {
+      throw new Error(`Entry ${entryId} has no registration for refund tracking`);
+    }
+
+    const updateData: TablesUpdate<'enrollments'> = {
+      refund_amount: refundAmount,
+    };
+
+    if (refundStatus === 'processed') {
+      updateData.refunded_at = new Date().toISOString();
+    }
+
+    const { data, error } = await supabase
+      .from('enrollments')
+      .update(updateData)
+      .eq('id', entry.registration_id)
       .select()
       .single();
 

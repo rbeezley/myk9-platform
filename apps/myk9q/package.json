@@ -40,7 +40,7 @@
     "@myk9/secretary": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@myk9/ui": "workspace:*",
-    "@supabase/supabase-js": "^2.93.3",
+    "@supabase/supabase-js": "^2.106.2",
     "@tanstack/query-sync-storage-persister": "^5.100.13",
     "@tanstack/react-query": "^5.100.13",
     "@tanstack/react-query-persist-client": "^5.100.13",

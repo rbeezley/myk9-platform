@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import type { WaitListShowConfig, MailInStrategy } from '@/types/waitlist-types';
+import type { TablesUpdate } from '@/types/supabase';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,7 +102,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
 
   const mutation = useMutation({
     mutationFn: async (config: WaitListShowConfig) => {
-      const payload: Record<string, unknown> = {
+      const payload: TablesUpdate<'shows'> = {
         default_judge_day_capacity: config.defaultJudgeDayCapacity,
         mail_in_strategy: config.mailInStrategy,
         mail_in_value: config.mailInValue,
@@ -112,7 +113,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
       };
       const { error } = await supabase
         .from('shows')
-        .update(payload as Record<string, unknown>)
+        .update(payload)
         .eq('id', showId);
       if (error) throw error;
     },

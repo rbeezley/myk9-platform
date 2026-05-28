@@ -202,13 +202,22 @@ async function fetchEntryFormData(
   }
 
   // 6. Fetch secretary via user_roles
-  const { data: secretaryRole } = await supabase
-    .from('user_roles')
-    .select('user_id')
-    .eq('scope_id', showId)
-    .eq('role', 'secretary')
-    .limit(1)
+  const { data: secretaryRoleDefinition } = await supabase
+    .from('roles')
+    .select('id')
+    .eq('name', 'secretary')
     .maybeSingle();
+
+  const { data: secretaryRole } = secretaryRoleDefinition
+    ? await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('show_id', showId)
+        .eq('role_id', secretaryRoleDefinition.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
 
   let secretary: EntryFormSecretary | null = null;
   if (secretaryRole?.user_id) {

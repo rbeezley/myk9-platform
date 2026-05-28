@@ -522,6 +522,8 @@ export const hardDeleteClass = async (id: string) => {
  * Restore a soft-deleted class
  */
 export const restoreClass = async (id: string, restoredBy?: string) => {
+  void restoredBy;
+
   try {
     log('restoreClass', 'Restoring class', { id });
 
@@ -531,7 +533,6 @@ export const restoreClass = async (id: string, restoredBy?: string) => {
         deleted_at: null,
         deleted_by: null,
         updated_at: new Date().toISOString(),
-        updated_by: restoredBy || null,
       })
       .eq('id', id)
       .not('deleted_at', 'is', null)

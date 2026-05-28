@@ -107,4 +107,30 @@ describe('ReportPreview', () => {
       expect(text).not.toContain('Riley');
     });
   });
+
+  it('ignores classId for show reports that do not declare class scope', async () => {
+    render(
+      <ReportPreview
+        reportType="show-catalog"
+        show={show}
+        trials={trials}
+        classes={classes}
+        entries={entries}
+        trialId="trial-1"
+        classId="class-1"
+        dogId="all"
+        sortOrder="armband"
+        isLoading={false}
+        isError={false}
+      />
+    );
+
+    const iframe = screen.getByTitle('Report Preview') as HTMLIFrameElement;
+
+    await waitFor(() => {
+      const text = iframe.contentDocument?.body.textContent ?? '';
+      expect(text).toContain('Scout');
+      expect(text).toContain('Riley');
+    });
+  });
 });

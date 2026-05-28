@@ -187,9 +187,7 @@ export default function ReportsPage() {
   const handleTrialChange = (value: string) => {
     setTrialId(value);
     setDogId('all');
-    if (value === 'all') {
-      setClassId('all');
-    }
+    setClassId('all');
   };
 
   const handleShowChange = (value: string) => {

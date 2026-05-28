@@ -132,19 +132,12 @@ describe('ReportControlsBar', () => {
     render(<ReportControlsBar {...defaultProps} />);
     // The "Class" label is visible, confirming the class dropdown is rendered
     expect(screen.getByText('Class')).toBeInTheDocument();
-    // The trigger span shows the raw value "all"
-    const triggers = screen.getAllByRole('combobox');
-    // triggers: [Report, Trial, Class, Sort] — class is index 2
-    expect(triggers[2]).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /select class/i })).toBeInTheDocument();
   });
 
   it('class dropdown is disabled when trialId is "all"', () => {
     render(<ReportControlsBar {...defaultProps} trialId="all" />);
-    // The SelectTrigger for the class dropdown should be disabled
-    const triggers = screen.getAllByRole('combobox');
-    // triggers: [Report, Trial, Class, Sort]
-    const classTrigger = triggers[2];
-    expect(classTrigger).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: /select class/i })).toBeDisabled();
   });
 
   it('shows class scope for result catalog deep links', () => {
@@ -158,8 +151,7 @@ describe('ReportControlsBar', () => {
     );
 
     expect(screen.getByText('Class')).toBeInTheDocument();
-    const triggers = screen.getAllByRole('combobox');
-    expect(triggers[2]).not.toBeDisabled();
+    expect(screen.getByRole('combobox', { name: /select class/i })).not.toBeDisabled();
   });
 
   describe('Registry coverage — every enabled report is reachable from the dropdown', () => {

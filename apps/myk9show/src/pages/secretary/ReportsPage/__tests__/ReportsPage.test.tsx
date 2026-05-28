@@ -1,5 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
+import userEvent from '@testing-library/user-event';
 import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '../index';
 
 const showStoreMock = vi.hoisted(() => {
@@ -27,7 +28,10 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/hooks/queries/useReportData', () => ({
   useReportData: () => ({
     show: { id: 'show-1', name: 'Spring Scent Trial 2026' },
-    trials: [{ id: 'trial-1', trial_number: 1, date: '2026-04-12' }],
+    trials: [
+      { id: 'trial-1', trial_number: 1, date: '2026-04-12' },
+      { id: 'trial-2', trial_number: 2, date: '2026-04-13' },
+    ],
     classes: [
       {
         id: 'class-1',
@@ -35,6 +39,13 @@ vi.mock('@/hooks/queries/useReportData', () => ({
         level: 'Novice',
         section: '',
         trial_id: 'trial-1',
+      },
+      {
+        id: 'class-2',
+        element: 'Interior',
+        level: 'Advanced',
+        section: '',
+        trial_id: 'trial-2',
       },
     ],
     entries: [],
@@ -45,7 +56,11 @@ vi.mock('@/hooks/queries/useReportData', () => ({
 }));
 
 vi.mock('../ReportPreview', () => ({
-  ReportPreview: () => <div data-testid="report-preview">Preview</div>,
+  ReportPreview: (props: { trialId: string; classId: string }) => (
+    <div data-testid="report-preview" data-trial-id={props.trialId} data-class-id={props.classId}>
+      Preview
+    </div>
+  ),
 }));
 
 describe('ReportsPage', () => {
@@ -86,6 +101,26 @@ describe('ReportsPage', () => {
       expect(screen.getAllByText('Summer Scent Trial 2026').length).toBeGreaterThan(0)
     );
     expect(showStoreMock.selectShow).not.toHaveBeenCalledWith('show-1');
+  });
+
+  it('resets stale class scope when the trial changes', async () => {
+    const user = userEvent.setup();
+
+    render(<ReportsPage />, {
+      initialRoute:
+        '/secretary/reports?report=result-catalog&showId=show-1&trialId=trial-1&classId=class-1',
+    });
+
+    expect(screen.getByTestId('report-preview')).toHaveAttribute('data-class-id', 'class-1');
+
+    const trialSelect = screen.getByRole('combobox', { name: /select trial/i });
+    await user.click(trialSelect);
+    await user.click(await screen.findByRole('option', { name: /Trial 2/ }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('report-preview')).toHaveAttribute('data-trial-id', 'trial-2')
+    );
+    expect(screen.getByTestId('report-preview')).toHaveAttribute('data-class-id', 'all');
   });
 });
 

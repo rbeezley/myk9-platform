@@ -6,9 +6,11 @@
 
 ## Context
 
-Dependabot PR (commit `e018ed74`) bumped the `npm-minor-patch` group across 14 packages including `@supabase/supabase-js` 2.93.3 → 2.106.2. The bump merged on a CI signal that was red since 2026-05-26 (the wizard test failure ultimately fixed in PR #397). The original nightly report rated H1 HIGH on "13 minor jump + CI-red window" alone, without reading the changelog. This document narrows the risk to specific changes.
+> **Correction 2026-05-28:** An earlier revision of this document described commit `e018ed74` as already merged to main. It is not — verified by `git log main --oneline` and `gh pr view 403`. `e018ed74` lives only on the open Dependabot branch backing PR [#403](https://github.com/rbeezley/myk9-platform/pull/403), which is still in review. `pnpm-lock.yaml` on `main` (and on this audit's PR #410 branch) resolves `@supabase/supabase-js@2.93.3`. The nightly review report that triggered this audit framed `e018ed74` as merged, and that framing was carried into the first revision of this doc without a `git log` check. The reviewer who flagged it was correct. Lesson archived to `feedback_verify_merged_before_audit`.
 
-Note: the carets in our workspace `package.json` files are still `^2.93.3`. Dependabot only moved the resolved version in `pnpm-lock.yaml`. Rolling back the lockfile would re-resolve to a lower minor; pinning declarations would require changing the carets too.
+Dependabot PR [#403](https://github.com/rbeezley/myk9-platform/pull/403) (commit `e018ed74`) **proposes** bumping the `npm-minor-patch` group across 14 packages including `@supabase/supabase-js` 2.93.3 → 2.106.2. CI has been red on `main` since 2026-05-26 (the wizard test failure fixed in PR #397) — that's the window during which the bundled bump *would* have merged silently if approved on a green-signal expectation. PR #397 has since fixed the signal. This document is therefore a **pre-merge audit of PR #403**, not a backward audit of a landed bump.
+
+Caret declarations in workspace `package.json` files are still `^2.93.3`; once #403 merges, only `pnpm-lock.yaml` changes (carets accept the new minor). If the audit surfaces a regression before #403 merges, the cheapest path is closing #403 unmerged and letting Dependabot re-file under the new grouping landed by PR #410.
 
 ## What actually changed in the bumped range
 
@@ -146,15 +148,23 @@ Rationale: Supabase is the spine of both apps. Any minor — let alone a 13-mino
 
 ## Recommended execution order
 
-1. **Land the structural fix first** (Dependabot config). Cost: trivial. Value: every future Supabase bump is isolated, so this audit becomes one-time work rather than recurring.
-2. **Investigate Flag A (double-retry).** Read the 2.102.0 upstream commit; decide on disable/lower/tighten. Add a test asserting the attempt count.
-3. **Spot-check Flag C (realtime + license-key).** Five-minute browser test on myK9Q staging. Confirm announcements still arrive.
-4. **Smoke-test Flag B (deferred disconnect).** Navigate between live-update surfaces in myK9Show staging. Watch console for `CHANNEL_ERROR`.
-5. **Spot-check Flag D (URL length).** Grep bulk-action `.in()` callers; only act if any are unbounded.
+1. **Land the structural fix first** (Dependabot config in PR [#410](https://github.com/rbeezley/myk9-platform/pull/410)). Cost: trivial. Value: every future Supabase bump is isolated, so this audit becomes one-time work rather than recurring.
+2. **Decide on PR [#403](https://github.com/rbeezley/myk9-platform/pull/403)** (the actual bump):
+   - *Option A — merge as-is.* Acceptable given Flag A is documented and Flags B/C/D are spot checks, not blockers.
+   - *Option B — close #403 unmerged after #410 lands.* Lets Dependabot re-file under the new grouping. Yields a smaller, isolated supabase-only PR that's reviewed on its own merits.
+   - Option B is preferred if you want the grouping change to apply retroactively; Option A is faster if you've already audited the contents.
+3. **Investigate Flag A (double-retry).** Already done in this audit — postgrest-js retries 520/503-PGRST002 + idempotent network errors. Vitest assertion pinned. No code change.
+4. **Spot-check Flag C (realtime + license-key)** on staging after #403 merges. Five-minute browser test on myK9Q — confirm announcements still arrive.
+5. **Smoke-test Flag B (deferred disconnect)** on staging after #403 merges. Navigate between live-update surfaces in myK9Show; watch console for `CHANNEL_ERROR`.
+6. **Spot-check Flag D (URL length).** Grep bulk-action `.in()` callers; only act if any are unbounded. Can be done at any time — pure code review.
 
-## Rollback option (if a regression is confirmed)
+## Rollback option (if a regression is confirmed post-merge)
 
-`pnpm-lock.yaml` re-resolution to a specific minor is straightforward:
+Two paths depending on when the regression surfaces:
+
+**Before #403 merges:** Close PR #403 without merging. No rollback needed; `main` stays on 2.93.3.
+
+**After #403 merges:** Pin to a known-safe minor:
 
 ```bash
 # Pin the package to a specific safe version in all workspace package.jsons
@@ -163,7 +173,7 @@ pnpm install
 git commit -am "fix(deps): pin @supabase/supabase-js to 2.101.1 pending audit"
 ```
 
-Then file a follow-up PR to walk the library forward one minor at a time, exercising the suspected flag at each step.
+Then walk forward one minor at a time, exercising the suspected flag at each step.
 
 ## Out of scope for this audit
 

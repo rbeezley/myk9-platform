@@ -24,11 +24,17 @@ describe('isRetryableError', () => {
     });
 
     /**
-     * Documents the overlap with postgrest-js v2.102.0 automatic retries.
+     * Pre-merge documentation of the overlap that WILL exist once
+     * Dependabot PR #403 (proposing @supabase/supabase-js 2.93.3 -> 2.106.2)
+     * merges. As of 2026-05-28 main is still on 2.93.3 — postgrest-js does
+     * NOT yet retry internally — so this test pins our current
+     * `isRetryableError` behavior against the future library behavior to
+     * make the post-merge overlap visible at the diff level.
      *
      * Upstream: https://github.com/supabase/supabase-js/pull/2072
+     * Audit:    docs/plan-h1-supabase-audit-2026-05-28.md (Flag A)
      *
-     * The library now retries the following internally with exp backoff (1s/2s/4s, cap 30s):
+     * After 2.102.0 lands, postgrest-js retries with exp backoff (1s/2s/4s, cap 30s):
      *  - HTTP 520 (Cloudflare timeout) — all methods
      *  - HTTP 503 with PGRST002 (PostgREST schema-cache reload) — all methods
      *  - Network errors — idempotent methods only (GET/HEAD/OPTIONS)
@@ -37,9 +43,8 @@ describe('isRetryableError', () => {
      * overlap is just 520 and 503-PGRST002. Total worst case becomes
      * library_3 + app_3 = ~7 attempts over ~30s, which is acceptable.
      *
-     * This test pins our current behavior. If anyone narrows isRetryableError
-     * to skip library-covered codes, this test fails and forces re-reading
-     * docs/plan-h1-supabase-audit-2026-05-28.md (Flag A) before proceeding.
+     * If anyone narrows isRetryableError to skip library-covered codes,
+     * this test fails and forces re-reading the audit (Flag A) before proceeding.
      */
     it('classifies library-retried transient codes (520, 503/PGRST002) as retryable [overlap with postgrest-js#2072]', () => {
       // Cloudflare timeout — library retries; our queue layer also retries.

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import { isShowMapActionEnabled } from './showMapActionExecution';
+import { isNodeScheduledAfter } from './showMapTimeScope';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
 
@@ -65,6 +66,7 @@ export interface ShowMapAction {
 
 export interface ShowMapActionState {
   tree: ShowMapTree;
+  now?: Date | undefined;
 }
 
 export type ShowMapActionScope = 'root' | ShowMapNode;
@@ -183,14 +185,10 @@ function withEntryContext(node: ShowMapNode, why: string): string {
 // - submit-final-results:    50
 //
 // Wrap-up actions stay `recommended: true` so they still surface on
-// the specific class/trial node's Recommendations list. The
-// demotion only affects show-scope ranking — live-ops dominates
-// when both bands have candidates.
-//
-// Out of scope for this fix: gating wrap-up recommendations on show
-// phase/date (the audit's broader recommendation). That requires
-// threading show-phase signal through the action selector and is
-// tracked as a follow-up.
+// the specific class/trial node's Recommendations list. Show-scope
+// ranking additionally filters future-dated show-day actions so the
+// Show Desk's primary recommendation stays tied to the secretary's
+// current phase/date.
 function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
   if (node.type === 'class') {
     if (node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE) {
@@ -249,6 +247,28 @@ function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
   }
 
   return [];
+}
+
+function isDateSensitiveRootAction(action: ShowMapAction): boolean {
+  return (
+    action.id === 'score-class' ||
+    action.id === 'mark-class-started' ||
+    action.id === 'mark-class-complete' ||
+    action.id === 'collect-judge-signature' ||
+    action.id === 'review-results' ||
+    action.id === 'submit-final-results'
+  );
+}
+
+function isActionEligibleForScope(
+  action: ShowMapAction,
+  scope: ShowMapActionScope,
+  state: ShowMapActionState
+): boolean {
+  if (scope !== 'root' || !isDateSensitiveRootAction(action)) return true;
+  const node = state.tree.nodesById[action.nodeId];
+  if (!node) return true;
+  return !isNodeScheduledAfter(state.tree, node, state.now);
 }
 
 function liveOpsActionsForNode(
@@ -510,6 +530,7 @@ export function getRankedActions(
   // INTENT: node scope aggregates descendants for root/attention surfaces; row menus use direct helpers.
   return scopedNodes(scope, state.tree)
     .flatMap(node => actionsForNode(node, state.tree))
+    .filter(action => isActionEligibleForScope(action, scope, state))
     .sort(compareShowMapActions);
 }
 

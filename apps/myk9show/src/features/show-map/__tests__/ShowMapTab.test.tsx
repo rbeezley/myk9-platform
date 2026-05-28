@@ -313,6 +313,49 @@ describe('ShowMapTab', () => {
     ).toBeInTheDocument();
   });
 
+  it('does not promote future-dated show-day actions in the guidance card', () => {
+    const futureTrial = {
+      ...trial,
+      trialDate: '2026-06-12',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+
+    render(
+      <ShowMapTab
+        show={show}
+        trials={[futureTrial]}
+        classes={[
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-not-started',
+            trialId: 'trial-1',
+            name: 'Interior Novice B',
+            status: 'Not Started',
+          },
+        ]}
+        entries={[
+          {
+            id: 'entry-needs-signature',
+            class_id: 'class-needs-signature',
+            is_scored: true,
+          },
+        ]}
+        canManageShow
+        scopeNow={new Date('2026-05-28T15:00:00.000Z')}
+      />
+    );
+
+    const guidance = screen.getByRole('region', { name: /next best action/i });
+    expect(within(guidance).getByText('Next: Open Schedule')).toBeInTheDocument();
+    expect(within(guidance).queryByText('Next: Collect judge signature')).not.toBeInTheDocument();
+    expect(within(guidance).queryByText('Next: Mark Class Started')).not.toBeInTheDocument();
+  });
+
   it('renders a calm empty state for shows without trials', () => {
     render(<ShowMapTab show={show} trials={[]} classes={[]} entries={[]} canManageShow />);
 

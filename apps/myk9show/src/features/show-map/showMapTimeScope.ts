@@ -74,6 +74,17 @@ export function getNodeDayBucket(
   return 'other';
 }
 
+export function isNodeScheduledAfter(
+  tree: ShowMapTree,
+  node: ShowMapNode,
+  now: Date = new Date()
+): boolean {
+  const trialDate = trialDateForNode(tree, node);
+  if (!trialDate) return false;
+  const timezone = timezoneForNode(tree, node);
+  return trialDate.slice(0, 10) > dateKeyInTimeZone(now, timezone);
+}
+
 export function nodeMatchesDayScope(
   tree: ShowMapTree,
   node: ShowMapNode,

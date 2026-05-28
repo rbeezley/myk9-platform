@@ -133,14 +133,14 @@ export function useShowMapWorkbenchState({
   });
 
   const attentionCountsByNodeId = useMemo(
-    () => getAttentionCountsByNodeId(tree),
-    [tree]
+    () => getAttentionCountsByNodeId(tree, { now: effectiveScopeNow }),
+    [effectiveScopeNow, tree]
   );
   const attentionCount = attentionCountsByNodeId.get(tree.root.id) ?? 0;
 
   const recommendedActions = useMemo(
-    () => getAllRecommendedActions('root', { tree }),
-    [tree]
+    () => getAllRecommendedActions('root', { tree, now: effectiveScopeNow }),
+    [effectiveScopeNow, tree]
   );
 
   const guidanceAction = recommendedActions.find(
@@ -161,11 +161,11 @@ export function useShowMapWorkbenchState({
 
   const priorityActions = useMemo(() => {
     const currentGuidanceKey = guidanceAction ? actionKey(guidanceAction) : null;
-    const actions = getRankedActions('root', { tree });
+    const actions = getRankedActions('root', { tree, now: effectiveScopeNow });
     return currentGuidanceKey
       ? actions.filter(action => actionKey(action) !== currentGuidanceKey)
       : actions;
-  }, [guidanceAction, tree]);
+  }, [effectiveScopeNow, guidanceAction, tree]);
 
   const upNextGroups = useMemo(
     () => groupActionsByEntity(priorityActions, tree),

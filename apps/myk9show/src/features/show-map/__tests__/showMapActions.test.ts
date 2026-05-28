@@ -565,6 +565,88 @@ describe('showMapActions', () => {
     );
   });
 
+  it('does not recommend stale wrap-up work at show scope before the trial date', () => {
+    const futureTrial = {
+      ...trial,
+      trialDate: '2026-06-12',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+    const tree = buildShowMapTree({
+      show,
+      trials: [futureTrial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+        {
+          id: 'class-not-started',
+          trialId: 'trial-1',
+          name: 'Interior Novice B',
+          status: 'Not Started',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          is_scored: true,
+        },
+      ],
+    });
+
+    const recommendedIds = getRecommendedActions('root', {
+      tree,
+      now: new Date('2026-05-28T15:00:00.000Z'),
+    }).map(action => action.id);
+
+    expect(recommendedIds).not.toContain('collect-judge-signature');
+    expect(recommendedIds).not.toContain('mark-class-started');
+    expect(recommendedIds).toContain('print-check-in-sheet');
+  });
+
+  it('keeps direct wrap-up recommendations available on the class before the trial date', () => {
+    const futureTrial = {
+      ...trial,
+      trialDate: '2026-06-12',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+    const tree = buildShowMapTree({
+      show,
+      trials: [futureTrial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          is_scored: true,
+        },
+      ],
+    });
+
+    expect(
+      getRecommendedActions(tree.nodesById['class:class-needs-signature']!, {
+        tree,
+        now: new Date('2026-05-28T15:00:00.000Z'),
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'collect-judge-signature',
+        }),
+      ])
+    );
+  });
+
   it('merges live-ops and wrap-up actions when phase is undefined (Show Desk unified mode)', () => {
     // A tree where a class is complete & needs judge signature (wrap-up action)
     // AND a different class has a submitted entry (live-ops action). Both
@@ -1005,6 +1087,43 @@ describe('showMapActions', () => {
       const counts = getAttentionCountsByNodeId(tree, undefined);
 
       expect(counts.size).toBe(0);
+    });
+
+    it('does not count future-dated show-day attention at root scope', () => {
+      const futureTrial = {
+        ...trial,
+        trialDate: '2026-06-12',
+        timezone: 'America/New_York',
+      } as SyncableTrial;
+      const tree = buildShowMapTree({
+        show,
+        trials: [futureTrial],
+        classes: [
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-not-started',
+            trialId: 'trial-1',
+            name: 'Interior Novice B',
+            status: 'Not Started',
+          },
+        ],
+        entries: [
+          { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
+        ],
+      });
+
+      const counts = getAttentionCountsByNodeId(tree, {
+        now: new Date('2026-05-28T15:00:00.000Z'),
+      });
+
+      expect(counts.get(tree.root.id)).toBeUndefined();
+      expect(counts.get('trial:trial-1')).toBeUndefined();
+      expect(counts.get('class:class-needs-signature')).toBeUndefined();
     });
   });
 

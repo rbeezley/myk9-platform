@@ -257,7 +257,10 @@ export function ShowMapStructureTable({
     : undefined;
   const [actionMenuOpenSignals, setActionMenuOpenSignals] = useState<Record<string, number>>({});
   const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>();
-  const attentionNodeIds = useMemo(() => getAttentionNodeIds(tree), [tree]);
+  const attentionNodeIds = useMemo(
+    () => getAttentionNodeIds(tree, { now: scopeNow }),
+    [scopeNow, tree]
+  );
   const visibleKeyboardNodeIds = useMemo(
     () =>
       getVisibleKeyboardNodeIds({
@@ -454,6 +457,7 @@ export function ShowMapStructureTable({
                 <ShowMapRowActionsMenu
                   node={node}
                   tree={tree}
+                  scopeNow={scopeNow}
                   onNavigate={onNavigate}
                   onAction={onAction}
                   openSignal={actionMenuOpenSignals[node.id]}
@@ -571,6 +575,7 @@ export function ShowMapStructureTable({
             <ShowMapRowActionsMenu
               node={node}
               tree={tree}
+              scopeNow={scopeNow}
               onNavigate={onNavigate}
               onAction={onAction}
               openSignal={actionMenuOpenSignals[node.id]}

@@ -133,8 +133,8 @@ export function useShowMapWorkbenchState({
   });
 
   const attentionCountsByNodeId = useMemo(
-    () => getAttentionCountsByNodeId(tree),
-    [tree]
+    () => getAttentionCountsByNodeId(tree, { now: effectiveScopeNow }),
+    [effectiveScopeNow, tree]
   );
   const attentionCount = attentionCountsByNodeId.get(tree.root.id) ?? 0;
 

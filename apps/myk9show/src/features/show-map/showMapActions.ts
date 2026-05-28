@@ -575,9 +575,12 @@ export function getAttentionActions(
   return getRankedActions(scope, state).filter(action => action.createsAttention);
 }
 
-export function getAttentionNodeIds(tree: ShowMapTree): Set<string> {
+export function getAttentionNodeIds(
+  tree: ShowMapTree,
+  state: Omit<ShowMapActionState, 'tree'> = {}
+): Set<string> {
   const nodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree })) {
+  for (const action of getAttentionActions('root', { tree, ...state })) {
     let node: ShowMapNode | undefined = tree.nodesById[action.nodeId];
     while (node) {
       nodeIds.add(node.id);
@@ -592,10 +595,13 @@ export function getAttentionNodeIds(tree: ShowMapTree): Set<string> {
 // `node.attentionCount` baked into the tree is entry-only and cannot represent
 // unified wrap-up work; this helper is the source of truth for any surface
 // (summary tile, row badges) whose count must match the Attention filter.
-export function getAttentionCountsByNodeId(tree: ShowMapTree): Map<string, number> {
+export function getAttentionCountsByNodeId(
+  tree: ShowMapTree,
+  state: Omit<ShowMapActionState, 'tree'> = {}
+): Map<string, number> {
   const counts = new Map<string, number>();
   const directNodeIds = new Set<string>();
-  for (const action of getAttentionActions('root', { tree })) {
+  for (const action of getAttentionActions('root', { tree, ...state })) {
     directNodeIds.add(action.nodeId);
   }
   for (const directId of directNodeIds) {

@@ -179,4 +179,54 @@ describe('ShowMapRowActionsMenu', () => {
     expect(screen.queryByRole('menuitem', { name: /move up/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /scratch \/ no-show/i })).not.toBeInTheDocument();
   });
+
+  it('uses the supplied clock for root menu recommendations', async () => {
+    const futureTrial = {
+      ...trial,
+      trialDate: '2026-06-12',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+    const tree = buildShowMapTree({
+      show,
+      trials: [futureTrial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+        {
+          id: 'class-not-started',
+          trialId: 'trial-1',
+          name: 'Interior Novice B',
+          status: 'Not Started',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          is_scored: true,
+        },
+      ],
+    });
+
+    const { user } = render(
+      <ShowMapRowActionsMenu
+        node={tree.root}
+        tree={tree}
+        scopeNow={new Date('2026-05-28T15:00:00.000Z')}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for spring trial/i }));
+
+    await screen.findByRole('menu');
+    expect(screen.getAllByRole('menuitem', { name: /open schedule/i }).length).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole('menuitem', { name: /collect judge signature/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /mark class started/i })).not.toBeInTheDocument();
+  });
 });

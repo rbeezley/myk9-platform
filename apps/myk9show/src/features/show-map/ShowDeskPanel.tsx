@@ -176,8 +176,14 @@ export default function ShowDeskPanel({
   }, [navigateTo, show.id]);
 
   const desk = useMemo(
-    () => computeShowDeskStatus({ show, trials, tree }),
-    [show, trials, tree]
+    () =>
+      computeShowDeskStatus({
+        show,
+        trials,
+        tree,
+        ...(scopeNow !== undefined && { now: scopeNow }),
+      }),
+    [scopeNow, show, trials, tree]
   );
   const pendingSignals = useMemo(
     () => computeShowDeskPendingSignals({ tree, entries }),

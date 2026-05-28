@@ -43,6 +43,19 @@ export default defineConfig({
         '**/*.d.ts',
         '**/*.config.*',
         '**/types/**',
+        // Workspace packages own their own coverage. The vitest alias on
+        // line 58 resolves `@myk9/ringside` to `packages/ringside/src/...`
+        // for fast type-checking + HMR, but the side effect is that v8
+        // instruments ringside source whenever an apps/myk9q test loads
+        // through a re-export shim. Ringside's own 309-test suite
+        // already covers those files; double-counting them in
+        // apps/myk9q's denominator inflates the gate by code that
+        // belongs in a different report. PR E2d-2a surfaced this when
+        // Phase-0 extraction crossed the threshold from "noise" to
+        // measurable drift. Strategy B per project memory
+        // `project_myk9q_sunset_coverage` — scoped exclude beats global
+        // threshold drop.
+        '**/packages/**',
       ],
     },
     testTimeout: 10000,

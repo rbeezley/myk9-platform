@@ -257,14 +257,6 @@ const EntryManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
       {/* Show Selection */}
       <Card>
         <CardHeader>
@@ -326,8 +318,44 @@ const EntryManagementPage: React.FC = () => {
             </div>
           )}
 
-          {/* Main Content - Only show when a show is selected and not loading */}
-          {selectedShowId && !isLoading && (
+          {/*
+            Error State
+
+            Replaces the misleading zero-entry main content when
+            `loadEntries` failed. Per the 2026-05-26 secretary
+            launch-readiness audit, the previous behavior was a thin
+            destructive Alert above an "0 entries" view, which read as
+            "no entries to review" rather than "couldn't load
+            entries." A Card-shaped error with an explicit Retry
+            button replaces the misleading empty state entirely.
+          */}
+          {error && selectedShowId && !isLoading && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Couldn't load entries</h3>
+                <Alert variant="destructive" className="text-left mb-4 max-w-md mx-auto">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+                <Button
+                  onClick={() => loadEntries(selectedShowId)}
+                  disabled={isLoading}
+                >
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/*
+            Main Content — only when a show is selected, loading
+            finished, AND no error. The `!error` gate is critical:
+            without it, an entries-query failure cleared `entries` to
+            `[]` and rendered "0 entries" alongside (not instead of)
+            the alert, misleading the secretary into thinking the
+            show had no pending work.
+          */}
+          {selectedShowId && !isLoading && !error && (
             <div className="space-y-6 mt-6">
               {/* Trial / Class Filters */}
               <TrialClassFilters

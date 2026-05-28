@@ -24,12 +24,17 @@ describe('isRetryableError', () => {
     });
 
     /**
-     * Pre-merge documentation of the overlap that WILL exist once
-     * Dependabot PR #403 (proposing @supabase/supabase-js 2.93.3 -> 2.106.2)
-     * merges. As of 2026-05-28 main is still on 2.93.3 — postgrest-js does
-     * NOT yet retry internally — so this test pins our current
-     * `isRetryableError` behavior against the future library behavior to
-     * make the post-merge overlap visible at the diff level.
+     * Pre-cliff documentation of the overlap that WILL exist whenever
+     * @supabase/supabase-js is upgraded past 2.102.0. As of 2026-05-28 the
+     * monorepo pins @supabase/supabase-js to exactly 2.93.3 via a
+     * pnpm.overrides block in the root package.json (added on 2026-05-23
+     * in PR #302, silently neutralizing every subsequent Dependabot bump).
+     * Dependabot PR #403 proposes caret moves to ^2.106.2 but does not
+     * touch the override, so its pnpm-lock.yaml diff has zero changes to
+     * Supabase resolution. The library does NOT currently retry internally.
+     * This test pins our `isRetryableError` behavior against the future
+     * library behavior so the eventual override-removal PR cannot land
+     * without re-reading the audit's Flag A.
      *
      * Upstream: https://github.com/supabase/supabase-js/pull/2072
      * Audit:    docs/plan-h1-supabase-audit-2026-05-28.md (Flag A)

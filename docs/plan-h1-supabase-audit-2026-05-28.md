@@ -6,11 +6,31 @@
 
 ## Context
 
-> **Correction 2026-05-28:** An earlier revision of this document described commit `e018ed74` as already merged to main. It is not — verified by `git log main --oneline` and `gh pr view 403`. `e018ed74` lives only on the open Dependabot branch backing PR [#403](https://github.com/rbeezley/myk9-platform/pull/403), which is still in review. `pnpm-lock.yaml` on `main` (and on this audit's PR #410 branch) resolves `@supabase/supabase-js@2.93.3`. The nightly review report that triggered this audit framed `e018ed74` as merged, and that framing was carried into the first revision of this doc without a `git log` check. The reviewer who flagged it was correct. Lesson archived to `feedback_verify_merged_before_audit`.
+> **Correction 2026-05-28 (#2):** A second reviewer pass surfaced that PR [#403](https://github.com/rbeezley/myk9-platform/pull/403) does NOT actually move `@supabase/supabase-js` at all. The root `package.json` has a `pnpm.overrides` block (line 34) pinning `@supabase/supabase-js` to exactly `2.93.3`. PR #403 only moves caret specifiers in workspace `package.json` files; it does not touch the override. Result: PR #403's `pnpm-lock.yaml` diff contains **zero** changes to `@supabase/supabase-js` resolution — verified by `gh pr diff 403 -- pnpm-lock.yaml | grep -c "supabase-js"` returning 0.
+>
+> The override was added on 2026-05-23 in PR [#302](https://github.com/rbeezley/myk9-platform/pull/302) (squash-merged commit `361e6ded`). PR #302 was the *previous* Dependabot bundle attempting the same Supabase bump (to 2.106.1 that time). The override addition appears to have been made during that PR's review to neutralize the Supabase portion while keeping the other 61 package updates. No separate commit explains the rationale because the squash-merge collapsed all changes into one. PR #403 is therefore a **functional replay** of #302's Supabase portion — both bump carets that the override supersedes.
+>
+> The first correction (the "merged-to-main vs. open PR" framing) is still valid. The audit's behavioral findings (Flag A/B/C/D) are still correct as analyses of what the 2.93→2.106 range contains. What changed is **scope**: this document is no longer a pre-merge audit of PR #403's Supabase impact (there is none). It is a pre-cliff audit of the *eventual* Supabase upgrade that will happen whenever the override is removed.
+>
+> Lesson archived to `feedback_verify_overrides_not_just_carets`.
 
-Dependabot PR [#403](https://github.com/rbeezley/myk9-platform/pull/403) (commit `e018ed74`) **proposes** bumping the `npm-minor-patch` group across 14 packages including `@supabase/supabase-js` 2.93.3 → 2.106.2. CI has been red on `main` since 2026-05-26 (the wizard test failure fixed in PR #397) — that's the window during which the bundled bump *would* have merged silently if approved on a green-signal expectation. PR #397 has since fixed the signal. This document is therefore a **pre-merge audit of PR #403**, not a backward audit of a landed bump.
+### What PR #403 actually does
 
-Caret declarations in workspace `package.json` files are still `^2.93.3`; once #403 merges, only `pnpm-lock.yaml` changes (carets accept the new minor). If the audit surfaces a regression before #403 merges, the cheapest path is closing #403 unmerged and letting Dependabot re-file under the new grouping landed by PR #410.
+PR [#403](https://github.com/rbeezley/myk9-platform/pull/403) ships effective bumps for **13** of the 14 packages listed in its commit message body: turbo, @tanstack/* (all five), lucide-react, @typescript-eslint/* (all three), eslint-plugin-react-hooks, dexie, dompurify, @vercel/node, typescript-eslint. It does NOT effectively bump `@supabase/supabase-js`, despite the caret moves in workspace files — the override silently pins it. Anyone reviewing #403 should treat it as a 13-package bump, not a 14-package bump.
+
+### What this document covers
+
+The audit catalogs the behaviorally relevant changes between 2.93.3 and 2.106.2 because that range will eventually land — whether via removing the override + merging a future Dependabot PR, or via an explicit "modernize Supabase" PR. The Flag A/B/C/D analyses below remain valid for that future work. Treat this document as the prep work for the eventual override-removal PR, not as cover for #403.
+
+### Decision needed on the override
+
+The override has been in place for 5 days. Three paths forward:
+
+1. **Keep the override, document why** — if it was added for a known incompatibility (e.g., a downstream package not yet compatible with 2.106.x), add a comment on the override line explaining the reason and the unblock condition. Without a comment, the override is invisible context debt.
+2. **Remove the override, run the audit's smoke tests** — frees future Dependabot Supabase bumps to actually take effect. Pair the removal with the Flag B/C/D verifications on staging. This is the "actually move forward" path.
+3. **Add the override to a never-update list** — if Supabase is intentionally pinned (e.g., for compatibility with a specific Supabase Platform deployment), instead of relying on the override silently neutralizing bumps, configure Dependabot to skip `@supabase/*` entirely. Less brittle than an override + open Dependabot PRs that look like they do something but don't.
+
+Path 2 is the most likely correct answer given the project is pre-launch ([[project_prelaunch_no_users]]) and current phase is consolidation rather than dependency conservatism. But that requires confirming the override is not load-bearing — owner decision.
 
 ## What actually changed in the bumped range
 
@@ -148,32 +168,40 @@ Rationale: Supabase is the spine of both apps. Any minor — let alone a 13-mino
 
 ## Recommended execution order
 
-1. **Land the structural fix first** (Dependabot config in PR [#410](https://github.com/rbeezley/myk9-platform/pull/410)). Cost: trivial. Value: every future Supabase bump is isolated, so this audit becomes one-time work rather than recurring.
-2. **Decide on PR [#403](https://github.com/rbeezley/myk9-platform/pull/403)** (the actual bump):
-   - *Option A — merge as-is.* Acceptable given Flag A is documented and Flags B/C/D are spot checks, not blockers.
-   - *Option B — close #403 unmerged after #410 lands.* Lets Dependabot re-file under the new grouping. Yields a smaller, isolated supabase-only PR that's reviewed on its own merits.
-   - Option B is preferred if you want the grouping change to apply retroactively; Option A is faster if you've already audited the contents.
-3. **Investigate Flag A (double-retry).** Already done in this audit — postgrest-js retries 520/503-PGRST002 + idempotent network errors. Vitest assertion pinned. No code change.
-4. **Spot-check Flag C (realtime + license-key)** on staging after #403 merges. Five-minute browser test on myK9Q — confirm announcements still arrive.
-5. **Smoke-test Flag B (deferred disconnect)** on staging after #403 merges. Navigate between live-update surfaces in myK9Show; watch console for `CHANNEL_ERROR`.
-6. **Spot-check Flag D (URL length).** Grep bulk-action `.in()` callers; only act if any are unbounded. Can be done at any time — pure code review.
+1. **Land the structural fix in PR [#410](https://github.com/rbeezley/myk9-platform/pull/410)** (Dependabot grouping). Cost: trivial. Value: when the override is eventually removed, the next Dependabot Supabase bump lands as an isolated, reviewable PR rather than a 14-package bundle.
+2. **Decide what to do with the override** at `package.json:34`. Three paths spelled out above. The lightest move that converts the audit work into shipped progress is **path 2 (remove the override + run smoke tests)**. Path 1 (document why it exists) is correct only if someone with context knows the override is load-bearing.
+3. **Decide what to do with PR [#403](https://github.com/rbeezley/myk9-platform/pull/403):**
+   - It is a 13-package bump dressed as 14 (Supabase no-op). Worth merging on its own merits if the other 13 patches are wanted.
+   - If you choose path 2 on the override, *do not* try to make #403 also do the override removal. Keep the concerns separate: #403 ships the unrelated patch bumps, then a follow-up PR removes the override and verifies Supabase against the smoke tests.
+4. **Smoke tests for the Supabase upgrade** (only relevant once the override is actually removed):
+   - **Flag A (double-retry)** — already documented in this audit. No code change needed; vitest assertion pinned.
+   - **Flag C (realtime + license-key)** — 5-minute browser test on myK9Q. Confirm announcements still arrive.
+   - **Flag B (deferred disconnect)** — navigate between live-update surfaces in myK9Show; watch console for `CHANNEL_ERROR`.
+   - **Flag D (URL length)** — grep bulk-action `.in()` callers; only act if any are unbounded. Pure code review.
 
-## Rollback option (if a regression is confirmed post-merge)
+## Rollback option (if a future override-removal causes a regression)
 
 Two paths depending on when the regression surfaces:
 
-**Before #403 merges:** Close PR #403 without merging. No rollback needed; `main` stays on 2.93.3.
+**Before merging the override-removal PR:** Close the PR. The override stays in place; `main` stays on 2.93.3.
 
-**After #403 merges:** Pin to a known-safe minor:
+**After merging the override-removal PR:** Re-pin to a known-safe minor via the override (the same mechanism that's been in place all along):
 
-```bash
-# Pin the package to a specific safe version in all workspace package.jsons
-pnpm -w add -E @supabase/supabase-js@2.101.1  # exact pin, not caret
-pnpm install
-git commit -am "fix(deps): pin @supabase/supabase-js to 2.101.1 pending audit"
+```jsonc
+// package.json
+"pnpm": {
+  "overrides": {
+    "@supabase/supabase-js": "2.101.1"  // exact pin, not caret
+  }
+}
 ```
 
-Then walk forward one minor at a time, exercising the suspected flag at each step.
+```bash
+pnpm install
+git commit -am "fix(deps): pin @supabase/supabase-js to 2.101.1 via override pending audit"
+```
+
+Then walk forward one minor at a time, exercising the suspected flag at each step. This is the same workflow that produced the 2.93.3 override in the first place — useful pattern, but only when paired with a comment explaining the reason.
 
 ## Out of scope for this audit
 

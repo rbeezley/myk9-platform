@@ -296,7 +296,7 @@
 ## Section 3: Scoresheet Components (LOW PRIORITY) 📊
 
 ### 3.1 Timer Display Component
-**Covers**: `TimerDisplay.test.tsx`
+**Covers**: timer behavior in `@myk9/scoring-ui` `*LiveScoresheet` components
 
 **Test Steps**:
 1. Log in as Judge
@@ -318,7 +318,7 @@
 ---
 
 ### 3.2 Area Inputs Component
-**Covers**: `AreaInputs.test.tsx`
+**Covers**: area-input behavior in `@myk9/scoring-ui` `AKCScentWorkLiveScoresheet`
 
 **Test Steps**:
 1. Open AKC Scent Work scoresheet (Novice level with 4 areas)

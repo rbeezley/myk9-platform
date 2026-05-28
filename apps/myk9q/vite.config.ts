@@ -43,7 +43,7 @@ export default defineConfig({
       // Re-enabled: entrySubscriptions.test.ts
       // Re-enabled: scoreSubmission.test.ts
       // Re-enabled: AdminNameDialog.test.tsx (added missing beforeEach import)
-      // Re-enabled: AreaInputs.test.tsx, NationalsPointsDisplay.test.tsx, TimerDisplay.test.tsx
+      // Re-enabled: NationalsPointsDisplay.test.tsx
       // Re-enabled: DataManagementSection.test.tsx (added missing beforeEach import)
       // Re-enabled: DeveloperToolsSection.test.tsx
       // Re-enabled: PushNotificationSettings.test.tsx

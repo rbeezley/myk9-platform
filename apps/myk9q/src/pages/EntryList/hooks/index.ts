@@ -13,11 +13,7 @@ export { useEntryListActions } from './useEntryListActions';
 export { useEntryListFilters } from './useEntryListFilters';
 export type { TabType, SortType, SectionFilter } from './useEntryListFilters';
 
-export { useEntryListSubscriptions } from './useEntryListSubscriptions';
-
 export { useDragAndDropEntries } from './useDragAndDropEntries';
-
-export { useEntryNavigation, parseOrganizationData } from './useEntryNavigation';
 
 export { useResetScore } from './useResetScore';
 

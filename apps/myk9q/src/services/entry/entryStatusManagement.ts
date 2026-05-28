@@ -566,7 +566,7 @@ export async function resetEntryScore(entryId: string): Promise<boolean> {
     if (entryData?.class_id) {
        
       logger.log(`🔄 [resetEntryScore] Triggering class completion check with justResetEntryId=${entryId}`);
-      checkAndUpdateClassCompletion(Number(entryData.class_id), undefined, undefined, Number(entryId)).catch(completionError =>
+      checkAndUpdateClassCompletion(entryData.class_id, undefined, undefined, entryId).catch(completionError =>
         logger.error('⚠️ Failed to check class completion:', completionError)
       );
     }

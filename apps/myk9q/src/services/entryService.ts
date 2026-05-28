@@ -100,7 +100,7 @@ export async function submitScore(
   pairedClassId?: number,
   classId?: number
 ): Promise<boolean> {
-  return submitScoreFromSubmissionModule(Number(entryId), scoreData, pairedClassId, classId);
+  return submitScoreFromSubmissionModule(entryId, scoreData, pairedClassId, classId);
 }
 
 /**

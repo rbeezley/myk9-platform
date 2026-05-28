@@ -104,7 +104,7 @@ export const AKCNationalsScoresheet: React.FC = () => {
             const elementType = mapElementToNationalsType(currentEntry.element || '');
 
             await nationalsScoring.submitScore({
-              entry_id: Number(currentEntry.id),
+              entry_id: currentEntry.id,
               armband: currentEntry.armband.toString(),
               element_type: elementType,
               day: 1, // Default - should be determined by trial/class data

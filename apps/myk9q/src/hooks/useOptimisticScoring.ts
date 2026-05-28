@@ -31,7 +31,7 @@ import { logger } from '@/utils/logger';
  */
 
 export interface ScoreSubmissionData {
-  entryId: number;
+  entryId: string;
   classId: number;
   armband: number;
   className: string;

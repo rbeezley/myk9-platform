@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-28
+
+- **Playwright command:** fail (two concurrent passes in the same session — both red, with materially different runtimes)
+- **Route sweep:** fail with durable evidence; public routes clean, every authenticated role floods the console with replication-layer fetch failures
+- **Active specs:** First pass: Vitest 18/18; Playwright `31/44` passed, `9` failed, `4` did not run. Second pass (same session, fresh `--retries=0` run): Playwright `33/44` passed, `7` failed, `4` did not run, `6.1m` total. Route sweep: public `18/18` clean; every authenticated role roughly `1/N` clean due to a console-error flood — see `QA-CONSOLE-ERROR-011`.
+- **Failures:** Active Playwright command from `docs/qa/e2e-suite-map.md` failed across both passes on `cross-role-workflows.spec.ts` secretary command-center, `secretary/show-wizard-officials.spec.ts` officials picker/navigation, `secretary-entry-walk.spec.ts` `submit_show_entries` RPC wait, `uat/secretary/critical-path.spec.ts` dashboard command-center, and `uat/secretary/disposable-entry.spec.ts` seeded-dog search. The first pass also reported `singleDogSingleClass.spec.ts` at `16.7m`, show-wizard officials timeouts around `16m`, and `evidence.spec.ts` at `4.2m`; the second pass had those same specs passing in seconds, with the show-wizard officials failures collapsing to ~32s networkidle timeouts — confirming the suite's runtime is highly variable. Route sweep surfaced a new high-severity finding `QA-CONSOLE-ERROR-011` for `ReplicatedClassesTable.sync` `TypeError: Failed to fetch` on every authenticated route at desktop and 375px. `QA-TEST-FLAKE-010` evidence refreshed with the consolidated failure cluster.
+- **Fixes made:** docs only. No product or test code was changed because the failure set is broad, the dashboard `Tasks`/`Messages` mismatch is a product-intent question (consolidation vs. regression — see project guidance in `CLAUDE.md`), and the replication fetch failure needs investigation rather than guesswork.
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main` (origin `3e5ae2ef`). The first pass recorded its evidence under a sibling branch `codex-nightly-qa-2026-05-28` (hyphen) after a local Git refs namespace/lock issue blocked the slash form; the second pass landed on the canonical `codex/nightly-qa-YYYY-MM-DD` slash branch. PR `#372` (referenced by 2026-05-27's QA-TEST-FLAKE-010 as the likely fix path) is closed without merge; future repair should start from current `main`. The open `QA-CONSOLE-ERROR-011` is the highest-leverage signal — the previously closed `QA-CONSOLE-ERROR-005` shared the same `{stack: undefined}` log signature on a narrower surface, so closing that finding from a route-sweep alone (no code change) may have been premature. Improvement candidate: add a console-error budget to one or two route-health specs once the replication fetch failure is fixed, and have the temp route-sweep spec live as a permanent `nightly` member rather than be recreated each run.
+
 ### 2026-05-27
 
 - **Playwright command:** fail; stopped after exceeding the QA hang rule

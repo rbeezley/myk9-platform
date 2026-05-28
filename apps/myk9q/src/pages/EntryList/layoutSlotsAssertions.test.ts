@@ -13,9 +13,16 @@
  * wiring built in E2d-2b would either break at runtime or coerce the
  * drift through — neither caught by app-only typechecking.
  *
- * Same pattern as `hooks/contractAssertions.test.ts`: a typed-identity
- * function whose only job is to fail at compile time if the bag built
- * from the host's primitives isn't assignable to the ringside contract.
+ * Type-only — does not affect coverage
+ * ------------------------------------
+ * The assertion uses `import type` for every host primitive so the
+ * module sources are erased at compile time and never load at test
+ * runtime. The v8 coverage tool only instruments files that are
+ * actually loaded during test execution — using value imports here
+ * would drag the host primitives' (mostly uncovered) module bodies
+ * into apps/myk9q's coverage denominator, tanking the global %.
+ * Phase 0 extraction is already squeezing coverage; this assertion
+ * must not make it worse.
  *
  * If this file fails to compile
  * -----------------------------
@@ -39,7 +46,7 @@
 import { describe, it, expect } from 'vitest';
 import type { EntryListLayoutSlots } from '@myk9/ringside';
 
-import {
+import type {
   HamburgerMenu,
   CompactOfflineIndicator,
   SyncIndicator,
@@ -49,32 +56,46 @@ import {
   PullToRefresh,
   FilterPanel,
 } from '../../components/ui';
-import { DogCard } from '../../components/DogCard';
-import { ClassDetailsPopover } from '../../components/dialogs/ClassDetailsPopover';
+import type { DogCard } from '../../components/DogCard';
+import type { ClassDetailsPopover } from '../../components/dialogs/ClassDetailsPopover';
 
 // =============================================================================
-// Compile-time contract check (identity function)
+// Compile-time contract check (pure type-level — no runtime imports)
 // =============================================================================
 
 /**
- * If any of the host primitives drifts from its matching slot Props
- * interface, this function fails to compile. Don't call it — its only
- * purpose is to be type-checked.
+ * Shape built from the host's primitive types. If any host primitive's
+ * Props doesn't conform to the matching slot Props in
+ * `EntryListLayoutSlots`, the conditional below resolves to `never` and
+ * the `_verify` assignment fails to compile.
  */
-function _assertLayoutSlotsContract(): EntryListLayoutSlots {
-  return {
-    HamburgerMenu,
-    CompactOfflineIndicator,
-    SyncIndicator,
-    RefreshIndicator,
-    FilterTriggerButton,
-    FilterPanel,
-    DogCard,
-    PullToRefresh,
-    ErrorState,
-    ClassDetailsPopover,
-  };
-}
+type _HostLayoutSlots = {
+  HamburgerMenu: typeof HamburgerMenu;
+  CompactOfflineIndicator: typeof CompactOfflineIndicator;
+  SyncIndicator: typeof SyncIndicator;
+  RefreshIndicator: typeof RefreshIndicator;
+  FilterTriggerButton: typeof FilterTriggerButton;
+  FilterPanel: typeof FilterPanel;
+  DogCard: typeof DogCard;
+  PullToRefresh: typeof PullToRefresh;
+  ErrorState: typeof ErrorState;
+  ClassDetailsPopover: typeof ClassDetailsPopover;
+};
+
+/**
+ * `true` when the host shape extends the ringside contract; `never`
+ * otherwise. The next line forces the check to surface as a build
+ * error if drift occurs.
+ */
+type _Assert = _HostLayoutSlots extends EntryListLayoutSlots ? true : never;
+
+/**
+ * Burn the assertion into a runtime constant so `pnpm typecheck` and
+ * `pnpm test` both have to materialize the type. The value is a
+ * literal `true` — no host modules are loaded, no v8 instrumentation
+ * touches the primitive sources.
+ */
+const _verify: _Assert = true;
 
 // =============================================================================
 // Runtime no-op so vitest picks this file up
@@ -82,6 +103,6 @@ function _assertLayoutSlotsContract(): EntryListLayoutSlots {
 
 describe('EntryListLayoutSlots contract assertions', () => {
   it('compiles host UI primitives against ringside slot contracts', () => {
-    expect(_assertLayoutSlotsContract).toBeTypeOf('function');
+    expect(_verify).toBe(true);
   });
 });

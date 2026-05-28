@@ -53,6 +53,20 @@ export {
   getDisplayTime,
 } from './sortableEntryCardUtils';
 
+// ── Sortable card sub-components (PR E2d-2a) ────────────────────────────
+// React components for result badges (placement, qualification, time,
+// faults, nationals stats grid) and the status-icon-plus-text content
+// renderer. SortableEntryCard itself arrives in E2d-2b — these are
+// already movable because they only depend on the ringside-local
+// sortableEntryCardUtils + @myk9/core's `formatTimeForDisplay`.
+export {
+  PlacementBadge,
+  NationalsResultBadges,
+  RegularResultBadges,
+  ResultBadges,
+  StatusBadgeContent,
+} from './SortableEntryCardComponents';
+
 // ── Hooks ────────────────────────────────────────────────────────────────
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export type { TabType, SortType, SectionFilter } from './hooks/useEntryListFilters';
@@ -82,13 +96,18 @@ export type {
   LongPressHandlers,
 } from './hookContracts';
 
-// ── Page-level controlled-render props (PR E2d-1) ───────────────────────
+// ── Page-level controlled-render props (PR E2d-1 / E2d-2a) ──────────────
 // `EntryListPageProps` and `CombinedEntryListPageProps` are the wide
-// bags the host shim hands to ringside's pages in E2d-2. The pages
+// bags the host shim hands to ringside's pages in E2d-2b. The pages
 // own no state and call no hooks — they render from these props.
-// `EntryListLayoutSlots` is a TODO placeholder; E2d-2 fills it with
-// concrete ComponentType slots for the ~10 host UI primitives the
-// page tree currently imports directly.
+//
+// `EntryListLayoutSlots` is the concrete UI-primitive slot bag (PR
+// E2d-2a) — 10 host-supplied components covering header chrome, the
+// filter panel, the dog card, the pull-to-refresh wrapper, the error
+// state, and the class-details popover. `TabBar` (from `@myk9/ui`)
+// and the date/time formatters (from `@myk9/core`) are intentionally
+// NOT slotted — ringside imports them directly from already-installed
+// peer packages.
 export type {
   EntryListPageProps,
   CombinedEntryListPageProps,
@@ -98,7 +117,67 @@ export type {
   CombinedEntryListUiActions,
   CombinedEntryHandlers,
   EntryListLayoutSlots,
+  // Per-primitive Props interfaces (PR E2d-2a)
+  HamburgerMenuProps,
+  CompactOfflineIndicatorProps,
+  SyncIndicatorProps,
+  RefreshIndicatorProps,
+  FilterTriggerButtonProps,
+  ErrorStateProps,
+  PullToRefreshProps,
+  FilterPanelProps,
+  DogCardProps,
+  ClassDetailsPopoverProps,
+  // Supporting unions / sub-types
+  DogCardStatusBorder,
+  HamburgerMenuPage,
+  PopoverPosition,
+  PullToRefreshState,
+  SyncIndicatorStatus,
+  FilterPanelSortOption,
+  ClassDetailsData,
 } from './pageProps';
+
+// ── Combined-page pure helpers (PR E2d-2a) ──────────────────────────────
+// Moved from apps/myk9q/.../CombinedEntryList.helpers.ts. The
+// supabase-coupled `fetchClassRequirements` stays host-side; everything
+// else (org parsing, sort comparator, scoresheet routing, the
+// useEntryHandlers hook for status/reset) moves here.
+export {
+  parseOrganizationData,
+  compareEntries,
+  parseTimeLimit,
+  getScoresheetNavigationRoute,
+  PRINT_DIALOG_TITLES,
+  useEntryHandlers,
+} from './combinedEntryListHelpers';
+
+// ── Component sub-tree (PR E2d-2a) ──────────────────────────────────────
+// Leaf components moved from apps/myk9q. Pure-presentational React
+// pieces with no host couplings beyond the ringside `Entry` type.
+// EntryListHeader / EntryListContent / EntryListDialogs and the
+// SortableEntryCard pair arrive in E2d-2b.
+export {
+  FloatingDoneButton,
+  ResetConfirmDialog,
+  ResetMenuPopup,
+  SelfCheckinDisabledDialog,
+  SuccessToast,
+  ActionsDropdownMenu,
+  TrialInfo,
+  ClassStatusBadge,
+  SectionsBadge,
+  getStatusBadge,
+} from './components';
+export type {
+  FloatingDoneButtonProps,
+  ResetConfirmDialogProps,
+  ResetMenuPopupProps,
+  SelfCheckinDisabledDialogProps,
+  SuccessToastProps,
+  PrintOption,
+  ActionsMenuConfig,
+} from './components';
 
 // ── Dialog DI surface (PR E2c) ──────────────────────────────────────────
 // `EntryListDialogSlots` is the shape ringside's EntryList page (PR E2d)

@@ -11,9 +11,17 @@ describe('getReportRenderingMode', () => {
     );
   });
 
-  it('returns show for show+trial scoped reports (Show Catalog, Result Catalog)', () => {
+  it('returns show for show+trial scoped reports (Show Catalog)', () => {
     expect(
       getReportRenderingMode({ scopes: ['show', 'trial'] } as ScopedReport as ReportDefinition)
+    ).toBe('show');
+  });
+
+  it('returns show for show+trial+class scoped reports (Result Catalog)', () => {
+    expect(
+      getReportRenderingMode({
+        scopes: ['show', 'trial', 'class'],
+      } as ScopedReport as ReportDefinition)
     ).toBe('show');
   });
 

@@ -2,6 +2,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
+import type { TablesUpdate } from '@/types/supabase';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
@@ -155,14 +156,13 @@ export const deleteUser = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'people'> = {
       deleted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     if (deletedBy) {
       updateData.deleted_by = deletedBy;
-      updateData.updated_by = deletedBy;
     }
 
     const { data, error } = await supabase
@@ -255,17 +255,14 @@ export const permanentDeleteUser = async (personId: string) => {
 // Restore soft-deleted user
 export const restoreUser = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();
+  void restoredBy;
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'people'> = {
       deleted_at: null,
       deleted_by: null,
       updated_at: new Date().toISOString(),
     };
-
-    if (restoredBy) {
-      updateData.updated_by = restoredBy;
-    }
 
     const { data, error } = await supabase
       .from('people')

@@ -13,7 +13,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
-import type { Database } from '@/types/supabase';
+import type { Database, TablesUpdate } from '@/types/supabase';
 import {
   Role,
   Permission,
@@ -379,7 +379,7 @@ export class RoleManager {
     try {
       // DB roles table only has: name, description, is_system, permissions, created_at
       // UpdateRoleRequest.displayName has no DB column
-      const updateData: Record<string, unknown> = {};
+      const updateData: TablesUpdate<'roles'> = {};
 
       if (request.description !== undefined) {
         updateData.description = request.description;

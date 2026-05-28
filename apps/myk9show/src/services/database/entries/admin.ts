@@ -29,6 +29,7 @@ export const hardDeleteEntry = async (id: string) => {
 
 export const restoreEntry = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();
+  void restoredBy;
 
   try {
     const { data, error } = await supabase
@@ -37,7 +38,6 @@ export const restoreEntry = async (id: string, restoredBy?: string) => {
         deleted_at: null,
         deleted_by: null,
         updated_at: new Date().toISOString(),
-        updated_by: restoredBy || null,
       })
       .eq('id', id)
       .not('deleted_at', 'is', null)

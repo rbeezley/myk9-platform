@@ -146,7 +146,7 @@ export default function CheckInReportPage({ showId: showIdProp }: CheckInReportP
 
     const { error } = await supabase
       .from('entries')
-      .update({ check_in_status: 'checked-in' } as Record<string, unknown>)
+      .update({ check_in_status: 'checked-in' })
       .eq('id', entryId);
 
     if (error) {
@@ -185,7 +185,7 @@ export default function CheckInReportPage({ showId: showIdProp }: CheckInReportP
 
     const { error } = await supabase
       .from('entries')
-      .update({ check_in_status: 'checked-in' } as Record<string, unknown>)
+      .update({ check_in_status: 'checked-in' })
       .in('id', entryIds);
 
     if (error) {

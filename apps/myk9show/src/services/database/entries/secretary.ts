@@ -8,6 +8,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { CheckInStatus } from '@myk9/core';
+import type { TablesUpdate } from '@/types/supabase';
 
 export interface SecretaryEntry {
   id: string;
@@ -236,8 +237,8 @@ export const getEntryCountsByStatus = async (showId: string) => {
 /**
  * Update entry status (accept, reject, waitlist, withdraw, scratch)
  */
-function buildEntryStatusUpdate(status: EntryStatus): Record<string, unknown> {
-  const updateData: Record<string, unknown> = {
+function buildEntryStatusUpdate(status: EntryStatus): TablesUpdate<'entries'> {
+  const updateData: TablesUpdate<'entries'> = {
     entry_status: status,
     updated_at: new Date().toISOString(),
   };
@@ -326,7 +327,7 @@ export const updateCheckInStatus = async (
 
   try {
     const isInRing = status === 'checked-in' || status === 'at-gate';
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'entries'> = {
       check_in_status: status,
       is_in_ring: isInRing,
       updated_at: new Date().toISOString(),

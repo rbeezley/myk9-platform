@@ -2,6 +2,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mappings';
+import type { TablesUpdate } from '@/types/supabase';
 
 // Get all clubs
 export const getAllClubs = async () => {
@@ -174,7 +175,7 @@ export const deleteClub = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'clubs'> = {
       deleted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -238,17 +239,14 @@ export const hardDeleteClub = async (id: string) => {
 // Restore soft-deleted club (admin only)
 export const restoreClub = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();
+  void restoredBy;
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'clubs'> = {
       deleted_at: null,
       deleted_by: null,
       updated_at: new Date().toISOString(),
     };
-
-    if (restoredBy) {
-      updateData.updated_by = restoredBy;
-    }
 
     const { data, error } = await supabase
       .from('clubs')

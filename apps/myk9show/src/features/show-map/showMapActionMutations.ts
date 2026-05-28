@@ -42,7 +42,7 @@ export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> 
   // check_in_status directly, while exhibitor self-check-in uses the RPC path.
   const { error } = await supabase
     .from('entries')
-    .update({ check_in_status: 'checked-in' } as Record<string, unknown>)
+    .update({ check_in_status: 'checked-in' })
     .eq('id', entryId);
 
   if (error) {
@@ -241,7 +241,7 @@ export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<
     .update({
       deleted_at: now,
       updated_at: now,
-    } as Record<string, unknown>)
+    })
     .eq('id', input.newEntryId);
 
   if (removeError) {

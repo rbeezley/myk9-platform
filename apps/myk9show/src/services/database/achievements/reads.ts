@@ -12,6 +12,7 @@ import {
   AchievementFilters,
   AchievementSummary,
 } from '../../../types/achievement';
+import type { TablesUpdate } from '@/types/supabase';
 
 export async function createAchievement(data: CreateAchievementData): Promise<Achievement> {
   // Build insert object with required fields, adding optional fields only when defined
@@ -84,14 +85,14 @@ export async function getAchievementsByDogId(
 export async function updateAchievement(data: UpdateAchievementData): Promise<Achievement> {
   const { id, ...updateData } = data;
   // updated_at doesn't exist in DB schema
-  const dbUpdate: Record<string, unknown> = {};
-  if ('title' in updateData) dbUpdate.title = updateData.title;
-  if ('organization' in updateData) dbUpdate.organization = updateData.organization;
-  if ('sport' in updateData) dbUpdate.sport = updateData.sport;
-  if ('date_earned' in updateData) dbUpdate.date_earned = updateData.date_earned;
-  if ('certificate_number' in updateData)
+  const dbUpdate: TablesUpdate<'achievements'> = {};
+  if (updateData.title !== undefined) dbUpdate.title = updateData.title;
+  if (updateData.organization !== undefined) dbUpdate.organization = updateData.organization;
+  if ('sport' in updateData && typeof updateData.sport === 'string') dbUpdate.sport = updateData.sport;
+  if (updateData.date_earned !== undefined) dbUpdate.date_earned = updateData.date_earned;
+  if (updateData.certificate_number !== undefined)
     dbUpdate.certificate_number = updateData.certificate_number;
-  if ('notes' in updateData) dbUpdate.notes = updateData.notes;
+  if (updateData.notes !== undefined) dbUpdate.notes = updateData.notes;
 
   const { data: achievement, error } = await supabase
     .from('achievements')

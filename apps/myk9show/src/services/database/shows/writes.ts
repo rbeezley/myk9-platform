@@ -1,5 +1,6 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type { DbShowInsert, DbShowUpdate } from '../../../types/database-mappings';
+import type { TablesUpdate } from '@/types/supabase';
 
 // Create new show
 export const createShow = async (showData: DbShowInsert) => {
@@ -88,7 +89,7 @@ export const deleteShow = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'shows'> = {
       deleted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -161,17 +162,14 @@ export const hardDeleteShow = async (id: string) => {
 // Restore soft-deleted show (admin only)
 export const restoreShow = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();
+  void restoredBy;
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'shows'> = {
       deleted_at: null,
       deleted_by: null,
       updated_at: new Date().toISOString(),
     };
-
-    if (restoredBy) {
-      updateData.updated_by = restoredBy;
-    }
 
     const { data, error } = await supabase
       .from('shows')

@@ -589,7 +589,7 @@ export const restoreEntryStatus = async (params: RestoreEntryStatusParams) => {
         check_in_status: previousCheckInStatus,
         special_requests: previousSpecialRequests,
         updated_at: new Date().toISOString(),
-      } as Record<string, unknown>)
+      })
       .eq('id', entryId);
 
     const duration = Date.now() - startTime;

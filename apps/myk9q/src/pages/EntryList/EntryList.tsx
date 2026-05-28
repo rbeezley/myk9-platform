@@ -85,7 +85,7 @@ export const EntryList: React.FC = () => {
   // 19 useState slots — mirrors `EntryListUiState` exactly.
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
-  const [activeStatusPopup, setActiveStatusPopup] = useState<number | null>(null);
+  const [activeStatusPopup, setActiveStatusPopup] = useState<string | null>(null);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const [selfCheckinDisabledDialog, setSelfCheckinDisabledDialog] = useState<boolean>(false);
   const [isDragMode, setIsDragMode] = useState(false);
@@ -109,7 +109,7 @@ export const EntryList: React.FC = () => {
   const [printDialogType, setPrintDialogType] = useState<
     'check-in' | 'results' | 'scoresheet' | null
   >(null);
-  const [activeResetMenu, setActiveResetMenu] = useState<number | null>(null);
+  const [activeResetMenu, setActiveResetMenu] = useState<string | null>(null);
   const [resetMenuPosition, setResetMenuPosition] = useState<{ top: number; left: number } | null>(
     null
   );

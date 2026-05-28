@@ -10,7 +10,7 @@ vi.mock('lucide-react', () => ({
 }));
 
 const defaultEntry: ScoresheetEntry = {
-  id: 2,
+  id: '2',
   armband: 15,
   dogName: 'Buddy',
   handlerName: 'Tom Brown',

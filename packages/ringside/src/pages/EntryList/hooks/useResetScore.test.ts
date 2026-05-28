@@ -43,7 +43,7 @@ vi.mock('@myk9/core', async () => {
 });
 
 const baseEntry: Entry = {
-  id: 42,
+  id: '42',
   armband: 101,
   callName: 'Rex',
   breed: 'GSD',
@@ -57,7 +57,7 @@ const baseEntry: Entry = {
   inRing: false,
   checkinStatus: 'checked-in',
   checkedIn: true,
-  classId: 7,
+  classId: '7',
   className: 'Novice A',
 };
 
@@ -110,12 +110,12 @@ describe('useResetScore — menu state', () => {
     const event = fakeClickEvent({ top: 100, left: 50, bottom: 120 });
 
     act(() => {
-      hook.result.current.handleResetMenuClick(event, 42);
+      hook.result.current.handleResetMenuClick(event, '42');
     });
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalled();
-    expect(hook.result.current.activeResetMenu).toBe(42);
+    expect(hook.result.current.activeResetMenu).toBe('42');
     // 4px gap below the button bottom — preserve this; it's a visual contract.
     expect(hook.result.current.resetMenuPosition).toEqual({ top: 124, left: 50 });
   });
@@ -124,9 +124,9 @@ describe('useResetScore — menu state', () => {
     const { hook } = setup();
 
     act(() => {
-      hook.result.current.handleResetMenuClick(fakeClickEvent({ top: 0, left: 0, bottom: 0 }), 7);
+      hook.result.current.handleResetMenuClick(fakeClickEvent({ top: 0, left: 0, bottom: 0 }), '7');
     });
-    expect(hook.result.current.activeResetMenu).toBe(7);
+    expect(hook.result.current.activeResetMenu).toBe('7');
 
     act(() => {
       hook.result.current.closeResetMenu();
@@ -146,9 +146,9 @@ describe('useResetScore — confirm dialog', () => {
 
     // Open menu first
     act(() => {
-      hook.result.current.handleResetMenuClick(fakeClickEvent({ top: 0, left: 0, bottom: 0 }), 42);
+      hook.result.current.handleResetMenuClick(fakeClickEvent({ top: 0, left: 0, bottom: 0 }), '42');
     });
-    expect(hook.result.current.activeResetMenu).toBe(42);
+    expect(hook.result.current.activeResetMenu).toBe('42');
 
     // Then ask to reset — menu closes, dialog opens
     act(() => {
@@ -208,7 +208,7 @@ describe('useResetScore — confirmResetScore happy path', () => {
     expect(setLocalEntries).toHaveBeenCalledTimes(1);
     const updater = setLocalEntries.mock.calls[0][0] as (prev: Entry[]) => Entry[];
 
-    const otherEntry: Entry = { ...baseEntry, id: 99, armband: 999, isScored: true, status: 'completed' };
+    const otherEntry: Entry = { ...baseEntry, id: '99', armband: 999, isScored: true, status: 'completed' };
     const next = updater([baseEntry, otherEntry]);
 
     // Non-target entry untouched
@@ -232,7 +232,7 @@ describe('useResetScore — confirmResetScore happy path', () => {
 
     expect(setActiveTab).toHaveBeenCalledWith('pending');
     expect(hook.result.current.resetConfirmDialog).toEqual({ show: false, entry: null });
-    expect(handleResetScoreHook).toHaveBeenCalledWith(42);
+    expect(handleResetScoreHook).toHaveBeenCalledWith('42');
   });
 
   it('background sync failure is swallowed silently (offline-first) and the optimistic update is NOT reverted', async () => {
@@ -251,7 +251,7 @@ describe('useResetScore — confirmResetScore happy path', () => {
     // Optimistic update ran exactly once — no second setLocalEntries call
     // attempting to roll back. (Reverting on offline-first hooks is the bug.)
     expect(setLocalEntries).toHaveBeenCalledTimes(1);
-    expect(handleResetScoreHook).toHaveBeenCalledWith(42);
+    expect(handleResetScoreHook).toHaveBeenCalledWith('42');
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to reset score in background:',
       expect.any(Error),

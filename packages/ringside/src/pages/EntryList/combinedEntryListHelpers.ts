@@ -148,13 +148,13 @@ export function useEntryHandlers(opts: {
   localEntries: Entry[];
   setLocalEntries: React.Dispatch<React.SetStateAction<Entry[]>>;
   entries: Entry[];
-  handleMarkInRing: (entryId: number, currentStatus?: Entry['status']) => Promise<void>;
-  handleMarkCompleted: (entryId: number) => Promise<void>;
+  handleMarkInRing: (entryId: string, currentStatus?: Entry['status']) => Promise<void>;
+  handleMarkCompleted: (entryId: string) => Promise<void>;
   handleStatusChangeHook: (
-    entryId: number,
+    entryId: string,
     status: 'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate',
   ) => Promise<void>;
-  handleResetScoreHook: (entryId: number) => Promise<void>;
+  handleResetScoreHook: (entryId: string) => Promise<void>;
   refresh: (force?: boolean) => Promise<void>;
   setActiveTab: (tab: 'pending' | 'completed') => void;
 }) {
@@ -170,8 +170,8 @@ export function useEntryHandlers(opts: {
     setActiveTab,
   } = opts;
 
-  const [activeStatusPopup, setActiveStatusPopup] = useState<number | null>(null);
-  const [activeResetMenu, setActiveResetMenu] = useState<number | null>(null);
+  const [activeStatusPopup, setActiveStatusPopup] = useState<string | null>(null);
+  const [activeResetMenu, setActiveResetMenu] = useState<string | null>(null);
   const [resetMenuPosition, setResetMenuPosition] = useState<{
     top: number;
     left: number;
@@ -181,7 +181,7 @@ export function useEntryHandlers(opts: {
     entry: null,
   });
 
-  const handleStatusClick = useCallback((e: React.MouseEvent, entryId: number) => {
+  const handleStatusClick = useCallback((e: React.MouseEvent, entryId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setActiveStatusPopup(entryId);
@@ -189,7 +189,7 @@ export function useEntryHandlers(opts: {
 
   const handleStatusChange = useCallback(
     async (
-      entryId: number,
+      entryId: string,
       newStatus:
         | 'no-status'
         | 'checked-in'
@@ -271,7 +271,7 @@ export function useEntryHandlers(opts: {
     ],
   );
 
-  const handleResetMenuClick = useCallback((e: React.MouseEvent, entryId: number) => {
+  const handleResetMenuClick = useCallback((e: React.MouseEvent, entryId: string) => {
     e.preventDefault();
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

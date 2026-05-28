@@ -15,7 +15,7 @@ import type { ClassEntry } from '../types';
  * Record type for class data in real-time updates
  */
 interface ClassRecord {
-  id: number;
+  id: string;
   class_status?: string;
   is_scoring_finalized?: boolean;
   /**

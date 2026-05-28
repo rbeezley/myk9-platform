@@ -110,7 +110,7 @@ describe('useEntryListData — disabled state', () => {
 describe('useEntryListData — single class path', () => {
   it('calls fetchSingleClass with classId, licenseKey, and role', async () => {
     const payload: EntryListData = {
-      entries: [{ id: 1, armband: 1 } as never],
+      entries: [{ id: '1', armband: 1 } as never],
       classInfo: { className: 'Novice A', element: 'Container', level: 'Novice' },
     };
     const deps = makeDeps({
@@ -147,7 +147,7 @@ describe('useEntryListData — single class path', () => {
 describe('useEntryListData — combined class path', () => {
   it('uses the combined fetcher when classIdA + classIdB are provided', async () => {
     const payload: EntryListData = {
-      entries: [{ id: 11 } as never, { id: 22 } as never],
+      entries: [{ id: '11' } as never, { id: '22' } as never],
       classInfo: { className: 'Combined Open', element: 'Container', level: 'Open' },
     };
     const deps = makeDeps({

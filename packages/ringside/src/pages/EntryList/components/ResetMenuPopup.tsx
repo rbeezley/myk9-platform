@@ -4,7 +4,7 @@ import { Entry } from '../../../stores/entryStore';
 
 export interface ResetMenuPopupProps {
   /** The entry ID that the menu is open for (null if closed) */
-  activeEntryId: number | null;
+  activeEntryId: string | null;
   /** Menu position */
   position: { top: number; left: number } | null;
   /** All entries to find the active one */

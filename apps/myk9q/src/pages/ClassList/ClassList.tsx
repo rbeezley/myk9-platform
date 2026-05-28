@@ -86,7 +86,7 @@ export const ClassList: React.FC = () => {
   const [classes, setClasses] = useState<ClassEntry[]>([]);
 
   // Animation state for favorite burst effect
-  const [justToggledClassId, setJustToggledClassId] = useState<number | null>(null);
+  const [justToggledClassId, setJustToggledClassId] = useState<string | null>(null);
   // Initialize filter from navigation state if provided (e.g., from Show Dashboard "Done" stat)
   const locationState = location.state as { filter?: CombinedFilter } | null;
   const [combinedFilter, setCombinedFilter] = useState<CombinedFilter>(
@@ -245,15 +245,15 @@ export const ClassList: React.FC = () => {
   );
 
   // Print report wrappers - open sort dialog instead of calling hook directly
-  const handleGenerateCheckIn = useCallback((classId: number) => {
+  const handleGenerateCheckIn = useCallback((classId: string) => {
     setPrintDialogState({ type: 'check-in', classId });
   }, []);
 
-  const handleGenerateResults = useCallback((classId: number) => {
+  const handleGenerateResults = useCallback((classId: string) => {
     setPrintDialogState({ type: 'results', classId });
   }, []);
 
-  const handleGenerateScoresheet = useCallback((classId: number) => {
+  const handleGenerateScoresheet = useCallback((classId: string) => {
     setPrintDialogState({ type: 'scoresheet', classId });
   }, []);
 
@@ -301,7 +301,7 @@ export const ClassList: React.FC = () => {
 
   // Prefetch class entry data when hovering/touching class card
   const handleClassPrefetch = useCallback(
-    async (classId: number) => {
+    async (classId: string) => {
       if (!showContext?.licenseKey) return;
 
       await prefetch(
@@ -398,14 +398,14 @@ export const ClassList: React.FC = () => {
   );
 
   const handleClassStatusChangeWithTime = useCallback(
-    async (classId: number, status: ClassEntry['class_status'], timeValue: string) => {
+    async (classId: string, status: ClassEntry['class_status'], timeValue: string) => {
       await handleStatusChangeWithTimeHook(classId, status, timeValue, statusDeps);
     },
     [handleStatusChangeWithTimeHook, statusDeps]
   );
 
   const handleClassStatusChange = useCallback(
-    async (classId: number, status: ClassEntry['class_status']) => {
+    async (classId: string, status: ClassEntry['class_status']) => {
       await handleStatusChangeHook(classId, status, statusDeps);
     },
     [handleStatusChangeHook, statusDeps]
@@ -413,7 +413,7 @@ export const ClassList: React.FC = () => {
 
   // Wrapper for favorite toggle (delegates to useFavoriteClasses hook, adds haptic feedback)
   const toggleFavorite = useCallback(
-    (classId: number) => {
+    (classId: string) => {
       const classEntry = classes.find(c => c.id === classId);
       const isCurrentlyFavorite = classEntry?.is_favorite;
 
@@ -426,9 +426,9 @@ export const ClassList: React.FC = () => {
       setJustToggledClassId(classId);
       setTimeout(() => setJustToggledClassId(null), 400);
 
-      toggleFavoriteHook(classId, classEntry?.pairedClassId);
-
       const pairedId = classEntry?.pairedClassId;
+      toggleFavoriteHook(classId, pairedId);
+
       const idsToToggle = pairedId ? [classId, pairedId] : [classId];
       setClasses(prev =>
         prev.map(c => (idsToToggle.includes(c.id) ? { ...c, is_favorite: !c.is_favorite } : c))

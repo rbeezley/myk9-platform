@@ -15,13 +15,13 @@ import { logger } from '@myk9/core';
  */
 export interface UseFavoriteClassesReturn {
   /** Set of favorite class IDs */
-  favoriteClasses: Set<number>;
+  favoriteClasses: Set<string>;
   /** Whether favorites have been loaded from localStorage */
   favoritesLoaded: boolean;
   /** Check if a class is a favorite */
-  isFavorite: (classId: number) => boolean;
+  isFavorite: (classId: string) => boolean;
   /** Toggle favorite status for a class (handles paired classes) */
-  toggleFavorite: (classId: number, pairedClassId?: number) => void;
+  toggleFavorite: (classId: string, pairedClassId?: string) => void;
 }
 
 /**
@@ -84,7 +84,7 @@ export function useFavoriteClasses(
   trialId: string | undefined
 ): UseFavoriteClassesReturn {
   // State
-  const [favoriteClasses, setFavoriteClasses] = useState<Set<number>>(() => {
+  const [favoriteClasses, setFavoriteClasses] = useState<Set<string>>(() => {
 return new Set();
   });
   const [favoritesLoaded, setFavoritesLoaded] = useState(false);
@@ -98,9 +98,9 @@ return new Set();
         if (savedFavorites) {
           const parsed = JSON.parse(savedFavorites);
           if (Array.isArray(parsed)) {
-            // Filter to numeric ids — defends against accidental corruption
-            // (e.g. a string snuck in) while still preserving valid entries.
-            const ids = parsed.filter((id): id is number => typeof id === 'number');
+            // Filter to string ids (UUID-native) — defends against accidental
+            // corruption (e.g. a legacy numeric id) while preserving valid entries.
+            const ids = parsed.filter((id): id is string => typeof id === 'string');
             setFavoriteClasses(new Set(ids));
           } else {
             // Valid JSON, wrong shape — treat as corrupt.
@@ -147,7 +147,7 @@ localStorage.setItem(favoritesKey, JSON.stringify(favoriteIds));
   /**
    * Check if a class is a favorite
    */
-  const isFavorite = useCallback((classId: number): boolean => {
+  const isFavorite = useCallback((classId: string): boolean => {
     return favoriteClasses.has(classId);
   }, [favoriteClasses]);
 
@@ -155,7 +155,7 @@ localStorage.setItem(favoritesKey, JSON.stringify(favoriteIds));
    * Toggle favorite status for a class
    * Handles paired Novice A/B classes by toggling both
    */
-  const toggleFavorite = useCallback((classId: number, pairedClassId?: number) => {
+  const toggleFavorite = useCallback((classId: string, pairedClassId?: string) => {
 const idsToToggle = pairedClassId ? [classId, pairedClassId] : [classId];
 
     setFavoriteClasses(prev => {

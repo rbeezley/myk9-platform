@@ -163,7 +163,7 @@ export interface EntryListHandlers {
    * every currently-in-ring entry that isn't this one, then sets the
    * target. Returns `true` on success, `false` on error.
    */
-  setDogInRingStatus: (dogId: number, inRing: boolean) => Promise<boolean>;
+  setDogInRingStatus: (dogId: string, inRing: boolean) => Promise<boolean>;
 
   // ── Entry tap handlers (mixed) ────────────────────────────────────
   /**
@@ -188,17 +188,17 @@ export interface EntryListHandlers {
    * generic `handleStatusChangeHook` from `useEntryListActions`.
    * Applies optimistic local update before the async call.
    */
-  handleStatusChange: (entryId: number, status: EntryStatusChange) => Promise<void>;
+  handleStatusChange: (entryId: string, status: EntryStatusChange) => Promise<void>;
 
   /**
    * Open the per-entry status popup. Respects the "exhibitor + self
    * check-in disabled → show SelfCheckinDisabledDialog" branch.
    */
-  handleStatusClick: (e: ReactMouseEvent, entryId: number) => void;
+  handleStatusClick: (e: ReactMouseEvent, entryId: string) => void;
 
   // ── Reset menu / dialog ───────────────────────────────────────────
   /** Open the reset menu popup anchored at the click point. */
-  handleResetMenuClick: (e: ReactMouseEvent, entryId: number) => void;
+  handleResetMenuClick: (e: ReactMouseEvent, entryId: string) => void;
   /** Close the reset menu and queue the reset-confirm dialog. */
   handleResetScore: (entry: Entry) => void;
   /** Apply the reset: optimistic local clear, switch to pending tab, fire async. */
@@ -305,40 +305,40 @@ export interface EntryListActions {
    * `'completed'`) go through `handleMarkInRing` /
    * `handleMarkCompleted` instead.
    */
-  handleStatusChange: (entryId: number, newStatus: EntryStatusCheckIn) => Promise<void>;
+  handleStatusChange: (entryId: string, newStatus: EntryStatusCheckIn) => Promise<void>;
 
   /**
    * Reset an entry's score. Background-only (fire-and-forget) — UI
    * already cleared optimistically by the time this lands.
    */
-  handleResetScore: (entryId: number) => Promise<void>;
+  handleResetScore: (entryId: string) => Promise<void>;
 
   /**
    * Toggle in-ring (flip current → !current). Background, silently
    * fails offline. The unified handler in `useEntryListHandlers`
    * generally prefers `handleMarkInRing` for explicit set semantics.
    */
-  handleToggleInRing: (entryId: number, currentInRing: boolean) => Promise<void>;
+  handleToggleInRing: (entryId: string, currentInRing: boolean) => Promise<void>;
 
   /**
    * Explicit "mark this entry as in-ring" — used for ring management.
    * `currentStatus` is captured so it can be restored if the user
    * cancels out of the scoresheet without scoring.
    */
-  handleMarkInRing: (entryId: number, currentStatus?: Entry['status']) => Promise<void>;
+  handleMarkInRing: (entryId: string, currentStatus?: Entry['status']) => Promise<void>;
 
   /**
    * Mark an entry completed without going through the full scoresheet.
    * For manual ring management when scoring happens off-platform.
    */
-  handleMarkCompleted: (entryId: number) => Promise<void>;
+  handleMarkCompleted: (entryId: string) => Promise<void>;
 
   /**
    * Batch status update for future bulk-action flows. Not currently
    * surfaced in the page UI but the host exports it.
    */
   handleBatchStatusUpdate: (
-    entryIds: number[],
+    entryIds: string[],
     newStatus: EntryStatusCheckIn,
   ) => Promise<void>;
 

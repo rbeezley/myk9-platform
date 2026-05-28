@@ -18,12 +18,12 @@ interface ClassListDialogsProps {
   navigate: (path: string) => void;
 
   // ClassOptionsDialog
-  activePopup: number | null;
+  activePopup: string | null;
   classes: ClassEntry[];
-  setActivePopup: (id: number | null) => void;
-  handleGenerateCheckIn: (classId: number) => void;
-  handleGenerateResults: (classId: number) => void;
-  handleGenerateScoresheet: (classId: number) => void;
+  setActivePopup: (id: string | null) => void;
+  handleGenerateCheckIn: (classId: string) => void;
+  handleGenerateResults: (classId: string) => void;
+  handleGenerateScoresheet: (classId: string) => void;
 
   // Requirements dialog
   requirementsDialogOpen: boolean;
@@ -44,8 +44,8 @@ interface ClassListDialogsProps {
   selectedClassForStatus: ClassEntry | null;
   setStatusDialogOpen: (open: boolean) => void;
   setSelectedClassForStatus: (cls: ClassEntry | null) => void;
-  handleClassStatusChange: (classId: number, status: ClassEntry['class_status']) => void;
-  handleClassStatusChangeWithTime: (classId: number, status: ClassEntry['class_status'], timeValue: string) => void;
+  handleClassStatusChange: (classId: string, status: ClassEntry['class_status']) => void;
+  handleClassStatusChangeWithTime: (classId: string, status: ClassEntry['class_status'], timeValue: string) => void;
 
   // Settings dialog
   settingsDialogOpen: boolean;
@@ -219,7 +219,7 @@ export const ClassListDialogs: React.FC<ClassListDialogsProps> = ({
           setShowMaxTimeWarning(false);
         }}
         classData={selectedClassForRequirements || {
-          id: 0,
+          id: '0',
           element: '',
           level: '',
           class_name: '',
@@ -236,8 +236,18 @@ export const ClassListDialogs: React.FC<ClassListDialogsProps> = ({
           setSelectedClassForMaxTime(null);
           setShowMaxTimeWarning(false);
         }}
-        classData={selectedClassForMaxTime || {
-          id: 0,
+        classData={selectedClassForMaxTime ? {
+          id: selectedClassForMaxTime.id,
+          element: selectedClassForMaxTime.element,
+          level: selectedClassForMaxTime.level,
+          class_name: selectedClassForMaxTime.class_name,
+          time_limit_seconds: selectedClassForMaxTime.time_limit_seconds,
+          time_limit_area2_seconds: selectedClassForMaxTime.time_limit_area2_seconds,
+          time_limit_area3_seconds: selectedClassForMaxTime.time_limit_area3_seconds,
+          area_count: selectedClassForMaxTime.area_count,
+          pairedClassId: selectedClassForMaxTime.pairedClassId,
+        } : {
+          id: '0',
           element: '',
           level: '',
           class_name: ''
@@ -276,7 +286,7 @@ export const ClassListDialogs: React.FC<ClassListDialogsProps> = ({
           break_until_time: selectedClassForStatus.break_until,
           start_time: selectedClassForStatus.start_time
         } : {
-          id: 0,
+          id: '0',
           element: '',
           level: '',
           class_name: '',
@@ -293,7 +303,8 @@ export const ClassListDialogs: React.FC<ClassListDialogsProps> = ({
             ? [selectedClassForStatus.id, selectedClassForStatus.pairedClassId]
             : [selectedClassForStatus.id];
 
-          await markUnscoredEntriesAsAbsent(classIds);
+          // entryService still types ids as number; ids are numeric strings.
+          await markUnscoredEntriesAsAbsent(classIds.map(Number));
           await refetch();
         } : undefined}
       />
@@ -306,7 +317,7 @@ export const ClassListDialogs: React.FC<ClassListDialogsProps> = ({
           setSelectedClassForSettings(null);
         }}
         classData={selectedClassForSettings || {
-          id: 0,
+          id: '0',
           element: '',
           level: '',
           class_name: '',

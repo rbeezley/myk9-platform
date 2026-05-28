@@ -77,8 +77,8 @@ export function mapDatabaseRowToEntry(
 ): Entry {
   return {
     // Core identification
-    id: row.id,
-    classId: row.class_id ?? 0,
+    id: String(row.id),
+    classId: row.class_id != null ? String(row.class_id) : '',
 
     // Dog/Handler information (handle schema variations)
     armband: (row.armband ?? row.armband_number) ?? 0,

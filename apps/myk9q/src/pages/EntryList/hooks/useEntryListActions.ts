@@ -17,7 +17,7 @@ export const useEntryListActions = (_onRefresh: () => void) => {
    * Update entry check-in status with optimistic updates
    */
   const handleStatusChange = useCallback(
-    async (entryId: number, newStatus: 'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate') => {
+    async (entryId: string, newStatus: 'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate') => {
       // 🚀 OFFLINE-FIRST: Update replication cache immediately
       // This creates an optimistic update that works offline and persists across refreshes
       try {
@@ -52,7 +52,7 @@ const { getReplicationManager } = await import('../../../services/replication');
    * Reset entry score with optimistic update
    */
   const handleResetScore = useCallback(
-    async (entryId: number) => {
+    async (entryId: string) => {
       // Sync with server in background (silently fails if offline)
       try {
         await resetEntryScore(entryId);
@@ -69,7 +69,7 @@ const { getReplicationManager } = await import('../../../services/replication');
    * Toggle in-ring status
    */
   const handleToggleInRing = useCallback(
-    async (entryId: number, currentInRing: boolean) => {
+    async (entryId: string, currentInRing: boolean) => {
       const newInRing = !currentInRing;
 
       // Sync with server in background (silently fails if offline)
@@ -90,7 +90,7 @@ const { getReplicationManager } = await import('../../../services/replication');
    * @param currentStatus - Entry's current status (optional, for restoration on cancel)
    */
   const handleMarkInRing = useCallback(
-    async (entryId: number, currentStatus?: _Entry['status']) => {
+    async (entryId: string, currentStatus?: _Entry['status']) => {
       // Sync with server in background (silently fails if offline)
       try {
         // Pass currentStatus so it can be restored if scoresheet is canceled
@@ -108,7 +108,7 @@ const { getReplicationManager } = await import('../../../services/replication');
    * Mark entry as completed without full score (for manual ring management)
    */
   const handleMarkCompleted = useCallback(
-    async (entryId: number) => {
+    async (entryId: string) => {
       // Sync with server in background (silently fails if offline)
       try {
         await markEntryCompleted(entryId);
@@ -125,7 +125,7 @@ const { getReplicationManager } = await import('../../../services/replication');
    * Batch status update (for future use)
    */
   const handleBatchStatusUpdate = useCallback(
-    async (entryIds: number[], newStatus: 'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate') => {
+    async (entryIds: string[], newStatus: 'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate') => {
       // Sync with server in background (silently fails if offline)
       try {
         await Promise.all(

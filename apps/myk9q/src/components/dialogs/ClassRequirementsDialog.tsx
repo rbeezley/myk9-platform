@@ -13,7 +13,7 @@ interface ClassRequirementsDialogProps {
   onClose: () => void;
   onSetMaxTime?: () => void;
   classData: {
-    id: number;
+    id: string;
     element: string;
     level: string;
     class_name: string;
@@ -25,7 +25,7 @@ interface ClassRequirementsDialogProps {
 }
 
 interface ClassRequirements {
-  id: number;
+  id: string;
   organization: string;
   element: string;
   level: string;

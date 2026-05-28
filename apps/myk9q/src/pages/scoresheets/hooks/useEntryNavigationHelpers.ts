@@ -79,13 +79,13 @@ const DEFAULT_SETTINGS: CurrentClassSettings = {
  * even if the entry list cache is stale (e.g., after changing area count or time allocation).
  * Also builds ResolvedClassRules for scoring.
  */
-async function fetchCurrentClassSettings(classId: number): Promise<CurrentClassSettings> {
+async function fetchCurrentClassSettings(classId: string): Promise<CurrentClassSettings> {
   try {
     const manager = await ensureReplicationManager();
     const classesTable = manager.getTable('classes');
     if (!classesTable) return DEFAULT_SETTINGS;
 
-    const classData = (await classesTable.get(String(classId))) as Class | undefined;
+    const classData = (await classesTable.get(classId)) as Class | undefined;
     if (!classData) return DEFAULT_SETTINGS;
 
     return {
@@ -247,14 +247,14 @@ async function loadClassEntries(
  */
 export function transformEntries(classEntries: ReplicatedEntry[], classData: Class): Entry[] {
   return classEntries.map(entry => ({
-    id: parseInt(entry.id),
+    id: entry.id,
     armband: entry.armband,
     callName: entry.dog_call_name || 'Unknown',
     breed: entry.dog_breed || 'Unknown',
     handler: entry.handler || 'Unknown',
     isScored: entry.is_scored || false,
     status: (entry.entry_status as Entry['status']) || 'no-status',
-    classId: parseInt(entry.class_id),
+    classId: entry.class_id,
     className: `${classData.element} ${classData.level}`,
     element: classData.element,
     level: classData.level,
@@ -306,7 +306,7 @@ export async function loadFromIndexedDB(
   // Find target entry
   let targetEntry: Entry | null = null;
   if (entryId) {
-    targetEntry = transformedEntries.find(e => e.id === parseInt(entryId)) || null;
+    targetEntry = transformedEntries.find(e => e.id === entryId) || null;
   }
   if (!targetEntry && transformedEntries.length > 0) {
     targetEntry = transformedEntries[0];

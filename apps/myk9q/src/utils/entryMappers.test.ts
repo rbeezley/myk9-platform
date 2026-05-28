@@ -34,8 +34,8 @@ describe('mapDatabaseRowToEntry', () => {
       const result = mapDatabaseRowToEntry(row, 'checked-in', 'Interior Master A');
 
       expect(result).toEqual({
-        id: 1,
-        classId: 5,
+        id: '1',
+        classId: '5',
         armband: 101,
         callName: 'Buddy',
         breed: 'Golden Retriever',
@@ -86,8 +86,8 @@ describe('mapDatabaseRowToEntry', () => {
       const result = mapDatabaseRowToEntry(row, 'no-status', 'Containers Novice B');
 
       expect(result).toEqual({
-        id: 2,
-        classId: 10,
+        id: '2',
+        classId: '10',
         armband: 202,
         callName: 'Max',
         breed: 'Border Collie',
@@ -185,7 +185,7 @@ describe('mapDatabaseRowToEntry', () => {
       expect(result.searchTime).toBe('0.00');
       expect(result.faultCount).toBe(0);
       expect(result.placement).toBeUndefined();
-      expect(result.classId).toBe(0);
+      expect(result.classId).toBe('');
       expect(result.element).toBeUndefined();
       expect(result.level).toBeUndefined();
       expect(result.section).toBeUndefined();
@@ -306,7 +306,7 @@ describe('mapDatabaseRowToEntrySimple', () => {
 
     const result = mapDatabaseRowToEntrySimple(row, 'checked-in');
 
-    expect(result.id).toBe(11);
+    expect(result.id).toBe('11');
     expect(result.armband).toBe(501);
     expect(result.callName).toBe('Rover');
     expect(result.className).toBe('');

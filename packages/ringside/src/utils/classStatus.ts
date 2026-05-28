@@ -56,7 +56,7 @@ export interface ClassDog {
  * typing — the wider object satisfies this narrower contract.
  */
 export interface ClassStatusInput {
-  id: number;
+  id: string;
   class_status: ClassStatus;
   is_scoring_finalized?: boolean;
   entry_count: number;

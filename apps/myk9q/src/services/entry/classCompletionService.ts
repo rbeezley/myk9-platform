@@ -65,10 +65,10 @@ interface NestedTrial {
  * await checkAndUpdateClassCompletion(123, undefined, undefined, 789);
  */
 export async function checkAndUpdateClassCompletion(
-  classId: number,
-  pairedClassId?: number,
-  justScoredEntryId?: number,
-  justResetEntryId?: number
+  classId: string | number,
+  pairedClassId?: string | number,
+  justScoredEntryId?: string,
+  justResetEntryId?: string
 ): Promise<void> {
   logger.log(`🔍 [classCompletion] checkAndUpdateClassCompletion called:`, {
     classId,
@@ -103,9 +103,9 @@ export async function checkAndUpdateClassCompletion(
  * @param justResetEntryId - Optional entry ID that was JUST reset/unscored (workaround for read replica lag)
  */
 async function updateSingleClassCompletion(
-  classId: number,
-  justScoredEntryId?: number,
-  justResetEntryId?: number
+  classId: string | number,
+  justScoredEntryId?: string,
+  justResetEntryId?: string
 ): Promise<void> {
   // CRITICAL FIX: Query LOCAL CACHE instead of server to avoid read replica lag
   // When multiple entries are reset quickly, each completion check was querying
@@ -171,13 +171,17 @@ async function updateSingleClassCompletion(
 
   // Count scored entries from the (now accurate) data source
   let scoredCount = entries.filter(e => e.is_scored).length;
-  const scoredIds = entries.filter(e => e.is_scored).map(e => e.id);
+  // Normalize ids to string for matching — entries may come from the cache
+  // (string ids, UUID-native) or the server fallback (bigint-as-number), and
+  // the just-scored/just-reset ids are strings. String() keeps the lag
+  // workaround comparison type-safe across both sources.
+  const scoredIds = entries.filter(e => e.is_scored).map(e => String(e.id));
 
   // Only apply read replica lag adjustments when using server fallback
   // Local cache is already accurate and doesn't need adjustment
   if (!usedLocalCache) {
     // Case 1: Just scored an entry - add to count if read replica missed it
-    if (justScoredEntryId && !scoredIds.includes(justScoredEntryId)) {
+    if (justScoredEntryId && !scoredIds.includes(String(justScoredEntryId))) {
       logger.log(
         `⚠️ [classCompletion] Read replica lag (score): entry ${justScoredEntryId} not in scored list, adding to count`
       );
@@ -185,7 +189,7 @@ async function updateSingleClassCompletion(
     }
 
     // Case 2: Just reset an entry - remove from count if read replica still shows it as scored
-    if (justResetEntryId && scoredIds.includes(justResetEntryId)) {
+    if (justResetEntryId && scoredIds.includes(String(justResetEntryId))) {
       logger.log(
         `⚠️ [classCompletion] Read replica lag (reset): entry ${justResetEntryId} still in scored list, removing from count`
       );
@@ -237,7 +241,7 @@ async function updateSingleClassCompletion(
  *
  * @param classId - The class ID to mark as completed
  */
-async function markClassCompleted(classId: number): Promise<void> {
+async function markClassCompleted(classId: string | number): Promise<void> {
   const { error: updateError } = await supabase
     .from('classes')
     .update({
@@ -270,7 +274,7 @@ async function markClassCompleted(classId: number): Promise<void> {
  * @param totalCount - Total number of entries
  */
 async function markClassInProgress(
-  classId: number,
+  classId: string | number,
   _scoredCount: number,
   _totalCount: number
 ): Promise<void> {
@@ -307,7 +311,7 @@ async function markClassInProgress(
  *
  * @param classId - The class ID to mark as no-status
  */
-async function markClassNotStarted(classId: number): Promise<void> {
+async function markClassNotStarted(classId: string | number): Promise<void> {
   const { error: updateError } = await supabase
     .from('classes')
     .update({
@@ -339,7 +343,7 @@ async function markClassNotStarted(classId: number): Promise<void> {
  *
  * @param classId - The class ID to recalculate placements for
  */
-async function recalculateFinalPlacements(classId: number): Promise<void> {
+async function recalculateFinalPlacements(classId: string | number): Promise<void> {
   try {
     // Get show_id and license_key for this class
     const { data: classData, error: classError } = await supabase
@@ -371,7 +375,10 @@ async function recalculateFinalPlacements(classId: number): Promise<void> {
       const licenseKey = show.license_key;
       const isNationals = isNationalsShow(show.type);
 
-      await recalculatePlacementsForClass(classId, licenseKey, isNationals);
+      // Use the DB-returned numeric class id for the placement recalc
+      // (recalculatePlacementsForClass is number-keyed); the param above stays
+      // string|number only for the string-safe `.eq('id', …)` query.
+      await recalculatePlacementsForClass(classData.id, licenseKey, isNationals);
     } else {
       logger.error('⚠️ Could not find class or show data for class', classId);
     }
@@ -408,7 +415,7 @@ export async function manuallyCheckClassCompletion(classId: number): Promise<voi
  * @param updates - The fields to update
  */
 async function updateLocalClassCache(
-  classId: number,
+  classId: string | number,
   updates: { status?: string; is_scoring_finalized?: boolean }
 ): Promise<void> {
   try {

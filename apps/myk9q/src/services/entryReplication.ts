@@ -67,7 +67,7 @@ export async function getEntriesFromReplicationCache(
         const status = determineEntryStatus(entry.entry_status);
 
         return {
-          id: parseInt(entry.id, 10),
+          id: entry.id,
           armband: entry.armband,
           callName: entry.dog_call_name,
           breed: entry.dog_breed || '',
@@ -95,7 +95,7 @@ export async function getEntriesFromReplicationCache(
           nqReason: undefined,
           excusedReason: undefined,
           withdrawnReason: undefined,
-          classId: parseInt(entry.class_id, 10),
+          classId: entry.class_id,
           className: buildClassName(cachedClass.element, cachedClass.level, cachedClass.section),
           section: cachedClass.section || '',
           element: cachedClass.element,
@@ -105,7 +105,7 @@ export async function getEntriesFromReplicationCache(
           timeLimit3: undefined,
           areas: cachedClass.num_areas,
           exhibitorOrder: entry.run_order || 0,
-          actualClassId: parseInt(entry.class_id, 10),
+          actualClassId: entry.class_id,
           trialDate: '', // Would need to join with trials table
           trialNumber: '',
         };

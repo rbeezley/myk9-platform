@@ -21,7 +21,7 @@ interface UseResetScoreOptions {
   /** Setter for active tab state */
   setActiveTab: (tab: 'pending' | 'completed') => void;
   /** Reset score action — host-app mutation injected by the caller */
-  handleResetScoreHook: (entryId: number) => Promise<void>;
+  handleResetScoreHook: (entryId: string) => Promise<void>;
 }
 
 interface ResetConfirmState {
@@ -39,7 +39,7 @@ export const useResetScore = ({
   handleResetScoreHook,
 }: UseResetScoreOptions) => {
   // Reset menu popup state
-  const [activeResetMenu, setActiveResetMenu] = useState<number | null>(null);
+  const [activeResetMenu, setActiveResetMenu] = useState<string | null>(null);
   const [resetMenuPosition, setResetMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
   // Reset confirmation dialog state
@@ -48,7 +48,7 @@ export const useResetScore = ({
   /**
    * Handle clicking the reset menu button on a scored entry
    */
-  const handleResetMenuClick = useCallback((e: React.MouseEvent, entryId: number) => {
+  const handleResetMenuClick = useCallback((e: React.MouseEvent, entryId: string) => {
     e.preventDefault();
     e.stopPropagation();
 

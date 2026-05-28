@@ -49,8 +49,8 @@ const StubDogCard: ComponentType<DogCardProps> = ({
 );
 
 const baseEntry: Entry = {
-  id: 1,
-  classId: 100,
+  id: '1',
+  classId: '100',
   armband: 42,
   callName: 'Rex',
   breed: 'Labrador',

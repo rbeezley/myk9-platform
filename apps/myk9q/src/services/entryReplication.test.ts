@@ -191,7 +191,7 @@ describe('entryReplication', () => {
 
       // Check first entry (completed)
       expect(result![0]).toMatchObject({
-        id: 1,
+        id: '1',
         armband: 101,
         callName: 'Max',
         breed: 'Border Collie',
@@ -206,7 +206,7 @@ describe('entryReplication', () => {
 
       // Check second entry (in-ring)
       expect(result![1]).toMatchObject({
-        id: 2,
+        id: '2',
         armband: 102,
         callName: 'Bella',
         breed: 'Golden Retriever',
@@ -232,8 +232,8 @@ describe('entryReplication', () => {
       const result = await getEntriesFromReplicationCache([123, 124], 123);
 
       expect(result).toHaveLength(2);
-      expect(result![0].classId).toBe(123);
-      expect(result![1].classId).toBe(124);
+      expect(result![0].classId).toBe('123');
+      expect(result![1].classId).toBe('124');
     });
 
     it('should sort entries by armband number', async () => {

@@ -32,7 +32,7 @@ export interface ScoreData {
 
 /** Universal input for all scoresheet variants */
 export interface ScoresheetEntry {
-  id: number;
+  id: string;
   armband: number;
   dogName: string;
   handlerName: string;

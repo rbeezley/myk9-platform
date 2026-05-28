@@ -68,7 +68,7 @@ const styles = {
 };
 
 export interface ClassOptionsData {
-  id: number;
+  id: string;
   element: string;
   level: string;
   class_name: string;

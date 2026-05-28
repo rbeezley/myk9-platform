@@ -9,14 +9,14 @@ interface ClassCardGridProps {
   filteredClasses: ClassEntry[];
   isLoaded: boolean;
   hasPermission: (permission: keyof UserPermissions) => boolean;
-  toggleFavorite: (classId: number) => void;
+  toggleFavorite: (classId: string) => void;
   handleViewEntries: (classEntry: ClassEntry) => void;
-  setActivePopup: (id: number | null) => void;
+  setActivePopup: (id: string | null) => void;
   setSelectedClassForStatus: (classEntry: ClassEntry) => void;
   setStatusDialogOpen: (open: boolean) => void;
-  activePopup: number | null;
-  handleClassPrefetch: (classId: number) => void;
-  justToggledClassId: number | null;
+  activePopup: string | null;
+  handleClassPrefetch: (classId: string) => void;
+  justToggledClassId: string | null;
   /** ID of the show owning these classes, for per-show accent honoring. */
   showId?: string;
 }

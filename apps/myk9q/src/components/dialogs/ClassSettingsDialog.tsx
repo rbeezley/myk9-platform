@@ -63,7 +63,7 @@ interface ClassSettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   classData: {
-    id: number;
+    id: string;
     element: string;
     level: string;
     class_name: string;

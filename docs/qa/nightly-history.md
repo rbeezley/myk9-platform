@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-28
+
+- **Playwright command:** fail; exceeded the QA hang rule and completed with failures before it could be cleanly interrupted
+- **Route sweep:** pass
+- **Active specs:** Vitest 18/18; Playwright 31/44 passed, 9 failed, and 4 did not run; route sweep 12/12 role+viewport checks
+- **Failures:** Active Playwright command from `docs/qa/e2e-suite-map.md` failed on `cross-role-workflows.spec.ts` secretary command center, `registration/singleDogSingleClass.spec.ts` dog-search wait, `secretary/show-wizard-officials.spec.ts` officials picker/navigation assertions, `secretary-entry-walk.spec.ts` submit RPC wait, and UAT secretary `critical-path`, `disposable-entry`, and `evidence` specs. Long-running failures violated the 60-second hang guidance (`singleDogSingleClass.spec.ts` `16.7m`, show-wizard officials timeouts around `16m`, evidence pass `4.2m`). Existing finding refreshed: `QA-TEST-FLAKE-010`.
+- **Fixes made:** docs only. No product or test code was changed because the failure set is broad and not a clear low-risk local fix.
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`. The requested branch name `codex/nightly-qa-2026-05-28` could not be created due a local Git refs namespace/lock issue, so docs were recorded on `codex-nightly-qa-2026-05-28`. PR `#372`, referenced by the prior run as the likely fix path, is closed without merge; future repair should start from current `main`. Proofs: promoted Vitest Nightly passed (`18 passed`), active Playwright Nightly failed, and temporary route sweep across public, exhibitor, secretary, judge, club-admin, and admin route groups at desktop plus 375px mobile passed (`12/12`) and the temporary spec was removed.
+
 ### 2026-05-27
 
 - **Playwright command:** fail; stopped after exceeding the QA hang rule

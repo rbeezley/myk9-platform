@@ -10,6 +10,14 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Follow-ups from 2026-05-27 session
+
+Source: PR [myk9-platform#405](https://github.com/rbeezley/myk9-platform/pull/405) (unify `RunOrderPreset` across monorepo, merged 2026-05-27). Memory pointer: `[[project_myk9q_sunset_coverage]]`.
+
+- [ ] **Escalate myK9Q coverage gate from strategy A → B (per-file exclude)** — CI's "Test" job has been red on `main` for 4+ consecutive pushes (PRs #396, #402, #404, #405) on identical coverage-threshold failures (46.95% lines vs 48% / 51.21% functions vs 53% / 46.82% statements vs 48%); every PR — including pure type-level ones with zero coverage delta — merges despite the gate, so it has lost signal value. Audit `apps/myk9q/src/` for re-export-shim files (e.g. `RunOrderDialog.tsx` after #405, `entryStore.ts`/`scoringStore.ts` per `apps/myk9q/CLAUDE.md`); if ≥3 qualifying files, add them to `coverage.exclude` in `apps/myk9q/vitest.config.*` and confirm thresholds clear. If exclusions don't recover signal, jump to strategy C. Full context in TO-DOS.md § "myK9Q Coverage Gate Strategy B — 2026-05-27 20:30".
+
+---
+
 ## Launch Readiness Audit Findings — 2026-05-26
 
 Source: first scorecard-driven secretary golden-path audit in [docs/goals/audits/2026-05-26-secretary-launch-readiness-audit.md](docs/goals/audits/2026-05-26-secretary-launch-readiness-audit.md).

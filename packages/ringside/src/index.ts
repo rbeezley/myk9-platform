@@ -201,3 +201,33 @@ export type {
   ClassOptionsData,
   MaxTimeClassData,
 } from './pages/EntryList';
+
+// PR E2d-1 — hook DI contracts + page-level controlled-render props.
+// The host's `useEntryListHandlers` / `useEntryListActions` stay where
+// they are; their return shapes are formalized as `EntryListHandlers`
+// and `EntryListActions` so the host shim's wiring fails at compile
+// time if the hook drifts from the contract.
+//
+// `EntryListPageProps` and `CombinedEntryListPageProps` are the wide
+// bags ringside's page (PR E2d-2) will consume from the host shim.
+// `EntryListLayoutSlots` is intentionally a TODO placeholder this PR;
+// E2d-2 will replace it with concrete `ComponentType` slots for the
+// host UI primitives the page tree imports (HamburgerMenu, FilterPanel,
+// TabBar, DogCard, etc.). See `pages/EntryList/pageProps.ts` for the
+// enumerated list.
+export type {
+  EntryListHandlers,
+  EntryListActions,
+  ReportSortOrder,
+  EntryStatusChange,
+  EntryStatusCheckIn,
+  LongPressHandlers,
+  EntryListPageProps,
+  CombinedEntryListPageProps,
+  EntryListUiState,
+  EntryListUiActions,
+  CombinedEntryListUiState,
+  CombinedEntryListUiActions,
+  CombinedEntryHandlers,
+  EntryListLayoutSlots,
+} from './pages/EntryList';

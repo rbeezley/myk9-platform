@@ -18,6 +18,12 @@
  * dialogs ringside's EntryList page renders. Slot types ship ahead
  * of the page itself (E2d) so the interface can be reviewed in
  * isolation. Host components stay physically in apps/myk9q.
+ *
+ * PR E2d-1 — `EntryListHandlers` + `EntryListActions` contracts
+ * (return shapes of the host's `useEntryListHandlers` and
+ * `useEntryListActions` hooks) plus the `EntryListPageProps` and
+ * `CombinedEntryListPageProps` controlled-render bags. E2d-2 will
+ * fill in `EntryListLayoutSlots` and move the actual page tree.
  */
 
 // ── Types (moved from CombinedEntryList.types.ts) ────────────────────────
@@ -60,6 +66,39 @@ export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 // as the host's binding for the `EntryListDataDependencies` slot.
 export { useEntryListData } from './hooks/useEntryListData';
 export type { UseEntryListDataOptions } from './hooks/useEntryListData';
+
+// ── Hook DI contracts (PR E2d-1) ────────────────────────────────────────
+// `EntryListHandlers` and `EntryListActions` mirror the return shapes
+// of the host's `useEntryListHandlers` and `useEntryListActions`. The
+// hooks stay host-side (they pull reportService, runOrderService,
+// entryService, supabase, etc.) but their return values become typed
+// props ringside's page (E2d-2) will consume.
+export type {
+  EntryListHandlers,
+  EntryListActions,
+  ReportSortOrder,
+  EntryStatusChange,
+  EntryStatusCheckIn,
+  LongPressHandlers,
+} from './hookContracts';
+
+// ── Page-level controlled-render props (PR E2d-1) ───────────────────────
+// `EntryListPageProps` and `CombinedEntryListPageProps` are the wide
+// bags the host shim hands to ringside's pages in E2d-2. The pages
+// own no state and call no hooks — they render from these props.
+// `EntryListLayoutSlots` is a TODO placeholder; E2d-2 fills it with
+// concrete ComponentType slots for the ~10 host UI primitives the
+// page tree currently imports directly.
+export type {
+  EntryListPageProps,
+  CombinedEntryListPageProps,
+  EntryListUiState,
+  EntryListUiActions,
+  CombinedEntryListUiState,
+  CombinedEntryListUiActions,
+  CombinedEntryHandlers,
+  EntryListLayoutSlots,
+} from './pageProps';
 
 // ── Dialog DI surface (PR E2c) ──────────────────────────────────────────
 // `EntryListDialogSlots` is the shape ringside's EntryList page (PR E2d)

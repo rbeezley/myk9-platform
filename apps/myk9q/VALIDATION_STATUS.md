@@ -40,12 +40,10 @@ Added 17 test files to exclusion list due to Vitest test collection bug (tracked
 - `src/services/entry/scoreSubmission.test.ts`
 - `src/__tests__/offline-first-pattern-consistency.test.ts`
 
-**UI Component Tests** (9 files):
+**UI Component Tests** (7 files):
 - `src/pages/Admin/components/AdminNameDialog.test.tsx`
 - `src/pages/EntryList/__tests__/EntryList.persistence.test.tsx`
-- `src/pages/scoresheets/components/AreaInputs.test.tsx`
 - `src/pages/scoresheets/components/NationalsPointsDisplay.test.tsx`
-- `src/pages/scoresheets/components/TimerDisplay.test.tsx`
 - `src/pages/Settings/components/DataManagementSection.test.tsx`
 - `src/pages/Settings/components/DeveloperToolsSection.test.tsx`
 - `src/pages/Settings/components/PushNotificationSettings.test.tsx`

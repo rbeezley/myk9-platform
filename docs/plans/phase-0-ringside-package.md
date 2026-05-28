@@ -118,6 +118,8 @@ ScoreConfirmationDialog.tsx, etc.               — generic shared components
 - AKC FastCat, AKC ScentWork (+ Router), ASCA ScentDetection
 - Generic shared components (`TimerDisplay`, `AreaInputs`, `ScoreConfirmationDialog`, etc.)
 
+**PR F outcome (revised 2026-05-28 — see [`phase-0-pr-f-generic-scoresheets.md`](phase-0-pr-f-generic-scoresheets.md)):** discovery found the entire presentational scoresheet layer already lives in `@myk9/scoring-ui` (extracted in sprint-25, `4904d1ba`). The `apps/myk9q` scoresheet "pages" are thin host glue bound to the replication *orchestration* layer (host territory per §3), so they were **not** moved into ringside — myK9Show's `/at-show` route builds its own glue in Phase 1. The "generic shared components" above (`TimerDisplay`, `AreaInputs`, `ScoreConfirmationDialog`) were **dead code** (zero importers) and were **deleted**, not extracted. Phase-0 scoresheet item is satisfied: the shared UI surface already exists in `@myk9/scoring-ui`.
+
 **Nationals deferred to a future PR (out of Phase 0):** port the working Nationals implementation from the prod myK9Q v3 repo *directly into* `packages/ringside`, alongside the new auth model. This is a fresh port — not a migration of the monorepo's stale copy. Tracked as a new follow-up task.
 
 **Knock-on effects:**

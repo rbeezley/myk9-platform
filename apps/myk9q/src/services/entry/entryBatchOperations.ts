@@ -112,7 +112,7 @@ export async function updateExhibitorOrder(reorderedEntries: Entry[]): Promise<b
  * logger.log('New orders:', preview);
  * // [{ entryId: 123, newOrder: 1 }, { entryId: 456, newOrder: 2 }, ...]
  */
-export function calculateNewOrders(entries: Entry[]): Array<{ entryId: number; newOrder: number }> {
+export function calculateNewOrders(entries: Entry[]): Array<{ entryId: string; newOrder: number }> {
   return entries.map((entry, index) => ({
     entryId: entry.id,
     newOrder: index + 1, // 1-based indexing
@@ -145,7 +145,7 @@ export function validateExhibitorOrderArray(entries: Entry[]): { valid: boolean;
   }
 
   // Check for invalid IDs
-  const invalidEntry = entries.find(e => !e.id || e.id <= 0);
+  const invalidEntry = entries.find(e => !e.id);
   if (invalidEntry) {
     return {
       valid: false,

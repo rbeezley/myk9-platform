@@ -57,7 +57,7 @@ export interface ScoreSubmissionData {
 
 export interface OptimisticScoringOptions {
   /** Entry ID to score */
-  entryId: number;
+  entryId: string;
   /** Score data to submit */
   scoreData: ScoreSubmissionData['scoreData'];
   /** Class ID for offline queue */

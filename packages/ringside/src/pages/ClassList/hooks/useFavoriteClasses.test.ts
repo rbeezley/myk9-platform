@@ -16,6 +16,9 @@
  * file targets the live behavior contracts directly instead of porting
  * line-by-line.
  *
+ * Class IDs are UUID-native strings (Phase 1 id-model migration), so all
+ * fixtures use string ids and localStorage persists string arrays.
+ *
  * Behavior contracts under test:
  *   1. Initial state — empty set, favoritesLoaded flips to true after mount
  *   2. localStorage read on mount — uses the documented key shape
@@ -78,12 +81,12 @@ describe('initial state', () => {
 
 describe('localStorage read', () => {
   test('hydrates favorites from the documented storage key', async () => {
-    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify([1, 2, 3]));
+    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify(['1', '2', '3']));
 
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
 
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
-    expect(result.current.favoriteClasses).toEqual(new Set([1, 2, 3]));
+    expect(result.current.favoriteClasses).toEqual(new Set(['1', '2', '3']));
   });
 
   test('missing key produces an empty set, still marks loaded', async () => {
@@ -117,14 +120,14 @@ describe('localStorage read', () => {
     // persists normally — this is the bug the recovery fix prevents
     // (previously favoritesLoaded stayed false and the save-effect guard
     // silently dropped the write).
-    act(() => result.current.toggleFavorite(7));
+    act(() => result.current.toggleFavorite('7'));
     expect(localStorage.getItem(storageKey(LICENSE, TRIAL))).toBe(
-      JSON.stringify([7])
+      JSON.stringify(['7'])
     );
   });
 
   test('valid JSON of the wrong shape (e.g. an object) is treated as corrupt and recovers', async () => {
-    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify({ classes: [1, 2] }));
+    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify({ classes: ['1', '2'] }));
 
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
 
@@ -136,21 +139,22 @@ describe('localStorage read', () => {
     );
   });
 
-  test('mixed-type array filters non-numeric entries; cleaned array is then persisted', async () => {
-    // Defensive — historical data might be a mix of strings and numbers.
-    // We keep the numeric ids, drop the rest, and the save-effect rewrites
-    // the cleaned array back to localStorage (self-healing storage).
+  test('mixed-type array filters non-string entries; cleaned array is then persisted', async () => {
+    // Defensive — historical data might mix legacy numeric ids with the
+    // current UUID-native string ids. We keep the string ids, drop the
+    // rest, and the save-effect rewrites the cleaned array back to
+    // localStorage (self-healing storage).
     localStorage.setItem(
       storageKey(LICENSE, TRIAL),
-      JSON.stringify([1, 'bad', 2, null, 3])
+      JSON.stringify(['1', 2, '3', null, '5'])
     );
 
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
 
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
-    expect(result.current.favoriteClasses).toEqual(new Set([1, 2, 3]));
+    expect(result.current.favoriteClasses).toEqual(new Set(['1', '3', '5']));
     expect(localStorage.getItem(storageKey(LICENSE, TRIAL))).toBe(
-      JSON.stringify([1, 2, 3])
+      JSON.stringify(['1', '3', '5'])
     );
   });
 });
@@ -162,10 +166,10 @@ describe('localStorage write', () => {
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    act(() => result.current.toggleFavorite(42));
+    act(() => result.current.toggleFavorite('42'));
 
     expect(localStorage.getItem(storageKey(LICENSE, TRIAL))).toBe(
-      JSON.stringify([42])
+      JSON.stringify(['42'])
     );
   });
 
@@ -173,12 +177,12 @@ describe('localStorage write', () => {
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    act(() => result.current.toggleFavorite(1));
-    act(() => result.current.toggleFavorite(2));
-    act(() => result.current.toggleFavorite(3));
+    act(() => result.current.toggleFavorite('1'));
+    act(() => result.current.toggleFavorite('2'));
+    act(() => result.current.toggleFavorite('3'));
 
-    const stored = JSON.parse(localStorage.getItem(storageKey(LICENSE, TRIAL))!) as number[];
-    expect(new Set(stored)).toEqual(new Set([1, 2, 3]));
+    const stored = JSON.parse(localStorage.getItem(storageKey(LICENSE, TRIAL))!) as string[];
+    expect(new Set(stored)).toEqual(new Set(['1', '2', '3']));
   });
 
   test('does NOT write before favoritesLoaded becomes true', () => {
@@ -189,7 +193,7 @@ describe('localStorage write', () => {
     // Hook never enters the writable state — toggleFavorite still updates
     // local state but the persistence guard `licenseKey && trialId && favoritesLoaded`
     // prevents writes.
-    act(() => result.current.toggleFavorite(99));
+    act(() => result.current.toggleFavorite('99'));
 
     expect(localStorage.getItem(storageKey(LICENSE, undefined))).toBeNull();
   });
@@ -202,19 +206,19 @@ describe('toggleFavorite (single)', () => {
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    act(() => result.current.toggleFavorite(7));
+    act(() => result.current.toggleFavorite('7'));
 
-    expect(result.current.favoriteClasses.has(7)).toBe(true);
+    expect(result.current.favoriteClasses.has('7')).toBe(true);
   });
 
   test('removes a present class from the set', async () => {
-    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify([7]));
+    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify(['7']));
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    act(() => result.current.toggleFavorite(7));
+    act(() => result.current.toggleFavorite('7'));
 
-    expect(result.current.favoriteClasses.has(7)).toBe(false);
+    expect(result.current.favoriteClasses.has('7')).toBe(false);
   });
 });
 
@@ -225,34 +229,34 @@ describe('toggleFavorite (paired class — Novice A/B)', () => {
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    act(() => result.current.toggleFavorite(10, 11));
+    act(() => result.current.toggleFavorite('10', '11'));
 
-    expect(result.current.favoriteClasses.has(10)).toBe(true);
-    expect(result.current.favoriteClasses.has(11)).toBe(true);
+    expect(result.current.favoriteClasses.has('10')).toBe(true);
+    expect(result.current.favoriteClasses.has('11')).toBe(true);
   });
 
   test('toggles BOTH ids off when the primary class is present', async () => {
-    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify([10, 11]));
+    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify(['10', '11']));
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    act(() => result.current.toggleFavorite(10, 11));
+    act(() => result.current.toggleFavorite('10', '11'));
 
-    expect(result.current.favoriteClasses.has(10)).toBe(false);
-    expect(result.current.favoriteClasses.has(11)).toBe(false);
+    expect(result.current.favoriteClasses.has('10')).toBe(false);
+    expect(result.current.favoriteClasses.has('11')).toBe(false);
   });
 
   test('decision is driven by the PRIMARY classId (not the paired one)', async () => {
     // Only the paired class is favorited — primary is not. Toggle should ADD
     // (because primary classId 20 is absent), giving us both.
-    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify([21]));
+    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify(['21']));
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    act(() => result.current.toggleFavorite(20, 21));
+    act(() => result.current.toggleFavorite('20', '21'));
 
-    expect(result.current.favoriteClasses.has(20)).toBe(true);
-    expect(result.current.favoriteClasses.has(21)).toBe(true);
+    expect(result.current.favoriteClasses.has('20')).toBe(true);
+    expect(result.current.favoriteClasses.has('21')).toBe(true);
   });
 });
 
@@ -260,21 +264,21 @@ describe('toggleFavorite (paired class — Novice A/B)', () => {
 
 describe('isFavorite', () => {
   test('returns true for ids in the set, false otherwise', async () => {
-    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify([100, 200]));
+    localStorage.setItem(storageKey(LICENSE, TRIAL), JSON.stringify(['100', '200']));
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    expect(result.current.isFavorite(100)).toBe(true);
-    expect(result.current.isFavorite(200)).toBe(true);
-    expect(result.current.isFavorite(300)).toBe(false);
+    expect(result.current.isFavorite('100')).toBe(true);
+    expect(result.current.isFavorite('200')).toBe(true);
+    expect(result.current.isFavorite('300')).toBe(false);
   });
 
   test('reflects updates after a toggle', async () => {
     const { result } = renderHook(() => useFavoriteClasses(LICENSE, TRIAL));
     await waitFor(() => expect(result.current.favoritesLoaded).toBe(true));
 
-    expect(result.current.isFavorite(7)).toBe(false);
-    act(() => result.current.toggleFavorite(7));
-    expect(result.current.isFavorite(7)).toBe(true);
+    expect(result.current.isFavorite('7')).toBe(false);
+    act(() => result.current.toggleFavorite('7'));
+    expect(result.current.isFavorite('7')).toBe(true);
   });
 });

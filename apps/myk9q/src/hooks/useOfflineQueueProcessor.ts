@@ -46,7 +46,7 @@ export function useOfflineQueueProcessor() {
       markAsSyncing(item.id);
       try {
         await submitScore(
-          item.entryId,
+          String(item.entryId),
           item.scoreData,
           undefined, // pairedClassId
           item.classId

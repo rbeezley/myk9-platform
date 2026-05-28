@@ -20,8 +20,8 @@ const StubDogCard: ComponentType<DogCardProps> = ({ armband, sectionBadge }) => 
 
 const entry = (id: number, overrides: Partial<Entry> = {}): Entry =>
   ({
-    id,
-    classId: 100,
+    id: String(id),
+    classId: '100',
     armband: 40 + id,
     callName: `Dog${id}`,
     breed: 'Lab',

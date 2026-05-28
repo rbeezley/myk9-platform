@@ -99,7 +99,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
       }
 
       const pairedClassId =
-        entry.classId === parseInt(classIds.a!) ? parseInt(classIds.b!) : parseInt(classIds.a!);
+        entry.classId === classIds.a ? classIds.b : classIds.a;
 
       const route = getScoresheetNavigationRoute(entry);
       if (route) {

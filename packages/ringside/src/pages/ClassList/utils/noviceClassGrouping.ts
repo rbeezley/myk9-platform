@@ -124,7 +124,7 @@ export function groupSectionedClasses(
 
   const combineAll = shouldCombineAllSections(organization);
   const grouped: ClassEntry[] = [];
-  const processedIds = new Set<number>();
+  const processedIds = new Set<string>();
 
   // Default findPaired function if not provided
   const findPairedFn = findPaired || ((entry: ClassEntry, all: ClassEntry[]) =>
@@ -236,7 +236,7 @@ export function isCombinedNoviceEntry(classEntry: ClassEntry): boolean {
  * getClassIds(single);   // [3]
  * ```
  */
-export function getClassIds(classEntry: ClassEntry): number[] {
+export function getClassIds(classEntry: ClassEntry): string[] {
   if (isCombinedEntry(classEntry)) {
     return [classEntry.id, classEntry.pairedClassId!];
   }

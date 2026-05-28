@@ -168,7 +168,7 @@ async function processClassesWithEntries(
     // Process dog entries with custom status priority sorting
     const dogs = classEntries
       .map(entry => ({
-        id: parseInt(entry.id, 10),
+        id: entry.id,
         armband: entry.armband,
         call_name: entry.dog_call_name,
         breed: entry.dog_breed || '',
@@ -223,7 +223,7 @@ async function processClassesWithEntries(
     const className = `${cls.element} ${cls.level}${sectionPart}`.trim();
 
     return {
-      id: parseInt(cls.id, 10),
+      id: cls.id,
       element: cls.element,
       level: cls.level,
       section: cls.section || '',
@@ -423,7 +423,7 @@ async function fetchClasses(
   // Process classes with entry data
   const processedClasses = classData.map(cls => {
     // Filter entries for this specific class using class_id
-    const entryData = allTrialEntries.filter(entry => entry.classId === cls.class_id);
+    const entryData = allTrialEntries.filter(entry => entry.classId === String(cls.class_id));
 
     // Process dog entries with custom status priority sorting
     const dogs = entryData
@@ -483,7 +483,7 @@ async function fetchClasses(
     const className = `${cls.element} ${cls.level}${sectionPart}`.trim();
 
     const classEntry: ClassEntry = {
-      id: cls.class_id,
+      id: String(cls.class_id),
       element: cls.element,
       level: cls.level,
       section: cls.section,

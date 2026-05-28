@@ -55,14 +55,14 @@ export interface ClassInfo {
   element: string;
   level: string;
   section?: string;
-  trialId?: number;
+  trialId?: string;
   trialDate?: string;
   trialNumber?: string;
   judgeName?: string;
   judgeNameB?: string;
-  actualClassId?: number;
-  actualClassIdA?: number;
-  actualClassIdB?: number;
+  actualClassId?: string;
+  actualClassIdA?: string;
+  actualClassIdB?: string;
   selfCheckin?: boolean;
   classStatus?: string;
   totalEntries?: number;

@@ -23,9 +23,9 @@ export interface PopupPosition {
  */
 export interface UseClassDialogsReturn {
   // Popup Menu State
-  activePopup: number | null;
+  activePopup: string | null;
   popupPosition: PopupPosition | null;
-  setActivePopup: (classId: number | null) => void;
+  setActivePopup: (classId: string | null) => void;
   setPopupPosition: (position: PopupPosition | null) => void;
 
   // Status Dialog State (Note: managed by useClassStatus, included here for completeness)
@@ -116,7 +116,7 @@ export interface UseClassDialogsReturn {
  */
 export function useClassDialogs(): UseClassDialogsReturn {
   // Popup Menu State
-  const [activePopup, setActivePopup] = useState<number | null>(null);
+  const [activePopup, setActivePopup] = useState<string | null>(null);
   const [popupPosition, setPopupPosition] = useState<PopupPosition | null>(null);
 
   // Status Dialog State (Note: typically managed by useClassStatus)

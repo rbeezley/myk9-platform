@@ -20,7 +20,7 @@ const createMockSupabaseClient = () => ({
 // Sample test data
 const mockClasses: ClassEntry[] = [
   {
-    id: 1,
+    id: '1',
     trial_id: 1,
     element: 'Agility',
     level: 'Novice',
@@ -35,11 +35,11 @@ const mockClasses: ClassEntry[] = [
     is_favorite: false,
     trial_date: '2025-01-20',
     trial_number: 1,
-    pairedClassId: 2, // Paired with class 2
+    pairedClassId: '2', // Paired with class 2
     dogs: [],
   } as ClassEntry,
   {
-    id: 2,
+    id: '2',
     trial_id: 1,
     element: 'Agility',
     level: 'Novice',
@@ -54,11 +54,11 @@ const mockClasses: ClassEntry[] = [
     is_favorite: false,
     trial_date: '2025-01-20',
     trial_number: 1,
-    pairedClassId: 1, // Paired with class 1
+    pairedClassId: '1', // Paired with class 1
     dogs: [],
   } as ClassEntry,
   {
-    id: 3,
+    id: '3',
     trial_id: 1,
     element: 'Jumping',
     level: 'Open',
@@ -177,7 +177,7 @@ describe('useClassStatus', () => {
       let statusResult;
       await act(async () => {
         statusResult = await result.current.handleStatusChange(
-          3, // Class without pairing
+          '3', // Class without pairing
           'in_progress',
           createDeps(mockSupabase)
         );
@@ -196,7 +196,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         await result.current.handleStatusChange(
-          1, // Class with pairing (paired with 2)
+          '1', // Class with pairing (paired with 2)
           'completed',
           createDeps(mockSupabase)
         );
@@ -208,8 +208,8 @@ describe('useClassStatus', () => {
       const updatedClasses = updateCall(mockClasses);
 
       // Both paired classes should have new status
-      expect(updatedClasses.find((c: ClassEntry) => c.id === 1)?.class_status).toBe('completed');
-      expect(updatedClasses.find((c: ClassEntry) => c.id === 2)?.class_status).toBe('completed');
+      expect(updatedClasses.find((c: ClassEntry) => c.id === '1')?.class_status).toBe('completed');
+      expect(updatedClasses.find((c: ClassEntry) => c.id === '2')?.class_status).toBe('completed');
     });
 
     it('should convert no-status to null for database', async () => {
@@ -221,7 +221,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         await result.current.handleStatusChange(
-          3,
+          '3',
           'no-status',
           createDeps(mockSupabase)
         );
@@ -244,7 +244,7 @@ describe('useClassStatus', () => {
       let statusResult;
       await act(async () => {
         statusResult = await result.current.handleStatusChange(
-          3,
+          '3',
           'in_progress',
           createDeps(mockSupabase)
         );
@@ -272,7 +272,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         await result.current.handleStatusChange(
-          1,
+          '1',
           'completed',
           createDeps(mockSupabase)
         );
@@ -293,7 +293,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         await result.current.handleStatusChangeWithTime(
-          3,
+          '3',
           'briefing',
           '08:00',
           createDeps(mockSupabase)
@@ -315,7 +315,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         await result.current.handleStatusChangeWithTime(
-          3,
+          '3',
           'break',
           '10:30',
           createDeps(mockSupabase)
@@ -337,7 +337,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         await result.current.handleStatusChangeWithTime(
-          3,
+          '3',
           'start_time',
           '09:00',
           createDeps(mockSupabase)
@@ -356,7 +356,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         await result.current.handleStatusChangeWithTime(
-          3,
+          '3',
           'briefing',
           '08:00',
           createDeps(mockSupabase)
@@ -365,7 +365,7 @@ describe('useClassStatus', () => {
 
       const updateCall = mockSetClasses.mock.calls[0][0];
       const updatedClasses = updateCall(mockClasses);
-      const updatedClass = updatedClasses.find((c: ClassEntry) => c.id === 3);
+      const updatedClass = updatedClasses.find((c: ClassEntry) => c.id === '3');
 
       expect(updatedClass?.class_status).toBe('briefing');
       expect(updatedClass?.briefing_time).toBe('08:00');
@@ -377,7 +377,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         await result.current.handleStatusChangeWithTime(
-          1, // Paired with class 2
+          '1', // Paired with class 2
           'break',
           '11:00',
           createDeps(mockSupabase)
@@ -388,8 +388,8 @@ describe('useClassStatus', () => {
       const updatedClasses = updateCall(mockClasses);
 
       // Both paired classes should be updated
-      expect(updatedClasses.find((c: ClassEntry) => c.id === 1)?.break_until).toBe('11:00');
-      expect(updatedClasses.find((c: ClassEntry) => c.id === 2)?.break_until).toBe('11:00');
+      expect(updatedClasses.find((c: ClassEntry) => c.id === '1')?.break_until).toBe('11:00');
+      expect(updatedClasses.find((c: ClassEntry) => c.id === '2')?.break_until).toBe('11:00');
     });
 
     it('should handle time update errors', async () => {
@@ -406,7 +406,7 @@ describe('useClassStatus', () => {
       let statusResult;
       await act(async () => {
         statusResult = await result.current.handleStatusChangeWithTime(
-          3,
+          '3',
           'briefing',
           '08:00',
           createDeps(mockSupabase)
@@ -438,7 +438,7 @@ describe('useClassStatus', () => {
       // 2. Set briefing with time
       await act(async () => {
         const result1 = await result.current.handleStatusChangeWithTime(
-          1,
+          '1',
           'briefing',
           '08:00',
           deps
@@ -450,7 +450,7 @@ describe('useClassStatus', () => {
       // 3. Change to in_progress
       await act(async () => {
         const result2 = await result.current.handleStatusChange(
-          1,
+          '1',
           'in_progress',
           deps
         );
@@ -460,7 +460,7 @@ describe('useClassStatus', () => {
       // 4. Mark as completed
       await act(async () => {
         const result3 = await result.current.handleStatusChange(
-          1,
+          '1',
           'completed',
           deps
         );
@@ -483,7 +483,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         const result1 = await result.current.handleStatusChange(
-          3,
+          '3',
           'completed',
           createDeps(failingSupabase)
         );
@@ -495,7 +495,7 @@ describe('useClassStatus', () => {
 
       await act(async () => {
         const result2 = await result.current.handleStatusChange(
-          3,
+          '3',
           'completed',
           createDeps(successSupabase)
         );

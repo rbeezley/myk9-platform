@@ -364,7 +364,7 @@ export interface EntryListUiState {
   manualOrder: Entry[];
 
   // Status popup (per-entry checkin status picker)
-  activeStatusPopup: number | null;
+  activeStatusPopup: string | null;
 
   // Refresh / loading
   isManualRefreshing: boolean;
@@ -401,7 +401,7 @@ export interface EntryListUiState {
   printDialogType: 'check-in' | 'results' | 'scoresheet' | null;
 
   // Reset menu / confirm dialog
-  activeResetMenu: number | null;
+  activeResetMenu: string | null;
   resetMenuPosition: { top: number; left: number } | null;
   resetConfirmDialog: { show: boolean; entry: Entry | null };
 }
@@ -420,7 +420,7 @@ export interface EntryListUiActions {
   setLocalEntries: Dispatch<SetStateAction<Entry[]>>;
   setManualOrder: Dispatch<SetStateAction<Entry[]>>;
 
-  setActiveStatusPopup: Dispatch<SetStateAction<number | null>>;
+  setActiveStatusPopup: Dispatch<SetStateAction<string | null>>;
 
   setIsManualRefreshing: Dispatch<SetStateAction<boolean>>;
   setIsLoaded: Dispatch<SetStateAction<boolean>>;
@@ -449,7 +449,7 @@ export interface EntryListUiActions {
 
   setPrintDialogType: Dispatch<SetStateAction<'check-in' | 'results' | 'scoresheet' | null>>;
 
-  setActiveResetMenu: Dispatch<SetStateAction<number | null>>;
+  setActiveResetMenu: Dispatch<SetStateAction<string | null>>;
   setResetMenuPosition: Dispatch<SetStateAction<{ top: number; left: number } | null>>;
   setResetConfirmDialog: Dispatch<SetStateAction<{ show: boolean; entry: Entry | null }>>;
 
@@ -768,12 +768,12 @@ export interface CombinedEntryListPageProps {
  * because the combined view's interactions are narrower.
  */
 export interface CombinedEntryHandlers {
-  activeStatusPopup: number | null;
-  setActiveStatusPopup: Dispatch<SetStateAction<number | null>>;
+  activeStatusPopup: string | null;
+  setActiveStatusPopup: Dispatch<SetStateAction<string | null>>;
 
-  handleStatusClick: (e: import('react').MouseEvent, entryId: number) => void;
+  handleStatusClick: (e: import('react').MouseEvent, entryId: string) => void;
   handleStatusChange: (
-    entryId: number,
+    entryId: string,
     newStatus:
       | 'no-status'
       | 'checked-in'
@@ -785,9 +785,9 @@ export interface CombinedEntryHandlers {
       | 'completed',
   ) => Promise<void>;
 
-  activeResetMenu: number | null;
+  activeResetMenu: string | null;
   resetMenuPosition: { top: number; left: number } | null;
-  handleResetMenuClick: (e: import('react').MouseEvent, entryId: number) => void;
+  handleResetMenuClick: (e: import('react').MouseEvent, entryId: string) => void;
   handleResetScore: (entry: Entry) => void;
 
   resetConfirmDialog: { show: boolean; entry: Entry | null };

@@ -38,8 +38,8 @@ interface UseEntryListHandlersParams {
   isRefreshing: boolean;
   isManualRefreshing: boolean;
   setIsManualRefreshing: Dispatch<SetStateAction<boolean>>;
-  setActiveStatusPopup: Dispatch<SetStateAction<number | null>>;
-  setActiveResetMenu: Dispatch<SetStateAction<number | null>>;
+  setActiveStatusPopup: Dispatch<SetStateAction<string | null>>;
+  setActiveResetMenu: Dispatch<SetStateAction<string | null>>;
   setResetMenuPosition: Dispatch<SetStateAction<{ top: number; left: number } | null>>;
   setResetConfirmDialog: Dispatch<SetStateAction<{ show: boolean; entry: Entry | null }>>;
   resetConfirmDialog: { show: boolean; entry: Entry | null };
@@ -56,12 +56,12 @@ interface UseEntryListHandlersParams {
   setActiveTab: (tab: TabType) => void;
   setSortOrder: (sort: SortType) => void;
   handleStatusChangeHook: (
-    entryId: number,
+    entryId: string,
     status: 'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate'
   ) => Promise<void>;
-  handleResetScoreHook: (entryId: number) => Promise<void>;
-  handleMarkInRing: (entryId: number, currentStatus?: Entry['status']) => Promise<void>;
-  handleMarkCompleted: (entryId: number) => Promise<void>;
+  handleResetScoreHook: (entryId: string) => Promise<void>;
+  handleMarkInRing: (entryId: string, currentStatus?: Entry['status']) => Promise<void>;
+  handleMarkCompleted: (entryId: string) => Promise<void>;
 }
 
 export function useEntryListHandlers({
@@ -120,7 +120,7 @@ export function useEntryListHandlers({
 
   // Set dog in ring status
   const setDogInRingStatus = useCallback(
-    async (dogId: number, inRing: boolean) => {
+    async (dogId: string, inRing: boolean) => {
       try {
         const currentDog = localEntries.find(entry => entry.id === dogId);
 
@@ -257,7 +257,7 @@ export function useEntryListHandlers({
   // Status change handler
   const handleStatusChange = useCallback(
     async (
-      entryId: number,
+      entryId: string,
       status: NonNullable<Entry['checkinStatus']> | 'in-ring' | 'completed'
     ) => {
       setActiveStatusPopup(null);
@@ -325,7 +325,7 @@ export function useEntryListHandlers({
 
   // Status click handler
   const handleStatusClick = useCallback(
-    (e: React.MouseEvent, entryId: number) => {
+    (e: React.MouseEvent, entryId: string) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -342,7 +342,7 @@ export function useEntryListHandlers({
 
   // Reset menu handlers
   const handleResetMenuClick = useCallback(
-    (e: React.MouseEvent, entryId: number) => {
+    (e: React.MouseEvent, entryId: string) => {
       e.preventDefault();
       e.stopPropagation();
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

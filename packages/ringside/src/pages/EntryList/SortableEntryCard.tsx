@@ -46,8 +46,8 @@ export interface SortableEntryCardProps {
    */
   hasPermission: (permission: EntryListPermission) => boolean;
   handleEntryClick: (entry: Entry) => void;
-  handleStatusClick: (e: React.MouseEvent, entryId: number) => void;
-  handleResetMenuClick: (e: React.MouseEvent, entryId: number) => void;
+  handleStatusClick: (e: React.MouseEvent, entryId: string) => void;
+  handleResetMenuClick: (e: React.MouseEvent, entryId: string) => void;
   setSelfCheckinDisabledDialog: (value: boolean) => void;
   onPrefetch?: (entry: Entry) => void;
   /** Section badge for combined views (A/B) */

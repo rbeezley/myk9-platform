@@ -10,7 +10,7 @@ import {
 } from './statusFormatting';
 
 const createMockClass = (overrides: Record<string, unknown> = {}) => ({
-  id: 1,
+  id: '1',
   class_name: 'Container Novice A',
   element: 'Container',
   level: 'Novice',

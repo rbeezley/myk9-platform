@@ -21,7 +21,7 @@ import type { Entry } from '@/stores/entryStore';
 import { logger } from '@/utils/logger';
 
 interface ClassSchedule {
-  classId: number;
+  classId: string;
   element: string;
   level: string;
   scheduledStartTime: string;
@@ -30,9 +30,9 @@ interface ClassSchedule {
 
 class NotificationIntegration {
   private static instance: NotificationIntegration;
-  private previousEntries: Map<number, Entry> = new Map();
-  private classSchedules: Map<number, ClassSchedule> = new Map();
-  private scheduledWarnings: Map<number, NodeJS.Timeout> = new Map();
+  private previousEntries: Map<string, Entry> = new Map();
+  private classSchedules: Map<string, ClassSchedule> = new Map();
+  private scheduledWarnings: Map<string, NodeJS.Timeout> = new Map();
   private monitoringInterval?: NodeJS.Timeout;
   private isInitialized = false;
   private favoriteDogs: Set<number> = new Set();
@@ -212,7 +212,7 @@ return;
    * Called when all dogs in a class have been scored
    * This is when placements are final and exhibitors want to know results
    */
-  private async onClassComplete(classId: number, entries: Entry[]): Promise<void> {
+  private async onClassComplete(classId: string, entries: Entry[]): Promise<void> {
 // Get entries with placements (top 4 typically)
     const placedEntries = entries
       .filter(e => e.placement && e.placement <= 4)
@@ -286,7 +286,7 @@ return;
    * Register a class schedule for start time warnings
    */
   registerClassSchedule(
-    classId: number,
+    classId: string,
     element: string,
     level: string,
     scheduledStartTime: string
@@ -306,7 +306,7 @@ return;
   /**
    * Schedule a notification for class starting soon
    */
-  private scheduleClassStartWarning(classId: number): void {
+  private scheduleClassStartWarning(classId: string): void {
     const classSchedule = this.classSchedules.get(classId);
     if (!classSchedule || classSchedule.warningScheduled) {
       return;
@@ -373,7 +373,7 @@ return;
    * Manually trigger a "your turn" notification
    * Useful for testing or manual notifications
    */
-  async manuallyNotifyYourTurn(entryId: number): Promise<void> {
+  async manuallyNotifyYourTurn(entryId: string): Promise<void> {
     const { entries } = useEntryStore.getState();
     const entry = entries.find(e => e.id === entryId);
 
@@ -388,7 +388,7 @@ return;
   /**
    * Manually trigger a "results posted" notification
    */
-  async manuallyNotifyResults(entryId: number): Promise<void> {
+  async manuallyNotifyResults(entryId: string): Promise<void> {
     const { entries } = useEntryStore.getState();
     const entry = entries.find(e => e.id === entryId);
 

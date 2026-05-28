@@ -417,7 +417,7 @@ export function toRegistryKey(org: string, sport: string): ScoresheetSportType |
 /** Convert ScoringEntry to ScoresheetEntry for scoresheet props. */
 export function toScoresheetEntry(entry: ScoringEntry, classInfo: ClassInfo): ScoresheetEntry {
   return {
-    id: parseInt(entry.entryId, 10) || 0,
+    id: entry.entryId,
     armband: entry.armband,
     dogName: entry.callName,
     handlerName: entry.handler,

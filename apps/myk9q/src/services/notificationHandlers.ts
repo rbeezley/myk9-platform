@@ -10,7 +10,7 @@ import type { Entry } from '@/stores/entryStore';
 
 // Temporary Class interface until we have a global types file
 interface Class {
-  id: number;
+  id: string;
   element: string;
   level: string;
   scheduled_start_time?: string;

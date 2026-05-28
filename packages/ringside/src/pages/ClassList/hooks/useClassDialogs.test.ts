@@ -9,7 +9,7 @@ import type { ClassEntry } from '../types';
 
 // Sample test data
 const mockClassEntry: ClassEntry = {
-  id: 1,
+  id: '1',
   element: 'Agility',
   level: 'Novice',
   section: 'A',
@@ -25,7 +25,7 @@ const mockClassEntry: ClassEntry = {
 };
 
 const mockClassEntry2: ClassEntry = {
-  id: 2,
+  id: '2',
   element: 'Jumping',
   level: 'Open',
   section: 'B',
@@ -92,19 +92,19 @@ describe('useClassDialogs', () => {
       const { result } = renderHook(() => useClassDialogs());
 
       act(() => {
-        result.current.setActivePopup(1);
+        result.current.setActivePopup('1');
       });
 
-      expect(result.current.activePopup).toBe(1);
+      expect(result.current.activePopup).toBe('1');
     });
 
     it('should clear active popup', () => {
       const { result } = renderHook(() => useClassDialogs());
 
       act(() => {
-        result.current.setActivePopup(1);
+        result.current.setActivePopup('1');
       });
-      expect(result.current.activePopup).toBe(1);
+      expect(result.current.activePopup).toBe('1');
 
       act(() => {
         result.current.setActivePopup(null);
@@ -127,7 +127,7 @@ describe('useClassDialogs', () => {
       const { result } = renderHook(() => useClassDialogs());
 
       act(() => {
-        result.current.setActivePopup(1);
+        result.current.setActivePopup('1');
         result.current.setPopupPosition({ top: 100, left: 50 });
       });
 
@@ -246,12 +246,12 @@ describe('useClassDialogs', () => {
       act(() => {
         result.current.openMaxTimeDialog(mockClassEntry);
       });
-      expect(result.current.selectedClassForMaxTime?.id).toBe(1);
+      expect(result.current.selectedClassForMaxTime?.id).toBe('1');
 
       act(() => {
         result.current.openMaxTimeDialog(mockClassEntry2);
       });
-      expect(result.current.selectedClassForMaxTime?.id).toBe(2);
+      expect(result.current.selectedClassForMaxTime?.id).toBe('2');
     });
   });
 
@@ -308,7 +308,7 @@ describe('useClassDialogs', () => {
         result.current.openRequirementsDialog(mockClassEntry);
         result.current.openMaxTimeDialog(mockClassEntry);
         result.current.openSettingsDialog(mockClassEntry);
-        result.current.setActivePopup(1);
+        result.current.setActivePopup('1');
         result.current.setPopupPosition({ top: 100, left: 50 });
       });
 
@@ -337,8 +337,8 @@ describe('useClassDialogs', () => {
         result.current.openMaxTimeDialog(mockClassEntry2);
       });
 
-      expect(result.current.selectedClassForRequirements?.id).toBe(1);
-      expect(result.current.selectedClassForMaxTime?.id).toBe(2);
+      expect(result.current.selectedClassForRequirements?.id).toBe('1');
+      expect(result.current.selectedClassForMaxTime?.id).toBe('2');
     });
   });
 
@@ -367,7 +367,7 @@ describe('useClassDialogs', () => {
 
       // 1. Open popup menu
       act(() => {
-        result.current.setActivePopup(1);
+        result.current.setActivePopup('1');
         result.current.setPopupPosition({ top: 200, left: 75 });
       });
 
@@ -389,7 +389,7 @@ describe('useClassDialogs', () => {
       act(() => {
         result.current.openRequirementsDialog(mockClassEntry);
         result.current.openMaxTimeDialog(mockClassEntry);
-        result.current.setActivePopup(1);
+        result.current.setActivePopup('1');
       });
 
       // Simulate escape key handler calling closeAllDialogs

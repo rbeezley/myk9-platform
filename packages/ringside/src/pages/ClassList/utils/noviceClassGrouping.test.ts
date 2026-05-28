@@ -14,7 +14,7 @@ import {
 } from './noviceClassGrouping';
 
 const createMockClass = (overrides: Record<string, unknown> = {}) => ({
-  id: 1,
+  id: '1',
   class_name: 'Container Novice A',
   element: 'Container',
   level: 'Novice',
@@ -28,8 +28,8 @@ const createMockClass = (overrides: Record<string, unknown> = {}) => ({
 
 describe('findPairedNoviceClass', () => {
   test('should find matching Novice B for Novice A', () => {
-    const classA = createMockClass({ id: 1, section: 'A' });
-    const classB = createMockClass({ id: 2, section: 'B' });
+    const classA = createMockClass({ id: '1', section: 'A' });
+    const classB = createMockClass({ id: '2', section: 'B' });
     const classes = [classA, classB];
 
     const result = findPairedNoviceClass(classA, classes);
@@ -37,7 +37,7 @@ describe('findPairedNoviceClass', () => {
   });
 
   test('should return null if no pair exists', () => {
-    const classA = createMockClass({ id: 1, section: 'A' });
+    const classA = createMockClass({ id: '1', section: 'A' });
     const classes = [classA];
 
     const result = findPairedNoviceClass(classA, classes);
@@ -45,8 +45,8 @@ describe('findPairedNoviceClass', () => {
   });
 
   test('should not pair different elements', () => {
-    const classA = createMockClass({ id: 1, element: 'Container', section: 'A' });
-    const classB = createMockClass({ id: 2, element: 'Exterior', section: 'B' });
+    const classA = createMockClass({ id: '1', element: 'Container', section: 'A' });
+    const classB = createMockClass({ id: '2', element: 'Exterior', section: 'B' });
     const classes = [classA, classB];
 
     const result = findPairedNoviceClass(classA, classes);
@@ -56,8 +56,8 @@ describe('findPairedNoviceClass', () => {
 
 describe('groupNoviceClasses', () => {
   test('should combine Novice A and B classes', () => {
-    const classA = createMockClass({ id: 1, section: 'A', entry_count: 5 });
-    const classB = createMockClass({ id: 2, section: 'B', entry_count: 3 });
+    const classA = createMockClass({ id: '1', section: 'A', entry_count: 5 });
+    const classB = createMockClass({ id: '2', section: 'B', entry_count: 3 });
     const classes = [classA, classB];
 
     const result = groupNoviceClasses(classes);
@@ -68,7 +68,7 @@ describe('groupNoviceClasses', () => {
   });
 
   test('should keep unpaired classes as-is', () => {
-    const classA = createMockClass({ id: 1, section: 'A' });
+    const classA = createMockClass({ id: '1', section: 'A' });
     const classes = [classA];
 
     const result = groupNoviceClasses(classes);
@@ -79,7 +79,7 @@ describe('groupNoviceClasses', () => {
 
   test('should not group non-Novice classes', () => {
     const classAdvanced = createMockClass({
-      id: 1,
+      id: '1',
       level: 'Advanced',
       section: 'A',
     });
@@ -93,7 +93,7 @@ describe('groupNoviceClasses', () => {
 
 describe('isCombinedNoviceEntry', () => {
   test('should identify combined entries', () => {
-    const combined = createMockClass({ section: 'A & B', pairedClassId: 2 });
+    const combined = createMockClass({ section: 'A & B', pairedClassId: '2' });
     expect(isCombinedNoviceEntry(combined)).toBe(true);
   });
 
@@ -110,21 +110,21 @@ describe('isCombinedNoviceEntry', () => {
 
 describe('getClassIds', () => {
   test('should return single ID for regular class', () => {
-    const regularClass = createMockClass({ id: 1, section: 'A' });
+    const regularClass = createMockClass({ id: '1', section: 'A' });
     const ids = getClassIds(regularClass);
 
-    expect(ids).toEqual([1]);
+    expect(ids).toEqual(['1']);
   });
 
   test('should return both IDs for combined class', () => {
     const combined = createMockClass({
-      id: 1,
+      id: '1',
       section: 'A & B',
-      pairedClassId: 2,
+      pairedClassId: '2',
     });
     const ids = getClassIds(combined);
 
-    expect(ids).toEqual([1, 2]);
+    expect(ids).toEqual(['1', '2']);
   });
 });
 
@@ -157,8 +157,8 @@ describe('shouldCombineAllSections', () => {
 
 describe('findPairedSectionedClass', () => {
   test('should pair Advanced classes for UKC Nosework', () => {
-    const classA = createMockClass({ id: 1, level: 'Advanced', section: 'A' });
-    const classB = createMockClass({ id: 2, level: 'Advanced', section: 'B' });
+    const classA = createMockClass({ id: '1', level: 'Advanced', section: 'A' });
+    const classB = createMockClass({ id: '2', level: 'Advanced', section: 'B' });
     const classes = [classA, classB];
 
     const result = findPairedSectionedClass(classA, classes, 'UKC Nosework');
@@ -166,8 +166,8 @@ describe('findPairedSectionedClass', () => {
   });
 
   test('should pair Master classes for UKC Nosework', () => {
-    const classA = createMockClass({ id: 1, level: 'Master', section: 'A' });
-    const classB = createMockClass({ id: 2, level: 'Master', section: 'B' });
+    const classA = createMockClass({ id: '1', level: 'Master', section: 'A' });
+    const classB = createMockClass({ id: '2', level: 'Master', section: 'B' });
     const classes = [classA, classB];
 
     const result = findPairedSectionedClass(classA, classes, 'UKC Nosework');
@@ -175,8 +175,8 @@ describe('findPairedSectionedClass', () => {
   });
 
   test('should NOT pair Advanced classes for AKC', () => {
-    const classA = createMockClass({ id: 1, level: 'Advanced', section: 'A' });
-    const classB = createMockClass({ id: 2, level: 'Advanced', section: 'B' });
+    const classA = createMockClass({ id: '1', level: 'Advanced', section: 'A' });
+    const classB = createMockClass({ id: '2', level: 'Advanced', section: 'B' });
     const classes = [classA, classB];
 
     const result = findPairedSectionedClass(classA, classes, 'AKC Scent Work');
@@ -184,8 +184,8 @@ describe('findPairedSectionedClass', () => {
   });
 
   test('should still pair Novice classes for AKC', () => {
-    const classA = createMockClass({ id: 1, level: 'Novice', section: 'A' });
-    const classB = createMockClass({ id: 2, level: 'Novice', section: 'B' });
+    const classA = createMockClass({ id: '1', level: 'Novice', section: 'A' });
+    const classB = createMockClass({ id: '2', level: 'Novice', section: 'B' });
     const classes = [classA, classB];
 
     const result = findPairedSectionedClass(classA, classes, 'AKC Scent Work');
@@ -193,7 +193,7 @@ describe('findPairedSectionedClass', () => {
   });
 
   test('should return null for classes without A/B sections', () => {
-    const classNoSection = createMockClass({ id: 1, level: 'Advanced', section: '-' });
+    const classNoSection = createMockClass({ id: '1', level: 'Advanced', section: '-' });
     const classes = [classNoSection];
 
     const result = findPairedSectionedClass(classNoSection, classes, 'UKC Nosework');
@@ -203,10 +203,10 @@ describe('findPairedSectionedClass', () => {
 
 describe('groupSectionedClasses', () => {
   test('should combine all levels for UKC Nosework', () => {
-    const noviceA = createMockClass({ id: 1, level: 'Novice', section: 'A', entry_count: 5 });
-    const noviceB = createMockClass({ id: 2, level: 'Novice', section: 'B', entry_count: 3 });
-    const advancedA = createMockClass({ id: 3, level: 'Advanced', section: 'A', entry_count: 4 });
-    const advancedB = createMockClass({ id: 4, level: 'Advanced', section: 'B', entry_count: 2 });
+    const noviceA = createMockClass({ id: '1', level: 'Novice', section: 'A', entry_count: 5 });
+    const noviceB = createMockClass({ id: '2', level: 'Novice', section: 'B', entry_count: 3 });
+    const advancedA = createMockClass({ id: '3', level: 'Advanced', section: 'A', entry_count: 4 });
+    const advancedB = createMockClass({ id: '4', level: 'Advanced', section: 'B', entry_count: 2 });
     const classes = [noviceA, noviceB, advancedA, advancedB];
 
     const result = groupSectionedClasses(classes, 'UKC Nosework');
@@ -219,10 +219,10 @@ describe('groupSectionedClasses', () => {
   });
 
   test('should only combine Novice for AKC', () => {
-    const noviceA = createMockClass({ id: 1, level: 'Novice', section: 'A', entry_count: 5 });
-    const noviceB = createMockClass({ id: 2, level: 'Novice', section: 'B', entry_count: 3 });
-    const advancedA = createMockClass({ id: 3, level: 'Advanced', section: 'A', entry_count: 4 });
-    const advancedB = createMockClass({ id: 4, level: 'Advanced', section: 'B', entry_count: 2 });
+    const noviceA = createMockClass({ id: '1', level: 'Novice', section: 'A', entry_count: 5 });
+    const noviceB = createMockClass({ id: '2', level: 'Novice', section: 'B', entry_count: 3 });
+    const advancedA = createMockClass({ id: '3', level: 'Advanced', section: 'A', entry_count: 4 });
+    const advancedB = createMockClass({ id: '4', level: 'Advanced', section: 'B', entry_count: 2 });
     const classes = [noviceA, noviceB, advancedA, advancedB];
 
     const result = groupSectionedClasses(classes, 'AKC Scent Work');
@@ -234,8 +234,8 @@ describe('groupSectionedClasses', () => {
   });
 
   test('should default to AKC behavior when no organization provided', () => {
-    const advancedA = createMockClass({ id: 1, level: 'Advanced', section: 'A' });
-    const advancedB = createMockClass({ id: 2, level: 'Advanced', section: 'B' });
+    const advancedA = createMockClass({ id: '1', level: 'Advanced', section: 'A' });
+    const advancedB = createMockClass({ id: '2', level: 'Advanced', section: 'B' });
     const classes = [advancedA, advancedB];
 
     const result = groupSectionedClasses(classes, undefined);
@@ -249,7 +249,7 @@ describe('groupSectionedClasses', () => {
 
 describe('isCombinedEntry', () => {
   test('should identify combined entries', () => {
-    const combined = createMockClass({ section: 'A & B', pairedClassId: 2 });
+    const combined = createMockClass({ section: 'A & B', pairedClassId: '2' });
     expect(isCombinedEntry(combined)).toBe(true);
   });
 

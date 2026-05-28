@@ -29,6 +29,23 @@ export type { SelfCheckinDisabledDialogProps } from './SelfCheckinDisabledDialog
 export { SuccessToast } from './SuccessToast';
 export type { SuccessToastProps } from './SuccessToast';
 
+// PR E2d-2b — EntryListContent drag-and-drop grid wrapper. DogCard
+// is a required slot prop (passed through to SortableEntryCard).
+export { EntryListContent } from './EntryListContent';
+export type { EntryListContentProps } from './EntryListContent';
+
+// PR E2d-2b — EntryListHeader. Six UI primitives are required slot
+// props (HamburgerMenu, CompactOfflineIndicator, SyncIndicator,
+// RefreshIndicator, FilterTriggerButton, ClassDetailsPopover).
+export { EntryListHeader } from './EntryListHeader';
+export type { EntryListHeaderProps } from './EntryListHeader';
+
+// PR E2d-2b — EntryListDialogs. Nine dialog components are required
+// slot props. Auth context dropped entirely — `hideMaxTimeOption` and
+// `hideSettingsOption` arrive precomputed from the shim.
+export { EntryListDialogs } from './EntryListDialogs';
+export type { EntryListDialogsProps } from './EntryListDialogs';
+
 // Header helper components (action menu, trial info, status/section
 // badges). Used by EntryListHeader.tsx which arrives in E2d-2b.
 export {

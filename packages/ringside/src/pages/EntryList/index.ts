@@ -113,8 +113,11 @@ export type {
   CombinedEntryListPageProps,
   EntryListUiState,
   EntryListUiActions,
+  EntryListDerived,
+  EntryListDrag,
   CombinedEntryListUiState,
   CombinedEntryListUiActions,
+  CombinedEntryListDerived,
   CombinedEntryHandlers,
   EntryListLayoutSlots,
   // Per-primitive Props interfaces (PR E2d-2a)
@@ -152,11 +155,38 @@ export {
   useEntryHandlers,
 } from './combinedEntryListHelpers';
 
+// ── Permissions (PR E2d-2b) ─────────────────────────────────────────────
+// Narrow permission union the EntryList page tree consumes. The host's
+// `usePermission().hasPermission` is typed over `keyof UserPermissions`
+// (a much wider union); the function signature is compatible because
+// `EntryListPermission extends keyof UserPermissions`.
+export type { EntryListPermission } from './permissions';
+
+// ── SortableEntryCard (PR E2d-2b) ───────────────────────────────────────
+// Moved from apps/myk9q. `DogCard` is now a required slot prop; the
+// sub-components (`StatusBadge`, `ResetButton`) are module-private.
+export { SortableEntryCard } from './SortableEntryCard';
+export type { SortableEntryCardProps } from './SortableEntryCard';
+
+// ── CombinedEntryListDialogs (PR E2d-2b) ────────────────────────────────
+// Moved from apps/myk9q. Four dialog/panel components are required
+// slot props (CheckinStatusDialog, RunOrderDialog,
+// ScoresheetPrintDialog, FilterPanel). Leaf components imported
+// directly from siblings.
+export { CombinedEntryListDialogs } from './CombinedEntryListDialogs';
+export type { CombinedEntryListDialogsProps } from './CombinedEntryListDialogs';
+
+// ── Page orchestrators (PR E2d-2b) ──────────────────────────────────────
+// Pure controlled-render pages — own no useState, call no host-coupled
+// hooks. The shim at apps/myk9q/src/pages/EntryList/{EntryList,
+// CombinedEntryList}.tsx assembles all bags and renders these.
+export { EntryListPage } from './EntryListPage';
+export { CombinedEntryListPage } from './CombinedEntryListPage';
+
 // ── Component sub-tree (PR E2d-2a) ──────────────────────────────────────
 // Leaf components moved from apps/myk9q. Pure-presentational React
 // pieces with no host couplings beyond the ringside `Entry` type.
-// EntryListHeader / EntryListContent / EntryListDialogs and the
-// SortableEntryCard pair arrive in E2d-2b.
+// EntryListHeader / EntryListContent / EntryListDialogs arrive in E2d-2b.
 export {
   FloatingDoneButton,
   ResetConfirmDialog,
@@ -168,6 +198,10 @@ export {
   ClassStatusBadge,
   SectionsBadge,
   getStatusBadge,
+  // PR E2d-2b — drag-and-drop grid wrapper + page header + dialog cluster
+  EntryListContent,
+  EntryListHeader,
+  EntryListDialogs,
 } from './components';
 export type {
   FloatingDoneButtonProps,
@@ -177,6 +211,10 @@ export type {
   SuccessToastProps,
   PrintOption,
   ActionsMenuConfig,
+  // PR E2d-2b
+  EntryListContentProps,
+  EntryListHeaderProps,
+  EntryListDialogsProps,
 } from './components';
 
 // ── Dialog DI surface (PR E2c) ──────────────────────────────────────────

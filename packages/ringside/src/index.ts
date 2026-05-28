@@ -162,6 +162,26 @@ export {
   getDisplayTime,
 } from './pages/EntryList';
 
+// PR E2d-2b — SortableEntryCard + narrow permission union +
+// EntryListContent drag-and-drop grid wrapper.
+// DogCard is now a required slot prop on SortableEntryCard (and on
+// EntryListContent, which passes it through), and hasPermission is
+// typed against the narrow EntryListPermission union (host's
+// `keyof UserPermissions` superset satisfies it directly).
+export type { EntryListPermission } from './pages/EntryList';
+export { SortableEntryCard } from './pages/EntryList';
+export type { SortableEntryCardProps } from './pages/EntryList';
+export { EntryListContent } from './pages/EntryList';
+export type { EntryListContentProps } from './pages/EntryList';
+export { EntryListHeader } from './pages/EntryList';
+export type { EntryListHeaderProps } from './pages/EntryList';
+export { EntryListDialogs } from './pages/EntryList';
+export type { EntryListDialogsProps } from './pages/EntryList';
+export { CombinedEntryListDialogs } from './pages/EntryList';
+export type { CombinedEntryListDialogsProps } from './pages/EntryList';
+export { EntryListPage } from './pages/EntryList';
+export { CombinedEntryListPage } from './pages/EntryList';
+
 // PR E2d-2a — leaf components + sortable-card sub-components.
 // Pure-presentational React pieces with no host coupling beyond
 // `Entry` (already in ringside) and `formatTimeForDisplay` (already in
@@ -272,8 +292,11 @@ export type {
   CombinedEntryListPageProps,
   EntryListUiState,
   EntryListUiActions,
+  EntryListDerived,
+  EntryListDrag,
   CombinedEntryListUiState,
   CombinedEntryListUiActions,
+  CombinedEntryListDerived,
   CombinedEntryHandlers,
   EntryListLayoutSlots,
   // PR E2d-2a — per-primitive Props interfaces. apps/myk9q will switch

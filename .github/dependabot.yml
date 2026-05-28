@@ -48,7 +48,12 @@ updates:
         patterns:
           - "*"
         exclude-patterns:
+          # Root pnpm.overrides pins these direct deps. Keep them out of the
+          # catch-all group so Dependabot doesn't produce PRs where manifests
+          # move but the lockfile still resolves to the pinned version.
           - "@supabase/*"
+          - "eslint-plugin-react-hooks"
+          - "workbox-build"
         update-types:
           - "minor"
           - "patch"

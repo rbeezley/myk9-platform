@@ -11,6 +11,17 @@ import type { NavigatorExtended } from '@/types/browser-apis';
 
 /** Valid Supabase table names derived from the Database schema */
 type TableName = keyof Database['public']['Tables'] & string;
+type SyncQueryError = { code?: string; message: string };
+type SyncQueryResult = Promise<{ error: SyncQueryError | null }>;
+type DynamicSyncTable = {
+  insert(data: Record<string, unknown>): SyncQueryResult;
+  update(data: Record<string, unknown>): {
+    eq(column: string, value: string): SyncQueryResult;
+  };
+  delete(): {
+    eq(column: string, value: string): SyncQueryResult;
+  };
+};
 
 export interface BackgroundSyncOptions {
   maxRetries: number;
@@ -340,10 +351,11 @@ export class BackgroundSyncService {
    */
   private async executeSyncAgainstSupabase(task: SyncTask): Promise<void> {
     const tableName = this.getTableName(task.entity);
+    const syncTable = supabase.from(tableName) as unknown as DynamicSyncTable;
 
     switch (task.type) {
       case 'create': {
-        const { error } = await supabase.from(tableName).insert(task.data ?? {});
+        const { error } = await syncTable.insert(task.data ?? {});
 
         if (error) {
           if (error.code === '23505') {
@@ -365,7 +377,7 @@ export class BackgroundSyncService {
           throw new Error(`No data provided for update on '${tableName}'`);
         }
 
-        const { error } = await supabase.from(tableName).update(task.data).eq('id', task.entityId);
+        const { error } = await syncTable.update(task.data).eq('id', task.entityId);
 
         if (error) {
           if (error.code === 'PGRST116') {
@@ -382,7 +394,7 @@ export class BackgroundSyncService {
       }
 
       case 'delete': {
-        const { error } = await supabase.from(tableName).delete().eq('id', task.entityId);
+        const { error } = await syncTable.delete().eq('id', task.entityId);
 
         if (error) {
           throw new Error(`Supabase delete on '${tableName}' failed: ${error.message}`);

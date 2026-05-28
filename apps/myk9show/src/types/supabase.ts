@@ -776,6 +776,7 @@ export type Database = {
           num_hides: number | null
           qualifying_threshold: number | null
           results_released_at: string | null
+          results_released_by: string | null
           scored_count: number | null
           section: string | null
           start_time: string | null
@@ -828,6 +829,7 @@ export type Database = {
           num_hides?: number | null
           qualifying_threshold?: number | null
           results_released_at?: string | null
+          results_released_by?: string | null
           scored_count?: number | null
           section?: string | null
           start_time?: string | null
@@ -880,6 +882,7 @@ export type Database = {
           num_hides?: number | null
           qualifying_threshold?: number | null
           results_released_at?: string | null
+          results_released_by?: string | null
           scored_count?: number | null
           section?: string | null
           start_time?: string | null

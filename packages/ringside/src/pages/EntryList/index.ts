@@ -53,6 +53,20 @@ export {
   getDisplayTime,
 } from './sortableEntryCardUtils';
 
+// ── Sortable card sub-components (PR E2d-2a) ────────────────────────────
+// React components for result badges (placement, qualification, time,
+// faults, nationals stats grid) and the status-icon-plus-text content
+// renderer. SortableEntryCard itself arrives in E2d-2b — these are
+// already movable because they only depend on the ringside-local
+// sortableEntryCardUtils + @myk9/core's `formatTimeForDisplay`.
+export {
+  PlacementBadge,
+  NationalsResultBadges,
+  RegularResultBadges,
+  ResultBadges,
+  StatusBadgeContent,
+} from './SortableEntryCardComponents';
+
 // ── Hooks ────────────────────────────────────────────────────────────────
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export type { TabType, SortType, SectionFilter } from './hooks/useEntryListFilters';
@@ -82,23 +96,126 @@ export type {
   LongPressHandlers,
 } from './hookContracts';
 
-// ── Page-level controlled-render props (PR E2d-1) ───────────────────────
+// ── Page-level controlled-render props (PR E2d-1 / E2d-2a) ──────────────
 // `EntryListPageProps` and `CombinedEntryListPageProps` are the wide
-// bags the host shim hands to ringside's pages in E2d-2. The pages
+// bags the host shim hands to ringside's pages in E2d-2b. The pages
 // own no state and call no hooks — they render from these props.
-// `EntryListLayoutSlots` is a TODO placeholder; E2d-2 fills it with
-// concrete ComponentType slots for the ~10 host UI primitives the
-// page tree currently imports directly.
+//
+// `EntryListLayoutSlots` is the concrete UI-primitive slot bag (PR
+// E2d-2a) — 10 host-supplied components covering header chrome, the
+// filter panel, the dog card, the pull-to-refresh wrapper, the error
+// state, and the class-details popover. `TabBar` (from `@myk9/ui`)
+// and the date/time formatters (from `@myk9/core`) are intentionally
+// NOT slotted — ringside imports them directly from already-installed
+// peer packages.
 export type {
   EntryListPageProps,
   CombinedEntryListPageProps,
   EntryListUiState,
   EntryListUiActions,
+  EntryListDerived,
+  EntryListDrag,
   CombinedEntryListUiState,
   CombinedEntryListUiActions,
+  CombinedEntryListDerived,
   CombinedEntryHandlers,
   EntryListLayoutSlots,
+  // Per-primitive Props interfaces (PR E2d-2a)
+  HamburgerMenuProps,
+  CompactOfflineIndicatorProps,
+  SyncIndicatorProps,
+  RefreshIndicatorProps,
+  FilterTriggerButtonProps,
+  ErrorStateProps,
+  PullToRefreshProps,
+  FilterPanelProps,
+  DogCardProps,
+  ClassDetailsPopoverProps,
+  // Supporting unions / sub-types
+  DogCardStatusBorder,
+  HamburgerMenuPage,
+  PopoverPosition,
+  PullToRefreshState,
+  SyncIndicatorStatus,
+  FilterPanelSortOption,
+  ClassDetailsData,
 } from './pageProps';
+
+// ── Combined-page pure helpers (PR E2d-2a) ──────────────────────────────
+// Moved from apps/myk9q/.../CombinedEntryList.helpers.ts. The
+// supabase-coupled `fetchClassRequirements` stays host-side; everything
+// else (org parsing, sort comparator, scoresheet routing, the
+// useEntryHandlers hook for status/reset) moves here.
+export {
+  parseOrganizationData,
+  compareEntries,
+  parseTimeLimit,
+  getScoresheetNavigationRoute,
+  PRINT_DIALOG_TITLES,
+  useEntryHandlers,
+} from './combinedEntryListHelpers';
+
+// ── Permissions (PR E2d-2b) ─────────────────────────────────────────────
+// Narrow permission union the EntryList page tree consumes. The host's
+// `usePermission().hasPermission` is typed over `keyof UserPermissions`
+// (a much wider union); the function signature is compatible because
+// `EntryListPermission extends keyof UserPermissions`.
+export type { EntryListPermission } from './permissions';
+
+// ── SortableEntryCard (PR E2d-2b) ───────────────────────────────────────
+// Moved from apps/myk9q. `DogCard` is now a required slot prop; the
+// sub-components (`StatusBadge`, `ResetButton`) are module-private.
+export { SortableEntryCard } from './SortableEntryCard';
+export type { SortableEntryCardProps } from './SortableEntryCard';
+
+// ── CombinedEntryListDialogs (PR E2d-2b) ────────────────────────────────
+// Moved from apps/myk9q. Four dialog/panel components are required
+// slot props (CheckinStatusDialog, RunOrderDialog,
+// ScoresheetPrintDialog, FilterPanel). Leaf components imported
+// directly from siblings.
+export { CombinedEntryListDialogs } from './CombinedEntryListDialogs';
+export type { CombinedEntryListDialogsProps } from './CombinedEntryListDialogs';
+
+// ── Page orchestrators (PR E2d-2b) ──────────────────────────────────────
+// Pure controlled-render pages — own no useState, call no host-coupled
+// hooks. The shim at apps/myk9q/src/pages/EntryList/{EntryList,
+// CombinedEntryList}.tsx assembles all bags and renders these.
+export { EntryListPage } from './EntryListPage';
+export { CombinedEntryListPage } from './CombinedEntryListPage';
+
+// ── Component sub-tree (PR E2d-2a) ──────────────────────────────────────
+// Leaf components moved from apps/myk9q. Pure-presentational React
+// pieces with no host couplings beyond the ringside `Entry` type.
+// EntryListHeader / EntryListContent / EntryListDialogs arrive in E2d-2b.
+export {
+  FloatingDoneButton,
+  ResetConfirmDialog,
+  ResetMenuPopup,
+  SelfCheckinDisabledDialog,
+  SuccessToast,
+  ActionsDropdownMenu,
+  TrialInfo,
+  ClassStatusBadge,
+  SectionsBadge,
+  getStatusBadge,
+  // PR E2d-2b — drag-and-drop grid wrapper + page header + dialog cluster
+  EntryListContent,
+  EntryListHeader,
+  EntryListDialogs,
+} from './components';
+export type {
+  FloatingDoneButtonProps,
+  ResetConfirmDialogProps,
+  ResetMenuPopupProps,
+  SelfCheckinDisabledDialogProps,
+  SuccessToastProps,
+  PrintOption,
+  ActionsMenuConfig,
+  // PR E2d-2b
+  EntryListContentProps,
+  EntryListHeaderProps,
+  EntryListDialogsProps,
+} from './components';
 
 // ── Dialog DI surface (PR E2c) ──────────────────────────────────────────
 // `EntryListDialogSlots` is the shape ringside's EntryList page (PR E2d)

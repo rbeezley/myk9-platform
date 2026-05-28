@@ -1,6 +1,7 @@
 // CRUD operations for club_members — the people enrolled in a Club.
 
 import { supabase } from '../supabaseClient';
+import type { TablesUpdate } from '@/types/supabase';
 import type {
   ClubMember,
   CreateClubMemberRequest,
@@ -78,7 +79,7 @@ export async function updateClubMember(
   memberId: string,
   updates: UpdateClubMemberRequest
 ): Promise<void> {
-  const dbUpdates: Record<string, unknown> = {};
+  const dbUpdates: TablesUpdate<'club_members'> = {};
   if (updates.membershipType !== undefined) dbUpdates.membership_type = updates.membershipType;
   if (updates.membershipStatus !== undefined)
     dbUpdates.membership_status = updates.membershipStatus;

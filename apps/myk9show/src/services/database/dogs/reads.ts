@@ -6,6 +6,7 @@ import { withReplicationFallback } from '../_shared/replication-fallback';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';
+import type { TablesUpdate } from '@/types/supabase';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
@@ -449,7 +450,7 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
   logger.debug('🗑️ Database deleteDog called:', 'database', { data: { id, deletedBy } });
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'dogs'> = {
       deleted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -656,17 +657,14 @@ export const hardDeleteDog = async (id: string) => {
 // Restore soft-deleted dog (admin only)
 export const restoreDog = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();
+  void restoredBy;
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'dogs'> = {
       deleted_at: null,
       deleted_by: null,
       updated_at: new Date().toISOString(),
     };
-
-    if (restoredBy) {
-      updateData.updated_by = restoredBy;
-    }
 
     const { data, error } = await supabase
       .from('dogs')

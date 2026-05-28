@@ -6,6 +6,7 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mapDbToRegistration, mapDbToRegistrationArray } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
 import type { PaymentDetails } from '@/types/show-registration-types';
+import type { TablesUpdate } from '@/types/supabase';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
@@ -297,7 +298,7 @@ export const updateEnrollmentPaymentStatus = async (
 ) => {
   const startTime = Date.now();
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: TablesUpdate<'enrollments'> = {
       payment_status: paymentStatus,
       updated_at: new Date().toISOString(),
     };

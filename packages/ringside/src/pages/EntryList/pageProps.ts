@@ -49,7 +49,7 @@
  * and the rationale for keeping the hooks themselves host-side.
  */
 
-import type { Dispatch, SetStateAction } from 'react';
+import type { ComponentType, Dispatch, MutableRefObject, ReactNode, RefObject, SetStateAction } from 'react';
 import type { Entry } from '../../stores/entryStore';
 import type { EntryListData, ClassInfo, SortOrder, PrintDialogState } from './types';
 import type { EntryListDialogSlots } from './dialogSlots';
@@ -57,56 +57,281 @@ import type { EntryListHandlers, EntryListActions } from './hookContracts';
 import type { TabType, SortType } from './hooks/useEntryListFilters';
 
 // =============================================================================
-// EntryListLayoutSlots — TODO marker for E2d-2
+// EntryListLayoutSlots — UI primitive slots the host injects (PR E2d-2a)
+// =============================================================================
+//
+// Mirrors the EntryListDialogSlots pattern from PR E2c: every host UI
+// primitive the page tree currently imports directly from apps/myk9q
+// is re-expressed here as an opaque `ComponentType<Props>`. The host
+// keeps the component physically; ringside renders the slot.
+//
+// Two intentional non-slots:
+//
+//  1. `TabBar` / `Tab` — live in `@myk9/ui`, which is already a
+//     ringside dependency. Moved files can import directly from there.
+//
+//  2. `formatTrialDate`, `formatTimeForDisplay` — re-exports from
+//     `@myk9/core`, also already a ringside dep. Moved files import
+//     directly; no `EntryListUtilitySlots` bag needed.
+//
+// `haptic` (from `@myk9/scoring-ui`) is still TBD — `SortableEntryCard`
+// will encounter that decision in E2d-2b. Not slotted here yet.
+
+/**
+ * Status-border variant the page can request from `DogCard`. The card
+ * paints a colored stroke around the tile to communicate entry state
+ * (check-in status, in-ring, placement, qualifying result, etc.).
+ *
+ * Matches the host's `DogCard` union literally. Inlined here rather
+ * than re-exported from `@myk9/ui` because the union is the contract
+ * between the EntryList page (which decides which variant fits the
+ * entry's state) and the card primitive — it shouldn't drift independently
+ * of the page.
+ */
+export type DogCardStatusBorder =
+  | 'no-status'
+  | 'checked-in'
+  | 'conflict'
+  | 'pulled'
+  | 'at-gate'
+  | 'come-to-gate'
+  | 'in-ring'
+  | 'completed'
+  | 'scored'
+  | 'placement-1'
+  | 'placement-2'
+  | 'placement-3'
+  | 'result-qualified'
+  | 'result-nq'
+  | 'result-ex'
+  | 'result-abs'
+  | 'result-wd';
+
+/**
+ * Page identifier the hamburger menu uses to highlight the active
+ * section. Mirrors the host's union — kept narrow so a stale value
+ * surfaces at compile time when adding a new top-level page in the
+ * host. The page tree always passes `'entries'`; the slot accepts the
+ * full union for hosts reusing the primitive elsewhere.
+ */
+export type HamburgerMenuPage =
+  | 'home'
+  | 'announcements'
+  | 'settings'
+  | 'stats'
+  | 'entries'
+  | 'tv'
+  | 'show'
+  | 'results';
+
+/** Edge a popover anchors against. Inlined from the host's `Popover`. */
+export type PopoverPosition = 'top' | 'bottom' | 'left' | 'right';
+
+/**
+ * Pull-to-refresh gesture phase. Reported back to the host's
+ * `renderIndicator` callback so it can swap copy/animation per phase.
+ */
+export type PullToRefreshState = 'idle' | 'pulling' | 'ready' | 'refreshing' | 'complete';
+
+/**
+ * Sync status the indicator pill renders. The page derives it from
+ * `EntryListActions.{isSyncing,hasError}` plus the network state it
+ * already tracks.
+ */
+export type SyncIndicatorStatus = 'synced' | 'syncing' | 'offline' | 'error';
+
+/**
+ * Sort-option descriptor for the filter panel. The page builds the
+ * options array; the panel renders it as a radio-group.
+ */
+export interface FilterPanelSortOption {
+  value: string;
+  label: string;
+  icon?: ReactNode;
+}
+
+// =============================================================================
+// Per-primitive Props interfaces
+// =============================================================================
+//
+// Co-located here for the same reason EntryListDialogSlots co-locates
+// its dialog Props: ringside owns the contract, host components must
+// conform. apps/myk9q will switch each primitive's local interface to
+// `Props from @myk9/ringside` during/after E2d-2b.
+
+/** Top-left nav drawer with optional "← Back to X" affordance. */
+export interface HamburgerMenuProps {
+  backNavigation?: { label: string; action: () => void };
+  currentPage?: HamburgerMenuPage;
+  className?: string;
+}
+
+/**
+ * Compact "offline" pill in the header. Wraps the host's
+ * SyncStatusPopover internally — ringside doesn't need to know about
+ * the popover.
+ */
+export interface CompactOfflineIndicatorProps {
+  className?: string;
+}
+
+/** Bigger sync indicator with retry affordance. */
+export interface SyncIndicatorProps {
+  status: SyncIndicatorStatus;
+  pendingCount?: number;
+  errorMessage?: string;
+  onRetry?: () => void;
+  compact?: boolean;
+}
+
+/** Refresh spinner. Rendered above or below the list during pull-refresh. */
+export interface RefreshIndicatorProps {
+  isRefreshing: boolean;
+  position?: 'top' | 'bottom';
+  message?: string;
+  className?: string;
+}
+
+/** Button that opens the FilterPanel. Shows an active-filter count badge. */
+export interface FilterTriggerButtonProps {
+  onClick: () => void;
+  hasActiveFilters?: boolean;
+  activeFilterCount?: number;
+  className?: string;
+}
+
+/** Fetch-error fallback UI. */
+export interface ErrorStateProps {
+  message?: string;
+  onRetry?: () => void;
+  isRetrying?: boolean;
+  className?: string;
+}
+
+/**
+ * Pull-to-refresh wrapper. The host implementation handles the
+ * gesture; ringside just renders its children inside it.
+ */
+export interface PullToRefreshProps {
+  children: ReactNode;
+  onRefresh: () => Promise<void>;
+  threshold?: number;
+  maxPullDistance?: number;
+  enabled?: boolean;
+  renderIndicator?: (state: PullToRefreshState) => ReactNode;
+  className?: string;
+}
+
+/** Slide-over panel with search + sort controls. */
+export interface FilterPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
+  searchPlaceholder?: string;
+  sortOptions: FilterPanelSortOption[];
+  sortOrder: string;
+  onSortChange: (order: string) => void;
+  resultsLabel?: string;
+  title?: string;
+  children?: ReactNode;
+}
+
+/**
+ * Per-entry card primitive. SortableEntryCard wraps this with drag
+ * affordances + status badges. The page never renders `DogCard`
+ * directly — only through `SortableEntryCard`.
+ */
+export interface DogCardProps {
+  armband: number;
+  callName: string;
+  breed: string;
+  handler: string;
+  onClick?: () => void;
+  className?: string;
+  statusBorder?: DogCardStatusBorder;
+  actionButton?: ReactNode;
+  resultBadges?: ReactNode;
+  sectionBadge?: 'A' | 'B' | null;
+  onPrefetch?: () => void;
+  dragHandle?: ReactNode;
+}
+
+/**
+ * Read-only "class details" popover anchored to the header info icon.
+ * Surfaces judge name(s), entry counts, time limits, area count, and
+ * the current visibility preset.
+ *
+ * `data` is a structural bag rather than a full class row so ringside
+ * doesn't see host-only fields (license_key, replication metadata, etc).
+ */
+export interface ClassDetailsData {
+  classId?: number | string;
+  status?: string;
+  totalEntries?: number;
+  completedEntries?: number;
+  judgeName?: string;
+  judgeNameB?: string;
+  timeLimitSeconds?: number;
+  timeLimitArea2Seconds?: number;
+  timeLimitArea3Seconds?: number;
+  areaCount?: number;
+  visibilityPreset?: 'open' | 'standard' | 'review';
+  selfCheckinEnabled?: boolean;
+}
+
+export interface ClassDetailsPopoverProps {
+  isOpen: boolean;
+  onClose: () => void;
+  /**
+   * Ref to the element the popover should anchor against. Typed
+   * permissively (`HTMLElement | null`) because the host's primitive
+   * accepts the same — narrowing here would force the shim to cast.
+   */
+  anchorRef: RefObject<HTMLElement | null>;
+  data: ClassDetailsData;
+  position?: PopoverPosition;
+  showJudgeB?: boolean;
+}
+
+// =============================================================================
+// The slot interface
 // =============================================================================
 
 /**
- * UI primitives the page tree currently imports directly from
- * apps/myk9q. E2d-2 will fill this out as a `ComponentType` slot bag
- * mirroring the `EntryListDialogSlots` pattern from PR E2c.
+ * Host-injected UI primitives. Mirrors EntryListDialogSlots in shape:
+ * flat bag of `ComponentType<Props>` slots, host owns the
+ * implementation, ringside owns the contract.
  *
- * Enumerated below as a documentation contract so reviewers can sanity
- * check the surface area before the component move lands. The shape
- * is intentionally `unknown` for now — typing each slot requires
- * extracting its Props interface from the host component, which is
- * E2d-2 work.
+ * All slots are required — the page renders every one of them during
+ * normal use. There's no analogue of `AreaCountSelectionDialog`'s
+ * conditional rendering in this bag.
  *
- * Slots E2d-2 will need (verified by reading the actual imports in
- * EntryListHeader.tsx, EntryListContent.tsx, SortableEntryCard.tsx,
- * EntryList.tsx, CombinedEntryList.tsx):
- *
- *  - `HamburgerMenu` — top-left nav drawer with back navigation
- *  - `CompactOfflineIndicator` — offline-state pill in the header
- *  - `SyncIndicator` — syncing/error indicator in the header
- *  - `RefreshIndicator` — refreshing spinner in the header
- *  - `FilterTriggerButton` — opens the FilterPanel
- *  - `FilterPanel` — slide-over panel with search + sort controls
- *  - `TabBar` — pending/completed (and section A/B for combined) tabs
- *  - `DogCard` — the per-entry card primitive that SortableEntryCard
- *    wraps with drag affordances
- *  - `ClassDetailsPopover` — hover/tap popover for class metadata
- *  - `ErrorState` — fetch-error fallback UI
- *  - `PullToRefresh` — pull-to-refresh gesture wrapper (currently
- *    disabled — pass-through wrapper)
- *
- * Utilities the page tree also reaches for that are not components
- * (likely a separate `EntryListUtilitySlots` bag in E2d-2):
- *  - `formatTrialDate(date: string): string`
- *  - `formatTimeForDisplay(seconds: number): string`
- *  - `haptic.medium(): void` (from @myk9/scoring-ui — may be addable
- *    as a ringside peer dep instead of slotting)
- *
- * @see PR E2d-2 — actual page move + this contract's resolution
+ * What's NOT here (deliberately):
+ *  - `TabBar` / `Tab` — direct import from `@myk9/ui`
+ *  - `formatTrialDate`, `formatTimeForDisplay` — direct import from `@myk9/core`
+ *  - `haptic.medium()` — decision deferred to E2d-2b (the consumer is
+ *    `SortableEntryCard`, which lands in 2b)
  */
-export type EntryListLayoutSlots = {
-  /**
-   * Placeholder — E2d-2 will replace `unknown` with concrete
-   * `ComponentType<...Props>` and utility function types. Until then
-   * this field accepts anything so the shape can be referenced
-   * downstream without forcing premature type decisions.
-   */
-  readonly _todoE2d2: unknown;
-};
+export interface EntryListLayoutSlots {
+  // Header chrome
+  HamburgerMenu: ComponentType<HamburgerMenuProps>;
+  CompactOfflineIndicator: ComponentType<CompactOfflineIndicatorProps>;
+  SyncIndicator: ComponentType<SyncIndicatorProps>;
+  RefreshIndicator: ComponentType<RefreshIndicatorProps>;
+
+  // Filter + search
+  FilterTriggerButton: ComponentType<FilterTriggerButtonProps>;
+  FilterPanel: ComponentType<FilterPanelProps>;
+
+  // List body
+  DogCard: ComponentType<DogCardProps>;
+  PullToRefresh: ComponentType<PullToRefreshProps>;
+  ErrorState: ComponentType<ErrorStateProps>;
+
+  // Class-info popover (header info icon)
+  ClassDetailsPopover: ComponentType<ClassDetailsPopoverProps>;
+}
 
 // =============================================================================
 // EntryListUiState / EntryListUiActions — shim-owned local state
@@ -233,6 +458,79 @@ export interface EntryListUiActions {
   // call them (e.g. handleApplyRunOrder forces sortOrder = 'run').
   setActiveTab: (tab: TabType) => void;
   setSortOrder: (sort: SortType) => void;
+  setSearchTerm: (term: string) => void;
+}
+
+// =============================================================================
+// EntryListDerived — read-only derived data from useEntryListFilters
+// =============================================================================
+
+/**
+ * Read-only derived data the shim's `useEntryListFilters` call
+ * produces. Threaded into the page so it doesn't re-call the hook
+ * (single source of truth for filter state + derivations).
+ *
+ * Why a separate bag rather than mixed into uiState?
+ * --------------------------------------------------
+ * `uiState` is paired 1:1 with `uiActions` setters. This bag is
+ * derived data — there's no setter for `pendingEntries` because it's
+ * computed from `localEntries + filter inputs`. Separating keeps the
+ * mental model clear: uiState is what you store, derived is what you
+ * compute.
+ *
+ * Path A architecture (locked in PR E2d-2b)
+ * -----------------------------------------
+ * Shim calls `useEntryListFilters` (pure ringside hook), threads both
+ * setters (into `uiActions`) and derived values (here) into the page.
+ * Page renders. The page does NOT call the filter hook itself, so the
+ * shim's `useEntryListHandlers` invocation has access to the filter
+ * setters it needs as deps.
+ */
+export interface EntryListDerived {
+  /** Current active tab — pending or completed entries. */
+  activeTab: TabType;
+  /** Current sort order. */
+  sortOrder: SortType;
+  /** Current search term filtering visible entries. */
+  searchTerm: string;
+  /**
+   * Entries after applying search + sort. Tab-agnostic — the page
+   * splits this into `pendingEntries` / `completedEntries`.
+   */
+  filteredEntries: Entry[];
+  /** Filtered entries with `isScored === false`. */
+  pendingEntries: Entry[];
+  /** Filtered entries with `isScored === true`. */
+  completedEntries: Entry[];
+  /** Pending or completed depending on `activeTab`. */
+  currentEntries: Entry[];
+  /**
+   * Counts from the unfiltered `localEntries` array (NOT
+   * `filteredEntries`). Used by the tab badges so the inactive tab
+   * still shows its actual count when a search filter is applied to
+   * the active tab.
+   */
+  entryCounts: { pending: number; completed: number };
+}
+
+/**
+ * Drag-and-drop state from the shim's `useDragAndDropEntries` call.
+ * Same Path A rationale as `EntryListDerived` — pure ringside hook
+ * owned by the shim so the resulting handlers can be threaded into
+ * the page consistently.
+ */
+export interface EntryListDrag {
+  sensors: import('@dnd-kit/core').SensorDescriptor<import('@dnd-kit/core').SensorOptions>[];
+  handleDragStart: (event: import('@dnd-kit/core').DragStartEvent) => void;
+  handleDragEnd: (event: import('@dnd-kit/core').DragEndEvent) => Promise<void>;
+  /**
+   * Ref the data + effects hooks read to suppress sync-driven state
+   * resets during a drag. Mutated by `useDragAndDropEntries` (start
+   * → true, end → false). The shim owns the ref and passes the same
+   * instance to `useEntryListData`, `useEntryListEffects`, and the
+   * page (which threads it into its drag hook).
+   */
+  isDraggingRef: MutableRefObject<boolean>;
 }
 
 // =============================================================================
@@ -283,6 +581,12 @@ export interface EntryListPageProps {
   /** Setters paired with `uiState`. */
   uiActions: EntryListUiActions;
 
+  /** Derived data + filter state from the shim's `useEntryListFilters` call. */
+  derived: EntryListDerived;
+
+  /** Drag-and-drop sensors + handlers from the shim's `useDragAndDropEntries` call. */
+  drag: EntryListDrag;
+
   /** Host-injected dialog components — see PR E2c. */
   dialogs: EntryListDialogSlots;
 
@@ -307,6 +611,19 @@ export interface EntryListPageProps {
         | 'canChangeRunOrder'
         | 'canManageClasses',
     ) => boolean;
+    /**
+     * Precomputed by the shim from
+     * `hasRuleDefinedMaxTimes(parseOrganizationData(showContext.org)) || !canModifyClassSettings`.
+     * True means the ClassOptionsDialog should hide the "Set Max Time"
+     * option (org rule fixes max times, or user lacks permission).
+     */
+    hideMaxTimeOption: boolean;
+    /**
+     * Precomputed by the shim from `!hasRole(['admin', 'judge'])`.
+     * True means the ClassOptionsDialog should hide the "Settings"
+     * option.
+     */
+    hideSettingsOption: boolean;
   };
 }
 
@@ -378,6 +695,15 @@ export interface CombinedEntryListPageProps {
   uiActions: CombinedEntryListUiActions;
 
   /**
+   * Derived data + filter state from the shim's `useEntryListFilters`
+   * call (combined-view variant — includes section filter).
+   */
+  derived: CombinedEntryListDerived;
+
+  /** Drag-and-drop state from the shim's `useDragAndDropEntries` call. */
+  drag: EntryListDrag;
+
+  /**
    * Subset of dialog slots actually rendered by the combined page.
    * Forces the type-checker to point out if a future change tries to
    * render a dialog the combined page doesn't take.
@@ -422,6 +748,18 @@ export interface CombinedEntryListPageProps {
    * route string the page should push, or null when no route applies.
    */
   getScoresheetNavigationRoute: (entry: Entry) => string | null;
+
+  /**
+   * Per-entry scoresheet prefetch. Wraps the host's
+   * `usePrefetch().prefetch(...)` + `preloadScoresheetByType(...)` +
+   * `getScoresheetRoute(...)` for a single entry. The page calls this
+   * once for the focused entry and then again for the next 1-2
+   * pending entries (lookahead loop runs in the page).
+   *
+   * No-ops when the entry is scored, has no route, or the host's
+   * scoresheet router declines.
+   */
+  onPrefetchScoresheet: (entry: Entry) => void;
 }
 
 /**
@@ -491,6 +829,32 @@ export interface CombinedEntryListUiActions {
   setActiveTab: (tab: 'pending' | 'completed') => void;
   setSearchTerm: (term: string) => void;
   setSectionFilter: (filter: 'all' | 'A' | 'B') => void;
+}
+
+/**
+ * Combined-page derived data. Wider than `EntryListDerived` —
+ * includes the section filter (`'all' | 'A' | 'B'`) and the
+ * per-section tab counts. `sortedEntries` is exposed because the
+ * combined page applies its own custom comparator
+ * (`compareEntries(a, b, sortOrder)`) downstream of the filter hook;
+ * the shim computes this once and threads it in.
+ */
+export interface CombinedEntryListDerived {
+  activeTab: 'pending' | 'completed';
+  searchTerm: string;
+  sectionFilter: 'all' | 'A' | 'B';
+  /** Entries after search + section filter, before custom sort. */
+  filteredEntries: Entry[];
+  /** `filteredEntries` after `compareEntries(a, b, sortOrder)`. */
+  sortedEntries: Entry[];
+  /** Sorted entries with `isScored === false`. */
+  pendingEntries: Entry[];
+  /** Sorted entries with `isScored === true`. */
+  completedEntries: Entry[];
+  /** Pending or completed depending on `activeTab`. */
+  currentEntries: Entry[];
+  /** Counts derived from `localEntries`. */
+  entryCounts: { pending: number; completed: number };
 }
 
 // Re-export ClassInfo for downstream consumers building these bags

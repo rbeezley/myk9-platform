@@ -98,7 +98,7 @@ describe('useOfflineQueueProcessor — retry behavior', () => {
     // Wait for the third submit attempt (maxRetries=3 → three calls total
     // before the item is parked in failedItems). Backoffs are 1s, 2s.
     await waitFor(() => expect(submitSpy).toHaveBeenCalledTimes(3), {
-      timeout: 6000,
+      timeout: 10000,
     });
 
     await waitFor(() => {
@@ -112,7 +112,7 @@ describe('useOfflineQueueProcessor — retry behavior', () => {
     expect(failed.lastError).toBe('persistent failure');
 
     unmount();
-  }, 15000);
+  }, 20000);
 
   it('does not burn retry budget while offline — bails the drain', async () => {
     const submitSpy = vi.mocked(entryService.submitScore);

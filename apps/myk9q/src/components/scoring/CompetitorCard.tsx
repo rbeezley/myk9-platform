@@ -1,7 +1,7 @@
 import React from 'react';
 import { Entry } from '../../stores/entryStore';
 import { formatTimeForDisplay } from '../../utils/timeUtils';
-import { isNonQualifyingResult } from '../../pages/EntryList/sortableEntryCardUtils';
+import { isNonQualifyingResult } from '@myk9/ringside';
 import { ArmbandBadge } from '../ui';
 import './shared-scoring.css';
 

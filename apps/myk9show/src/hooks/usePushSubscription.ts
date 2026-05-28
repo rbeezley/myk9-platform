@@ -43,7 +43,8 @@ export function usePushSubscription() {
         {
           user_id: user.id,
           endpoint: subscriptionData.endpoint,
-          keys: subscriptionData.keys,
+          p256dh: subscriptionData.keys.p256dh,
+          auth: subscriptionData.keys.auth,
         },
         { onConflict: 'user_id,endpoint' }
       );

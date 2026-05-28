@@ -93,7 +93,8 @@ describe('usePushSubscription', () => {
       {
         user_id: 'user-123',
         endpoint: 'https://push.example.com/sub1',
-        keys: { p256dh: 'key1', auth: 'auth1' },
+        p256dh: 'key1',
+        auth: 'auth1',
       },
       { onConflict: 'user_id,endpoint' }
     );

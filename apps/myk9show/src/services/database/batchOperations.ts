@@ -326,7 +326,7 @@ export const batchUpdateEntryStatuses = async (
     const { data, error } = await supabase
       .from('entries')
       .update({
-        status,
+        entry_status: status,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

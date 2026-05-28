@@ -1,6 +1,7 @@
 // Write-side operations for Onboarding Requests.
 
 import { supabase } from '../supabaseClient';
+import type { TablesUpdate } from '@/types/supabase';
 import {
   mapDbRow,
   type DbOnboardingRow,
@@ -36,7 +37,7 @@ export async function updateOnboardingRequest(
   requestId: string,
   updates: { status?: OnboardingRequest['status']; notes?: string }
 ): Promise<void> {
-  const dbUpdates: Record<string, unknown> = {};
+  const dbUpdates: TablesUpdate<'onboarding_requests'> = {};
   if (updates.status !== undefined) dbUpdates.status = updates.status;
   if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 

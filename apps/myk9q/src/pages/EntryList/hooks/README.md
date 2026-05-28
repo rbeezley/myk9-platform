@@ -130,27 +130,14 @@ const {
 - **Computed**: filteredEntries, entryCounts, sectionCounts
 - **Actions**: resetFilters
 
-### 4. `useEntryListSubscriptions`
+### Subscriptions (handled internally by `useEntryListData`)
 
-**Purpose**: Real-time subscriptions to entry and result updates.
-
-**Usage**:
-```typescript
-import { useEntryListSubscriptions } from './hooks';
-
-useEntryListSubscriptions({
-  classIds: [123], // or [123, 124] for combined view
-  licenseKey,
-  onRefresh: refresh,
-  enabled: true
-});
-```
-
-**Parameters**:
-- `classIds`: number[] - Class IDs to subscribe to
-- `licenseKey`: string - License key for filtering
-- `onRefresh`: () => void - Callback when data changes
-- `enabled`: boolean - Whether subscriptions are active
+Real-time subscriptions to entry and result updates are wired through
+`useEntryListData` via `entriesTable.subscribe()` + `classesTable.subscribe()`.
+No separate hook is needed. Earlier drafts had a dedicated
+`useEntryListSubscriptions` hook; that file was deleted as dead code
+because both `EntryList.tsx` and `CombinedEntryList.tsx` get
+subscriptions for free through `useEntryListData`.
 
 ## Implementation Status
 
@@ -172,9 +159,8 @@ useEntryListSubscriptions({
 1. Replace data fetching logic with `useEntryListData`
 2. Replace action handlers with `useEntryListActions`
 3. Replace filter/sort logic with `useEntryListFilters`
-4. Replace subscriptions with `useEntryListSubscriptions`
-5. Test thoroughly
-6. Measure bundle size reduction
+4. Test thoroughly
+5. Measure bundle size reduction
 
 ### Phase 2: Refactor EntryList (More Complex)
 1. Same steps as CombinedEntryList
@@ -242,7 +228,6 @@ To add a new action to all entry lists:
 - `useEntryListData.test.ts` - Test data fetching and caching
 - `useEntryListActions.test.ts` - Test optimistic updates
 - `useEntryListFilters.test.ts` - Test filtering and sorting
-- `useEntryListSubscriptions.test.ts` - Test real-time subscriptions
 
 ### Integration Tests (Existing)
 - EntryList component tests

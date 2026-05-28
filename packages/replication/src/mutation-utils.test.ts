@@ -23,6 +23,43 @@ describe('isRetryableError', () => {
       expect(isRetryableError({ message: 'too many', code: '429' })).toBe(true);
     });
 
+    /**
+     * Pre-cliff documentation of the overlap that WILL exist whenever
+     * @supabase/supabase-js is upgraded past 2.102.0. As of 2026-05-28 the
+     * monorepo pins @supabase/supabase-js to exactly 2.93.3 via a
+     * pnpm.overrides block in the root package.json (added on 2026-05-23
+     * in PR #302, silently neutralizing every subsequent Dependabot bump).
+     * Dependabot PR #403 proposes caret moves to ^2.106.2 but does not
+     * touch the override, so its pnpm-lock.yaml diff has zero changes to
+     * Supabase resolution. The library does NOT currently retry internally.
+     * This test pins our `isRetryableError` behavior against the future
+     * library behavior so the eventual override-removal PR cannot land
+     * without re-reading the audit's Flag A.
+     *
+     * Upstream: https://github.com/supabase/supabase-js/pull/2072
+     * Audit:    docs/plan-h1-supabase-audit-2026-05-28.md (Flag A)
+     *
+     * After 2.102.0 lands, postgrest-js retries with exp backoff (1s/2s/4s, cap 30s):
+     *  - HTTP 520 (Cloudflare timeout) — all methods
+     *  - HTTP 503 with PGRST002 (PostgREST schema-cache reload) — all methods
+     *  - Network errors — idempotent methods only (GET/HEAD/OPTIONS)
+     *
+     * For MutationManager (which only handles POST/PATCH/DELETE), the actual
+     * overlap is just 520 and 503-PGRST002. Total worst case becomes
+     * library_3 + app_3 = ~7 attempts over ~30s, which is acceptable.
+     *
+     * If anyone narrows isRetryableError to skip library-covered codes,
+     * this test fails and forces re-reading the audit (Flag A) before proceeding.
+     */
+    it('classifies library-retried transient codes (520, 503/PGRST002) as retryable [overlap with postgrest-js#2072]', () => {
+      // Cloudflare timeout — library retries; our queue layer also retries.
+      expect(isRetryableError({ message: 'Cloudflare 520', code: '520' })).toBe(true);
+      // PostgREST schema cache reload — library retries; our queue layer also retries.
+      expect(
+        isRetryableError({ message: 'schema reload', code: '503', details: 'PGRST002' }),
+      ).toBe(true);
+    });
+
     it('returns false for 4xx client errors (non-429)', () => {
       expect(isRetryableError({ message: 'bad request', code: '400' })).toBe(false);
       expect(isRetryableError({ message: 'forbidden', code: '403' })).toBe(false);

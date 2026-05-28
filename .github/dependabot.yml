@@ -32,9 +32,23 @@ updates:
       prefix-development: "chore(deps-dev)"
       include: "scope"
     groups:
+      # @supabase/* is the spine of both apps — realtime, auth, postgrest, storage.
+      # Keep it OUT of the catch-all group so any minor/patch lands as its own PR
+      # with separable CI signal. A 13-minor jump rode through the catch-all on
+      # 2026-05-27 (commit e018ed74) and triggered the H1 audit in
+      # docs/plan-h1-supabase-audit-2026-05-28.md. Pre-emptively listing the
+      # sub-packages so this doesn't need re-editing if pnpm hoists any as direct deps.
+      supabase:
+        patterns:
+          - "@supabase/*"
+        update-types:
+          - "minor"
+          - "patch"
       npm-minor-patch:
         patterns:
           - "*"
+        exclude-patterns:
+          - "@supabase/*"
         update-types:
           - "minor"
           - "patch"

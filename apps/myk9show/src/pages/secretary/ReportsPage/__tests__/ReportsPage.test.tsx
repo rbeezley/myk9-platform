@@ -102,6 +102,10 @@ describe('resolveInitialReportId', () => {
     expect(resolveInitialReportId('judge-supply-checklist')).toBe('judge-supply-checklist');
   });
 
+  it('accepts a result catalog deep link for judge signature routing', () => {
+    expect(resolveInitialReportId('result-catalog')).toBe('result-catalog');
+  });
+
   it('falls back to default when the report id is unknown', () => {
     expect(resolveInitialReportId('not-a-real-report')).toBe('check-in-sheet');
   });

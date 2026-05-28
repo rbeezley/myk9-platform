@@ -125,7 +125,7 @@ export const reportRegistry: ReportDefinition[] = [
     id: 'result-catalog',
     name: 'Result Catalog',
     category: 'operational',
-    scopes: ['show', 'trial'],
+    scopes: ['show', 'trial', 'class'],
     sortOptions: [
       { value: 'placement', label: 'Placement' },
       { value: 'armband', label: 'Armband #' },

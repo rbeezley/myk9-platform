@@ -101,8 +101,8 @@ export function ReportPreview({
       // Filter to selected trial when a specific trial is chosen
       const targetTrialIds = trialId === 'all' ? (trials ?? []).map(t => t.id) : [trialId];
 
-      const filteredClasses = (classes ?? []).filter(c =>
-        targetTrialIds.includes(c.trial_id ?? '')
+      const filteredClasses = (classes ?? []).filter(
+        c => targetTrialIds.includes(c.trial_id ?? '') && (classId === 'all' || c.id === classId)
       );
       const filteredClassIds = new Set(filteredClasses.map(c => c.id));
 
@@ -269,7 +269,11 @@ export function ReportPreview({
       ? (() => {
           const targetIds = trialId === 'all' ? (trials ?? []).map(t => t.id) : [trialId];
           const classIds = new Set(
-            (classes ?? []).filter(c => targetIds.includes(c.trial_id ?? '')).map(c => c.id)
+            (classes ?? [])
+              .filter(
+                c => targetIds.includes(c.trial_id ?? '') && (classId === 'all' || c.id === classId)
+              )
+              .map(c => c.id)
           );
           return (entries ?? []).some(e => classIds.has(e.class_id ?? ''));
         })()

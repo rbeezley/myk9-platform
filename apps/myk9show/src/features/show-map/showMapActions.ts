@@ -189,21 +189,36 @@ function withEntryContext(node: ShowMapNode, why: string): string {
 // ranking additionally filters future-dated show-day actions so the
 // Show Desk's primary recommendation stays tied to the secretary's
 // current phase/date.
-function wrapUpActionsForNode(node: ShowMapNode): ShowMapAction[] {
+function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
   if (node.type === 'class') {
+    const showId = getRootShowId(tree);
+    const trialId = getParentSourceId(node, tree, 'trial');
+    const classId = getNodeSourceId(node, 'class');
+
     if (node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE) {
       return [
-        {
-          id: 'collect-judge-signature',
-          nodeId: node.id,
-          label: 'Collect judge signature',
-          why: 'Completed class still needs judge sign-off',
-          priority: 55,
-          href: '/secretary/reports',
-          icon: PenLine,
-          recommended: true,
-          createsAttention: true,
-        },
+        withHref(
+          {
+            id: 'collect-judge-signature',
+            nodeId: node.id,
+            label: 'Collect judge signature',
+            why: 'Completed class still needs judge sign-off',
+            priority: 55,
+            icon: PenLine,
+            ...(classId ? { classId } : {}),
+            ...(trialId ? { trialId } : {}),
+            recommended: true,
+            createsAttention: true,
+          },
+          showId && trialId && classId
+            ? getShowMapReportHref({
+                reportId: 'result-catalog',
+                showId,
+                trialId,
+                classId,
+              })
+            : undefined
+        ),
       ];
     }
 
@@ -271,10 +286,7 @@ function isActionEligibleForScope(
   return !isNodeScheduledAfter(state.tree, node, state.now);
 }
 
-function liveOpsActionsForNode(
-  node: ShowMapNode,
-  tree: ShowMapTree
-): ShowMapAction[] {
+function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
   if (node.type === 'entry') {
     const actions: ShowMapAction[] = [];
     const classId = sourceIdFromNodeId(node.parentId, 'class');
@@ -494,7 +506,7 @@ function liveOpsActionsForNode(
 // safety net — it catches future contributors who accidentally emit the
 // same action id from both branches for the same node.
 function actionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
-  const merged = [...liveOpsActionsForNode(node, tree), ...wrapUpActionsForNode(node)];
+  const merged = [...liveOpsActionsForNode(node, tree), ...wrapUpActionsForNode(node, tree)];
   assertNoActionCollision(merged);
   return merged;
 }

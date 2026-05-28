@@ -147,6 +147,21 @@ describe('ReportControlsBar', () => {
     expect(classTrigger).toBeDisabled();
   });
 
+  it('shows class scope for result catalog deep links', () => {
+    render(
+      <ReportControlsBar
+        {...defaultProps}
+        reportType="result-catalog"
+        trialId="trial-1"
+        classId="class-1"
+      />
+    );
+
+    expect(screen.getByText('Class')).toBeInTheDocument();
+    const triggers = screen.getAllByRole('combobox');
+    expect(triggers[2]).not.toBeDisabled();
+  });
+
   describe('Registry coverage — every enabled report is reachable from the dropdown', () => {
     // Regression guard: the dropdown previously rendered only Operational and
     // Organization groups, silently hiding the Financial Report and the four

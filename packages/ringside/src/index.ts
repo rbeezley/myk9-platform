@@ -162,6 +162,50 @@ export {
   getDisplayTime,
 } from './pages/EntryList';
 
+// PR E2d-2a — leaf components + sortable-card sub-components.
+// Pure-presentational React pieces with no host coupling beyond
+// `Entry` (already in ringside) and `formatTimeForDisplay` (already in
+// `@myk9/core`). External consumers (CompetitorCard,
+// DogDetailsClassCard) re-import from here.
+export {
+  FloatingDoneButton,
+  ResetConfirmDialog,
+  ResetMenuPopup,
+  SelfCheckinDisabledDialog,
+  SuccessToast,
+  PlacementBadge,
+  NationalsResultBadges,
+  RegularResultBadges,
+  ResultBadges,
+  StatusBadgeContent,
+  // Header helper components. `TrialInfo` is aliased to
+  // `EntryListTrialInfo` to avoid collision with the ClassList type
+  // of the same name (exported on line 76). Matches the handoff's
+  // documented pattern for cross-page name collisions (precedent:
+  // `SortOrder` → `EntryListSortOrder`).
+  ActionsDropdownMenu,
+  TrialInfo as EntryListTrialInfo,
+  ClassStatusBadge,
+  SectionsBadge,
+  getStatusBadge,
+  // Combined-page pure helpers
+  parseOrganizationData,
+  compareEntries,
+  parseTimeLimit,
+  getScoresheetNavigationRoute,
+  PRINT_DIALOG_TITLES,
+  useEntryHandlers,
+} from './pages/EntryList';
+export type {
+  FloatingDoneButtonProps,
+  ResetConfirmDialogProps,
+  ResetMenuPopupProps,
+  SelfCheckinDisabledDialogProps,
+  SuccessToastProps,
+  PrintOption,
+  ActionsMenuConfig,
+} from './pages/EntryList';
+
 export { useEntryListFilters } from './pages/EntryList';
 export type { TabType, SortType, SectionFilter } from './pages/EntryList';
 
@@ -209,12 +253,14 @@ export type {
 // time if the hook drifts from the contract.
 //
 // `EntryListPageProps` and `CombinedEntryListPageProps` are the wide
-// bags ringside's page (PR E2d-2) will consume from the host shim.
-// `EntryListLayoutSlots` is intentionally a TODO placeholder this PR;
-// E2d-2 will replace it with concrete `ComponentType` slots for the
-// host UI primitives the page tree imports (HamburgerMenu, FilterPanel,
-// TabBar, DogCard, etc.). See `pages/EntryList/pageProps.ts` for the
-// enumerated list.
+// bags ringside's page (PR E2d-2b) will consume from the host shim.
+//
+// PR E2d-2a — `EntryListLayoutSlots` resolved from TODO placeholder
+// into 10 concrete `ComponentType` slots for the host UI primitives
+// the page tree imports (HamburgerMenu, FilterPanel, DogCard,
+// PullToRefresh, etc.). `TabBar` is intentionally NOT slotted —
+// it's a direct import from `@myk9/ui`, which is already a ringside
+// dep. Same for the date/time formatters from `@myk9/core`.
 export type {
   EntryListHandlers,
   EntryListActions,
@@ -230,4 +276,28 @@ export type {
   CombinedEntryListUiActions,
   CombinedEntryHandlers,
   EntryListLayoutSlots,
+  // PR E2d-2a — per-primitive Props interfaces. apps/myk9q will switch
+  // its component-side interfaces to these during/after E2d-2b for
+  // single-sourcing.
+  HamburgerMenuProps,
+  CompactOfflineIndicatorProps,
+  SyncIndicatorProps,
+  RefreshIndicatorProps,
+  FilterTriggerButtonProps,
+  ErrorStateProps,
+  PullToRefreshProps,
+  FilterPanelProps,
+  DogCardProps,
+  ClassDetailsPopoverProps,
+  // PR E2d-2a — supporting unions / sub-types referenced by the Props
+  // interfaces. Aliased at the root barrel to avoid name collisions
+  // with any future package-level types (matches the pattern E2a used
+  // for `SortOrder` → `EntryListSortOrder`).
+  DogCardStatusBorder,
+  HamburgerMenuPage,
+  PopoverPosition as EntryListPopoverPosition,
+  PullToRefreshState,
+  SyncIndicatorStatus,
+  FilterPanelSortOption,
+  ClassDetailsData,
 } from './pages/EntryList';

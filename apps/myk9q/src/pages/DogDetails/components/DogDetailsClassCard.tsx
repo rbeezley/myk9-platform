@@ -20,11 +20,10 @@ import {
   UserX
 } from 'lucide-react';
 import { TrialDateBadge } from '../../../components/ui';
-import { PlacementBadge } from '../../EntryList/SortableEntryCardComponents';
+import { PlacementBadge, isNonQualifyingResult } from '@myk9/ringside';
 import { getAvailabilityMessage } from '../../../services/resultVisibilityService';
 import { formatTimeForDisplay } from '../../../utils/timeUtils';
 import { getEntryStatusColor, getEntryStatusLabel } from '../../../utils/statusUtils';
-import { isNonQualifyingResult } from '../../EntryList/sortableEntryCardUtils';
 import type { ClassEntry } from '../hooks/useDogDetailsData';
 
 interface DogDetailsClassCardProps {

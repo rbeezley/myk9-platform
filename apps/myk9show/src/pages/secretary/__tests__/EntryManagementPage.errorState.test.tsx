@@ -24,6 +24,15 @@ vi.mock('../WaitlistManagementPage/index', () => ({
 
 const mockLoadEntries = vi.fn();
 
+// Mock state is mutated per-test to exercise the different error
+// surfaces. The factory closure reads the live values so each test
+// can flip them before calling render().
+const dataState = {
+  error: null as string | null,
+  loadError: null as string | null,
+  entries: [] as unknown[],
+};
+
 vi.mock('@/hooks/useEntryManagementData', () => ({
   useEntryManagementData: () => ({
     user: null,
@@ -33,11 +42,12 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
     setSelectedShowId: vi.fn(),
     isLoadingShows: false,
     loadShows: vi.fn(),
-    entries: [],
+    entries: dataState.entries,
     setEntries: vi.fn(),
     isLoading: false,
-    error: 'Failed to load entries',
+    error: dataState.error,
     setError: vi.fn(),
+    loadError: dataState.loadError,
     loadEntries: mockLoadEntries,
     stats: { total: 0, pending: 0, accepted: 0, waitlist: 0, issues: 0 },
     tabCounts: { all: 0, pending: 0, accepted: 0, waitlist: 0, issues: 0 },
@@ -109,8 +119,16 @@ vi.mock('@/services/AuditService', () => ({
   auditService: { log: vi.fn() },
 }));
 
+function setDataState(overrides: Partial<typeof dataState>) {
+  dataState.error = null;
+  dataState.loadError = null;
+  dataState.entries = [];
+  Object.assign(dataState, overrides);
+}
+
 describe('EntryManagementPage — error state (PR #418, audit finding P1)', () => {
   it('renders the "Couldn\'t load entries" error card when loadEntries fails', () => {
+    setDataState({ loadError: 'Failed to load entries' });
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries/show-1' });
 
     expect(screen.getByText(/couldn't load entries/i)).toBeInTheDocument();
@@ -118,25 +136,23 @@ describe('EntryManagementPage — error state (PR #418, audit finding P1)', () =
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
-  it('does NOT render the misleading zero-entry main content when error is set', () => {
+  it('does NOT render the misleading zero-entry main content when loadError is set', () => {
     // The bug: main content rendered with empty `entries`, showing
     // stats cards reading "0 pending / 0 accepted / 0 waitlist" — the
     // user would interpret this as "no work to do" rather than
     // "couldn't load."
-    //
-    // Stats cards have headings like "Pending", "Accepted", "Waitlist".
-    // When the error branch is active, NONE of those stat headings
-    // should render.
+    setDataState({ loadError: 'Failed to load entries' });
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries/show-1' });
 
     // The stats card headings only render inside RegistrationView, which
-    // is gated on `!error`. If any of these appear, the error gate
-    // failed and the misleading zero-state UX is back.
+    // is gated on `!loadError`. If any of these appear, the gate failed
+    // and the misleading zero-state UX is back.
     expect(screen.queryByText('Pending', { selector: 'p' })).not.toBeInTheDocument();
     expect(screen.queryByText('Accepted', { selector: 'p' })).not.toBeInTheDocument();
   });
 
   it('the Retry button calls loadEntries with the selected show id', async () => {
+    setDataState({ loadError: 'Failed to load entries' });
     const { user } = render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries/show-1',
     });
@@ -145,5 +161,40 @@ describe('EntryManagementPage — error state (PR #418, audit finding P1)', () =
     await user.click(screen.getByRole('button', { name: /retry/i }));
 
     expect(mockLoadEntries).toHaveBeenCalledWith('show-1');
+  });
+
+  /*
+    Codex review on PR #418 caught that the single `error` state
+    is multiplexed across load failures AND action failures (export,
+    bulk status, comp/uncomp, remove-entry, armband). A naive gate
+    would hide a successfully-loaded entries table the moment any
+    action errored. These two tests lock in the separation: action
+    errors get the inline top-of-page alert and DO NOT hide main
+    content.
+  */
+  it('renders the inline action-error alert without hiding the entries table', () => {
+    setDataState({ error: 'Failed to export CSV' });
+    render(<EntryManagementPage />, { initialRoute: '/secretary/entries/show-1' });
+
+    // Action error visible inline at top.
+    expect(screen.getByText('Failed to export CSV')).toBeInTheDocument();
+    // Load-error card MUST NOT appear when only `error` (action) is set.
+    expect(screen.queryByText(/couldn't load entries/i)).not.toBeInTheDocument();
+  });
+
+  it('shows BOTH the action-error alert AND the load-error card when both are set', () => {
+    // Edge case: a load succeeded, then an action errored, then the
+    // user clicked Retry and the next load also failed. `error` and
+    // `loadError` can both be set briefly. The user should see both
+    // signals — the load-error card replaces main content, the
+    // action-error alert sits above it as a separate concern.
+    setDataState({
+      error: 'Failed to export CSV',
+      loadError: 'Failed to load entries',
+    });
+    render(<EntryManagementPage />, { initialRoute: '/secretary/entries/show-1' });
+
+    expect(screen.getByText('Failed to export CSV')).toBeInTheDocument();
+    expect(screen.getByText(/couldn't load entries/i)).toBeInTheDocument();
   });
 });

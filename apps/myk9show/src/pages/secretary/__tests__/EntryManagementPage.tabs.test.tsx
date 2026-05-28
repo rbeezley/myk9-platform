@@ -18,6 +18,7 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
     isLoading: false,
     error: null,
     setError: vi.fn(),
+    loadError: null,
     loadEntries: vi.fn(),
     stats: { total: 0, pending: 0, accepted: 0, waitlist: 0, issues: 0 },
     tabCounts: { all: 0, pending: 0, accepted: 0, waitlist: 0, issues: 0 },

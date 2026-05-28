@@ -91,6 +91,7 @@ const EntryManagementPage: React.FC = () => {
     isLoading,
     error,
     setError,
+    loadError,
     loadEntries,
     stats,
     tabCounts,
@@ -257,6 +258,24 @@ const EntryManagementPage: React.FC = () => {
         </div>
       </div>
 
+      {/*
+        Action Error Alert
+
+        Surfaces failures from `useEntryManagementActions` (export
+        CSV, bulk status, comp/uncomp, remove-entry, armband
+        assignment, etc.). Stays at the top of the page so the
+        entries table below remains usable — these errors are
+        action-scoped, not data-scoped, and the user's recovery is to
+        retry the action, not reload entries. Load failures use the
+        in-tab error card instead (see `loadError` below).
+      */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Show Selection */}
       <Card>
         <CardHeader>
@@ -319,7 +338,7 @@ const EntryManagementPage: React.FC = () => {
           )}
 
           {/*
-            Error State
+            Load Error State
 
             Replaces the misleading zero-entry main content when
             `loadEntries` failed. Per the 2026-05-26 secretary
@@ -328,14 +347,20 @@ const EntryManagementPage: React.FC = () => {
             "no entries to review" rather than "couldn't load
             entries." A Card-shaped error with an explicit Retry
             button replaces the misleading empty state entirely.
+
+            Crucially this gates on `loadError`, NOT `error` — `error`
+            also carries action failures (export, bulk status, etc.)
+            from `useEntryManagementActions`, which must NOT hide a
+            successfully-loaded entries table. See the action-error
+            Alert at the top of the page for that surface.
           */}
-          {error && selectedShowId && !isLoading && (
+          {loadError && selectedShowId && !isLoading && (
             <Card>
               <CardContent className="py-12 text-center">
                 <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">Couldn't load entries</h3>
                 <Alert variant="destructive" className="text-left mb-4 max-w-md mx-auto">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{loadError}</AlertDescription>
                 </Alert>
                 <Button
                   onClick={() => loadEntries(selectedShowId)}
@@ -349,13 +374,13 @@ const EntryManagementPage: React.FC = () => {
 
           {/*
             Main Content — only when a show is selected, loading
-            finished, AND no error. The `!error` gate is critical:
-            without it, an entries-query failure cleared `entries` to
-            `[]` and rendered "0 entries" alongside (not instead of)
-            the alert, misleading the secretary into thinking the
-            show had no pending work.
+            finished, AND no LOAD error. The `!loadError` gate keeps
+            the page usable when an action error fires (which
+            populates `error` separately) — action errors show as an
+            inline Alert at the top while the entries table remains
+            interactive.
           */}
-          {selectedShowId && !isLoading && !error && (
+          {selectedShowId && !isLoading && !loadError && (
             <div className="space-y-6 mt-6">
               {/* Trial / Class Filters */}
               <TrialClassFilters

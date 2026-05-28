@@ -6,7 +6,8 @@ import type { EntryStatus } from '@myk9/core';
 export type { EntryStatus } from '@myk9/core';
 
 export interface Entry {
-  id: number;
+  /** UUID in the unified platform DB (Phase 1 id-model migration). */
+  id: string;
   armband: number;
   callName: string;
   breed: string;
@@ -28,7 +29,7 @@ export interface Entry {
   searchTime?: string;
   faultCount?: number;
   placement?: number;
-  classId: number;
+  classId: string;
   className: string;
   section?: string;
   element?: string;
@@ -38,7 +39,7 @@ export interface Entry {
   timeLimit3?: string;
   areas?: number;
   exhibitorOrder?: number;
-  actualClassId?: number; // The real class ID for real-time subscriptions
+  actualClassId?: string; // The real class ID for real-time subscriptions
   competitionType?: string; // Competition type for nationals detection
   trialDate?: string; // Trial date from view
   trialNumber?: string | number; // Trial number from view
@@ -84,11 +85,11 @@ interface EntryState {
 
   // Actions
   setEntries: (entries: Entry[]) => void;
-  setCurrentClassEntries: (classId: number) => void;
+  setCurrentClassEntries: (classId: string) => void;
   setCurrentEntry: (entry: Entry | null) => void;
-  updateEntry: (entryId: number, updates: Partial<Entry>) => void;
-  markAsScored: (entryId: number, resultText: string) => void;
-  markInRing: (entryId: number, inRing: boolean) => void;
+  updateEntry: (entryId: string, updates: Partial<Entry>) => void;
+  markAsScored: (entryId: string, resultText: string) => void;
+  markInRing: (entryId: string, inRing: boolean) => void;
 
   // Filter Actions
   setFilter: (filter: Partial<EntryFilters>) => void;

@@ -84,18 +84,26 @@ jobs:
         # which rotted when @myk9/pwa-update and @myk9/email were added.
         run: pnpm -r --filter='./packages/*' build
 
+      # Tests run THROUGH turbo so the remote cache (TURBO_TOKEN/TURBO_TEAM)
+      # provides "affected" behaviour for free: a PR touching only one app turns
+      # the other app's test task into a cache hit instead of a full rerun. No
+      # git-diff / fetch-depth:0 needed — turbo keys on input-file hashes.
+      #
+      # Coverage runs only on push-to-main (post-merge), not on every PR — it is
+      # pure instrumentation overhead for a pass/fail gate, and `push` runs are
+      # where coverage drift should surface (see the trigger comment above).
       - name: Test packages
-        run: pnpm test:packages -- --coverage
+        run: pnpm test:packages ${{ github.event_name == 'push' && '-- --coverage' || '' }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Test myK9Q
-        run: pnpm --filter=@myk9/q test -- --reporter=default --coverage
+        run: pnpm exec turbo run test --filter=@myk9/q -- --reporter=default ${{ github.event_name == 'push' && '--coverage' || '' }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Test myK9Show
-        run: pnpm --filter=@myk9/show test -- --reporter=default --coverage --exclude '**/integration/**' --exclude '**/debug-*.test.*'
+        run: pnpm exec turbo run test --filter=@myk9/show -- --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*' ${{ github.event_name == 'push' && '--coverage' || '' }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 

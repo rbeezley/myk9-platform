@@ -93,6 +93,14 @@
   --status-at-gate: #ff9500;
   --status-in-ring: #007aff;
   --status-scored: #5856d6;
+  /* Check-in statuses referenced by the @myk9/ui tailwind preset's `status`
+     group. Defined here so `@myk9/ui/styles` + the preset are a self-consistent
+     contract — utilities like bg-status-no-status / bg-status-pulled resolve
+     for any consumer (ringside + the apps override these with their own values). */
+  --status-no-status: #8e8e93;
+  --status-come-to-gate: #ff9500;
+  --status-conflict: #f59e0b;
+  --status-pulled: #ff3b30;
 
   /* Class workflow status colors */
   --status-setup: #b45309;

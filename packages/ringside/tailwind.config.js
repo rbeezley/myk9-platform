@@ -1,4 +1,5 @@
 import animate from 'tailwindcss-animate';
+import { myk9Preset } from '@myk9/ui/tailwind-preset';
 
 /**
  * Tailwind config for @myk9/ringside.
@@ -29,9 +30,17 @@ import animate from 'tailwindcss-animate';
  * @type {import('tailwindcss').Config}
  */
 export default {
+  // Shared color/spacing/typography theme (the var(--*) tokens the migrated
+  // ringside components reference via Tailwind utilities, e.g. bg-card,
+  // bg-primary, border-l-status-in-ring). Without this, build:css cannot emit
+  // those custom-color utilities and the prebuilt @myk9/ringside/styles is
+  // incomplete for consumers. Single source of truth lives on @myk9/ui.
+  presets: [myk9Preset],
   content: ['./src/**/*.{ts,tsx}'],
   darkMode: 'class',
   corePlugins: {
+    // Keep Preflight off — importing @myk9/ringside/styles must not reset the
+    // host's typography/forms/borders (see header comment).
     preflight: false,
   },
   theme: {

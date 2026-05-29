@@ -37,11 +37,19 @@
 
   /* ── Check-in / result status colors (semantic, mode-independent) ── */
   --status-no-status-bg: #9ca3af;
+  /* Canonical-named alias of --status-no-status-bg. The shared @myk9/ui preset
+     exposes `status.no-status` as var(--status-no-status), so the Tailwind
+     utilities (bg-status-no-status etc.) must resolve under .ringside-root in
+     the package's self-contained stylesheet (myK9Q / prebuilt consumers). */
+  --status-no-status: #9ca3af;
   --status-no-status-text: #ffffff;
   --status-checked-in: #14b8a6;
   --status-checked-in-text: #ffffff;
   --status-at-gate: #8b5cf6;
   --status-at-gate-text: #ffffff;
+  /* come-to-gate shares at-gate's color (as the .dog-card/.status-badge rules
+     do); declared so var(--status-come-to-gate) from the preset resolves here. */
+  --status-come-to-gate: #8b5cf6;
   --status-in-ring: #2563eb;
   --status-in-ring-text: #ffffff;
   --status-conflict: #f59e0b;

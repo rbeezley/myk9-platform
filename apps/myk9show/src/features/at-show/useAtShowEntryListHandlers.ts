@@ -97,11 +97,13 @@ export function useAtShowEntryListHandlers(
     async (dogId, inRing) => {
       try {
         if (inRing) {
-          // Other entries must leave the ring first.
+          // Other entries must leave the ring first. `handleToggleInRing(id,
+          // true)` clears them to 'no-status' (in-ring is single-occupancy);
+          // calling handleMarkInRing here would re-mark them in-ring instead.
           const others = localEntries.filter(
             e => e.id !== dogId && (e.inRing || e.status === 'in-ring')
           );
-          await Promise.all(others.map(e => actions.handleMarkInRing(e.id, e.status)));
+          await Promise.all(others.map(e => actions.handleToggleInRing(e.id, true)));
           await actions.handleMarkInRing(dogId);
         } else {
           await actions.handleToggleInRing(dogId, true);

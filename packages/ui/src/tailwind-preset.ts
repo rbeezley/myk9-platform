@@ -85,10 +85,18 @@ export const myk9Preset: Partial<Config> = {
           approved: '#34C759',
           rejected: '#FF3B30',
           draft: '#8E8E93',
-          'checked-in': '#34C759',
-          'at-gate': '#FF9500',
-          'in-ring': '#007AFF',
-          scored: '#5856D6',
+          // Ringside check-in / ring statuses — canonical design tokens
+          // (`--status-*` in design-tokens.css; previously hardcoded an
+          // iOS-ish palette that diverged from the real values). Single
+          // source of truth so @myk9/ringside, myK9Show, and myK9Q all match.
+          'no-status': 'var(--status-no-status)',
+          'checked-in': 'var(--status-checked-in)',
+          'at-gate': 'var(--status-at-gate)',
+          'come-to-gate': 'var(--status-come-to-gate)',
+          'in-ring': 'var(--status-in-ring)',
+          conflict: 'var(--status-conflict)',
+          pulled: 'var(--status-pulled)',
+          scored: 'var(--status-completed)',
           // Class workflow statuses
           setup: 'var(--status-setup)',
           briefing: 'var(--status-briefing)',

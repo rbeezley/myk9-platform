@@ -113,3 +113,21 @@ Build also surfaced **dual-schema impedance** between myK9Show and ringside that
 
 ### Remaining 1a build order (unchanged, gated on A/B decisions)
 2. replication + prefetch adapters (needs A/B decisions) → 3. data-dependency adapter (Finding C) → 4. `useEntryListActions`/`useEntryListHandlers` host hooks → 5. ~14 thin slot shims + ~6 prop-adapter shims → 6. host shim page + uiState → 7. route + flag + CSS → 8. integration tests + smoke.
+
+---
+
+## Phase 1a DB-check resolutions + locked decisions (2026-05-28, post id-migration merge #424)
+
+Worktree synced onto `main` (incl. #424 string-id migration); spine re-verified (12 tests green). The 3 "do-not-guess" schema checks ran against `supabase/migrations/` (230 files):
+
+- **`unlock_entry_for_edit` RPC — ABSENT.** Score-reset is **STUB** in the spike (`handleResetScore`/`confirmResetScore` queue UI only, no DB unlock). Real binding deferred to a later Phase 1 PR once the edit-lock model is decided.
+- **`protect_scored_entries` trigger — ABSENT.** Same gate as above; reset/edit-protection STUB.
+- **Run-order column — exists as `run_order`, NOT `exhibitor_order`** (mig 003, `entries_class_run_order_idx`). Run-order **read is REAL** (`run_order → Entry.exhibitorOrder`, mirroring myK9Q `entryReplication`); run-order **apply/persist is STUB** for the spike (`handleApplyRunOrder`/drag-end no-op behind flag).
+
+**Locked decisions (plan recommendations adopted for the flag-gated spike; INTENT-noted in code):**
+- **Finding A (class-status):** lossy map — `briefing`/`break`/`start_time`/`offline-scoring` → `in_progress`; `no-status` → `upcoming`. (`setup`/`in_progress`/`completed` pass through.)
+- **Finding B (time fields):** drop `briefing_time`/`break_until`; map `start_time` → `startTime` only.
+- **Placement recalc:** STUB (myK9Show uses client-side `PlacementCalculatorService`, not the `recalculate_class_placements` RPC — reconciliation out of spike scope).
+- **Max-time gate** in `handleEntryClick`: STUB (skip the `tryApplyFixedMaxTime`/MaxTimeDialog branch).
+
+All stubs are safe because the entire `/at-show` route is gated behind `unified_ringside_enabled` (off by default; enabling it is a later owner-gated step).

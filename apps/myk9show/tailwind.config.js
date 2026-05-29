@@ -6,6 +6,11 @@ export default {
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
     '../../packages/ui/src/**/*.{js,ts,jsx,tsx}',
+    // Shared packages render their own Tailwind utilities inside myK9Show, so
+    // their source must be scanned too — otherwise classes used ONLY here (e.g.
+    // the scoresheet's bg-red-700 Excused chip) silently never get generated.
+    '../../packages/scoring-ui/src/**/*.{js,ts,jsx,tsx}',
+    '../../packages/ringside/src/**/*.{js,ts,jsx,tsx}',
   ],
   darkMode: 'class',
   theme: {

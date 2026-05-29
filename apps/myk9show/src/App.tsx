@@ -341,6 +341,14 @@ function App() {
                               }
                             />
 
+                            {/* At-show ringside — full-screen judge view on a
+                                phone. Intentionally OUTSIDE UnifiedAppLayout (no
+                                sidebar / mobile hamburger nav); AppHeader also
+                                hides itself on /at-show. Mirrors myK9Q's
+                                standalone ringside so the page's own header sits
+                                at the true top with no host chrome stacked above. */}
+                            {AtShowRoutes()}
+
                             {/* All other routes — inside unified sidebar layout */}
                             <Route element={<UnifiedAppLayout />}>
                               {AdminRoutes()}
@@ -348,7 +356,6 @@ function App() {
                               {SecretaryRoutes()}
                               {ClubAdminRoutes()}
                               {PublicRoutes()}
-                              {AtShowRoutes()}
                             </Route>
 
                             {/* 404 catch-all */}

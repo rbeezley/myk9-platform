@@ -8,14 +8,16 @@
  * Containment contract:
  *  - EVERYTHING here is scoped under `.ringside-root`. Hosts wrap the ringside
  *    page subtree in that class; nothing leaks into the rest of the host app.
- *  - Design tokens are (re)declared on `.ringside-root` with literal values
- *    copied from myK9Q `design-tokens.css` (light mode). This makes the
- *    stylesheet self-contained — it does NOT depend on the host defining any
- *    `--token-*` / `--status-*` vars, and cannot collide with the host's own
- *    theme variables (which live on `:root`, not `.ringside-root`).
- *
- * Light-mode only for now (matches the reference screens). Dark-mode token
- * overrides are a follow-up once the host's dark-class strategy is settled.
+ *  - Only NON-theme tokens are (re)declared on `.ringside-root`: spacing, radii,
+ *    z-index, touch targets, and the semantic check-in/result status colors
+ *    (which are mode-independent by design). These are self-contained — the
+ *    stylesheet does not depend on the host defining any `--token-*`/`--status-*`.
+ *  - Theme colors (--foreground, --card, --border, --muted, --muted-foreground,
+ *    --accent, --primary, --primary-foreground) are deliberately NOT redeclared
+ *    — they INHERIT from the host, which already provides correct LIGHT and DARK
+ *    values (myK9Show per `[data-accent]` + `.dark`; myK9Q its own theme).
+ *    Redeclaring them froze the package in light mode and produced dark text on
+ *    dark cards. Inheriting gives correct dark mode for free.
  */
 
 .ringside-root {
@@ -29,19 +31,11 @@
   --token-space-3xl: 1.5rem;
   --token-space-4xl: 2rem;
 
-  /* ── Core colors (light) ── */
-  --foreground: #0a0a0a;
-  --border: #e5e7eb;
-  --muted: #f6f6f6;
-  --muted-foreground: #6b7280;
-  --secondary: #f3f4f6;
-  --primary: #14b8a6;
+  /* Armband/badge text stays white on the (colored) accent + status fills in
+     both modes; the accent itself inherits from the host. */
   --primary-foreground: #ffffff;
-  --text-tertiary: #6b7280;
-  --text-gray: #9ca3af;
-  --token-text-secondary: #374151;
 
-  /* ── Check-in / result status colors ── */
+  /* ── Check-in / result status colors (semantic, mode-independent) ── */
   --status-no-status-bg: #9ca3af;
   --status-no-status-text: #ffffff;
   --status-checked-in: #14b8a6;
@@ -58,8 +52,7 @@
   --success-contrast: #14b8a6;
   --error-contrast: #dc2626;
 
-  /* ── Overlays / shadows ── */
-  --overlay-white-heavy: rgba(255, 255, 255, 0.8);
+  /* ── Shadows (black alpha — read correctly in light + dark) ── */
   --shadow-subtle: rgba(0, 0, 0, 0.1);
   --shadow-medium: rgba(0, 0, 0, 0.3);
   --shadow-strong: rgba(0, 0, 0, 0.4);
@@ -72,9 +65,6 @@
   --token-z-modal: 1000;
   --token-radius-sm: 0.375rem;
   --token-radius-lg: 0.75rem;
-  --background: #ffffff;
-  --overlay-white-light: rgba(255, 255, 255, 0.2);
-  --token-text-tertiary: #6b7280;
 }
 
 /* =========================================================================
@@ -82,7 +72,7 @@
    ========================================================================= */
 
 .ringside-root .dog-card {
-  background: var(--overlay-white-heavy);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 1rem;
   padding: var(--token-space-lg);
@@ -105,7 +95,7 @@
 .ringside-root .dog-card.touchable:hover {
   transform: translateY(-2px);
   box-shadow: 0 var(--token-space-md) var(--token-space-3xl) rgba(0, 0, 0, 0.12);
-  border-color: rgba(20, 184, 166, 0.3);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .ringside-root .dog-card.touchable:active {
@@ -126,12 +116,18 @@
 .ringside-root .dog-card.come-to-gate {
   border-left: 3px solid var(--status-at-gate);
 }
+/* In-ring is the strongest signal a judge needs — a bold left bar (like the
+   other statuses, just heavier) plus a soft glow. No full-perimeter border or
+   hard 1px ring: those stacked into a harsh double outline that fought the
+   rounded corners and the status pill. */
 .ringside-root .dog-card.in-ring {
   border-left: 5px solid var(--status-in-ring);
-  border-color: var(--status-in-ring);
-  box-shadow: 0 0 0 1px var(--status-in-ring), 0 4px 12px rgba(37, 99, 235, 0.15),
-    inset -2px 0 8px rgba(37, 99, 235, 0.08);
-  background: linear-gradient(to right, rgba(37, 99, 235, 0.04) 0%, transparent 40%);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--status-in-ring) 22%, transparent);
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--status-in-ring) 6%, transparent) 0%,
+    transparent 45%
+  );
 }
 .ringside-root .dog-card.scored {
   border-left: 3px solid var(--status-completed);
@@ -171,7 +167,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--text-tertiary);
+  color: var(--muted-foreground);
   cursor: grab;
   padding: var(--token-space-xs);
   margin-left: calc(-1 * var(--token-space-sm));
@@ -230,7 +226,7 @@
   z-index: var(--token-z-raised);
 }
 .ringside-root .section-badge.section-a {
-  background: var(--text-gray);
+  background: #9ca3af;
 }
 .ringside-root .section-badge.section-b {
   background: #4b5563;
@@ -254,14 +250,14 @@
   margin: 0 0 var(--token-space-xs) 0;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--token-text-secondary);
+  color: var(--muted-foreground);
   line-height: 1.4;
 }
 .ringside-root .dog-card-handler {
   margin: 0;
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--text-tertiary);
+  color: var(--muted-foreground);
   line-height: 1.4;
 }
 
@@ -392,6 +388,14 @@
 .ringside-root .entry-list-container {
   padding: var(--token-space-lg);
 }
+/* The card list owns its own stacking context so per-card z-indexes (status
+   badges, section badges, action slot — all `--token-z-raised`) stay LOCAL and
+   never tie/beat the sticky header (also `--token-z-raised`). Without this the
+   header and the cards share the root stacking context and DOM order wins, so
+   an "In Ring" badge paints over the open actions menu. */
+.ringside-root .entry-list-scrollable {
+  isolation: isolate;
+}
 .ringside-root .entry-list-content {
   padding: var(--token-space-md) 0 var(--token-space-4xl);
 }
@@ -422,7 +426,7 @@
   justify-content: center;
   padding: var(--token-space-4xl) var(--token-space-lg);
   text-align: center;
-  color: var(--text-tertiary);
+  color: var(--muted-foreground);
   gap: var(--token-space-md);
 }
 .ringside-root .empty-state-title {
@@ -434,19 +438,23 @@
 .ringside-root .no-entries {
   padding: var(--token-space-4xl) var(--token-space-lg);
   text-align: center;
-  color: var(--text-tertiary);
+  color: var(--muted-foreground);
 }
 
 /* =========================================================================
    EntryList header — ported from apps/myk9q EntryList.css + page-container.css,
    scoped. Sticky bar with absolute-centered class title + trial meta, back-nav
-   (HamburgerMenu slot) left, action buttons right. Light mode only.
+   (HamburgerMenu slot) left, action buttons right.
    ========================================================================= */
 .ringside-root .page-header {
   position: sticky;
   top: 0;
-  z-index: var(--token-z-modal);
-  background: var(--overlay-white-heavy);
+  /* A sticky header only needs to sit above scrolling content — NOT at modal
+     level. The host's overlays (Filter/Sort Sheet, ClassDetails Popover) portal
+     to body at z-50; a modal-level header (1000) would cover them. Keep it
+     "raised" so those overlays layer correctly on top. */
+  z-index: var(--token-z-raised);
+  background: var(--card);
   border-bottom: 1px solid var(--border);
   border-radius: 0 0 var(--token-radius-lg) var(--token-radius-lg);
   padding: var(--token-space-lg);
@@ -489,7 +497,7 @@
   padding: 2px 6px;
 }
 .ringside-root .class-info-clickable:hover {
-  background: var(--overlay-white-light);
+  background: var(--accent);
 }
 .ringside-root .class-name-wrapper {
   display: flex;
@@ -515,8 +523,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--token-text-tertiary);
-  color: var(--background);
+  background: var(--muted-foreground);
+  color: var(--card);
   opacity: 0.6;
   flex-shrink: 0;
 }
@@ -531,7 +539,61 @@
 }
 .ringside-root .trial-meta-text {
   font-size: 0.75rem;
-  color: var(--token-text-secondary);
+  color: var(--muted-foreground);
   font-weight: 500;
   line-height: 1.2;
+}
+
+/* =========================================================================
+   Actions menu (3-dot dropdown) — ported from apps/myk9q EntryList.css, scoped.
+   This was missing from the original port, so the menu rendered as unstyled
+   text overlapping the header. The trigger lives in .header-buttons; the menu
+   drops below it over the list. Theme tokens (--card/--border/--foreground/
+   --muted/--input) inherit from the host (correct in light + dark).
+   ========================================================================= */
+.ringside-root .actions-menu-container {
+  position: relative;
+}
+.ringside-root .actions-dropdown-menu {
+  position: absolute;
+  top: calc(100% + var(--token-space-md));
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 var(--token-space-md) var(--token-space-3xl) rgba(0, 0, 0, 0.15);
+  z-index: var(--token-z-overlay);
+  min-width: 220px;
+  max-width: calc(100vw - 2rem);
+  overflow: hidden;
+  margin-right: var(--token-space-sm);
+}
+.ringside-root .action-menu-item {
+  width: 100%;
+  padding: var(--token-space-lg) var(--token-space-xl);
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-lg);
+}
+.ringside-root .action-menu-item:hover {
+  background: var(--muted);
+}
+.ringside-root .action-menu-item:active {
+  background: var(--input);
+}
+.ringside-root .action-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ringside-root .menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: var(--token-space-sm) 0;
 }

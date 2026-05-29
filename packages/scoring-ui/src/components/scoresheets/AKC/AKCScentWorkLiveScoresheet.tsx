@@ -132,8 +132,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             {/* Dog Info Card - matches myK9Q layout */}
             <Card className="p-4">
               <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shadow-blue-500/30">
-                  <span className="text-xl font-bold text-white">{entry.armband}</span>
+                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-md">
+                  <span className="text-xl font-bold text-primary-foreground">{entry.armband}</span>
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                   <div className="text-lg font-semibold truncate leading-tight">
@@ -146,10 +146,11 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               </div>
             </Card>
 
-            {/* Timer Card - gradient background matching myK9Q */}
-            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md overflow-hidden">
+            {/* Timer Card - neutral surface like the other sections (no accent
+                background); the Start button carries the accent. */}
+            <div className="relative p-6 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <button
-                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/20 border-0 text-white flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-white/30 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-muted border-0 text-muted-foreground flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
                 onClick={stopwatch.reset}
                 disabled={stopwatch.isRunning}
                 title={
@@ -162,15 +163,15 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <div className="text-center">
                 <div
                   className={cn(
-                    'text-5xl font-bold text-white tabular-nums tracking-tight transition-colors duration-300',
-                    stopwatch.shouldShow30SecondWarning() && 'text-amber-400',
+                    'text-5xl font-bold text-foreground tabular-nums tracking-tight transition-colors duration-300',
+                    stopwatch.shouldShow30SecondWarning() && 'text-amber-500',
                     stopwatch.isTimeExpired() && 'text-red-500 animate-pulse'
                   )}
                 >
                   {stopwatch.formatTime(stopwatch.time)}
                 </div>
 
-                <div className="text-base text-white/90 mt-2 mb-4 tabular-nums">
+                <div className="text-base text-muted-foreground mt-2 mb-4 tabular-nums">
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.getRemainingTime()}</>
                   ) : (
@@ -180,7 +181,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
                 {/* Time remaining progress bar */}
                 {maxTimeMs > 0 && (
-                  <div className="w-full h-1.5 rounded-full bg-white/20 mt-3 mb-4 overflow-hidden">
+                  <div className="w-full h-1.5 rounded-full bg-muted mt-3 mb-4 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-300 ease-linear"
                       style={{ width: `${progressPct}%`, backgroundColor: getRingColor() }}
@@ -200,7 +201,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     </Button>
                   ) : (
                     <Button
-                      className="w-48 h-[72px] rounded-full text-[1.375rem] font-semibold shadow-lg hover:brightness-110 hover:scale-105 active:scale-95 bg-white text-indigo-600 hover:bg-white/90"
+                      className="w-48 h-[72px] rounded-full text-[1.375rem] font-semibold shadow-lg hover:brightness-110 hover:scale-105 active:scale-95 bg-primary text-primary-foreground"
                       onClick={stopwatch.start}
                       data-testid={stopwatch.time > 0 ? undefined : 'timer-start'}
                     >
@@ -246,7 +247,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     {area.time && (
                       <Button
                         variant="ghost"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 hover:-translate-y-1/2 active:-translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                         onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
                       >
                         <X className="h-4 w-4" />
@@ -315,8 +316,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm">
-                <span className="text-sm font-bold text-white">{entry.armband}</span>
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+                <span className="text-sm font-bold text-primary-foreground">{entry.armband}</span>
               </div>
               <div>
                 <div className="font-medium">{entry.dogName}</div>
@@ -330,7 +331,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 <span
                   className={cn(
                     'font-semibold',
-                    scoring.qualifying === 'Q' && 'text-blue-600',
+                    scoring.qualifying === 'Q' && 'text-primary',
                     scoring.qualifying === 'NQ' && 'text-red-600',
                     scoring.qualifying === 'ABS' && 'text-purple-600',
                     scoring.qualifying === 'EX' && 'text-red-700'

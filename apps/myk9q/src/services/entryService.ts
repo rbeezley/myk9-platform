@@ -76,7 +76,7 @@ export async function getTrialEntries(trialId: number, licenseKey: string): Prom
  * **Phase 2 Task 2.1**: Delegates to scoreSubmission module
  */
 export async function submitScore(
-  entryId: number,
+  entryId: string,
   scoreData: {
     resultText: string;
     searchTime?: string;
@@ -193,7 +193,7 @@ export async function markUnscoredEntriesAsAbsent(classIds: number | number[]): 
  * @param knownPreviousStatus - Optional: pass the current status when known (avoids cache lookup issues)
  */
 export async function markInRing(
-  entryId: number,
+  entryId: string,
   inRing: boolean = true,
   knownPreviousStatus?: import('@/stores/entryStore').EntryStatus
 ): Promise<boolean> {
@@ -206,7 +206,7 @@ export async function markInRing(
  *
  * **Phase 2 Task 2.2**: Delegates to entryStatusManagement module
  */
-export async function markEntryCompleted(entryId: number): Promise<boolean> {
+export async function markEntryCompleted(entryId: string): Promise<boolean> {
   return markEntryCompletedFromStatusModule(entryId);
 }
 
@@ -298,7 +298,7 @@ export function subscribeToEntryUpdates(
  * **Phase 2 Task 2.2**: Delegates to entryStatusManagement module
  */
 export async function updateEntryCheckinStatus(
-  entryId: number,
+  entryId: string,
   checkinStatus: EntryStatus
 ): Promise<boolean> {
   return updateEntryCheckinStatusFromStatusModule(entryId, checkinStatus);
@@ -309,7 +309,7 @@ export async function updateEntryCheckinStatus(
  *
  * **Phase 2 Task 2.2**: Delegates to entryStatusManagement module
  */
-export async function resetEntryScore(entryId: number): Promise<boolean> {
+export async function resetEntryScore(entryId: string): Promise<boolean> {
   return resetEntryScoreFromStatusModule(entryId);
 }
 

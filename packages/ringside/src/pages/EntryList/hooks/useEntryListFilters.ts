@@ -21,7 +21,7 @@ export type SectionFilter = 'all' | 'A' | 'B';
 type SortComparator = (a: Entry, b: Entry, context?: SortContext) => number;
 
 interface SortContext {
-  manualOrderMap: Map<number, number>;
+  manualOrderMap: Map<string, number>;
 }
 
 /**
@@ -174,7 +174,7 @@ export const useEntryListFilters = ({
    * Now: O(n) map creation + O(1) per lookup = O(n log n) total
    */
   const manualOrderMap = useMemo(() => {
-    const map = new Map<number, number>();
+    const map = new Map<string, number>();
     if (manualOrder && manualOrder.length > 0) {
       manualOrder.forEach((entry, index) => {
         map.set(entry.id, index);

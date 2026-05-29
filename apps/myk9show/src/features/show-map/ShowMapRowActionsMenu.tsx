@@ -24,6 +24,7 @@ import type { ShowMapNode, ShowMapTree } from './showMapTypes';
 interface ShowMapRowActionsMenuProps {
   node: ShowMapNode;
   tree: ShowMapTree;
+  scopeNow?: Date | undefined;
   onNavigate?: ((href: string) => void) | undefined;
   onAction?:
     | ((action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void)
@@ -52,6 +53,7 @@ function ActionContent({
 export function ShowMapRowActionsMenu({
   node,
   tree,
+  scopeNow,
   onNavigate,
   onAction,
   openSignal,
@@ -60,10 +62,10 @@ export function ShowMapRowActionsMenu({
   const [dismissedOpenSignal, setDismissedOpenSignal] = useState(0);
   const isRootMenu = node.id === tree.root.id;
   const recommendedActions = isRootMenu
-    ? getRecommendedActions('root', { tree })
+    ? getRecommendedActions('root', { tree, now: scopeNow })
     : getRecommendedActionsForNode(node, { tree });
   const allActions = isRootMenu
-    ? getRankedActions('root', { tree })
+    ? getRankedActions('root', { tree, now: scopeNow })
     : getDirectActionsForNode(node, { tree });
   const signalOpen = Boolean(openSignal && openSignal !== dismissedOpenSignal);
   const isOpen = manualOpen || signalOpen;

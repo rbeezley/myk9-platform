@@ -177,7 +177,7 @@ export function buildSingleClassInfo(
     element: classData.element || '',
     level: classData.level || '',
     section: classData.section || '',
-    trialId: classData.trial_id,
+    trialId: String(classData.trial_id),
     trialDate: trialData?.date || entries[0]?.trialDate || '',
     trialNumber: trialData?.trial_number
       ? String(trialData.trial_number)
@@ -185,7 +185,7 @@ export function buildSingleClassInfo(
         ? String(entries[0].trialNumber)
         : '',
     judgeName,
-    actualClassId: parseInt(classId),
+    actualClassId: classId,
     selfCheckin: classData.self_checkin_enabled ?? true,
     classStatus: classData.status || 'pending',
     totalEntries: entries.length,
@@ -216,7 +216,7 @@ export function buildCombinedClassInfo(
     className: `${classDataA.element} ${classDataA.level} A & B`,
     element: classDataA.element || '',
     level: classDataA.level || '',
-    trialId: classDataA.trial_id,
+    trialId: String(classDataA.trial_id),
     trialDate: trialData?.date || entries[0]?.trialDate || '',
     trialNumber: trialData?.trial_number
       ? String(trialData.trial_number)
@@ -225,8 +225,8 @@ export function buildCombinedClassInfo(
         : '',
     judgeName: classDataA.judge_name || 'No Judge Assigned',
     judgeNameB: classDataB.judge_name || 'No Judge Assigned',
-    actualClassIdA: parseInt(classIdA),
-    actualClassIdB: parseInt(classIdB),
+    actualClassIdA: classIdA,
+    actualClassIdB: classIdB,
     selfCheckin: classDataA.self_checkin_enabled ?? true,
     classStatus: classDataA.status || classDataB.status || 'pending',
     timeLimit: classDataA.time_limit_seconds ? `${classDataA.time_limit_seconds}s` : undefined,
@@ -250,7 +250,7 @@ export function transformReplicatedEntry(entry: ReplicatedEntry, classData?: Cla
     classData?.section && classData.section !== '-' ? ` ${classData.section}` : '';
 
   return {
-    id: parseInt(entry.id, 10),
+    id: entry.id,
     armband: entry.armband,
     callName: entry.dog_call_name,
     breed: entry.dog_breed || '',
@@ -258,7 +258,7 @@ export function transformReplicatedEntry(entry: ReplicatedEntry, classData?: Cla
     isScored: entry.is_scored || false,
     status: status as Entry['status'],
     inRing: entry.entry_status === 'in-ring',
-    classId: parseInt(entry.class_id, 10),
+    classId: entry.class_id,
     className:
       classData?.element && classData?.level
         ? `${classData.element} ${classData.level}${sectionPart}`.trim()
@@ -395,7 +395,7 @@ export async function fetchFromSupabase(
     trialDate,
     trialNumber,
     judgeName: classData.judge_name || 'No Judge Assigned',
-    actualClassId: parseInt(classId),
+    actualClassId: classId,
     selfCheckin: classData.self_checkin_enabled ?? true,
     classStatus: classData.status || 'pending',
     totalEntries: classEntries.length,
@@ -544,8 +544,8 @@ export async function fetchCombinedFromSupabase(
   }
 
   if (classDataA && classDataB) {
-    const entriesA = combinedEntries.filter(e => e.classId === parseInt(classIdA));
-    const entriesB = combinedEntries.filter(e => e.classId === parseInt(classIdB));
+    const entriesA = combinedEntries.filter(e => e.classId === classIdA);
+    const entriesB = combinedEntries.filter(e => e.classId === classIdB);
 
     const [visibilityFlagsA, visibilityFlagsB] = await Promise.all([
       fetchVisibilityFlagsWithFallback({
@@ -587,8 +587,8 @@ export async function fetchCombinedFromSupabase(
     trialNumber,
     judgeName: classDataA?.judge_name || 'No Judge Assigned',
     judgeNameB: classDataB?.judge_name || 'No Judge Assigned',
-    actualClassIdA: parseInt(classIdA),
-    actualClassIdB: parseInt(classIdB),
+    actualClassIdA: classIdA,
+    actualClassIdB: classIdB,
     selfCheckin: classDataA?.self_checkin_enabled ?? true,
     classStatus: classDataA?.status || classDataB?.status || 'pending',
     timeLimit: firstEntry.timeLimit,

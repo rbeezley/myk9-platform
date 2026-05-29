@@ -138,11 +138,7 @@ describe('showMapActions', () => {
       ],
     });
 
-    const allRecommendedActions = getRecommendedActions(
-      'root',
-      { tree },
-      Number.POSITIVE_INFINITY
-    );
+    const allRecommendedActions = getRecommendedActions('root', { tree }, Number.POSITIVE_INFINITY);
     const recommendedActions = getRecommendedActions('root', { tree });
 
     expect(allRecommendedActions.length).toBeGreaterThan(SHOW_MAP_RECOMMENDED_ACTION_LIMIT);
@@ -240,15 +236,20 @@ describe('showMapActions', () => {
       entries: [],
     });
 
-    expect(findAction(getRankedActions(tree.nodesById['class:class-future'], { tree }), 'mark-class-started')).toMatchObject({
+    expect(
+      findAction(
+        getRankedActions(tree.nodesById['class:class-future'], { tree }),
+        'mark-class-started'
+      )
+    ).toMatchObject({
       label: 'Mark Class Started',
       classId: 'class-future',
       trialId: 'trial-1',
       recommended: true,
     });
-    expect(getRankedActions(tree.nodesById['class:class-future'], { tree }).map(action => action.id)).not.toContain(
-      'mark-class-complete'
-    );
+    expect(
+      getRankedActions(tree.nodesById['class:class-future'], { tree }).map(action => action.id)
+    ).not.toContain('mark-class-complete');
 
     expect(
       findAction(
@@ -260,9 +261,9 @@ describe('showMapActions', () => {
       classId: 'class-active',
       trialId: 'trial-1',
     });
-    expect(getRankedActions(tree.nodesById['class:class-active'], { tree }).map(action => action.id)).not.toContain(
-      'mark-class-started'
-    );
+    expect(
+      getRankedActions(tree.nodesById['class:class-active'], { tree }).map(action => action.id)
+    ).not.toContain('mark-class-started');
 
     const completedActionIds = getRankedActions(tree.nodesById['class:class-complete'], {
       tree,
@@ -527,7 +528,7 @@ describe('showMapActions', () => {
         expect.objectContaining({
           id: 'collect-judge-signature',
           nodeId: 'class:class-needs-signature',
-          href: '/secretary/reports',
+          href: '/secretary/reports?report=result-catalog&showId=show-1&trialId=trial-1&classId=class-needs-signature',
           createsAttention: true,
         }),
       ])
@@ -560,6 +561,88 @@ describe('showMapActions', () => {
         expect.objectContaining({
           id: 'collect-judge-signature',
           why: 'Completed class still needs judge sign-off',
+        }),
+      ])
+    );
+  });
+
+  it('does not recommend stale wrap-up work at show scope before the trial date', () => {
+    const futureTrial = {
+      ...trial,
+      trialDate: '2026-06-12',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+    const tree = buildShowMapTree({
+      show,
+      trials: [futureTrial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+        {
+          id: 'class-not-started',
+          trialId: 'trial-1',
+          name: 'Interior Novice B',
+          status: 'Not Started',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          is_scored: true,
+        },
+      ],
+    });
+
+    const recommendedIds = getRecommendedActions('root', {
+      tree,
+      now: new Date('2026-05-28T15:00:00.000Z'),
+    }).map(action => action.id);
+
+    expect(recommendedIds).not.toContain('collect-judge-signature');
+    expect(recommendedIds).not.toContain('mark-class-started');
+    expect(recommendedIds).toContain('print-check-in-sheet');
+  });
+
+  it('keeps direct wrap-up recommendations available on the class before the trial date', () => {
+    const futureTrial = {
+      ...trial,
+      trialDate: '2026-06-12',
+      timezone: 'America/New_York',
+    } as SyncableTrial;
+    const tree = buildShowMapTree({
+      show,
+      trials: [futureTrial],
+      classes: [
+        {
+          id: 'class-needs-signature',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-needs-signature',
+          class_id: 'class-needs-signature',
+          is_scored: true,
+        },
+      ],
+    });
+
+    expect(
+      getRecommendedActions(tree.nodesById['class:class-needs-signature']!, {
+        tree,
+        now: new Date('2026-05-28T15:00:00.000Z'),
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'collect-judge-signature',
         }),
       ])
     );
@@ -626,7 +709,9 @@ describe('showMapActions', () => {
           status: 'Complete',
         },
       ],
-      entries: [{ id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true }],
+      entries: [
+        { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
+      ],
     });
 
     // Dedup invariant: the assertion would throw if a duplicate (id, nodeId) pair
@@ -744,8 +829,18 @@ describe('showMapActions', () => {
           },
         ],
         entries: [
-          { id: 'e-a', class_id: 'class-a', is_scored: true, judge_signature_timestamp: '2026-05-18' },
-          { id: 'e-b', class_id: 'class-b', is_scored: true, judge_signature_timestamp: '2026-05-18' },
+          {
+            id: 'e-a',
+            class_id: 'class-a',
+            is_scored: true,
+            judge_signature_timestamp: '2026-05-18',
+          },
+          {
+            id: 'e-b',
+            class_id: 'class-b',
+            is_scored: true,
+            judge_signature_timestamp: '2026-05-18',
+          },
         ],
       });
 
@@ -997,14 +1092,49 @@ describe('showMapActions', () => {
             status: 'In Progress',
           },
         ],
-        entries: [
-          { id: 'e1', class_id: 'class-active', check_in_status: 'checked-in' },
-        ],
+        entries: [{ id: 'e1', class_id: 'class-active', check_in_status: 'checked-in' }],
       });
 
       const counts = getAttentionCountsByNodeId(tree, undefined);
 
       expect(counts.size).toBe(0);
+    });
+
+    it('does not count future-dated show-day attention at root scope', () => {
+      const futureTrial = {
+        ...trial,
+        trialDate: '2026-06-12',
+        timezone: 'America/New_York',
+      } as SyncableTrial;
+      const tree = buildShowMapTree({
+        show,
+        trials: [futureTrial],
+        classes: [
+          {
+            id: 'class-needs-signature',
+            trialId: 'trial-1',
+            name: 'Container Novice A',
+            status: 'Complete',
+          },
+          {
+            id: 'class-not-started',
+            trialId: 'trial-1',
+            name: 'Interior Novice B',
+            status: 'Not Started',
+          },
+        ],
+        entries: [
+          { id: 'entry-needs-signature', class_id: 'class-needs-signature', is_scored: true },
+        ],
+      });
+
+      const counts = getAttentionCountsByNodeId(tree, {
+        now: new Date('2026-05-28T15:00:00.000Z'),
+      });
+
+      expect(counts.get(tree.root.id)).toBeUndefined();
+      expect(counts.get('trial:trial-1')).toBeUndefined();
+      expect(counts.get('class:class-needs-signature')).toBeUndefined();
     });
   });
 
@@ -1035,9 +1165,7 @@ describe('showMapActions', () => {
       const tree = buildShowMapTree({
         show,
         trials: [trial],
-        classes: [
-          { id: 'class-complete', trialId: 'trial-1', name: 'Buried', status: 'Complete' },
-        ],
+        classes: [{ id: 'class-complete', trialId: 'trial-1', name: 'Buried', status: 'Complete' }],
         entries: [{ id: 'entry-scored', class_id: 'class-complete', is_scored: true }],
       });
 

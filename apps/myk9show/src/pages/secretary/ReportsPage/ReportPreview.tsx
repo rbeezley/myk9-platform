@@ -100,9 +100,10 @@ export function ReportPreview({
     if (renderingMode === 'show') {
       // Filter to selected trial when a specific trial is chosen
       const targetTrialIds = trialId === 'all' ? (trials ?? []).map(t => t.id) : [trialId];
+      const shouldFilterClass = report.scopes.includes('class') && classId !== 'all';
 
-      const filteredClasses = (classes ?? []).filter(c =>
-        targetTrialIds.includes(c.trial_id ?? '')
+      const filteredClasses = (classes ?? []).filter(
+        c => targetTrialIds.includes(c.trial_id ?? '') && (!shouldFilterClass || c.id === classId)
       );
       const filteredClassIds = new Set(filteredClasses.map(c => c.id));
 
@@ -268,8 +269,14 @@ export function ReportPreview({
     renderingMode === 'show'
       ? (() => {
           const targetIds = trialId === 'all' ? (trials ?? []).map(t => t.id) : [trialId];
+          const shouldFilterClass = report?.scopes.includes('class') && classId !== 'all';
           const classIds = new Set(
-            (classes ?? []).filter(c => targetIds.includes(c.trial_id ?? '')).map(c => c.id)
+            (classes ?? [])
+              .filter(
+                c =>
+                  targetIds.includes(c.trial_id ?? '') && (!shouldFilterClass || c.id === classId)
+              )
+              .map(c => c.id)
           );
           return (entries ?? []).some(e => classIds.has(e.class_id ?? ''));
         })()

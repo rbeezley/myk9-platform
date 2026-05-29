@@ -42,12 +42,12 @@ export interface UseClassStatusReturn {
   setStatusDialogOpen: (open: boolean) => void;
   setSelectedClassForStatus: (classEntry: ClassEntry | null) => void;
   handleStatusChange: (
-    classId: number,
+    classId: string,
     status: ClassEntry['class_status'],
     deps: StatusDependencies
   ) => Promise<StatusOperationResult>;
   handleStatusChangeWithTime: (
-    classId: number,
+    classId: string,
     status: ClassEntry['class_status'],
     timeValue: string,
     deps: StatusDependencies
@@ -85,7 +85,7 @@ export interface UseClassStatusReturn {
  *   // Create deps object once
  *   const statusDeps = { classes, setClasses, supabaseClient: supabase, refetch };
  *
- *   const handleComplete = async (classId: number) => {
+ *   const handleComplete = async (classId: string) => {
  *     const result = await handleStatusChange(classId, 'completed', statusDeps);
  *     if (!result.success) {
  *       logger.error(result.error);
@@ -115,7 +115,7 @@ export function useClassStatus(): UseClassStatusReturn {
    * Automatically closes dialog after update
    */
   const handleStatusChange = useCallback(async (
-    classId: number,
+    classId: string,
     status: ClassEntry['class_status'],
     deps: StatusDependencies
   ): Promise<StatusOperationResult> => {
@@ -174,7 +174,7 @@ export function useClassStatus(): UseClassStatusReturn {
    * Used for briefing, break, and start_time statuses
    */
   const handleStatusChangeWithTime = useCallback(async (
-    classId: number,
+    classId: string,
     status: ClassEntry['class_status'],
     timeValue: string,
     deps: StatusDependencies

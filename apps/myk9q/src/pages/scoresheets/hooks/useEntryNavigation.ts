@@ -77,7 +77,7 @@ export interface EntryNavigationReturn {
   /** Whether entries are being loaded */
   isLoading: boolean;
   /** Navigate to a specific entry */
-  navigateToEntry: (entryId: number) => void;
+  navigateToEntry: (entryId: string) => void;
   /** Navigate to next entry in list */
   navigateToNextEntry: () => void;
   /** Navigate to previous entry in list */
@@ -199,7 +199,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
       setRules(result.rules);
       setLocalEntries([result.entry]);
       setEntries([result.entry]);
-      setCurrentClassEntries(parseInt(classId));
+      setCurrentClassEntries(classId);
       setCurrentEntry(result.entry);
 
       onEntryLoadedRef.current?.(result.entry, result.areas);
@@ -234,7 +234,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
       setRules(result.rules);
       setLocalEntries(result.entries);
       setEntries(result.entries);
-      setCurrentClassEntries(parseInt(classId));
+      setCurrentClassEntries(classId);
 
       if (result.targetEntry) {
         setCurrentEntry(result.targetEntry);
@@ -283,7 +283,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
   // ==========================================================================
 
   const navigateToEntry = useCallback(
-    (targetEntryId: number) => {
+    (targetEntryId: string) => {
       navigate(`/class/${classId}/score/${targetEntryId}`);
     },
     [classId, navigate]

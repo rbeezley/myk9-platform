@@ -15,7 +15,7 @@ import { logger } from '@/utils/logger';
 
 export interface QueuedScore {
   id: string; // UUID for queue item
-  entryId: number;
+  entryId: string;
   armband: number;
   classId: number;
   className: string;

@@ -206,7 +206,7 @@ export const CombinedEntryList: React.FC = () => {
         org: showContext.org,
         element: entry.element || '',
         level: entry.level || '',
-        classId: entry.classId,
+        classId: Number(entry.classId),
         entryId: entry.id,
         competition_type: showContext.competition_type || 'Regular',
       });

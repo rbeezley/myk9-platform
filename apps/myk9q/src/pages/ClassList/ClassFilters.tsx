@@ -4,7 +4,7 @@ import { TabBar, Tab } from '../../components/ui';
 import { getClassDisplayStatus } from '../../utils/statusUtils';
 
 interface ClassEntry {
-  id: number;
+  id: string;
   element: string;
   level: string;
   section: string;
@@ -24,7 +24,7 @@ interface ClassEntry {
   briefing_time?: string;
   break_until?: string;
   dogs: {
-    id: number;
+    id: string;
     armband: number;
     call_name: string;
     breed: string;

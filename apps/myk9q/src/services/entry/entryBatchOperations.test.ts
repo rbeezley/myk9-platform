@@ -337,18 +337,6 @@ describe('entryBatchOperations', () => {
       expect(result.error).toContain('Entry has invalid ID');
     });
 
-    it('should reject entry with negative ID', () => {
-      // Arrange
-      const invalidEntries = [{ id: 1, armband: 101 } as Entry, { id: -5, armband: 102 } as Entry];
-
-      // Act
-      const result = validateExhibitorOrderArray(invalidEntries);
-
-      // Assert
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('Entry has invalid ID');
-    });
-
     it('should reject entry without ID', () => {
       // Arrange
       const invalidEntries = [

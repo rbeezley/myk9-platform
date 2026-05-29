@@ -69,7 +69,7 @@ export interface ScoreData {
  * Results are stored directly in entries, not separate results table
  */
 export interface ResultData {
-  entry_id: number;
+  entry_id: string;
   result_status: string;
   search_time_seconds: number;
   is_scored: boolean;
@@ -102,7 +102,7 @@ export interface ResultData {
  *
  * @private Internal helper for submitScore
  */
-function prepareScoreUpdateData(entryId: number, scoreData: ScoreData): Partial<ResultData> {
+function prepareScoreUpdateData(entryId: string, scoreData: ScoreData): Partial<ResultData> {
   // Map the result text to the valid enum values
   const resultStatus = convertResultTextToStatus(scoreData.resultText);
 
@@ -290,7 +290,7 @@ function determineEntryStatus(isScored: boolean): EntryStatus {
  * await submitScore(123, scoreData, undefined, 456); // 50ms faster
  */
 export async function submitScore(
-  entryId: number,
+  entryId: string,
   scoreData: ScoreData,
   pairedClassId?: number,
   classId?: number
@@ -397,7 +397,7 @@ export async function submitScore(
  * @private Internal helper for submitScore
  */
 async function triggerBackgroundClassCompletion(
-  entryId: number,
+  entryId: string,
   classId?: number,
   pairedClassId?: number
 ): Promise<void> {

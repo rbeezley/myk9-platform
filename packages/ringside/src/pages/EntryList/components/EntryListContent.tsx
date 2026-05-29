@@ -51,9 +51,9 @@ export interface EntryListContentProps {
   /** Handler for entry click (scoresheet navigation) */
   onEntryClick: (entry: Entry) => void;
   /** Handler for status badge click */
-  onStatusClick: (e: React.MouseEvent, entryId: number) => void;
+  onStatusClick: (e: React.MouseEvent, entryId: string) => void;
   /** Handler for reset menu click */
-  onResetMenuClick: (e: React.MouseEvent, entryId: number) => void;
+  onResetMenuClick: (e: React.MouseEvent, entryId: string) => void;
   /** Handler for showing self-checkin disabled dialog */
   onSelfCheckinDisabled: () => void;
   /** Handler for prefetch on hover */

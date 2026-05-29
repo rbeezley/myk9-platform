@@ -47,17 +47,17 @@ export interface ReportDependencies {
  */
 export interface UsePrintReportsReturn {
   handleGenerateCheckIn: (
-    classId: number,
+    classId: string,
     deps: ReportDependencies,
     options?: { sortOrder?: ReportSortOrder }
   ) => Promise<ReportOperationResult>;
   handleGenerateResults: (
-    classId: number,
+    classId: string,
     deps: ReportDependencies,
     options?: { sortOrder?: 'placement' | 'armband' }
   ) => Promise<ReportOperationResult>;
   handleGenerateScoresheet: (
-    classId: number,
+    classId: string,
     deps: ReportDependencies,
     options?: { sortOrder?: ReportSortOrder; showSectionBadge?: boolean }
   ) => Promise<ReportOperationResult>;
@@ -117,7 +117,7 @@ export function usePrintReports(): UsePrintReportsReturn {
    */
   const handleGenerateCheckIn = useCallback(
     async (
-      classId: number,
+      classId: string,
       deps: ReportDependencies,
       options?: { sortOrder?: ReportSortOrder }
     ): Promise<ReportOperationResult> => {
@@ -140,7 +140,7 @@ export function usePrintReports(): UsePrintReportsReturn {
         }
 
         // Fetch entries for class
-        const entries = await getClassEntries(classId, licenseKey);
+        const entries = await getClassEntries(Number(classId), licenseKey);
 
         // Parse organization data for header
         const orgData = parseOrganizationData(organization);
@@ -182,7 +182,7 @@ export function usePrintReports(): UsePrintReportsReturn {
    */
   const handleGenerateResults = useCallback(
     async (
-      classId: number,
+      classId: string,
       deps: ReportDependencies,
       options?: { sortOrder?: 'placement' | 'armband' }
     ): Promise<ReportOperationResult> => {
@@ -205,7 +205,7 @@ export function usePrintReports(): UsePrintReportsReturn {
         }
 
         // Fetch entries for class
-        const entries = await getClassEntries(classId, licenseKey);
+        const entries = await getClassEntries(Number(classId), licenseKey);
 
         // Filter to only scored entries
         const completedEntries = entries.filter((e: Entry) => e.isScored);
@@ -258,7 +258,7 @@ export function usePrintReports(): UsePrintReportsReturn {
    */
   const handleGenerateScoresheet = useCallback(
     async (
-      classId: number,
+      classId: string,
       deps: ReportDependencies,
       options?: { sortOrder?: ReportSortOrder; showSectionBadge?: boolean }
     ): Promise<ReportOperationResult> => {
@@ -281,7 +281,7 @@ export function usePrintReports(): UsePrintReportsReturn {
         }
 
         // Fetch entries for class
-        const entries = await getClassEntries(classId, licenseKey);
+        const entries = await getClassEntries(Number(classId), licenseKey);
 
         if (entries.length === 0) {
           onComplete?.();

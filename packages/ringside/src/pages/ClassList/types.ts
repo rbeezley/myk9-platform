@@ -31,7 +31,7 @@ export type ClassStatusValue =
   | 'completed';
 
 export interface ClassEntry {
-  id: number;
+  id: string;
   element: string;
   level: string;
   section: string;
@@ -52,11 +52,11 @@ export interface ClassEntry {
   break_until?: string;
   planned_start_time?: string;
   last_result_at?: string;
-  pairedClassId?: number;
+  pairedClassId?: string;
   self_checkin_enabled?: boolean;
   visibility_preset?: 'open' | 'standard' | 'review';
   dogs: {
-    id: number;
+    id: string;
     armband: number;
     call_name: string;
     breed: string;
@@ -93,7 +93,7 @@ export type CombinedFilter = 'pending' | 'in-progress' | 'favorites' | 'complete
 /** State for the print dialog (which report type and which class) */
 export interface PrintDialogState {
   type: 'check-in' | 'results' | 'scoresheet' | null;
-  classId: number | null;
+  classId: string | null;
 }
 
 /** Sort option for the FilterPanel */

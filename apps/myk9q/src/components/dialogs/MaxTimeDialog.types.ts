@@ -7,7 +7,7 @@ export interface MaxTimeDialogProps {
 }
 
 export interface MaxTimeClassData {
-  id: number;
+  id: string;
   element: string;
   level: string;
   class_name: string;
@@ -15,7 +15,7 @@ export interface MaxTimeClassData {
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;
   area_count?: number;
-  pairedClassId?: number;
+  pairedClassId?: string;
 }
 
 export interface TimeRange {

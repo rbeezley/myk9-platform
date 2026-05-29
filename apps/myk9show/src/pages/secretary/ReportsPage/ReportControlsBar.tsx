@@ -100,7 +100,7 @@ export function ReportControlsBar({
       <div className="flex flex-col gap-1">
         <label className="text-xs font-medium text-muted-foreground">Report</label>
         <Select value={reportType} onValueChange={onReportTypeChange}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[200px]" aria-label="Select report">
             <SelectValue placeholder="Select report" />
           </SelectTrigger>
           <SelectContent>
@@ -124,7 +124,7 @@ export function ReportControlsBar({
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Trial</label>
           <Select value={trialId} onValueChange={onTrialChange}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px]" aria-label="Select trial">
               <SelectValue placeholder="All Trials" />
             </SelectTrigger>
             <SelectContent>
@@ -144,7 +144,7 @@ export function ReportControlsBar({
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Class</label>
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-[200px]" aria-label="Select class">
               <SelectValue placeholder="All Classes" />
             </SelectTrigger>
             <SelectContent>
@@ -165,7 +165,7 @@ export function ReportControlsBar({
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Dog</label>
           <Select value={dogId} onValueChange={onDogChange}>
-            <SelectTrigger className="w-[240px]">
+            <SelectTrigger className="w-[240px]" aria-label="Select dog">
               <SelectValue placeholder="All Dogs" />
             </SelectTrigger>
             <SelectContent>
@@ -187,7 +187,7 @@ export function ReportControlsBar({
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Sort</label>
           <Select value={sortOrder} onValueChange={onSortChange}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px]" aria-label="Select sort">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>

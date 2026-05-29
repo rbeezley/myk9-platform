@@ -32,7 +32,7 @@ export type CompetitionDay = 1 | 2 | 3;
 
 export interface NationalsScore {
   id?: number;
-  entry_id: number;
+  entry_id: string;
   armband: string;
   element_type: ElementType;
   day: CompetitionDay;
@@ -103,7 +103,7 @@ export interface LeaderboardEntry {
 }
 
 export interface ScoringInput {
-  entry_id: number;
+  entry_id: string;
   armband: string;
   element_type: ElementType;
   day: CompetitionDay;
@@ -257,7 +257,9 @@ return { data, error: null };
 
       // Merge with updates
       const updatedInput: ScoringInput = {
-        entry_id: existingScore.entry_id,
+        // existingScore comes from a DB read where bigint id is a JS number;
+        // ScoringInput.entry_id is the UUID-native string contract.
+        entry_id: String(existingScore.entry_id),
         armband: existingScore.armband,
         element_type: existingScore.element_type,
         day: existingScore.day,

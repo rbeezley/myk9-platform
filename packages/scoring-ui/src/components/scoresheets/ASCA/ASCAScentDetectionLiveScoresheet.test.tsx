@@ -6,7 +6,7 @@ import type { ScoresheetEntry, ScoresheetClassInfo } from '../../../types';
 import type { ResolvedClassRules } from '../../../types';
 
 const defaultEntry: ScoresheetEntry = {
-  id: 1,
+  id: '1',
   armband: 42,
   dogName: 'Rex',
   handlerName: 'Jane Smith',

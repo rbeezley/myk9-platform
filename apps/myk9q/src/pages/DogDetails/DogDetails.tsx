@@ -120,7 +120,7 @@ export const DogDetails: React.FC = () => {
       setActivePopup(null);
 
       // Update database using the proper service function
-      await updateEntryCheckinStatus(classId, status);
+      await updateEntryCheckinStatus(String(classId), status);
 
       // Refetch data to get updated state
       await refetch();
@@ -199,7 +199,7 @@ export const DogDetails: React.FC = () => {
     // Process all pending entries
     for (const entry of pendingEntries) {
       try {
-        await updateEntryCheckinStatus(entry.id, 'checked-in');
+        await updateEntryCheckinStatus(String(entry.id), 'checked-in');
         successCount++;
       } catch (error) {
         logger.error(`Failed to check in entry ${entry.id}:`, error);

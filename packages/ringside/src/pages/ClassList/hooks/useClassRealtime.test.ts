@@ -54,7 +54,7 @@ function createMockSupabase(): { client: SupabaseClient; channel: MockChannel } 
 }
 
 const baseClass: ClassEntry = {
-  id: 1,
+  id: '1',
   trial_id: 1,
   element: 'Container',
   level: 'Novice',
@@ -98,12 +98,12 @@ describe('useClassRealtime — display_order fall-through guard', () => {
     channel.classesHandler!({
       eventType: 'UPDATE',
       new: {
-        id: 1,
+        id: '1',
         class_status: 'in_progress',
         is_scoring_finalized: false,
         display_order: 5,
       },
-      old: { id: 1 },
+      old: { id: '1' },
     });
 
     expect(refetch).not.toHaveBeenCalled();
@@ -119,12 +119,12 @@ describe('useClassRealtime — display_order fall-through guard', () => {
     channel.classesHandler!({
       eventType: 'UPDATE',
       new: {
-        id: 1,
+        id: '1',
         class_status: 'completed',
         is_scoring_finalized: true,
         display_order: 7,
       },
-      old: { id: 1 }, // RI DEFAULT — display_order key NOT present
+      old: { id: '1' }, // RI DEFAULT — display_order key NOT present
     });
 
     expect(refetch).not.toHaveBeenCalled();
@@ -140,13 +140,13 @@ describe('useClassRealtime — display_order fall-through guard', () => {
     channel.classesHandler!({
       eventType: 'UPDATE',
       new: {
-        id: 1,
+        id: '1',
         class_status: 'no-status',
         is_scoring_finalized: false,
         display_order: 9,
       },
       old: {
-        id: 1,
+        id: '1',
         class_status: 'no-status',
         is_scoring_finalized: false,
         display_order: 3,
@@ -165,13 +165,13 @@ describe('useClassRealtime — display_order fall-through guard', () => {
     channel.classesHandler!({
       eventType: 'UPDATE',
       new: {
-        id: 1,
+        id: '1',
         class_status: 'in_progress',
         is_scoring_finalized: false,
         display_order: 4,
       },
       old: {
-        id: 1,
+        id: '1',
         class_status: 'no-status',
         is_scoring_finalized: false,
         display_order: 4,
@@ -188,17 +188,17 @@ describe('useClassRealtime — display_order fall-through guard', () => {
     channel.classesHandler!({
       eventType: 'UPDATE',
       new: {
-        id: 1,
+        id: '1',
         class_status: 'in_progress',
         is_scoring_finalized: false,
         display_order: 1,
       },
-      old: { id: 1 },
+      old: { id: '1' },
     });
 
     // Invoke the functional updater that was passed to setClasses.
     const updater = setClasses.mock.calls[0][0] as (prev: ClassEntry[]) => ClassEntry[];
-    const next = updater([baseClass, { ...baseClass, id: 2 }]);
+    const next = updater([baseClass, { ...baseClass, id: '2' }]);
 
     expect(next[0].class_status).toBe('in_progress');
     expect(next[1].class_status).toBe('no-status');
@@ -209,7 +209,7 @@ describe('useClassRealtime — display_order fall-through guard', () => {
 
     channel.classesHandler!({
       eventType: 'INSERT',
-      new: { id: 99, class_status: 'no-status', display_order: 10 },
+      new: { id: '99', class_status: 'no-status', display_order: 10 },
       old: null,
     });
 
@@ -222,7 +222,7 @@ describe('useClassRealtime — display_order fall-through guard', () => {
     channel.classesHandler!({
       eventType: 'DELETE',
       new: null,
-      old: { id: 1 },
+      old: { id: '1' },
     });
 
     expect(refetch).toHaveBeenCalledTimes(1);

@@ -55,14 +55,14 @@ vi.mock('@myk9/core', async () => {
 
 function makeEntry(over: Partial<Entry> = {}): Entry {
   return {
-    id: 0,
+    id: '0',
     armband: 0,
     callName: '',
     breed: '',
     handler: '',
     isScored: false,
     status: 'no-status',
-    classId: 1,
+    classId: '1',
     className: 'Test Class',
     inRing: false,
     exhibitorOrder: 0,
@@ -143,7 +143,7 @@ describe('useDragAndDropEntries — initial state', () => {
     expect(result.current.isDraggingRef).toBe(externalRef);
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
     expect(externalRef.current).toBe(true);
   });
@@ -152,7 +152,7 @@ describe('useDragAndDropEntries — initial state', () => {
 describe('useDragAndDropEntries — handleDragStart', () => {
   it('sets the drag flag immediately so concurrent syncs can early-out', () => {
     const setLocalEntries = vi.fn();
-    const currentEntries = [makeEntry({ id: 1, armband: 1 }), makeEntry({ id: 2, armband: 2 })];
+    const currentEntries = [makeEntry({ id: '1', armband: 1 }), makeEntry({ id: '2', armband: 2 })];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
         localEntries: currentEntries,
@@ -165,7 +165,7 @@ describe('useDragAndDropEntries — handleDragStart', () => {
     expect(result.current.isDraggingRef.current).toBe(false);
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
 
     expect(result.current.isDraggingRef.current).toBe(true);
@@ -179,9 +179,9 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
     const setManualOrder = vi.fn();
     const updateExhibitorOrder = defaultUpdater();
     const currentEntries = [
-      makeEntry({ id: 1, armband: 1, exhibitorOrder: 1 }),
-      makeEntry({ id: 2, armband: 2, exhibitorOrder: 2 }),
-      makeEntry({ id: 3, armband: 3, exhibitorOrder: 3 }),
+      makeEntry({ id: '1', armband: 1, exhibitorOrder: 1 }),
+      makeEntry({ id: '2', armband: 2, exhibitorOrder: 2 }),
+      makeEntry({ id: '3', armband: 3, exhibitorOrder: 3 }),
     ];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
@@ -195,17 +195,17 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
 
     // Begin drag — snapshot is captured here
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
 
     // Drop entry 1 onto entry 3 → expect order [2, 3, 1]
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(1, 3));
+      await result.current.handleDragEnd(dragEvent('1', '3'));
     });
 
     expect(updateExhibitorOrder).toHaveBeenCalledTimes(1);
     const reordered = updateExhibitorOrder.mock.calls[0][0] as Entry[];
-    expect(reordered.map(e => e.id)).toEqual([2, 3, 1]);
+    expect(reordered.map(e => e.id)).toEqual(['2', '3', '1']);
     expect(reordered.map(e => e.exhibitorOrder)).toEqual([1, 2, 3]);
 
     // External setManualOrder receives the same reordered list
@@ -221,11 +221,11 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
   it('preserves entries that are in localEntries but NOT in the current filtered view', async () => {
     const setLocalEntries = vi.fn();
     // localEntries has 4 dogs; only 3 are in the current (filtered) view.
-    const hiddenEntry = makeEntry({ id: 99, armband: 99, exhibitorOrder: 99 });
+    const hiddenEntry = makeEntry({ id: '99', armband: 99, exhibitorOrder: 99 });
     const currentEntries = [
-      makeEntry({ id: 1, armband: 1, exhibitorOrder: 1 }),
-      makeEntry({ id: 2, armband: 2, exhibitorOrder: 2 }),
-      makeEntry({ id: 3, armband: 3, exhibitorOrder: 3 }),
+      makeEntry({ id: '1', armband: 1, exhibitorOrder: 1 }),
+      makeEntry({ id: '2', armband: 2, exhibitorOrder: 2 }),
+      makeEntry({ id: '3', armband: 3, exhibitorOrder: 3 }),
     ];
     const localEntries = [...currentEntries, hiddenEntry];
 
@@ -239,15 +239,15 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(1, 3));
+      await result.current.handleDragEnd(dragEvent('1', '3'));
     });
 
     const merged = setLocalEntries.mock.calls[0][0] as Entry[];
     // Hidden entry survives the merge — losing it would be silent data loss.
-    expect(merged.find(e => e.id === 99)).toEqual(hiddenEntry);
+    expect(merged.find(e => e.id === '99')).toEqual(hiddenEntry);
     expect(merged).toHaveLength(4);
   });
 
@@ -257,9 +257,9 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
 
     // Start with a 3-entry view
     const startEntries = [
-      makeEntry({ id: 1, armband: 1 }),
-      makeEntry({ id: 2, armband: 2 }),
-      makeEntry({ id: 3, armband: 3 }),
+      makeEntry({ id: '1', armband: 1 }),
+      makeEntry({ id: '2', armband: 2 }),
+      makeEntry({ id: '3', armband: 3 }),
     ];
 
     let currentEntries = startEntries;
@@ -273,23 +273,23 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
 
     // Mid-drag, a sync arrives and appends a NEW entry to the live array.
     // This is the regression scenario: if drag-end consulted currentEntries
     // instead of the snapshot, the new entry would shift indices and the
     // wrong dog would land in the wrong slot.
-    currentEntries = [...startEntries, makeEntry({ id: 4, armband: 4 })];
+    currentEntries = [...startEntries, makeEntry({ id: '4', armband: 4 })];
     rerender();
 
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(1, 3));
+      await result.current.handleDragEnd(dragEvent('1', '3'));
     });
 
     const reordered = updateExhibitorOrder.mock.calls[0][0] as Entry[];
     // Snapshot was [1,2,3], so result is [2,3,1] with 3 items — NOT 4.
-    expect(reordered.map(e => e.id)).toEqual([2, 3, 1]);
+    expect(reordered.map(e => e.id)).toEqual(['2', '3', '1']);
     expect(reordered).toHaveLength(3);
   });
 });
@@ -298,7 +298,7 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
   it('is a no-op when there is no drop target', async () => {
     const setLocalEntries = vi.fn();
     const updateExhibitorOrder = defaultUpdater();
-    const currentEntries = [makeEntry({ id: 1 }), makeEntry({ id: 2 })];
+    const currentEntries = [makeEntry({ id: '1' }), makeEntry({ id: '2' })];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
         localEntries: currentEntries,
@@ -309,10 +309,10 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(1, null));
+      await result.current.handleDragEnd(dragEvent('1', null));
     });
 
     expect(updateExhibitorOrder).not.toHaveBeenCalled();
@@ -325,7 +325,7 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
   it('is a no-op when active and over are the same id', async () => {
     const setLocalEntries = vi.fn();
     const updateExhibitorOrder = defaultUpdater();
-    const currentEntries = [makeEntry({ id: 1 }), makeEntry({ id: 2 })];
+    const currentEntries = [makeEntry({ id: '1' }), makeEntry({ id: '2' })];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
         localEntries: currentEntries,
@@ -336,10 +336,10 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(1, 1));
+      await result.current.handleDragEnd(dragEvent('1', '1'));
     });
 
     expect(updateExhibitorOrder).not.toHaveBeenCalled();
@@ -349,9 +349,9 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
     const setLocalEntries = vi.fn();
     const updateExhibitorOrder = defaultUpdater();
     const currentEntries = [
-      makeEntry({ id: 10, armband: 10, status: 'in-ring', inRing: true }),
-      makeEntry({ id: 20, armband: 20 }),
-      makeEntry({ id: 30, armband: 30 }),
+      makeEntry({ id: '10', armband: 10, status: 'in-ring', inRing: true }),
+      makeEntry({ id: '20', armband: 20 }),
+      makeEntry({ id: '30', armband: 30 }),
     ];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
@@ -363,11 +363,11 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(30));
+      result.current.handleDragStart(dragStartEvent('30'));
     });
     // Drag entry 30 onto entry 10 (target index 0) — should be blocked.
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(30, 10));
+      await result.current.handleDragEnd(dragEvent('30', '10'));
     });
 
     expect(updateExhibitorOrder).not.toHaveBeenCalled();
@@ -378,9 +378,9 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
     const setLocalEntries = vi.fn();
     const updateExhibitorOrder = defaultUpdater();
     const currentEntries = [
-      makeEntry({ id: 10, armband: 10, status: 'in-ring', inRing: true }),
-      makeEntry({ id: 20, armband: 20, status: 'in-ring', inRing: true }),
-      makeEntry({ id: 30, armband: 30 }),
+      makeEntry({ id: '10', armband: 10, status: 'in-ring', inRing: true }),
+      makeEntry({ id: '20', armband: 20, status: 'in-ring', inRing: true }),
+      makeEntry({ id: '30', armband: 30 }),
     ];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
@@ -392,11 +392,11 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(20));
+      result.current.handleDragStart(dragStartEvent('20'));
     });
     // Drag in-ring entry 20 onto in-ring entry 10 (target index 0) — allowed.
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(20, 10));
+      await result.current.handleDragEnd(dragEvent('20', '10'));
     });
 
     expect(updateExhibitorOrder).toHaveBeenCalledTimes(1);
@@ -408,8 +408,8 @@ describe('useDragAndDropEntries — sync race protection', () => {
     const setLocalEntries = vi.fn();
     const updateExhibitorOrder = defaultUpdater();
     const currentEntries = [
-      makeEntry({ id: 1, armband: 1 }),
-      makeEntry({ id: 2, armband: 2 }),
+      makeEntry({ id: '1', armband: 1 }),
+      makeEntry({ id: '2', armband: 2 }),
     ];
     const gracePeriodMs = 1500;
 
@@ -424,12 +424,12 @@ describe('useDragAndDropEntries — sync race protection', () => {
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
     expect(result.current.isDraggingRef.current).toBe(true);
 
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(1, 2));
+      await result.current.handleDragEnd(dragEvent('1', '2'));
     });
 
     // DB write done, but the grace-period timer is still pending — drag
@@ -451,8 +451,8 @@ describe('useDragAndDropEntries — sync race protection', () => {
     const setLocalEntries = vi.fn();
     const setManualOrder = vi.fn();
     const currentEntries = [
-      makeEntry({ id: 1, armband: 1 }),
-      makeEntry({ id: 2, armband: 2 }),
+      makeEntry({ id: '1', armband: 1 }),
+      makeEntry({ id: '2', armband: 2 }),
     ];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
@@ -466,10 +466,10 @@ describe('useDragAndDropEntries — sync race protection', () => {
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent(1));
+      result.current.handleDragStart(dragStartEvent('1'));
     });
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent(1, 2));
+      await result.current.handleDragEnd(dragEvent('1', '2'));
     });
 
     // Optimistic update was applied once. No second setLocalEntries call

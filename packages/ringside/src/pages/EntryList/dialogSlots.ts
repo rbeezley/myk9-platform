@@ -121,7 +121,7 @@ export interface AreaCountRequirements {
  * Class type, but ringside only sees what it needs.
  */
 export interface ClassOptionsData {
-  id: number;
+  id: string;
   element: string;
   level: string;
   class_name: string;
@@ -139,7 +139,7 @@ export interface ClassOptionsData {
  * (for combined views that share time limits across two classes).
  */
 export interface MaxTimeClassData {
-  id: number;
+  id: string;
   element: string;
   level: string;
   class_name: string;
@@ -147,7 +147,7 @@ export interface MaxTimeClassData {
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;
   area_count?: number;
-  pairedClassId?: number;
+  pairedClassId?: string;
 }
 
 // =============================================================================
@@ -189,7 +189,7 @@ export interface ClassStatusDialogProps {
   onClose: () => void;
   onStatusChange: (status: string, timeValue?: string) => void;
   classData: {
-    id: number;
+    id: string;
     element: string;
     level: string;
     class_name: string;
@@ -267,7 +267,7 @@ export interface AreaCountSelectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
   classData: {
-    id: number;
+    id: string;
     element: string;
     level: string;
     class_name: string;
@@ -310,7 +310,7 @@ export interface ClassRequirementsDialogProps {
   onClose: () => void;
   onSetMaxTime?: () => void;
   classData: {
-    id: number;
+    id: string;
     element: string;
     level: string;
     class_name: string;
@@ -333,7 +333,7 @@ export interface ClassSettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   classData: {
-    id: number;
+    id: string;
     element: string;
     level: string;
     class_name: string;

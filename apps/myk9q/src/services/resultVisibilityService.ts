@@ -324,7 +324,7 @@ export async function setTrialVisibility(
  * @param adminName - Admin name for audit trail
  */
 export async function setClassVisibility(
-  classId: number,
+  classId: string,
   preset: VisibilityPreset,
   adminName: string
 ): Promise<void> {

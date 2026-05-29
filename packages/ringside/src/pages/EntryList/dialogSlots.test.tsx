@@ -225,7 +225,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
       <ClassOptionsDialog
         isOpen
         onClose={() => undefined}
-        classData={{ id: 1, element: 'Container', level: 'Novice', class_name: 'NA' }}
+        classData={{ id: '1', element: 'Container', level: 'Novice', class_name: 'NA' }}
         onStatistics={onStatistics}
       />,
     );
@@ -241,7 +241,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
     );
     const { RunOrderDialog } = slots;
     const entries: Entry[] = [
-      { id: 1, armband: 1, callName: '', breed: '', handler: '', isScored: false, status: 'no-status', classId: 1, className: '' },
+      { id: '1', armband: 1, callName: '', breed: '', handler: '', isScored: false, status: 'no-status', classId: '1', className: '' },
     ];
     render(
       <RunOrderDialog
@@ -285,7 +285,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
         isOpen
         onClose={() => undefined}
         classData={{
-          id: 1,
+          id: '1',
           element: 'Buried',
           level: 'Open',
           class_name: 'OB',
@@ -316,7 +316,7 @@ describe('EntryListDialogSlots — optional AreaCountSelectionDialog slot', () =
       <Dialog
         isOpen
         onClose={() => undefined}
-        classData={{ id: 1, element: 'Interior', level: 'Adv', class_name: 'AI' }}
+        classData={{ id: '1', element: 'Interior', level: 'Adv', class_name: 'AI' }}
         areaCountRequirements={{ min: 1, max: 3, maxTotalSeconds: 600 }}
         onSave={() => undefined}
       />,

@@ -62,7 +62,7 @@ export function computeShowDeskStatus({
   const activeClassCount = classes.filter(node => node.status?.kind === 'active').length;
   // Match the same source the Need Attention filter uses so summary +
   // filter never drift.
-  const attentionItems = getAttentionCountsByNodeId(tree).get(tree.root.id) ?? 0;
+  const attentionItems = getAttentionCountsByNodeId(tree, { now }).get(tree.root.id) ?? 0;
 
   const hasScoringActivity = classes.some(
     node => node.status?.kind === 'active' || node.status?.kind === 'complete'

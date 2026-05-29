@@ -246,6 +246,45 @@ describe('computeShowDeskStatus', () => {
     expect(result.summary).toContain('2 items need attention');
   });
 
+  it('uses the supplied clock when summarizing future-dated attention', () => {
+    const futureShow = {
+      ...baseShow,
+      startDate: '2026-06-12',
+      endDate: '2026-06-14',
+    } as Show;
+    const futureTrial = makeTrial({
+      trialDate: '2026-06-12',
+      timezone: 'America/New_York',
+    });
+    const tree = buildTree({
+      show: futureShow,
+      trials: [futureTrial],
+      classes: [
+        { id: 'c1', trialId: 'trial-1', name: 'Interior Novice A', status: 'Completed' },
+      ],
+      entries: [
+        {
+          id: 'e1',
+          class_id: 'c1',
+          dog: { call_name: 'Bella' },
+          entry_status: 'accepted',
+          is_scored: true,
+        },
+      ],
+    });
+
+    const result = computeShowDeskStatus({
+      show: futureShow,
+      trials: [futureTrial],
+      tree,
+      now: new Date('2026-05-28T15:00:00.000Z'),
+    });
+
+    expect(result.status).toBe('show-in-progress');
+    expect(result.summary).toBe('1 of 1 classes complete');
+    expect(result.summary).not.toContain('attention');
+  });
+
   it('produces a fallback summary when no classes or attention exist', () => {
     const tree = buildTree({ classes: [] });
 

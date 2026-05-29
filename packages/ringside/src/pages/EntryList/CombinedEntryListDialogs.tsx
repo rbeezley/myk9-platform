@@ -58,10 +58,10 @@ export interface CombinedEntryListDialogsProps {
   resultsLabel: string;
 
   // ── Checkin status dialog ─────────────────────────────────────────
-  activeStatusPopup: number | null;
+  activeStatusPopup: string | null;
   onStatusPopupClose: () => void;
   onStatusChange: (
-    entryId: number,
+    entryId: string,
     status:
       | 'no-status'
       | 'checked-in'
@@ -86,7 +86,7 @@ export interface CombinedEntryListDialogsProps {
   onOpenDragMode: () => void;
 
   // ── Reset menu/dialog ─────────────────────────────────────────────
-  activeResetMenu: number | null;
+  activeResetMenu: string | null;
   resetMenuPosition: { top: number; left: number } | null;
   onResetScore: (entry: Entry) => void;
   onResetMenuClose: () => void;

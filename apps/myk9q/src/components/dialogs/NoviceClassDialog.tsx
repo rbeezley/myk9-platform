@@ -50,7 +50,7 @@ const styles = {
 };
 
 interface ClassInfo {
-  id: number;
+  id: string;
   element: string;
   level: string;
   section: string;

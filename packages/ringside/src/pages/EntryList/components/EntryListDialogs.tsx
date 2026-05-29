@@ -71,9 +71,9 @@ export interface EntryListDialogsProps {
   hideSettingsOption: boolean;
 
   // ── Checkin status dialog ─────────────────────────────────────────
-  activeStatusPopup: number | null;
-  setActiveStatusPopup: Dispatch<SetStateAction<number | null>>;
-  handleStatusChange: (entryId: number, status: NonNullable<Entry['checkinStatus']> | 'in-ring' | 'completed') => Promise<void>;
+  activeStatusPopup: string | null;
+  setActiveStatusPopup: Dispatch<SetStateAction<string | null>>;
+  handleStatusChange: (entryId: string, status: NonNullable<Entry['checkinStatus']> | 'in-ring' | 'completed') => Promise<void>;
 
   // ── Run order dialog ──────────────────────────────────────────────
   runOrderDialogOpen: boolean;
@@ -119,7 +119,7 @@ export interface EntryListDialogsProps {
   areaCountRequirements: AreaCountRequirements | null;
 
   // ── Reset menu ────────────────────────────────────────────────────
-  activeResetMenu: number | null;
+  activeResetMenu: string | null;
   resetMenuPosition: { top: number; left: number } | null;
   handleResetScore: (entry: Entry) => void;
   closeResetMenu: () => void;
@@ -237,7 +237,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
           isOpen={classOptionsDialogOpen}
           onClose={() => setClassOptionsDialogOpen(false)}
           classData={{
-            id: Number(classId),
+            id: classId ?? '',
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
@@ -267,7 +267,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             setMaxTimeDialogOpen(true);
           }}
           classData={{
-            id: Number(classId),
+            id: classId ?? '',
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
@@ -288,7 +288,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
           }}
           showWarning={maxTimeRequiredWarning}
           classData={{
-            id: Number(classId),
+            id: classId ?? '',
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
@@ -306,7 +306,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
           isOpen={settingsDialogOpen}
           onClose={() => setSettingsDialogOpen(false)}
           classData={{
-            id: Number(classId),
+            id: classId ?? '',
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
@@ -328,7 +328,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
           onClose={() => setStatusDialogOpen(false)}
           onStatusChange={handleStatusDialogChange}
           classData={{
-            id: Number(classId),
+            id: classId ?? '',
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
@@ -347,7 +347,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             navigate(-1);
           }}
           classData={{
-            id: Number(classId),
+            id: classId ?? '',
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className

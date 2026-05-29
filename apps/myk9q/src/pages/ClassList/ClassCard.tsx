@@ -25,7 +25,7 @@ import { useIsTouchDevice } from '@myk9/scoring-ui';
 import type { CSSProperties } from 'react';
 
 interface ClassEntry {
-  id: number;
+  id: string;
   element: string;
   level: string;
   section: string;
@@ -57,7 +57,7 @@ interface ClassEntry {
   self_checkin_enabled?: boolean;
   visibility_preset?: 'open' | 'standard' | 'review';
   dogs: {
-    id: number;
+    id: string;
     armband: number;
     call_name: string;
     breed: string;
@@ -72,17 +72,17 @@ interface ClassEntry {
 interface ClassCardProps {
   classEntry: ClassEntry;
   hasPermission: (permission: keyof UserPermissions) => boolean;
-  toggleFavorite: (classId: number) => void;
+  toggleFavorite: (classId: string) => void;
   handleViewEntries: (classEntry: ClassEntry) => void;
-  setActivePopup: (id: number | null) => void;
+  setActivePopup: (id: string | null) => void;
   setSelectedClassForStatus: (classEntry: ClassEntry) => void;
   setStatusDialogOpen: (open: boolean) => void;
-  activePopup: number | null;
+  activePopup: string | null;
   getStatusColor: (status: ClassEntry['class_status'], classEntry?: ClassEntry) => string;
   getFormattedStatus: (classEntry: ClassEntry) => { label: string; time: string | null };
-  onMenuClick?: (classId: number) => void;
+  onMenuClick?: (classId: string) => void;
   onPrefetch?: () => void;
-  justToggledClassId?: number | null;
+  justToggledClassId?: string | null;
   /** Per-show accent style (--show-accent) from useShowAccent. Stable reference. */
   accentStyle?: CSSProperties;
 }

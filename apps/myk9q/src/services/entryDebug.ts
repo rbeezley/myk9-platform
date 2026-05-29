@@ -284,7 +284,7 @@ export function debugStopwatchIssue(entryId: number): void {
  * Debug function to test check-in status updates
  */
 export async function debugTestCheckinUpdate(
-  entryId: number,
+  entryId: string,
   status: 'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate'
 ): Promise<unknown> {
   if (!import.meta.env.DEV) return undefined;

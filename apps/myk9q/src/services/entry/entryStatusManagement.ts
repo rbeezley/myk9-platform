@@ -15,14 +15,14 @@ import { logger } from '@/utils/logger';
  * - Entry leaves ring and status is restored
  * - App refreshes (acceptable - user would re-open scoresheet)
  */
-const previousStatusStore = new Map<number, EntryStatus>();
+const previousStatusStore = new Map<string, EntryStatus>();
 
 /**
  * Save an entry's status before marking it in-ring.
  * @param entryId - Entry ID
  * @param status - The status to save (before entering ring)
  */
-export function savePreviousStatus(entryId: number, status: EntryStatus): void {
+export function savePreviousStatus(entryId: string, status: EntryStatus): void {
   previousStatusStore.set(entryId, status);
   logger.log(`💾 [savePreviousStatus] Saved status '${status}' for entry ${entryId}`);
 }
@@ -32,7 +32,7 @@ export function savePreviousStatus(entryId: number, status: EntryStatus): void {
  * @param entryId - Entry ID
  * @returns The saved status, or undefined if not found
  */
-export function popPreviousStatus(entryId: number): EntryStatus | undefined {
+export function popPreviousStatus(entryId: string): EntryStatus | undefined {
   const status = previousStatusStore.get(entryId);
   previousStatusStore.delete(entryId);
   if (status) {
@@ -70,7 +70,7 @@ export function popPreviousStatus(entryId: number): EntryStatus | undefined {
  * Check if in-ring status update should be skipped (already in desired state)
  * Extracted to reduce nesting depth (DEBT-009)
  */
-async function shouldSkipInRingUpdate(entryId: number, inRing: boolean): Promise<boolean> {
+async function shouldSkipInRingUpdate(entryId: string, inRing: boolean): Promise<boolean> {
   const manager = getReplicationManager();
   if (!manager) return false;
 
@@ -115,7 +115,7 @@ async function shouldSkipInRingUpdate(entryId: number, inRing: boolean): Promise
  * await markInRing(123, false);
  */
 export async function markInRing(
-  entryId: number,
+  entryId: string,
   inRing: boolean = true,
   /** Optional: pass the current status when known (avoids cache lookup issues) */
   knownPreviousStatus?: EntryStatus
@@ -268,7 +268,7 @@ interface LocalCacheEntryUpdates {
  * our correct local changes.
  */
 async function updateLocalCacheEntry(
-  entryId: number,
+  entryId: string,
   updates: LocalCacheEntryUpdates
 ): Promise<void> {
   try {
@@ -334,7 +334,7 @@ async function updateLocalCacheEntry(
  * // Gate steward manually marks dog as complete
  * await markEntryCompleted(123);
  */
-export async function markEntryCompleted(entryId: number): Promise<boolean> {
+export async function markEntryCompleted(entryId: string): Promise<boolean> {
 try {
     // Check if entry is already scored with actual data (results merged into entries table)
     const { data: existingEntry, error: checkError } = await supabase
@@ -409,7 +409,7 @@ return true;
  * await updateEntryCheckinStatus(123, 'absent');
  */
 export async function updateEntryCheckinStatus(
-  entryId: number,
+  entryId: string,
   checkinStatus: EntryStatus
 ): Promise<boolean> {
   try {
@@ -474,7 +474,7 @@ return true;
  * // Reset entry to allow re-scoring
  * await resetEntryScore(123);
  */
-export async function resetEntryScore(entryId: number): Promise<boolean> {
+export async function resetEntryScore(entryId: string): Promise<boolean> {
   try {
     // Get the class_id before resetting the score
     const { data: entryData } = await supabase

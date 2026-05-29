@@ -19,7 +19,7 @@ import {
 
 function makeClassEntry(overrides: Partial<ClassStatusInput> = {}): ClassStatusInput {
   return {
-    id: 1,
+    id: '1',
     class_status: 'no-status',
     entry_count: 3,
     completed_count: 0,

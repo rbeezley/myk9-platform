@@ -56,23 +56,21 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   // Timer state
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [interval, setIntervalState] = useState<ReturnType<typeof setInterval> | null>(null);
 
-  // Refs for cleanup and voice announcements
-  const intervalRef = useRef(interval);
+  // requestAnimationFrame id for the running tick loop. Driving the display
+  // via rAF (~60fps) instead of a coarse setInterval(100) makes the hundredths
+  // place FLOW smoothly instead of jumping in uneven chunks. Time is wall-clock
+  // derived (Date.now), so it stays accurate even if the browser throttles rAF
+  // while the tab is backgrounded.
+  const rafRef = useRef<number | null>(null);
   const has30SecondAnnouncedRef = useRef(false);
 
-  // Update ref when interval changes
-  useEffect(() => {
-    intervalRef.current = interval;
-  }, [interval]);
-
-  // Cleanup interval on unmount
+  // Cancel any in-flight frame on unmount.
   useEffect(() => {
     return () => {
-      const currentInterval = intervalRef.current;
-      if (currentInterval) {
-        clearInterval(currentInterval);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   }, []);
@@ -169,32 +167,28 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   const start = () => {
     setIsRunning(true);
     const startTime = Date.now() - time;
-    const newInterval = setInterval(() => {
+    const maxTimeMs = maxTime ? parseMaxTimeToMs(maxTime) : 0;
+
+    const tick = () => {
       const currentTime = Date.now() - startTime;
-      setTime(currentTime);
 
-      // Auto-stop when time expires (if maxTime is set)
-      if (maxTime) {
-        const maxTimeMs = parseMaxTimeToMs(maxTime);
-
-        if (currentTime >= maxTimeMs) {
-          // Time expired - auto stop
-          setIsRunning(false);
-          clearInterval(newInterval);
-          setIntervalState(null);
-
-          // Set the exact max time as the final time
-          setTime(maxTimeMs);
-
-          // Trigger callback if provided
-          if (onTimeExpired) {
-            const formattedMaxTime = formatTime(maxTimeMs);
-            onTimeExpired(formattedMaxTime);
-          }
+      // Auto-stop when time expires (if maxTime is set). Snap to the exact max
+      // and don't schedule another frame.
+      if (maxTimeMs && currentTime >= maxTimeMs) {
+        setTime(maxTimeMs);
+        setIsRunning(false);
+        rafRef.current = null;
+        if (onTimeExpired) {
+          onTimeExpired(formatTime(maxTimeMs));
         }
+        return;
       }
-    }, 100); // 100ms interval (10x/sec) - smooth display, better battery life
-    setIntervalState(newInterval);
+
+      setTime(currentTime);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
   };
 
   /**
@@ -202,9 +196,9 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    */
   const pause = () => {
     setIsRunning(false);
-    if (interval) {
-      clearInterval(interval);
-      setIntervalState(null);
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
   };
 
@@ -213,9 +207,9 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    */
   const reset = () => {
     setTime(0);
-    if (interval) {
-      clearInterval(interval);
-      setIntervalState(null);
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
     setIsRunning(false);
   };
@@ -243,9 +237,12 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     const remainingMs = maxTimeMs - time;
     const remainingSeconds = Math.floor(remainingMs / 1000);
 
-    // Announce/chime when crossing the 30-second threshold
-    // Trigger when: 29 < remaining <= 30 seconds
-    if (remainingSeconds <= 30 && remainingSeconds > 29 && !has30SecondAnnouncedRef.current) {
+    // Announce/chime once when AT OR BELOW the 30-second threshold (but not yet
+    // expired). Uses "<= 30" rather than a narrow "29 < r <= 30" window so the
+    // warning still fires if `time` skips the window — rAF fully pauses while
+    // the tab is backgrounded, so on return `time` can jump from e.g. 35s to
+    // 25s remaining. The has30SecondAnnouncedRef guard keeps it to one fire.
+    if (remainingSeconds <= 30 && remainingSeconds > 0 && !has30SecondAnnouncedRef.current) {
       // Play chime via callback (if provided)
       if (onWarningChime) {
         onWarningChime();

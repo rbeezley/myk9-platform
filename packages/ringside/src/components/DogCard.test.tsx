@@ -1,11 +1,11 @@
 /**
- * Smoke tests for the ringside `DogCard` (Phase 1h-0).
+ * Smoke tests for the ringside `DogCard`.
  *
- * Locks the markup contract the ported myK9Q CSS targets: the status-border
- * class on `.dog-card`, the teal armband square (`.ringside-armband`, with the
- * `is-long` modifier for 4+ digit numbers), the section corner badge, the
- * injected slots (actionButton / resultBadges / dragHandle), and click/prefetch
- * wiring. Vanilla vitest assertions (no @testing-library/jest-dom in ringside).
+ * Post-Tailwind-migration: the card is styled with Tailwind utilities (no
+ * scoped `.dog-card` CSS), so tests key off stable `data-testid` hooks
+ * (`dog-card`, `dog-card-armband`, `section-badge`) + rendered text + the
+ * behavior-bearing utility classes (status left-border, is-long text size,
+ * touchable cursor), not internal class names. Vanilla vitest assertions.
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -14,42 +14,36 @@ import { DogCard } from './DogCard';
 
 describe('DogCard', () => {
   it('renders the dog identity + armband', () => {
-    const { container } = render(
+    render(
       <DogCard armband={105} callName="Tauri" breed="Australian Shepherd" handler="Jane Handler" />
     );
     expect(screen.getByText('Tauri')).toBeTruthy();
     expect(screen.getByText('Australian Shepherd')).toBeTruthy();
     expect(screen.getByText('Jane Handler')).toBeTruthy();
-    const armband = container.querySelector('.ringside-armband');
-    expect(armband?.textContent).toBe('105');
-    // Short armband: no is-long modifier.
-    expect(container.querySelector('.ringside-armband.is-long')).toBeNull();
+    const armband = screen.getByTestId('dog-card-armband');
+    expect(armband.textContent).toBe('105');
+    // Short armband: full-size text, not the is-long shrink.
+    expect(armband.className).toContain('text-lg');
+    expect(armband.className).not.toContain('text-[0.9375rem]');
   });
 
-  it('applies the status-border class to the card', () => {
-    const { container } = render(
-      <DogCard armband={1} callName="A" breed="B" handler="C" statusBorder="checked-in" />
-    );
-    expect(container.querySelector('.dog-card.checked-in')).toBeTruthy();
+  it('applies the status left-border to the card', () => {
+    render(<DogCard armband={1} callName="A" breed="B" handler="C" statusBorder="checked-in" />);
+    expect(screen.getByTestId('dog-card').className).toContain('border-l-status-checked-in');
   });
 
   it('marks 4+ digit armbands as long (smaller text)', () => {
-    const { container } = render(
-      <DogCard armband={1234} callName="A" breed="B" handler="C" />
-    );
-    expect(container.querySelector('.ringside-armband.is-long')).toBeTruthy();
+    render(<DogCard armband={1234} callName="A" breed="B" handler="C" />);
+    expect(screen.getByTestId('dog-card-armband').className).toContain('text-[0.9375rem]');
   });
 
   it('renders the section corner badge', () => {
-    const { container } = render(
-      <DogCard armband={1} callName="A" breed="B" handler="C" sectionBadge="B" />
-    );
-    const badge = container.querySelector('.section-badge.section-b');
-    expect(badge?.textContent).toBe('B');
+    render(<DogCard armband={1} callName="A" breed="B" handler="C" sectionBadge="B" />);
+    expect(screen.getByTestId('section-badge').textContent).toBe('B');
   });
 
   it('renders injected action + result-badge slots', () => {
-    const { container } = render(
+    render(
       <DogCard
         armband={1}
         callName="A"
@@ -59,14 +53,14 @@ describe('DogCard', () => {
         resultBadges={<span data-testid="badges">NQ</span>}
       />
     );
-    expect(container.querySelector('.dog-card-action [data-testid="status"]')).toBeTruthy();
-    expect(container.querySelector('.dog-card-results [data-testid="badges"]')).toBeTruthy();
+    expect(screen.getByTestId('status')).toBeTruthy();
+    expect(screen.getByTestId('badges')).toBeTruthy();
   });
 
   it('is touchable + fires onClick / onPrefetch when interactive', () => {
     const onClick = vi.fn();
     const onPrefetch = vi.fn();
-    const { container } = render(
+    render(
       <DogCard
         armband={1}
         callName="A"
@@ -76,11 +70,11 @@ describe('DogCard', () => {
         onPrefetch={onPrefetch}
       />
     );
-    const card = container.querySelector('.dog-card');
-    expect(card?.classList.contains('touchable')).toBe(true);
-    fireEvent.click(card!);
+    const card = screen.getByTestId('dog-card');
+    expect(card.className).toContain('cursor-pointer');
+    fireEvent.click(card);
     expect(onClick).toHaveBeenCalledTimes(1);
-    fireEvent.mouseEnter(card!);
+    fireEvent.mouseEnter(card);
     expect(onPrefetch).toHaveBeenCalled();
   });
 });

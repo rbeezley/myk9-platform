@@ -277,7 +277,10 @@
   margin-top: var(--token-space-md);
   flex-wrap: wrap;
 }
-.ringside-root .dog-card-results .result-badge {
+/* Un-scoped from `.dog-card-results` (which DogCard no longer emits after the
+   Tailwind migration) so the slot-rendered result badges keep their base style
+   until the result-badge slot is migrated in Phase C. */
+.ringside-root .result-badge {
   padding: var(--token-space-xs) var(--token-space-md);
   border-radius: 0.375rem;
   font-size: 0.6875rem;

@@ -114,11 +114,16 @@ export interface ReplicatedEntry {
 }
 
 /**
- * Convert database row to app Entry type
+ * Convert database row to app Entry type.
+ *
+ * Exported for unit testing the field mapping (notably the embedded
+ * `dogs(call_name, breed)` → `dogCallName` / `dogBreed` denormalization).
  */
-function rowToEntry(row: EntryRow): ReplicatedEntry {
+export function rowToEntry(row: EntryRow): ReplicatedEntry {
   // Cast to Record for accessing fields not in the Supabase schema type
   const dbRow = row as EntryRow & Record<string, unknown>;
+  // Embedded to-one dog from the `dogs(call_name, breed)` select (see sync()).
+  const dog = dbRow.dogs as { call_name?: string | null; breed?: string | null } | null | undefined;
   return {
     id: String(row.id),
     classId: row.class_id ?? undefined,
@@ -156,8 +161,8 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     searchTimeSeconds: (dbRow.search_time_seconds as number | undefined) ?? undefined,
     totalPoints: (dbRow.total_points as number | undefined) ?? undefined,
     finalPlacement: dbRow.final_placement != null ? String(dbRow.final_placement) : undefined,
-    dogCallName: (dbRow.dog_call_name as string | undefined) ?? undefined,
-    dogBreed: (dbRow.dog_breed as string | undefined) ?? undefined,
+    dogCallName: dog?.call_name ?? (dbRow.dog_call_name as string | undefined) ?? undefined,
+    dogBreed: dog?.breed ?? (dbRow.dog_breed as string | undefined) ?? undefined,
     handlerName: row.handler ?? undefined,
     armbandNumber: row.armband ?? undefined,
 
@@ -168,8 +173,8 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     search_time_seconds: (dbRow.search_time_seconds as number | undefined) ?? undefined,
     total_points: (dbRow.total_points as number | undefined) ?? undefined,
     final_placement: dbRow.final_placement != null ? String(dbRow.final_placement) : undefined,
-    dog_call_name: (dbRow.dog_call_name as string | undefined) ?? undefined,
-    dog_breed: (dbRow.dog_breed as string | undefined) ?? undefined,
+    dog_call_name: dog?.call_name ?? (dbRow.dog_call_name as string | undefined) ?? undefined,
+    dog_breed: dog?.breed ?? (dbRow.dog_breed as string | undefined) ?? undefined,
     handler_name: row.handler ?? undefined,
     armband_number: row.armband ?? undefined,
     total_faults: (dbRow.total_faults as number | undefined) ?? undefined,
@@ -276,9 +281,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       fetchRemoteRows: async ({ scope, since }) => {
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
+        // Embed the dog's display fields (call_name/breed) so entry cards can
+        // show the dog without a separate per-row dogs lookup. `entries.dog_id`
+        // is a to-one FK, so `dogs(...)` returns a single object. These land on
+        // the replica as `dog_call_name` / `dog_breed` (see rowToEntry).
         let query = supabase
           .from('entries')
-          .select('*')
+          .select('*, dogs(call_name, breed)')
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });
 

@@ -614,9 +614,12 @@ describe('ReplicatedEntriesTable', () => {
 
       await table.sync(TEST_LICENSE_KEY);
 
-      // Verify query construction
+      // Verify query construction. The select embeds the to-one dog so entry
+      // cards can show call name / breed (see ReplicatedEntriesTable.sync).
       expect(supabaseMock.from).toHaveBeenCalledWith('entries');
-      expect(mockSelect).toHaveBeenCalledWith('*');
+      expect(mockSelect).toHaveBeenCalledWith('*, dogs(call_name, breed)');
+      // ...and the sync scopes to the show (the behavior this test is named for).
+      expect(mockEq).toHaveBeenCalledWith('show_id', expect.anything());
     });
 
     it('should update sync metadata after successful sync', async () => {

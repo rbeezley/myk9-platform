@@ -14,7 +14,7 @@ vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedTrialsTable: { getTrialsByShow: vi.fn() },
   replicatedClassesTable: { getClassesByTrial: vi.fn() },
-  replicatedEntriesTable: { getEntriesByClass: vi.fn() },
+  replicatedEntriesTable: { getEntriesByShow: vi.fn() },
 }));
 
 import { AtShowClassListPage } from './AtShowClassListPage';
@@ -58,7 +58,7 @@ function seed() {
     NOVICE_B,
     INTERIOR_EXC,
   ] as never);
-  vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+  vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
 }
 
 const renderPage = () =>

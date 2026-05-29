@@ -18,6 +18,7 @@ import {
 } from '@/services/replication';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { toRingsideClassStatus } from './ringsideClassStatusMap';
 
 /** A trial and its classes (mapped to ringside `ClassEntry`), for grouped display. */
@@ -37,9 +38,8 @@ function normalizeSection(section: string | undefined): string {
   return section === 'A' || section === 'B' ? section : '';
 }
 
-async function toClassEntry(cls: ReplicatedClass): Promise<ClassEntry> {
-  const rawEntries = await replicatedEntriesTable.getEntriesByClass(cls.id);
-  const completed = rawEntries.filter(e => e.isScored ?? e.is_scored ?? false).length;
+function toClassEntry(cls: ReplicatedClass, entries: ReplicatedEntry[]): ClassEntry {
+  const completed = entries.filter(e => e.isScored ?? e.is_scored ?? false).length;
 
   return {
     id: cls.id,
@@ -49,7 +49,7 @@ async function toClassEntry(cls: ReplicatedClass): Promise<ClassEntry> {
     class_name: buildClassName(cls),
     class_order: cls.classOrder ?? 0,
     judge_name: cls.judgeName ?? 'No Judge Assigned',
-    entry_count: rawEntries.length,
+    entry_count: entries.length,
     completed_count: completed,
     class_status: toRingsideClassStatus(cls.classStatus),
     is_favorite: false,
@@ -60,16 +60,31 @@ async function toClassEntry(cls: ReplicatedClass): Promise<ClassEntry> {
 
 /**
  * Fetch a show's trials and their classes (as ringside `ClassEntry`s), sorted
- * by class order within each trial. Per-class entry counts are fetched in
- * parallel from the replicated entries table.
+ * by class order within each trial.
+ *
+ * Entry counts come from a SINGLE `getEntriesByShow` scan grouped locally by
+ * class — not a per-class fetch — so a show with many classes doesn't trigger
+ * one full-table scan per class (matters on show-day / offline IndexedDB).
  */
 export async function fetchAtShowClassList(showId: string): Promise<AtShowClassGroup[]> {
-  const trials = await replicatedTrialsTable.getTrialsByShow(showId);
+  const [trials, allEntries] = await Promise.all([
+    replicatedTrialsTable.getTrialsByShow(showId),
+    replicatedEntriesTable.getEntriesByShow(showId),
+  ]);
+
+  const entriesByClass = new Map<string, ReplicatedEntry[]>();
+  for (const entry of allEntries) {
+    const classId = entry.classId;
+    if (!classId) continue;
+    const bucket = entriesByClass.get(classId);
+    if (bucket) bucket.push(entry);
+    else entriesByClass.set(classId, [entry]);
+  }
 
   return Promise.all(
     trials.map(async trial => {
       const classes = await replicatedClassesTable.getClassesByTrial(trial.id);
-      const classEntries = await Promise.all(classes.map(toClassEntry));
+      const classEntries = classes.map(cls => toClassEntry(cls, entriesByClass.get(cls.id) ?? []));
       classEntries.sort((a, b) => a.class_order - b.class_order);
       return { trial, classes: classEntries };
     })

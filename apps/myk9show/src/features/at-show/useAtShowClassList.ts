@@ -34,8 +34,10 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     groups: groupsQuery.data ?? [],
     organization: showQuery.data?.organization ?? '',
     showName: showQuery.data?.name ?? '',
-    isLoading: groupsQuery.isLoading,
-    error: (groupsQuery.error as Error | null) ?? null,
+    // Gate on BOTH queries: `organization` drives A/B pairing, so the page must
+    // not group/render with the default ('') before the show metadata lands.
+    isLoading: groupsQuery.isLoading || showQuery.isLoading,
+    error: (groupsQuery.error as Error | null) ?? (showQuery.error as Error | null) ?? null,
     refresh: () => void groupsQuery.refetch(),
   };
 }

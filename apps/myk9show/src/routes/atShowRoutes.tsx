@@ -29,6 +29,11 @@ const AtShowCombinedEntryListPage = createEnhancedLazy(
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowCombinedEntryListPage' }
 );
 
+const AtShowScoresheetPage = createEnhancedLazy(
+  () => import('@/features/at-show/AtShowScoresheetPage'),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowScoresheetPage' }
+);
+
 /** Show-running staff who can use the ringside at-show surface. */
 const STAFF_ROLES = [
   UserRole.SITE_ADMIN,
@@ -64,6 +69,19 @@ export const AtShowRoutes = () => {
             <SuspenseWrapper>
               <PageTransition>
                 <AtShowCombinedEntryListPage />
+              </PageTransition>
+            </SuspenseWrapper>
+          </ProtectedRoute>
+        }
+      />
+      {/* Live scoresheet (judge's mobile timer) — entry cards navigate here. */}
+      <Route
+        path="/at-show/:showId/class/:classId/score/:entryId"
+        element={
+          <ProtectedRoute requiredRole={STAFF_ROLES}>
+            <SuspenseWrapper>
+              <PageTransition>
+                <AtShowScoresheetPage />
               </PageTransition>
             </SuspenseWrapper>
           </ProtectedRoute>

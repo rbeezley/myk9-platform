@@ -14,6 +14,26 @@ Worktree: `worktree-phase-1h-atshow-ringside`.
   `HamburgerMenu` slot → compact ← icon; `FilterTriggerButton` slot → sliders
   ICON opening the Search & Sort slide-out (owner feedback). TabBar tabs already
   self-styled via `@myk9/ui`.
+- **Combined Section A/B list — DONE (PR #427, w/ header chrome).** `AtShowCombinedEntryListPage`
+  mounts `CombinedEntryListPage`; All/Section A/Section B tabs; 3 integration tests.
+- **Live scoresheet — DONE (on the #427 branch; pushed in a follow-up commit).**
+  `useAtShowScoresheet` (load + submit, mirrors ScoresheetPage; offline-safe —
+  replication tables + `useOptimisticScoring`) + `AtShowScoresheetPage` (renders
+  `@myk9/scoring-ui` `LiveScoresheet` via `getScoresheetComponent(key,'live')` —
+  the myK9Q-style stopwatch; mobile chrome; back → at-show entry list). Route
+  `/at-show/:showId/class/:classId/score/:entryId` (closes the 1a `buildScoreSheetRoute`
+  404). 3 integration tests. Additive — does NOT refactor the secretary
+  `ScoresheetPage` (D1 hook-sharing deferred to avoid touching a live surface).
+
+### Popover data — BLOCKED on an offline-first decision (owner)
+The ClassDetailsPopover's Results (`visibilityPreset`) + Check-in (`selfCheckin`)
+real values come from `useSelfCheckinEnabled` / `useVisibleResultFields` /
+`useVisibilitySettings`, which read via **direct Supabase, NOT the replication
+layer** — so they don't work offline on the judge's phone. Wiring them into the
+offline-first at-show surface conflicts with the offline-first principle. DECISION
+NEEDED: (a) accept online-only popover values w/ graceful offline fallback, (b)
+add `visibility_preset`/`self_checkin` to the replication layer (offline-safe,
+larger), or (c) keep stubbed. Popover LOOK port is independent and can proceed.
 
 ### Chrome batch — remaining for PR #2 (owner: batch, don't drip element-by-element)
 - **ClassDetailsPopover** (the header info-ⓘ hover dialog): port myK9Q's look —

@@ -17,7 +17,6 @@ import { formatTimeForDisplay } from '@myk9/core';
 import { Entry } from '../../stores/entryStore';
 import {
   normalizeResultText,
-  getResultClassName,
   isNonQualifyingResult,
   getPlacementEmoji,
   getPlacementText,
@@ -37,21 +36,34 @@ import {
 const RESULT_BADGE_BASE =
   'inline-flex min-h-[1.375rem] max-w-[100px] items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl px-2.5 py-[0.3125rem] text-xs font-bold uppercase leading-none tracking-wide';
 
-/** Per-result fill (was `.result-badge.<result>` color rules). */
+/**
+ * Per-result fill (was `.result-badge.<result>` color rules). Keyed on the
+ * leading token of the result text, so free-form values like "NQ - No Find" or
+ * "Q - 1st" still color correctly (the old CSS matched the `.nq` / `.q` token
+ * in the space-separated className; an exact lookup on the whole string would
+ * silently fall through to muted). Mirrors getStatusBorderClass's tokens.
+ */
 const RESULT_BADGE_COLOR: Record<string, string> = {
-  qualified: 'bg-status-checked-in text-white',
   q: 'bg-status-checked-in text-white',
+  qualified: 'bg-status-checked-in text-white',
   nq: 'bg-red-600 text-white',
+  'non-qualifying': 'bg-red-600 text-white',
   ex: 'bg-red-600 text-white',
   excused: 'bg-red-600 text-white',
   abs: 'bg-violet-600 text-white',
   absent: 'bg-violet-600 text-white',
+  e: 'bg-violet-600 text-white',
   wd: 'bg-violet-600 text-white',
   withdrawn: 'bg-violet-600 text-white',
 };
 
+/** First whitespace-delimited token, lowercased ("NQ - No Find" → "nq"). */
+function resultHead(resultText: string | null | undefined): string {
+  return (resultText ?? '').toLowerCase().trim().split(/\s+/)[0] ?? '';
+}
+
 function resultBadgeClass(resultText: string | null | undefined): string {
-  return cn(RESULT_BADGE_BASE, RESULT_BADGE_COLOR[getResultClassName(resultText)] ?? 'bg-muted text-foreground');
+  return cn(RESULT_BADGE_BASE, RESULT_BADGE_COLOR[resultHead(resultText)] ?? 'bg-muted text-foreground');
 }
 
 /** Outlined chip used by time / faults / placement (was `.time-badge` etc.). */

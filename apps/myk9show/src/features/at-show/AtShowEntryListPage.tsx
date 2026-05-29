@@ -245,8 +245,11 @@ export const AtShowEntryListPage: React.FC = () => {
 
   return (
     <RingsideProvider value={contextValue}>
-      <EntryListPage
-        classId={classId}
+      {/* `.ringside-root` scopes the ported myK9Q visual layer (@myk9/ringside
+          styles) to this subtree only — no bleed into the rest of myK9Show. */}
+      <div className="ringside-root">
+        <EntryListPage
+          classId={classId}
         data={{ entries, classInfo }}
         dataStatus={{ isRefreshing, fetchError, refresh }}
         handlers={handlers}
@@ -276,7 +279,8 @@ export const AtShowEntryListPage: React.FC = () => {
           hideMaxTimeOption: !canManageClasses,
           hideSettingsOption: !canManageClasses,
         }}
-      />
+        />
+      </div>
     </RingsideProvider>
   );
 };

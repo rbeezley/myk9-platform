@@ -182,6 +182,11 @@ export type { CombinedEntryListDialogsProps } from './pages/EntryList';
 export { EntryListPage } from './pages/EntryList';
 export { CombinedEntryListPage } from './pages/EntryList';
 
+// Phase 1h-0 — ringside DogCard primitive (myK9Q-faithful). Hosts inject it
+// as the EntryList `layout.DogCard` slot; styled via `@myk9/ringside/styles`
+// (scoped under `.ringside-root`).
+export { DogCard } from './components/DogCard';
+
 // PR E2d-2a — leaf components + sortable-card sub-components.
 // Pure-presentational React pieces with no host coupling beyond
 // `Entry` (already in ringside) and `formatTimeForDisplay` (already in

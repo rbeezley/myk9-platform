@@ -13,7 +13,7 @@
  *   statistics nav, the max-time gate inside handleEntryClick.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction, MouseEvent as ReactMouseEvent } from 'react';
 import type {
   EntryListHandlers,
@@ -86,6 +86,20 @@ export function useAtShowEntryListHandlers(
     setLocalEntries,
   } = deps;
 
+  // Mirror the latest entries into a ref so the serialized in-ring guard
+  // (setDogInRingStatus) reads the freshest committed snapshot instead of a
+  // stale closure capture — rapid taps fire handlers bound to the same render.
+  const entriesRef = useRef(localEntries);
+  useEffect(() => {
+    entriesRef.current = localEntries;
+  }, [localEntries]);
+
+  // Serializes setDogInRingStatus calls: in-ring is single-occupancy, so
+  // overlapping calls must not interleave their read→clear→mark and both end
+  // up in-ring. Within-tab only; true cross-device exclusivity needs a
+  // server-side constraint (deferred with the /at-show service layer).
+  const inRingMutex = useRef<Promise<void>>(Promise.resolve());
+
   // ── Routing ──────────────────────────────────────────────────────────
   const getScoreSheetRoute = useCallback<EntryListHandlers['getScoreSheetRoute']>(
     entry => buildScoreSheetRoute(entry),
@@ -95,12 +109,14 @@ export function useAtShowEntryListHandlers(
   // ── In-ring set (ring management) ────────────────────────────────────
   const setDogInRingStatus = useCallback<EntryListHandlers['setDogInRingStatus']>(
     async (dogId, inRing) => {
-      try {
+      // Chain onto the prior call so the read→clear→mark sequence runs
+      // atomically relative to other in-ring changes (see inRingMutex above).
+      const run = inRingMutex.current.then(async () => {
         if (inRing) {
           // Other entries must leave the ring first. `handleToggleInRing(id,
           // true)` clears them to 'no-status' (in-ring is single-occupancy);
           // calling handleMarkInRing here would re-mark them in-ring instead.
-          const others = localEntries.filter(
+          const others = entriesRef.current.filter(
             e => e.id !== dogId && (e.inRing || e.status === 'in-ring')
           );
           await Promise.all(others.map(e => actions.handleToggleInRing(e.id, true)));
@@ -108,13 +124,19 @@ export function useAtShowEntryListHandlers(
         } else {
           await actions.handleToggleInRing(dogId, true);
         }
+      });
+      // Keep the mutex chain alive even if this call rejects, so one failure
+      // doesn't wedge every subsequent in-ring change.
+      inRingMutex.current = run.catch(() => {});
+      try {
+        await run;
         return true;
       } catch (error) {
         logger.error('[at-show] setDogInRingStatus failed', 'at-show', { error: String(error) });
         return false;
       }
     },
-    [actions, localEntries]
+    [actions]
   );
 
   // ── Entry tap ────────────────────────────────────────────────────────

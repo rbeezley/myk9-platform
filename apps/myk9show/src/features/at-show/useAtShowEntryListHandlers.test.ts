@@ -9,7 +9,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { Entry, EntryListActions } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 
@@ -142,5 +142,47 @@ describe('useAtShowEntryListHandlers — setDogInRingStatus exclusivity', () => 
     });
 
     expect(ok).toBe(false);
+    // A failed clear must abort before the target is marked in-ring —
+    // otherwise we'd leave two dogs in-ring, the bug this handler guards.
+    expect(actions.handleMarkInRing).not.toHaveBeenCalled();
+  });
+
+  it('serializes overlapping calls so two dogs cannot be marked in-ring at once', async () => {
+    // Hold the FIRST call's mark open until released; the second call must not
+    // begin its own mark until the first fully settles (mutex serialization).
+    let releaseFirstMark!: () => void;
+    const firstMark = new Promise<void>((resolve) => {
+      releaseFirstMark = resolve;
+    });
+    (actions.handleMarkInRing as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(() => firstMark)
+      .mockImplementation(() => Promise.resolve());
+
+    const entries = [
+      makeEntry({ id: 'A', status: 'in-ring' as EntryStatus }),
+      makeEntry({ id: 'B' }),
+      makeEntry({ id: 'C' }),
+    ];
+    const { result } = renderHandlers(entries, actions);
+
+    let p1!: Promise<boolean>;
+    let p2!: Promise<boolean>;
+    act(() => {
+      p1 = result.current.setDogInRingStatus('B', true);
+      p2 = result.current.setDogInRingStatus('C', true);
+    });
+
+    // Call 1 has reached (and is stuck on) marking B; call 2 is still queued
+    // behind the mutex, so C must not have been marked yet.
+    await waitFor(() => expect(actions.handleMarkInRing).toHaveBeenCalledWith('B'));
+    expect(actions.handleMarkInRing).toHaveBeenCalledTimes(1);
+    expect(actions.handleMarkInRing).not.toHaveBeenCalledWith('C');
+
+    // Release call 1; call 2 now proceeds and marks C.
+    await act(async () => {
+      releaseFirstMark();
+      await Promise.all([p1, p2]);
+    });
+    expect(actions.handleMarkInRing).toHaveBeenCalledWith('C');
   });
 });

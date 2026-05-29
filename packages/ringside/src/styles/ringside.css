@@ -68,6 +68,13 @@
   --comfortable-touch-target: 36px;
   --token-z-base: 0;
   --token-z-raised: 10;
+  --token-z-overlay: 100;
+  --token-z-modal: 1000;
+  --token-radius-sm: 0.375rem;
+  --token-radius-lg: 0.75rem;
+  --background: #ffffff;
+  --overlay-white-light: rgba(255, 255, 255, 0.2);
+  --token-text-tertiary: #6b7280;
 }
 
 /* =========================================================================
@@ -428,4 +435,103 @@
   padding: var(--token-space-4xl) var(--token-space-lg);
   text-align: center;
   color: var(--text-tertiary);
+}
+
+/* =========================================================================
+   EntryList header — ported from apps/myk9q EntryList.css + page-container.css,
+   scoped. Sticky bar with absolute-centered class title + trial meta, back-nav
+   (HamburgerMenu slot) left, action buttons right. Light mode only.
+   ========================================================================= */
+.ringside-root .page-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--token-z-modal);
+  background: var(--overlay-white-heavy);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 0 var(--token-radius-lg) var(--token-radius-lg);
+  padding: var(--token-space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-xl);
+  min-height: 60px;
+}
+.ringside-root .entry-list-header {
+  margin: 0;
+}
+.ringside-root .header-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  margin-left: auto;
+  flex-shrink: 0;
+  position: relative;
+  z-index: var(--token-z-overlay);
+}
+
+/* Class/trial info — absolute-centered over the bar */
+.ringside-root .entry-list-header .class-info {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  max-width: 55%;
+}
+.ringside-root .class-info-clickable {
+  cursor: pointer;
+  border-radius: var(--token-radius-sm);
+  transition: background-color 0.15s ease;
+  padding: 2px 6px;
+}
+.ringside-root .class-info-clickable:hover {
+  background: var(--overlay-white-light);
+}
+.ringside-root .class-name-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.ringside-root .entry-list-header .class-info h1,
+.ringside-root .entry-list-header .class-info .class-name {
+  font-size: 1.125rem;
+  font-weight: 590;
+  color: var(--foreground);
+  margin: 0;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-align: center;
+  white-space: nowrap;
+}
+.ringside-root .info-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--token-text-tertiary);
+  color: var(--background);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.ringside-root .class-info-clickable:hover .info-indicator {
+  opacity: 1;
+  background: var(--primary);
+}
+.ringside-root .class-meta-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.ringside-root .trial-meta-text {
+  font-size: 0.75rem;
+  color: var(--token-text-secondary);
+  font-weight: 500;
+  line-height: 1.2;
 }

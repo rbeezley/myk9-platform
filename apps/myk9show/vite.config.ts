@@ -100,9 +100,13 @@ export default defineConfig({
     force: true,
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, 'src') },
+      {
+        find: /^@myk9\/ringside$/,
+        replacement: path.resolve(__dirname, '../../packages/ringside/src/index.ts'),
+      },
+    ],
   },
   build: {
     // Enhanced bundle size limits for Core Web Vitals optimization

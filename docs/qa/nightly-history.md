@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-29
+
+- **Playwright command:** fail; stopped after exceeding the QA hang rule
+- **Route sweep:** fail with durable evidence; package-resolution blocker fixed, then authenticated RBAC console errors remained
+- **Active specs:** Vitest 18/18; Playwright stopped after `21/44` passed, `5` failed, and `18` did not run. Route sweep `4/12` clean after the fix: public and club-admin desktop/mobile passed; exhibitor, secretary, judge, and admin desktop/mobile failed on RBAC console errors.
+- **Failures:** Active Playwright command from `docs/qa/e2e-suite-map.md` first exposed a Vite dependency-scan failure for `@myk9/ringside` resolving to ignored/stale `dist` output (`DogCard` export missing). After the package-resolution fix and local dependency repair, route sweep no longer failed on ringside imports but found `QA-CONSOLE-ERROR-012`: RBAC `TypeError: Failed to fetch` console errors from `PermissionChecker`, `AuthContext`, and `useRBAC` on authenticated role groups. `QA-TEST-FLAKE-010` evidence refreshed with the repeated active Nightly failures and long-running registration/public specs.
+- **Fixes made:** `packages/ringside/package.json` now exports `./styles` from tracked source; `apps/myk9show/vite.config.ts` now aliases bare `@myk9/ringside` imports to `packages/ringside/src/index.ts`; `docs/qa/findings.md` and this history entry updated.
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main`, then switched to `codex/nightly-qa-2026-05-29` before editing. Local dependency links were also repaired with `pnpm install --force` after the workspace lacked usable Playwright/package symlinks; no shared-system mutations were run. Remaining highest-priority work: investigate `QA-CONSOLE-ERROR-012` without broad console suppression, then repair `QA-TEST-FLAKE-010` active Nightly specs from current `main`.
+
 ### 2026-05-28
 
 - **Playwright command:** fail (two concurrent passes in the same session — both red, with materially different runtimes)

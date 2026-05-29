@@ -57,7 +57,8 @@ const AppHeader: React.FC = () => {
   // At-show ringside is a full-screen judge view on a phone (mirrors myK9Q's
   // standalone ringside). Suppress this global app bar so it doesn't eat
   // vertical space above the ringside page's own header.
-  const isAtShow = location.pathname.startsWith('/at-show');
+  const isAtShow =
+    location.pathname === '/at-show' || location.pathname.startsWith('/at-show/');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);

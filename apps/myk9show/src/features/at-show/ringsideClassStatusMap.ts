@@ -40,3 +40,27 @@ export function toShowClassStatus(ringsideStatus: ClassStatusValue): ShowClassSt
       return ((_: never): ShowClassStatus => 'upcoming')(ringsideStatus);
   }
 }
+
+/**
+ * Inverse: myK9Show class status → ringside `ClassStatusValue`, for DISPLAY
+ * (e.g. the ClassList card's status badge via `getFormattedClassStatus`).
+ *
+ * myK9Show's vocabulary is coarser, so this widens to the nearest ringside
+ * value. `cancelled`/`upcoming` have no ringside equivalent → `no-status`.
+ * Lossy by the same owner decision as `toShowClassStatus`; faithful round-trip
+ * awaits the status-vocabulary migration.
+ */
+export function toRingsideClassStatus(showStatus: string | undefined): ClassStatusValue {
+  switch (showStatus) {
+    case 'setup':
+      return 'setup';
+    case 'in_progress':
+      return 'in_progress';
+    case 'completed':
+      return 'completed';
+    case 'cancelled':
+    case 'upcoming':
+    default:
+      return 'no-status';
+  }
+}

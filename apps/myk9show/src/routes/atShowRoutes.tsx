@@ -34,6 +34,11 @@ const AtShowScoresheetPage = createEnhancedLazy(
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowScoresheetPage' }
 );
 
+const AtShowClassListPage = createEnhancedLazy(
+  () => import('@/features/at-show/AtShowClassListPage'),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowClassListPage' }
+);
+
 /** Show-running staff who can use the ringside at-show surface. */
 const STAFF_ROLES = [
   UserRole.SITE_ADMIN,
@@ -49,6 +54,19 @@ export const AtShowRoutes = () => {
   if (!isUnifiedRingsideEnabled()) return null;
   return (
     <>
+      {/* Class picker — the navigation entry into the at-show flow. */}
+      <Route
+        path="/at-show/:showId"
+        element={
+          <ProtectedRoute requiredRole={STAFF_ROLES}>
+            <SuspenseWrapper>
+              <PageTransition>
+                <AtShowClassListPage />
+              </PageTransition>
+            </SuspenseWrapper>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/at-show/:showId/class/:classId"
         element={

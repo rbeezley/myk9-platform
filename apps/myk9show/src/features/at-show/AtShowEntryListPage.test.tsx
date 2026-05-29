@@ -33,6 +33,13 @@ vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: { getTrialById: vi.fn() },
 }));
 
+// Force the feature flag OFF so the gate assertion is deterministic — it must
+// not depend on ambient env (e.g. a local .env.local that enables the dev
+// server). The off-flag test asserts AtShowRoutes() registers nothing.
+vi.mock('@/features/at-show/atShowFeatureFlag', () => ({
+  isUnifiedRingsideEnabled: () => false,
+}));
+
 // Auth: force a SITE_ADMIN primary role (→ ringside 'admin', canScore = true)
 // so the pending card is clickable. Real getPrimaryRole is preserved so the
 // role→permission mapping under test stays genuine.

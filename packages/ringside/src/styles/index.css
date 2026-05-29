@@ -19,6 +19,10 @@
  * compiled output.
  */
 
+/* Ported ringside visual layer (Phase 1h-0) — scoped under `.ringside-root`.
+   Must precede @tailwind for postcss-import to inline it. */
+@import './ringside.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

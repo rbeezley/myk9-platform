@@ -27,12 +27,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
 import { Popover, PopoverContent } from '@/components/ui/popover';
 import DelightfulError from '@/components/ui/DelightfulError';
+// Phase 1h-0: the per-entry card is now the myK9Q-faithful ringside DogCard
+// (styled via `@myk9/ringside/styles`, scoped under `.ringside-root`), not a
+// local shadcn placeholder. The remaining slots stay host-owned for now.
+import { DogCard } from '@myk9/ringside';
 import type {
   EntryListLayoutSlots,
   HamburgerMenuProps,
@@ -41,11 +41,9 @@ import type {
   RefreshIndicatorProps,
   FilterTriggerButtonProps,
   FilterPanelProps,
-  DogCardProps,
   PullToRefreshProps,
   ErrorStateProps,
   ClassDetailsPopoverProps,
-  DogCardStatusBorder,
 } from '@myk9/ringside';
 
 // ---------------------------------------------------------------------------
@@ -221,88 +219,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 // ---------------------------------------------------------------------------
 // List body
 // ---------------------------------------------------------------------------
-
-/** Maps a status-border variant to a left-border color class. */
-const statusBorderClass = (border: DogCardStatusBorder | undefined): string => {
-  switch (border) {
-    case 'checked-in':
-    case 'at-gate':
-    case 'come-to-gate':
-      return 'border-l-4 border-l-blue-500';
-    case 'in-ring':
-      return 'border-l-4 border-l-amber-500';
-    case 'conflict':
-    case 'result-nq':
-    case 'result-ex':
-      return 'border-l-4 border-l-red-500';
-    case 'pulled':
-    case 'result-wd':
-    case 'result-abs':
-      return 'border-l-4 border-l-gray-400';
-    case 'completed':
-    case 'scored':
-    case 'result-qualified':
-      return 'border-l-4 border-l-green-500';
-    case 'placement-1':
-      return 'border-l-4 border-l-yellow-500';
-    case 'placement-2':
-      return 'border-l-4 border-l-slate-400';
-    case 'placement-3':
-      return 'border-l-4 border-l-orange-400';
-    case 'no-status':
-    default:
-      return 'border-l-4 border-l-transparent';
-  }
-};
-
-/**
- * Per-entry card. Renders the dog info, fires onClick/onPrefetch, and
- * renders the injected actionButton / resultBadges / dragHandle /
- * sectionBadge slots.
- */
-const DogCard: React.FC<DogCardProps> = ({
-  armband,
-  callName,
-  breed,
-  handler,
-  onClick,
-  className,
-  statusBorder,
-  actionButton,
-  resultBadges,
-  sectionBadge,
-  onPrefetch,
-  dragHandle,
-}) => (
-  <Card
-    className={cn('at-show-dog-card', statusBorderClass(statusBorder), className)}
-    onClick={onClick}
-    {...(onPrefetch
-      ? { onMouseEnter: onPrefetch, onFocus: onPrefetch }
-      : {})}
-  >
-    <CardContent className="flex items-center gap-3 p-3">
-      {dragHandle && <span className="at-show-dog-card-drag">{dragHandle}</span>}
-      <span className="at-show-dog-card-armband font-semibold">#{armband}</span>
-      <div className="at-show-dog-card-info min-w-0 flex-1">
-        <div className="at-show-dog-card-name truncate font-medium">
-          {callName}
-          {sectionBadge && (
-            <span className="at-show-dog-card-section ml-1 text-xs">[{sectionBadge}]</span>
-          )}
-        </div>
-        <div className="at-show-dog-card-breed truncate text-sm text-muted-foreground">
-          {breed}
-        </div>
-        <div className="at-show-dog-card-handler truncate text-sm text-muted-foreground">
-          {handler}
-        </div>
-      </div>
-      {resultBadges && <span className="at-show-dog-card-badges">{resultBadges}</span>}
-      {actionButton && <span className="at-show-dog-card-action">{actionButton}</span>}
-    </CardContent>
-  </Card>
-);
+//
+// DogCard is no longer defined here — it's the myK9Q-faithful ringside
+// `DogCard` imported from `@myk9/ringside` (see imports). It carries its own
+// status-border / armband / section-badge styling via the package stylesheet,
+// so the local shadcn placeholder + statusBorderClass helper were removed.
 
 /**
  * Pull-to-refresh wrapper. Spike renders children directly — no gesture

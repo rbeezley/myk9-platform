@@ -18,6 +18,7 @@
  */
 
 import React from 'react';
+import { ArrowLeft, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,8 +52,10 @@ import type {
 // ---------------------------------------------------------------------------
 
 /**
- * Top-left nav drawer. Spike renders only the optional "← Back to X"
- * affordance as a button; the full drawer lands in the UI sprint.
+ * Top-left nav. Renders a COMPACT icon-only back affordance (not a wide text
+ * button) so it doesn't collide with the absolute-centered class title — the
+ * ringside header reserves the center for the title and assumes a compact left
+ * control, mirroring myK9Q's hamburger. The full drawer lands in the UI sprint.
  */
 const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ backNavigation, className }) => {
   if (!backNavigation) return null;
@@ -60,11 +63,13 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ backNavigation, className
     <Button
       type="button"
       variant="ghost"
-      size="sm"
+      size="icon"
+      aria-label={backNavigation.label}
+      title={backNavigation.label}
       className={cn('at-show-hamburger-back', className)}
       onClick={backNavigation.action}
     >
-      ← {backNavigation.label}
+      <ArrowLeft size={20} />
     </Button>
   );
 };
@@ -135,23 +140,28 @@ const RefreshIndicator: React.FC<RefreshIndicatorProps> = ({
 // Filter + search
 // ---------------------------------------------------------------------------
 
-/** Button that opens the FilterPanel; shows an active-filter count badge. */
+/**
+ * Icon button that opens the Search & Sort slide-out (the FilterPanel slot).
+ * Mirrors myK9Q: a compact sliders/tune ICON (not a "Filter" text button), with
+ * a small dot when filters are active.
+ */
 const FilterTriggerButton: React.FC<FilterTriggerButtonProps> = ({
   onClick,
   hasActiveFilters,
-  activeFilterCount,
   className,
 }) => (
   <Button
     type="button"
-    variant={hasActiveFilters ? 'default' : 'outline'}
-    size="sm"
-    className={cn('at-show-filter-trigger', className)}
+    variant="ghost"
+    size="icon"
+    aria-label="Search & sort"
+    title="Search & sort"
+    className={cn('at-show-filter-trigger relative', className)}
     onClick={onClick}
   >
-    Filter
-    {typeof activeFilterCount === 'number' && activeFilterCount > 0 && (
-      <span className="at-show-filter-count ml-1">{activeFilterCount}</span>
+    <SlidersHorizontal size={20} />
+    {hasActiveFilters && (
+      <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[var(--primary,#14b8a6)]" />
     )}
   </Button>
 );

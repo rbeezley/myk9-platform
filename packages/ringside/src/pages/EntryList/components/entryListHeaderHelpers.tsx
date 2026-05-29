@@ -58,9 +58,14 @@ export interface ActionsMenuConfig {
 /**
  * Shared classes for a row in the actions dropdown (was `.action-menu-item` in
  * ringside.css). One source of truth for all menu buttons.
+ *
+ * `appearance-none border-0 bg-transparent` re-applies the native-button reset
+ * the old CSS had (`background: none; border: none`). The package builds with
+ * Tailwind preflight OFF (and is consumed in preflight-off contexts), so the
+ * reset must be explicit — same reason DogCard authors `border-solid` inline.
  */
 const ACTION_MENU_ITEM_CLASS =
-  'flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-muted active:bg-input disabled:cursor-not-allowed disabled:opacity-50';
+  'flex w-full cursor-pointer appearance-none items-center gap-3 border-0 bg-transparent px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-muted active:bg-input disabled:cursor-not-allowed disabled:opacity-50';
 
 interface ActionsDropdownMenuProps {
   isOpen: boolean;

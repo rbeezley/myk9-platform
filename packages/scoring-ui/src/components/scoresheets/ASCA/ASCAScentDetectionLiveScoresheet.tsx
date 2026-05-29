@@ -185,7 +185,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                   {stopwatch.formatTime(stopwatch.time)}
                 </div>
 
-                <div className="text-sm text-muted-foreground mt-2">
+                <div className="text-sm text-muted-foreground mt-2 tabular-nums">
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.getRemainingTime()}</>
                   ) : (

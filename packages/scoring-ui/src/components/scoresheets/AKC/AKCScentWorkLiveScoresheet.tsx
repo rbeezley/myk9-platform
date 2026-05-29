@@ -170,7 +170,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   {stopwatch.formatTime(stopwatch.time)}
                 </div>
 
-                <div className="text-base text-white/90 mt-2 mb-4">
+                <div className="text-base text-white/90 mt-2 mb-4 tabular-nums">
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.getRemainingTime()}</>
                   ) : (

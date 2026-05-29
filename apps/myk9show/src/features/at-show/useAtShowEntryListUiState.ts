@@ -3,31 +3,61 @@
  *
  * ringside's EntryListPage is a controlled render that owns NO state: the host
  * shim holds every `useState` and threads both the snapshot (`EntryListUiState`)
- * and the setters (`EntryListUiActions`) in. This hook centralizes those ~25
- * fields so `AtShowEntryListPage` stays under the 500-line rule.
+ * and the setters (`EntryListUiActions`) in. This hook centralizes most of those
+ * ~25 fields so `AtShowEntryListPage` stays under the 500-line rule.
+ *
+ * Ownership split (why `localEntries`/`manualOrder` are NOT owned here):
+ * ---------------------------------------------------------------------
+ * `useEntryListFilters` must be fed `localEntries` to compute `derived`, and
+ * its setters (`setActiveTab` / `setSortOrder` / `setSearchTerm`) must flow
+ * back into this hook's `uiActions` bag. If this hook owned `localEntries`,
+ * the shim would have to call filters (needs `localEntries`) *and* this hook
+ * (needs the filter setters) in an order that satisfies both — impossible,
+ * because each consumes the other's output. Hoisting the `localEntries` /
+ * `manualOrder` state up to the shim breaks the cycle and mirrors myK9Q's
+ * EntryList shim exactly (it owns those two `useState` slots directly).
  */
 
 import { useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { Entry, EntryListUiState, EntryListUiActions } from '@myk9/ringside';
 
 type ResetConfirm = { show: boolean; entry: Entry | null };
 type AreaCountReq = { min: number; max: number; maxTotalSeconds: number } | null;
 type PrintDialogType = 'check-in' | 'results' | 'scoresheet' | null;
 
-export interface UseAtShowEntryListUiStateResult {
-  uiState: EntryListUiState;
-  uiActions: EntryListUiActions;
-  /** Filter setters the data/filter hooks own but the shim must expose. */
-  setActiveTab: (tab: 'pending' | 'completed') => void;
-}
+export interface UseAtShowEntryListUiStateDeps {
+  /** Entry mirror state, owned by the shim (see ownership note above). */
+  localEntries: Entry[];
+  setLocalEntries: Dispatch<SetStateAction<Entry[]>>;
+  /** Manual drag order, owned by the shim. */
+  manualOrder: Entry[];
+  setManualOrder: Dispatch<SetStateAction<Entry[]>>;
 
-export function useAtShowEntryListUiState(filterSetters: {
+  /** Filter setters owned by `useEntryListFilters`, folded into `uiActions`. */
   setActiveTab: EntryListUiActions['setActiveTab'];
   setSortOrder: EntryListUiActions['setSortOrder'];
   setSearchTerm: EntryListUiActions['setSearchTerm'];
-}): UseAtShowEntryListUiStateResult {
-  const [localEntries, setLocalEntries] = useState<Entry[]>([]);
-  const [manualOrder, setManualOrder] = useState<Entry[]>([]);
+}
+
+export interface UseAtShowEntryListUiStateResult {
+  uiState: EntryListUiState;
+  uiActions: EntryListUiActions;
+}
+
+export function useAtShowEntryListUiState(
+  deps: UseAtShowEntryListUiStateDeps
+): UseAtShowEntryListUiStateResult {
+  const {
+    localEntries,
+    setLocalEntries,
+    manualOrder,
+    setManualOrder,
+    setActiveTab,
+    setSortOrder,
+    setSearchTerm,
+  } = deps;
+
   const [activeStatusPopup, setActiveStatusPopup] = useState<string | null>(null);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -85,7 +115,9 @@ export function useAtShowEntryListUiState(filterSetters: {
     resetConfirmDialog,
   };
 
-  const uiActions: EntryListUiActions = useMemo(
+  // useState setters are referentially stable, so only the shim-owned and
+  // filter setters need to gate the memo.
+  const uiActions = useMemo<EntryListUiActions>(
     () => ({
       setLocalEntries,
       setManualOrder,
@@ -112,16 +144,12 @@ export function useAtShowEntryListUiState(filterSetters: {
       setActiveResetMenu,
       setResetMenuPosition,
       setResetConfirmDialog,
-      setActiveTab: filterSetters.setActiveTab,
-      setSortOrder: filterSetters.setSortOrder,
-      setSearchTerm: filterSetters.setSearchTerm,
+      setActiveTab,
+      setSortOrder,
+      setSearchTerm,
     }),
-    [filterSetters.setActiveTab, filterSetters.setSortOrder, filterSetters.setSearchTerm]
-  ) as EntryListUiActions;
+    [setLocalEntries, setManualOrder, setActiveTab, setSortOrder, setSearchTerm]
+  );
 
-  return {
-    uiState,
-    uiActions,
-    setActiveTab: filterSetters.setActiveTab,
-  };
+  return { uiState, uiActions };
 }

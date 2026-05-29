@@ -2,6 +2,9 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+// Ringside page styles — required by the @myk9/ringside EntryList mount at
+// /at-show (Phase 1a). Imported unconditionally; the route itself is flag-gated.
+import '@myk9/ringside/styles';
 import { ThemeProvider } from './context/ThemeContext';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';

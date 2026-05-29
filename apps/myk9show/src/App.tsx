@@ -31,6 +31,7 @@ import { JudgeSidebarRoutes } from './routes/judgeRoutes';
 import { SecretaryRoutes } from './routes/secretaryRoutes';
 import { ClubAdminRoutes } from './routes/clubAdminRoutes';
 import { PublicRoutes } from './routes/publicRoutes';
+import { AtShowRoutes } from './routes/atShowRoutes';
 
 // Unified layout
 import { UnifiedAppLayout } from './components/layout/UnifiedAppLayout';
@@ -347,6 +348,7 @@ function App() {
                               {SecretaryRoutes()}
                               {ClubAdminRoutes()}
                               {PublicRoutes()}
+                              {AtShowRoutes()}
                             </Route>
 
                             {/* 404 catch-all */}

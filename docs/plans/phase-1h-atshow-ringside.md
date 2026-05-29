@@ -1,8 +1,34 @@
 # Phase 1h — At-Show ringside flow (myK9Q-faithful mobile ClassList + live scoresheet)
 
-Status: **PLAN — awaiting owner sign-off before implementation.**
+Status: **IN PROGRESS.**
 Predecessor: Phase 1a (`/at-show/:showId/class/:classId` EntryList mount, merged PR #425).
 Worktree: `worktree-phase-1h-atshow-ringside`.
+
+### Progress log
+- **1h-0 card tier — MERGED (PR #426, squash `5214e8b5`).** Ported myK9Q DogCard /
+  armband / status-badge / section-badge / result-badge + tokens into
+  `@myk9/ringside`, scoped under `.ringside-root`; myK9Show `/at-show` consumes
+  the package `DogCard`. Browser-verified vs reference screens.
+- **1h-0 chrome — IN PROGRESS (local commit on branch, becomes PR #2).** Header
+  done: sticky bar + absolute-centered class title + trial meta ported (scoped);
+  `HamburgerMenu` slot → compact ← icon; `FilterTriggerButton` slot → sliders
+  ICON opening the Search & Sort slide-out (owner feedback). TabBar tabs already
+  self-styled via `@myk9/ui`.
+
+### Chrome batch — remaining for PR #2 (owner: batch, don't drip element-by-element)
+- **ClassDetailsPopover** (the header info-ⓘ hover dialog): port myK9Q's look —
+  "Class Details" header + X, icon rows (Status / Entries / Judge / Max Time /
+  Results / Check-in / Class ID) with teal value badges. Source:
+  `apps/myk9q/.../dialogs/ClassDetailsPopover.tsx` (+ its `.popover-row` /
+  `.popover-badge` CSS). Keep the positioning shell host-owned (Base UI), style
+  the content to match. **+ WIRE REAL DATA (owner-approved):** the Results
+  (`visibilityPreset`) + Check-in (`selfCheckin`) values are 1a spike-stubs;
+  real values live in `class_visibility_overrides` + the `useSelfCheckinEnabled`
+  query + `services/database/visibility`. The shim should enrich `classInfo`'s
+  popover data via those existing hooks (not the replicated class row).
+- **SyncIndicator / CompactOfflineIndicator** slots: style to match myK9Q.
+- **Actions menu** (⋮ dropdown — Refresh / Check-In / Results / Scoresheets;
+  Set Run Order hidden since run-order is out of scope at-show): style to match.
 
 ## Headline requirement (owner, 2026-05-28)
 

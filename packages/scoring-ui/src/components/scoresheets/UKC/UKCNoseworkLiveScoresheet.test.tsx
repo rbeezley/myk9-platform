@@ -88,7 +88,7 @@ describe('UKCNoseworkLiveScoresheet', () => {
     render(<UKCNoseworkLiveScoresheet {...defaultProps} />);
 
     expect(screen.getByText('Pepper')).toBeInTheDocument();
-    expect(screen.getByText('#42')).toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText(/Alex Johnson/)).toBeInTheDocument();
   });
 

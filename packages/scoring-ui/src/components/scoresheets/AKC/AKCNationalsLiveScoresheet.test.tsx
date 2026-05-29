@@ -63,7 +63,7 @@ describe('AKCNationalsLiveScoresheet', () => {
     render(<AKCNationalsLiveScoresheet {...defaultProps} />);
 
     expect(screen.getByText('Luna')).toBeInTheDocument();
-    expect(screen.getByText('#42')).toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 

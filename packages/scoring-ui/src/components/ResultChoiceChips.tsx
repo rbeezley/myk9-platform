@@ -7,7 +7,9 @@ const RESULT_OPTIONS: { value: QualifyingResult; label: string; activeClass: str
   {
     value: 'Q',
     label: 'Qualified',
-    activeClass: 'bg-blue-600 hover:bg-blue-700 border-blue-600 shadow-lg shadow-blue-600/20',
+    // Qualified uses the host accent (terracotta in myK9Show, teal in myK9Q) —
+    // the "selected = accent" convention. NQ/ABS/EX stay semantic below.
+    activeClass: 'bg-primary hover:brightness-110 border-primary text-primary-foreground shadow-lg',
   },
   {
     value: 'NQ',

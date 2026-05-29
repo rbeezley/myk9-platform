@@ -54,6 +54,11 @@ const AppHeader: React.FC = () => {
   // (LandingHeader). Suppressing this global app bar on `/` for guests
   // avoids two stacked headers.
   const isGuestLanding = !user && location.pathname === '/';
+  // At-show ringside is a full-screen judge view on a phone (mirrors myK9Q's
+  // standalone ringside). Suppress this global app bar so it doesn't eat
+  // vertical space above the ringside page's own header.
+  const isAtShow =
+    location.pathname === '/at-show' || location.pathname.startsWith('/at-show/');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -137,6 +142,7 @@ const AppHeader: React.FC = () => {
   const shortcutDisplays = useMemo(() => getShortcutDisplays(shortcuts), [shortcuts]);
 
   if (isGuestLanding) return null;
+  if (isAtShow) return null;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background text-foreground border-border h-12 shadow-[var(--shadow-header)]">

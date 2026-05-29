@@ -63,7 +63,7 @@ describe('AKCFastCatLiveScoresheet', () => {
     render(<AKCFastCatLiveScoresheet {...defaultProps} />);
 
     expect(screen.getByText('Dash')).toBeInTheDocument();
-    expect(screen.getByText('#42')).toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 

@@ -130,8 +130,8 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             {/* Dog Info */}
             <Card className="p-4">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-lg font-bold text-primary">#{entry.armband}</span>
+                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-md">
+                  <span className="text-xl font-bold text-primary-foreground">{entry.armband}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xl font-semibold truncate">{entry.dogName}</div>
@@ -253,8 +253,8 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-bold text-primary">#{entry.armband}</span>
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+                <span className="text-sm font-bold text-primary-foreground">{entry.armband}</span>
               </div>
               <div>
                 <div className="font-medium">{entry.dogName}</div>

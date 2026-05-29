@@ -41,7 +41,7 @@ describe('UKCObedienceLiveScoresheet', () => {
     render(<UKCObedienceLiveScoresheet {...defaultProps} />);
 
     expect(screen.getByText('Rex')).toBeInTheDocument();
-    expect(screen.getByText('#7')).toBeInTheDocument();
+    expect(screen.getByText('7')).toBeInTheDocument();
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 

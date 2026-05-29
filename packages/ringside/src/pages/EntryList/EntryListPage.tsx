@@ -160,8 +160,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   // Loading state - show spinner while we haven't completed initial load
   if (!hasCompletedInitialLoad && !fetchError) {
     return (
-      <div className="entry-list-container">
-        <div className="loading">Loading entries...</div>
+      <div className="p-3">
+        <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">Loading entries...</div>
       </div>
     );
   }
@@ -169,7 +169,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   // Error state
   if (fetchError) {
     return (
-      <div className="entry-list-container">
+      <div className="p-3">
         <layout.ErrorState
           message={`Failed to load entries: ${fetchError.message || 'Please check your connection and try again.'}`}
           onRetry={refresh}
@@ -182,12 +182,12 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   // Empty state - class exists but has no entries
   if (hasCompletedInitialLoad && entries.length === 0) {
     return (
-      <div className="entry-list-container">
-        <div className="empty-state">
+      <div className="p-3">
+        <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
           <div className="empty-state-icon">
             <Users size={48} />
           </div>
-          <h2 className="empty-state-title">No Entries Yet</h2>
+          <h2 className="m-0 text-lg font-semibold text-foreground">No Entries Yet</h2>
           {classInfo?.className && <p className="empty-state-class-name">{classInfo.className}</p>}
           <p className="empty-state-message">
             This class doesn't have any entries yet. Entries will appear once they are registered.
@@ -204,7 +204,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   }
 
   return (
-    <div className={`entry-list-container${isLoaded ? ' loaded' : ''}`} data-loaded={isLoaded}>
+    <div className={`p-3${isLoaded ? ' loaded' : ''}`} data-loaded={isLoaded}>
       <EntryListHeader
         classInfo={classInfo}
         isRefreshing={isRefreshing || isManualRefreshing}
@@ -256,8 +256,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
       />
 
       <layout.PullToRefresh onRefresh={() => refresh(true)} enabled={false} threshold={80}>
-        <div className="entry-list-scrollable">
-          <div className="entry-list-content">
+        <div className="isolate">
+          <div className="pb-8 pt-2">
             <EntryListContent
               entries={currentEntries}
               activeTab={activeTab}

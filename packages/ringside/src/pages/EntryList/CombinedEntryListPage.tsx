@@ -215,7 +215,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   // Loading state
   if (!entries.length && !fetchError) {
     return (
-      <div className="entry-list-container">
+      <div className="p-3">
         <div className="flex items-center justify-center" style={{ minHeight: '50vh' }}>
           <div className="text-center">
             <RefreshCw className="h-8 w-8 text-muted-foreground animate-spin mx-auto mb-2" />
@@ -229,7 +229,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   // Error state
   if (fetchError) {
     return (
-      <div className="entry-list-container">
+      <div className="p-3">
         <layout.ErrorState
           message={`Failed to load entries: ${fetchError.message || 'Please check your connection and try again.'}`}
           onRetry={refresh}
@@ -240,7 +240,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   }
 
   return (
-    <div className={`entry-list-container${isLoaded ? ' loaded' : ''}`} data-loaded={isLoaded}>
+    <div className={`p-3${isLoaded ? ' loaded' : ''}`} data-loaded={isLoaded}>
       <EntryListHeader
         classInfo={classInfo}
         isRefreshing={isRefreshing}
@@ -306,8 +306,8 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         onTabChange={tabId => setActiveTab(tabId as 'pending' | 'completed')}
       />
 
-      <div className="entry-list-scrollable">
-        <div className="entry-list-content">
+      <div className="isolate">
+        <div className="pb-8 pt-2">
           <EntryListContent
             entries={currentEntries}
             activeTab={activeTab}

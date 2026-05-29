@@ -2,9 +2,12 @@
  * @myk9/ringside — package stylesheet.
  *
  * Consumers import this via `import '@myk9/ringside/styles'` to get the
- * package's compiled CSS. Until ringside ships actual components,
- * Tailwind's content scan returns empty and the bundle is small — that
- * is a valid no-op that still proves the pipeline works end-to-end.
+ * package's compiled CSS. As of the Tailwind migration the ringside
+ * components author their styling as Tailwind utilities directly on the
+ * markup (was the scoped `ringside.css`, now deleted), so the host's own
+ * Tailwind build — which scans `packages/ringside/src` — generates the
+ * rules. This stylesheet now emits only the `@tailwind` layers for any
+ * consumer that builds the package CSS standalone.
  *
  * `@tailwind base` is intentionally kept (NOT removed) — it emits the
  * `--tw-*` CSS variables several utilities depend on (gradients, ring,
@@ -13,15 +16,7 @@
  * tailwind.config.js, so importing this stylesheet cannot override the
  * host app's typography, form controls, body defaults, or border
  * styling. See the config file for the full rationale.
- *
- * As components land in PR B onward, their utility classes become
- * scannable and Tailwind generates the corresponding rules into the
- * compiled output.
  */
-
-/* Ported ringside visual layer (Phase 1h-0) — scoped under `.ringside-root`.
-   Must precede @tailwind for postcss-import to inline it. */
-@import './ringside.css';
 
 @tailwind base;
 @tailwind components;

@@ -65,7 +65,7 @@ export const NationalsResultBadges: React.FC<NationalsResultBadgesProps> = ({ en
         <span className="time-badge">{getDisplayTime(entry.searchTime, entry.resultText, formatTimeForDisplay)}</span>
       )}
       {entry.showQualification !== false && (
-        <span className={`result-badge ${getResultClassName(entry.resultText)}`}>
+        <span className={`rounded-md px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide ${getResultClassName(entry.resultText)}`}>
           {normalizeResultText(entry.resultText)}
         </span>
       )}
@@ -127,7 +127,7 @@ export const RegularResultBadges: React.FC<RegularResultBadgesProps> = ({ entry 
       )}
 
       {entry.showQualification !== false && entry.resultText && (
-        <span className={`result-badge ${getResultClassName(entry.resultText)}`}>
+        <span className={`rounded-md px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide ${getResultClassName(entry.resultText)}`}>
           {normalizeResultText(entry.resultText)}
         </span>
       )}
@@ -184,19 +184,19 @@ export const StatusBadgeContent: React.FC<StatusBadgeContentProps> = ({ status }
   const getIcon = () => {
     switch (config.iconName) {
       case 'target':
-        return <Target size={18} className="status-icon" style={iconStyle} />;
+        return <Target size={18} style={iconStyle} />;
       case 'check':
-        return <Check size={18} className="status-icon" style={iconStyle} />;
+        return <Check size={18} style={iconStyle} />;
       case 'alert-triangle':
-        return <AlertTriangle size={18} className="status-icon" style={iconStyle} />;
+        return <AlertTriangle size={18} style={iconStyle} />;
       case 'x-circle':
-        return <XCircle size={18} className="status-icon" style={iconStyle} />;
+        return <XCircle size={18} style={iconStyle} />;
       case 'star':
-        return <Star size={18} className="status-icon" style={iconStyle} />;
+        return <Star size={18} style={iconStyle} />;
       case 'bell':
-        return <Bell size={18} className="status-icon" style={iconStyle} />;
+        return <Bell size={18} style={iconStyle} />;
       case 'circle':
-        return <Circle size={18} className="status-icon" style={iconStyle} />;
+        return <Circle size={18} style={iconStyle} />;
       default:
         return null;
     }
@@ -205,7 +205,7 @@ export const StatusBadgeContent: React.FC<StatusBadgeContentProps> = ({ status }
   return (
     <>
       {getIcon()}
-      <span className="status-text">{config.text}</span>
+      <span className="min-w-0 shrink overflow-hidden text-ellipsis text-[0.6875rem] leading-tight normal-case">{config.text}</span>
     </>
   );
 };

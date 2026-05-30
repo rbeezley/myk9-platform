@@ -506,7 +506,7 @@ describe('ReplicatedTrialsTable', () => {
       expect(result.success).toBe(true);
       expect(result.tableName).toBe('trials');
       expect(result.rowsAffected).toBe(0);
-      expect(result.operation).toBe('incremental-sync');
+      expect(result.operation).toBe('full-sync');
     });
 
     it('should sync new trials from remote', async () => {
@@ -544,7 +544,7 @@ describe('ReplicatedTrialsTable', () => {
 
       expect(result.success).toBe(true);
       expect(result.rowsAffected).toBe(1);
-      expect(result.operation).toBe('incremental-sync');
+      expect(result.operation).toBe('full-sync');
 
       // Verify trial was cached
       const trial = await table.get('trial-1');

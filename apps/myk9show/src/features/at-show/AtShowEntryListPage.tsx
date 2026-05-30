@@ -19,10 +19,11 @@
  * It renders the page inside `<RingsideProvider>` so any ringside descendant
  * that reads `useRingside()` resolves against myK9Show's capability bag.
  *
- * Mounted behind an OFF-by-default flag (see `atShowFeatureFlag.ts`); the
- * `/at-show/:showId/class/:classId` route is not even registered until a host
- * opts in. Several handlers are spike stubs (run-order persist, placement
- * recalc, prints, statistics nav) — all INTENT-noted in their hooks.
+ * Gated per-show by `UnifiedRingsideGate` (reads `shows.unified_ringside_enabled`,
+ * see `atShowFeatureFlag.ts`); the route renders an inline notice instead of the
+ * page when ringside is off for the show. Several handlers are spike stubs
+ * (run-order persist, placement recalc, prints, statistics nav) — all
+ * INTENT-noted in their hooks.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

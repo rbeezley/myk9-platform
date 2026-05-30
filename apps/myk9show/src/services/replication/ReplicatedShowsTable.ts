@@ -49,6 +49,8 @@ export interface ReplicatedShow {
   experiencePublishedAt?: string | null | undefined;
   experiencePublishedStyle?: string | null | undefined;
   experiencePublishedContent?: ShowExperienceSnapshot | null | undefined;
+  /** `shows.unified_ringside_enabled` (Phase 1e) — gates the `/at-show` surface. */
+  unifiedRingsideEnabled?: boolean | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -94,6 +96,8 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     experiencePublishedContent:
       (publishedFields.experience_published_content as ShowExperienceSnapshot | null | undefined) ??
       null,
+    unifiedRingsideEnabled:
+      (publishedFields.unified_ringside_enabled as boolean | null | undefined) ?? undefined,
   };
 }
 

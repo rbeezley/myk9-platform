@@ -8205,6 +8205,12 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_account_today_entries: {
+        Args: never
+        Returns: {
+          entry_id: string
+        }[]
+      }
       get_effective_permissions: {
         Args: {
           filter_scope_id?: string

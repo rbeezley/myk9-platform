@@ -13,7 +13,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, AlertCircle, User, ChevronRight } from 'lucide-react';
+import { Loader2, AlertCircle, User, ChevronRight, Star } from 'lucide-react';
 import {
   groupSectionedClasses,
   getClassIds,
@@ -21,11 +21,13 @@ import {
   type ClassEntry,
 } from '@myk9/ringside';
 import { useAtShowClassList } from './useAtShowClassList';
+import { useAccountTodayAutoFavorites } from '@/features/show-today/accountTodayEntries';
 
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
   const { groups, organization, showName, isLoading, error } = useAtShowClassList(showId);
+  useAccountTodayAutoFavorites(showId);
 
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
@@ -99,10 +101,20 @@ export const AtShowClassListPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleClassClick(entry)}
-                      className="flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md active:scale-[0.99]"
+                      className={`flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md active:scale-[0.99] ${
+                        entry.is_favorite ? 'border-emerald-400 bg-emerald-50' : ''
+                      }`}
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{entry.class_name}</div>
+                        <div className="flex items-center gap-2">
+                          {entry.is_favorite && (
+                            <Star
+                              size={15}
+                              className="shrink-0 fill-emerald-600 text-emerald-600"
+                            />
+                          )}
+                          <span className="truncate font-medium">{entry.class_name}</span>
+                        </div>
                         {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (
                           <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-muted-foreground">
                             <User size={13} className="shrink-0" />

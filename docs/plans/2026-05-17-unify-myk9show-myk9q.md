@@ -297,6 +297,8 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 2. Implement auto-favorite logic: on banner-tap or `/at-show` mount, call `get_account_today_entries()` (no parameters — RPC derives identity from session) and pre-favorite the returned IDs. Client never receives or trusts unrelated entry IDs.
 3. **Tests:** unit tests covering owner-only, handler-only, co-owner-only, owner+handler, owner+co-owner, handler+co-owner, all-three, and zero-entry cases. Playwright spec covering banner appearance (single, multi, zero) + auto-favorite assertion. Authorization Playwright: account A attempts to favorite an entry owned by account B → RLS denial.
 
+**Implementation note (2026-05-30):** Phase 2 client work is implemented in `apps/myk9show/src/features/show-today`: homepage banner selection, banner tap routing, replicated-data hydration from `get_account_today_entries()`, and class-favorite persistence for `/at-show`. Unit/component coverage exists for zero/single/multi banner states, owner/handler/co-owner RPC-result hydration permutations, and the "route even if pre-favorite cannot complete" fallback. Playwright/UAT authorization coverage remains the Phase 2 gate before marking the phase fully accepted.
+
 ### Phase 3a — Recipient identity (extend fanout to reach passcode users)
 
 This phase has no push delivery — it only fixes who the fanout *would* target. Push delivery is Phase 3b.

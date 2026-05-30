@@ -29,8 +29,10 @@ Default long-term goal: make myK9 launch-ready for fall 2026, with secretary/sho
 Git worktrees share history but **not** gitignored files (`node_modules/`, `.env`, `dist/`). A `PostToolUse` hook runs `scripts/bootstrap-worktree.sh` automatically after `EnterWorktree`. If something is missing, run it manually:
 
 ```bash
-bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packages
+bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packages, activates git hooks
 ```
+
+**Work in a worktree, never the primary checkout, when other agents may be active.** This repo is regularly worked by concurrent agents (Codex + Claude); committing from the primary tree — especially `git add -A` — sweeps another agent's untracked WIP. This is enforced: `.githooks/pre-commit` blocks a commit from the primary working tree while any linked worktree exists (bootstrap activates it by repointing `core.hooksPath` at `.githooks`, handling this repo's `extensions.worktreeConfig` overrides — see `.githooks/README.md`). Compliant worktree commits and solo no-worktree work are unaffected. Bypass the documented docs-only-direct-to-`main` flow with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...`.
 
 ## Planning
 

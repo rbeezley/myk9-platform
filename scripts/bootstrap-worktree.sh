@@ -12,6 +12,35 @@ echo "=== Bootstrapping worktree ===" >&2
 echo "  Worktree: $WORKTREE_DIR" >&2
 echo "  Main repo: $MAIN_REPO" >&2
 
+# Activate tracked git hooks (concurrent-agent worktree guard).
+#
+# This repo enables extensions.worktreeConfig, and the Claude Code worktree
+# harness seeds a per-worktree core.hooksPath (in each checkout's
+# config.worktree, pointed at .git/hooks) that SHADOWS the shared value. The
+# guard only ever BLOCKS from the PRIMARY checkout (it's a no-op in linked
+# worktrees), so the primary's override is the one that must be cleared for
+# enforcement to work. We therefore:
+#   1. set the shared/common value (covers fresh clones with no worktrees),
+#   2. clear this checkout's per-worktree override, and
+#   3. clear the PRIMARY checkout's override too — so enforcement turns on even
+#      when this script runs from a linked worktree (the usual case).
+# Runs BEFORE the main-repo skip below so a fresh clone still gets step 1.
+if [ -d "$WORKTREE_DIR/.githooks" ]; then
+  common_cfg="$(git rev-parse --path-format=absolute --git-common-dir)/config"
+  git config --file "$common_cfg" core.hooksPath .githooks
+  if [ "$(git config --get extensions.worktreeConfig 2>/dev/null)" = "true" ]; then
+    # A per-worktree config.worktree OVERRIDES the common value, so point each
+    # override AT the tracked dir (a relative path resolves per checkout).
+    # Setting is more robust here than --unset-all. Cover this checkout AND the
+    # primary — the primary is the only checkout the guard actually blocks from.
+    this_wt_cfg="$(git rev-parse --path-format=absolute --git-dir)/config.worktree"
+    if [ -f "$this_wt_cfg" ]; then git config --file "$this_wt_cfg" core.hooksPath .githooks; fi
+    primary_wt_cfg="$MAIN_REPO/.git/config.worktree"
+    if [ -f "$primary_wt_cfg" ]; then git config --file "$primary_wt_cfg" core.hooksPath .githooks; fi
+  fi
+  echo "  Git hooks activated (.githooks)" >&2
+fi
+
 # Skip if this IS the main repo (not a worktree)
 if [ "$WORKTREE_DIR" = "$MAIN_REPO" ]; then
   echo "  Not a worktree — skipping bootstrap" >&2

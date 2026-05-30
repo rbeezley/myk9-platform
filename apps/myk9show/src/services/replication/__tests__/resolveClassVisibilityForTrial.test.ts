@@ -7,15 +7,14 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('@myk9/core', () => ({
-  logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
-
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
 }));
 
-import { resolveClassVisibilityForTrial } from '../ReplicatedClassesTable';
+import {
+  resolveClassVisibilityForTrial,
+  resolveVisibilityForClassRows,
+} from '../resolveClassVisibility';
 import { supabase } from '@/services/database/supabaseClient';
 
 /** A chainable query stub: terminal via `.maybeSingle()` or a direct await. */
@@ -88,5 +87,27 @@ describe('resolveClassVisibilityForTrial', () => {
     mockTables({ classRows: [] }); // nothing configured at any level
     const bare = await resolveClassVisibilityForTrial('trial-1', ['c1']);
     expect(bare.get('c1')).toEqual({ visibilityPreset: 'open', selfCheckinEnabled: true });
+  });
+});
+
+describe('resolveVisibilityForClassRows', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('resolves a batch of rows, skipping rows without a trial_id', async () => {
+    mockTables({ show: { preset: 'standard', self_checkin_enabled: true }, classRows: [] });
+    const result = await resolveVisibilityForClassRows([
+      { id: 'c1', trial_id: 'trial-1' },
+      { id: 'c2', trial_id: 'trial-1' },
+      { id: 'c3', trial_id: null }, // skipped
+    ]);
+    expect(result.get('c1')).toEqual({ visibilityPreset: 'standard', selfCheckinEnabled: true });
+    expect(result.get('c2')).toEqual({ visibilityPreset: 'standard', selfCheckinEnabled: true });
+    expect(result.has('c3')).toBe(false);
+  });
+
+  it('does not query when no row has a trial_id', async () => {
+    const result = await resolveVisibilityForClassRows([{ id: 'c1', trial_id: null }]);
+    expect(result.size).toBe(0);
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 });

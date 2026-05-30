@@ -17,12 +17,20 @@ Compute them **at classes-sync time** and store on the replicated class row. Reu
 existing `getVisibilitySettings(showId)` service + `@myk9/secretary` resolvers (DRY — one
 definition of the cascade). No new replicated tables.
 
-**Why not replicate the 3 raw tables:** the popover is display-only and these settings
-rarely change mid-show. Denormalizing 2 fields is far smaller than 3 tables + sync + RLS +
-a client resolver. **Trade-off (documented):** a settings-only edit (no class-row change)
-won't refresh the replicated value until a full sync. Acceptable because (a) it's
-informational, and (b) the authoritative self-check-in *gate* remains the live online hook
-elsewhere — this popover only *displays* status.
+Enrichment is grouped by each class row's OWN `trial_id` (not the sync `licenseKey`, which
+at the at-show layer can be a show id or empty), so it runs on scoped AND unscoped syncs —
+the values are therefore present on every sync and `resolveConflict` (server-authoritative)
+also preserves a prior enriched value when an incoming row lacks them.
+
+**Why not replicate the 3 raw tables:** denormalizing 2 fields is far smaller than 3 tables
++ sync + RLS + a client resolver, and these settings rarely change mid-show. **Trade-off
+(documented):** the value is eventually consistent — refreshed whenever the class row syncs,
+but a settings-only edit (no class-row change) won't reflect until the next full sync.
+**Note `selfCheckinEnabled` is NOT purely cosmetic** — beyond the popover it also feeds the
+ringside `SortableEntryCard` self-check-in gate (`classInfo.selfCheckin`). Acceptable because
+/at-show is staff-only (STAFF_ROLES) and staff bypass that gate via `canCheckInDogs`; the
+exhibitor-facing self-check-in enforcement stays on the live online hook. The real-time
+alternative (replicating the raw cascade tables) is deferred.
 
 ## Changes
 1. **`packages/ringside`** — extend `ClassDetailsPopoverProps['data']` with optional

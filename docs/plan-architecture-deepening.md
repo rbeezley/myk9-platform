@@ -37,6 +37,16 @@ touches them. As ringside surface migrates into myK9Show, Phases 2 and 4 grow in
 value (more callers behind the invalidation contract; the `packages/ringside`
 `entryStore` enters myK9Show's store-naming space).
 
+**[ADDED] Shared-package overlap window.** Until the unify plan actually deletes
+`apps/myk9q`, the shared `packages/*` (notably `packages/replication`) are still
+consumed by the live myK9Q app. Any phase that edits a shared package must keep
+its **interface** backward-compatible for the overlap — e.g. Phase 1 changes only
+myK9Show *adapter files* and must **not** alter the `syncReplicatedTable` /
+`SyncReplicatedTableAdapter` signature in a way that breaks myK9Q's adapters while
+they still exist. If a shared-interface change is unavoidable, sequence it after
+the myK9Q removal lands. Verify with `pnpm typecheck` at the **workspace** root
+(not just the myK9Show app) so a break in the still-present myK9Q surfaces.
+
 ---
 
 ## Phase 1 — Collapse hand-rolled Replicated Table Sync adapters onto `syncReplicatedTable()`
@@ -288,6 +298,11 @@ as the ringside surface lands in myK9Show, it enters the same naming space. Sett
 the canonical-directory rule and the rename in this phase **before** the ringside
 merge widens the collision, and decide whether the ringside store is the canonical
 ringside-entry source myK9Show consumes (likely yes) vs. a fourth duplicate.
+**[ADDED] Timing:** do not block this phase on the ringside merge. If ringside
+has not yet landed in myK9Show, consolidate the **two existing myK9Show stores**
+now (the `store/` vs `stores/` `entryStore`) and record the canonical-directory
+rule; reconcile the `packages/ringside` store as a follow-up the moment its
+surface lands. Two-thirds of the collision is resolvable today.
 
 ### Files
 - `apps/myk9show/src/store/` ↔ `apps/myk9show/src/stores/`

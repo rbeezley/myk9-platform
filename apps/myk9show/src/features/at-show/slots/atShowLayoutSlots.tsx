@@ -18,7 +18,15 @@
  */
 
 import React from 'react';
-import { ArrowLeft, SlidersHorizontal } from 'lucide-react';
+import {
+  ArrowLeft,
+  SlidersHorizontal,
+  CloudOff,
+  CheckCircle,
+  RefreshCw,
+  AlertCircle,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,8 +36,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Popover, PopoverContent } from '@/components/ui/popover';
 import DelightfulError from '@/components/ui/DelightfulError';
+import { badgeClass, getSyncLabel, getSyncTier } from './atShowChrome.helpers';
+import { ClassDetailsPopover } from './ClassDetailsPopoverSlot';
 // Phase 1h-0: the per-entry card is now the myK9Q-faithful ringside DogCard
 // (styled via `@myk9/ringside/styles`, scoped under `.ringside-root`), not a
 // local shadcn placeholder. The remaining slots stay host-owned for now.
@@ -44,7 +53,6 @@ import type {
   FilterPanelProps,
   PullToRefreshProps,
   ErrorStateProps,
-  ClassDetailsPopoverProps,
 } from '@myk9/ringside';
 
 // ---------------------------------------------------------------------------
@@ -74,14 +82,30 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ backNavigation, className
   );
 };
 
-/** Compact "offline" pill. Spike renders a small static status span. */
+/**
+ * Compact offline chip shown in the header when the device is offline.
+ * Mirrors myK9Q's compact sync chip: a small rounded pill with a CloudOff
+ * glyph + label, using the neutral badge tier.
+ */
 const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = ({ className }) => (
-  <span className={cn('at-show-offline-indicator text-xs text-muted-foreground', className)}>
+  <span
+    className={cn(
+      'at-show-offline-indicator inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+      badgeClass('neutral'),
+      className,
+    )}
+  >
+    <CloudOff size={13} className="shrink-0" />
     Offline
   </span>
 );
 
-/** Sync status pill with optional retry. */
+/**
+ * Sync status pill. Ports myK9Q's SyncIndicator full look: a rounded pill
+ * tinted by the status tier with a leading glyph (spinning while syncing),
+ * the status label, an optional pending-count chip, and an optional retry
+ * affordance. `compact` shrinks the padding/size for tight header slots.
+ */
 const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   status,
   pendingCount,
@@ -89,28 +113,42 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   onRetry,
   compact,
 }) => {
-  const label =
-    status === 'error'
-      ? errorMessage || 'Sync error'
+  const Icon: LucideIcon =
+    status === 'synced'
+      ? CheckCircle
       : status === 'syncing'
-        ? 'Syncing…'
+        ? RefreshCw
         : status === 'offline'
-          ? 'Offline'
-          : 'Synced';
+          ? CloudOff
+          : AlertCircle;
+  // Keep a short fixed label so a long error string can't blow out the header
+  // pill width; surface the detail as a hover tooltip instead (mirrors myK9Q).
+  const label = getSyncLabel(status);
+  const hasPending = typeof pendingCount === 'number' && pendingCount > 0;
+
   return (
     <span
       className={cn(
-        'at-show-sync-indicator inline-flex items-center gap-1',
-        compact ? 'text-xs' : 'text-sm',
+        'at-show-sync-indicator inline-flex items-center gap-2 rounded-lg font-medium',
+        compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm',
+        badgeClass(getSyncTier(status)),
       )}
       data-status={status}
+      {...(status === 'error' && errorMessage ? { title: errorMessage } : {})}
     >
+      <Icon size={16} className={cn('shrink-0', status === 'syncing' && 'animate-spin')} />
       <span>{label}</span>
-      {typeof pendingCount === 'number' && pendingCount > 0 && (
-        <span className="at-show-sync-pending">({pendingCount})</span>
+      {hasPending && (
+        <span className="at-show-sync-pending rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs font-semibold">
+          {pendingCount}
+        </span>
       )}
       {status === 'error' && onRetry && (
-        <button type="button" className="underline" onClick={onRetry}>
+        <button
+          type="button"
+          className="ml-0.5 rounded bg-foreground/10 px-2 py-0.5 text-xs font-medium transition-colors hover:bg-foreground/20"
+          onClick={onRetry}
+        >
           Retry
         </button>
       )}
@@ -258,77 +296,9 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry, className }) 
 // ---------------------------------------------------------------------------
 // Class-info popover
 // ---------------------------------------------------------------------------
-
-/**
- * Read-only class details popover. Spike renders a controlled popover
- * with the `data` fields. Base UI's popover has no real anchor element,
- * so `anchorRef` is accepted for contract conformance but not consumed
- * yet — positioning lands in the UI sprint.
- */
-const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
-  isOpen,
-  onClose,
-  data,
-  showJudgeB,
-}) => (
-  <Popover
-    open={isOpen}
-    onOpenChange={(open) => {
-      if (!open) onClose();
-    }}
-  >
-    <PopoverContent className="at-show-class-details">
-      <dl className="space-y-1 text-sm">
-        {data.judgeName && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Judge</dt>
-            <dd>{data.judgeName}</dd>
-          </div>
-        )}
-        {showJudgeB && data.judgeNameB && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Judge B</dt>
-            <dd>{data.judgeNameB}</dd>
-          </div>
-        )}
-        {typeof data.totalEntries === 'number' && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Entries</dt>
-            <dd>
-              {typeof data.completedEntries === 'number'
-                ? `${data.completedEntries} / ${data.totalEntries}`
-                : data.totalEntries}
-            </dd>
-          </div>
-        )}
-        {typeof data.areaCount === 'number' && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Areas</dt>
-            <dd>{data.areaCount}</dd>
-          </div>
-        )}
-        {typeof data.timeLimitSeconds === 'number' && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Time limit</dt>
-            <dd>{data.timeLimitSeconds}s</dd>
-          </div>
-        )}
-        {data.visibilityPreset && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Results</dt>
-            <dd className="capitalize">{data.visibilityPreset}</dd>
-          </div>
-        )}
-        {typeof data.selfCheckinEnabled === 'boolean' && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Check-in</dt>
-            <dd>{data.selfCheckinEnabled ? 'Enabled' : 'Disabled'}</dd>
-          </div>
-        )}
-      </dl>
-    </PopoverContent>
-  </Popover>
-);
+//
+// ClassDetailsPopover lives in `./ClassDetailsPopoverSlot` (extracted to keep
+// this module under the 500-line ceiling). It ports myK9Q's look + anchoring.
 
 // ---------------------------------------------------------------------------
 // Assembled slot bag

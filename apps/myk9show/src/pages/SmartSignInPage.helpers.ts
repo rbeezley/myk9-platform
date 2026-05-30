@@ -10,9 +10,26 @@
  * the second 1b PR; this module is the foundation it builds on.
  */
 
-import { parsePasscode } from '@myk9/ringside';
+import { parsePasscode, type UserRole as RingsideRole } from '@myk9/ringside';
 
 export type CredentialKind = 'email' | 'passcode' | 'invalid';
+
+/**
+ * Plain-language ringside role for user-facing copy (the §2.2 confirmation).
+ * INTENT: never show the raw enum — "could my mom use this?".
+ */
+export function humanizeRingsideRole(role: RingsideRole): string {
+  switch (role) {
+    case 'admin':
+      return 'show admin';
+    case 'judge':
+      return 'judge';
+    case 'steward':
+      return 'gate steward';
+    case 'exhibitor':
+      return 'exhibitor';
+  }
+}
 
 /**
  * Leading/trailing ASCII whitespace + zero-width chars (U+200B ZWSP, U+FEFF

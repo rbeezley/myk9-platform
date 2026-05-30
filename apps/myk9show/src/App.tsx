@@ -18,7 +18,7 @@ const ExhibitorOnboardingPage = React.lazy(
   () => import('./pages/onboarding/ExhibitorOnboardingPage')
 );
 const PricingPage = React.lazy(() => import('./pages/PricingPage'));
-const SignInPage = React.lazy(() => import('./pages/SignInPage'));
+const SmartSignInPage = React.lazy(() => import('./pages/SmartSignInPage'));
 const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
 const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage'));
 const AuthCallbackPage = React.lazy(() => import('./pages/AuthCallbackPage'));
@@ -287,7 +287,7 @@ function App() {
                               element={
                                 <PageTransition>
                                   <Suspense fallback={<PageLoadingFallback />}>
-                                    <SignInPage />
+                                    <SmartSignInPage />
                                   </Suspense>
                                 </PageTransition>
                               }

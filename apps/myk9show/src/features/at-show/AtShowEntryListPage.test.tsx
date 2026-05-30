@@ -8,8 +8,8 @@
  * value-sensitive bit (the in-ring enum lands in BOTH the camel + snake
  * check-in columns), per CLAUDE.md.
  *
- * Also pins the OFF-by-default flag gate: with the flag unset, `AtShowRoutes()`
- * registers nothing.
+ * Also pins Phase 1d: `AtShowRoutes()` now registers its routes unconditionally
+ * (per-show enablement moved into `UnifiedRingsideGate`, tested separately).
  */
 
 import { Routes, Route } from 'react-router-dom';
@@ -31,13 +31,6 @@ vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn(), updateClass: vi.fn() },
   replicatedEntriesTable: { getEntriesByClass: vi.fn(), sync: vi.fn(), updateEntry: vi.fn() },
   replicatedTrialsTable: { getTrialById: vi.fn() },
-}));
-
-// Force the feature flag OFF so the gate assertion is deterministic — it must
-// not depend on ambient env (e.g. a local .env.local that enables the dev
-// server). The off-flag test asserts AtShowRoutes() registers nothing.
-vi.mock('@/features/at-show/atShowFeatureFlag', () => ({
-  isUnifiedRingsideEnabled: () => false,
 }));
 
 // Auth: force a SITE_ADMIN primary role (→ ringside 'admin', canScore = true)
@@ -122,7 +115,10 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     );
   });
 
-  it('does not register the /at-show route while the flag is off (default)', () => {
-    expect(AtShowRoutes()).toBeNull();
+  it('registers the /at-show routes unconditionally (per-show gating moved to UnifiedRingsideGate)', () => {
+    // Phase 1d: route registration no longer depends on a global flag; the
+    // per-show enablement check lives in UnifiedRingsideGate (tested in
+    // UnifiedRingsideGate.test.tsx).
+    expect(AtShowRoutes()).not.toBeNull();
   });
 });

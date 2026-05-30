@@ -8,7 +8,7 @@
  * vitest assertions.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 import type { ComponentType } from 'react';
@@ -46,7 +46,12 @@ const StubFilter: ComponentType<FilterTriggerButtonProps> = ({ onClick, hasActiv
 );
 const StubPopover: ComponentType<ClassDetailsPopoverProps> = ({ isOpen, data }) =>
   isOpen ? (
-    <div data-testid="popover" data-class-id={String(data.classId)}>
+    <div
+      data-testid="popover"
+      data-class-id={String(data.classId)}
+      data-time-limit={String(data.timeLimitSeconds)}
+      data-time-limit-type={typeof data.timeLimitSeconds}
+    >
       {data.judgeName ?? ''}
     </div>
   ) : null;
@@ -140,5 +145,42 @@ describe('EntryListHeader', () => {
   it('always renders the offline indicator slot', () => {
     renderHeader();
     expect(screen.getByTestId('offline')).not.toBeNull();
+  });
+
+  describe('popover timeLimitSeconds is always number | undefined', () => {
+    // `judgeName` makes `hasExtraInfo` true so the info trigger renders and
+    // the popover can be opened.
+    const withTimeLimit = (timeLimit: string | undefined): ClassInfo =>
+      ({ ...baseClassInfo, judgeName: 'J. Smith', timeLimit }) as unknown as ClassInfo;
+
+    const openPopover = (classInfo: ClassInfo) => {
+      renderHeader({ classInfo });
+      fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
+      return screen.getByTestId('popover');
+    };
+
+    it('parses a clean "180s" string to the number 180', () => {
+      const popover = openPopover(withTimeLimit('180s'));
+      expect(popover.getAttribute('data-time-limit-type')).toBe('number');
+      expect(popover.getAttribute('data-time-limit')).toBe('180');
+    });
+
+    it('passes undefined (not a string) when there is no limit', () => {
+      const popover = openPopover(withTimeLimit(undefined));
+      expect(popover.getAttribute('data-time-limit-type')).toBe('undefined');
+    });
+
+    // Regression: a non-numeric placeholder must NOT reach the slot as a
+    // string or as NaN. `parseInt('TBD')` is NaN, and NaN is `typeof number`,
+    // so an un-guarded path would slip it past the slot's type check.
+    it.each(['TBD', 'TBDs', 'NaNs', ''])(
+      'collapses the non-numeric value %p to undefined',
+      (junk) => {
+        const popover = openPopover(withTimeLimit(junk));
+        expect(popover.getAttribute('data-time-limit-type')).toBe('undefined');
+        expect(popover.getAttribute('data-time-limit')).not.toBe('NaN');
+        expect(popover.getAttribute('data-time-limit')).not.toBe(junk);
+      }
+    );
   });
 });

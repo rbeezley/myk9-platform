@@ -89,49 +89,22 @@ bisects cleanly.
 
 ---
 
-## Phase 1 — Delete zero-leverage data-access modules
+## Phase 1 — Delete zero-leverage data-access modules ✓ COMPLETE
 
-### Goal
-Shrink the true surface a codebase-walking agent (and the unify merge) must read
-and rule out. Lowest-risk phase; makes every later phase's greps cleaner.
+**Merged:** [PR #455](https://github.com/rbeezley/myk9-platform/pull/455) (2026-05-30).
+13 files / 3,599 lines deleted; workspace typecheck 25/25 green; 8,043 tests pass.
 
-### Friction (deletion test, literally)
-Deleting these concentrates no complexity anywhere because nothing calls them —
-~1,900 lines of dead surface.
+**Deleted:** `batchOperations.ts` (413L), `connection-pool.ts` (431L), the
+`services/database/queries/` search cluster (8 files, ~1,050L),
+`hooks/queries/useSearchDatabase.ts` (568L), `services/mappers/searchMappers.ts`,
+`types/search-analytics.ts`. Stale `tsconfig.app.json` exclude entries for the
+three deleted paths removed as a follow-up fix (PR reviewer finding).
 
-### Files (verified zero live importers, 2026-05-30)
-- [`batchOperations.ts`](../apps/myk9show/src/services/database/batchOperations.ts)
-  (413L, 0 importers)
-- [`connection-pool.ts`](../apps/myk9show/src/services/database/connection-pool.ts)
-  (431L, 0 importers)
-- `apps/myk9show/src/services/database/queries/search-*-queries.ts` cluster
-  (~1,050L; reachable only through an unused barrel — confirm the
-  `searchQueries.ts` barrel and `useSearchDatabase` consumer first).
-
-**Explicitly excluded** (verified live, do NOT delete): `show-incidents.ts`
-(4 importers in `features/show-workbench/`), `shows/reads.postgrest.ts`
-(delegated to from `shows/reads.ts`).
-
-### Steps
-1. Re-run the liveness grep immediately before deletion (call sites rot in both
-   directions).
-2. For the `queries/` search cluster: confirm whether `useSearchDatabase` uses
-   the barrel at all; if the barrel is dead too, remove it; if live, delete only
-   the orphaned members and keep the barrel honest.
-3. Delete with `git rm` (per memory `feedback_git_rm_vs_rm`).
-4. `grep -rn <symbol> --include="*.md"` before pushing (per
-   `feedback_grep_docs_before_deletion`) — remove stale doc references.
-
-### Tests
-- `pnpm typecheck` + `pnpm build` must stay green (proves nothing imported them).
-- Full test suite run; no test should reference the deleted modules.
-
-### Acceptance
-- Files removed; typecheck/build/tests green; no doc references dangling.
-
-### Risk / notes
-Low, contingent on the re-verified grep. If any importer appears, drop that file
-from the phase rather than forcing the delete.
+**Preserved (verified live):** `show-incidents.ts` (4 importers in
+`features/show-workbench/`), `shows/reads.postgrest.ts` (delegated to from
+`shows/reads.ts`), `utils/optimisticUtils.ts` (3 importers in
+`components/optimistic/` and scoring — explorer had reported 0; re-verify before
+delete saved it).
 
 ---
 

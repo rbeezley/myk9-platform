@@ -27,8 +27,8 @@ describe('generatePasscodesFromShowId', () => {
 });
 
 describe('getExhibitorLoginUrl', () => {
-  it('returns the pre-filled myK9Q login URL', () => {
-    expect(getExhibitorLoginUrl(TEST_UUID)).toBe('https://app.myk9q.com/login?code=e979f');
+  it('returns the pre-filled show-access URL', () => {
+    expect(getExhibitorLoginUrl(TEST_UUID)).toBe('https://myk9show.com/at-show?code=e979f');
   });
 
   it('returns an empty string for an invalid showId', () => {

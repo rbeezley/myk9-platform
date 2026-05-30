@@ -67,7 +67,7 @@ test.describe('Show management workflow', () => {
       await expect(page.getByRole('tab', { name: new RegExp(`^${tab}`) })).toBeVisible();
     }
 
-    await expect(page.getByRole('heading', { name: 'myK9Q Access Codes', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Show Access Codes', level: 3 })).toBeVisible();
     await expect(page.locator('[data-testid="show-trials-tab"]')).toHaveCount(0);
   });
 

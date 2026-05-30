@@ -257,7 +257,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 checked={config.myk9qCode}
                 onChange={(e) => updateConfig('myk9qCode', e.target.checked)}
               />
-              myK9Q Access Code
+              Show Access Code
             </label>
             <label
               className={`flex items-center gap-2 text-sm ${!wifiAvailable ? 'text-muted-foreground' : ''}`}

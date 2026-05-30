@@ -48,12 +48,12 @@ describe('ShowFlyerReport', () => {
 
   it('renders the getting-started guide on page 2', () => {
     render(<ShowFlyerReport {...baseProps} />);
-    expect(screen.getByText('Getting Started with myK9Q')).toBeInTheDocument();
+    expect(screen.getByText('Getting Started at the Show')).toBeInTheDocument();
   });
 
-  it('renders app.myk9q.com reference', () => {
+  it('renders the show-access URL reference', () => {
     render(<ShowFlyerReport {...baseProps} />);
-    expect(screen.getAllByText(/app\.myk9q\.com/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/myk9show\.com\/at-show/).length).toBeGreaterThan(0);
   });
 
   it('shows an error state when showId is missing', () => {

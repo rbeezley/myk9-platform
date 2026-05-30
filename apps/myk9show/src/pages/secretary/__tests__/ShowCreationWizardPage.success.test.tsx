@@ -62,7 +62,7 @@ describe('ShowCreationWizardPage success overlay', () => {
 
     // Simulate the hook calling onCreated after a successful save.
     // The third arg models the plaintexts returned by insert_show_passcodes;
-    // they are forwarded into MyK9QAccessCard's `passcodes` prop and
+    // they are forwarded into ShowAccessCodesCard's `passcodes` prop and
     // rendered verbatim. The legacy `generatePasscodesFromShowId` fallback
     // was removed in PR #375 because the server now stores random hashed
     // codes that no derivation could match.

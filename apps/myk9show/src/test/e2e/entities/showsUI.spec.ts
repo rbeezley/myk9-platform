@@ -149,8 +149,8 @@ test.describe('Shows UI — Detail (secretary)', () => {
       await expect(page.getByRole('tab', { name: new RegExp(`^${tab}`) })).toBeVisible();
     }
 
-    // myK9Q access codes block is visible in the overview (Phase 1 polish).
-    await expect(page.getByRole('heading', { name: 'myK9Q Access Codes', level: 3 })).toBeVisible();
+    // Show access codes block is visible in the overview (Phase 1 polish).
+    await expect(page.getByRole('heading', { name: 'Show Access Codes', level: 3 })).toBeVisible();
   });
 });
 

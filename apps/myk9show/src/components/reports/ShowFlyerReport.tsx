@@ -20,7 +20,7 @@ function FlyerPage1({ showName, clubName, showDates, exhibitorCode, loginUrl }: 
     <div className="flyer-page">
       <div className="flyer-brand">
         <div className="flyer-brand-name">myK9Show</div>
-        <div className="flyer-brand-tagline">Powered by myK9Show &amp; myK9Q</div>
+        <div className="flyer-brand-tagline">Powered by myK9Show</div>
       </div>
 
       <h1 className="flyer-show-title">{showName}</h1>
@@ -36,10 +36,10 @@ function FlyerPage1({ showName, clubName, showDates, exhibitorCode, loginUrl }: 
           <div className="flyer-passcode-label">Exhibitor Passcode</div>
           <div className="flyer-passcode-value">{exhibitorCode}</div>
           <div className="flyer-passcode-hint">
-            Scan the QR code or visit <strong>app.myk9q.com</strong> and enter this passcode to
-            access the show in the myK9Q ringside app.
+            Scan the QR code or visit <strong>myk9show.com/at-show</strong> and enter this passcode
+            to open the show on any device.
           </div>
-          <div className="flyer-passcode-url">app.myk9q.com</div>
+          <div className="flyer-passcode-url">myk9show.com/at-show</div>
         </div>
       </div>
 
@@ -61,9 +61,10 @@ function FlyerPage2() {
         <div className="flyer-brand-name">myK9Show</div>
       </div>
 
-      <h2 className="flyer-guide-heading">Getting Started with myK9Q</h2>
+      <h2 className="flyer-guide-heading">Getting Started at the Show</h2>
       <p className="flyer-guide-subheading">
-        The free ringside app for exhibitors — check in, track your scores, and stay in the loop.
+        The free ringside experience for exhibitors — check in, track your scores, and stay in the
+        loop.
       </p>
 
       <div className="flyer-guide-section">
@@ -82,7 +83,8 @@ function FlyerPage2() {
         <ol className="flyer-guide-steps">
           <li>
             <span>
-              Open <strong>app.myk9q.com</strong> on your phone or tablet (no download required)
+              Open <strong>myk9show.com/at-show</strong> on your phone or tablet (no download
+              required)
             </span>
           </li>
           <li>
@@ -108,9 +110,7 @@ function FlyerPage2() {
         </ul>
       </div>
 
-      <div className="flyer-footer-note">
-        myK9Show &middot; myk9show.com &nbsp;&nbsp; myK9Q &middot; myk9q.com
-      </div>
+      <div className="flyer-footer-note">myK9Show &middot; myk9show.com</div>
     </div>
   );
 }

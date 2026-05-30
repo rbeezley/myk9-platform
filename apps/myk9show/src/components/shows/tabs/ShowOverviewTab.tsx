@@ -7,7 +7,7 @@ import { JudgesList } from '@/components/shows/overview/JudgesList';
 import { VenueMap } from '@/components/shows/overview/VenueMap';
 import { MoreFromClub } from '@/components/shows/overview/MoreFromClub';
 import { ShareEvent } from '@/components/shows/overview/ShareEvent';
-import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
+import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 
 const baseUrl =
   (import.meta.env.VITE_PUBLIC_URL as string | undefined) ??
@@ -44,7 +44,7 @@ export function ShowOverviewTab({ show, canManageShow = false, judges }: ShowOve
           <ShowOfficials showId={show.id} />
           <JudgesList judges={judges ?? show.assignedJudges} />
           <ShareEvent shareData={shareData} />
-          <MyK9QAccessCard
+          <ShowAccessCodesCard
             showId={show.id}
             showName={show.name}
             // canRegenerate is gated on canManageShow so the public/exhibitor

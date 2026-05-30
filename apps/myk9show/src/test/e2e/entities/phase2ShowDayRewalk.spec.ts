@@ -64,7 +64,7 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
       'Message a class',
       'Incident log',
       'Schedule delay script',
-      'myK9Q Access Codes',
+      'Show Access Codes',
       'Show Map',
     ]) {
       await expect(page.getByRole('heading', { name })).toBeVisible();

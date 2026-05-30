@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ShowPasscodes } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { AlertTriangle, ArrowLeft, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
+import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -473,7 +473,7 @@ const ShowCreationWizardPage: React.FC = () => {
               <p className="mt-1 text-muted-foreground">{createdShow.name}</p>
             </div>
             <div className="w-full max-w-md">
-              <MyK9QAccessCard
+              <ShowAccessCodesCard
                 showId={createdShow.id}
                 showName={createdShow.name}
                 passcodes={createdShow.passcodes}

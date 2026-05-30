@@ -8,7 +8,12 @@
  * - Local edits queue as mutations for later sync
  */
 
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
@@ -178,131 +183,41 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Sync shows from Supabase
    */
   async sync(licenseKey: string): Promise<SyncResult> {
-    const startTime = Date.now();
-    const errors: string[] = [];
-    let rowsSynced = 0;
-    let conflictsResolved = 0;
+    logger.log(`[${this.getTableName()}] Starting sync`);
 
-    try {
-      // Get last sync timestamp
-      const metadata = await this.getSyncMetadata();
+    const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
+      fetchRemoteRows: async ({ scope, since }) => {
+        let query = supabase
+          .from('shows')
+          .select('*')
+          .gt('updated_at', new Date(since).toISOString())
+          .order('updated_at', { ascending: true });
 
-      // Check if cache is empty - if so, force full sync from epoch
-      const allCachedShows = await this.getAll();
-      const isCacheEmpty = allCachedShows.length === 0;
-
-      // If cache is empty but we have a lastSync timestamp, it means the cache was cleared
-      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
-
-      logger.log(
-        `[${this.getTableName()}] Starting ${isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCachedShows.length} shows`
-      );
-
-      // Fetch shows updated since last sync
-      // Note: myK9Show may not have license_key column, adjust query as needed
-      let query = supabase
-        .from('shows')
-        .select('*')
-        .gt('updated_at', new Date(lastSync).toISOString())
-        .order('updated_at', { ascending: true });
-
-      // Add license key filter if available (for multi-tenant isolation)
-      if (licenseKey) {
-        query = query.eq('club_id', licenseKey);
-      }
-
-      const { data: remoteShows, error } = await query;
-
-      if (error) {
-        errors.push(error.message);
-        throw new Error(`Supabase query failed: ${error.message}`);
-      }
-
-      logger.log(
-        `[${this.getTableName()}] Remote shows fetched: ${remoteShows?.length ?? 0} (licenseKey filter applied: ${Boolean(
-          licenseKey
-        )})`
-      );
-
-      if (!remoteShows || remoteShows.length === 0) {
-        logger.log(`[${this.getTableName()}] No updates found`);
-
-        await this.updateSyncMetadata({
-          lastIncrementalSyncAt: Date.now(),
-          syncStatus: 'idle',
-        });
-
-        return {
-          tableName: this.getTableName(),
-          success: true,
-          operation: 'incremental-sync',
-          rowsAffected: 0,
-          conflictsResolved: 0,
-          duration: Date.now() - startTime,
-        };
-      }
-
-      // Process each show
-      for (const remoteRow of remoteShows) {
-        const showId = String(remoteRow.id);
-        const remoteShow = rowToShow(remoteRow as ShowRow);
-        const localShow = await this.get(showId);
-
-        if (localShow) {
-          // Conflict resolution: server always wins for show config
-          const resolved = this.resolveConflict(localShow, remoteShow);
-          await this.set(showId, resolved);
-          conflictsResolved++;
-        } else {
-          // New show
-          await this.set(showId, remoteShow);
+        if (scope.value) {
+          query = query.eq('club_id', scope.value);
         }
 
-        rowsSynced++;
-      }
+        const { data, error } = await query;
 
-      // Update sync metadata
-      await this.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now(),
-        syncStatus: 'idle',
-      });
+        if (error) {
+          throw new Error(`Supabase query failed: ${error.message}`);
+        }
 
-      const duration = Date.now() - startTime;
-      logger.log(
-        `[${this.getTableName()}] Sync complete: ${rowsSynced} rows, ${conflictsResolved} conflicts, ${duration}ms`
-      );
+        return (data ?? []) as unknown as ShowRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToShow,
+      resolveConflict: (_local, remote) => remote,
+    };
 
-      return {
-        tableName: this.getTableName(),
-        success: true,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration,
-      };
-    } catch (error) {
-      const errorMessage = getSyncErrorMessage(error);
-      errors.push(errorMessage);
+    const result = await syncReplicatedTable(this, adapter, { value: licenseKey });
 
-      await this.updateSyncMetadata({
-        syncStatus: 'error',
-        errorMessage,
-      });
-
-      if (!isAbortSyncError(error)) {
-        logger.error(`[${this.getTableName()}] Sync failed:`, error);
-      }
-
-      return {
-        tableName: this.getTableName(),
-        success: false,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-        error: errorMessage,
-      };
+    if (!result.success && result.error && !isAbortSyncError(result.error)) {
+      logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
+      return { ...result, error: getSyncErrorMessage(result.error) };
     }
+
+    return result;
   }
 
   /**

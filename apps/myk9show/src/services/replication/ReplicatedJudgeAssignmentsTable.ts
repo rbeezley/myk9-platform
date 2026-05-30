@@ -7,7 +7,12 @@
  * Conflict Resolution: Server-authoritative
  */
 
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
@@ -82,105 +87,35 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * No deleted_at filter — judge_assignments uses hard deletes (ON DELETE CASCADE).
    */
   async sync(_licenseKey?: string): Promise<SyncResult> {
-    const startTime = Date.now();
-    let rowsSynced = 0;
-    let conflictsResolved = 0;
+    logger.log(`[${this.getTableName()}] Starting sync`);
 
-    try {
-      const metadata = await this.getSyncMetadata();
-      const allCached = await this.getAll();
-      const isCacheEmpty = allCached.length === 0;
-      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
+    const adapter: SyncReplicatedTableAdapter<JudgeAssignmentRow, ReplicatedJudgeAssignment> = {
+      fetchRemoteRows: async ({ since }) => {
+        const { data, error } = await supabase
+          .from('judge_assignments')
+          .select('*')
+          .gt('updated_at', new Date(since).toISOString())
+          .order('updated_at', { ascending: true });
 
-      logger.log(
-        `[${this.getTableName()}] Starting ${isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCached.length} assignments`
-      );
-
-      const { data: remoteRows, error } = await supabase
-        .from('judge_assignments')
-        .select('*')
-        .gt('updated_at', new Date(lastSync).toISOString())
-        .order('updated_at', { ascending: true });
-
-      if (error) {
-        throw new Error(`Supabase query failed: ${error.message}`);
-      }
-
-      if (!remoteRows || remoteRows.length === 0) {
-        await this.updateSyncMetadata({
-          lastIncrementalSyncAt: Date.now(),
-          syncStatus: 'idle',
-        });
-
-        return {
-          tableName: this.getTableName(),
-          success: true,
-          operation: 'incremental-sync',
-          rowsAffected: 0,
-          conflictsResolved: 0,
-          duration: Date.now() - startTime,
-        };
-      }
-
-      // Build lookup from already-fetched cache to avoid N individual IDB reads
-      const localCache = new Map(allCached.map(a => [a.id, a]));
-
-      for (const remoteRow of remoteRows) {
-        const assignmentId = String(remoteRow.id);
-        const remoteAssignment = rowToJudgeAssignment(remoteRow);
-        const localAssignment = localCache.get(assignmentId) ?? null;
-
-        if (localAssignment) {
-          const resolved = this.resolveConflict(localAssignment, remoteAssignment);
-          await this.set(assignmentId, resolved);
-          conflictsResolved++;
-        } else {
-          await this.set(assignmentId, remoteAssignment);
+        if (error) {
+          throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        rowsSynced++;
-      }
+        return data ?? [];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToJudgeAssignment,
+      resolveConflict: (_local, remote) => remote,
+    };
 
-      await this.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now(),
-        syncStatus: 'idle',
-      });
+    const result = await syncReplicatedTable(this, adapter);
 
-      const duration = Date.now() - startTime;
-      logger.log(
-        `[${this.getTableName()}] Sync complete: ${rowsSynced} rows, ${conflictsResolved} conflicts, ${duration}ms`
-      );
-
-      return {
-        tableName: this.getTableName(),
-        success: true,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration,
-      };
-    } catch (error) {
-      const errorMessage = getSyncErrorMessage(error);
-
-      await this.updateSyncMetadata({
-        syncStatus: 'error',
-        errorMessage,
-      });
-
-      if (!isAbortSyncError(error)) {
-        logger.error(`[${this.getTableName()}] Sync failed:`, error);
-      }
-
-      return {
-        tableName: this.getTableName(),
-        success: false,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-        error: errorMessage,
-      };
+    if (!result.success && result.error && !isAbortSyncError(result.error)) {
+      logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
+      return { ...result, error: getSyncErrorMessage(result.error) };
     }
+
+    return result;
   }
 
   protected resolveConflict(

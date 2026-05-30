@@ -56,21 +56,40 @@ export function toRingsideRole(showRole: ShowRole | null | undefined): RingsideR
 }
 
 /**
- * Build the `RingsideAuth` value-snapshot bag for `<RingsideProvider>`.
- *
- * Role precedence (Phase 1c): a show-scoped passcode `grantRole` is authoritative
- * for its show and overrides the account RBAC mapping — the passcode the
- * secretary handed out *is* the role for that show. This override is
- * unconditional, including the rare case where the grant role is "lower" than
- * the account's RBAC role (e.g. an admin account that deliberately enters an
- * exhibitor passcode to view as an exhibitor for one show). A passcode-less
+ * Resolve the effective ringside role AND its permission bag from the two
+ * inputs that decide ringside access — the account RBAC role and an optional
+ * Phase 1c show-scoped passcode grant. This is the SINGLE home of the
+ * precedence rule (Locked Decision #8): a show-scoped passcode `grantRole` is
+ * authoritative for its show and overrides the account RBAC mapping — the
+ * passcode the secretary handed out *is* the role for that show. The override
+ * is unconditional, including the rare case where the grant role is "lower"
+ * than the account's RBAC role (e.g. an admin account that deliberately enters
+ * an exhibitor passcode to view as an exhibitor for one show). A passcode-less
  * account user (`grantRole` null/absent) still resolves via `toRingsideRole` —
  * preserving this adapter's INTENT (a secretary who never types a passcode
  * keeps ringside access via RBAC).
  *
- * `canAccess` derives from the resolved ringside role via
- * `getPermissionsForRole` — the same role→permission contract ringside
- * uses internally — so an unmapped role denies every permission.
+ * Permissions derive from the resolved role via `getPermissionsForRole` — the
+ * same role→permission contract ringside uses internally — so an unmapped role
+ * (null) denies every permission. Both `buildRingsideAuth` (the provider auth
+ * bag) and `useRingsideEffectiveRole` (the React hook every `/at-show` surface
+ * shares) call this, so the precedence rule can never drift between them.
+ */
+export function resolveRingsideAccess(args: {
+  showRole: ShowRole | null | undefined;
+  /** Show-scoped passcode grant role (Phase 1c). Takes precedence when present. */
+  grantRole?: RingsideRole | null | undefined;
+}): { role: RingsideRole | null; permissions: RingsidePermissions | null } {
+  const role = args.grantRole ?? toRingsideRole(args.showRole);
+  const permissions: RingsidePermissions | null = role ? getPermissionsForRole(role) : null;
+  return { role, permissions };
+}
+
+/**
+ * Build the `RingsideAuth` value-snapshot bag for `<RingsideProvider>`.
+ *
+ * Role + permission resolution (precedence, INTENT) lives in
+ * `resolveRingsideAccess`; this wraps it into the provider's `canAccess` shape.
  */
 export function buildRingsideAuth(args: {
   showRole: ShowRole | null | undefined;
@@ -78,8 +97,10 @@ export function buildRingsideAuth(args: {
   /** Show-scoped passcode grant role (Phase 1c). Takes precedence when present. */
   grantRole?: RingsideRole | null;
 }): RingsideAuth {
-  const role = args.grantRole ?? toRingsideRole(args.showRole);
-  const permissions: RingsidePermissions | null = role ? getPermissionsForRole(role) : null;
+  const { role, permissions } = resolveRingsideAccess({
+    showRole: args.showRole,
+    grantRole: args.grantRole,
+  });
 
   return {
     role,

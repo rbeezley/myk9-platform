@@ -6,12 +6,14 @@
  * `grantRole`, where it takes precedence over the account RBAC mapping. Null
  * (no grant, or a grant for a different show) means "fall back to RBAC".
  *
- * Consumers today: `AtShowEntryListPage` and `AtShowCombinedEntryListPage` (the
- * surfaces that build a ringside auth bag). `AtShowScoresheetPage` and
- * `AtShowClassListPage` derive no ringside role yet — they rely on the coarse
- * `STAFF_ROLES` route guard. Threading the grant (and fine-grained `canScore`)
- * into the scoresheet is deferred to Phase 1b, when grants are actually set;
- * until then no grant exists, so all surfaces behave exactly as before.
+ * Consumed via `useRingsideEffectiveRole`, which every ringside-auth surface
+ * now shares: `AtShowEntryListPage`, `AtShowCombinedEntryListPage`, AND
+ * `AtShowScoresheetPage` (the scoresheet uses it to gate `canScore`, so a
+ * steward admitted by the coarse `STAFF_ROLES` route guard can't submit a
+ * score). `AtShowClassListPage` still derives no ringside role — it relies on
+ * the route guard alone. Until Phase 1b actually sets a grant, none exists, so
+ * the grant path is inert and every surface resolves via the account RBAC
+ * mapping exactly as before; 1b only needs to call `setGrant`.
  */
 
 import type { UserRole as RingsideRole } from '@myk9/ringside';

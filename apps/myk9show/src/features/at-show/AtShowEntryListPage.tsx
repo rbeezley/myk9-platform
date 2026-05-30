@@ -35,18 +35,14 @@ import {
   useEntryListData,
   useEntryListFilters,
   useDragAndDropEntries,
-  getPermissionsForRole,
   type Entry,
   type EntryListDataDependencies,
   type RingsideShowContext,
-  type UserPermissions as RingsidePermissions,
 } from '@myk9/ringside';
-import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
-import { toRingsideRole } from './ringsideAuthAdapter';
-import { useRingsideGrantRole } from './useRingsideGrantRole';
+import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
@@ -57,29 +53,15 @@ import { atShowDialogSlots } from './slots/atShowDialogSlots';
 export const AtShowEntryListPage: React.FC = () => {
   const { showId, classId } = useParams<{ showId: string; classId: string }>();
   const navigate = useNavigate();
-  const { getUserRoles } = useAuthContext();
 
   // ── Role + permissions ────────────────────────────────────────────────
-  // myK9Show RBAC → primary ShowRole → ringside's 4-role enum. A show-scoped
-  // passcode grant (Phase 1c) overrides the RBAC mapping for this show; absent
-  // a grant it's null and we fall back to `toRingsideRole`. The effective role
-  // feeds the data hook, the permission bag, AND the provider auth (via
-  // `grantRole` below) so all three agree.
-  const showRole = useMemo(() => getPrimaryRole(getUserRoles()), [getUserRoles]);
-  const grantRole = useRingsideGrantRole(showId);
-  const ringsideRole = useMemo(
-    () => grantRole ?? toRingsideRole(showRole),
-    [grantRole, showRole]
-  );
-
-  const permissions = useMemo<RingsidePermissions | null>(
-    () => (ringsideRole ? getPermissionsForRole(ringsideRole) : null),
-    [ringsideRole]
-  );
-  const hasPermission = useCallback(
-    (permission: keyof RingsidePermissions) => permissions?.[permission] ?? false,
-    [permissions]
-  );
+  // Account RBAC → primary ShowRole → ringside's 4-role enum, with a Phase 1c
+  // show-scoped passcode grant overriding the mapping. The resolved role feeds
+  // the data hook, the permission bag, AND the provider auth (via `showRole` +
+  // `grantRole` below) so all three agree. Shared with the combined-list and
+  // scoresheet shims via `useRingsideEffectiveRole`.
+  const { showRole, grantRole, ringsideRole, hasPermission } =
+    useRingsideEffectiveRole(showId);
 
   // ── Show metadata (org/name/date) for the ringside show context ────────
   const { data: show } = useQuery({

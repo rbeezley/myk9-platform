@@ -6,12 +6,13 @@ const TEST_SHOW_ID = '4ad95cdc-2c04-4386-8e0b-07b9111fcac3';
 
 async function signInAsSecretary(page: import('@playwright/test').Page) {
   await page.goto('/sign-in');
-  await page.waitForSelector('input[type="email"]');
-  await page.locator('input[type="email"]').first().fill(SECRETARY_EMAIL);
-  await page.locator('input[type="password"]').first().fill(SECRETARY_PASS);
+  await page.getByTestId('credential-input').fill(SECRETARY_EMAIL);
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
+  await page.getByTestId('password-input').fill(SECRETARY_PASS);
   await Promise.all([
     page.waitForURL(url => !url.href.includes('/sign-in'), { timeout: 15000 }),
-    page.locator('button[type="submit"]').first().click(),
+    page.getByTestId('sign-in-button').click(),
   ]);
   await page.waitForLoadState('networkidle');
 }

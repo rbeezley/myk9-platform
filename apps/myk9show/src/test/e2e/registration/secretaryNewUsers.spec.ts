@@ -14,7 +14,9 @@ interface CapturedMailInWrites {
 
 async function signInAsSecretary(page: Page) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(TEST_USERS.SECRETARY.email);
+  await page.getByTestId('credential-input').fill(TEST_USERS.SECRETARY.email);
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('password-input').fill(TEST_USERS.SECRETARY.password);
   await page.getByTestId('sign-in-button').click();
   await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });

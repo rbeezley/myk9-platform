@@ -87,8 +87,19 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByTestId('continue-button'));
 
     await waitFor(() => expect(validatePasscodeMock).toHaveBeenCalledWith('j9f3b'));
+    expect(setGrantSpy).toHaveBeenCalledWith({
+      showId: 'show-x',
+      role: 'judge',
+      source: 'passcode',
+    });
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x'));
-    expect(setGrantSpy).not.toHaveBeenCalled();
+  });
+
+  it('prefills the smart field from a show-access code query param', () => {
+    render(<SmartSignInPage />, { initialRoute: '/at-show?code=J9F3B' });
+
+    expect(screen.getByTestId('credential-input')).toHaveValue('J9F3B');
+    expect(screen.getByTestId('continue-button')).toBeEnabled();
   });
 
   it('signed-in passcode confirms, then attaches a show-scoped grant and routes', async () => {
@@ -118,6 +129,33 @@ describe('SmartSignInPage', () => {
       source: 'passcode',
     });
     expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x');
+  });
+
+  it('signed-in QR passcode link confirms before routing into ringside', async () => {
+    mockUser = { id: 'user-1' };
+    validatePasscodeMock.mockResolvedValue({
+      ok: true,
+      role: 'steward',
+      showId: 'show-qr',
+      showName: 'QR Trial',
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/at-show?code=S7QR9' });
+
+    await user.click(screen.getByTestId('continue-button'));
+
+    expect(await screen.findByText('Join this show?')).toBeInTheDocument();
+    expect(screen.getByText(/join QR Trial as a gate steward/i)).toBeInTheDocument();
+    expect(setGrantSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Join show' }));
+
+    expect(setGrantSpy).toHaveBeenCalledWith({
+      showId: 'show-qr',
+      role: 'steward',
+      source: 'passcode',
+    });
+    expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-qr');
   });
 
   it('shows a calm error when the passcode is rejected', async () => {

@@ -94,7 +94,7 @@ Copy this block for each new finding.
 - **Fix owner:** Active Nightly Playwright specs and secretary/registration proof setup. PR `#372` contained a prior stabilization attempt, but it is now closed without merge, so the next repair should start from current `main` and avoid assuming that branch is the accepted fix.
 - **Proof required:** Rerun the exact active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0` and confirm the full command passes without >60-second stalls. Also keep the route sweep green across public, exhibitor, secretary, judge, club-admin, and admin route groups.
 - **Notes:** Opened from the 2026-05-27 run and refreshed on 2026-05-28 after a second consecutive active Playwright failure on `main`. Candidate next step: focused repair of stale secretary dashboard expectations, dog-search waits, show-wizard officials navigation waits, secretary-entry submit proof, disposable-entry seed/search proof, and UAT sign-in reliability.
-- **2026-05-30 update — contaminated by cross-agent contention; product surfaces look healthy.** Wave 1 ran `35 passed, 5 failed, 4 did not run (5.5m)` with `--retries=0`, no single spec exceeding the hang threshold (slow specs ~32s). The 5 failures: `secretary/show-wizard-officials.spec.ts:25` and `:47`, `secretary-entry-walk.spec.ts:20`, `uat/secretary/critical-path.spec.ts:32` (asserts `Tasks`/`Messages` buttons — the consolidated dashboard now uses a `Personal tasks` heading + `Messages` link, which the maintained `cross-role-workflows.spec.ts:34` asserts and **passed** tonight), and `uat/secretary/disposable-entry.spec.ts:48`. **Dominant confound:** a concurrent `playwright test` process (pid 58635) from another agent in the shared main-repo working tree was running an overlapping set — `secretary-entry-walk, critical-path, qa-regression-proof, show-wizard-officials, disposable-entry` — against the same fixed dev-server port 5173 (`playwright.config.ts:68-71`, `reuseExistingServer: !CI`). Four of the five failing specs are exactly the specs the other agent was running concurrently. Focused isolation re-run: `singleDogSingleClass.spec.ts` passes alone (4.3s); the `show-wizard-officials` retry hit `net::ERR_CONNECTION_REFUSED at 127.0.0.1:5173` + `networkidle` 30s timeouts as the shared server cycled — isolation inconclusive due to contention. Independently the Phase 2 route sweep rendered `/secretary/dashboard`, `/secretary/create-show`, `/secretary/entries/:id`, `/secretary/reports`, `/secretary/settings` cleanly (0 console errors), arguing the secretary product paths are healthy and these are harness/contention + known stale assertions, not product regressions. The sign-in-selector repair (legacy single-page `input[type=email]`/`input[type=password]` in some specs/page-objects vs the two-step smart sign-in from PR #446) is being handled by a separate agent in PR #448. Remaining repair (stale `critical-path` button assertions; `networkidle` waits in `page-objects/LoginPage.ts` + `page-objects/ShowCreationWizardPage.ts`) must be verified from an isolated single-occupant tree/port — see `docs/qa/nightly-history.md` (2026-05-30).
+- **2026-05-30 update — contaminated by cross-agent contention; product surfaces look healthy.** Wave 1 ran `35 passed, 5 failed, 4 did not run (5.5m)` with `--retries=0`, no single spec exceeding the hang threshold (slow specs ~32s). The 5 failures: `secretary/show-wizard-officials.spec.ts:25` and `:47`, `secretary-entry-walk.spec.ts:20`, `uat/secretary/critical-path.spec.ts:32` (asserts `Tasks`/`Messages` buttons — the consolidated dashboard now uses a `Personal tasks` heading + `Messages` link, which the maintained `cross-role-workflows.spec.ts:34` asserts and **passed** tonight), and `uat/secretary/disposable-entry.spec.ts:48`. **Dominant confound:** a concurrent `playwright test` process (pid 58635) from another agent in the shared main-repo working tree was running an overlapping set — `secretary-entry-walk, critical-path, qa-regression-proof, show-wizard-officials, disposable-entry` — against the same fixed dev-server port 5173 (`playwright.config.ts:68-71`, `reuseExistingServer: !CI`). Four of the five failing specs are exactly the specs the other agent was running concurrently. Focused isolation re-run: `singleDogSingleClass.spec.ts` passes alone (4.3s); the `show-wizard-officials` retry hit `net::ERR_CONNECTION_REFUSED at 127.0.0.1:5173` + `networkidle` 30s timeouts as the shared server cycled — isolation inconclusive due to contention. Independently the Phase 2 route sweep rendered `/secretary/dashboard`, `/secretary/create-show`, `/secretary/entries/:id`, `/secretary/reports`, `/secretary/settings` cleanly (0 console errors), arguing the secretary product paths are healthy and these are harness/contention + known stale assertions, not product regressions. PR #448 handled the smart-sign-in selector repair for specs/page objects that still assumed a one-step email/password form. Remaining repair (stale `critical-path` button assertions; `networkidle` waits in `page-objects/LoginPage.ts` + `page-objects/ShowCreationWizardPage.ts`) must be verified from an isolated single-occupant tree/port — see `docs/qa/nightly-history.md` (2026-05-30).
 
 ### QA-CONSOLE-ERROR-011
 
@@ -148,7 +148,39 @@ Copy this block for each new finding.
 - **Proof required:** Clean-environment replay of `/people` as secretary with a longer settle (8–10s) to distinguish a genuinely stuck skeleton from a slow-but-resolving load; if stuck, add an empty/error state and a focused render proof. **Provisional** until replayed without the concurrent-agent dev-server contention present tonight.
 - **Notes:** Possible confound: the 3s settle window plus a contended shared dev server could under-wait a slow list. Logged as provisional rather than fixed for that reason; the proof command must run from a single-occupant tree/port.
 
+### QA-MISSING-LOADING-STATE-015
+
+- **Status:** open
+- **Severity:** high
+- **Role:** admin
+- **Surface:** `/admin/dashboard`
+- **Suite category:** none (surfaced by route-health sweep)
+- **Pattern:** missing-loading-state
+- **Detected by:** audit-pages
+- **Evidence:** 2026-05-30 route-health sweep across public, exhibitor, secretary, judge, club-admin, and admin route groups at desktop plus 375px mobile passed `10/12` route/viewport checks. Both admin dashboard checks failed because `/admin/dashboard` remained on visible `Loading...` text after 5 seconds. Evidence paths: `apps/myk9show/test-results/__tmp-nightly-route-sweep--7f93e-s-render-cleanly-at-desktop-chromium/error-context.md` and `apps/myk9show/test-results/__tmp-nightly-route-sweep--46cf9-es-render-cleanly-at-mobile-chromium/error-context.md`.
+- **User impact:** Site admins can land on a dashboard that never resolves, leaving platform-health information unavailable.
+- **Intent check:** Harms the admin target feeling that "the platform is healthy"; a stuck loading dashboard gives no actionable status.
+- **Fix owner:** admin dashboard data-loading and role/permission gating path.
+- **Proof required:** Re-run the route-health sweep or focused `/admin/dashboard` desktop/mobile replay and confirm the dashboard resolves with no visible unresolved loading state, no console errors, and no owned 4xx/5xx responses.
+- **Notes:** Do not auto-fix without inventorying admin role, permission, and data queries first; this may be role-scope, missing seed/config, or an async loading-state bug.
+
 ## Closed Findings
+
+### QA-TEST-FLAKE-014
+
+- **Status:** fixed
+- **Severity:** high
+- **Role:** exhibitor | secretary | judge
+- **Surface:** Active Nightly Playwright sign-in helpers/specs after the Smart Sign-In rollout.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-05-30 active Nightly initially failed `25` specs because tests still waited for removed one-step selectors (`data-testid="email-input"`, immediate password field, and `sign-in-button`) after `SmartSignInPage` introduced a two-step email/passcode then password flow. Representative failures came from `cross-role-workflows.spec.ts`, `registration/secretaryExistingUsers.spec.ts`, `registration/secretaryNewUsers.spec.ts`, `registration/singleDogSingleClass.spec.ts`, `registration/exhibitorSelfRegistration.spec.ts`, `secretary-entry-walk.spec.ts`, `simple-connectivity.spec.ts`, and shared UAT auth.
+- **User impact:** Nightly could not prove current workflows because its auth setup no longer matched the real sign-in UI.
+- **Intent check:** Preserves the new sign-in intent while restoring QA signal; the tests now walk the same two-step experience users see.
+- **Fix owner:** active Nightly Playwright auth helpers and dashboard smoke assertions.
+- **Proof required:** Passed on 2026-05-30: focused smart-sign-in proof covering cross-role, registration, class creation, exhibitor self-registration, single-dog registration, and simple connectivity (`13/13` after dashboard expectation update), plus the exact active Nightly rerun improved from `15/44` to `34/44` with all smart-sign-in selector failures cleared.
+- **Notes:** Also updated stale secretary dashboard expectations from `Tasks`/`Messages` buttons to the current `Personal tasks` heading plus `Messages` navigation link.
 
 ### QA-TEST-FLAKE-009
 

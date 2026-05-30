@@ -5,8 +5,10 @@ async function signIn(page: Page, user: TestUser, returnTo: string) {
   const params = new URLSearchParams({ returnTo });
   await page.goto(`/sign-in?${params.toString()}`, { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByTestId('email-input')).toBeVisible({ timeout: 15000 });
-  await page.getByTestId('email-input').fill(user.email);
+  await expect(page.getByTestId('credential-input')).toBeVisible({ timeout: 15000 });
+  await page.getByTestId('credential-input').fill(user.email);
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('password-input').fill(user.password);
   await page.getByTestId('sign-in-button').click();
 
@@ -36,8 +38,8 @@ test.describe('Cross-role workflow smoke', () => {
       page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Tasks/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Messages/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Personal tasks' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Messages' })).toBeVisible();
   });
 
   test('exhibitor can land on My Entries and continue to show discovery', async ({ page }) => {

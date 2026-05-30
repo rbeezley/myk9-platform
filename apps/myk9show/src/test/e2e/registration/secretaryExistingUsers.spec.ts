@@ -6,7 +6,9 @@ const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 
 async function signInAsSecretary(page: Page) {
   await page.goto('/sign-in', { waitUntil: 'networkidle' });
-  await page.getByTestId('email-input').fill(SECRETARY_EMAIL);
+  await page.getByTestId('credential-input').fill(SECRETARY_EMAIL);
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('password-input').fill(SECRETARY_PASSWORD);
   await page.getByTestId('sign-in-button').click();
   await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });

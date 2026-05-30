@@ -12,17 +12,17 @@
  * Enablement is per-show and asynchronous (Phase 1d): routes are registered
  * unconditionally, and `UnifiedRingsideGate` reads `shows.unified_ringside_enabled`
  * for the `:showId` in the URL, rendering an inline notice when off — never a
- * 404. The staff-role guard keeps the surface off exhibitors regardless.
+ * 404. `AtShowAccessGate` admits either account staff or a matching show-scoped
+ * passcode grant, so QR/passcode ringside access works without account RBAC.
  */
 
 import type { ReactNode } from 'react';
 import { Route } from 'react-router-dom';
-import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
-import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { createEnhancedLazy, RouteLazyPresets } from '@/utils/enhancedLazyLoading';
 import { UnifiedRingsideGate } from '@/features/at-show/UnifiedRingsideGate';
+import { AtShowAccessGate } from '@/features/at-show/AtShowAccessGate';
 
 const AtShowEntryListPage = createEnhancedLazy(
   () => import('@/features/at-show/AtShowEntryListPage'),
@@ -44,30 +44,19 @@ const AtShowClassListPage = createEnhancedLazy(
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowClassListPage' }
 );
 
-/** Show-running staff who can use the ringside at-show surface. */
-const STAFF_ROLES = [
-  UserRole.SITE_ADMIN,
-  UserRole.SECRETARY,
-  UserRole.CLUB_ADMIN,
-  UserRole.CHAIRMAN,
-  UserRole.JUDGE,
-  UserRole.STEWARD,
-];
-
 /**
- * Wrap an at-show page in the shared guard stack: role gate → suspense →
- * per-show enablement gate → page transition. Keeps the four routes DRY and
- * guarantees every at-show surface passes through `UnifiedRingsideGate`.
+ * Wrap an at-show page in the shared guard stack: access gate → suspense →
+ * per-show enablement gate → page transition.
  */
 function atShowElement(page: ReactNode): ReactNode {
   return (
-    <ProtectedRoute requiredRole={STAFF_ROLES}>
+    <AtShowAccessGate>
       <SuspenseWrapper>
         <UnifiedRingsideGate>
           <PageTransition>{page}</PageTransition>
         </UnifiedRingsideGate>
       </SuspenseWrapper>
-    </ProtectedRoute>
+    </AtShowAccessGate>
   );
 }
 

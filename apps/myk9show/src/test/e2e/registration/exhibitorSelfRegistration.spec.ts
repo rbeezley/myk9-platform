@@ -29,7 +29,9 @@ interface CapturedWrites {
 async function signInAsExhibitor(page: Page) {
   const params = new URLSearchParams({ returnTo: `/shows/${SHOW_ID}/register` });
   await page.goto(`/sign-in?${params.toString()}`, { waitUntil: 'domcontentloaded' });
-  await page.getByTestId('email-input').fill(TEST_USERS.EXHIBITOR.email);
+  await page.getByTestId('credential-input').fill(TEST_USERS.EXHIBITOR.email);
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('password-input').fill(TEST_USERS.EXHIBITOR.password);
   await page.getByTestId('sign-in-button').click();
   await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });

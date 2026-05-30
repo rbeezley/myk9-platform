@@ -58,15 +58,27 @@ export function toRingsideRole(showRole: ShowRole | null | undefined): RingsideR
 /**
  * Build the `RingsideAuth` value-snapshot bag for `<RingsideProvider>`.
  *
- * `canAccess` derives from the mapped ringside role via
+ * Role precedence (Phase 1c): a show-scoped passcode `grantRole` is authoritative
+ * for its show and overrides the account RBAC mapping — the passcode the
+ * secretary handed out *is* the role for that show. This override is
+ * unconditional, including the rare case where the grant role is "lower" than
+ * the account's RBAC role (e.g. an admin account that deliberately enters an
+ * exhibitor passcode to view as an exhibitor for one show). A passcode-less
+ * account user (`grantRole` null/absent) still resolves via `toRingsideRole` —
+ * preserving this adapter's INTENT (a secretary who never types a passcode
+ * keeps ringside access via RBAC).
+ *
+ * `canAccess` derives from the resolved ringside role via
  * `getPermissionsForRole` — the same role→permission contract ringside
  * uses internally — so an unmapped role denies every permission.
  */
 export function buildRingsideAuth(args: {
   showRole: ShowRole | null | undefined;
   showContext: RingsideShowContext | null;
+  /** Show-scoped passcode grant role (Phase 1c). Takes precedence when present. */
+  grantRole?: RingsideRole | null;
 }): RingsideAuth {
-  const role = toRingsideRole(args.showRole);
+  const role = args.grantRole ?? toRingsideRole(args.showRole);
   const permissions: RingsidePermissions | null = role ? getPermissionsForRole(role) : null;
 
   return {

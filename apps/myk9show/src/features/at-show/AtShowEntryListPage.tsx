@@ -46,6 +46,7 @@ import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { toRingsideRole } from './ringsideAuthAdapter';
+import { useRingsideGrantRole } from './useRingsideGrantRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
@@ -59,11 +60,17 @@ export const AtShowEntryListPage: React.FC = () => {
   const { getUserRoles } = useAuthContext();
 
   // ── Role + permissions ────────────────────────────────────────────────
-  // myK9Show RBAC → primary ShowRole → ringside's 4-role enum. The raw
-  // ShowRole feeds the capability adapter (which maps it internally); the
-  // mapped ringside role feeds the data hook + permission bag.
+  // myK9Show RBAC → primary ShowRole → ringside's 4-role enum. A show-scoped
+  // passcode grant (Phase 1c) overrides the RBAC mapping for this show; absent
+  // a grant it's null and we fall back to `toRingsideRole`. The effective role
+  // feeds the data hook, the permission bag, AND the provider auth (via
+  // `grantRole` below) so all three agree.
   const showRole = useMemo(() => getPrimaryRole(getUserRoles()), [getUserRoles]);
-  const ringsideRole = useMemo(() => toRingsideRole(showRole), [showRole]);
+  const grantRole = useRingsideGrantRole(showId);
+  const ringsideRole = useMemo(
+    () => grantRole ?? toRingsideRole(showRole),
+    [grantRole, showRole]
+  );
 
   const permissions = useMemo<RingsidePermissions | null>(
     () => (ringsideRole ? getPermissionsForRole(ringsideRole) : null),
@@ -98,8 +105,8 @@ export const AtShowEntryListPage: React.FC = () => {
   }, [showId, show]);
 
   const contextValue = useMemo(
-    () => buildRingsideContextValue({ showRole, showContext: ringsideShowContext }),
-    [showRole, ringsideShowContext]
+    () => buildRingsideContextValue({ showRole, showContext: ringsideShowContext, grantRole }),
+    [showRole, ringsideShowContext, grantRole]
   );
   const replication = useMemo(() => buildRingsideReplication(), []);
 

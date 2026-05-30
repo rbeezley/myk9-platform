@@ -45,6 +45,7 @@ import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import { buildRingsideContextValue } from './ringsideCapabilities';
 import { toRingsideRole } from './ringsideAuthAdapter';
+import { useRingsideGrantRole } from './useRingsideGrantRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
@@ -59,8 +60,14 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   const { getUserRoles } = useAuthContext();
 
   // ── Role + permissions ────────────────────────────────────────────────
+  // A show-scoped passcode grant (Phase 1c) overrides the RBAC mapping for this
+  // show; absent a grant it's null and we fall back to `toRingsideRole`.
   const showRole = useMemo(() => getPrimaryRole(getUserRoles()), [getUserRoles]);
-  const ringsideRole = useMemo(() => toRingsideRole(showRole), [showRole]);
+  const grantRole = useRingsideGrantRole(showId);
+  const ringsideRole = useMemo(
+    () => grantRole ?? toRingsideRole(showRole),
+    [grantRole, showRole]
+  );
   const permissions = useMemo<RingsidePermissions | null>(
     () => (ringsideRole ? getPermissionsForRole(ringsideRole) : null),
     [ringsideRole]
@@ -89,8 +96,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     };
   }, [showId, show]);
   const contextValue = useMemo(
-    () => buildRingsideContextValue({ showRole, showContext: ringsideShowContext }),
-    [showRole, ringsideShowContext]
+    () => buildRingsideContextValue({ showRole, showContext: ringsideShowContext, grantRole }),
+    [showRole, ringsideShowContext, grantRole]
   );
 
   // ── Data (combined: both class ids) ────────────────────────────────────

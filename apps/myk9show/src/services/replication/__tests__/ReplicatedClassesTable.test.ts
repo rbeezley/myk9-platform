@@ -344,8 +344,16 @@ describe('ReplicatedClassesTable', () => {
       expect(resolved.name).toBe('Remote Name');
     });
 
-    it('should always return remote regardless of local changes', async () => {
-      const localClass = createMockClass({ name: 'Old', classStatus: 'scheduled' });
+    it('takes remote config but preserves enriched visibility fields when remote lacks them', async () => {
+      // Phase 1h: the visibility fields are enrichment-only (not on the raw
+      // row), so a sync path that didn't enrich carries them undefined — the
+      // prior enriched values must survive rather than being wiped.
+      const localClass = createMockClass({
+        name: 'Old',
+        classStatus: 'scheduled',
+        selfCheckinEnabled: false,
+        visibilityPreset: 'review',
+      });
       const remoteClass = createMockClass({ name: 'New', classStatus: 'in_progress' });
 
       const resolveConflict2 = (
@@ -355,7 +363,12 @@ describe('ReplicatedClassesTable', () => {
       ).resolveConflict.bind(classesTable);
       const resolved = resolveConflict2(localClass, remoteClass);
 
-      expect(resolved).toBe(remoteClass);
+      // Server-authoritative for class config:
+      expect(resolved.name).toBe('New');
+      expect(resolved.classStatus).toBe('in_progress');
+      // ...but the enriched visibility values from local are preserved:
+      expect(resolved.selfCheckinEnabled).toBe(false);
+      expect(resolved.visibilityPreset).toBe('review');
     });
   });
 

@@ -9,6 +9,10 @@ import { ReplicatedTable, type SyncResult } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import {
+  resolveVisibilityForClassRows,
+  type ResolvedClassVisibility,
+} from './resolveClassVisibility';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -52,6 +56,21 @@ export interface ReplicatedClass {
   judgeFirstName?: string | undefined;
   judgeLastName?: string | undefined;
   classStatus?: string | undefined;
+  /**
+   * Resolved visibility-cascade values, denormalized at sync time so the
+   * at-show surface works offline (Phase 1h). `visibilityPreset` is displayed
+   * in the ClassDetailsPopover; `selfCheckinEnabled` is ALSO consumed by the
+   * ringside SortableEntryCard self-check-in gate (`classInfo.selfCheckin`) — so
+   * this is enforcement-relevant, not purely cosmetic. It is eventually
+   * consistent: refreshed whenever the class row syncs, but a settings-only edit
+   * (no class-row change) won't reflect until the next full sync. Acceptable
+   * because /at-show is staff-only (STAFF_ROLES), and staff bypass the
+   * self-check-in gate via `canCheckInDogs`; the exhibitor-facing self-check-in
+   * enforcement stays on the live online hook. Replicating the raw cascade
+   * tables (real-time offline) is the deferred alternative.
+   */
+  selfCheckinEnabled?: boolean | undefined;
+  visibilityPreset?: string | undefined;
   totalEntriesCount?: number | undefined;
   classOrder?: number | undefined;
   /** Secretary-controlled display order within a trial (per-column Kanban reorder). */
@@ -305,9 +324,33 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         };
       }
 
+      // Phase 1h: resolve visibility-cascade values for the changed classes so
+      // the at-show ClassDetailsPopover + SortableEntryCard self-check-in gate
+      // have them offline. Grouped by each row's own trial_id (NOT the sync
+      // licenseKey, which may be a show id or empty), so it runs for scoped AND
+      // unscoped syncs and the values stay present on every sync. Best-effort:
+      // a failure must not break class replication.
+      const visibilityByClassId: Map<string, ResolvedClassVisibility> =
+        await resolveVisibilityForClassRows(remoteClasses).catch(() => {
+          logger.warn(
+            `[${this.getTableName()}] Visibility resolve failed; popover values may be stale`,
+            'replication'
+          );
+          return new Map<string, ResolvedClassVisibility>();
+        });
+
       for (const remoteRow of remoteClasses) {
         const classId = String(remoteRow.id);
-        const remoteClass = rowToClass(remoteRow);
+        const visibility = visibilityByClassId.get(classId);
+        const remoteClass: ReplicatedClass = {
+          ...rowToClass(remoteRow),
+          ...(visibility
+            ? {
+                selfCheckinEnabled: visibility.selfCheckinEnabled,
+                visibilityPreset: visibility.visibilityPreset,
+              }
+            : {}),
+        };
         const localClass = await this.get(classId);
 
         if (localClass) {
@@ -352,8 +395,16 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     }
   }
 
-  protected resolveConflict(_local: ReplicatedClass, remote: ReplicatedClass): ReplicatedClass {
-    return remote;
+  protected resolveConflict(local: ReplicatedClass, remote: ReplicatedClass): ReplicatedClass {
+    // Server-authoritative for class config. The Phase 1h visibility fields are
+    // enrichment-only (not on the raw row), so any sync path that didn't enrich
+    // carries them as undefined — preserve the prior values rather than wiping
+    // an already-enriched class.
+    return {
+      ...remote,
+      selfCheckinEnabled: remote.selfCheckinEnabled ?? local.selfCheckinEnabled,
+      visibilityPreset: remote.visibilityPreset ?? local.visibilityPreset,
+    };
   }
 
   /**

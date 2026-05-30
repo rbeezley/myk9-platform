@@ -315,8 +315,14 @@ const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
         )}
         {data.visibilityPreset && (
           <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Visibility</dt>
-            <dd>{data.visibilityPreset}</dd>
+            <dt className="text-muted-foreground">Results</dt>
+            <dd className="capitalize">{data.visibilityPreset}</dd>
+          </div>
+        )}
+        {typeof data.selfCheckinEnabled === 'boolean' && (
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Check-in</dt>
+            <dd>{data.selfCheckinEnabled ? 'Enabled' : 'Disabled'}</dd>
           </div>
         )}
       </dl>

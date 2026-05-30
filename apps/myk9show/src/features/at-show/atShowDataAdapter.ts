@@ -138,16 +138,14 @@ export function buildClassInfo(
     trialDate: trial?.date ?? trial?.trial_date ?? entries[0]?.trialDate ?? '',
     judgeName: cls.judgeName ?? 'No Judge Assigned',
     actualClassId: cls.id,
-    // INTENT (spike): self check-in is not surfaced on ReplicatedClass; default
-    // true. Extend ReplicatedClass + rowToClass to map self_checkin_enabled in a
-    // follow-up if the /at-show class settings UI needs it.
-    selfCheckin: true,
+    // Resolved visibility-cascade values, denormalized onto ReplicatedClass at
+    // sync time so they survive offline (Phase 1h). Fall back to enabled/
+    // 'standard' when a row hasn't been enriched yet (e.g. pre-migration cache).
+    selfCheckin: cls.selfCheckinEnabled ?? true,
     classStatus: cls.classStatus ?? 'pending',
     totalEntries: entries.length,
     completedEntries: entries.filter(e => e.isScored).length,
-    // INTENT (spike): visibility preset lives in class_visibility_overrides, not
-    // on ReplicatedClass; default 'standard'. A real fetch is a follow-up.
-    visibilityPreset: 'standard',
+    visibilityPreset: (cls.visibilityPreset as ClassInfo['visibilityPreset']) ?? 'standard',
 
     ...(trialId != null && { trialId }),
     ...(trialNumber != null && { trialNumber: String(trialNumber) }),

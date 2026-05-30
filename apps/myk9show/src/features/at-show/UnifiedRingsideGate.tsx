@@ -36,7 +36,7 @@ export function UnifiedRingsideGate({ children }: { children: ReactNode }) {
   const devOverride = isUnifiedRingsideDevOverride();
 
   const showQuery = useQuery({
-    queryKey: ['at-show', 'unified-ringside-enabled', showId],
+    queryKey: ['shows', 'at-show', 'unified-ringside-enabled', showId],
     queryFn: () => replicatedShowsTable.getShowById(showId as string),
     // Dev override skips the fetch entirely; otherwise we need a showId.
     enabled: !!showId && !devOverride,

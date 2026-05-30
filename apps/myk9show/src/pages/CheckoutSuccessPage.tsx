@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { verifyCheckoutSession } from '@/lib/stripe';
-import { useCartStore } from '@/stores/cartStore';
+import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
 
 interface EntryDetails {

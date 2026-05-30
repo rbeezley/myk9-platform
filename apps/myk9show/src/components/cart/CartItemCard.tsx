@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { CartItemWithDetails } from '@/stores/cartStore';
+import type { CartItemWithDetails } from '@/store/cartStore';
 
 interface CartItemCardProps {
   item: CartItemWithDetails;

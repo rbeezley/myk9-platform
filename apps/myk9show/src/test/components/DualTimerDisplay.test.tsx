@@ -26,7 +26,7 @@ vi.mock('@/hooks/useAudioWarnings', () => ({
 }));
 
 // Mock the audio context
-vi.mock('@/contexts/AudioSettingsContext', () => ({
+vi.mock('@/context/AudioSettingsContext', () => ({
   useAudioSettings: vi.fn(() => ({
     settings: {
       warningSound: true,

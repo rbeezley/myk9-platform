@@ -25,7 +25,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import type {
   ThemePreferences,
   ThemeMode,

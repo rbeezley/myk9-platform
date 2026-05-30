@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 import { DualTimerDisplay } from './DualTimerDisplay';
-import { AudioSettingsProvider } from '@/contexts/AudioSettingsContext';
+import { AudioSettingsProvider } from '@/context/AudioSettingsContext';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

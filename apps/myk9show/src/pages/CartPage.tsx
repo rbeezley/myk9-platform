@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCartStore, useCartItems } from '@/stores/cartStore';
+import { useCartStore, useCartItems } from '@/store/cartStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';

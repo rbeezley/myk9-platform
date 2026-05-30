@@ -2,7 +2,7 @@ import { Vibrate } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useHapticFeedback } from '@myk9/scoring-ui';
 
 const ALWAYS_ENABLED = () => true;

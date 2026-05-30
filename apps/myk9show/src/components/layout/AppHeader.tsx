@@ -38,7 +38,7 @@ import { ResetDataButton } from '@/components/common/ResetDataButton';
 import { ClearCacheButton } from '@/components/common/ClearCacheButton';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { buildClasses } from '@/utils/designTokens';
-import { useCartItemCount } from '@/stores/cartStore';
+import { useCartItemCount } from '@/store/cartStore';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';

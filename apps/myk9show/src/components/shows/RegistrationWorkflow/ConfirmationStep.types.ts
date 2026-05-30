@@ -3,7 +3,7 @@ import type {
   EntryStatus,
   PaymentStatus,
 } from '@/types/show-registration-types';
-import type { WaitlistEntryResult } from '@/stores/cartStore';
+import type { WaitlistEntryResult } from '@/store/cartStore';
 
 export interface ConfirmationStepProps {
   registrationNumber?: string | undefined;

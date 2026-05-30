@@ -20,7 +20,7 @@ import { notifications } from '@/lib/notifications';
 import {
   ReplicationSyncContext,
   type ReplicationSyncContextValue,
-} from '@/contexts/ReplicationSyncContext';
+} from '@/context/ReplicationSyncContext';
 import { MutationManager, SYNC_INTERVAL_MS } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 

@@ -4,7 +4,7 @@
  * Handles importing settings with version migration support.
  */
 
-import type { AppSettings } from '@/stores/settingsStore';
+import type { AppSettings } from '@/store/settingsStore';
 import { ACCENT_V1_TO_V2 } from '@/utils/accentMigrationMap';
 
 export { ACCENT_V1_TO_V2 };

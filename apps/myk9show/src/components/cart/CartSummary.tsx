@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { useCartStore } from '@/stores/cartStore';
+import { useCartStore } from '@/store/cartStore';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 
 interface CartSummaryProps {

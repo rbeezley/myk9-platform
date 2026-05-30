@@ -35,7 +35,7 @@ const {
 vi.mock('@/store/trialStore', () => ({ useTrialStore: mockUseTrialStore }));
 vi.mock('@/hooks/useDogStoreCompat', () => ({ useDogStoreCompat: mockUseDogStoreCompat }));
 vi.mock('@/store/showStore', () => ({ useShowStore: mockUseShowStore }));
-vi.mock('@/stores/cartStore', () => ({
+vi.mock('@/store/cartStore', () => ({
   useCartStore: mockUseCartStore,
   useCartItems: mockUseCartItems,
 }));

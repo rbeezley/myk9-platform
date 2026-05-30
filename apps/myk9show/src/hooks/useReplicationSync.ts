@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { ReplicationSyncContext } from '@/contexts/ReplicationSyncContext';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 
 export const useReplicationSync = () => {
   const context = useContext(ReplicationSyncContext);

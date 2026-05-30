@@ -41,6 +41,7 @@ const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
+const CredentialsHelpPage = lazy(() => import('@/pages/CredentialsHelpPage'));
 
 // Account (merged profile + preferences + settings)
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
@@ -445,6 +446,18 @@ export const PublicRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <LegalPage title="Privacy Policy" markdownPath="/legal/privacy-policy.md" />
+          </PageTransition>
+        </SuspenseWrapper>
+      }
+    />
+
+    {/* Credentials help — public, no auth required */}
+    <Route
+      path="/help/credentials"
+      element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <CredentialsHelpPage />
           </PageTransition>
         </SuspenseWrapper>
       }

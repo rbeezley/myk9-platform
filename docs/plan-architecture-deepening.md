@@ -23,22 +23,44 @@ separate worktree + PR (see [`CLAUDE.md`](../CLAUDE.md) worktree workflow). **No
 phase is complete until its tests are written and passing and
 `pnpm typecheck` is green.**
 
+### [REVISED] Scope: myK9Show only (myK9Q sunset)
+
+myK9Q is being unified into myK9Show and removed from the monorepo (memory
+`project_monorepo_decision`; ringside surface lands in `packages/ringside` +
+myK9Show's `/at-show`). **Every phase here is myK9Show-scoped.** Do not deepen,
+refactor, or test code that lives only in `apps/myk9q` — it is on the deletion
+path and any work there is wasted. The myK9Q removal itself is the unify plan's
+job, not this plan's; the deletion-test win it represents is acknowledged but not
+owned here. Shared `packages/*` (`replication`, `ringside`, `secretary`,
+`scoring`, `core`, `ui`) survive the removal and remain in scope where a phase
+touches them. As ringside surface migrates into myK9Show, Phases 2 and 4 grow in
+value (more callers behind the invalidation contract; the `packages/ringside`
+`entryStore` enters myK9Show's store-naming space).
+
 ---
 
 ## Phase 1 — Collapse hand-rolled Replicated Table Sync adapters onto `syncReplicatedTable()`
 
+> **[REVISED — myK9Q sunset]** myK9Q is being removed from the monorepo (unify
+> direction, memory `project_monorepo_decision`). Refactoring code slated for
+> deletion is wasted work, so this phase is **re-scoped to myK9Show's 8 adapters
+> only** — the 15 myK9Q adapters are dropped (they die with the app). The
+> myK9Q removal itself is owned by the unify plan, not this plan. See "Forward
+> principle" below for how unification-ported tables are handled.
+
 ### Goal
-Route every replicated table's `sync()` through the existing
+Route every **myK9Show** replicated table's `sync()` through the existing
 [`syncReplicatedTable()`](../packages/replication/src/syncReplicatedTable.ts) seam,
 so each adapter declares only its remote query + field mapping and the package
 owns the choreography (last-sync metadata, empty-cache detection, dirty-row
-preservation, conflict timing, metadata write-back).
+preservation, conflict timing, metadata write-back). The `packages/replication`
+seam is shared and survives the myK9Q removal.
 
 ### Friction (deletion test)
-~23 adapters each inline the same ~110-line loop. Delete one adapter's inlined
-loop today and the same bug reappears in 22 siblings — the signal that the loop
-belongs behind one seam. `ReplicatedEntriesTable` (both apps) already proves the
-migration; this phase finishes it. Continues the in-flight
+8 myK9Show adapters each inline the same ~110-line loop. Delete one adapter's
+inlined loop today and the same bug reappears in 7 siblings — the signal that the
+loop belongs behind one seam. `ReplicatedEntriesTable` already proves the
+migration; this phase finishes it for myK9Show. Continues the in-flight
 [`plan-replication-sync-workflow.md`](plan-replication-sync-workflow.md).
 
 ### Files
@@ -46,39 +68,39 @@ migration; this phase finishes it. Continues the in-flight
 `ReplicatedArmbandsTable`, `ReplicatedClassesTable`, `ReplicatedClubsTable`,
 `ReplicatedDogsTable`, `ReplicatedJudgeAssignmentsTable`, `ReplicatedShowsTable`,
 `ReplicatedTrialsTable`, `ReplicatedWaitlistEntriesTable`
-(under `apps/myk9show/src/services/replication/`).
+(under `apps/myk9show/src/services/replication/`). `ReplicatedEntriesTable` is
+already done.
 
-**myK9Q adapters to migrate (15):**
-`ReplicatedAnnouncementReadsTable`, `ReplicatedAnnouncementsTable`,
-`ReplicatedAuditLogViewTable`, `ReplicatedClassRequirementsTable`,
-`ReplicatedClassVisibilityOverridesTable`, `ReplicatedClassesTable`,
-`ReplicatedEventStatisticsTable`, `ReplicatedNationalsRankingsTable`,
-`ReplicatedPushNotificationConfigTable`, `ReplicatedPushSubscriptionsTable`,
-`ReplicatedShowVisibilityDefaultsTable`, `ReplicatedShowsTable`,
-`ReplicatedStatsViewTable`, `ReplicatedTrialVisibilityOverridesTable`,
-`ReplicatedTrialsTable`
-(under `apps/myk9q/src/services/replication/tables/`).
+**Out of scope — the 15 myK9Q adapters** under
+`apps/myk9q/src/services/replication/tables/`. Do **not** migrate them; they are
+deleted with myK9Q. Note that several (`AuditLogView`, `StatsView`,
+`EventStatistics`, `NationalsRankings`, announcements, visibility overrides,
+push) have **no myK9Show replicated equivalent** — myK9Show handles announcements
+and visibility online-only (PostgREST entity modules), per `CONTEXT.md`.
 
 Seam: `packages/replication/src/syncReplicatedTable.ts` (+ the
 `SyncReplicatedTableAdapter` interface). Reference precedent:
-`ReplicatedEntriesTable.ts` in both apps.
+`apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`.
+
+### Forward principle (unification ports)
+If the ringside unification gives myK9Show offline parity for a capability myK9Q
+replicated (e.g. offline announcements/visibility on `/at-show`), build the new
+myK9Show adapter **on `syncReplicatedTable()` from day one** — port the
+*capability*, never copy myK9Q's hand-rolled loop. This keeps the seam universal
+as surface migrates in.
 
 ### Steps
-1. Read `ReplicatedEntriesTable` in both apps as the canonical adapter shape.
-2. Classify each adapter:
-   - **Read-only view tables** (`ReplicatedAuditLogViewTable`,
-     `ReplicatedStatsViewTable`, `ReplicatedEventStatisticsTable`,
-     `ReplicatedNationalsRankingsTable`) — no client writes, so they need no
-     `resolveConflict`/`mergeDirtyRow`; migrate first, lowest risk.
-   - **Mutable tables** (Shows, Trials, Classes, Armbands, Waitlist, etc.) —
-     preserve each adapter's current `resolveConflict` policy verbatim when
-     passing it to `syncReplicatedTable()`. Do **not** "improve" conflict policy
-     in this phase; behavior-preserving only.
+1. Read `ReplicatedEntriesTable` (myK9Show) as the canonical adapter shape.
+2. All 8 myK9Show adapters are mutable tables: preserve each adapter's current
+   `resolveConflict` policy verbatim when passing it to `syncReplicatedTable()`.
+   Do **not** "improve" conflict policy in this phase; behavior-preserving only.
+   (The read-only *view* tables that would have migrated first were all
+   myK9Q-only and are now out of scope.)
 3. Migrate one adapter per commit. For each: replace the inlined `sync()` loop
    with a `syncReplicatedTable(this, adapter, scope, options)` call, moving the
    remote query + field mapping behind the adapter interface.
 4. Watch the string|number id boundary noted in memory
-   `project_ringside_id_string_migration` — myK9Q's deep DB-write layer stays
+   `project_ringside_id_string_migration` — the deep DB-write layer stays
    numeric; do not "re-fix" those coercions.
 
 ### Tests
@@ -86,33 +108,30 @@ Seam: `packages/replication/src/syncReplicatedTable.ts` (+ the
   adapter: assert dirty-row preservation (a pending local mutation survives a
   server snapshot), empty-cache full-sync path, and incremental-sync path.
 - Field-mapping unit test per adapter: given a remote row, the adapter maps it to
-  the expected local shape (snake_case ↔ camelCase divergence between apps is
-  expected and must be asserted, not "fixed").
-- Run `cd apps/myk9q && pnpm test` and `cd apps/myk9show && pnpm test` for the
-  replication suites after each adapter.
-- **[ADDED] Offline-path check.** Unit tests mock IndexedDB; the workflow exists
-  to protect the *real* offline path. Before merging the mutable-table batch, run
-  a manual offline smoke (DevTools offline → mutate a row → reload → confirm the
-  local mutation survives a subsequent sync) or extend the existing Playwright
-  E2E (`pnpm test:e2e`) for one representative mutable table. Read-only view
-  tables can skip this.
+  the expected local shape.
+- Run `cd apps/myk9show && pnpm test` for the replication suite after each
+  adapter.
+- **Offline-path check.** Unit tests mock IndexedDB; the workflow exists to
+  protect the *real* offline path. Before merging, run a manual offline smoke
+  (DevTools offline → mutate a row → reload → confirm the local mutation survives
+  a subsequent sync) or extend the Playwright E2E (`pnpm test:e2e`) for one
+  representative table.
 
 ### Acceptance
-- All 23 adapters delegate to `syncReplicatedTable()`; no inlined sync loop
-  remains except the package workflow itself.
-- `grep -rL syncReplicatedTable` over the adapter files returns only genuinely
-  non-syncing helpers.
-- Replication suites + `pnpm typecheck` green in both apps.
-- **[ADDED]** After each adapter PR merges to `main`, verify the corresponding
-  staging app (myK9Q and/or myK9Show — both auto-deploy from `main`) loads and
-  syncs without console/replication errors. A migrated adapter that typechecks
-  can still mis-map a field at runtime.
+- All 8 myK9Show adapters delegate to `syncReplicatedTable()`; no inlined sync
+  loop remains in myK9Show except the package workflow itself.
+- `grep -rL syncReplicatedTable` over the myK9Show adapter files returns only
+  genuinely non-syncing helpers.
+- Replication suite + `pnpm typecheck` green in myK9Show.
+- After each adapter PR merges to `main`, verify the myK9Show staging app
+  (auto-deploys from `main`) loads and syncs without console/replication errors —
+  a migrated adapter that typechecks can still mis-map a field at runtime.
 
 ### Risk / notes
-Medium. Conflict-resolution regressions are the real hazard — mitigate by
-behavior-preserving migration (pass existing policy, change nothing) and the
-dirty-row assertion in every adapter test. Ship per-adapter PRs, not one
-mega-PR, so a regression bisects to one table.
+Low–medium (was medium; halved scope and no longer touches the app being
+deleted). Conflict-resolution regressions are the residual hazard — mitigate by
+behavior-preserving migration and the dirty-row assertion in every adapter test.
+Ship per-adapter PRs so a regression bisects to one table.
 
 ---
 
@@ -264,6 +283,11 @@ seam's *location* is ambiguous, which hurts AI-navigability. Two modules named
 `SyncableShowEntry`, the show-entry domain store with 55 call sites;
 `stores/entryStore.ts` → a checkout `Entry`, reachable only via `stores/index.ts`).
 Autocomplete offers two incompatible `entryStore`s — an active import footgun.
+**[REVISED — myK9Q sunset]** A *third* `entryStore` lives in `packages/ringside`;
+as the ringside surface lands in myK9Show, it enters the same naming space. Settle
+the canonical-directory rule and the rename in this phase **before** the ringside
+merge widens the collision, and decide whether the ringside store is the canonical
+ringside-entry source myK9Show consumes (likely yes) vs. a fourth duplicate.
 
 ### Files
 - `apps/myk9show/src/store/` ↔ `apps/myk9show/src/stores/`
@@ -404,9 +428,9 @@ guidance.
   only. None of these phases touch `supabase/migrations/`, edge functions, RLS,
   or environment configuration. If a phase ever appears to need one, stop — it
   has drifted out of scope.
-- **Dual-app blast radius.** Phase 1 touches replication in **both** apps and
-  Phase 4 touches myK9Show state only. Phase 1's per-adapter PRs should be
-  verified against whichever app(s) own that adapter.
+- **Single-app scope.** Post-sunset, every phase is myK9Show-only (Phase 1 was
+  re-scoped from both apps to myK9Show's 8 adapters). Verify each phase against
+  the myK9Show staging deploy. Touch `apps/myk9q` only to delete it (unify plan).
 
 ## [ADDED] Rollback & recovery
 
@@ -423,8 +447,9 @@ guidance.
 
 ## [ADDED] Definition of done (whole plan)
 
-The plan is complete when: all 23 adapters route through `syncReplicatedTable()`
-(P1); the chosen entity modules own their invalidation contract with
+The plan is complete when: all 8 myK9Show adapters route through
+`syncReplicatedTable()` (P1; the 15 myK9Q adapters are out of scope — deleted with
+the app); the chosen entity modules own their invalidation contract with
 assertion-first tests (P2); entry-management rollback/ordering is tested without
 React (P3); one `store/`, one `context/`, one `entryStore` remain (P4); the
 verified-dead modules are gone with green build (P5); `judges/` is flat Shape-X

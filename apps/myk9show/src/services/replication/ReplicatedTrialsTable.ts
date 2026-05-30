@@ -5,7 +5,12 @@
  * Trials are date-specific events within a show.
  */
 
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
@@ -141,96 +146,43 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   }
 
   async sync(licenseKey: string): Promise<SyncResult> {
-    const startTime = Date.now();
-    let rowsSynced = 0;
-    let conflictsResolved = 0;
+    logger.log(`[${this.getTableName()}] Starting sync`);
 
-    try {
-      const metadata = await this.getSyncMetadata();
-      const allCached = await this.getAll();
-      const isCacheEmpty = allCached.length === 0;
-      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
+    const adapter: SyncReplicatedTableAdapter<TrialRow, ReplicatedTrial> = {
+      fetchRemoteRows: async ({ scope, since }) => {
+        let query = supabase
+          .from('trials')
+          .select('*')
+          .gt('updated_at', new Date(since).toISOString())
+          .order('updated_at', { ascending: true });
 
-      logger.log(`[${this.getTableName()}] Starting sync`);
-
-      let query = supabase
-        .from('trials')
-        .select('*')
-        .gt('updated_at', new Date(lastSync).toISOString())
-        .order('updated_at', { ascending: true });
-
-      // Filter by show ID if provided as license key
-      if (licenseKey) {
-        query = query.eq('show_id', licenseKey);
-      }
-
-      const { data: remoteTrials, error } = await query;
-
-      if (error) {
-        throw new Error(`Supabase query failed: ${error.message}`);
-      }
-
-      if (!remoteTrials || remoteTrials.length === 0) {
-        await this.updateSyncMetadata({
-          lastIncrementalSyncAt: Date.now(),
-          syncStatus: 'idle',
-        });
-
-        return {
-          tableName: this.getTableName(),
-          success: true,
-          operation: 'incremental-sync',
-          rowsAffected: 0,
-          conflictsResolved: 0,
-          duration: Date.now() - startTime,
-        };
-      }
-
-      for (const remoteRow of remoteTrials) {
-        const trialId = String(remoteRow.id);
-        const remoteTrial = rowToTrial(remoteRow);
-        const localTrial = await this.get(trialId);
-
-        if (localTrial) {
-          const resolved = this.resolveConflict(localTrial, remoteTrial);
-          await this.set(trialId, resolved);
-          conflictsResolved++;
-        } else {
-          await this.set(trialId, remoteTrial);
+        if (scope.value) {
+          query = query.eq('show_id', scope.value);
         }
 
-        rowsSynced++;
-      }
+        const { data, error } = await query;
 
-      await this.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now(),
-        syncStatus: 'idle',
-      });
+        if (error) {
+          throw new Error(`Supabase query failed: ${error.message}`);
+        }
 
-      return {
-        tableName: this.getTableName(),
-        success: true,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-      };
-    } catch (error) {
-      const errorMessage = getSyncErrorMessage(error);
-      if (!isAbortSyncError(error)) {
-        logger.error(`[${this.getTableName()}] Sync failed:`, error);
-      }
+        return data ?? [];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToTrial,
+      filterLocalRows: (rows, scope) =>
+        scope.value ? rows.filter(r => r.showId === scope.value) : rows,
+      resolveConflict: (_local, remote) => remote,
+    };
 
-      return {
-        tableName: this.getTableName(),
-        success: false,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-        error: errorMessage,
-      };
+    const result = await syncReplicatedTable(this, adapter, { value: licenseKey });
+
+    if (!result.success && result.error && !isAbortSyncError(result.error)) {
+      logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
+      return { ...result, error: getSyncErrorMessage(result.error) };
     }
+
+    return result;
   }
 
   protected resolveConflict(_local: ReplicatedTrial, remote: ReplicatedTrial): ReplicatedTrial {

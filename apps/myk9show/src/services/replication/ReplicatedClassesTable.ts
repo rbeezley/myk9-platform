@@ -339,6 +339,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         selfCheckinEnabled: remote._selfCheckinEnabled,
         visibilityPreset: remote._visibilityPreset,
       }),
+      filterLocalRows: (rows, scope) =>
+        scope.value ? rows.filter(r => r.trialId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 

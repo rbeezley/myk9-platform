@@ -828,7 +828,7 @@ describe('ReplicatedShowsTable', () => {
       expect(result.success).toBe(true);
       expect(result.tableName).toBe('shows');
       expect(result.rowsAffected).toBe(0);
-      expect(result.operation).toBe('incremental-sync');
+      expect(result.operation).toBe('full-sync');
     });
 
     it('should sync new shows from remote', async () => {
@@ -872,7 +872,7 @@ describe('ReplicatedShowsTable', () => {
 
       expect(result.success).toBe(true);
       expect(result.rowsAffected).toBe(1);
-      expect(result.operation).toBe('incremental-sync');
+      expect(result.operation).toBe('full-sync');
 
       // Verify show was cached
       const show = await table.get('show-1');

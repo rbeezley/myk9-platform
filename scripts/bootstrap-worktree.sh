@@ -12,6 +12,16 @@ echo "=== Bootstrapping worktree ===" >&2
 echo "  Worktree: $WORKTREE_DIR" >&2
 echo "  Main repo: $MAIN_REPO" >&2
 
+# Activate tracked git hooks (concurrent-agent worktree guard). core.hooksPath
+# lives in the shared common config, so setting it once — even from the main
+# repo — points every worktree at the version-controlled .githooks/ dir. Done
+# BEFORE the main-repo skip below so a fresh clone with no worktrees still gets
+# it.
+if [ -d "$WORKTREE_DIR/.githooks" ]; then
+  git config core.hooksPath .githooks
+  echo "  Git hooks activated (.githooks)" >&2
+fi
+
 # Skip if this IS the main repo (not a worktree)
 if [ "$WORKTREE_DIR" = "$MAIN_REPO" ]; then
   echo "  Not a worktree — skipping bootstrap" >&2

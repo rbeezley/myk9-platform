@@ -87,8 +87,19 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByTestId('continue-button'));
 
     await waitFor(() => expect(validatePasscodeMock).toHaveBeenCalledWith('j9f3b'));
+    expect(setGrantSpy).toHaveBeenCalledWith({
+      showId: 'show-x',
+      role: 'judge',
+      source: 'passcode',
+    });
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x'));
-    expect(setGrantSpy).not.toHaveBeenCalled();
+  });
+
+  it('prefills the smart field from a show-access code query param', () => {
+    render(<SmartSignInPage />, { initialRoute: '/at-show?code=J9F3B' });
+
+    expect(screen.getByTestId('credential-input')).toHaveValue('J9F3B');
+    expect(screen.getByTestId('continue-button')).toBeEnabled();
   });
 
   it('signed-in passcode confirms, then attaches a show-scoped grant and routes', async () => {

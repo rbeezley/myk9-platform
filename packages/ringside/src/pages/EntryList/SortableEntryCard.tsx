@@ -292,7 +292,7 @@ interface ResetButtonProps {
 
 const ResetButton: React.FC<ResetButtonProps> = ({ onClick }) => (
   <button
-    className="reset-button reset-menu-button"
+    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground active:scale-95"
     onClick={onClick}
     onMouseDown={(e) => e.stopPropagation()}
     aria-label="More options"

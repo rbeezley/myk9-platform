@@ -129,6 +129,27 @@ describe('SortableEntryCard', () => {
     expect(screen.getByLabelText('More options')).not.toBeNull();
   });
 
+  it('renders the reset button with self-contained touch-target styling', () => {
+    const scored: Entry = { ...baseEntry, isScored: true };
+    renderInDndContext(
+      <SortableEntryCard
+        entry={scored}
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    const resetButton = screen.getByLabelText('More options');
+    expect(resetButton.className).toContain('reset-menu-button');
+    expect(resetButton.className).toContain('min-h-11');
+    expect(resetButton.className).toContain('min-w-11');
+  });
+
   it('omits the reset button for scored entries when canScore is denied', () => {
     const scored: Entry = { ...baseEntry, isScored: true };
     renderInDndContext(

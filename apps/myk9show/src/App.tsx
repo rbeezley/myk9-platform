@@ -292,6 +292,16 @@ function App() {
                                 </PageTransition>
                               }
                             />
+                            <Route
+                              path="/at-show"
+                              element={
+                                <PageTransition>
+                                  <Suspense fallback={<PageLoadingFallback />}>
+                                    <SmartSignInPage />
+                                  </Suspense>
+                                </PageTransition>
+                              }
+                            />
                             <Route path="/login" element={<Navigate to="/sign-in" replace />} />
                             <Route
                               path="/sign-up"

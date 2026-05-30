@@ -30,7 +30,8 @@ type PendingPasscode = { showId: string; showName: string; role: RingsideRole };
  * prompt and only for the rare signed-in-types-passcode case.
  */
 const SmartSignInPage: React.FC = () => {
-  const [credential, setCredential] = useState('');
+  const [searchParams] = useSearchParams();
+  const [credential, setCredential] = useState(() => searchParams.get('code') ?? '');
   const [step, setStep] = useState<'input' | 'password'>('input');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +42,6 @@ const SmartSignInPage: React.FC = () => {
   const [isJoining, setIsJoining] = useState(false);
 
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { user, firstName, signIn, signInWithGoogle, loading: authLoading } = useAuthContext();
   const setGrant = useRingsideGrantStore(state => state.setGrant);
 
@@ -99,7 +99,10 @@ const SmartSignInPage: React.FC = () => {
         // Signed-in account: confirm before expanding role (Phase 1c §2.2).
         setPending({ showId: result.showId, showName: result.showName, role: result.role });
       } else {
-        // Anonymous: route straight to ringside (Phase 1d table).
+        // Anonymous: the passcode itself is the show-scoped grant. Keep it in
+        // memory before routing so `/at-show/:showId` can admit this device
+        // without account RBAC.
+        setGrant({ showId: result.showId, role: result.role, source: 'passcode' });
         navigate(`/at-show/${result.showId}`);
       }
     } finally {

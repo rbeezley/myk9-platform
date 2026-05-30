@@ -55,6 +55,18 @@ export interface ActionsMenuConfig {
 // Actions Dropdown Menu
 // ============================================================================
 
+/**
+ * Shared classes for a row in the actions dropdown (was `.action-menu-item` in
+ * ringside.css). One source of truth for all menu buttons.
+ *
+ * `appearance-none border-0 bg-transparent` re-applies the native-button reset
+ * the old CSS had (`background: none; border: none`). The package builds with
+ * Tailwind preflight OFF (and is consumed in preflight-off contexts), so the
+ * reset must be explicit — same reason DogCard authors `border-solid` inline.
+ */
+const ACTION_MENU_ITEM_CLASS =
+  'flex w-full cursor-pointer appearance-none items-center gap-3 border-0 bg-transparent px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-muted active:bg-input disabled:cursor-not-allowed disabled:opacity-50';
+
 interface ActionsDropdownMenuProps {
   isOpen: boolean;
   onToggle: () => void;
@@ -107,7 +119,7 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
   };
 
   return (
-    <div className="actions-menu-container">
+    <div className="relative" data-actions-menu>
       <button
         className="icon-button actions-button"
         onClick={onToggle}
@@ -118,11 +130,11 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
       </button>
 
       {isOpen && (
-        <div className="actions-dropdown-menu">
+        <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[100] mr-1 min-w-[220px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-card shadow-lg">
           {/* Refresh - Primary action (long press for full page reload) */}
           <button
             onClick={handleRefresh}
-            className="action-menu-item"
+            className={ACTION_MENU_ITEM_CLASS}
             disabled={isRefreshing}
             title="Refresh (long press for full reload)"
             {...refreshLongPressHandlers}
@@ -132,13 +144,13 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
           </button>
 
           {/* Divider after primary action */}
-          <div className="menu-divider" />
+          <div className="my-1 h-px bg-border" />
 
           {/* Secondary actions */}
           {actionsMenu.showRunOrder && actionsMenu.onRunOrderClick && (
             <button
               onClick={handleRunOrder}
-              className="action-menu-item"
+              className={ACTION_MENU_ITEM_CLASS}
             >
               <ListOrdered className="h-4 w-4" />
               Set Run Order
@@ -147,7 +159,7 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
           {actionsMenu.showRecalculatePlacements && actionsMenu.onRecalculatePlacements && (
             <button
               onClick={handleRecalculate}
-              className="action-menu-item"
+              className={ACTION_MENU_ITEM_CLASS}
               disabled={actionsMenu.isRecalculatingPlacements}
             >
               <Trophy className={`h-4 w-4 ${actionsMenu.isRecalculatingPlacements ? 'rotating' : ''}`} />
@@ -157,7 +169,7 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
           {actionsMenu.showClassSettings && actionsMenu.onClassSettingsClick && (
             <button
               onClick={handleClassSettings}
-              className="action-menu-item"
+              className={ACTION_MENU_ITEM_CLASS}
             >
               <Settings className="h-4 w-4" />
               Class Options
@@ -165,14 +177,14 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
           )}
 
           {/* Divider before print options */}
-          <div className="menu-divider" />
+          <div className="my-1 h-px bg-border" />
 
           {/* Print options */}
           {actionsMenu.printOptions.map((option, index) => (
             <button
               key={index}
               onClick={() => handlePrintOption(option)}
-              className="action-menu-item"
+              className={ACTION_MENU_ITEM_CLASS}
               disabled={option.disabled}
             >
               {option.icon === 'checkin' ? (

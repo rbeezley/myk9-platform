@@ -115,7 +115,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
 
   if (entries.length === 0) {
     return (
-      <div className="no-entries">
+      <div className="px-3 py-8 text-center text-muted-foreground">
         <h2>No {activeTab} entries</h2>
         <p>{activeTab === 'pending' ? 'All entries have been scored.' : 'No entries have been scored yet.'}</p>
       </div>
@@ -144,7 +144,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
         strategy={verticalListSortingStrategy}
       >
         <div
-          className={`grid-responsive ${isAnimating ? 'stagger-children' : 'stagger-pending'} ${isDragMode ? 'drag-mode' : ''}`}
+          className={`grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5 ${isAnimating ? 'stagger-children' : 'stagger-pending'} ${isDragMode ? 'drag-mode' : ''}`}
         >
           {entries.map((entry) => (
             <SortableEntryCard

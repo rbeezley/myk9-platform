@@ -18,6 +18,7 @@
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
+import { cn } from '@myk9/ui';
 import { formatTrialDate } from '@myk9/core';
 import type { ComponentType } from 'react';
 import type { ClassInfo } from '../hooks/useEntryListData';
@@ -96,10 +97,10 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.actions-menu-container')) {
+      if (!target.closest('[data-actions-menu]')) {
         setShowActionsMenu(false);
       }
-      if (!target.closest('.class-info-clickable')) {
+      if (!target.closest('[data-class-info-trigger]')) {
         setShowInfoPopup(false);
       }
     };
@@ -150,7 +151,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   }, [classInfo]);
 
   return (
-    <header className="page-header entry-list-header">
+    <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-4 rounded-b-xl border-b border-border bg-card p-3">
       <HamburgerMenu
         backNavigation={{
           label: "Back to Classes",
@@ -162,7 +163,11 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
       {/* Class info - hover/tap to show details popup */}
       <div
         ref={classInfoRef}
-        className={`class-info ${hasExtraInfo ? 'class-info-clickable' : ''}`}
+        data-class-info-trigger={hasExtraInfo ? '' : undefined}
+        className={cn(
+          'absolute left-1/2 top-1/2 flex max-w-[55%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 text-center',
+          hasExtraInfo && 'group cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent'
+        )}
         onClick={hasExtraInfo ? () => setShowInfoPopup(!showInfoPopup) : undefined}
         onMouseEnter={hasExtraInfo ? () => setShowInfoPopup(true) : undefined}
         onMouseLeave={hasExtraInfo ? () => setShowInfoPopup(false) : undefined}
@@ -171,20 +176,23 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         onKeyDown={hasExtraInfo ? (e) => e.key === 'Enter' && setShowInfoPopup(!showInfoPopup) : undefined}
       >
         {/* Class name with small info indicator */}
-        <div className="class-name-wrapper">
-          <h1 className="class-name">
+        <div className="flex items-center justify-center gap-1">
+          <h1 className="m-0 whitespace-nowrap text-center text-lg font-[590] leading-none tracking-tight text-foreground">
             {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || 'Loading...'}
           </h1>
           {hasExtraInfo && (
-            <span className="info-indicator" aria-hidden="true">
+            <span
+              className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-muted-foreground text-card opacity-60 transition-colors group-hover:bg-primary group-hover:opacity-100"
+              aria-hidden="true"
+            >
               <Info size={12} />
             </span>
           )}
         </div>
         {/* Trial date and number */}
         {trialInfoText && (
-          <div className="class-meta-row">
-            <span className="trial-meta-text">{trialInfoText}</span>
+          <div className="flex w-full justify-center">
+            <span className="text-xs font-medium leading-tight text-muted-foreground">{trialInfoText}</span>
           </div>
         )}
       </div>
@@ -200,7 +208,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         />
       )}
 
-      <div className="header-buttons">
+      <div className="relative z-[100] ml-auto flex shrink-0 items-center gap-2">
         {isRefreshing && <RefreshIndicator isRefreshing={isRefreshing} />}
 
         {isSyncing && (

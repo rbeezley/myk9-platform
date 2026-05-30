@@ -18,6 +18,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
+import { cn } from '@myk9/ui';
 import { haptic } from '@myk9/scoring-ui';
 import type { ComponentType } from 'react';
 import type { Entry } from '../../stores/entryStore';
@@ -214,6 +215,22 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
 // ========================================
 
 /**
+ * Per-status background fill for the check-in pill. Colors resolve from the
+ * host's light/dark `status-*` Tailwind group (was `.status-badge.<status>` in
+ * ringside.css). Keyed on the same normalized status string the markup builds.
+ */
+const STATUS_PILL_BG: Record<string, string> = {
+  none: 'bg-status-no-status',
+  'no-status': 'bg-status-no-status',
+  'checked-in': 'bg-status-checked-in',
+  'at-gate': 'bg-status-at-gate',
+  'come-to-gate': 'bg-status-at-gate',
+  'in-ring': 'bg-status-in-ring',
+  conflict: 'bg-status-conflict',
+  pulled: 'bg-status-pulled',
+};
+
+/**
  * Status badge for unscored entries
  */
 interface StatusBadgeProps {
@@ -246,7 +263,16 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick })
 
   return (
     <div
-      className={`status-badge checkin-status ${statusClass} ${isDisabled ? 'disabled' : ''} ${pulseClass}`}
+      className={cn(
+        'relative inline-flex min-h-9 max-w-[140px] items-center justify-center gap-0.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-bl-xl px-3 py-1 text-xs font-semibold leading-tight tracking-wider text-white transition',
+        isDisabled
+          ? 'cursor-not-allowed bg-muted text-muted-foreground opacity-60'
+          : cn(
+              STATUS_PILL_BG[statusClass] ?? 'bg-status-no-status',
+              'cursor-pointer hover:-translate-y-px hover:shadow-sm active:translate-y-0'
+            ),
+        pulseClass
+      )}
       style={{ textTransform: 'none' }}
       data-no-uppercase="true"
       onClick={onClick}

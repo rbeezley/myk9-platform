@@ -7,6 +7,11 @@ import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 
 let mockUser: { id: string } | null = null;
 let mockRoles: UserRole[] = [];
+const mockAccountToday = vi.hoisted(() => ({
+  hasAccountEntryForShow: false,
+  isLoading: false,
+  error: null as Error | null,
+}));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -14,6 +19,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
     loading: false,
     hasRole: (role: UserRole) => mockRoles.includes(role),
   }),
+}));
+
+vi.mock('@/features/show-today/accountTodayEntries', () => ({
+  useAccountTodayAutoFavorites: () => mockAccountToday,
 }));
 
 function renderGate(initialRoute = '/at-show/show-1') {
@@ -37,6 +46,9 @@ describe('AtShowAccessGate', () => {
   beforeEach(() => {
     mockUser = null;
     mockRoles = [];
+    mockAccountToday.hasAccountEntryForShow = false;
+    mockAccountToday.isLoading = false;
+    mockAccountToday.error = null;
     useRingsideGrantStore.getState().clearGrant();
   });
 
@@ -53,6 +65,16 @@ describe('AtShowAccessGate', () => {
   it('admits signed-in staff without a passcode grant', () => {
     mockUser = { id: 'user-1' };
     mockRoles = [UserRole.STEWARD];
+
+    renderGate();
+
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+  });
+
+  it('admits a signed-in exhibitor with account entries today', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockAccountToday.hasAccountEntryForShow = true;
 
     renderGate();
 

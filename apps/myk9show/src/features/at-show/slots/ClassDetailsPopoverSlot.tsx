@@ -44,6 +44,26 @@ import {
   type BadgeTier,
 } from './atShowChrome.helpers';
 
+type PopoverCoords = { top: number; left: number };
+
+function getPopoverCoords(
+  anchor: HTMLElement | null,
+  position: ClassDetailsPopoverProps['position'],
+): PopoverCoords | null {
+  if (!anchor || typeof window === 'undefined') return null;
+
+  const rect = anchor.getBoundingClientRect();
+  const spacing = 8;
+  const width = Math.min(320, window.innerWidth - 32);
+  const top = position === 'top' ? rect.top - spacing : rect.bottom + spacing;
+  // Clamp the left edge so the 320px card never spills off a narrow viewport
+  // (myK9Q renders full-width phones where anchor.left is always safe; the
+  // wider myK9Show layout needs the guard).
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+
+  return { top, left };
+}
+
 /** One label/value (or label/badge) row in the class-details popover. */
 const DetailRow: React.FC<{
   icon: LucideIcon;
@@ -92,28 +112,27 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
   position = 'bottom',
   showJudgeB,
 }) => {
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState<PopoverCoords | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const anchor = anchorRef.current?.getBoundingClientRect();
-    if (anchor) {
-      const spacing = 8;
-      const width = Math.min(320, window.innerWidth - 32);
-      const top = position === 'top' ? anchor.top - spacing : anchor.bottom + spacing;
-      // Clamp the left edge so the 320px card never spills off a narrow viewport
-      // (myK9Q renders full-width phones where anchor.left is always safe; the
-      // wider myK9Show layout needs the guard).
-      const left = Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8));
-      setCoords({ top, left });
-    }
+    const frame = window.requestAnimationFrame(() => {
+      setCoords(getPopoverCoords(anchorRef.current, position));
+    });
 
-    // Coords are frozen at open time and the card is position:fixed, so a scroll
-    // or resize would detach it from the anchor — close instead of chasing it
-    // (mirrors the click-away backdrop). Escape closes for keyboard users, since
-    // the container carries role="dialog". `scroll` is captured so it also fires
-    // for the inner scroll container, not just the window.
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [isOpen, anchorRef, position]);
+
+  // Coords are frozen at open time and the card is position:fixed, so a scroll
+  // or resize would detach it from the anchor — close instead of chasing it
+  // (mirrors the click-away backdrop). Escape closes for keyboard users, since
+  // the container carries role="dialog". `scroll` is captured so it also fires
+  // for the inner scroll container, not just the window.
+  useEffect(() => {
+    if (!isOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
@@ -125,7 +144,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
       window.removeEventListener('resize', onClose);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isOpen, anchorRef, position, onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

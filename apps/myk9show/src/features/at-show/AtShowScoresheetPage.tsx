@@ -12,7 +12,7 @@
 
 import { useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowLeft, WifiOff } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, WifiOff, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
 // Import triggers self-registration of all LiveScoresheet variants.
@@ -25,6 +25,7 @@ import {
   toScoresheetClassInfo,
 } from '@/pages/scoring/types';
 import { useAtShowScoresheet } from './useAtShowScoresheet';
+import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 
 export const AtShowScoresheetPage: React.FC = () => {
   const { showId, classId, entryId } = useParams<{
@@ -36,6 +37,14 @@ export const AtShowScoresheetPage: React.FC = () => {
 
   const backRoute = `/at-show/${showId}/class/${classId}`;
   const handleBack = useCallback(() => navigate(backRoute), [navigate, backRoute]);
+
+  // Fine-grained scoring authorization. The `STAFF_ROLES` route guard admits
+  // stewards (they check in dogs / set run order), but ringside's permission
+  // model gives stewards `canScore: false`. Derive the effective ringside role
+  // the same way the EntryList shims do — account RBAC, overridden by a Phase 1c
+  // show-scoped passcode grant — and block score submission when it can't score.
+  const { hasPermission } = useRingsideEffectiveRole(showId);
+  const canScore = hasPermission('canScore');
 
   const {
     entry,
@@ -50,6 +59,28 @@ export const AtShowScoresheetPage: React.FC = () => {
     isSyncing,
     hasSyncError,
   } = useAtShowScoresheet({ classId, entryId, onScored: handleBack });
+
+  // Authorization gate precedes the data/loading branches: someone without
+  // scoring access never reaches the live scoresheet (and thus never reaches
+  // `submit`), so the block is structural, not just a hidden button.
+  if (!canScore) {
+    return (
+      <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+        <div className="rounded-xl border bg-card p-6 text-center">
+          <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">No Scoring Access</p>
+          <p className="text-muted-foreground">
+            Your role can view ringside but isn&apos;t allowed to submit scores. Ask the
+            secretary for a judge passcode if you need to score this class.
+          </p>
+          <Button variant="outline" className="mt-4" onClick={handleBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Entry List
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

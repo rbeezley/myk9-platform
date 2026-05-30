@@ -13,6 +13,20 @@
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
+import { UserRole } from '@/types/auth-types';
+
+// Effective ringside role drives the scoring gate. Default to a JUDGE (can
+// score) so the happy-path wiring tests render the scoresheet; individual tests
+// reassign `mockRoles` to exercise the deny path. Real `getPrimaryRole` is kept
+// so the account-RBAC → ringside-role mapping is exercised, not stubbed away.
+let mockRoles: UserRole[] = [UserRole.JUDGE];
+vi.mock('@/hooks/useAuthContext', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/hooks/useAuthContext')>();
+  return {
+    ...actual,
+    useAuthContext: () => ({ getUserRoles: () => mockRoles }),
+  };
+});
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: { getClassById: vi.fn() },
@@ -115,6 +129,7 @@ const renderPage = () =>
 describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRoles = [UserRole.JUDGE];
     seed();
   });
 
@@ -144,5 +159,35 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Back'));
 
     expect(await screen.findByText('Entry List')).toBeInTheDocument();
+  });
+
+  // Security gate: the STAFF_ROLES route guard admits stewards, but ringside's
+  // permission model gives a steward `canScore: false`. The page must block them
+  // before the scoresheet renders — closing the over-permit the route guard left.
+  it('blocks a steward (canScore=false) with a no-access state instead of the scoresheet', async () => {
+    mockRoles = [UserRole.STEWARD];
+    renderPage();
+
+    expect(await screen.findByText('No Scoring Access')).toBeInTheDocument();
+    expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
+  });
+
+  it('never reaches submit for a non-scoring role', async () => {
+    mockRoles = [UserRole.STEWARD];
+    renderPage();
+    await screen.findByText('No Scoring Access');
+
+    // No scoresheet means no submit affordance, and the optimistic-score hook
+    // is never invoked — the block is structural, not a hidden button.
+    expect(screen.queryByText('Submit Score')).not.toBeInTheDocument();
+    expect(submitScoreOptimistically).not.toHaveBeenCalled();
+  });
+
+  it('allows an admin role to score', async () => {
+    mockRoles = [UserRole.SITE_ADMIN];
+    renderPage();
+
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(screen.queryByText('No Scoring Access')).not.toBeInTheDocument();
   });
 });

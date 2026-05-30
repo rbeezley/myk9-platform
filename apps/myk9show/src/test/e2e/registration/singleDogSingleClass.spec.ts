@@ -11,7 +11,9 @@ async function signInAsSecretary(page: Page, returnTo = '/secretary/dashboard') 
   await page.goto(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, {
     waitUntil: 'domcontentloaded',
   });
-  await page.getByTestId('email-input').fill(SECRETARY_EMAIL);
+  await page.getByTestId('credential-input').fill(SECRETARY_EMAIL);
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('password-input').fill(SECRETARY_PASSWORD);
   await page.getByTestId('sign-in-button').click();
   await page.waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 });

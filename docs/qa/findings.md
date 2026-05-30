@@ -93,7 +93,7 @@ Copy this block for each new finding.
 - **Intent check:** Restores QA trust around the secretary "That was easy" proof once the active Nightly gate is green again.
 - **Fix owner:** Active Nightly Playwright specs and secretary/registration proof setup. PR `#372` contained a prior stabilization attempt, but it is now closed without merge, so the next repair should start from current `main` and avoid assuming that branch is the accepted fix.
 - **Proof required:** Rerun the exact active Nightly Playwright command from `docs/qa/e2e-suite-map.md` with `--retries=0` and confirm the full command passes without >60-second stalls. Also keep the route sweep green across public, exhibitor, secretary, judge, club-admin, and admin route groups.
-- **Notes:** Opened from the 2026-05-27 run and refreshed on 2026-05-28 after a second consecutive active Playwright failure on `main`. Candidate next step: focused repair of stale secretary dashboard expectations, dog-search waits, show-wizard officials navigation waits, secretary-entry submit proof, disposable-entry seed/search proof, and UAT sign-in reliability.
+- **Notes:** Opened from the 2026-05-27 run and refreshed on 2026-05-28 after a second consecutive active Playwright failure on `main`. 2026-05-30 first active Playwright pass failed broadly (`15/44` passed, `25` failed, `4` did not run) after the Smart Sign-In rollout changed active specs' one-step email/password assumptions; low-risk compatibility repairs fixed that class and improved the exact rerun to `34/44` passed, `6` failed, `4` did not run. Remaining May 30 failures were `secretary/show-wizard-officials.spec.ts` people-picker/badge checks, `secretary-entry-walk.spec.ts` `submit_show_entries` wait, `uat/secretary/critical-path.spec.ts` entry-management assertions, `uat/secretary/disposable-entry.spec.ts` entry-management load/search, and one strict-health failure in `qa-regression-proof.spec.ts` tied to people-query/server noise. Candidate next step: focused repair of show-wizard officials data loading, secretary-entry submit proof, disposable-entry seed/search proof, and entry-management route health.
 
 ### QA-CONSOLE-ERROR-011
 
@@ -114,7 +114,39 @@ Copy this block for each new finding.
 - **Proof required:** Re-run the route-health sweep covering all six role groups at desktop plus 375px mobile after a fix and confirm `Clean: N/N` for every authenticated route (matching the public baseline). Provisional fixture: a focused secretary-only run with the spec used today (`temp-route-sweep-*.spec.ts`-style probe) should print `Clean: 20/20`.
 - **Notes:** Closed finding `QA-CONSOLE-ERROR-005` (2026-05-22) used the same `[database] 💥 Database query failed: {stack: undefined}` signature on `/secretary/entries/:showId` and was closed by a passing route-sweep proof rather than a code change; that closure may have been premature, or the failure surface widened since. The Wave 1 Playwright suite does not assert console-error-free pages, which is why this regression went latent. Recommend adding a console-error budget to one or two route-health-style specs once the underlying fetch failure is fixed.
 
+### QA-MISSING-LOADING-STATE-015
+
+- **Status:** open
+- **Severity:** high
+- **Role:** admin
+- **Surface:** `/admin/dashboard`
+- **Suite category:** none (surfaced by route-health sweep)
+- **Pattern:** missing-loading-state
+- **Detected by:** audit-pages
+- **Evidence:** 2026-05-30 route-health sweep across public, exhibitor, secretary, judge, club-admin, and admin route groups at desktop plus 375px mobile passed `10/12` route/viewport checks. Both admin dashboard checks failed because `/admin/dashboard` remained on visible `Loading...` text after 5 seconds. Evidence paths: `apps/myk9show/test-results/__tmp-nightly-route-sweep--7f93e-s-render-cleanly-at-desktop-chromium/error-context.md` and `apps/myk9show/test-results/__tmp-nightly-route-sweep--46cf9-es-render-cleanly-at-mobile-chromium/error-context.md`.
+- **User impact:** Site admins can land on a dashboard that never resolves, leaving platform-health information unavailable.
+- **Intent check:** Harms the admin target feeling that "the platform is healthy"; a stuck loading dashboard gives no actionable status.
+- **Fix owner:** admin dashboard data-loading and role/permission gating path.
+- **Proof required:** Re-run the route-health sweep or focused `/admin/dashboard` desktop/mobile replay and confirm the dashboard resolves with no visible unresolved loading state, no console errors, and no owned 4xx/5xx responses.
+- **Notes:** Do not auto-fix without inventorying admin role, permission, and data queries first; this may be role-scope, missing seed/config, or an async loading-state bug.
+
 ## Closed Findings
+
+### QA-TEST-FLAKE-014
+
+- **Status:** fixed
+- **Severity:** high
+- **Role:** exhibitor | secretary | judge
+- **Surface:** Active Nightly Playwright sign-in helpers/specs after the Smart Sign-In rollout.
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** Playwright
+- **Evidence:** 2026-05-30 active Nightly initially failed `25` specs because tests still waited for removed one-step selectors (`data-testid="email-input"`, immediate password field, and `sign-in-button`) after `SmartSignInPage` introduced a two-step email/passcode then password flow. Representative failures came from `cross-role-workflows.spec.ts`, `registration/secretaryExistingUsers.spec.ts`, `registration/secretaryNewUsers.spec.ts`, `registration/singleDogSingleClass.spec.ts`, `registration/exhibitorSelfRegistration.spec.ts`, `secretary-entry-walk.spec.ts`, `simple-connectivity.spec.ts`, and shared UAT auth.
+- **User impact:** Nightly could not prove current workflows because its auth setup no longer matched the real sign-in UI.
+- **Intent check:** Preserves the new sign-in intent while restoring QA signal; the tests now walk the same two-step experience users see.
+- **Fix owner:** active Nightly Playwright auth helpers and dashboard smoke assertions.
+- **Proof required:** Passed on 2026-05-30: focused smart-sign-in proof covering cross-role, registration, class creation, exhibitor self-registration, single-dog registration, and simple connectivity (`13/13` after dashboard expectation update), plus the exact active Nightly rerun improved from `15/44` to `34/44` with all smart-sign-in selector failures cleared.
+- **Notes:** Also updated stale secretary dashboard expectations from `Tasks`/`Messages` buttons to the current `Personal tasks` heading plus `Messages` navigation link.
 
 ### QA-TEST-FLAKE-009
 

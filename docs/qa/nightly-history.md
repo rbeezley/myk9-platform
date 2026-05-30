@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-05-30
+
+- **Playwright command:** fail after low-risk local test repairs
+- **Route sweep:** fail with durable evidence; admin dashboard remains unresolved at desktop and mobile
+- **Active specs:** Vitest `18/18`; first active Playwright pass `15/44` passed, `25` failed, `4` did not run. After smart-sign-in compatibility repairs, exact active Playwright rerun improved to `34/44` passed, `6` failed, `4` did not run. Focused proof for the repaired sign-in paths passed `13/13`; focused proof for the remaining secretary failures passed `7/13`, failed `5`, skipped `1`. Route sweep passed `10/12`.
+- **Failures:** Initial broad active failure was stale Nightly auth setup after Smart Sign-In replaced the one-step email/password form. Remaining active failures after repair: `secretary/show-wizard-officials.spec.ts` people-picker/badge checks, `secretary-entry-walk.spec.ts` `submit_show_entries` wait, `uat/secretary/critical-path.spec.ts` entry-management assertions, `uat/secretary/disposable-entry.spec.ts` entry-management load/search, and one `qa-regression-proof.spec.ts` strict-health failure with people-query/server noise. Route sweep opened `QA-MISSING-LOADING-STATE-015` for `/admin/dashboard`.
+- **Fixes made:** `apps/myk9show/src/test/e2e/uat/shared/auth.ts`, `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`, `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`, `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`, `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`, `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts`, `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`, `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`, `apps/myk9show/src/test/e2e/uat/secretary/critical-path.spec.ts`, `docs/qa/findings.md`, `docs/qa/nightly-history.md`.
+- **Demotions/promotions:** none
+- **Notes:** Ran from clean synced `main` at `91122807` (`feat(auth): single email-or-passcode smart sign-in`). The first Playwright attempt was blocked by sandbox port binding (`EPERM` on 5173/24678) and was rerun with local-port escalation. Temporary route-sweep spec was deleted before commit. No shared-system mutations were run.
+
 ### 2026-05-28
 
 - **Playwright command:** fail (two concurrent passes in the same session — both red, with materially different runtimes)

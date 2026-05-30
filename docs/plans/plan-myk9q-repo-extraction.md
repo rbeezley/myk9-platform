@@ -1,12 +1,24 @@
-# Plan — Separating myK9Q and myK9Show ownership
+# Investigation (SUPERSEDED) — myK9Q / myK9Show repo coupling
 
-**Status:** PROPOSAL — investigation complete. **No execution.**
+> # ⛔ SUPERSEDED — DO NOT ACT ON THE SPLIT PATH
+> **Confirmed 2026-05-30:** the long-term direction is **unify and eventually
+> delete `apps/myk9q`**, per [`docs/plans/2026-05-17-unify-myk9show-myk9q.md`](2026-05-17-unify-myk9show-myk9q.md)
+> (Phase 6 = delete myK9Q). You do not split an app you are deleting, so the
+> **repo-extraction path in §5 is dead on arrival** and must not be executed.
+>
+> What remains useful here is the **coupling investigation only** (§1: no
+> cross-app source imports; the 9-package shared graph; the shared Supabase
+> backend incl. `view_myk9q_entries`). The "stay in the monorepo" conclusion
+> (§3) still holds — and is reinforced, since deleting myK9Q makes splitting
+> moot. The shipped worktree guard (PR #451) is plan-agnostic infra and is
+> unaffected. Source of truth for what to actually build = the unify plan.
+
+**Status:** SUPERSEDED — kept for the coupling investigation; split path void.
 **Date:** 2026-05-30
 **Author:** Claude (Opus 4.8), fact-finding session
-**Stated goal:** Let two teams work on myK9Q and myK9Show **without stepping on each other**, while the apps keep **sharing data**.
-**Your decisions (this session):** Registry = GitHub Packages (private) · Backend = stays in platform repo · **Split rationale = "just avoid collisions" (not hard access boundaries).**
+**Original framing (now void):** Let two teams work on myK9Q and myK9Show without stepping on each other while sharing data — premised on two *long-lived* apps. That premise is contradicted by the unify plan.
 
-> ⚠️ This doc supersedes an earlier draft of mine that contained several factual errors (it undercounted shared packages, claimed replication had no tests, and claimed packages had no build step). All corrected below. The corrected picture changes the recommendation.
+> ⚠️ This doc also supersedes an earlier draft of mine that contained several factual errors (it undercounted shared packages, claimed replication had no tests, and claimed packages had no build step). All corrected below.
 
 ---
 

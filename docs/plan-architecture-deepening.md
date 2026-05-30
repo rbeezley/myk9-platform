@@ -90,6 +90,12 @@ Seam: `packages/replication/src/syncReplicatedTable.ts` (+ the
   expected and must be asserted, not "fixed").
 - Run `cd apps/myk9q && pnpm test` and `cd apps/myk9show && pnpm test` for the
   replication suites after each adapter.
+- **[ADDED] Offline-path check.** Unit tests mock IndexedDB; the workflow exists
+  to protect the *real* offline path. Before merging the mutable-table batch, run
+  a manual offline smoke (DevTools offline → mutate a row → reload → confirm the
+  local mutation survives a subsequent sync) or extend the existing Playwright
+  E2E (`pnpm test:e2e`) for one representative mutable table. Read-only view
+  tables can skip this.
 
 ### Acceptance
 - All 23 adapters delegate to `syncReplicatedTable()`; no inlined sync loop
@@ -97,6 +103,10 @@ Seam: `packages/replication/src/syncReplicatedTable.ts` (+ the
 - `grep -rL syncReplicatedTable` over the adapter files returns only genuinely
   non-syncing helpers.
 - Replication suites + `pnpm typecheck` green in both apps.
+- **[ADDED]** After each adapter PR merges to `main`, verify the corresponding
+  staging app (myK9Q and/or myK9Show — both auto-deploy from `main`) loads and
+  syncs without console/replication errors. A migrated adapter that typechecks
+  can still mis-map a field at runtime.
 
 ### Risk / notes
 Medium. Conflict-resolution regressions are the real hazard — mitigate by
@@ -165,6 +175,12 @@ Medium. Over-invalidation (correct but slow) is acceptable interim; missed
 invalidation (stale UI) is the real risk — the assertion-first tests are the
 guard. Consider recording the final shape as an ADR if it sets a convention
 future reviews should not re-litigate.
+**[ADDED]** If the contract introduces a named concept (e.g. an
+`<entity>InvalidationKeys` seam), register it in [`CONTEXT.md`](../CONTEXT.md)
+under "Data Access Modules" so it has a canonical name. **[ADDED] Pre-launch
+context:** both apps are pre-launch with no real users (memory
+`project_prelaunch_no_users`) — do **not** keep the old hand-assembled
+invalidation paths alive as a compatibility shim; migrate callers outright.
 
 ---
 
@@ -202,6 +218,11 @@ tested, bugs hide in the orchestration" shape.
    accepts the lifecycle/write functions + an invalidator as **injected
    adapters**. The hook becomes a thin binding that supplies React Query's real
    adapters.
+   - **[ADDED]** The extracted module names a concept not yet in the glossary.
+     Per the architecture-skill discipline, register it in
+     [`CONTEXT.md`](../CONTEXT.md) (the **Entry** section or a new
+     "Entry management orchestration" note) once its name is settled in grilling,
+     so future reviews don't treat it as drift.
 3. Keep optimistic UI state in the hook; move the *decision logic* (when to
    roll back, what to invalidate, ordering) into the module.
 4. Coordinate with Phase 2: the module should consume the entity invalidation
@@ -372,6 +393,43 @@ guidance.
 - Phases 1, 5, 6 are independent. Phase 3 should land **after** Phase 2 so it can
   consume the invalidation contract rather than re-deriving keys. Phase 4 is
   independent but pairs naturally with Phase 3 (both touch entry state).
+
+## [ADDED] Operational concerns
+
+- **Auto-deploy.** Merging to `main` auto-deploys both apps to Vercel staging
+  (`myk9-platform-myk9show.vercel.app`, `myk9-platform-myk9q.vercel.app`). There
+  is no separate deploy step, but it means every merged phase is live on staging
+  immediately — verify there, not just locally.
+- **No migrations, no env vars, no secrets.** Every phase is app/package code
+  only. None of these phases touch `supabase/migrations/`, edge functions, RLS,
+  or environment configuration. If a phase ever appears to need one, stop — it
+  has drifted out of scope.
+- **Dual-app blast radius.** Phase 1 touches replication in **both** apps and
+  Phase 4 touches myK9Show state only. Phase 1's per-adapter PRs should be
+  verified against whichever app(s) own that adapter.
+
+## [ADDED] Rollback & recovery
+
+- **Per-phase revert.** Each phase is its own PR (Phase 1: one PR per adapter).
+  Revert = `git revert` the squash-merge commit; no data migration to unwind
+  because no phase writes schema or data.
+- **Replication regressions (Phase 1) are the one stateful risk.** A bad
+  conflict-policy migration can corrupt the *local* IndexedDB cache on a user's
+  device, not the server. Recovery is a client cache reset (the replication layer
+  rehydrates from Supabase), but the guard is the dirty-row assertion test plus
+  the staging offline smoke before merge — catch it before it ships.
+- **Phase 4/5 (rename/delete)** revert cleanly via `git revert`; the
+  pre-deletion liveness grep is what prevents needing one.
+
+## [ADDED] Definition of done (whole plan)
+
+The plan is complete when: all 23 adapters route through `syncReplicatedTable()`
+(P1); the chosen entity modules own their invalidation contract with
+assertion-first tests (P2); entry-management rollback/ordering is tested without
+React (P3); one `store/`, one `context/`, one `entryStore` remain (P4); the
+verified-dead modules are gone with green build (P5); `judges/` is flat Shape-X
+with ADR-008's record updated (P6). Each phase's own Acceptance section is the
+gate; this is the roll-up.
 
 ## Suggested sequencing
 

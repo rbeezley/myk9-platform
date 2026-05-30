@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+#
+# myK9 Platform — concurrent-agent worktree guard
+#
+# WHY: This repo is regularly worked by multiple concurrent agents (Codex +
+# Claude sessions) plus the owner. The recurring collision is one actor
+# committing from the PRIMARY working tree (often via `git add -A`) and
+# sweeping another actor's untracked WIP into the commit — or a checkout /
+# reset there wiping a neighbor's uncommitted edits. See CLAUDE.md
+# "Worktree & Merge Workflow" and AGENTS.md "Critical rules".
+#
+# RULE: when other linked worktrees exist (i.e. concurrent work is live),
+# commit from a worktree, never from the primary checkout.
+#
+# This hook BLOCKS a commit only when ALL of the following hold:
+#   1. the commit is happening in the PRIMARY working tree, AND
+#   2. at least one LINKED worktree currently exists.
+# Working inside a worktree (the compliant path) never trips it, and solo
+# work with no worktrees never trips it.
+#
+# Bypass (e.g. the documented docs-only-direct-to-main flow):
+#   MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...
+
+set -euo pipefail
+
+# Explicit escape hatch.
+if [ "${MYK9_ALLOW_PRIMARY_COMMIT:-}" = "1" ]; then
+  exit 0
+fi
+
+# Absolute path-format is REQUIRED: on git 2.39 (Apple Git) the relative
+# form of --git-common-dir can falsely equal --git-dir inside a worktree.
+git_dir="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null || true)"
+common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+
+# If we can't resolve either, don't get in the way.
+if [ -z "$git_dir" ] || [ -z "$common_dir" ]; then
+  exit 0
+fi
+
+# git-dir == common-dir  →  primary working tree.
+# git-dir != common-dir  →  linked worktree (compliant) → allow.
+if [ "$git_dir" != "$common_dir" ]; then
+  exit 0
+fi
+
+# We are in the primary tree. Only block if concurrent worktrees exist.
+worktree_count="$(git worktree list 2>/dev/null | wc -l | tr -d ' ')"
+if [ "${worktree_count:-1}" -le 1 ]; then
+  exit 0
+fi
+
+cat >&2 <<'MSG'
+
+  ✋ Commit blocked: you are committing from the PRIMARY working tree while
+     other worktrees are active. This is how concurrent agents clobber each
+     other's WIP (the classic `git add -A` sweep).
+
+     Do the work in a worktree instead, e.g.:
+         git worktree add ../wt-<task> -b <branch>
+     then commit from there.
+
+     If this really is the intended path (e.g. a docs-only commit straight
+     to main per CLAUDE.md), bypass once with:
+         MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...
+
+MSG
+exit 1

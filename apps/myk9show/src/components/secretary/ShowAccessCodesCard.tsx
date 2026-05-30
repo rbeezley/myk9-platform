@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { notifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 
-interface MyK9QAccessCardProps {
+interface ShowAccessCodesCardProps {
   showId: string;
   showName?: string;
   showDate?: string;
@@ -65,14 +65,14 @@ type RegenerateRpcRow = {
   exhibitor: string;
 };
 
-export function MyK9QAccessCard({
+export function ShowAccessCodesCard({
   showId,
   showName,
   showDate,
   visibleRoles,
   passcodes: providedPasscodes,
   canRegenerate = false,
-}: MyK9QAccessCardProps) {
+}: ShowAccessCodesCardProps) {
   const [generatedPasscodes, setGeneratedPasscodes] = useState<ShowPasscodes | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -127,7 +127,7 @@ export function MyK9QAccessCard({
     win.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>myK9Q Access — ${showName ?? 'Show'}</title>
+  <title>Show Access — ${showName ?? 'Show'}</title>
   <style>
     body{font-family:sans-serif;display:flex;justify-content:center;padding:32px}
     .slip{border:2px dashed #ccc;border-radius:12px;padding:24px;width:280px;text-align:center}
@@ -145,7 +145,7 @@ export function MyK9QAccessCard({
     ${showDate ? `<div class="show-date">${showDate}</div>` : ''}
     <div class="qr">${svgMarkup}</div>
     <div class="code">${exhibitorCode}</div>
-    <div class="url">myk9q.com</div>
+    <div class="url">myk9show.com</div>
   </div>
 </body>
 </html>`);
@@ -171,7 +171,7 @@ export function MyK9QAccessCard({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>myK9Q Access Codes</CardTitle>
+          <CardTitle>Show Access Codes</CardTitle>
           <CardDescription>
             Codes for this show were generated server-side and aren't displayed again for security.
             Generate a fresh set below — the old codes will stop working.
@@ -201,7 +201,7 @@ export function MyK9QAccessCard({
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Generate new myK9Q codes?</AlertDialogTitle>
+                <AlertDialogTitle>Generate new access codes?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This replaces the current codes for {showName ?? 'this show'}. Anyone using the
                   old codes will be locked out and must be given the new ones.
@@ -222,7 +222,7 @@ export function MyK9QAccessCard({
 
   // Capture narrowed value so TypeScript can see it's non-null inside closures
   const codes = passcodes;
-  const exhibitorUrl = `https://myk9q.com/login?code=${codes.exhibitor}`;
+  const exhibitorUrl = `https://myk9show.com/at-show?code=${codes.exhibitor}`;
 
   const allRows = [
     { role: 'Admin', code: codes.admin },
@@ -235,10 +235,11 @@ export function MyK9QAccessCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>myK9Q Access Codes</CardTitle>
+        <CardTitle>Show Access Codes</CardTitle>
         <CardDescription>
-          Share these with your team to access this show in the myK9Q ringside app. They will not
-          be shown again — copy or print them now.
+          Share these with your team. Enter a code at myk9show.com/at-show to open this show on any
+          device — no separate app or download. Codes won't be shown again, so copy or print them
+          now.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">

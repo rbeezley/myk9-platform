@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { notifications } from '@/lib/notifications';
-import { MyK9QAccessCard } from './MyK9QAccessCard';
+import { ShowAccessCodesCard } from './ShowAccessCodesCard';
 
 // Stable test UUID
 const TEST_SHOW_ID = '63165809-e025-25c6-6cf9-979f63165809';
@@ -51,10 +51,10 @@ function mockRegenerateRpc(response: {
   });
 }
 
-describe('MyK9QAccessCard', () => {
+describe('ShowAccessCodesCard', () => {
   it('renders all four passcodes when provided', () => {
     renderWithProviders(
-      <MyK9QAccessCard
+      <ShowAccessCodesCard
         showId={TEST_SHOW_ID}
         passcodes={{
           admin: 'aq8m2',
@@ -72,7 +72,7 @@ describe('MyK9QAccessCard', () => {
 
   it('copies admin code to clipboard', async () => {
     const { user } = renderWithProviders(
-      <MyK9QAccessCard
+      <ShowAccessCodesCard
         showId={TEST_SHOW_ID}
         passcodes={{
           admin: 'aq8m2',
@@ -89,7 +89,7 @@ describe('MyK9QAccessCard', () => {
 
   it('copies exhibitor login link to clipboard', async () => {
     const { user } = renderWithProviders(
-      <MyK9QAccessCard
+      <ShowAccessCodesCard
         showId={TEST_SHOW_ID}
         passcodes={{
           admin: 'aq8m2',
@@ -102,14 +102,14 @@ describe('MyK9QAccessCard', () => {
     await user.click(screen.getByRole('button', { name: /copy link/i }));
     await waitFor(() =>
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'https://myk9q.com/login?code=eh2p9'
+        'https://myk9show.com/at-show?code=eh2p9'
       )
     );
   });
 
   it('opens a print window for the exhibitor slip', async () => {
     const { user } = renderWithProviders(
-      <MyK9QAccessCard
+      <ShowAccessCodesCard
         showId={TEST_SHOW_ID}
         showName="Spring Trial"
         passcodes={{
@@ -130,7 +130,7 @@ describe('MyK9QAccessCard', () => {
     // path used to short-circuit visibleRoles and render the button
     // anyway. canRegenerate defaults to false, so this is the safe
     // default. Critically: NO 5-char code, NO regenerate button.
-    const { container } = renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} />);
+    const { container } = renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} />);
     expect(container.firstChild).toBeNull();
     expect(screen.queryByRole('button', { name: /generate new codes/i })).not.toBeInTheDocument();
     // The previously-derived code (e979f) must NOT leak through.
@@ -140,7 +140,7 @@ describe('MyK9QAccessCard', () => {
 
   it('renders nothing when passcodes prop is explicitly null and canRegenerate is false', () => {
     const { container } = renderWithProviders(
-      <MyK9QAccessCard showId={TEST_SHOW_ID} passcodes={null} />
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} passcodes={null} />
     );
     expect(container.firstChild).toBeNull();
     expect(screen.queryByText('ae025')).not.toBeInTheDocument();
@@ -152,7 +152,7 @@ describe('MyK9QAccessCard', () => {
     // so the prop signals "this UX surface is the right place for the
     // destructive button," not "the user is authorized" (the RPC
     // enforces that server-side).
-    renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} canRegenerate />);
+    renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />);
     expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
   });
 
@@ -163,7 +163,7 @@ describe('MyK9QAccessCard', () => {
     });
 
     const { user } = renderWithProviders(
-      <MyK9QAccessCard showId={TEST_SHOW_ID} showName="Spring Trial" canRegenerate />
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} showName="Spring Trial" canRegenerate />
     );
 
     await user.click(screen.getByRole('button', { name: /generate new codes/i }));
@@ -188,7 +188,7 @@ describe('MyK9QAccessCard', () => {
       error: { message: 'not authorized' },
     });
 
-    const { user } = renderWithProviders(<MyK9QAccessCard showId={TEST_SHOW_ID} canRegenerate />);
+    const { user } = renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />);
 
     await user.click(screen.getByRole('button', { name: /generate new codes/i }));
     const generateConfirm = await screen.findByRole('button', { name: /^generate$/i });
@@ -203,7 +203,7 @@ describe('MyK9QAccessCard', () => {
 
   it('filters by visibleRoles when provided', () => {
     renderWithProviders(
-      <MyK9QAccessCard
+      <ShowAccessCodesCard
         showId={TEST_SHOW_ID}
         passcodes={{
           admin: 'aq8m2',

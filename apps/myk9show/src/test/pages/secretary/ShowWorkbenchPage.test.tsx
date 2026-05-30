@@ -124,9 +124,9 @@ vi.mock('@/components/shows/overview/JudgesList', () => ({
   ),
 }));
 
-vi.mock('@/components/secretary/MyK9QAccessCard', () => ({
-  MyK9QAccessCard: ({ showId, showName }: { showId: string; showName?: string }) => (
-    <div data-testid="myk9q-access" data-show-id={showId}>
+vi.mock('@/components/secretary/ShowAccessCodesCard', () => ({
+  ShowAccessCodesCard: ({ showId, showName }: { showId: string; showName?: string }) => (
+    <div data-testid="show-access-codes" data-show-id={showId}>
       {showName}
     </div>
   ),
@@ -457,7 +457,7 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByTestId('venue-map')).toHaveTextContent('Louisville, KY');
     expect(screen.getByTestId('show-officials')).toHaveTextContent('show-1');
     expect(screen.getByTestId('judges-list')).toBeInTheDocument();
-    expect(screen.queryByTestId('myk9q-access')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('show-access-codes')).not.toBeInTheDocument();
   });
 
   // Phase B5 removed the Today and Wrap-up workbench tabs entirely. Their
@@ -575,7 +575,7 @@ describe('ShowWorkbenchPage', () => {
     expect(
       within(dialog).getByRole('heading', { name: 'Schedule delay script' })
     ).toBeInTheDocument();
-    expect(within(dialog).getByTestId('myk9q-access')).toHaveAttribute('data-show-id', 'show-1');
+    expect(within(dialog).getByTestId('show-access-codes')).toHaveAttribute('data-show-id', 'show-1');
     expect(within(dialog).getByRole('heading', { name: 'Volunteers' })).toBeInTheDocument();
     expect(within(dialog).getByRole('heading', { name: /tasks & notes/i })).toBeInTheDocument();
 

@@ -24,7 +24,7 @@ import {
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
-import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
+import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { JudgesList } from '@/components/shows/overview/JudgesList';
 import { ScheduleSummary } from '@/components/shows/overview/ScheduleSummary';
 import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
@@ -383,7 +383,7 @@ export function ShowWorkbenchPage() {
                     showName={currentShow.name}
                     defaultClassName={showClasses[0]?.name ?? ''}
                   />
-                  <MyK9QAccessCard
+                  <ShowAccessCodesCard
                     showId={currentShow.id}
                     showName={currentShow.name}
                     showDate={currentShow.startDate}

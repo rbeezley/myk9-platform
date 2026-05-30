@@ -8,7 +8,7 @@
 
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { createTestQueryClient, render, screen, act } from '@/test/utils/testUtils';
 import { UnifiedRingsideGate } from './UnifiedRingsideGate';
 import { isUnifiedRingsideDevOverride } from './atShowFeatureFlag';
 import { replicatedShowsTable } from '@/services/replication';
@@ -25,7 +25,7 @@ vi.mock('./atShowFeatureFlag', async importOriginal => {
 
 const CHILD = 'RINGSIDE CONTENT';
 
-function renderGate(showId: string) {
+function renderGate(showId: string, queryClient = createTestQueryClient()) {
   return render(
     <Routes>
       <Route
@@ -37,13 +37,14 @@ function renderGate(showId: string) {
         }
       />
     </Routes>,
-    { initialRoute: `/at-show/${showId}` }
+    { initialRoute: `/at-show/${showId}`, queryClient }
   );
 }
 
 describe('UnifiedRingsideGate', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.mocked(replicatedShowsTable.getShowById).mockReset();
+    vi.mocked(isUnifiedRingsideDevOverride).mockReset();
     vi.mocked(isUnifiedRingsideDevOverride).mockReturnValue(false);
   });
 
@@ -78,6 +79,26 @@ describe('UnifiedRingsideGate', () => {
     vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
     renderGate('show-missing');
     expect(await screen.findByText("Ringside isn't enabled for this show")).toBeInTheDocument();
+  });
+
+  it('refetches after show replication sync invalidates the shows cache', async () => {
+    const queryClient = createTestQueryClient();
+    vi.mocked(replicatedShowsTable.getShowById)
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce({
+        id: 'show-after-sync',
+        unifiedRingsideEnabled: true,
+      } as never);
+
+    renderGate('show-after-sync', queryClient);
+    expect(await screen.findByText("Ringside isn't enabled for this show")).toBeInTheDocument();
+
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: ['shows'] });
+    });
+
+    expect(await screen.findByText(CHILD)).toBeInTheDocument();
+    expect(replicatedShowsTable.getShowById).toHaveBeenCalledTimes(2);
   });
 
   it('renders an error state (not the disabled notice) when the fetch fails', async () => {

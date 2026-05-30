@@ -121,12 +121,12 @@ const CredentialsHelpPage: React.FC = () => {
           <p className="mb-6 text-sm leading-relaxed text-muted-foreground">
             Every passcode is exactly five characters. The{' '}
             <strong>first letter is your role</strong>; the four characters after it
-            identify the show. So{' '}
+            are the show-specific secret code. So{' '}
             <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">
               aa260
             </code>{' '}
-            is an <strong>admin</strong> passcode (<code className="font-mono">a</code>)
-            for show <code className="font-mono">a260</code>.
+            is an <strong>admin</strong> passcode because it starts with{' '}
+            <code className="font-mono">a</code>.
           </p>
 
           <ul className="space-y-3">

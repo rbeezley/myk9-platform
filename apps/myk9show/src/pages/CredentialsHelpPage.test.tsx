@@ -27,4 +27,10 @@ describe('CredentialsHelpPage', () => {
     expect(screen.getByText('Steward')).toBeInTheDocument();
     expect(screen.getByText('Exhibitor')).toBeInTheDocument();
   });
+
+  it('describes the suffix as a show-specific secret code', () => {
+    render(<CredentialsHelpPage />);
+    expect(screen.getByText(/show-specific secret code/i)).toBeInTheDocument();
+    expect(screen.queryByText(/for show a260/i)).not.toBeInTheDocument();
+  });
 });

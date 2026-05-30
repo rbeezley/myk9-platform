@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { useMessageStore } from '@/store/messageStore';
 import { supabase } from '@/lib/supabase-client';
 import { notifications } from '@/lib/notifications';
-import type { MessageTargetType } from '@/features/messages/components/ComposeTargetedModal';
+import type { MessageTarget } from '@/features/messages/types';
 
 export function useMessageMutations() {
   const [isSending, setIsSending] = useState(false);
@@ -39,7 +39,7 @@ export function useMessageMutations() {
   );
 
   const sendTargetedMessage = useCallback(
-    async (showId: string, target: { type: MessageTargetType; classId?: string }, body: string) => {
+    async (showId: string, target: MessageTarget, body: string) => {
       setIsSending(true);
       try {
         const { data, error } = await supabase.functions.invoke('send-targeted-message', {

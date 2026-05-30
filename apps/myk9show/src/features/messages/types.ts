@@ -32,8 +32,15 @@ export interface SendMessageParams {
   body: string;
 }
 
+export type MessageTargetType = 'class' | 'checked_in' | 'all_show';
+
+export interface MessageTarget {
+  type: MessageTargetType;
+  classId?: string;
+}
+
 export interface SendTargetedMessageParams {
   showId: string;
-  classId: string;
+  target: MessageTarget;
   body: string;
 }

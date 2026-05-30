@@ -16,8 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Send, Users } from 'lucide-react';
-
-export type MessageTargetType = 'class' | 'checked_in' | 'all_show';
+import type { MessageTarget, MessageTargetType } from '@/features/messages/types';
 
 interface ClassOption {
   id: string;
@@ -29,7 +28,7 @@ interface ClassOption {
 interface ComposeTargetedModalProps {
   open: boolean;
   onClose: () => void;
-  onSend: (target: { type: MessageTargetType; classId?: string }, body: string) => Promise<void>;
+  onSend: (target: MessageTarget, body: string) => Promise<void>;
   classes: ClassOption[];
   preSelectedClassId?: string;
 }

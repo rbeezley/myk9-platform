@@ -9,10 +9,8 @@ import { supabase } from '@/lib/supabase-client';
 import { ThreadList } from '@/features/messages/components/ThreadList';
 import { MessageBubble } from '@/features/messages/components/MessageBubble';
 import { MessageInput } from '@/features/messages/components/MessageInput';
-import {
-  ComposeTargetedModal,
-  type MessageTargetType,
-} from '@/features/messages/components/ComposeTargetedModal';
+import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
+import type { MessageTarget } from '@/features/messages/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -134,10 +132,7 @@ export default function SecretaryMessagesPage() {
     await sendMessage(activeThread.id, activeThread.show_id, body);
   };
 
-  const handleTargetedSend = async (
-    target: { type: MessageTargetType; classId?: string },
-    body: string
-  ) => {
+  const handleTargetedSend = async (target: MessageTarget, body: string) => {
     if (!selectedShowId) return;
     await sendTargetedMessage(selectedShowId, target, body);
   };

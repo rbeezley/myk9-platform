@@ -47,6 +47,19 @@ describe('send-targeted-message targeting helpers', () => {
     ).toBe(true);
   });
 
+  it('matches checked-in passcode sessions by favorited armband', () => {
+    const session = {
+      subscriptionId: 'sub-1',
+      role: 'exhibitor' as const,
+      favoritedArmbands: ['202'],
+      lastSeenAt: '2026-05-30T20:00:30.000Z',
+      lastSeenRoute: '/at-show/show-1/class/class-1',
+    };
+
+    expect(ringsideSessionMatchesTarget(session, 'checked_in', ['101', '202'])).toBe(true);
+    expect(ringsideSessionMatchesTarget(session, 'checked_in', ['101'])).toBe(false);
+  });
+
   it('suppresses push while the ringside tab is freshly present', () => {
     expect(
       isPresenceSuppressed(

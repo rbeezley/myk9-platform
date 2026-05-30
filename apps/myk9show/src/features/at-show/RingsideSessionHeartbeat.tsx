@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 
 const HEARTBEAT_MS = 30_000;
+// TODO: Replace this shim after regenerating Supabase types for the Phase 3 ringside RPCs.
 const rpc = supabase.rpc as unknown as (
   fn: string,
   args: Record<string, unknown>
@@ -33,6 +34,8 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       await rpc('upsert_ringside_session', {
         p_passcode_or_null: passcode ?? null,
         p_subscription_endpoint: endpoint,
+        // Favorites are captured in a follow-up; until then passcode class-targeting
+        // only works after the client can send the exhibitor's armband selections.
         p_favorited_armbands: [],
         p_route: route,
       });
@@ -53,14 +56,17 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       });
     };
 
-    window.addEventListener('blur', clearPresence);
-    document.addEventListener('visibilitychange', runIfVisible);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') clearPresence();
+      else runIfVisible();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       cancelled = true;
       window.clearInterval(interval);
-      window.removeEventListener('blur', clearPresence);
-      document.removeEventListener('visibilitychange', runIfVisible);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearPresence();
     };
   }, [passcode, route, showId]);

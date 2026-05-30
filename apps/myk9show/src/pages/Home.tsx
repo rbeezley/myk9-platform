@@ -10,6 +10,7 @@ import {
   ClosingWaitlist,
   LandingFooter,
 } from '@/components/landing/v2';
+import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 
 const Home: React.FC = () => {
   const closingRef = useRef<HTMLElement>(null);
@@ -56,6 +57,7 @@ const Home: React.FC = () => {
   return (
     <div className="landing-v2">
       <LandingHeader onJoinWaitlistClick={scrollToWaitlist} />
+      <ShowTodayBanner />
       <HeroPhotoLed />
       <TaglineStrip />
       <CredibilityBand />

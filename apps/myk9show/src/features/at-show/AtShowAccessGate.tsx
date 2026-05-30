@@ -5,6 +5,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { LoadingEmptyState } from '@/components/common/EmptyState';
 import { UserRole } from '@/types/auth-types';
 import { selectGrantRoleForShow, useRingsideGrantStore } from '@/store/ringsideGrantStore';
+import { useAccountTodayAutoFavorites } from '@/features/show-today/accountTodayEntries';
 
 const STAFF_ROLES = [
   UserRole.SITE_ADMIN,
@@ -26,6 +27,9 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
   const grantRole = selectGrantRoleForShow(activeGrant, showId);
   const hasAccountStaffRole = STAFF_ROLES.some(role => hasRole(role));
+  const accountToday = useAccountTodayAutoFavorites(
+    user && !grantRole && !hasAccountStaffRole ? showId : undefined
+  );
 
   // Client-only UX gate: a passcode grant admits the ringside UI for this
   // device/show, but data security remains enforced by Supabase RLS and the
@@ -38,8 +42,16 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (grantRole || hasAccountStaffRole) {
+  if (grantRole || hasAccountStaffRole || accountToday.hasAccountEntryForShow) {
     return <>{children}</>;
+  }
+
+  if (user && accountToday.isLoading) {
+    return (
+      <FullScreen>
+        <LoadingEmptyState message="Checking ringside access…" />
+      </FullScreen>
+    );
   }
 
   if (!user) {

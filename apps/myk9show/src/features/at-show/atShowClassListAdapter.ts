@@ -20,6 +20,7 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { toRingsideClassStatus } from './ringsideClassStatusMap';
+import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayEntries.helpers';
 
 /** A trial and its classes (mapped to ringside `ClassEntry`), for grouped display. */
 export interface AtShowClassGroup {
@@ -38,7 +39,11 @@ function normalizeSection(section: string | undefined): string {
   return section === 'A' || section === 'B' ? section : '';
 }
 
-function toClassEntry(cls: ReplicatedClass, entries: ReplicatedEntry[]): ClassEntry {
+function toClassEntry(
+  cls: ReplicatedClass,
+  entries: ReplicatedEntry[],
+  favoriteClassIds: Set<string>
+): ClassEntry {
   const completed = entries.filter(e => e.isScored ?? e.is_scored ?? false).length;
 
   return {
@@ -52,7 +57,7 @@ function toClassEntry(cls: ReplicatedClass, entries: ReplicatedEntry[]): ClassEn
     entry_count: entries.length,
     completed_count: completed,
     class_status: toRingsideClassStatus(cls.classStatus),
-    is_favorite: false,
+    is_favorite: favoriteClassIds.has(cls.id),
     // The card navigates by counts + identity; per-dog detail isn't needed here.
     dogs: [],
   };
@@ -84,7 +89,10 @@ export async function fetchAtShowClassList(showId: string): Promise<AtShowClassG
   return Promise.all(
     trials.map(async trial => {
       const classes = await replicatedClassesTable.getClassesByTrial(trial.id);
-      const classEntries = classes.map(cls => toClassEntry(cls, entriesByClass.get(cls.id) ?? []));
+      const favoriteClassIds = getFavoriteClassIdsForTrial(showId, trial.id);
+      const classEntries = classes.map(cls =>
+        toClassEntry(cls, entriesByClass.get(cls.id) ?? [], favoriteClassIds)
+      );
       classEntries.sort((a, b) => a.class_order - b.class_order);
       return { trial, classes: classEntries };
     })

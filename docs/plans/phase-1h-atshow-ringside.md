@@ -25,30 +25,49 @@ Worktree: `worktree-phase-1h-atshow-ringside`.
   404). 3 integration tests. Additive — does NOT refactor the secretary
   `ScoresheetPage` (D1 hook-sharing deferred to avoid touching a live surface).
 
-### Popover data — BLOCKED on an offline-first decision (owner)
+### Popover data — RESOLVED (PR #450, option b)
 The ClassDetailsPopover's Results (`visibilityPreset`) + Check-in (`selfCheckin`)
-real values come from `useSelfCheckinEnabled` / `useVisibleResultFields` /
-`useVisibilitySettings`, which read via **direct Supabase, NOT the replication
-layer** — so they don't work offline on the judge's phone. Wiring them into the
-offline-first at-show surface conflicts with the offline-first principle. DECISION
-NEEDED: (a) accept online-only popover values w/ graceful offline fallback, (b)
-add `visibility_preset`/`self_checkin` to the replication layer (offline-safe,
-larger), or (c) keep stubbed. Popover LOOK port is independent and can proceed.
+values are now offline-safe: `visibility_preset` / `self_checkin` are denormalized
+onto the replicated class row at sync time and read back through
+`atShowDataAdapter.buildClassInfo` (defaults `visibilityPreset:'standard'`,
+`selfCheckin:true` when a pre-migration cache hasn't been enriched). The chrome
+batch therefore only needed the LOOK port — no data work.
 
-### Chrome batch — remaining for PR #2 (owner: batch, don't drip element-by-element)
-- **ClassDetailsPopover** (the header info-ⓘ hover dialog): port myK9Q's look —
-  "Class Details" header + X, icon rows (Status / Entries / Judge / Max Time /
-  Results / Check-in / Class ID) with teal value badges. Source:
-  `apps/myk9q/.../dialogs/ClassDetailsPopover.tsx` (+ its `.popover-row` /
-  `.popover-badge` CSS). Keep the positioning shell host-owned (Base UI), style
-  the content to match. **+ WIRE REAL DATA (owner-approved):** the Results
-  (`visibilityPreset`) + Check-in (`selfCheckin`) values are 1a spike-stubs;
-  real values live in `class_visibility_overrides` + the `useSelfCheckinEnabled`
-  query + `services/database/visibility`. The shim should enrich `classInfo`'s
-  popover data via those existing hooks (not the replicated class row).
-- **SyncIndicator / CompactOfflineIndicator** slots: style to match myK9Q.
-- **Actions menu** (⋮ dropdown — Refresh / Check-In / Results / Scoresheets;
-  Set Run Order hidden since run-order is out of scope at-show): style to match.
+### Chrome batch — DONE (PR #2; data wiring landed earlier in #450)
+- **ClassDetailsPopover** — DONE. Ported myK9Q's look ("Class Details" header +
+  X, icon rows Status / Entries / Judge / Judge B / Max Time / Results /
+  Check-in / Class ID, tinted value badges) into the host slot
+  (`apps/myk9show/src/features/at-show/slots/atShowLayoutSlots.tsx`). Translated
+  myK9Q's semantic CSS → Tailwind tiers (`atShowChrome.helpers.ts`): myK9Show's
+  shadcn theme has no `--success/--warning/--info`, so each state maps to an
+  explicit palette tier with a dark variant (per `feedback_ringside_token_inherit`).
+  **Also fixed the 1a anchor bug** — the spike accepted `anchorRef` but never
+  consumed it, so the popover floated; now it's a fixed-position card anchored to
+  the title button with a click-away backdrop (faithful to myK9Q), plus a
+  left-edge clamp for myK9Show's wider viewport. **Real data** (`visibilityPreset`
+  / `selfCheckinEnabled`) was already wired offline-safe in `atShowDataAdapter`
+  via PR #450, so this batch was presentation-only.
+- **SyncIndicator / CompactOfflineIndicator** — DONE. SyncIndicator is now the
+  myK9Q full pill (tier-tinted, spinning glyph while syncing, pending chip,
+  retry); CompactOfflineIndicator is a neutral CloudOff chip.
+- **Actions menu** — N/A on the at-show surface. The package `ActionsDropdownMenu`
+  (`entryListHeaderHelpers.tsx`) is already Tailwind-styled and owned internally
+  by the ringside page; the at-show host shim does NOT wire an `actionsMenu` prop
+  (run-order out of scope; refresh handled elsewhere). Per CLAUDE.md "consolidate,
+  don't add surface area," no new menu was added — nothing to restyle here.
+- **Max Time parity fix:** matched myK9Q's "always show Max Time, fall back to
+  TBD" behaviour (the port had been omitting the row when empty). Hardened
+  `formatRingTime` to reject non-finite/negative input — the browser pass
+  revealed the at-show adapter passes the *string* `"TBD"` into the numeric
+  `timeLimitSeconds` field, which would otherwise render `"NaN:NaN"`. See the
+  spawned follow-up for the upstream type fix.
+- **Tests:** `atShowChrome.helpers.test.ts` (29 unit tests, green); at-show
+  suite (150) + scoped typecheck + eslint all clean.
+- **Visual-parity browser pass: DONE.** Drove myK9Show `/at-show` with the dev
+  flag on against the "Demo Scent Work Trial" seed (passcode `demo01`, Container
+  Novice). Confirmed: SyncIndicator "Synced" pill, and the ClassDetailsPopover
+  (header+X, icon rows, tinted In Progress/Open/Self badges, mono Class ID)
+  anchored under the title with a viewport clamp. No style bleed observed.
 
 ## Headline requirement (owner, 2026-05-28)
 

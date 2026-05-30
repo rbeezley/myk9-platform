@@ -16,6 +16,7 @@ import {
   type RingsidePrefetch,
   type RingsideContextValue,
   type RingsideShowContext,
+  type UserRole as RingsideRole,
 } from '@myk9/ringside';
 import { replicatedClassesTable } from '@/services/replication';
 import { UserRole as ShowRole } from '@/types/auth-types';
@@ -58,6 +59,8 @@ export function buildRingsidePrefetch(): RingsidePrefetch {
 export function buildRingsideContextValue(args: {
   showRole: ShowRole | null | undefined;
   showContext: RingsideShowContext | null;
+  /** Show-scoped passcode grant role (Phase 1c); overrides the RBAC mapping. */
+  grantRole?: RingsideRole | null;
 }): RingsideContextValue {
   return {
     auth: buildRingsideAuth(args),

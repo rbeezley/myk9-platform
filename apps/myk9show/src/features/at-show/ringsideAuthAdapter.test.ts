@@ -65,4 +65,22 @@ describe('buildRingsideAuth', () => {
     expect(auth.canAccess('canCheckInDogs')).toBe(false);
     expect(auth.canAccess('canScore')).toBe(false);
   });
+
+  // Phase 1c — passcode grant precedence over the account RBAC mapping.
+  it('grantRole overrides the account RBAC role (exhibitor account + judge passcode → judge)', () => {
+    const auth = buildRingsideAuth({ showRole: ShowRole.EXHIBITOR, showContext, grantRole: 'judge' });
+    expect(auth.role).toBe('judge');
+    expect(auth.canAccess('canScore')).toBe(true);
+  });
+
+  it('falls back to the RBAC mapping when grantRole is null (passcode-less account)', () => {
+    const auth = buildRingsideAuth({ showRole: ShowRole.JUDGE, showContext, grantRole: null });
+    expect(auth.role).toBe('judge');
+  });
+
+  it('a grant can grant access even when the account has no mapped role', () => {
+    const auth = buildRingsideAuth({ showRole: null, showContext, grantRole: 'admin' });
+    expect(auth.role).toBe('admin');
+    expect(auth.canAccess('canViewPasscodes')).toBe(true);
+  });
 });

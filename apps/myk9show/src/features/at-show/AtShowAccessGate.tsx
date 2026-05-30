@@ -27,6 +27,9 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   const grantRole = selectGrantRoleForShow(activeGrant, showId);
   const hasAccountStaffRole = STAFF_ROLES.some(role => hasRole(role));
 
+  // Client-only UX gate: a passcode grant admits the ringside UI for this
+  // device/show, but data security remains enforced by Supabase RLS and the
+  // replication layer. Do not treat `grantRole` as a server authorization token.
   if (loading) {
     return (
       <FullScreen>
@@ -48,9 +51,12 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
     <FullScreen>
       <div className="max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
         <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-        <p className="mb-2 text-lg font-medium">You don&apos;t have ringside access for this show.</p>
+        <p className="mb-2 text-lg font-medium">
+          You don&apos;t have ringside access for this show.
+        </p>
         <p className="text-sm text-muted-foreground">
-          Enter the passcode your secretary gave you, or ask the secretary for the right show access.
+          Enter the passcode your secretary gave you, or ask the secretary for the right show
+          access.
         </p>
       </div>
     </FullScreen>

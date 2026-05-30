@@ -87,16 +87,9 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   const isLongPressRef = React.useRef(false);
   const [isLongPressing, setIsLongPressing] = React.useState(false);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
-    disabled: !isDragMode || isInRing // Disable dragging when NOT in drag mode or for in-ring dogs
+    disabled: !isDragMode || isInRing, // Disable dragging when NOT in drag mode or for in-ring dogs
   });
 
   const style = {
@@ -184,16 +177,19 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         handler={entry.handler}
         onClick={handleCardClick}
         onPrefetch={() => onPrefetch?.(entry)}
-        className={`${hasPermission('canScore') && !entry.isScored ? 'clickable' : ''
-          } ${entry.status === 'in-ring' ? 'in-ring' : ''}`}
+        className={`${
+          hasPermission('canScore') && !entry.isScored ? 'clickable' : ''
+        } ${entry.status === 'in-ring' ? 'in-ring' : ''}`}
         statusBorder={getStatusBorderClass(entry)}
         resultBadges={<ResultBadges entry={entry} showContext={showContext} />}
         sectionBadge={sectionBadge}
-        dragHandle={isDragMode && !isInRing ? (
-          <div {...attributes} {...listeners} className="drag-handle">
-            <GripVertical size={20} />
-          </div>
-        ) : undefined}
+        dragHandle={
+          isDragMode && !isInRing ? (
+            <div {...attributes} {...listeners} className="drag-handle">
+              <GripVertical size={20} />
+            </div>
+          ) : undefined
+        }
         actionButton={
           !entry.isScored ? (
             <StatusBadge
@@ -251,7 +247,11 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick })
 
   React.useEffect(() => {
     // Only animate if timestamp changed (not on initial mount)
-    if (entryTimestamp && prevTimestampRef.current !== undefined && entryTimestamp !== prevTimestampRef.current) {
+    if (
+      entryTimestamp &&
+      prevTimestampRef.current !== undefined &&
+      entryTimestamp !== prevTimestampRef.current
+    ) {
       setIsAnimating(true);
       const timer = setTimeout(() => setIsAnimating(false), 500);
       return () => clearTimeout(timer);
@@ -293,8 +293,9 @@ interface ResetButtonProps {
 const ResetButton: React.FC<ResetButtonProps> = ({ onClick }) => (
   <button
     className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground active:scale-95"
+    data-testid="reset-menu-button"
     onClick={onClick}
-    onMouseDown={(e) => e.stopPropagation()}
+    onMouseDown={e => e.stopPropagation()}
     aria-label="More options"
     title="Reset score"
   >

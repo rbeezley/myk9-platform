@@ -131,6 +131,33 @@ describe('SmartSignInPage', () => {
     expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x');
   });
 
+  it('signed-in QR passcode link confirms before routing into ringside', async () => {
+    mockUser = { id: 'user-1' };
+    validatePasscodeMock.mockResolvedValue({
+      ok: true,
+      role: 'steward',
+      showId: 'show-qr',
+      showName: 'QR Trial',
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/at-show?code=S7QR9' });
+
+    await user.click(screen.getByTestId('continue-button'));
+
+    expect(await screen.findByText('Join this show?')).toBeInTheDocument();
+    expect(screen.getByText(/join QR Trial as a gate steward/i)).toBeInTheDocument();
+    expect(setGrantSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Join show' }));
+
+    expect(setGrantSpy).toHaveBeenCalledWith({
+      showId: 'show-qr',
+      role: 'steward',
+      source: 'passcode',
+    });
+    expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-qr');
+  });
+
   it('shows a calm error when the passcode is rejected', async () => {
     validatePasscodeMock.mockResolvedValue({
       ok: false,

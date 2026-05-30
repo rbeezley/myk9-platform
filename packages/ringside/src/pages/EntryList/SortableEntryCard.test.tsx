@@ -144,7 +144,7 @@ describe('SortableEntryCard', () => {
       />
     );
 
-    const resetButton = screen.getByLabelText('More options');
+    const resetButton = screen.getByTestId('reset-menu-button');
     expect(resetButton.className).toContain('reset-menu-button');
     expect(resetButton.className).toContain('min-h-11');
     expect(resetButton.className).toContain('min-w-11');

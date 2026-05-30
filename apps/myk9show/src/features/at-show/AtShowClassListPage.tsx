@@ -21,13 +21,11 @@ import {
   type ClassEntry,
 } from '@myk9/ringside';
 import { useAtShowClassList } from './useAtShowClassList';
-import { useAccountTodayAutoFavorites } from '@/features/show-today/accountTodayEntries';
 
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
   const { groups, organization, showName, isLoading, error } = useAtShowClassList(showId);
-  useAccountTodayAutoFavorites(showId);
 
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(

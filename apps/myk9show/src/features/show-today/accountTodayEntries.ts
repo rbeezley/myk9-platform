@@ -49,10 +49,24 @@ export async function fetchHydratedAccountTodayEntries(): Promise<HydratedAccoun
 
 export function useAccountTodayEntries(options: UseAccountTodayEntriesOptions = {}) {
   const { user } = useAuthContext();
+  const queryClient = useQueryClient();
   const enabled = (options.enabled ?? true) && !!user;
+  const queryKey = useMemo(() => accountTodayEntriesQueryKey(user?.id), [user?.id]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const invalidate = () => void queryClient.invalidateQueries({ queryKey });
+    const unsubscribes = [
+      replicatedEntriesTable.subscribe(invalidate),
+      replicatedClassesTable.subscribe(invalidate),
+      replicatedTrialsTable.subscribe(invalidate),
+      replicatedShowsTable.subscribe(invalidate),
+    ];
+    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+  }, [enabled, queryClient, queryKey]);
 
   return useQuery({
-    queryKey: accountTodayEntriesQueryKey(user?.id),
+    queryKey,
     queryFn: fetchHydratedAccountTodayEntries,
     enabled,
     staleTime: 60_000,

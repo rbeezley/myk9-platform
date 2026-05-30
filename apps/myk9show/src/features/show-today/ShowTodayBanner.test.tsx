@@ -92,7 +92,7 @@ describe('ShowTodayBanner', () => {
         {
           showId: 'show-early',
           showName: 'Morning Trial',
-          earliestClassTime: '08:00',
+          earliestClassTime: '08:5',
           entryCount: 1,
           classCount: 1,
         },
@@ -113,7 +113,7 @@ describe('ShowTodayBanner', () => {
 
     const rows = screen.getAllByRole('button');
     expect(rows.map(row => row.textContent)).toEqual([
-      'Morning TrialFirst class 8:00 AM',
+      'Morning TrialFirst class 8:05 AM',
       'Afternoon TrialFirst class 1:00 PM',
     ]);
   });

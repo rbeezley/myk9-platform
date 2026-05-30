@@ -12,7 +12,7 @@ function formatTime(time: string | null): string {
   if (!Number.isFinite(hourNumber)) return time;
   const period = hourNumber >= 12 ? 'PM' : 'AM';
   const displayHour = hourNumber % 12 || 12;
-  return `${displayHour}:${minute.padEnd(2, '0')} ${period}`;
+  return `${displayHour}:${minute.padStart(2, '0')} ${period}`;
 }
 
 export function ShowTodayBanner() {

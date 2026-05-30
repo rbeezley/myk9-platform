@@ -11,7 +11,12 @@
  * - Full sync (no updated_at column on armbands table)
  */
 
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
@@ -79,116 +84,36 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
    * Full sync — armbands table has no updated_at column.
    */
   async sync(_licenseKey?: string): Promise<SyncResult> {
-    const startTime = Date.now();
-    const errors: string[] = [];
-    let rowsSynced = 0;
-    let conflictsResolved = 0;
+    logger.log(`[${this.getTableName()}] Starting full sync`);
 
-    try {
-      logger.log(`[${this.getTableName()}] Starting full sync`);
+    const adapter: SyncReplicatedTableAdapter<ArmbandRow, ReplicatedArmband> = {
+      fetchRemoteRows: async () => {
+        const { data, error } = await supabase
+          .from('armbands')
+          .select('*')
+          .eq('is_available', false)
+          .order('created_at', { ascending: true });
 
-      // Full sync: fetch all armbands (only assigned ones, not available pool)
-      const { data: remoteRows, error } = await supabase
-        .from('armbands')
-        .select('*')
-        .eq('is_available', false)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        errors.push(error.message);
-        throw new Error(`Supabase query failed: ${error.message}`);
-      }
-
-      if (!remoteRows || remoteRows.length === 0) {
-        logger.log(`[${this.getTableName()}] No armbands found`);
-
-        // Clear local cache since there are no remote armbands
-        await this.clearCache();
-
-        await this.updateSyncMetadata({
-          lastIncrementalSyncAt: Date.now(),
-          syncStatus: 'idle',
-        });
-
-        return {
-          tableName: this.getTableName(),
-          success: true,
-          operation: 'full-sync',
-          rowsAffected: 0,
-          conflictsResolved: 0,
-          duration: Date.now() - startTime,
-        };
-      }
-
-      // Build a set of remote IDs for pruning
-      const remoteIds = new Set(remoteRows.map(r => String(r.id)));
-
-      // Prune local armbands that no longer exist remotely
-      const localArmbands = await this.getAll();
-      for (const local of localArmbands) {
-        if (!remoteIds.has(local.id)) {
-          await this.delete(local.id);
-        }
-      }
-
-      // Process each armband
-      for (const remoteRow of remoteRows) {
-        const armbandId = String(remoteRow.id);
-        const remoteArmband = rowToArmband(remoteRow as unknown as ArmbandRow);
-        const localArmband = await this.get(armbandId);
-
-        if (localArmband) {
-          const resolved = this.resolveConflict(localArmband, remoteArmband);
-          await this.set(armbandId, resolved);
-          conflictsResolved++;
-        } else {
-          await this.set(armbandId, remoteArmband);
+        if (error) {
+          throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        rowsSynced++;
-      }
+        return (data ?? []) as unknown as ArmbandRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToArmband,
+      resolveConflict: (_local, remote) => remote,
+      shouldCleanupStaleRows: true,
+    };
 
-      await this.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now(),
-        syncStatus: 'idle',
-      });
+    const result = await syncReplicatedTable(this, adapter, {}, { forceFullSync: true });
 
-      const duration = Date.now() - startTime;
-      logger.log(
-        `[${this.getTableName()}] Sync complete: ${rowsSynced} rows, ${conflictsResolved} conflicts, ${duration}ms`
-      );
-
-      return {
-        tableName: this.getTableName(),
-        success: true,
-        operation: 'full-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration,
-      };
-    } catch (error) {
-      const errorMessage = getSyncErrorMessage(error);
-      errors.push(errorMessage);
-
-      await this.updateSyncMetadata({
-        syncStatus: 'error',
-        errorMessage,
-      });
-
-      if (!isAbortSyncError(error)) {
-        logger.error(`[${this.getTableName()}] Sync failed:`, error);
-      }
-
-      return {
-        tableName: this.getTableName(),
-        success: false,
-        operation: 'full-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-        error: errorMessage,
-      };
+    if (!result.success && result.error && !isAbortSyncError(result.error)) {
+      logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
+      return { ...result, error: getSyncErrorMessage(result.error) };
     }
+
+    return result;
   }
 
   /**

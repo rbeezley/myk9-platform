@@ -1,7 +1,7 @@
 // apps/myk9show/src/components/preferences/__tests__/GeneralSettings.test.tsx
 import { render, screen } from '@/test/utils/testUtils';
 import { GeneralSettings } from '../GeneralSettings';
-import { useSettingsStore } from './store/settingsStore';
+import { useSettingsStore } from '@/store/settingsStore';
 
 // Mock the haptic feedback hook
 vi.mock('@myk9/scoring-ui', () => ({

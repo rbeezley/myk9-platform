@@ -30,7 +30,7 @@ vi.mock('@/hooks/useKeyboardShortcuts', () => ({
   getShortcutDisplays: () => [],
 }));
 
-vi.mock('@/stores/cartStore', () => ({
+vi.mock('@/store/cartStore', () => ({
   useCartItemCount: () => 0,
 }));
 

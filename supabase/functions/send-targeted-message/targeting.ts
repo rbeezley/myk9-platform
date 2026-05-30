@@ -39,6 +39,8 @@ export function ringsideSessionMatchesTarget(
   targetType: TargetType,
   armbands: string[]
 ): boolean {
+  // Targeted secretary messages are exhibitor-facing; judge/steward passcode
+  // sessions are intentionally excluded until staff broadcasts are split out.
   if (session.role !== 'exhibitor') return false;
   if (targetType === 'all_show') return true;
   if (armbands.length === 0) return false;

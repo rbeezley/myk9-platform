@@ -121,6 +121,9 @@ async function fetchRingsidePushTargets(
   targetType: TargetType,
   armbands: string[]
 ): Promise<Array<{ session: RingsideSessionSource; subscription: PushSubscriptionRow }>> {
+  // The secretary targeted-message surface is currently exhibitor messaging.
+  // Staff passcode roles need a separate operational broadcast lane before they
+  // are included in "all show" notifications.
   const { data, error } = await supabase
     .from('ringside_sessions')
     .select(

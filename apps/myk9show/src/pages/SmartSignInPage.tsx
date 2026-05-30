@@ -14,7 +14,12 @@ import type { UserRole as RingsideRole } from '@myk9/ringside';
 const INVALID_COPY =
   'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
 
-type PendingPasscode = { showId: string; showName: string; role: RingsideRole };
+type PendingPasscode = {
+  showId: string;
+  showName: string;
+  role: RingsideRole;
+  passcode: string;
+};
 
 /**
  * SmartSignInPage — the single email-or-passcode front door (Phase 1b).
@@ -98,7 +103,12 @@ const SmartSignInPage: React.FC = () => {
       }
       if (user) {
         // Signed-in account: confirm before expanding role (Phase 1c §2.2).
-        setPending({ showId: result.showId, showName: result.showName, role: result.role });
+        setPending({
+          showId: result.showId,
+          showName: result.showName,
+          role: result.role,
+          passcode: normalizedCredential,
+        });
       } else {
         // Anonymous: the passcode itself is the show-scoped grant. Keep it in
         // memory before routing so `/at-show/:showId` can admit this device
@@ -136,7 +146,7 @@ const SmartSignInPage: React.FC = () => {
     setGrant({
       showId: pending.showId,
       role: pending.role,
-      passcode: normalizeCredential(credential),
+      passcode: pending.passcode,
       source: 'passcode',
     });
     navigate(`/at-show/${pending.showId}`);

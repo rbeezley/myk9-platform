@@ -83,4 +83,16 @@ describe('buildRingsideAuth', () => {
     expect(auth.role).toBe('admin');
     expect(auth.canAccess('canViewPasscodes')).toBe(true);
   });
+
+  it('grant override is unconditional — an exhibitor passcode on an admin account resolves to exhibitor for that show', () => {
+    // The passcode is authoritative for its show, even when "lower" than the
+    // account RBAC role (see buildRingsideAuth doc). Pins the intended semantic.
+    const auth = buildRingsideAuth({
+      showRole: ShowRole.SECRETARY,
+      showContext,
+      grantRole: 'exhibitor',
+    });
+    expect(auth.role).toBe('exhibitor');
+    expect(auth.canAccess('canManageClasses')).toBe(false);
+  });
 });

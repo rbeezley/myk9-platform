@@ -31,6 +31,18 @@ describe('useRingsideGrantStore', () => {
     useRingsideGrantStore.getState().clearGrant();
     expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
   });
+
+  it('setGrant replaces a prior grant (single active grant, no merge)', () => {
+    useRingsideGrantStore.getState().setGrant(judgeGrantForX);
+    const adminGrantForY: RingsideGrant = { showId: 'show-Y', role: 'admin', source: 'account' };
+    useRingsideGrantStore.getState().setGrant(adminGrantForY);
+    expect(useRingsideGrantStore.getState().activeGrant).toEqual(adminGrantForY);
+  });
+
+  it('resolves a grant with source "account"', () => {
+    const accountGrant: RingsideGrant = { showId: 'show-X', role: 'admin', source: 'account' };
+    expect(selectGrantRoleForShow(accountGrant, 'show-X')).toBe('admin');
+  });
 });
 
 describe('selectGrantRoleForShow', () => {

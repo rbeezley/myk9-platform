@@ -1,6 +1,8 @@
 # Architecture Deepening Plan
 
 Status: proposed (2026-05-30). Output of the `improve-codebase-architecture` skill.
+Phases reordered 2026-05-30 to a sunset-aware execution sequence (see
+"Relationship to the unify plan").
 
 ## Framing
 
@@ -17,13 +19,15 @@ Vocabulary follows two sources deliberately:
 - **Architecture** terms (module, interface, seam, adapter, depth, leverage,
   locality, deletion test) from the skill's `LANGUAGE.md`.
 
-Phases are ordered by leverage-per-risk. They are independent enough to ship in
-any order, but the listed order front-loads the highest payback. Each phase is a
-separate worktree + PR (see [`CLAUDE.md`](../CLAUDE.md) worktree workflow). **No
-phase is complete until its tests are written and passing and
-`pnpm typecheck` is green.**
+Phases are **numbered in recommended execution order** (sunset-aware — see
+"Relationship to the unify plan" below). They are independent enough to ship in
+other orders, but the numbering front-loads work that *shrinks what the
+myK9Q→myK9Show unification has to carry*, then the additive seam the unification
+can adopt, then the work that depends on it. Each phase is a separate worktree +
+PR (see [`CLAUDE.md`](../CLAUDE.md) worktree workflow). **No phase is complete
+until its tests are written and passing and `pnpm typecheck` is green.**
 
-### [REVISED] Scope: myK9Show only (myK9Q sunset)
+### Scope: myK9Show only (myK9Q sunset)
 
 myK9Q is being unified into myK9Show and removed from the monorepo (memory
 `project_monorepo_decision`; ringside surface lands in `packages/ringside` +
@@ -33,23 +37,105 @@ path and any work there is wasted. The myK9Q removal itself is the unify plan's
 job, not this plan's; the deletion-test win it represents is acknowledged but not
 owned here. Shared `packages/*` (`replication`, `ringside`, `secretary`,
 `scoring`, `core`, `ui`) survive the removal and remain in scope where a phase
-touches them. As ringside surface migrates into myK9Show, Phases 2 and 4 grow in
+touches them. As ringside surface migrates into myK9Show, Phases 3 and 4 grow in
 value (more callers behind the invalidation contract; the `packages/ringside`
 `entryStore` enters myK9Show's store-naming space).
 
-**[ADDED] Shared-package overlap window.** Until the unify plan actually deletes
+**Shared-package overlap window.** Until the unify plan actually deletes
 `apps/myk9q`, the shared `packages/*` (notably `packages/replication`) are still
 consumed by the live myK9Q app. Any phase that edits a shared package must keep
-its **interface** backward-compatible for the overlap — e.g. Phase 1 changes only
+its **interface** backward-compatible for the overlap — e.g. Phase 2 changes only
 myK9Show *adapter files* and must **not** alter the `syncReplicatedTable` /
 `SyncReplicatedTableAdapter` signature in a way that breaks myK9Q's adapters while
 they still exist. If a shared-interface change is unavoidable, sequence it after
 the myK9Q removal lands. Verify with `pnpm typecheck` at the **workspace** root
 (not just the myK9Show app) so a break in the still-present myK9Q surfaces.
 
+### Relationship to the unify plan
+
+This plan does **not** wait for the unify plan to finish. Most of it is
+consolidation/deletion — and consolidation done *before* an inward merge is
+leverage; done *after*, it is the same work plus reconciling whatever the merge
+dragged in. The numbering encodes three buckets:
+
+- **Do now — shrinks what the unify has to carry (Phases 1–3).**
+  - **Phase 1 (delete dead code)** — removes ~1,900 lines of noise the merge would
+    otherwise navigate. Fully independent.
+  - **Phase 2 (replication adapters)** — establishes the `syncReplicatedTable()`
+    pattern *so tables ringside ports in are born on the seam* (the forward
+    principle). Doing it after the merge means more adapters to migrate, not fewer.
+  - **Phase 3 (myK9Show store/context consolidation)** — collapsing the two
+    myK9Show `entryStore`s *now* shrinks the naming collision **before** the
+    `packages/ringside` store arrives. Do the two-thirds resolvable today; defer
+    the ringside reconciliation.
+- **Do now — additive seam the unify adopts (Phase 4).**
+  - **Phase 4 (invalidation contract)** — build it (at least the `entries/` slice)
+    so new ringside-driven callers adopt it *at birth* rather than being
+    retrofitted. Purely additive; no conflict with merge work.
+- **Defer until a dependency lands (Phases 5–6 + one sliver of Phase 3).**
+  - **Phase 5 (entry-management orchestration)** — depends on Phase 4 and is the
+    highest-risk phase; sequence it after Phase 4 settles.
+  - **Phase 3's ringside `entryStore` reconciliation** — genuinely blocked on the
+    ringside merge; the only true "wait" in the plan.
+  - **Phase 6 (judges ADR-008)** — opportunistic; do whenever `judges/` is touched.
+
+**Contention caution (not a timing reason to wait).** Multiple agents are
+actively working the at-show/ringside surface in `apps/myk9show`. Phase 2 touches
+`apps/myk9show/src/services/replication/` and Phase 3 touches its stores — if a
+live at-show PR edits those same files you will get conflicts. Before starting
+Phase 2 or 3, run `gh pr list` for in-flight at-show work touching those paths,
+work in a worktree, and ship small per-adapter / per-move PRs so any collision
+bisects cleanly.
+
 ---
 
-## Phase 1 — Collapse hand-rolled Replicated Table Sync adapters onto `syncReplicatedTable()`
+## Phase 1 — Delete zero-leverage data-access modules
+
+### Goal
+Shrink the true surface a codebase-walking agent (and the unify merge) must read
+and rule out. Lowest-risk phase; makes every later phase's greps cleaner.
+
+### Friction (deletion test, literally)
+Deleting these concentrates no complexity anywhere because nothing calls them —
+~1,900 lines of dead surface.
+
+### Files (verified zero live importers, 2026-05-30)
+- [`batchOperations.ts`](../apps/myk9show/src/services/database/batchOperations.ts)
+  (413L, 0 importers)
+- [`connection-pool.ts`](../apps/myk9show/src/services/database/connection-pool.ts)
+  (431L, 0 importers)
+- `apps/myk9show/src/services/database/queries/search-*-queries.ts` cluster
+  (~1,050L; reachable only through an unused barrel — confirm the
+  `searchQueries.ts` barrel and `useSearchDatabase` consumer first).
+
+**Explicitly excluded** (verified live, do NOT delete): `show-incidents.ts`
+(4 importers in `features/show-workbench/`), `shows/reads.postgrest.ts`
+(delegated to from `shows/reads.ts`).
+
+### Steps
+1. Re-run the liveness grep immediately before deletion (call sites rot in both
+   directions).
+2. For the `queries/` search cluster: confirm whether `useSearchDatabase` uses
+   the barrel at all; if the barrel is dead too, remove it; if live, delete only
+   the orphaned members and keep the barrel honest.
+3. Delete with `git rm` (per memory `feedback_git_rm_vs_rm`).
+4. `grep -rn <symbol> --include="*.md"` before pushing (per
+   `feedback_grep_docs_before_deletion`) — remove stale doc references.
+
+### Tests
+- `pnpm typecheck` + `pnpm build` must stay green (proves nothing imported them).
+- Full test suite run; no test should reference the deleted modules.
+
+### Acceptance
+- Files removed; typecheck/build/tests green; no doc references dangling.
+
+### Risk / notes
+Low, contingent on the re-verified grep. If any importer appears, drop that file
+from the phase rather than forcing the delete.
+
+---
+
+## Phase 2 — Collapse hand-rolled Replicated Table Sync adapters onto `syncReplicatedTable()`
 
 > **[REVISED — myK9Q sunset]** myK9Q is being removed from the monorepo (unify
 > direction, memory `project_monorepo_decision`). Refactoring code slated for
@@ -97,7 +183,8 @@ If the ringside unification gives myK9Show offline parity for a capability myK9Q
 replicated (e.g. offline announcements/visibility on `/at-show`), build the new
 myK9Show adapter **on `syncReplicatedTable()` from day one** — port the
 *capability*, never copy myK9Q's hand-rolled loop. This keeps the seam universal
-as surface migrates in.
+as surface migrates in. (This is why Phase 2 runs *before* the merge completes —
+so the pattern is in place for the tables it brings.)
 
 ### Steps
 1. Read `ReplicatedEntriesTable` (myK9Show) as the canonical adapter shape.
@@ -141,16 +228,79 @@ as surface migrates in.
 Low–medium (was medium; halved scope and no longer touches the app being
 deleted). Conflict-resolution regressions are the residual hazard — mitigate by
 behavior-preserving migration and the dirty-row assertion in every adapter test.
-Ship per-adapter PRs so a regression bisects to one table.
+Ship per-adapter PRs so a regression bisects to one table. Honor the
+shared-package overlap window (Framing): do not change the `syncReplicatedTable`
+interface while myK9Q still exists.
 
 ---
 
-## Phase 2 — Give each entity data-access module ownership of its cache-invalidation contract
+## Phase 3 — Consolidate duplicated state directories and the twin `entryStore`
+
+### Goal
+One predictable home per state concern; remove the `entryStore` name collision —
+**before** the ringside merge widens it.
+
+### Friction
+`apps/myk9show/src/store/` (52 stores) **and** `stores/` (5) both exist; `context/`
+**and** `contexts/` both exist. No rule says which a new module belongs in — the
+seam's *location* is ambiguous, which hurts AI-navigability. Two modules named
+`entryStore.ts` export different `Entry` types (`store/entryStore.ts` →
+`SyncableShowEntry`, the show-entry domain store with 55 call sites;
+`stores/entryStore.ts` → a checkout `Entry`, reachable only via `stores/index.ts`).
+Autocomplete offers two incompatible `entryStore`s — an active import footgun.
+**[REVISED — myK9Q sunset]** A *third* `entryStore` lives in `packages/ringside`;
+as the ringside surface lands in myK9Show, it enters the same naming space. Settle
+the canonical-directory rule and the rename in this phase **before** the ringside
+merge widens the collision, and decide whether the ringside store is the canonical
+ringside-entry source myK9Show consumes (likely yes) vs. a fourth duplicate.
+**[ADDED] Timing:** do not block this phase on the ringside merge. If ringside
+has not yet landed in myK9Show, consolidate the **two existing myK9Show stores**
+now (the `store/` vs `stores/` `entryStore`) and record the canonical-directory
+rule; reconcile the `packages/ringside` store as a follow-up the moment its
+surface lands. Two-thirds of the collision is resolvable today.
+
+### Files
+- `apps/myk9show/src/store/` ↔ `apps/myk9show/src/stores/`
+- `apps/myk9show/src/context/` ↔ `apps/myk9show/src/contexts/`
+- Collision: `store/entryStore.ts` vs `stores/entryStore.ts`
+  (+ `stores/index.ts` re-export).
+
+### Steps
+1. Pick the surviving directory per concern (recommend the higher-population
+   `store/` and `context/` as canonical; confirm in grilling). Document the rule
+   so future stores have one home.
+2. Rename the checkout store to its actual concern — it neighbors `cartStore`, so
+   `cart`/`submission`-flavored naming removes the `Entry` collision.
+3. Move files, update import paths (mechanical), delete emptied directories.
+4. Re-point `stores/index.ts` consumers.
+
+### Tests
+- This is a move/rename refactor: `pnpm typecheck` is the primary gate (no
+  dangling imports).
+- Run existing store tests; add none unless a rename changes a public type.
+- Smoke-verify the scoring/checkout surface that consumed `stores/*` in preview.
+
+### Acceptance
+- One `store/` and one `context/` directory; the duplicates are gone.
+- Exactly one module named `entryStore` in myK9Show; `grep entryStore` returns one
+  myK9Show answer (the `packages/ringside` store is reconciled separately when the
+  merge lands).
+- `pnpm typecheck` green in myK9Show.
+
+### Risk / notes
+Low (near-zero behavior change; the `/stores/entryStore` twin has effectively no
+direct callers). Pure locality/navigability win. Watch contention with active
+at-show PRs touching `store/` (Framing).
+
+---
+
+## Phase 4 — Give each entity data-access module ownership of its cache-invalidation contract
 
 ### Goal
 Make "what becomes stale when I write entity X" part of the entity module's
 **interface**, instead of knowledge re-derived in callers. Today `queryKeys`
-appears in 65 files and `invalidateQueries` in 83.
+appears in 65 files and `invalidateQueries` in 83. Build it now so ringside-driven
+callers adopt it at birth.
 
 ### Friction (deletion test)
 The canonical entity modules own reads/writes but the invalidation ripple lives
@@ -213,7 +363,7 @@ invalidation paths alive as a compatibility shim; migrate callers outright.
 
 ---
 
-## Phase 3 — Lift entry-management orchestration behind a testable seam
+## Phase 5 — Lift entry-management orchestration behind a testable seam
 
 ### Goal
 Move the optimistic-update → lifecycle-transition → invalidation → **rollback**
@@ -236,7 +386,7 @@ tested, bugs hide in the orchestration" shape.
 - `apps/myk9show/src/hooks/__tests__/useEntryManagementActions.test.ts` (currently
   2 cases)
 - Composes (does not replace): `entries/lifecycle.ts`, `entries/writes.ts`,
-  `entries/secretary.ts`, and the Phase 2 invalidation contract.
+  `entries/secretary.ts`, and the Phase 4 invalidation contract.
 
 ### Steps
 1. Identify the orchestration units inside the hook: status change + rollback,
@@ -254,8 +404,8 @@ tested, bugs hide in the orchestration" shape.
      so future reviews don't treat it as drift.
 3. Keep optimistic UI state in the hook; move the *decision logic* (when to
    roll back, what to invalidate, ordering) into the module.
-4. Coordinate with Phase 2: the module should consume the entity invalidation
-   contract, not re-derive keys.
+4. Coordinate with Phase 4: the module should consume the entity invalidation
+   contract, not re-derive keys. (This is why Phase 5 runs after Phase 4.)
 
 ### Tests
 - Drive the extracted module directly with fake adapters:
@@ -277,107 +427,6 @@ tested, bugs hide in the orchestration" shape.
 Medium-high (touches a hot secretary surface). Behavior-preserving extraction;
 verify in the browser preview (secretary entries management) before merge. Honor
 any `// INTENT:` comments per `docs/INTENT.md`.
-
----
-
-## Phase 4 — Consolidate duplicated state directories and the twin `entryStore`
-
-### Goal
-One predictable home per state concern; remove the `entryStore` name collision.
-
-### Friction
-`apps/myk9show/src/store/` (52 stores) **and** `stores/` (5) both exist; `context/`
-**and** `contexts/` both exist. No rule says which a new module belongs in — the
-seam's *location* is ambiguous, which hurts AI-navigability. Two modules named
-`entryStore.ts` export different `Entry` types (`store/entryStore.ts` →
-`SyncableShowEntry`, the show-entry domain store with 55 call sites;
-`stores/entryStore.ts` → a checkout `Entry`, reachable only via `stores/index.ts`).
-Autocomplete offers two incompatible `entryStore`s — an active import footgun.
-**[REVISED — myK9Q sunset]** A *third* `entryStore` lives in `packages/ringside`;
-as the ringside surface lands in myK9Show, it enters the same naming space. Settle
-the canonical-directory rule and the rename in this phase **before** the ringside
-merge widens the collision, and decide whether the ringside store is the canonical
-ringside-entry source myK9Show consumes (likely yes) vs. a fourth duplicate.
-**[ADDED] Timing:** do not block this phase on the ringside merge. If ringside
-has not yet landed in myK9Show, consolidate the **two existing myK9Show stores**
-now (the `store/` vs `stores/` `entryStore`) and record the canonical-directory
-rule; reconcile the `packages/ringside` store as a follow-up the moment its
-surface lands. Two-thirds of the collision is resolvable today.
-
-### Files
-- `apps/myk9show/src/store/` ↔ `apps/myk9show/src/stores/`
-- `apps/myk9show/src/context/` ↔ `apps/myk9show/src/contexts/`
-- Collision: `store/entryStore.ts` vs `stores/entryStore.ts`
-  (+ `stores/index.ts` re-export).
-
-### Steps
-1. Pick the surviving directory per concern (recommend the higher-population
-   `store/` and `context/` as canonical; confirm in grilling). Document the rule
-   so future stores have one home.
-2. Rename the checkout store to its actual concern — it neighbors `cartStore`, so
-   `cart`/`submission`-flavored naming removes the `Entry` collision.
-3. Move files, update import paths (mechanical), delete emptied directories.
-4. Re-point `stores/index.ts` consumers.
-
-### Tests
-- This is a move/rename refactor: `pnpm typecheck` is the primary gate (no
-  dangling imports).
-- Run existing store tests; add none unless a rename changes a public type.
-- Smoke-verify the scoring/checkout surface that consumed `stores/*` in preview.
-
-### Acceptance
-- One `store/` and one `context/` directory; the duplicates are gone.
-- Exactly one module named `entryStore`; `grep entryStore` returns one answer.
-- `pnpm typecheck` green in myK9Show.
-
-### Risk / notes
-Low (near-zero behavior change; the `/stores/entryStore` twin has effectively no
-direct callers). Pure locality/navigability win.
-
----
-
-## Phase 5 — Delete zero-leverage data-access modules
-
-### Goal
-Shrink the true surface a codebase-walking agent must read and rule out.
-
-### Friction (deletion test, literally)
-Deleting these concentrates no complexity anywhere because nothing calls them —
-~1,900 lines of dead surface.
-
-### Files (verified zero live importers, 2026-05-30)
-- [`batchOperations.ts`](../apps/myk9show/src/services/database/batchOperations.ts)
-  (413L, 0 importers)
-- [`connection-pool.ts`](../apps/myk9show/src/services/database/connection-pool.ts)
-  (431L, 0 importers)
-- `apps/myk9show/src/services/database/queries/search-*-queries.ts` cluster
-  (~1,050L; reachable only through an unused barrel — confirm the
-  `searchQueries.ts` barrel and `useSearchDatabase` consumer first).
-
-**Explicitly excluded** (verified live, do NOT delete): `show-incidents.ts`
-(4 importers in `features/show-workbench/`), `shows/reads.postgrest.ts`
-(delegated to from `shows/reads.ts`).
-
-### Steps
-1. Re-run the liveness grep immediately before deletion (call sites rot in both
-   directions).
-2. For the `queries/` search cluster: confirm whether `useSearchDatabase` uses
-   the barrel at all; if the barrel is dead too, remove it; if live, delete only
-   the orphaned members and keep the barrel honest.
-3. Delete with `git rm` (per memory `feedback_git_rm_vs_rm`).
-4. `grep -rn <symbol> --include="*.md"` before pushing (per
-   `feedback_grep_docs_before_deletion`) — remove stale doc references.
-
-### Tests
-- `pnpm typecheck` + `pnpm build` must stay green (proves nothing imported them).
-- Full test suite run; no test should reference the deleted modules.
-
-### Acceptance
-- Files removed; typecheck/build/tests green; no doc references dangling.
-
-### Risk / notes
-Low, contingent on the re-verified grep. If any importer appears, drop that file
-from the phase rather than forcing the delete.
 
 ---
 
@@ -426,14 +475,15 @@ guidance.
 
 - Each phase ends with `pnpm typecheck` (never raw `tsc` — see memory
   `feedback_use_pnpm_typecheck`) and the affected app's `pnpm test`.
-- UX-touching phases (3) get a browser-preview smoke check before merge.
+- UX-touching phases (Phase 5) get a browser-preview smoke check before merge.
 - Each phase = its own worktree + PR; merge from the main repo dir (memory
   `feedback_merge_from_main_worktree`).
-- Phases 1, 5, 6 are independent. Phase 3 should land **after** Phase 2 so it can
-  consume the invalidation contract rather than re-deriving keys. Phase 4 is
-  independent but pairs naturally with Phase 3 (both touch entry state).
+- **Dependencies:** Phases 1, 2, 3, 6 are independent. Phase 5 must land **after**
+  Phase 4 so it consumes the invalidation contract rather than re-deriving keys.
+  Phase 3 pairs naturally with Phase 5 (both touch entry state) but does not block
+  on it.
 
-## [ADDED] Operational concerns
+## Operational concerns
 
 - **Auto-deploy.** Merging to `main` auto-deploys both apps to Vercel staging
   (`myk9-platform-myk9show.vercel.app`, `myk9-platform-myk9q.vercel.app`). There
@@ -443,41 +493,30 @@ guidance.
   only. None of these phases touch `supabase/migrations/`, edge functions, RLS,
   or environment configuration. If a phase ever appears to need one, stop — it
   has drifted out of scope.
-- **Single-app scope.** Post-sunset, every phase is myK9Show-only (Phase 1 was
+- **Single-app scope.** Post-sunset, every phase is myK9Show-only (Phase 2 was
   re-scoped from both apps to myK9Show's 8 adapters). Verify each phase against
   the myK9Show staging deploy. Touch `apps/myk9q` only to delete it (unify plan).
 
-## [ADDED] Rollback & recovery
+## Rollback & recovery
 
-- **Per-phase revert.** Each phase is its own PR (Phase 1: one PR per adapter).
+- **Per-phase revert.** Each phase is its own PR (Phase 2: one PR per adapter).
   Revert = `git revert` the squash-merge commit; no data migration to unwind
   because no phase writes schema or data.
-- **Replication regressions (Phase 1) are the one stateful risk.** A bad
+- **Replication regressions (Phase 2) are the one stateful risk.** A bad
   conflict-policy migration can corrupt the *local* IndexedDB cache on a user's
   device, not the server. Recovery is a client cache reset (the replication layer
   rehydrates from Supabase), but the guard is the dirty-row assertion test plus
   the staging offline smoke before merge — catch it before it ships.
-- **Phase 4/5 (rename/delete)** revert cleanly via `git revert`; the
+- **Phase 1/3 (delete/rename)** revert cleanly via `git revert`; the
   pre-deletion liveness grep is what prevents needing one.
 
-## [ADDED] Definition of done (whole plan)
+## Definition of done (whole plan)
 
-The plan is complete when: all 8 myK9Show adapters route through
-`syncReplicatedTable()` (P1; the 15 myK9Q adapters are out of scope — deleted with
-the app); the chosen entity modules own their invalidation contract with
-assertion-first tests (P2); entry-management rollback/ordering is tested without
-React (P3); one `store/`, one `context/`, one `entryStore` remain (P4); the
-verified-dead modules are gone with green build (P5); `judges/` is flat Shape-X
-with ADR-008's record updated (P6). Each phase's own Acceptance section is the
-gate; this is the roll-up.
-
-## Suggested sequencing
-
-1. **Phase 5** (delete dead code) — clears noise, lowest risk, makes later greps
-   cleaner.
-2. **Phase 4** (state directory consolidation) — low risk, improves navigability
-   for everything after.
-3. **Phase 1** (replication sync adapters) — highest leverage; independent.
-4. **Phase 2** (invalidation contract) — new depth gap; prerequisite for 3.
-5. **Phase 3** (entry-management orchestration) — consumes Phase 2.
-6. **Phase 6** (judges ADR-008) — opportunistic.
+The plan is complete when: the verified-dead modules are gone with green build
+(P1); all 8 myK9Show adapters route through `syncReplicatedTable()` (P2; the 15
+myK9Q adapters are out of scope — deleted with the app); one `store/`, one
+`context/`, one myK9Show `entryStore` remain with the ringside store reconciled
+when the merge lands (P3); the chosen entity modules own their invalidation
+contract with assertion-first tests (P4); entry-management rollback/ordering is
+tested without React (P5); `judges/` is flat Shape-X with ADR-008's record updated
+(P6). Each phase's own Acceptance section is the gate; this is the roll-up.

@@ -3,7 +3,7 @@
  */
 
 import { useContext } from 'react';
-import { SecurityContext, type SecurityContextType } from '@/contexts/SecurityContext';
+import { SecurityContext, type SecurityContextType } from '@/context/SecurityContext';
 
 // Hook for accessing security context
 export const useSecurity = (): SecurityContextType => {

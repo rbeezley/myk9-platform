@@ -49,7 +49,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { useMessageSubscription } from '@/hooks/useMessageSubscription';
 import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
-import { AudioSettingsProvider } from './contexts/AudioSettingsContext';
+import { AudioSettingsProvider } from './context/AudioSettingsContext';
 import { StoreProvider } from './providers/StoreProvider';
 import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
 

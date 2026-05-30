@@ -15,11 +15,11 @@ import React, { useEffect, useState, ReactNode, useCallback } from 'react';
 import DOMPurify from 'dompurify';
 import { logger } from '../../services/LoggingService';
 import { monitoring } from '../../services/MonitoringService';
-import { SecurityContext, type SecurityContextType } from '@/contexts/SecurityContext';
+import { SecurityContext, type SecurityContextType } from '@/context/SecurityContext';
 import { securityConfig, generateCSPPolicy, CSRFTokenManager } from '../../config/security';
 
 // Re-export types for backward compatibility
-export type { SecurityContextType } from '@/contexts/SecurityContext';
+export type { SecurityContextType } from '@/context/SecurityContext';
 
 interface SecurityConfig {
   enableCSP: boolean;

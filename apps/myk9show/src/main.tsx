@@ -10,7 +10,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
-import { initializeSettings } from './stores/settingsStore';
+import { initializeSettings } from './store/settingsStore';
 import { ToastContainer } from '@/components/notifications/ToastContainer';
 import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
 

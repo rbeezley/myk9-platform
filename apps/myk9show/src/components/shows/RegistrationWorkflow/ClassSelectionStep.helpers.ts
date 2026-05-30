@@ -1,6 +1,6 @@
 import type { ClassSelectionData } from '@/types/show-registration-types';
 import type { Dog } from '@/types/dog-types';
-import type { CartItemWithDetails } from '@/stores/cartStore';
+import type { CartItemWithDetails } from '@/store/cartStore';
 import { getShowEntryFee, type ShowFeeInfo } from './PaymentStep/utils';
 
 /**

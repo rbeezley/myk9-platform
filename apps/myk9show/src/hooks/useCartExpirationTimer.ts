@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useCartStore } from '@/stores/cartStore';
+import { useCartStore } from '@/store/cartStore';
 
 export interface CartExpirationState {
   // Time remaining in milliseconds

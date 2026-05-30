@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { XCircle, ShoppingCart, ArrowLeft, ArrowRight, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { useCartStore, useCartItems } from '@/stores/cartStore';
+import { useCartStore, useCartItems } from '@/store/cartStore';
 
 export default function CheckoutCancelPage() {
   const navigate = useNavigate();

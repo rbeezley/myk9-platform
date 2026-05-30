@@ -14,7 +14,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useOptimisticUpdate } from './useOptimisticUpdate';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { useScoringStore, type QualifyingResult } from '@/stores/scoringStore';
+import { useScoringStore, type QualifyingResult } from '@/store/scoringStore';
 import { logger } from '@/services/LoggingService';
 import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
 

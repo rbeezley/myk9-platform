@@ -8,7 +8,7 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
 import { compareLevels } from '@/utils/schedule-summary';
-import { useCartStore, useCartItems } from '@/stores/cartStore';
+import { useCartStore, useCartItems } from '@/store/cartStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useClassAvailability } from '@/hooks/useClassAvailability';

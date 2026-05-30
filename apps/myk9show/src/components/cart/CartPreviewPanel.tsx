@@ -19,7 +19,7 @@ import {
   useCartItems,
   useCartTotal,
   type CartItemWithDetails,
-} from '@/stores/cartStore';
+} from '@/store/cartStore';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 

@@ -6,11 +6,11 @@
 -- new surface before the whole show is flipped.
 --
 -- ⚠️ REVIEW BEFORE PUSH (run /codex:review):
---   1. The override-table management RLS uses is_site_admin() only. A show-scoped
---      staff predicate (secretary/club-admin can manage THEIR show's overrides)
---      does not exist as a helper today — confirm the canonical permission check
---      against roles/permissions/role_permissions before widening (see CLAUDE.md
---      "Debugging seed-data / config bugs"). Left site-admin-only as the safe default.
+--   1. Override-table RLS follows the canonical show-scoped pattern: a show
+--      secretary (is_show_secretary(show_id)) OR a site admin (is_site_admin())
+--      manages a show's overrides; any user reads their own row. Predicates are
+--      wrapped in (SELECT ...) per migration 020 (RLS init-plan perf). If judges/
+--      stewards should ALSO manage overrides, widen to is_show_official(show_id).
 --   2. If the per-person override is not needed yet, drop the table section and
 --      keep only the column (1d only requires the show flag).
 --
@@ -50,15 +50,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.unified_ringside_overrides TO ser
 ALTER TABLE public.unified_ringside_overrides ENABLE ROW LEVEL SECURITY;
 
 -- A user may always read their OWN override row (the flag-read hook needs this).
+-- Show secretaries / site admins read the rest via the manage policy below.
 CREATE POLICY unified_ringside_overrides_select_self
   ON public.unified_ringside_overrides
   FOR SELECT TO authenticated
-  USING (user_id = auth.uid());
+  USING ((SELECT auth.uid()) = user_id);
 
--- Management: site admins only for now (see REVIEW note 1 — widen to show staff
--- once the canonical show-scoped predicate is confirmed).
-CREATE POLICY unified_ringside_overrides_admin_all
+-- Management: a show's secretary, or a site admin, may grant/revoke overrides for
+-- that show. Mirrors the canonical show-scoped pattern (see migration 190 / 020).
+CREATE POLICY unified_ringside_overrides_manage
   ON public.unified_ringside_overrides
   FOR ALL TO authenticated
-  USING (public.is_site_admin())
-  WITH CHECK (public.is_site_admin());
+  USING ((SELECT public.is_show_secretary(show_id)) OR (SELECT public.is_site_admin()))
+  WITH CHECK ((SELECT public.is_show_secretary(show_id)) OR (SELECT public.is_site_admin()));

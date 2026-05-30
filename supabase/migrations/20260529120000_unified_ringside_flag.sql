@@ -36,7 +36,9 @@ CREATE TABLE IF NOT EXISTS public.unified_ringside_overrides (
   user_id    uuid        NOT NULL REFERENCES auth.users(id)   ON DELETE CASCADE,
   enabled    boolean     NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
-  created_by uuid        REFERENCES auth.users(id) ON DELETE SET NULL,
+  -- Audit only; server-set + immutable via the trigger below (never trust a
+  -- client-supplied value). DEFAULT is a backstop for the trigger.
+  created_by uuid        DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE SET NULL,
   PRIMARY KEY (show_id, user_id)
 );
 
@@ -63,3 +65,25 @@ CREATE POLICY unified_ringside_overrides_manage
   FOR ALL TO authenticated
   USING ((SELECT public.is_show_secretary(show_id)) OR (SELECT public.is_site_admin()))
   WITH CHECK ((SELECT public.is_show_secretary(show_id)) OR (SELECT public.is_site_admin()));
+
+-- Audit integrity: created_by is server-controlled, not client-controlled. The
+-- manage policy lets a secretary write any row in their show, so without this a
+-- manager could forge created_by (insert/update with someone else's id). Force
+-- it to the actor on INSERT and freeze it on UPDATE.
+CREATE OR REPLACE FUNCTION public.unified_ringside_overrides_guard_created_by()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.created_by := auth.uid();      -- ignore any client-supplied value
+  ELSE
+    NEW.created_by := OLD.created_by;  -- immutable on UPDATE
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER unified_ringside_overrides_guard_created_by
+  BEFORE INSERT OR UPDATE ON public.unified_ringside_overrides
+  FOR EACH ROW EXECUTE FUNCTION public.unified_ringside_overrides_guard_created_by();

@@ -44,7 +44,7 @@ describe('ClassBroadcastCard', () => {
     await waitFor(() => {
       expect(mockSendTargetedMessage).toHaveBeenCalledWith(
         'show-1',
-        'class-1',
+        { type: 'class', classId: 'class-1' },
         'Container Novice A will restart at 1:30.'
       );
     });
@@ -61,7 +61,7 @@ describe('ClassBroadcastCard', () => {
     await waitFor(() => {
       expect(mockSendTargetedMessage).toHaveBeenCalledWith(
         'show-1',
-        'class-2',
+        { type: 'class', classId: 'class-2' },
         'Interior Advanced is running later than posted. Please stay nearby and listen for updates.'
       );
     });
@@ -76,7 +76,10 @@ describe('ClassBroadcastCard', () => {
 
   it('does not send to an empty class', async () => {
     const { user } = render(
-      <ClassBroadcastCard showId="show-1" classes={[{ id: 'class-3', label: 'Exterior Novice', entryCount: 0 }]} />
+      <ClassBroadcastCard
+        showId="show-1"
+        classes={[{ id: 'class-3', label: 'Exterior Novice', entryCount: 0 }]}
+      />
     );
 
     expect(screen.getByText('No exhibitors entered yet — nothing to deliver.')).toBeInTheDocument();

@@ -90,7 +90,8 @@ const SmartSignInPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const result = await validatePasscode(normalizeCredential(credential));
+      const normalizedCredential = normalizeCredential(credential);
+      const result = await validatePasscode(normalizedCredential);
       if (!result.ok) {
         setError(result.message);
         return;
@@ -102,7 +103,12 @@ const SmartSignInPage: React.FC = () => {
         // Anonymous: the passcode itself is the show-scoped grant. Keep it in
         // memory before routing so `/at-show/:showId` can admit this device
         // without account RBAC.
-        setGrant({ showId: result.showId, role: result.role, source: 'passcode' });
+        setGrant({
+          showId: result.showId,
+          role: result.role,
+          passcode: normalizedCredential,
+          source: 'passcode',
+        });
         navigate(`/at-show/${result.showId}`);
       }
     } finally {
@@ -127,7 +133,12 @@ const SmartSignInPage: React.FC = () => {
   const handleConfirmJoin = () => {
     if (!pending) return;
     setIsJoining(true);
-    setGrant({ showId: pending.showId, role: pending.role, source: 'passcode' });
+    setGrant({
+      showId: pending.showId,
+      role: pending.role,
+      passcode: normalizeCredential(credential),
+      source: 'passcode',
+    });
     navigate(`/at-show/${pending.showId}`);
   };
 

@@ -31,7 +31,7 @@ describe('ComposeTargetedModal', () => {
     expect(screen.getByText(/8 exhibitors/i)).toBeInTheDocument();
   });
 
-  it('calls onSend with classId and body', async () => {
+  it('calls onSend with class target and body', async () => {
     const onSend = vi.fn().mockResolvedValue(undefined);
     const { user } = render(
       <ComposeTargetedModal
@@ -47,7 +47,10 @@ describe('ComposeTargetedModal', () => {
     await user.type(input, 'Class 2 is delayed 15 minutes');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
-    expect(onSend).toHaveBeenCalledWith('class-2', 'Class 2 is delayed 15 minutes');
+    expect(onSend).toHaveBeenCalledWith(
+      { type: 'class', classId: 'class-2' },
+      'Class 2 is delayed 15 minutes'
+    );
   });
 
   it('disables send when no message is entered', () => {

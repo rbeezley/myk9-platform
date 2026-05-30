@@ -90,6 +90,7 @@ describe('SmartSignInPage', () => {
     expect(setGrantSpy).toHaveBeenCalledWith({
       showId: 'show-x',
       role: 'judge',
+      passcode: 'j9f3b',
       source: 'passcode',
     });
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x'));
@@ -126,6 +127,7 @@ describe('SmartSignInPage', () => {
     expect(setGrantSpy).toHaveBeenCalledWith({
       showId: 'show-x',
       role: 'judge',
+      passcode: 'j9f3b',
       source: 'passcode',
     });
     expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x');
@@ -153,6 +155,7 @@ describe('SmartSignInPage', () => {
     expect(setGrantSpy).toHaveBeenCalledWith({
       showId: 'show-qr',
       role: 'steward',
+      passcode: 's7qr9',
       source: 'passcode',
     });
     expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-qr');

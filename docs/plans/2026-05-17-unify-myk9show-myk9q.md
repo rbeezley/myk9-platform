@@ -13,6 +13,7 @@ myK9Show and myK9Q currently feel like two separate products to end users, even 
 Discovery showed that **both apps already have exhibitor-facing surfaces** (myK9Q has an `e****` exhibitor passcode role; myK9Show has `ShowDayPage`, `MyEntriesPage`, `ClassCheckInPage` with realtime ring alerts). The platform has two parallel show-day experiences that have never been reconciled. The risk is duplicated work, drifted behavior, and double-fired notifications.
 
 This plan unifies the two apps under a single URL (`myk9show.com`) and a single notification pipeline, while preserving:
+
 - The proven myK9Q passcode flow for stewards, judges, admins, and exhibitors who never sign up
 - The legacy `myk9q.com` deployment (untouched — continues to run the Access-integrated production app)
 - myK9Show's account/career/entries experience
@@ -25,7 +26,7 @@ This plan unifies the two apps under a single URL (`myk9show.com`) and a single 
    - Input contains `@` → email branch → step 2 reveals password → Supabase Auth sign-in
    - Input matches passcode shape (see "Passcode format" below) → submit immediately → passcode session, route by role
    - Anything else → friendly invalid-input error with format example
-   Replaces the earlier two-door landing pattern (rejected during design review for imposing a choice point on the older volunteer/judge persona).
+     Replaces the earlier two-door landing pattern (rejected during design review for imposing a choice point on the older volunteer/judge persona).
 
 3. **myK9Q's UI is absorbed into myK9Show as a route (`/at-show`) backed by a shared package.** No code duplication; the existing myK9Q app shell is retired.
 
@@ -39,14 +40,16 @@ This plan unifies the two apps under a single URL (`myk9show.com`) and a single 
 
 7. **Auto-favorite predicate (server-enforced, RLS-protected RPC):**
    The RPC is `get_account_today_entries()` — **no parameters**. It derives `person_id` from `auth.uid()` internally; the caller cannot pass an account id. Predicate:
+
    ```sql
    entries.handler_id = $person_id (from auth.uid())
    OR dogs.owner_id    = $person_id
    OR dogs.co_owner_id = $person_id
    ```
+
    scoped to shows happening today. Returns empty when unauthenticated rather than erroring. Covers co-ownership and junior/pro handlers without surfacing unrelated dogs. The client never receives unauthorized entry IDs and cannot impersonate another account by passing a different id.
 
-8. **Session precedence:** when a signed-in account enters a passcode in the smart input, the passcode role is granted *in addition to* the account session, scoped to that single show. The passcode does not impersonate the account; it temporarily expands role. Account session remains the source of truth for identity, audit trails, and push subscription ownership. UI confirms before attaching: *"You're signed in as [name]. Use this passcode to join [show] as a [role]?"*
+8. **Session precedence:** when a signed-in account enters a passcode in the smart input, the passcode role is granted _in addition to_ the account session, scoped to that single show. The passcode does not impersonate the account; it temporarily expands role. Account session remains the source of truth for identity, audit trails, and push subscription ownership. UI confirms before attaching: _"You're signed in as [name]. Use this passcode to join [show] as a [role]?"_
 
 9. **Multi-show-today banner:** if the account has entries in >1 show today, the banner becomes a stacked list (one row per show) ordered by earliest class time. Single show → single CTA. Zero shows → no banner.
 
@@ -65,6 +68,7 @@ This plan unifies the two apps under a single URL (`myk9show.com`) and a single 
 **Generation:** when a show row is inserted, a trigger or application code inserts 4 `show_passcodes` rows. The plaintext codes are returned to the show-creation flow once for display on the secretary's access card; thereafter, only hashes exist server-side. The legacy `mobile_app_lic_key` column on `shows` is no longer populated for new shows (it stays on the schema as nullable until Phase 6 cleanup; not removed in this plan).
 
 **Validation flow:**
+
 1. User types a 5-char passcode in the smart input.
 2. Client sends the lowercased code to the `validate_passcode(code text)` `SECURITY DEFINER` RPC.
 3. RPC computes `encode(hmac(lower(input), pepper, 'sha256'), 'hex')` (pepper read from Vault inside the SECURITY DEFINER function) and selects from `show_passcodes` where `passcode_hash = $hmac`. If exactly one row matches → return `{show_id, role}`. If no row matches → return null (the smart input shows the generic enumeration-resistant error). The HMAC is deterministic so the lookup is a single indexed equality probe; constant-time response padding to the 250ms floor still applies for timing-attack resistance.
@@ -74,25 +78,27 @@ Because every code is now independently random, an attacker who learns an exhibi
 
 ## Routing & Roles Summary
 
-| Person | URL | Credential | Lands on | Notification routing |
-|---|---|---|---|---|
-| Account exhibitor (entered today) | myk9show.com | Email → password | Banner → `/at-show` w/ dogs auto-favorited | Account-bound; targetable by armband or account |
-| Account exhibitor (not entered) | myk9show.com | Email → password, then types passcode | Manual favoriting | Per-favorite |
-| Non-account exhibitor | myk9show.com | Passcode `e****` | Ringside, manual favoriting | Per-favorite (mapped via the `ringside_sessions` row's `show_passcode_id` + favorited_armbands) |
-| Steward (volunteer) | myk9show.com | Passcode `s****` | Steward timer/check-in UI | Steward-specific alerts only |
-| Judge | myk9show.com | Passcode `j****` | Judge scoring UI | Judge-specific alerts only |
-| **Admin** | myk9show.com | Passcode `a****` | Admin/show-management UI (existing myK9Q admin surface, retained) | Admin-broadcast alerts |
-| Secretary | myk9show.com | Email → password | Workbench | Sender, not receiver, for show-day notifications |
+| Person                            | URL          | Credential                            | Lands on                                                          | Notification routing                                                                            |
+| --------------------------------- | ------------ | ------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Account exhibitor (entered today) | myk9show.com | Email → password                      | Banner → `/at-show` w/ dogs auto-favorited                        | Account-bound; targetable by armband or account                                                 |
+| Account exhibitor (not entered)   | myk9show.com | Email → password, then types passcode | Manual favoriting                                                 | Per-favorite                                                                                    |
+| Non-account exhibitor             | myk9show.com | Passcode `e****`                      | Ringside, manual favoriting                                       | Per-favorite (mapped via the `ringside_sessions` row's `show_passcode_id` + favorited_armbands) |
+| Steward (volunteer)               | myk9show.com | Passcode `s****`                      | Steward timer/check-in UI                                         | Steward-specific alerts only                                                                    |
+| Judge                             | myk9show.com | Passcode `j****`                      | Judge scoring UI                                                  | Judge-specific alerts only                                                                      |
+| **Admin**                         | myk9show.com | Passcode `a****`                      | Admin/show-management UI (existing myK9Q admin surface, retained) | Admin-broadcast alerts                                                                          |
+| Secretary                         | myk9show.com | Email → password                      | Workbench                                                         | Sender, not receiver, for show-day notifications                                                |
 
 ## Smart-Input UX
 
 **Live disambiguation copy under the input.** As the user types:
+
 - `> Looks like an email — we'll ask for your password next`
 - `> Looks like a show passcode — you'll be signed in`
 
 In an `aria-live="polite"` region so screen readers announce the change.
 
 **Discoverability copy below the input** (static, shown before the user types anything):
+
 > Have an account? Use your email.
 > Working a show? Use the passcode your secretary gave you (5 characters).
 
@@ -101,6 +107,7 @@ In an `aria-live="polite"` region so screen readers announce the change.
 **No "Forgot password?" link on step 1.** Only on step 2 of the email branch.
 
 **Normalization on submit:**
+
 - Trim leading/trailing whitespace and zero-width chars (`​`, `﻿`).
 - Lowercase the entire input.
 - Reject internal whitespace/newlines with the standard invalid-input error.
@@ -110,15 +117,18 @@ In an `aria-live="polite"` region so screen readers announce the change.
 **Submit gating.** Submit button is `disabled` + `aria-disabled="true"` until input matches either shape. Pressing Enter on invalid input surfaces the standard error rather than firing a request.
 
 **Autocomplete attributes** (for password-manager compatibility — verified manually with 1Password, Bitwarden, iOS Keychain, Chrome Password Manager during Phase 1):
+
 - Step 1: `autocomplete="username"`
 - Step 2 password: `autocomplete="current-password"`
 
 **Focus management.**
+
 - Step 2 password field gets programmatic focus on reveal.
 - Invalid submit keeps focus on the input with `aria-invalid="true"` and `aria-describedby` pointing at the error element.
 - All transitions announced via `aria-live`.
 
 **Error state for unrecognized input:**
+
 > That doesn't look like an email or a show passcode. Passcodes are 5 characters and start with a letter — for example, `aa260`.
 
 ## Security (smart input)
@@ -131,6 +141,7 @@ In an `aria-live="polite"` region so screen readers announce the change.
 ## Analytics
 
 To validate the "no choice point" design, instrument:
+
 - `landing_input_typed_first_char`
 - `landing_input_disambiguated` (payload: `branch: "email" | "passcode" | "invalid"`)
 - `landing_submit_attempted` (payload: `branch`, `valid: bool`)
@@ -158,6 +169,7 @@ The platform has two complementary systems that solve different parts of the mes
 The existing `push_subscriptions` table provides device-level subscription rows, but **does not** carry role, per-show favorites, or presence data — those columns do not exist there. The new `ringside_sessions` table introduced by Phase 3a is what makes the passcode-recipient join possible. It links to `show_passcodes` via `show_passcode_id` (the column that identifies which (show, role) the session is for), and to `push_subscriptions` via `subscription_id` (the device). Together they form the join surface for the second arm of the fanout.
 
 **Presence storage (new — replaces client-only `isInRing`).** Phase 3a creates `ringside_sessions`:
+
 - `subscription_id uuid` FK to `push_subscriptions(id)` ON DELETE CASCADE
 - `show_id uuid` FK to `shows(id)` ON DELETE CASCADE
 - `show_passcode_id uuid NULL` FK to `show_passcodes(id)` — set for passcode-keyed sessions; NULL for account-keyed sessions (account users have an implicit `'exhibitor'` role on `/at-show`)
@@ -186,6 +198,7 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 10. Two-way replies work as today (inbox is thread-based; participants reply). Replies notify the secretary via the same pipeline.
 
 **Targeting (all four supported):**
+
 - Per-exhibitor (existing 1:1 thread)
 - Per-class (existing `sendTargetedMessage`, extended to include passcode-keyed recipients)
 - Per-checked-in (new — needs UI + recipient resolver via checked-in entry list)
@@ -194,7 +207,7 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 ## Branding
 
 - Inside myk9show.com: zero "Q" references. The ringside experience is called "Ringside" or "At the show". Smart input copy is "Use the passcode your secretary gave you".
-- Onboarding/install copy mentions Q lineage once: *"the ringside experience you may know as myK9Q, now built right in."*
+- Onboarding/install copy mentions Q lineage once: _"the ringside experience you may know as myK9Q, now built right in."_
 - Legacy `myk9q.com` retains the Q identity externally (it's the Access-integrated production app, untouched).
 - **Secretary handoff:** the `MyK9QAccessCard` component (used by secretaries to print/share access codes for stewards, judges, and exhibitors) currently advertises `myk9q.com` and the "myK9Q Access Codes" header. This contradicts the "type this on myk9show.com" smart-input handoff and is updated in Phase 1, not Phase 5.
 
@@ -204,6 +217,7 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 - Install prompt fires on the myK9Show homepage (not deferred), so account holders and passcode users both get prompted the same way.
 
 **Migrating existing myK9Q PWA installs:**
+
 - Push subscriptions are origin-bound (`myk9-platform-myk9q.vercel.app`). They cannot be transferred to `myk9show.com`. Existing users must re-install/re-subscribe under the new origin.
 - The Phase 4 redirect page includes a one-time "Re-install the ringside experience on myk9show.com to keep getting notifications" prompt with iOS + Android install instructions.
 - LocalStorage/IndexedDB on the old origin (favorites, last-seen show, voice settings) is not migrated. Document in release notes.
@@ -222,6 +236,7 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 - Homepage banner and `/at-show` route check both: the per-show flag AND the per-person override (override wins if present). When false, account holders see the legacy `ShowDayPage` until Phase 4 deletes it.
 
 **RLS on `feature_flag_overrides`:**
+
 - SELECT: a user reads only their own row, scoped by `person_id IN (SELECT id FROM people WHERE auth_user_id = auth.uid())`. Admins (per existing `is_site_admin()` predicate) read all rows.
 - INSERT / UPDATE / DELETE: admins only. Users do not self-grant previews — this is a staff-only tool.
 - Anonymous (passcode-only) users cannot read or write — they have no `people` row tied to `auth.uid()` and the flag is irrelevant to their UI path.
@@ -229,6 +244,7 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 ## Critical Files & Locations
 
 **myK9Show (existing, to be modified):**
+
 - `apps/myk9show/src/routes/publicRoutes.tsx` — add `/at-show` route (lazy-loaded), retire `ShowDayPage` / `ClassCheckInPage` routes
 - `apps/myk9show/src/pages/ShowDayPage.tsx`, `apps/myk9show/src/pages/ClassCheckInPage.tsx` — delete after `/at-show` is live
 - `apps/myk9show/src/pages/MyEntriesPage.tsx` — **keep** (belongs in account home)
@@ -239,11 +255,13 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 - `apps/myk9show/src/hooks/useShowDayAlerts.ts`, `useNotificationStore.ts` — delete after shared module is in place
 
 **myK9Q (existing, to be extracted):**
+
 - `apps/myk9q/src/contexts/AuthContext.tsx`, `apps/myk9q/src/utils/auth.ts` — passcode + role-prefix logic → extract to shared package. **Drop the `generatePasscodesFromLicenseKey` / `myK9Q1-...` derivation entirely**; the shared package's auth flow calls `validate_passcode(code)` against `show_passcodes` instead. The role-letter parser at `auth.ts:45` still applies (the input shape is unchanged) but it's used only as a fast client-side shape check before the server lookup, not as a security boundary.
 - `apps/myk9q/src/pages/Login/Login.tsx`, `apps/myk9q/src/pages/Home/Home.tsx` — UI → consumed via shared package
 - myK9Q notification service (push subscription mgmt, voice announcements) → extract to shared package
 
 **Supabase:**
+
 - `show_messages`, `show_message_threads` — reuse as-is
 - `push_subscriptions` — **unchanged schema**; reuse the existing per-device subscription rows. The `license_key` column on this table becomes vestigial for new sessions (left in place; not removed in this plan).
 - **New table `show_passcodes(id, show_id, role, passcode_hash, created_at, UNIQUE(show_id, role))`** — 4 hashed random codes per show, generated at show creation (Phase 0 migration). Replaces the old `mobile_app_lic_key` derivation model.
@@ -257,6 +275,7 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 - **New scheduled function: `prune_stale_ringside_sessions()`** — runs daily, deletes rows for shows that ended >7 days ago AND rows with `last_seen_at` older than 24h regardless of show (Phase 3b)
 
 **Tooling:**
+
 - `scripts/bootstrap-worktree.sh` — verify after `apps/myk9q` removal in Phase 6
 - `pnpm-workspace.yaml`, root `package.json` scripts — remove `dev:q`, `test:q`, etc. in Phase 6
 
@@ -285,7 +304,7 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 
 1. Add `/at-show` route to `apps/myk9show/src/routes/publicRoutes.tsx`, lazy-loaded via `React.lazy`, rendering the shared ringside package inside myK9Show's app shell. Add a bundle-size budget assertion to CI.
 2. Add homepage smart-input landing per the "Smart-Input UX" section: single field with live disambiguation, discoverability copy, `/help/credentials` link, autocomplete attributes, focus management, aria-live regions, submit gating, server-side rate limiting + enumeration-resistant errors.
-3. Add the post-credential routing table targets, including the **admin (`a****`) route** to the existing admin/show-management UI.
+3. Add the post-credential routing table targets, including the **admin (`a\*\***`) route\*\* to the existing admin/show-management UI.
 4. Wire the passcode flow into myK9Show's auth context so it coexists with the account session per Locked Decision 8 (signed-in user typing a passcode sees the confirmation step before role attaches).
 5. Create `/help/credentials` docs page. Broken link = ship blocker.
 6. **Rebrand `MyK9QAccessCard`:** rename to "Show Access Codes" (or similar), replace `myk9q.com` URLs with `myk9show.com`, update header copy. Cross-check secretary print previews.
@@ -301,7 +320,9 @@ This is the schema change that the original plan denied; Locked Decision 10 refl
 
 ### Phase 3a — Recipient identity (extend fanout to reach passcode users)
 
-This phase has no push delivery — it only fixes who the fanout *would* target. Push delivery is Phase 3b.
+> **Implementation status (2026-05-30):** Implemented in branch `codex/phase-3-unify-ringside`. Adds `ringside_sessions`, expands `send-targeted-message` recipient resolution for class / checked-in / all-show sends, and adds secretary target options. Deployment-time DB migration review and pilot UAT remain required before advancing to Phase 4.
+
+This phase has no push delivery — it only fixes who the fanout _would_ target. Push delivery is Phase 3b.
 
 **Note:** Phase 3a creates the `ringside_sessions` table (this is the right phase for that schema since 3a is the first phase that queries it). Phase 3b's remaining work is the heartbeat, the RLS + write-path RPC, push delivery, and suppression.
 
@@ -314,6 +335,8 @@ This phase has no push delivery — it only fixes who the fanout *would* target.
 5. **Tests:** edge function unit tests confirming each target shape returns the correct recipient set including passcode users. Specific regression test: a passcode-only exhibitor with a `ringside_sessions` row favoriting an armband receives a per-class message.
 
 ### Phase 3b — Push delivery + presence-aware suppression
+
+> **Implementation status (2026-05-30):** Implemented with the Phase 3a branch behind `PUSH_FANOUT_ENABLED=false` by default. Adds presence RPCs, route heartbeat, stale-session pruning, passcode-session push fanout, stale-subscription cleanup, retry-on-5xx, and suppression for fresh `/at-show` presence. Full E2E push verification still requires a deployed edge function, VAPID secrets, and a pilot show.
 
 1. **Schema:** the `ringside_sessions` table is created in Phase 3a step 1 (so its presence unblocks the fanout query). Phase 3b's schema work is the RLS policies and the write-path RPCs. Direct INSERT/UPDATE/DELETE on `ringside_sessions` is **denied for all client roles** — including authenticated users. SELECT is allowed only for the service role (edge function context) and site admins. All client writes go through the `upsert_ringside_session(...)` `SECURITY DEFINER` RPC, which validates the credential by calling `validate_passcode(...)` for anonymous callers (the returned `{show_id, role}` is server-derived; client never controls it) OR verifying `auth.uid()` matches the subscription's `user_id` for signed-in callers. This is the resolution for the cross-identity write path: passcode users have no `auth.uid()`, so account-based RLS would lock them out; routing all writes through the RPC unifies the path while keeping `show_id` and `role` derivation server-side so a tampered client cannot spoof attachment to a different show or escalate role.
 2. **Client heartbeat:** in the shared ringside module, while the tab is foregrounded and the user is in `/at-show*`, call `upsert_ringside_session(...)` every ~30s passing the current `last_seen_route`, `role`, and `favorited_armbands`. The RPC sets `last_seen_at = now()` server-side (clients do not control timestamps). On unmount/blur, call `clear_ringside_session_presence(subscription_endpoint, show_id)` — a sibling RPC that sets `last_seen_at` to NULL without removing favorites.
@@ -348,7 +371,7 @@ This phase has no push delivery — it only fixes who the fanout *would* target.
 
 ### Phase 5 — Branding & onboarding copy
 
-1. Add homepage copy hinting at Q lineage: *"the ringside experience you may know as myK9Q, now built right in"*.
+1. Add homepage copy hinting at Q lineage: _"the ringside experience you may know as myK9Q, now built right in"_.
 2. Audit and remove all "myK9Q" string references inside the unified app surface (search for "myK9Q", "myk9q", "MyK9Q"). The `MyK9QAccessCard` rebrand was already done in Phase 1; this is a sweep of remaining references.
 3. Update install prompt copy for the at-show audience.
 4. **Accessibility pass on the smart-input landing:** verify focus order, label clarity, 44pt tap targets, and contrast on the older-user device set used for UAT.
@@ -378,6 +401,7 @@ Waits at least 30 days after Phase 4 redirect is live so stale PWA installs have
 ## Verification
 
 **End-to-end walks (Playwright, one spec per persona):**
+
 1. **Account exhibitor entered today:** sign in → see "Show today" banner → tap → `/at-show` loads with dogs auto-favorited → secretary sends class message → push fires → tapping opens inbox thread.
 2. **Account exhibitor not entered:** sign in → no banner → on the smart input on a separate device, type `e****` → manual favoriting.
 3. **Volunteer steward:** anonymous → type `s****` in smart input → land on steward UI.
@@ -415,7 +439,7 @@ Waits at least 30 days after Phase 4 redirect is live so stale PWA installs have
 
 - **2026-05-17** — Initial plan.
 - **2026-05-25** — Smart-input addendum merged in. Locked Decision 2 replaced; Locked Decisions 8–10 added. Phase 3 split into 3a (recipient identity) + 3b (push delivery). Admin (`a****`) routing added. Legacy passcode format made a Phase 0 prerequisite. Auto-favorite resolver predicate spelled out with `co_owner_id`. `MyK9QAccessCard` rebrand moved from Phase 5 to Phase 1. Presence storage columns added to `push_subscriptions` (corrects original "no schema changes" assumption).
-- **2026-05-25 (revision 2)** — Second review applied. Presence + role + per-show favorites moved off `push_subscriptions` into a new `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)` table (separates per-device push state from per-(device, show) ringside state). Replaced fictional `profiles.unified_ringside_preview` with a real `feature_flag_overrides` table keyed on `people.id`. Tightened RPC signature to `get_account_today_entries()` with no parameters (derives identity from `auth.uid()` to remove IDOR surface). Fixed misleading citation about `push_subscriptions` join surface — the *indexes* on `user_id`/`license_key` exist, but the *columns* for role/favorites do not; they live on the new table.
+- **2026-05-25 (revision 2)** — Second review applied. Presence + role + per-show favorites moved off `push_subscriptions` into a new `ringside_sessions(subscription_id, show_id, role, favorited_armbands, last_seen_at, last_seen_route)` table (separates per-device push state from per-(device, show) ringside state). Replaced fictional `profiles.unified_ringside_preview` with a real `feature_flag_overrides` table keyed on `people.id`. Tightened RPC signature to `get_account_today_entries()` with no parameters (derives identity from `auth.uid()` to remove IDOR surface). Fixed misleading citation about `push_subscriptions` join surface — the _indexes_ on `user_id`/`license_key` exist, but the _columns_ for role/favorites do not; they live on the new table.
 - **2026-05-25 (revision 3)** — Third review applied. Added explicit Risk/Validation profile to the document header (High risk, Full validation). Default for the legacy-passcode Phase 0 prerequisite flipped from "decide A or B based on size" to "default to A unless the audit proves zero codes are distributed"; option B now requires a 60-day parallel-acceptance window plus secretary re-issue when chosen. Note: the third reviewer's findings #1, #2, #3 (schema, RPC parameter, profiles table) were already addressed in revision 2; the reviewer was looking at the consolidation commit before revision 2 had landed locally for them.
 - **2026-05-25 (revision 4)** — Fourth review applied. **Critical architectural fix:** added Locked Decision 11 establishing a `SECURITY DEFINER` RPC (`upsert_ringside_session`) as the unified write path for `ringside_sessions`. Anonymous passcode users have no `auth.uid()`, so the prior account-based RLS would have silently locked them out of writing — making the unification's headline persona invisible to the push fanout. The RPC validates a passcode argument OR `auth.uid()` ownership before upserting; direct table writes are denied. Also added: explicit RLS rules for `feature_flag_overrides` (users read own, admins read/write all), a scheduled cleanup function `prune_stale_ringside_sessions()` for ended-show and abandoned-session rows, and corresponding RPC-authorization + cleanup tests. Fixed stale out-of-scope bullet that claimed `push_subscriptions` was the touched schema.
 - **2026-05-25 (revision 5)** — Passcode identity model rewritten. Per product decision, the platform abandons the myK9Q license-key derivation in favor of **4 independently random codes per show, generated at show creation and stored hashed in a new `show_passcodes` table**. Shape unchanged (`[a|j|s|e][4 random a-z0-9]`); storage changes from `mobile_app_lic_key`-derivation to per-(show, role) row lookup. New RPCs: `validate_passcode(code)` returns `{show_id, role}` server-derived; `upsert_ringside_session` no longer trusts a client-supplied `show_id` — it derives identity from the passcode or `auth.uid()`. Phase 0 prerequisite (legacy passcode audit) eliminated; replaced with a backfill that regenerates codes for any existing shows and a secretary re-issue step. `ringside_sessions` gains an `show_passcode_id` FK so passcode-keyed identity is explicit. The legacy `mobile_app_lic_key` column on `shows` becomes vestigial and is left in place for a post-Phase-6 cleanup migration. Security improvement: an attacker who learns one role's code learns nothing about the other 3.

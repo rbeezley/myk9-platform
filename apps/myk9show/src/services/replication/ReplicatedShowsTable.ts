@@ -207,6 +207,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToShow,
+      filterLocalRows: (rows, scope) =>
+        scope.value ? rows.filter(r => r.clubId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,
     };
 

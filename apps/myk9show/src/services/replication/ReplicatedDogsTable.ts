@@ -131,6 +131,8 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToDog,
+      filterLocalRows: (rows, scope) =>
+        scope.value ? rows.filter(r => r.ownerId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 

@@ -170,6 +170,8 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToTrial,
+      filterLocalRows: (rows, scope) =>
+        scope.value ? rows.filter(r => r.showId === scope.value) : rows,
       resolveConflict: (_local, remote) => remote,
     };
 

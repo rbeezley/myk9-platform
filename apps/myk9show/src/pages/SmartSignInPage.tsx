@@ -74,6 +74,9 @@ const SmartSignInPage: React.FC = () => {
 
   const handleCredentialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A disabled button doesn't block Enter from the text input — guard against
+    // a double-submit firing validatePasscode twice (burns a rate-limit attempt).
+    if (loading) return;
     setError('');
 
     if (kind === 'email') {

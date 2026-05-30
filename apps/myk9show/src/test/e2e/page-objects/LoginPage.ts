@@ -4,9 +4,14 @@ import { TEST_USERS, TEST_PASSWORD, TestUserRole } from '../fixtures/test-users'
 export class LoginPage {
   constructor(private page: Page) {}
 
-  // Locators - matching actual SignInPage.tsx
-  private get emailInput() {
-    return this.page.locator('[data-testid="email-input"]');
+  // Locators - matching SmartSignInPage.tsx (single email-or-passcode field,
+  // two-step: credential → Continue → password).
+  private get credentialInput() {
+    return this.page.locator('[data-testid="credential-input"]');
+  }
+
+  private get continueButton() {
+    return this.page.locator('[data-testid="continue-button"]');
   }
 
   private get passwordInput() {
@@ -34,7 +39,11 @@ export class LoginPage {
   }
 
   async login(email: string, password: string) {
-    await this.emailInput.fill(email);
+    // Step 1: the smart field classifies the email and reveals the password step.
+    await this.credentialInput.fill(email);
+    await this.continueButton.click();
+    // Step 2: password revealed in place.
+    await this.passwordInput.waitFor({ state: 'visible', timeout: 10000 });
     await this.passwordInput.fill(password);
     await this.submitButton.click();
   }

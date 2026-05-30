@@ -6,7 +6,8 @@
  *  - `/at-show/:showId/class/:classId`            → single-class EntryList (1a)
  *  - `/at-show/:showId/class/:classIdA/:classIdB` → combined Section A/B list (1h)
  *  - `/at-show/:showId/class/:classId/score/:entryId` → live scoresheet
- * Rendered inside UnifiedAppLayout (sidebar provided by the parent route).
+ * Mounted OUTSIDE UnifiedAppLayout (full-screen ringside — no host sidebar or
+ * header; see App.tsx), which is why the gate's states use a full-screen wrapper.
  *
  * Enablement is per-show and asynchronous (Phase 1d): routes are registered
  * unconditionally, and `UnifiedRingsideGate` reads `shows.unified_ringside_enabled`

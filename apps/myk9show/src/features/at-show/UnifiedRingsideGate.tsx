@@ -19,7 +19,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Radio } from 'lucide-react';
 import { replicatedShowsTable } from '@/services/replication';
-import { EmptyState, LoadingEmptyState } from '@/components/common/EmptyState';
+import { EmptyState, ErrorEmptyState, LoadingEmptyState } from '@/components/common/EmptyState';
 import {
   isUnifiedRingsideDevOverride,
   resolveUnifiedRingsideEnabled,
@@ -53,6 +53,22 @@ export function UnifiedRingsideGate({ children }: { children: ReactNode }) {
     );
   }
 
+  // Distinguish a transient fetch failure from "show not opted in" — without
+  // this an error would fall through to the disabled notice below and offer no
+  // retry, misattributing the failure to the show's settings.
+  if (showQuery.isError) {
+    return (
+      <FullScreen>
+        <ErrorEmptyState
+          error="We couldn't load this show. Check your connection and try again."
+          onRetry={() => void showQuery.refetch()}
+        />
+      </FullScreen>
+    );
+  }
+
+  // `devOverride` is always false here (handled above); it is passed for
+  // symmetry so the resolver stays independently unit-testable.
   const enabled = resolveUnifiedRingsideEnabled({
     devOverride,
     showEnabled: showQuery.data?.unifiedRingsideEnabled,

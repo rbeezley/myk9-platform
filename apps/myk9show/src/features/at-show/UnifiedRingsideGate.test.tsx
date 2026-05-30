@@ -80,6 +80,14 @@ describe('UnifiedRingsideGate', () => {
     expect(await screen.findByText("Ringside isn't enabled for this show")).toBeInTheDocument();
   });
 
+  it('renders an error state (not the disabled notice) when the fetch fails', async () => {
+    vi.mocked(replicatedShowsTable.getShowById).mockRejectedValue(new Error('network down'));
+    renderGate('show-error');
+    expect(await screen.findByText('Oops! Something went wrong')).toBeInTheDocument();
+    expect(screen.queryByText("Ringside isn't enabled for this show")).not.toBeInTheDocument();
+    expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
+  });
+
   it('dev override renders children without fetching the show flag', () => {
     vi.mocked(isUnifiedRingsideDevOverride).mockReturnValue(true);
     renderGate('show-dev');

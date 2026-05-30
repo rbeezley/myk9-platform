@@ -20,7 +20,7 @@ function FlyerPage1({ showName, clubName, showDates, exhibitorCode, loginUrl }: 
     <div className="flyer-page">
       <div className="flyer-brand">
         <div className="flyer-brand-name">myK9Show</div>
-        <div className="flyer-brand-tagline">Powered by myK9Show &amp; myK9Q</div>
+        <div className="flyer-brand-tagline">Powered by myK9Show</div>
       </div>
 
       <h1 className="flyer-show-title">{showName}</h1>

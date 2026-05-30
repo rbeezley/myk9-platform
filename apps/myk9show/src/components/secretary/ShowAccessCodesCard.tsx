@@ -145,7 +145,7 @@ export function ShowAccessCodesCard({
     ${showDate ? `<div class="show-date">${showDate}</div>` : ''}
     <div class="qr">${svgMarkup}</div>
     <div class="code">${exhibitorCode}</div>
-    <div class="url">myk9show.com</div>
+    <div class="url">myk9show.com/at-show</div>
   </div>
 </body>
 </html>`);

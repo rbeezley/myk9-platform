@@ -122,6 +122,10 @@ describe('ShowAccessCodesCard', () => {
     );
     await user.click(screen.getByRole('button', { name: /print/i }));
     expect(window.open).toHaveBeenCalledWith('', '_blank', expect.any(String));
+    const openedWindow = vi.mocked(window.open).mock.results[0]?.value as Window;
+    expect(openedWindow.document.write).toHaveBeenCalledWith(
+      expect.stringContaining('myk9show.com/at-show')
+    );
   });
 
   it('renders nothing when no passcodes are provided and canRegenerate is false', () => {

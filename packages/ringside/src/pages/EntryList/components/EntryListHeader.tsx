@@ -27,6 +27,7 @@ import {
   getStatusBadge,
   type ActionsMenuConfig,
 } from './entryListHeaderHelpers';
+import { parseTimeLimit } from '../combinedEntryListHelpers';
 import type {
   HamburgerMenuProps,
   CompactOfflineIndicatorProps,
@@ -141,9 +142,13 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
       completedEntries: classInfo.completedEntries,
       judgeName: classInfo.judgeName,
       judgeNameB: classInfo.judgeNameB,
-      timeLimitSeconds: classInfo.timeLimit ? parseInt(classInfo.timeLimit) : undefined,
-      timeLimitArea2Seconds: classInfo.timeLimit2 ? parseInt(classInfo.timeLimit2) : undefined,
-      timeLimitArea3Seconds: classInfo.timeLimit3 ? parseInt(classInfo.timeLimit3) : undefined,
+      // `ClassInfo.timeLimit` is a host-built display string ("180s"); parse it
+      // back to numeric seconds. `parseTimeLimit` collapses any non-numeric value
+      // ("TBD") to `undefined` rather than emitting NaN — NaN is `typeof 'number'`
+      // and would slip past the popover's `typeof === 'number'` guard as "NaNs".
+      timeLimitSeconds: parseTimeLimit(classInfo.timeLimit),
+      timeLimitArea2Seconds: parseTimeLimit(classInfo.timeLimit2),
+      timeLimitArea3Seconds: parseTimeLimit(classInfo.timeLimit3),
       areaCount: classInfo.areas,
       visibilityPreset: classInfo.visibilityPreset,
       selfCheckinEnabled: classInfo.selfCheckin

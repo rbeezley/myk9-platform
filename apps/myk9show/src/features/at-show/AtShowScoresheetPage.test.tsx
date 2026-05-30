@@ -91,6 +91,8 @@ vi.mock('@myk9/scoring-ui', () => ({
 }));
 
 import { AtShowScoresheetPage } from './AtShowScoresheetPage';
+import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
+import { transitionToInRing } from '@/utils/checkInTransitions';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -130,6 +132,10 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRoles = [UserRole.JUDGE];
+    // The canScore gate reads the grant store; clear it so a leaked grant from
+    // a sibling test (or future Phase 1b setGrant) can't silently override
+    // `mockRoles` and pass the deny-path tests for the wrong reason.
+    useRingsideGrantStore.getState().clearGrant();
     seed();
   });
 
@@ -172,15 +178,17 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
   });
 
-  it('never reaches submit for a non-scoring role', async () => {
+  it('runs no scoring-flow side effects for a non-scoring role', async () => {
     mockRoles = [UserRole.STEWARD];
     renderPage();
     await screen.findByText('No Scoring Access');
 
-    // No scoresheet means no submit affordance, and the optimistic-score hook
-    // is never invoked — the block is structural, not a hidden button.
+    // The scoring engine (useAtShowScoresheet) never mounts for a denied role,
+    // so neither the submit nor the on-load `transitionToInRing` auto-advance
+    // fires — the block is structural, not just a hidden submit button.
     expect(screen.queryByText('Submit Score')).not.toBeInTheDocument();
     expect(submitScoreOptimistically).not.toHaveBeenCalled();
+    expect(transitionToInRing).not.toHaveBeenCalled();
   });
 
   it('allows an admin role to score', async () => {

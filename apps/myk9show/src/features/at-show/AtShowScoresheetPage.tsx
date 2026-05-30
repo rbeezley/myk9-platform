@@ -8,6 +8,12 @@
  * `ScoresheetPage` uses (`getScoresheetComponent(key, 'live')`) — so visual +
  * behavioral parity with myK9Q is inherent. Closes the scoresheet route the
  * at-show entry cards already navigate to (`buildScoreSheetRoute`).
+ *
+ * Authorization: the outer component is a thin `canScore` gate. The scoring
+ * engine (`useAtShowScoresheet`) lives in `ScoresheetContent`, which only mounts
+ * when scoring is allowed — so a denied role runs NONE of the scoring-flow side
+ * effects (notably `transitionToInRing`, which auto-advances an entry to in-ring
+ * on load). The block is structural, not a hidden submit button.
  */
 
 import { useCallback } from 'react';
@@ -42,28 +48,13 @@ export const AtShowScoresheetPage: React.FC = () => {
   // stewards (they check in dogs / set run order), but ringside's permission
   // model gives stewards `canScore: false`. Derive the effective ringside role
   // the same way the EntryList shims do — account RBAC, overridden by a Phase 1c
-  // show-scoped passcode grant — and block score submission when it can't score.
+  // show-scoped passcode grant.
   const { hasPermission } = useRingsideEffectiveRole(showId);
-  const canScore = hasPermission('canScore');
 
-  const {
-    entry,
-    classInfo,
-    rules,
-    trialSportType,
-    trialDate,
-    trialNumber,
-    isLoading,
-    error,
-    submit,
-    isSyncing,
-    hasSyncError,
-  } = useAtShowScoresheet({ classId, entryId, onScored: handleBack });
-
-  // Authorization gate precedes the data/loading branches: someone without
-  // scoring access never reaches the live scoresheet (and thus never reaches
-  // `submit`), so the block is structural, not just a hidden button.
-  if (!canScore) {
+  // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
+  // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
+  // denial blocks every side effect, not just the final submit.
+  if (!hasPermission('canScore')) {
     return (
       <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
         <div className="rounded-xl border bg-card p-6 text-center">
@@ -82,6 +73,35 @@ export const AtShowScoresheetPage: React.FC = () => {
     );
   }
 
+  return <ScoresheetContent classId={classId} entryId={entryId} onBack={handleBack} />;
+};
+
+interface ScoresheetContentProps {
+  classId: string | undefined;
+  entryId: string | undefined;
+  onBack: () => void;
+}
+
+/**
+ * The authorized scoresheet body. Mounted only when `canScore` is true, so its
+ * `useAtShowScoresheet` engine (data load + `transitionToInRing` + submit) runs
+ * exclusively for roles allowed to score.
+ */
+const ScoresheetContent: React.FC<ScoresheetContentProps> = ({ classId, entryId, onBack }) => {
+  const {
+    entry,
+    classInfo,
+    rules,
+    trialSportType,
+    trialDate,
+    trialNumber,
+    isLoading,
+    error,
+    submit,
+    isSyncing,
+    hasSyncError,
+  } = useAtShowScoresheet({ classId, entryId, onScored: onBack });
+
   if (isLoading) {
     return (
       <div className="ringside-root flex items-center justify-center h-96">
@@ -95,7 +115,7 @@ export const AtShowScoresheetPage: React.FC = () => {
       <div className="ringside-root flex flex-col items-center justify-center h-96 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-lg font-medium text-destructive">{error || 'Failed to load scoresheet'}</p>
-        <Button variant="outline" onClick={handleBack}>
+        <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Entry List
         </Button>
@@ -119,7 +139,7 @@ export const AtShowScoresheetPage: React.FC = () => {
           <p className="text-muted-foreground">
             The scoresheet for {organization} {sportType} is not yet implemented.
           </p>
-          <Button variant="outline" className="mt-4" onClick={handleBack}>
+          <Button variant="outline" className="mt-4" onClick={onBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Entry List
           </Button>
@@ -155,7 +175,7 @@ export const AtShowScoresheetPage: React.FC = () => {
         classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber)}
         rules={rules}
         onSubmit={submit}
-        onBack={handleBack}
+        onBack={onBack}
       />
     </div>
   );

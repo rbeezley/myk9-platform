@@ -71,7 +71,7 @@ function atShowElement(page: ReactNode): ReactNode {
   );
 }
 
-/** At-show ringside routes — rendered inside UnifiedAppLayout. */
+/** At-show ringside routes — mounted full-screen, outside UnifiedAppLayout. */
 export const AtShowRoutes = () => {
   return (
     <>

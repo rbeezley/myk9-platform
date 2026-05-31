@@ -110,6 +110,19 @@ describe('RingsideSessionHeartbeat', () => {
     ).toHaveLength(2);
   });
 
+  it('sends empty favorite armbands when no favorites are stored', async () => {
+    renderHeartbeat();
+
+    await waitFor(() =>
+      expect(rpcMock).toHaveBeenCalledWith(
+        'upsert_ringside_session',
+        expect.objectContaining({
+          p_favorited_armbands: [],
+        })
+      )
+    );
+  });
+
   it('does not clear presence when no push endpoint has been found', async () => {
     getExistingSubscriptionMock.mockResolvedValue(null);
     const { unmount } = renderHeartbeat();

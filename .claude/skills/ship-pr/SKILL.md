@@ -164,9 +164,9 @@ gh pr merge $PR_NUMBER --squash --auto --delete-branch
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
 
-After arming auto-merge, tell the user: "Auto-merge armed — GitHub will merge when required checks (Quality Checks + Test) pass. No need to poll." Then proceed directly to Step 6 cleanup without waiting for the merge to complete.
+After arming auto-merge, tell the user: "Auto-merge armed — GitHub will merge when required checks (Quality Checks + Test) pass. Run `/cleanup` after it merges to delete the local branch and worktree." Then **STOP — do not proceed to Step 6.**
 
-Do not proceed to Step 6 cleanup if using Path A until `state == "MERGED"`. For Path B, cleanup can run immediately after arming — the remote branch deletion happens automatically when GitHub executes the merge.
+Branch and worktree cleanup requires a confirmed merge (`state == "MERGED"` and `main` updated). For Path B the merge hasn't happened yet, so cleanup must be deferred. The user runs `/cleanup` later once GitHub executes the merge.
 
 ---
 

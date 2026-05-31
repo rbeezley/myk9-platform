@@ -67,6 +67,7 @@ function renderHeartbeat() {
 describe('RingsideSessionHeartbeat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     setVisibilityState('visible');
     getExistingSubscriptionMock.mockResolvedValue({
       endpoint: 'https://push.example/sub-1',
@@ -79,6 +80,7 @@ describe('RingsideSessionHeartbeat', () => {
   });
 
   it('heartbeats while visible and clears presence when hidden or unmounted', async () => {
+    localStorage.setItem('dog_favorites_show-1', JSON.stringify([202, '101', 202, '', null]));
     const { unmount } = renderHeartbeat();
 
     expect(screen.getByText('Ringside child')).toBeInTheDocument();
@@ -86,7 +88,7 @@ describe('RingsideSessionHeartbeat', () => {
       expect(rpcMock).toHaveBeenCalledWith('upsert_ringside_session', {
         p_passcode_or_null: 'j9f3b',
         p_subscription_endpoint: 'https://push.example/sub-1',
-        p_favorited_armbands: [],
+        p_favorited_armbands: ['202', '101'],
         p_route: '/at-show/show-1',
       })
     );

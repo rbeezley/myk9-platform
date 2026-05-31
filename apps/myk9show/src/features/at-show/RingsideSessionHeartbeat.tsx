@@ -5,11 +5,41 @@ import { supabase } from '@/lib/supabase';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 
 const HEARTBEAT_MS = 30_000;
+const DOG_FAVORITES_KEY_PREFIX = 'dog_favorites';
 // TODO: Replace this shim after regenerating Supabase types for the Phase 3 ringside RPCs.
 const rpc = supabase.rpc as unknown as (
   fn: string,
   args: Record<string, unknown>
 ) => Promise<unknown>;
+
+function getFavoritedArmbands(showId: string): string[] {
+  try {
+    const stored = localStorage.getItem(`${DOG_FAVORITES_KEY_PREFIX}_${showId}`);
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+
+    const seen = new Set<string>();
+    const armbands: string[] = [];
+
+    for (const value of parsed) {
+      const armband =
+        typeof value === 'number' && Number.isFinite(value)
+          ? String(value)
+          : typeof value === 'string'
+            ? value.trim()
+            : '';
+      if (!armband || seen.has(armband)) continue;
+      seen.add(armband);
+      armbands.push(armband);
+    }
+
+    return armbands;
+  } catch {
+    return [];
+  }
+}
 
 export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
@@ -23,6 +53,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
 
   useEffect(() => {
     if (!showId || !route.startsWith('/at-show')) return;
+    const heartbeatShowId = showId;
     let cancelled = false;
     let endpoint: string | null = null;
 
@@ -34,9 +65,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       await rpc('upsert_ringside_session', {
         p_passcode_or_null: passcode ?? null,
         p_subscription_endpoint: endpoint,
-        // Favorites are captured in a follow-up; until then passcode class-targeting
-        // only works after the client can send the exhibitor's armband selections.
-        p_favorited_armbands: [],
+        p_favorited_armbands: getFavoritedArmbands(heartbeatShowId),
         p_route: route,
       });
     }
@@ -52,7 +81,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       if (!endpoint) return;
       void rpc('clear_ringside_session_presence', {
         p_subscription_endpoint: endpoint,
-        p_show_id: showId,
+        p_show_id: heartbeatShowId,
       });
     };
 

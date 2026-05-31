@@ -37,6 +37,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   uiState,
   uiActions,
   derived,
+  favorites,
   drag,
   dialogs,
   layout,
@@ -98,8 +99,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         return;
       }
 
-      const pairedClassId =
-        entry.classId === classIds.a ? classIds.b : classIds.a;
+      const pairedClassId = entry.classId === classIds.a ? classIds.b : classIds.a;
 
       const route = getScoresheetNavigationRoute(entry);
       if (route) {
@@ -137,7 +137,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
     async (
       preset: import('./dialogSlots').RunOrderPreset,
       scope?: import('./dialogSlots').RunOrderScope,
-      renumberMode?: import('./dialogSlots').RenumberMode,
+      renumberMode?: import('./dialogSlots').RenumberMode
     ) => {
       try {
         await onApplyRunOrder(preset, scope, renumberMode);
@@ -325,6 +325,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onOpenDragMode={handleOpenDragMode}
+            {...(favorites ? { favorites } : {})}
             DogCard={layout.DogCard}
           />
         </div>
@@ -378,7 +379,6 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         ScoresheetPrintDialog={dialogs.ScoresheetPrintDialog}
         FilterPanel={layout.FilterPanel}
       />
-
     </div>
   );
 };

@@ -44,6 +44,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   uiState,
   uiActions,
   derived,
+  favorites,
   drag,
   dialogs,
   layout,
@@ -161,7 +162,9 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   if (!hasCompletedInitialLoad && !fetchError) {
     return (
       <div className="p-3">
-        <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">Loading entries...</div>
+        <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
+          Loading entries...
+        </div>
       </div>
     );
   }
@@ -274,6 +277,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onOpenDragMode={handlers.handleOpenDragMode}
+              {...(favorites ? { favorites } : {})}
               DogCard={layout.DogCard}
             />
           </div>

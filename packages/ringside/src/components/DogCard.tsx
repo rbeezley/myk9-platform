@@ -52,6 +52,7 @@ export const DogCard = React.memo<DogCardProps>(
     className = '',
     statusBorder = 'no-status',
     actionButton,
+    favoriteButton,
     resultBadges,
     sectionBadge,
     onPrefetch,
@@ -93,7 +94,7 @@ export const DogCard = React.memo<DogCardProps>(
             </div>
           </div>
 
-          <div className="min-w-0 flex-1 pr-2">
+          <div className={cn('min-w-0 flex-1', favoriteButton ? 'pr-12' : 'pr-2')}>
             <h4 className="mb-1 text-base font-[590] leading-snug tracking-tight text-foreground">
               {callName}
             </h4>
@@ -106,6 +107,7 @@ export const DogCard = React.memo<DogCardProps>(
         </div>
 
         {actionButton && <div className="absolute right-0 top-0 z-10">{actionButton}</div>}
+        {favoriteButton && <div className="absolute bottom-2 right-2 z-10">{favoriteButton}</div>}
 
         {sectionBadge && (
           <div

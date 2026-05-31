@@ -46,6 +46,7 @@ import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
+import { useAtShowDogFavorites } from './ringsideDogFavorites';
 
 export const AtShowCombinedEntryListPage: React.FC = () => {
   const { showId, classIdA, classIdB } = useParams<{
@@ -57,8 +58,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // Account RBAC → primary ShowRole → ringside's 4-role enum, with a Phase 1c
   // show-scoped passcode grant overriding the mapping. Shared with the
   // single-class and scoresheet shims via `useRingsideEffectiveRole`.
-  const { showRole, grantRole, ringsideRole, hasPermission } =
-    useRingsideEffectiveRole(showId);
+  const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
+  const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavorites(showId);
 
   // ── Show metadata + provider value ─────────────────────────────────────
   const { data: show } = useQuery({
@@ -250,6 +251,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             currentEntries,
             entryCounts,
           }}
+          favorites={{ favoriteArmbands, onToggleFavoriteArmband: toggleFavoriteArmband }}
           drag={{ sensors, handleDragStart, handleDragEnd, isDraggingRef }}
           dialogs={{
             CheckinStatusDialog: atShowDialogSlots.CheckinStatusDialog,

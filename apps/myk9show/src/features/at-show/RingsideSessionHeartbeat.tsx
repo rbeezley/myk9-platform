@@ -3,38 +3,9 @@ import { useLocation, useParams } from 'react-router-dom';
 import { getExistingSubscription } from '@myk9/notifications';
 import { supabase } from '@/lib/supabase';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
+import { readDogFavoriteArmbands } from './ringsideDogFavorites';
 
 const HEARTBEAT_MS = 30_000;
-const DOG_FAVORITES_KEY_PREFIX = 'dog_favorites';
-
-function getFavoritedArmbands(showId: string): string[] {
-  try {
-    const stored = localStorage.getItem(`${DOG_FAVORITES_KEY_PREFIX}_${showId}`);
-    if (!stored) return [];
-
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) return [];
-
-    const seen = new Set<string>();
-    const armbands: string[] = [];
-
-    for (const value of parsed) {
-      const armband =
-        typeof value === 'number' && Number.isFinite(value)
-          ? String(value)
-          : typeof value === 'string'
-            ? value.trim()
-            : '';
-      if (!armband || seen.has(armband)) continue;
-      seen.add(armband);
-      armbands.push(armband);
-    }
-
-    return armbands;
-  } catch {
-    return [];
-  }
-}
 
 export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
@@ -60,7 +31,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       await supabase.rpc('upsert_ringside_session', {
         p_passcode_or_null: passcode ?? '',
         p_subscription_endpoint: endpoint,
-        p_favorited_armbands: getFavoritedArmbands(heartbeatShowId),
+        p_favorited_armbands: readDogFavoriteArmbands(heartbeatShowId).map(String),
         p_route: route,
       });
     }

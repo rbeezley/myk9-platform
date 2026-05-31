@@ -91,6 +91,7 @@ const renderPage = () =>
 describe('AtShowEntryListPage (Phase 1a shim)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     seedReplication();
   });
 
@@ -113,6 +114,16 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
         check_in_status: 'in-ring',
       })
     );
+  });
+
+  it('favorites a dog by armband without opening the scoresheet flow', async () => {
+    renderPage();
+    const favoriteButton = await screen.findByRole('button', { name: 'Favorite Rex' });
+
+    fireEvent.click(favoriteButton);
+
+    expect(JSON.parse(localStorage.getItem('dog_favorites_show-1') ?? '[]')).toEqual([5]);
+    expect(replicatedEntriesTable.updateEntry).not.toHaveBeenCalled();
   });
 
   it('registers the /at-show routes unconditionally (per-show gating moved to UnifiedRingsideGate)', () => {

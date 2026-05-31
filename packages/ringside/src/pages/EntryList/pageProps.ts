@@ -49,7 +49,14 @@
  * and the rationale for keeping the hooks themselves host-side.
  */
 
-import type { ComponentType, Dispatch, MutableRefObject, ReactNode, RefObject, SetStateAction } from 'react';
+import type {
+  ComponentType,
+  Dispatch,
+  MutableRefObject,
+  ReactNode,
+  RefObject,
+  SetStateAction,
+} from 'react';
 import type { Entry } from '../../stores/entryStore';
 import type { EntryListData, ClassInfo, SortOrder, PrintDialogState } from './types';
 import type { EntryListDialogSlots } from './dialogSlots';
@@ -251,6 +258,7 @@ export interface DogCardProps {
   className?: string;
   statusBorder?: DogCardStatusBorder;
   actionButton?: ReactNode;
+  favoriteButton?: ReactNode;
   resultBadges?: ReactNode;
   sectionBadge?: 'A' | 'B' | null;
   onPrefetch?: () => void;
@@ -533,6 +541,11 @@ export interface EntryListDrag {
   isDraggingRef: MutableRefObject<boolean>;
 }
 
+export interface EntryListFavorites {
+  favoriteArmbands: ReadonlySet<number>;
+  onToggleFavoriteArmband: (armband: number) => void;
+}
+
 // =============================================================================
 // EntryListPageProps — single-class page
 // =============================================================================
@@ -584,6 +597,9 @@ export interface EntryListPageProps {
   /** Derived data + filter state from the shim's `useEntryListFilters` call. */
   derived: EntryListDerived;
 
+  /** Optional exhibitor dog-favorite state for notification fanout. */
+  favorites?: EntryListFavorites;
+
   /** Drag-and-drop sensors + handlers from the shim's `useDragAndDropEntries` call. */
   drag: EntryListDrag;
 
@@ -605,11 +621,7 @@ export interface EntryListPageProps {
     showContext: { org?: string; competition_type?: string } | null;
     /** Permission checker — flattened so ringside doesn't see the host's helper hook. */
     hasPermission: (
-      permission:
-        | 'canScore'
-        | 'canCheckInDogs'
-        | 'canChangeRunOrder'
-        | 'canManageClasses',
+      permission: 'canScore' | 'canCheckInDogs' | 'canChangeRunOrder' | 'canManageClasses'
     ) => boolean;
     /**
      * Precomputed by the shim from
@@ -700,6 +712,9 @@ export interface CombinedEntryListPageProps {
    */
   derived: CombinedEntryListDerived;
 
+  /** Optional exhibitor dog-favorite state for notification fanout. */
+  favorites?: EntryListFavorites;
+
   /** Drag-and-drop state from the shim's `useDragAndDropEntries` call. */
   drag: EntryListDrag;
 
@@ -728,7 +743,7 @@ export interface CombinedEntryListPageProps {
    */
   onPrintSortOrder: (
     type: 'check-in' | 'results-a' | 'results-b' | 'scoresheet-a' | 'scoresheet-b' | null,
-    sortOrder: 'run-order' | 'armband' | 'placement',
+    sortOrder: 'run-order' | 'armband' | 'placement'
   ) => void;
 
   /**
@@ -739,7 +754,7 @@ export interface CombinedEntryListPageProps {
   onApplyRunOrder: (
     preset: import('./dialogSlots').RunOrderPreset,
     scope?: import('./dialogSlots').RunOrderScope,
-    renumberMode?: import('./dialogSlots').RenumberMode,
+    renumberMode?: import('./dialogSlots').RenumberMode
   ) => Promise<void>;
 
   /**
@@ -782,7 +797,7 @@ export interface CombinedEntryHandlers {
       | 'at-gate'
       | 'come-to-gate'
       | 'in-ring'
-      | 'completed',
+      | 'completed'
   ) => Promise<void>;
 
   activeResetMenu: string | null;

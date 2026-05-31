@@ -23,14 +23,11 @@ import {
   SensorOptions,
   AutoScrollActivator,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableEntryCard } from '../SortableEntryCard';
 import type { Entry } from '../../../stores/entryStore';
 import type { EntryListPermission } from '../permissions';
-import type { DogCardProps } from '../pageProps';
+import type { DogCardProps, EntryListFavorites } from '../pageProps';
 import type { ClassInfo } from '../hooks/useEntryListData';
 
 export interface EntryListContentProps {
@@ -68,6 +65,8 @@ export interface EntryListContentProps {
   onDragEnd: (event: DragEndEvent) => Promise<void>;
   /** Handler to open drag mode (long press) */
   onOpenDragMode?: () => void;
+  /** Optional exhibitor dog-favorite state for notification fanout */
+  favorites?: EntryListFavorites;
   /** Host-injected card primitive — passed through to SortableEntryCard. */
   DogCard: ComponentType<DogCardProps>;
 }
@@ -93,6 +92,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
   onDragStart,
   onDragEnd,
   onOpenDragMode,
+  favorites,
   DogCard,
 }) => {
   // Track when entries first load to trigger stagger animation
@@ -117,7 +117,11 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
     return (
       <div className="px-3 py-8 text-center text-muted-foreground">
         <h2>No {activeTab} entries</h2>
-        <p>{activeTab === 'pending' ? 'All entries have been scored.' : 'No entries have been scored yet.'}</p>
+        <p>
+          {activeTab === 'pending'
+            ? 'All entries have been scored.'
+            : 'No entries have been scored yet.'}
+        </p>
       </div>
     );
   }
@@ -139,14 +143,11 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
         interval: 5,
       }}
     >
-      <SortableContext
-        items={entries.map(e => e.id)}
-        strategy={verticalListSortingStrategy}
-      >
+      <SortableContext items={entries.map(e => e.id)} strategy={verticalListSortingStrategy}>
         <div
           className={`grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5 ${isAnimating ? 'stagger-children' : 'stagger-pending'} ${isDragMode ? 'drag-mode' : ''}`}
         >
-          {entries.map((entry) => (
+          {entries.map(entry => (
             <SortableEntryCard
               key={`${entry.id}-${entry.status}-${entry.isScored}`}
               entry={entry}
@@ -161,6 +162,12 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
               onPrefetch={onPrefetch}
               sectionBadge={showSectionBadges ? (entry.section as 'A' | 'B' | null) : undefined}
               onOpenDragMode={onOpenDragMode}
+              {...(favorites
+                ? {
+                    isFavorite: favorites.favoriteArmbands.has(entry.armband),
+                    onToggleFavorite: favorites.onToggleFavoriteArmband,
+                  }
+                : {})}
               DogCard={DogCard}
             />
           ))}

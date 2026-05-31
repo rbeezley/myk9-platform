@@ -6,11 +6,6 @@ import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 
 const HEARTBEAT_MS = 30_000;
 const DOG_FAVORITES_KEY_PREFIX = 'dog_favorites';
-// TODO: Replace this shim after regenerating Supabase types for the Phase 3 ringside RPCs.
-const rpc = supabase.rpc as unknown as (
-  fn: string,
-  args: Record<string, unknown>
-) => Promise<unknown>;
 
 function getFavoritedArmbands(showId: string): string[] {
   try {
@@ -62,8 +57,8 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       endpoint = subscription?.endpoint ?? null;
       if (!endpoint || cancelled) return;
 
-      await rpc('upsert_ringside_session', {
-        p_passcode_or_null: passcode ?? null,
+      await supabase.rpc('upsert_ringside_session', {
+        p_passcode_or_null: passcode ?? '',
         p_subscription_endpoint: endpoint,
         p_favorited_armbands: getFavoritedArmbands(heartbeatShowId),
         p_route: route,
@@ -79,7 +74,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
 
     const clearPresence = () => {
       if (!endpoint) return;
-      void rpc('clear_ringside_session_presence', {
+      void supabase.rpc('clear_ringside_session_presence', {
         p_subscription_endpoint: endpoint,
         p_show_id: heartbeatShowId,
       });

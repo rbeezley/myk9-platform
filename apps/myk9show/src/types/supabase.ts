@@ -4367,6 +4367,106 @@ export type Database = {
           },
         ]
       }
+      ringside_sessions: {
+        Row: {
+          created_at: string
+          favorited_armbands: string[]
+          last_seen_at: string | null
+          last_seen_route: string | null
+          role: string
+          show_id: string
+          show_passcode_id: string | null
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          favorited_armbands?: string[]
+          last_seen_at?: string | null
+          last_seen_route?: string | null
+          role: string
+          show_id: string
+          show_passcode_id?: string | null
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          favorited_armbands?: string[]
+          last_seen_at?: string | null
+          last_seen_route?: string | null
+          role?: string
+          show_id?: string
+          show_passcode_id?: string | null
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ringside_sessions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ringside_sessions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "ringside_sessions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "ringside_sessions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "ringside_sessions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "ringside_sessions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "ringside_sessions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "ringside_sessions_show_passcode_id_fkey"
+            columns: ["show_passcode_id"]
+            isOneToOne: false
+            referencedRelation: "show_passcodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ringside_sessions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "push_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           created_at: string | null
@@ -5438,6 +5538,80 @@ export type Database = {
           },
         ]
       }
+      show_passcodes: {
+        Row: {
+          created_at: string
+          id: string
+          passcode_hash: string
+          role: string
+          show_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          passcode_hash: string
+          role: string
+          show_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          passcode_hash?: string
+          role?: string
+          show_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_passcodes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_passcodes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_passcodes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_passcodes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_passcodes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_passcodes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_passcodes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
       show_templates: {
         Row: {
           club_id: string | null
@@ -5640,6 +5814,7 @@ export type Database = {
           state: string | null
           status: string | null
           style: string
+          unified_ringside_enabled: boolean
           updated_at: string | null
           venue_name: string | null
           venue_wifi_network: string | null
@@ -5696,6 +5871,7 @@ export type Database = {
           state?: string | null
           status?: string | null
           style?: string
+          unified_ringside_enabled?: boolean
           updated_at?: string | null
           venue_name?: string | null
           venue_wifi_network?: string | null
@@ -5752,6 +5928,7 @@ export type Database = {
           state?: string | null
           status?: string | null
           style?: string
+          unified_ringside_enabled?: boolean
           updated_at?: string | null
           venue_name?: string | null
           venue_wifi_network?: string | null
@@ -6845,6 +7022,80 @@ export type Database = {
           },
           {
             foreignKeyName: "trials_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
+      unified_ringside_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          show_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          show_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          show_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "unified_ringside_overrides_show_id_fkey"
             columns: ["show_id"]
             isOneToOne: false
             referencedRelation: "view_stats_summary"
@@ -8084,6 +8335,24 @@ export type Database = {
       }
     }
     Functions: {
+      _account_ringside_show_id: { Args: { p_route: string }; Returns: string }
+      _can_manage_show_passcodes: {
+        Args: { p_show_id: string }
+        Returns: boolean
+      }
+      _extract_at_show_route_show_id: {
+        Args: { p_route: string }
+        Returns: string
+      }
+      _generate_unique_role_code: {
+        Args: { p_role: string }
+        Returns: {
+          hash: string
+          plaintext: string
+        }[]
+      }
+      _hash_passcode: { Args: { p_code: string }; Returns: string }
+      _random_role_code: { Args: { p_role: string }; Returns: string }
       add_to_waitlist: {
         Args: {
           p_class_id: string
@@ -8124,10 +8393,6 @@ export type Database = {
         Args: { p_dog_id: string; p_show_id: string }
         Returns: number
       }
-      can_insert_club_access_request: {
-        Args: { p_auth_user_id: string }
-        Returns: boolean
-      }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
       can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
       can_manage_show_person: {
@@ -8144,6 +8409,10 @@ export type Database = {
           is_available: boolean
           waitlist_position: number
         }[]
+      }
+      clear_ringside_session_presence: {
+        Args: { p_show_id: string; p_subscription_endpoint: string }
+        Returns: undefined
       }
       create_show_managed_dog: {
         Args: {
@@ -8187,6 +8456,12 @@ export type Database = {
         Args: { p_request_id: string; p_reviewer_note?: string }
         Returns: undefined
       }
+      get_account_today_entries: {
+        Args: never
+        Returns: {
+          entry_id: string
+        }[]
+      }
       get_admin_user_list: {
         Args: { show_deleted?: boolean }
         Returns: {
@@ -8203,12 +8478,6 @@ export type Database = {
           roles: string[]
           status: string
           updated_at: string
-        }[]
-      }
-      get_account_today_entries: {
-        Args: never
-        Returns: {
-          entry_id: string
         }[]
       }
       get_effective_permissions: {
@@ -8319,6 +8588,15 @@ export type Database = {
         Args: { p_auth_user_id: string; p_metadata: Json; p_person_id: string }
         Returns: undefined
       }
+      insert_show_passcodes: {
+        Args: { p_show_id: string }
+        Returns: {
+          admin: string
+          exhibitor: string
+          judge: string
+          steward: string
+        }[]
+      }
       insert_signup_role_requests: {
         Args: {
           p_auth_user_id: string
@@ -8338,6 +8616,24 @@ export type Database = {
       promote_waitlist_entry: {
         Args: { p_deadline_hours?: number; p_waitlist_entry_id: string }
         Returns: string
+      }
+      prune_stale_ringside_sessions: { Args: never; Returns: number }
+      recalculate_class_placements: {
+        Args: { p_class_ids: string[]; p_is_nationals?: boolean }
+        Returns: undefined
+      }
+      refresh_class_scoring_state: {
+        Args: { p_class_id: string }
+        Returns: undefined
+      }
+      regenerate_show_passcodes: {
+        Args: { p_show_id: string }
+        Returns: {
+          admin: string
+          exhibitor: string
+          judge: string
+          steward: string
+        }[]
       }
       review_club_access_request: {
         Args: {
@@ -8360,6 +8656,24 @@ export type Database = {
       soft_delete_class: { Args: { p_class_id: string }; Returns: undefined }
       soft_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
       soft_delete_show: { Args: { p_show_id: string }; Returns: undefined }
+      submit_club_access_request: {
+        Args: {
+          p_request_note?: string
+          p_requested_club_name: string
+          p_requested_club_website?: string
+        }
+        Returns: string
+      }
+      submit_role_request: {
+        Args: {
+          p_club_id?: string
+          p_requested_role: string
+          p_requested_scope?: string
+          p_requester_note?: string
+          p_show_id?: string
+        }
+        Returns: string
+      }
       submit_show_entries: {
         Args: {
           p_entries: Json
@@ -8373,6 +8687,18 @@ export type Database = {
       test_as_anon: { Args: never; Returns: undefined }
       test_as_user: { Args: { user_id: string }; Returns: undefined }
       test_reset: { Args: never; Returns: undefined }
+      upsert_ringside_session: {
+        Args: {
+          p_favorited_armbands?: string[]
+          p_passcode_or_null: string
+          p_route?: string
+          p_subscription_endpoint: string
+        }
+        Returns: {
+          role: string
+          show_id: string
+        }[]
+      }
       user_has_permission: {
         Args: {
           permission_name: string
@@ -8381,6 +8707,13 @@ export type Database = {
           user_id: string
         }
         Returns: boolean
+      }
+      validate_passcode: {
+        Args: { p_code: string }
+        Returns: {
+          role: string
+          show_id: string
+        }[]
       }
       volunteer_show_id: { Args: { vol_id: string }; Returns: string }
     }

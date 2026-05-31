@@ -10,6 +10,12 @@ const FAVORITES_KEY_PREFIX = 'favorites';
 
 export interface AccountTodayEntryId {
   entry_id: string;
+  show_id?: string | null;
+  show_name?: string | null;
+  class_id?: string | null;
+  trial_id?: string | null;
+  class_name?: string | null;
+  class_start_time?: string | null;
 }
 
 interface ReplicatedRows {
@@ -54,29 +60,31 @@ export function hydrateAccountTodayEntriesFromReplicatedRows(
   accountEntryIds: AccountTodayEntryId[],
   rows: ReplicatedRows
 ): HydratedAccountTodayEntry[] {
-  const allowedIds = new Set(accountEntryIds.map(row => row.entry_id));
+  const entriesById = new Map(rows.entries.map(entry => [entry.id, entry]));
   const classesById = new Map(rows.classes.map(cls => [cls.id, cls]));
   const trialsById = new Map(rows.trials.map(trial => [trial.id, trial]));
   const showsById = new Map(rows.shows.map(show => [show.id, show]));
   const hydrated: HydratedAccountTodayEntry[] = [];
 
-  for (const entry of rows.entries) {
-    if (!allowedIds.has(entry.id)) continue;
+  for (const accountRow of accountEntryIds) {
+    const entry = entriesById.get(accountRow.entry_id);
 
-    const cls = entry.classId ? classesById.get(entry.classId) : undefined;
+    const cls = entry?.classId ? classesById.get(entry.classId) : undefined;
     const trial = cls?.trialId ? trialsById.get(cls.trialId) : undefined;
-    const showId = entry.showId ?? trial?.showId;
+    const showId = entry?.showId ?? trial?.showId ?? accountRow.show_id;
     const show = showId ? showsById.get(showId) : undefined;
-    if (!showId || !show) continue;
+    const showName = show?.name ?? accountRow.show_name;
+    if (!showId || !showName) continue;
 
     hydrated.push({
-      entryId: entry.id,
+      entryId: accountRow.entry_id,
       showId,
-      showName: show.name,
-      classId: entry.classId ?? null,
-      trialId: cls?.trialId ?? null,
-      className: cls ? buildClassName(cls) : null,
-      classStartTime: cls?.startTime ?? trial?.plannedStartTime ?? null,
+      showName,
+      classId: entry?.classId ?? accountRow.class_id ?? null,
+      trialId: cls?.trialId ?? accountRow.trial_id ?? null,
+      className: cls ? buildClassName(cls) : (accountRow.class_name ?? null),
+      classStartTime:
+        cls?.startTime ?? trial?.plannedStartTime ?? accountRow.class_start_time ?? null,
     });
   }
 

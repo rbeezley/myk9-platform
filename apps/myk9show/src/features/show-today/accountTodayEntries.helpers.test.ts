@@ -88,6 +88,74 @@ describe('account today entries helpers', () => {
     expect(hydrated.map(row => row.entryId)).toEqual(expectedIds);
   });
 
+  it('keeps RPC-authorized access when replicated rows are cold', () => {
+    const hydrated = hydrateAccountTodayEntriesFromReplicatedRows(
+      [
+        {
+          entry_id: 'owner-entry',
+          show_id: 'show-1',
+          show_name: 'Spring Trial',
+          class_id: 'class-1',
+          trial_id: 'trial-1',
+          class_name: 'Container Novice',
+          class_start_time: '08:30',
+        },
+      ],
+      {
+        entries: [],
+        classes: [],
+        trials: [],
+        shows: [],
+      }
+    );
+
+    expect(hydrated).toEqual([
+      {
+        entryId: 'owner-entry',
+        showId: 'show-1',
+        showName: 'Spring Trial',
+        classId: 'class-1',
+        trialId: 'trial-1',
+        className: 'Container Novice',
+        classStartTime: '08:30',
+      },
+    ]);
+  });
+
+  it('uses RPC summary fields when only the replicated entry is warm', () => {
+    const hydrated = hydrateAccountTodayEntriesFromReplicatedRows(
+      [
+        {
+          entry_id: 'owner-entry',
+          show_id: 'show-1',
+          show_name: 'Spring Trial',
+          class_id: 'class-1',
+          trial_id: 'trial-1',
+          class_name: 'Container Novice',
+          class_start_time: '08:30',
+        },
+      ],
+      {
+        entries: [{ id: 'owner-entry', showId: 'show-1', classId: 'class-1' }],
+        classes: [],
+        trials: [],
+        shows: [],
+      }
+    );
+
+    expect(hydrated).toEqual([
+      {
+        entryId: 'owner-entry',
+        showId: 'show-1',
+        showName: 'Spring Trial',
+        classId: 'class-1',
+        trialId: 'trial-1',
+        className: 'Container Novice',
+        classStartTime: '08:30',
+      },
+    ]);
+  });
+
   it('groups pre-favorite class IDs by trial', () => {
     const hydrated = hydrateAccountTodayEntriesFromReplicatedRows(
       ids('owner-entry', 'handler-entry'),

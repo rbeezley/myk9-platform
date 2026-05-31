@@ -96,7 +96,7 @@ describe('usePushSubscription', () => {
         p256dh: 'key1',
         auth: 'auth1',
       },
-      { onConflict: 'user_id,endpoint' }
+      { onConflict: 'endpoint' }
     );
     expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: true });
   });

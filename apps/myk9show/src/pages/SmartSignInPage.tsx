@@ -14,7 +14,12 @@ import type { UserRole as RingsideRole } from '@myk9/ringside';
 const INVALID_COPY =
   'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
 
-type PendingPasscode = { showId: string; showName: string; role: RingsideRole };
+type PendingPasscode = {
+  showId: string;
+  showName: string;
+  role: RingsideRole;
+  passcode: string;
+};
 
 /**
  * SmartSignInPage — the single email-or-passcode front door (Phase 1b).
@@ -90,19 +95,30 @@ const SmartSignInPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const result = await validatePasscode(normalizeCredential(credential));
+      const normalizedCredential = normalizeCredential(credential);
+      const result = await validatePasscode(normalizedCredential);
       if (!result.ok) {
         setError(result.message);
         return;
       }
       if (user) {
         // Signed-in account: confirm before expanding role (Phase 1c §2.2).
-        setPending({ showId: result.showId, showName: result.showName, role: result.role });
+        setPending({
+          showId: result.showId,
+          showName: result.showName,
+          role: result.role,
+          passcode: normalizedCredential,
+        });
       } else {
         // Anonymous: the passcode itself is the show-scoped grant. Keep it in
         // memory before routing so `/at-show/:showId` can admit this device
         // without account RBAC.
-        setGrant({ showId: result.showId, role: result.role, source: 'passcode' });
+        setGrant({
+          showId: result.showId,
+          role: result.role,
+          passcode: normalizedCredential,
+          source: 'passcode',
+        });
         navigate(`/at-show/${result.showId}`);
       }
     } finally {
@@ -127,7 +143,12 @@ const SmartSignInPage: React.FC = () => {
   const handleConfirmJoin = () => {
     if (!pending) return;
     setIsJoining(true);
-    setGrant({ showId: pending.showId, role: pending.role, source: 'passcode' });
+    setGrant({
+      showId: pending.showId,
+      role: pending.role,
+      passcode: pending.passcode,
+      source: 'passcode',
+    });
     navigate(`/at-show/${pending.showId}`);
   };
 

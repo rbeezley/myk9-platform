@@ -10,6 +10,7 @@ import { ThreadList } from '@/features/messages/components/ThreadList';
 import { MessageBubble } from '@/features/messages/components/MessageBubble';
 import { MessageInput } from '@/features/messages/components/MessageInput';
 import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
+import type { MessageTarget } from '@/features/messages/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -43,7 +44,14 @@ export default function SecretaryMessagesPage() {
   // "All shows" filter promises threads from every managed show, so the
   // page must subscribe its own union. The store mutex skips duplicates so
   // re-subscribes on `shows` reference changes are safe.
-  const allShowIdsKey = useMemo(() => shows.map(s => s.id).sort().join(','), [shows]);
+  const allShowIdsKey = useMemo(
+    () =>
+      shows
+        .map(s => s.id)
+        .sort()
+        .join(','),
+    [shows]
+  );
   useEffect(() => {
     if (!allShowIdsKey) return;
     subscribeMessages(allShowIdsKey.split(','));
@@ -83,10 +91,7 @@ export default function SecretaryMessagesPage() {
     enabled: !!selectedShowId,
   });
 
-  const showNameMap = useMemo(
-    () => Object.fromEntries(shows.map(s => [s.id, s.name])),
-    [shows]
-  );
+  const showNameMap = useMemo(() => Object.fromEntries(shows.map(s => [s.id, s.name])), [shows]);
 
   const visibleThreads = useMemo(
     () => (selectedShowId ? threads.filter(t => t.show_id === selectedShowId) : threads),
@@ -98,7 +103,7 @@ export default function SecretaryMessagesPage() {
   // derivation falls back to null and the right-pane shows the empty state —
   // no need for a setState-in-effect to imperatively clear selection.
   const activeThread = activeThreadId
-    ? visibleThreads.find(t => t.id === activeThreadId) ?? null
+    ? (visibleThreads.find(t => t.id === activeThreadId) ?? null)
     : null;
   const effectiveActiveId = activeThread?.id ?? null;
   const activeMessages = effectiveActiveId ? messagesByThread[effectiveActiveId] || [] : [];
@@ -127,9 +132,9 @@ export default function SecretaryMessagesPage() {
     await sendMessage(activeThread.id, activeThread.show_id, body);
   };
 
-  const handleTargetedSend = async (classId: string, body: string) => {
+  const handleTargetedSend = async (target: MessageTarget, body: string) => {
     if (!selectedShowId) return;
-    await sendTargetedMessage(selectedShowId, classId, body);
+    await sendTargetedMessage(selectedShowId, target, body);
   };
 
   if (error) {
@@ -177,12 +182,12 @@ export default function SecretaryMessagesPage() {
             aria-label="Message class"
             title={
               selectedShowId
-                ? 'Send a targeted message to a class in this show'
-                : 'Select a show to send a targeted class message'
+                ? 'Send a targeted message in this show'
+                : 'Select a show to send a targeted message'
             }
           >
             <Users className="h-4 w-4 mr-1" />
-            Message Class
+            Message Show
           </Button>
         </div>
         <div className="border-b px-4 py-2">

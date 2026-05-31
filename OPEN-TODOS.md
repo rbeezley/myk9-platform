@@ -7,6 +7,8 @@ Active work items only. Resolved historical context lives in git history and dat
 ## Platform Unification — myK9Show + myK9Q
 
 - [ ] **Execute myK9Show + myK9Q unification plan** — Absorb myK9Q's ringside UI into myK9Show as `/at-show` backed by a shared `packages/ringside`, unify the messaging pipeline (inbox + push + suppression), and eventually delete `apps/myk9q`. Phases 0–6 (foundation → at-show route → auto-routing for entered exhibitors → unified messaging → retire duplicated surfaces → branding/copy → app deletion). Full plan in [docs/plans/2026-05-17-unify-myk9show-myk9q.md](docs/plans/2026-05-17-unify-myk9show-myk9q.md). Context in TO-DOS.md § "Platform Unification — myK9Show + myK9Q — 2026-05-25 10:39".
+  - [ ] **Phase 3 follow-up: regenerate Supabase types for ringside RPCs** — Replace the temporary `RingsideSessionHeartbeat` RPC shim after the Phase 3 migration is deployed and the generated database types include `upsert_ringside_session` / `clear_ringside_session_presence`.
+  - [ ] **Phase 3 follow-up: wire ringside favorite armbands into presence** — Send the exhibitor's selected/favorited armbands to `upsert_ringside_session` so passcode-only devices can receive class-targeted push fanout, not only all-show exhibitor broadcasts.
 
 ---
 

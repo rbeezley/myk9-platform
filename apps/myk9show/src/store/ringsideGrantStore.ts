@@ -29,6 +29,8 @@ export interface RingsideGrant {
   showId: string;
   /** The ringside role the grant confers (from `validate-passcode`). */
   role: RingsideRole;
+  /** Original normalized passcode, kept in memory only for ringside presence RPCs. */
+  passcode?: string;
   /**
    * How the grant was obtained. `'passcode'` is the only source today
    * (account + passcode merge); `'account'` is reserved for future use.

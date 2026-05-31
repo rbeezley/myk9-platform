@@ -378,7 +378,7 @@ const ClassDetailsPage: React.FC = () => {
         <ComposeTargetedModal
           open={showMessageModal}
           onClose={() => setShowMessageModal(false)}
-          onSend={(classId, body) => sendTargetedMessage(parentShow.id, classId, body)}
+          onSend={(target, body) => sendTargetedMessage(parentShow.id, target, body)}
           classes={[
             {
               id: currentClass.id,

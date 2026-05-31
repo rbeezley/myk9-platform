@@ -23,6 +23,7 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { createEnhancedLazy, RouteLazyPresets } from '@/utils/enhancedLazyLoading';
 import { UnifiedRingsideGate } from '@/features/at-show/UnifiedRingsideGate';
 import { AtShowAccessGate } from '@/features/at-show/AtShowAccessGate';
+import { RingsideSessionHeartbeat } from '@/features/at-show/RingsideSessionHeartbeat';
 
 const AtShowEntryListPage = createEnhancedLazy(
   () => import('@/features/at-show/AtShowEntryListPage'),
@@ -51,11 +52,13 @@ const AtShowClassListPage = createEnhancedLazy(
 function atShowElement(page: ReactNode): ReactNode {
   return (
     <AtShowAccessGate>
-      <SuspenseWrapper>
-        <UnifiedRingsideGate>
-          <PageTransition>{page}</PageTransition>
-        </UnifiedRingsideGate>
-      </SuspenseWrapper>
+      <RingsideSessionHeartbeat>
+        <SuspenseWrapper>
+          <UnifiedRingsideGate>
+            <PageTransition>{page}</PageTransition>
+          </UnifiedRingsideGate>
+        </SuspenseWrapper>
+      </RingsideSessionHeartbeat>
     </AtShowAccessGate>
   );
 }

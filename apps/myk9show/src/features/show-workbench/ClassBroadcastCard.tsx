@@ -59,7 +59,11 @@ export function ClassBroadcastCard({ showId, classes }: ClassBroadcastCardProps)
 
   async function handleSend() {
     if (!selectedClass || !canSend) return;
-    const result = await sendTargetedMessage(showId, selectedClass.id, message.trim());
+    const result = await sendTargetedMessage(
+      showId,
+      { type: 'class', classId: selectedClass.id },
+      message.trim()
+    );
     if (result) {
       reset();
     }
@@ -87,12 +91,7 @@ export function ClassBroadcastCard({ showId, classes }: ClassBroadcastCardProps)
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
             Reset
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSend}
-            disabled={!canSend || isSending}
-          >
+          <Button type="button" size="sm" onClick={handleSend} disabled={!canSend || isSending}>
             <Send className="mr-2 h-4 w-4" aria-hidden="true" />
             {isSending ? 'Sending...' : 'Send class message'}
           </Button>

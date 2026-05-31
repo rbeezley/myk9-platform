@@ -90,6 +90,7 @@ describe('SmartSignInPage', () => {
     expect(setGrantSpy).toHaveBeenCalledWith({
       showId: 'show-x',
       role: 'judge',
+      passcode: 'j9f3b',
       source: 'passcode',
     });
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x'));
@@ -126,6 +127,7 @@ describe('SmartSignInPage', () => {
     expect(setGrantSpy).toHaveBeenCalledWith({
       showId: 'show-x',
       role: 'judge',
+      passcode: 'j9f3b',
       source: 'passcode',
     });
     expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x');
@@ -153,9 +155,39 @@ describe('SmartSignInPage', () => {
     expect(setGrantSpy).toHaveBeenCalledWith({
       showId: 'show-qr',
       role: 'steward',
+      passcode: 's7qr9',
       source: 'passcode',
     });
     expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-qr');
+  });
+
+  it('signed-in passcode confirmation uses the validated passcode snapshot', async () => {
+    mockUser = { id: 'user-1' };
+    validatePasscodeMock.mockResolvedValue({
+      ok: true,
+      role: 'judge',
+      showId: 'show-x',
+      showName: 'Spring Trial',
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    const input = screen.getByTestId('credential-input');
+    await user.type(input, 'J9F3B');
+    await user.click(screen.getByTestId('continue-button'));
+
+    expect(await screen.findByText('Join this show?')).toBeInTheDocument();
+
+    await user.clear(input);
+    await user.type(input, 'S7QR9');
+    await user.click(screen.getByRole('button', { name: 'Join show' }));
+
+    expect(setGrantSpy).toHaveBeenCalledWith({
+      showId: 'show-x',
+      role: 'judge',
+      passcode: 'j9f3b',
+      source: 'passcode',
+    });
   });
 
   it('shows a calm error when the passcode is rejected', async () => {

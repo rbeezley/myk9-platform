@@ -43,4 +43,11 @@ describe('getNotificationActionUrl', () => {
       `${ORIGIN}/`
     );
   });
+
+  it.each([undefined, null, { actionUrl: '' }, { actionUrl: '   ' }])(
+    'falls back to the app root when data has no usable action URL',
+    data => {
+      expect(getNotificationActionUrl(data, ORIGIN)).toBe(`${ORIGIN}/`);
+    }
+  );
 });

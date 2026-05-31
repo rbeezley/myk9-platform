@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute } from 'workbox-precaching';
 import { installSkipWaitingHandler } from '@myk9/pwa-update/sw';
-import { getNotificationActionUrl } from './swClickNavigation';
+import { getNotificationActionUrl, routeNotificationClick } from './swClickNavigation';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
@@ -42,14 +42,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
-      for (const client of clients) {
-        if ('focus' in client && 'navigate' in client) {
-          const windowClient = client as WindowClient;
-          const navigatedClient = await windowClient.navigate(targetUrl);
-          return (navigatedClient ?? windowClient).focus();
-        }
-      }
-      return self.clients.openWindow(targetUrl);
+      return routeNotificationClick(clients, targetUrl, url => self.clients.openWindow(url));
     })
   );
 });

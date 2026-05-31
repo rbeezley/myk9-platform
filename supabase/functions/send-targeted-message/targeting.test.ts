@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildGroupLabel,
+  buildRingsidePushActionUrl,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
   isPresenceSuppressed,
@@ -116,5 +117,22 @@ describe('send-targeted-message targeting helpers', () => {
   it('labels checked-in and all-show sends clearly', () => {
     expect(buildGroupLabel({ targetType: 'checked_in' })).toBe('Sent to everyone checked in');
     expect(buildGroupLabel({ targetType: 'all_show' })).toBe('Sent to everyone in the show');
+  });
+
+  it('routes passcode push taps back to the matching at-show route when known', () => {
+    expect(
+      buildRingsidePushActionUrl('show-1', {
+        lastSeenRoute: '/at-show/show-1/class/class-1',
+      })
+    ).toBe('/at-show/show-1/class/class-1');
+  });
+
+  it('falls passcode push taps back to the show class picker for missing or mismatched routes', () => {
+    expect(buildRingsidePushActionUrl('show-1', { lastSeenRoute: null })).toBe('/at-show/show-1');
+    expect(
+      buildRingsidePushActionUrl('show-1', {
+        lastSeenRoute: '/at-show/other-show/class/class-1',
+      })
+    ).toBe('/at-show/show-1');
   });
 });

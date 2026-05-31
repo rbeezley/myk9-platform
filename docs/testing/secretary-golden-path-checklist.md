@@ -12,6 +12,33 @@
 
 ## Pre-Flight
 
+### Data setup [EXPANDED]
+
+Choose one of two approaches:
+
+**Option A — Use seeded fixtures** (faster; see `docs/testing/secretary-walk-seed.md` for credentials and show IDs):
+- Secretary: `secretary@myk9t.com` / `TestPass4567!`
+- Exhibitor: `exhibitor1@myk9t.com` / `TestPass4567!`
+- Seeded show: **QA Walk Show** (ID `a0505c45-64d0-4b04-b2b3-cb213ed738a6`)
+- Skip Parts 1–2; start at Part 3 using the seeded entries
+
+**Option B — Create fresh data** (more thorough):
+- Create your own accounts via the sign-up flow, or use a site-admin account
+- Walk all parts in order from Part 1
+
+### At-show feature flag [ADDED]
+
+Part 6 (At-Show / Ringside) requires `shows.unified_ringside_enabled = true` on the test show.
+
+To enable it for a specific show, run from the Supabase dashboard (SQL editor):
+```sql
+UPDATE public.shows SET unified_ringside_enabled = true WHERE id = '<your-show-id>';
+```
+
+If you cannot set the flag, skip Part 6 and note it in the issue log.
+
+### Environment
+
 - [ ] `pnpm dev:show` is running at localhost:5173
 - [ ] You are signed in as a user with the **Secretary** role
 - [ ] The app loads with no console errors (open DevTools → Console)
@@ -117,6 +144,15 @@
 - [ ] **Setup** tab is active at `/secretary/shows/:showId`
 - [ ] Setup readiness signals visible (progress indicators, checks)
 - [ ] Show structure (trials, classes, judges) is displayed in the setup panels
+
+**Issue:** ______________________________________________________________________
+
+### 2.7 — Edit Show After Creation [ADDED]
+
+- [ ] From the Setup tab, find the show edit action (pencil icon, "Edit Show", or `?edit=true` link)
+- [ ] Change one show detail (e.g., entry fee or end date)
+- [ ] Save — the updated value is reflected on the workbench
+- [ ] Change a judge name on one class — save and confirm the updated judge appears in the class row
 
 **Issue:** ______________________________________________________________________
 
@@ -273,7 +309,16 @@
 
 **Issue:** ______________________________________________________________________
 
-### 4.10 — Schedule Slip Broadcast
+### 4.10 — Log an Incident [ADDED]
+
+- [ ] From Show Desk tools, open the **Incident Log** card
+- [ ] Add an entry: select a dog/handler, select an incident type, save
+- [ ] Close the tools panel and scroll to the closeout section
+- [ ] **Incident Closeout Summary** shows the logged incident
+
+**Issue:** ______________________________________________________________________
+
+### 4.11 — Schedule Slip Broadcast
 
 - [ ] From Show Desk tools, open **Schedule Slip Script**
 - [ ] Generate a PA script for a ring running behind
@@ -362,10 +407,13 @@
 
 > The `/at-show/:showId` routes are a full-screen ringside experience for judges and scorers. Access is gated by `shows.unified_ringside_enabled` (currently DEV-only feature flag) and admits either RBAC staff or a valid show-scoped passcode grant.
 
-### 6.1 — Confirm Feature Flag is Enabled
+### 6.1 — Confirm Feature Flag is Enabled [EXPANDED]
 
-- [ ] Verify the test show has `unified_ringside_enabled = true` (check via Supabase or seed data)
-- [ ] If not enabled, the `/at-show/:showId` route shows an inline notice (expected behavior — confirm the notice is clear)
+- [ ] Verify the test show has `unified_ringside_enabled = true`
+  - Option A: confirm it was set in Pre-Flight (see SQL above)
+  - Option B: open the Supabase SQL editor and run `SELECT unified_ringside_enabled FROM public.shows WHERE id = '<show-id>';`
+- [ ] If the flag is `false`, the `/at-show/:showId` route will show an inline "not enabled" notice — that is expected gating behavior. Confirm the notice text is legible, then **stop Part 6** and note in the issue log that the flag was not set.
+- [ ] If the flag is `true`, proceed with 6.2+
 
 **Issue:** ______________________________________________________________________
 
@@ -414,14 +462,26 @@
 
 **Issue:** ______________________________________________________________________
 
-### 6.7 — Combined Section A/B View
+### 6.7 — Verify At-Show Results in Results Control [ADDED]
+
+> This step confirms that scores submitted via the at-show scoresheet persist back to the secretary's system — the critical data integrity check for the at-show flow.
+
+- [ ] After scoring at least one entry in step 6.6, switch to the secretary view (sign out of the passcode session if needed, or open a new tab signed in as secretary)
+- [ ] Navigate to `/secretary/results-control`
+- [ ] Select the same show and class used in step 6.6
+- [ ] The scored entry shows the result entered via the at-show scoresheet (Q / NQ / Absent)
+- [ ] The result is **not** blank or stale
+
+**Issue:** ______________________________________________________________________
+
+### 6.9 — Combined Section A/B View
 
 - [ ] If the show has a Novice A + Novice B combined run, navigate to `/at-show/:showId/class/:classIdA/:classIdB`
 - [ ] Both sections' entry cards appear in a unified list
 
 **Issue:** ______________________________________________________________________
 
-### 6.8 — Passcode Access Path (QR / Sign-in)
+### 6.10 — Passcode Access Path (QR / Sign-in)
 
 - [ ] Open an incognito window (no session)
 - [ ] Navigate to `/at-show/:showId`

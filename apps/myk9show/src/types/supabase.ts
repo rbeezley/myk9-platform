@@ -8459,7 +8459,13 @@ export type Database = {
       get_account_today_entries: {
         Args: never
         Returns: {
+          class_id: string | null
+          class_name: string | null
+          class_start_time: string | null
           entry_id: string
+          show_id: string
+          show_name: string
+          trial_id: string | null
         }[]
       }
       get_admin_user_list: {

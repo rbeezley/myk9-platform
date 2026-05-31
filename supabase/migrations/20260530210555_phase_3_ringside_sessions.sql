@@ -34,7 +34,7 @@ alter table public.ringside_sessions enable row level security;
 alter table public.ringside_sessions force row level security;
 
 revoke all on public.ringside_sessions from anon, authenticated;
-grant select on public.ringside_sessions to service_role;
+grant select on public.ringside_sessions to authenticated, service_role;
 
 drop policy if exists "ringside_sessions_site_admin_select" on public.ringside_sessions;
 create policy "ringside_sessions_site_admin_select"

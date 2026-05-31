@@ -22,7 +22,7 @@ function makeDeps(
   options: {
     env?: Record<string, string | undefined>;
     auth?: StubAuthResult;
-  } = {},
+  } = {}
 ) {
   const env = options.env ?? {
     SUPABASE_URL: 'https://example.supabase.co',
@@ -63,12 +63,46 @@ describe('processRequest', () => {
         }),
         { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
         async () => ({ ok: true }),
-        deps,
+        deps
       );
 
       expect(res.status).toBe(204);
       expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://app.myk9show.com');
       expect(res.headers.get('Access-Control-Allow-Methods')).toBe('POST, OPTIONS');
+    });
+
+    it('allows myK9Show Vercel preview origins', async () => {
+      const previewOrigin =
+        'https://myk9-platform-myk9show-eolf80hbs-richard-beezleys-projects.vercel.app';
+      const deps = makeDeps();
+      const res = await processRequest(
+        new Request('https://example.com/fn', {
+          method: 'OPTIONS',
+          headers: { origin: previewOrigin },
+        }),
+        { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
+        async () => ({ ok: true }),
+        deps
+      );
+
+      expect(res.headers.get('Access-Control-Allow-Origin')).toBe(previewOrigin);
+    });
+
+    it('allows myK9Show preview origins when the origin list is copied', async () => {
+      const previewOrigin =
+        'https://myk9-platform-myk9show-eolf80hbs-richard-beezleys-projects.vercel.app';
+      const deps = makeDeps();
+      const res = await processRequest(
+        new Request('https://example.com/fn', {
+          method: 'OPTIONS',
+          headers: { origin: previewOrigin },
+        }),
+        { auth: 'jwt', origins: [...MYK9SHOW_ORIGINS] },
+        async () => ({ ok: true }),
+        deps
+      );
+
+      expect(res.headers.get('Access-Control-Allow-Origin')).toBe(previewOrigin);
     });
 
     it('returns 204 with no CORS headers when origins is undefined', async () => {
@@ -77,7 +111,7 @@ describe('processRequest', () => {
         new Request('https://example.com/fn', { method: 'OPTIONS' }),
         { auth: 'none' },
         async () => ({ ok: true }),
-        deps,
+        deps
       );
 
       expect(res.status).toBe(204);
@@ -93,7 +127,7 @@ describe('processRequest', () => {
         new Request('https://example.com/fn', { method: 'GET' }),
         { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
         async () => ({ ok: true }),
-        deps,
+        deps
       );
 
       expect(res.status).toBe(405);
@@ -109,7 +143,7 @@ describe('processRequest', () => {
         postRequest({ hello: 'world' }),
         { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
         async () => ({ ok: true }),
-        deps,
+        deps
       );
 
       expect(res.status).toBe(401);
@@ -126,7 +160,7 @@ describe('processRequest', () => {
         postRequest({ hello: 'world' }, { Authorization: 'Bearer bad-token' }),
         { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
         async () => ({ ok: true }),
-        deps,
+        deps
       );
 
       expect(res.status).toBe(401);
@@ -136,13 +170,13 @@ describe('processRequest', () => {
 
     it('populates ctx.user and invokes the handler on a valid JWT', async () => {
       const deps = makeDeps();
-      const handler = vi.fn(async (ctx) => ({ caller: (ctx.user as { id: string }).id }));
+      const handler = vi.fn(async ctx => ({ caller: (ctx.user as { id: string }).id }));
 
       const res = await processRequest(
         postRequest({ payload: 1 }, { Authorization: 'Bearer good-token' }),
         { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
         handler,
-        deps,
+        deps
       );
 
       expect(res.status).toBe(200);
@@ -163,7 +197,7 @@ describe('processRequest', () => {
         postRequest({ hello: 'webhook' }),
         { auth: 'none' },
         handler,
-        deps,
+        deps
       );
 
       expect(res.status).toBe(200);
@@ -183,7 +217,7 @@ describe('processRequest', () => {
         async () => {
           throw new HttpError(404, 'not found');
         },
-        deps,
+        deps
       );
 
       expect(res.status).toBe(404);
@@ -200,7 +234,7 @@ describe('processRequest', () => {
         async () => {
           throw new Error('boom');
         },
-        deps,
+        deps
       );
 
       expect(res.status).toBe(500);
@@ -221,7 +255,7 @@ describe('processRequest', () => {
         }),
         { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
         async () => ({ ok: true }),
-        deps,
+        deps
       );
 
       expect(res.status).toBe(400);

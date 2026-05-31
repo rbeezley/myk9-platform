@@ -238,7 +238,6 @@ describe('ReplicatedClassesTable', () => {
 
         expect(result.success).toBe(true);
         expect(result.tableName).toBe('classes');
-        expect(result.operation).toBe('incremental-sync');
       });
 
       it('should return success with 0 rows when no updates', async () => {

@@ -4,23 +4,16 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.vscode/**'
-      - 'LICENSE'
-      - '.gitignore'
   # Also run on direct pushes to main (post-merge commits) so coverage drift
   # and other regressions surface on the branch they landed on, not on the
   # next contributor's PR. See PR #391 follow-up.
+  #
+  # paths-ignore removed: the workflow must always trigger so required status
+  # checks (Quality Checks, Test) always produce a result. Without it, docs-only
+  # PRs never trigger CI, required checks stay "pending", and the branch ruleset
+  # blocks the merge indefinitely. Turbo cache hits keep docs-only test runs fast.
   push:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.vscode/**'
-      - 'LICENSE'
-      - '.gitignore'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

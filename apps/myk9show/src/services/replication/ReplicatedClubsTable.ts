@@ -8,7 +8,12 @@
  * - Local edits queue as mutations for later sync
  */
 
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
@@ -130,122 +135,40 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   }
 
   /**
-   * Sync clubs from Supabase
-   * Note: Clubs don't have a license_key - all clubs are visible
+   * Sync clubs from Supabase.
+   * Note: clubs have no license_key scope — all clubs are visible.
    */
   async sync(_licenseKey?: string): Promise<SyncResult> {
-    const startTime = Date.now();
-    const errors: string[] = [];
-    let rowsSynced = 0;
-    let conflictsResolved = 0;
+    logger.log(`[${this.getTableName()}] Starting sync`);
 
-    try {
-      // Get last sync timestamp
-      const metadata = await this.getSyncMetadata();
+    const adapter: SyncReplicatedTableAdapter<ClubRow, ReplicatedClub> = {
+      fetchRemoteRows: async ({ since }) => {
+        const { data, error } = await supabase
+          .from('clubs')
+          .select('*')
+          .is('deleted_at', null)
+          .gt('updated_at', new Date(since).toISOString())
+          .order('updated_at', { ascending: true });
 
-      // Check if cache is empty - if so, force full sync from epoch
-      const allCachedClubs = await this.getAll();
-      const isCacheEmpty = allCachedClubs.length === 0;
-
-      // If cache is empty but we have a lastSync timestamp, it means the cache was cleared
-      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
-
-      logger.log(
-        `[${this.getTableName()}] Starting ${isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCachedClubs.length} clubs`
-      );
-
-      // Fetch clubs updated since last sync (excluding soft-deleted)
-      const { data: remoteClubs, error } = await supabase
-        .from('clubs')
-        .select('*')
-        .is('deleted_at', null)
-        .gt('updated_at', new Date(lastSync).toISOString())
-        .order('updated_at', { ascending: true });
-
-      if (error) {
-        errors.push(error.message);
-        throw new Error(`Supabase query failed: ${error.message}`);
-      }
-
-      if (!remoteClubs || remoteClubs.length === 0) {
-        logger.log(`[${this.getTableName()}] No updates found`);
-
-        await this.updateSyncMetadata({
-          lastIncrementalSyncAt: Date.now(),
-          syncStatus: 'idle',
-        });
-
-        return {
-          tableName: this.getTableName(),
-          success: true,
-          operation: 'incremental-sync',
-          rowsAffected: 0,
-          conflictsResolved: 0,
-          duration: Date.now() - startTime,
-        };
-      }
-
-      // Process each club
-      for (const remoteRow of remoteClubs) {
-        const clubId = String(remoteRow.id);
-        const remoteClub = rowToClub(remoteRow as unknown as ClubRow);
-        const localClub = await this.get(clubId);
-
-        if (localClub) {
-          // Conflict resolution: server always wins for club config
-          const resolved = this.resolveConflict(localClub, remoteClub);
-          await this.set(clubId, resolved);
-          conflictsResolved++;
-        } else {
-          // New club
-          await this.set(clubId, remoteClub);
+        if (error) {
+          throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        rowsSynced++;
-      }
+        return (data ?? []) as unknown as ClubRow[];
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToClub,
+      resolveConflict: (_local, remote) => remote,
+    };
 
-      // Update sync metadata
-      await this.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now(),
-        syncStatus: 'idle',
-      });
+    const result = await syncReplicatedTable(this, adapter);
 
-      const duration = Date.now() - startTime;
-      logger.log(
-        `[${this.getTableName()}] Sync complete: ${rowsSynced} rows, ${conflictsResolved} conflicts, ${duration}ms`
-      );
-
-      return {
-        tableName: this.getTableName(),
-        success: true,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration,
-      };
-    } catch (error) {
-      const errorMessage = getSyncErrorMessage(error);
-      errors.push(errorMessage);
-
-      await this.updateSyncMetadata({
-        syncStatus: 'error',
-        errorMessage,
-      });
-
-      if (!isAbortSyncError(error)) {
-        logger.error(`[${this.getTableName()}] Sync failed:`, error);
-      }
-
-      return {
-        tableName: this.getTableName(),
-        success: false,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-        error: errorMessage,
-      };
+    if (!result.success && result.error && !isAbortSyncError(result.error)) {
+      logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
+      return { ...result, error: getSyncErrorMessage(result.error) };
     }
+
+    return result;
   }
 
   /**

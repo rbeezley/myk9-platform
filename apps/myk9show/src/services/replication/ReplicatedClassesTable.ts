@@ -5,7 +5,12 @@
  * Classes are competition categories within a trial.
  */
 
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
@@ -277,61 +282,44 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   }
 
   async sync(licenseKey: string): Promise<SyncResult> {
-    const startTime = Date.now();
-    let rowsSynced = 0;
-    let conflictsResolved = 0;
+    logger.log(`[${this.getTableName()}] Starting sync`);
 
-    try {
-      const metadata = await this.getSyncMetadata();
-      const allCached = await this.getAll();
-      const isCacheEmpty = allCached.length === 0;
-      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
+    // Carry visibility enrichment fields through fetchRemoteRows → toLocalRow.
+    // toLocalRow is synchronous so the async resolveVisibilityForClassRows call
+    // must happen inside fetchRemoteRows, which returns an enriched row type.
+    type EnrichedClassRow = ClassRow & {
+      _selfCheckinEnabled?: boolean | undefined;
+      _visibilityPreset?: string | undefined;
+    };
 
-      logger.log(`[${this.getTableName()}] Starting sync`);
+    const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
+      fetchRemoteRows: async ({ scope, since }) => {
+        let query = supabase
+          .from('classes')
+          .select(
+            '*, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
+          )
+          .gt('updated_at', new Date(since).toISOString())
+          .order('updated_at', { ascending: true });
 
-      // Filter by trial_id if provided as license key
-      let query = supabase
-        .from('classes')
-        .select(
-          '*, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
-        )
-        .gt('updated_at', new Date(lastSync).toISOString())
-        .order('updated_at', { ascending: true });
+        if (scope.value) {
+          query = query.eq('trial_id', scope.value);
+        }
 
-      if (licenseKey) {
-        query = query.eq('trial_id', licenseKey);
-      }
+        const { data, error } = await query;
 
-      const { data: remoteClasses, error } = await query;
+        if (error) {
+          throw new Error(`Supabase query failed: ${error.message}`);
+        }
 
-      if (error) {
-        throw new Error(`Supabase query failed: ${error.message}`);
-      }
+        const rows = (data ?? []) as unknown as ClassRow[];
 
-      if (!remoteClasses || remoteClasses.length === 0) {
-        await this.updateSyncMetadata({
-          lastIncrementalSyncAt: Date.now(),
-          syncStatus: 'idle',
-        });
-
-        return {
-          tableName: this.getTableName(),
-          success: true,
-          operation: 'incremental-sync',
-          rowsAffected: 0,
-          conflictsResolved: 0,
-          duration: Date.now() - startTime,
-        };
-      }
-
-      // Phase 1h: resolve visibility-cascade values for the changed classes so
-      // the at-show ClassDetailsPopover + SortableEntryCard self-check-in gate
-      // have them offline. Grouped by each row's own trial_id (NOT the sync
-      // licenseKey, which may be a show id or empty), so it runs for scoped AND
-      // unscoped syncs and the values stay present on every sync. Best-effort:
-      // a failure must not break class replication.
-      const visibilityByClassId: Map<string, ResolvedClassVisibility> =
-        await resolveVisibilityForClassRows(remoteClasses).catch(() => {
+        // Phase 1h: resolve visibility-cascade values so the at-show
+        // ClassDetailsPopover + SortableEntryCard self-check-in gate work offline.
+        // Keyed by the row's own trial_id (not the scope arg) so it runs for
+        // scoped and unscoped syncs alike. Best-effort: failure must not break
+        // class replication.
+        const visibilityByClassId = await resolveVisibilityForClassRows(rows).catch(() => {
           logger.warn(
             `[${this.getTableName()}] Visibility resolve failed; popover values may be stale`,
             'replication'
@@ -339,60 +327,31 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           return new Map<string, ResolvedClassVisibility>();
         });
 
-      for (const remoteRow of remoteClasses) {
-        const classId = String(remoteRow.id);
-        const visibility = visibilityByClassId.get(classId);
-        const remoteClass: ReplicatedClass = {
-          ...rowToClass(remoteRow),
-          ...(visibility
-            ? {
-                selfCheckinEnabled: visibility.selfCheckinEnabled,
-                visibilityPreset: visibility.visibilityPreset,
-              }
-            : {}),
-        };
-        const localClass = await this.get(classId);
+        return rows.map(row => ({
+          ...row,
+          _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
+          _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
+        }));
+      },
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: remote => ({
+        ...rowToClass(remote),
+        selfCheckinEnabled: remote._selfCheckinEnabled,
+        visibilityPreset: remote._visibilityPreset,
+      }),
+      filterLocalRows: (rows, scope) =>
+        scope.value ? rows.filter(r => r.trialId === scope.value) : rows,
+      resolveConflict: (local, remote) => this.resolveConflict(local, remote),
+    };
 
-        if (localClass) {
-          const resolved = this.resolveConflict(localClass, remoteClass);
-          await this.set(classId, resolved);
-          conflictsResolved++;
-        } else {
-          await this.set(classId, remoteClass);
-        }
+    const result = await syncReplicatedTable(this, adapter, { value: licenseKey });
 
-        rowsSynced++;
-      }
-
-      await this.updateSyncMetadata({
-        lastIncrementalSyncAt: Date.now(),
-        syncStatus: 'idle',
-      });
-
-      return {
-        tableName: this.getTableName(),
-        success: true,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-      };
-    } catch (error) {
-      const errorMessage = getSyncErrorMessage(error);
-      if (!isAbortSyncError(error)) {
-        logger.error(`[${this.getTableName()}] Sync failed:`, error);
-      }
-
-      return {
-        tableName: this.getTableName(),
-        success: false,
-        operation: 'incremental-sync',
-        rowsAffected: rowsSynced,
-        conflictsResolved,
-        duration: Date.now() - startTime,
-        error: errorMessage,
-      };
+    if (!result.success && result.error && !isAbortSyncError(result.error)) {
+      logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
+      return { ...result, error: getSyncErrorMessage(result.error) };
     }
+
+    return result;
   }
 
   protected resolveConflict(local: ReplicatedClass, remote: ReplicatedClass): ReplicatedClass {

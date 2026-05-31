@@ -67,6 +67,6 @@ comment on function public.get_account_today_entries() is
   'Returns signed-in account entries for today''s shows with enough show/class summary data to authorize at-show access before replicated rows hydrate.';
 
 revoke execute on function public.get_account_today_entries() from public;
-grant execute on function public.get_account_today_entries() to authenticated, anon;
+grant execute on function public.get_account_today_entries() to authenticated;
 
 commit;

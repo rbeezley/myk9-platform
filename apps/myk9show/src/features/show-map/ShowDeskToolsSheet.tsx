@@ -1,5 +1,5 @@
 import { ChevronRight, Wrench } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,22 +60,13 @@ export function ShowDeskToolsSheet({
   const badgeAriaLabel = hasActionable
     ? `${actionableCount} ${actionableCount === 1 ? 'item needs' : 'items need'} attention`
     : `${effectiveToolCount} tools available`;
-  const defaultOpenToolIds = useMemo(() => loadOpenToolIds(showId, tools), [showId, tools]);
-  const [openToolIds, setOpenToolIds] = useState<Set<string>>(() => new Set(defaultOpenToolIds));
-
-  useEffect(() => {
-    setOpenToolIds(new Set(loadOpenToolIds(showId, tools)));
-  }, [showId, tools]);
-
-  const toggleTool = (toolId: string, open: boolean) => {
-    setOpenToolIds(current => {
-      const next = new Set(current);
-      if (open) next.add(toolId);
-      else next.delete(toolId);
-      saveOpenToolIds(showId, [...next]);
-      return next;
-    });
-  };
+  const toolStateSignature = JSON.stringify(
+    tools.map(tool => ({
+      id: tool.id,
+      ...(tool.defaultOpen !== undefined && { defaultOpen: tool.defaultOpen }),
+      ...(tool.attentionLabel !== undefined && { attentionLabel: tool.attentionLabel }),
+    }))
+  );
 
   return (
     <Sheet>
@@ -109,54 +100,79 @@ export function ShowDeskToolsSheet({
             Late entries, hospitality, broadcasts, incidents, delay scripts, and access codes.
           </SheetDescription>
         </SheetHeader>
-        <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
-          {tools.map(tool => {
-            const isOpen = openToolIds.has(tool.id);
-
-            return (
-              <Collapsible
-                key={tool.id}
-                open={isOpen}
-                onOpenChange={open => toggleTool(tool.id, open)}
-                className="rounded-md border bg-background"
-              >
-                <CollapsibleTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <ChevronRight
-                      className={cn(
-                        'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-                        {
-                          'rotate-90': isOpen,
-                        }
-                      )}
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium leading-none text-foreground">
-                        {tool.title}
-                      </span>
-                      <span className="mt-1 block text-sm text-muted-foreground">
-                        {tool.summary}
-                      </span>
-                    </span>
-                    {tool.attentionLabel && (
-                      <Badge variant="destructive" className="shrink-0">
-                        {tool.attentionLabel}
-                      </Badge>
-                    )}
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="border-t p-4">{tool.content}</div>
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
-        </div>
+        <ShowDeskToolSections
+          key={`${showId}:${toolStateSignature}`}
+          showId={showId}
+          tools={tools}
+        />
       </SheetContent>
     </Sheet>
+  );
+}
+
+function ShowDeskToolSections({
+  showId,
+  tools,
+}: {
+  showId: string;
+  tools: readonly ShowDeskToolSection[];
+}) {
+  const [openToolIds, setOpenToolIds] = useState<Set<string>>(
+    () => new Set(loadOpenToolIds(showId, tools))
+  );
+
+  const toggleTool = (toolId: string, open: boolean) => {
+    setOpenToolIds(current => {
+      const next = new Set(current);
+      if (open) next.add(toolId);
+      else next.delete(toolId);
+      saveOpenToolIds(showId, [...next]);
+      return next;
+    });
+  };
+
+  return (
+    <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
+      {tools.map(tool => {
+        const isOpen = openToolIds.has(tool.id);
+
+        return (
+          <Collapsible
+            key={tool.id}
+            open={isOpen}
+            onOpenChange={open => toggleTool(tool.id, open)}
+            className="rounded-md border bg-background"
+          >
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <ChevronRight
+                  className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', {
+                    'rotate-90': isOpen,
+                  })}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium leading-none text-foreground">
+                    {tool.title}
+                  </span>
+                  <span className="mt-1 block text-sm text-muted-foreground">{tool.summary}</span>
+                </span>
+                {tool.attentionLabel && (
+                  <Badge variant="destructive" className="shrink-0">
+                    {tool.attentionLabel}
+                  </Badge>
+                )}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="border-t p-4">{tool.content}</div>
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      })}
+    </div>
   );
 }

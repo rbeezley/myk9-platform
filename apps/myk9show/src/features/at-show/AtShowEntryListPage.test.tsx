@@ -124,6 +124,10 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
 
     expect(JSON.parse(localStorage.getItem('dog_favorites_show-1') ?? '[]')).toEqual([5]);
     expect(replicatedEntriesTable.updateEntry).not.toHaveBeenCalled();
+
+    fireEvent.click(favoriteButton);
+
+    expect(JSON.parse(localStorage.getItem('dog_favorites_show-1') ?? '[]')).toEqual([]);
   });
 
   it('registers the /at-show routes unconditionally (per-show gating moved to UnifiedRingsideGate)', () => {

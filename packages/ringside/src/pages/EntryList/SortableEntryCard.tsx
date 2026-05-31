@@ -205,7 +205,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           onToggleFavorite ? (
             <button
               type="button"
-              aria-label={`${isFavorite ? 'Remove' : 'Favorite'} ${entry.callName}`}
+              aria-label={`Favorite ${entry.callName}`}
               aria-pressed={isFavorite}
               className={cn(
                 'flex h-11 w-11 items-center justify-center rounded-full border border-solid border-border bg-card/95 text-muted-foreground shadow-sm transition active:scale-95',

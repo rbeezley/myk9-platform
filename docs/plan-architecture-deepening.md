@@ -338,7 +338,9 @@ invalidation paths alive as a compatibility shim; migrate callers outright.
 
 ---
 
-## Phase 5 — Lift entry-management orchestration behind a testable seam
+## Phase 5 — Lift entry-management orchestration behind a testable seam ✓ COMPLETE
+
+**Merged:** PR #464 (2026-05-31). New `entries/management-actions.ts` exports `executeStatusChange`, `executeBulkStatusChange`, `executeRemoveEntry` — pure orchestration functions with injected adapters. Hook delegates all three workflows; `mapStatusToDb` import removed from hook. 13 module tests + 2 existing hook tests + 6 new `useEntryManagementData` ordering/cancellation tests. 25/25 typecheck green.
 
 ### Goal
 Move the optimistic-update → lifecycle-transition → invalidation → **rollback**

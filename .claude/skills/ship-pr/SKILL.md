@@ -135,20 +135,38 @@ Otherwise apply findings (critical + high required; medium if straightforward), 
 **CRITICAL: Never run `gh pr merge` from inside the feature worktree.**
 
 ```bash
-# 1. Verify PR state
-gh pr view $PR_NUMBER --json state,mergedAt
+# 1. Verify PR state and current check status
+gh pr view $PR_NUMBER --json state,mergedAt,statusCheckRollup
 
 # 2. Switch to main repo BEFORE merging
 cd "/Users/richardbeezley/AI Projects/myk9-platform"
+```
 
-# 3. Squash-merge
+**Choose the merge path based on check status:**
+
+**Path A — checks already green (all required checks passed):** merge immediately.
+
+```bash
+# 3a. Squash-merge directly
 gh pr merge $PR_NUMBER --squash --delete-branch
 
-# 4. Confirm
+# 4a. Confirm
 gh pr view $PR_NUMBER --json state,mergedAt
 ```
 
-Do not proceed until `state == "MERGED"`.
+**Path B — checks still pending:** arm auto-merge and return immediately. GitHub will squash-merge as soon as all required checks pass.
+
+```bash
+# 3b. Arm auto-merge (returns immediately — do NOT poll or wait)
+gh pr merge $PR_NUMBER --squash --auto --delete-branch
+
+# 4b. Confirm auto-merge is armed
+gh pr view $PR_NUMBER --json autoMergeRequest
+```
+
+After arming auto-merge, tell the user: "Auto-merge armed — GitHub will merge when required checks (Quality Checks + Test) pass. No need to poll." Then proceed directly to Step 6 cleanup without waiting for the merge to complete.
+
+Do not proceed to Step 6 cleanup if using Path A until `state == "MERGED"`. For Path B, cleanup can run immediately after arming — the remote branch deletion happens automatically when GitHub executes the merge.
 
 ---
 

@@ -147,7 +147,16 @@ Before merging, check status once:
 gh pr checks $PR_NUMBER
 ```
 
-If any check is pending, report "CI pending" and stop unless the user explicitly asked to wait. Do not repeatedly poll. Use `gh pr checks $PR_NUMBER --watch` only when the user asks to wait for checks.
+If any required check is pending, enable squash auto-merge and stop before cleanup:
+
+```bash
+gh pr merge $PR_NUMBER --squash --auto --delete-branch
+gh pr view $PR_NUMBER --json state,autoMergeRequest,mergeStateStatus
+```
+
+Report that auto-merge is enabled and that cleanup must wait until GitHub actually merges the PR. Do not repeatedly poll. Use `gh pr checks $PR_NUMBER --watch` only when the user asks to wait for checks.
+
+If checks have passed and the PR is immediately mergeable:
 
 ```bash
 # 1. Verify PR state
@@ -185,6 +194,7 @@ git worktree remove "/Users/richardbeezley/AI Projects/myk9-platform/.Codex/work
 
 - NEVER run on `main` directly
 - NEVER run `gh pr merge` from inside a worktree directory
+- If checks are pending, enable `gh pr merge --squash --auto --delete-branch` instead of stopping with manual instructions
 - NEVER repeatedly poll PR checks unless the user asks to wait
 - NEVER remove the worktree before merge is confirmed AND main is updated
 - Worktree removal is ALWAYS the final command

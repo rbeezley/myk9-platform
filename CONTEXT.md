@@ -35,6 +35,33 @@ Out of scope for this seam: the dual `EntryStatus` enum
 refund accounting (`refund_status`, `refund_amount`,
 `updateRefundStatus`). Both stay as-is.
 
+The canonical query-invalidation contract for Entry mutations is
+`entryInvalidationKeys(change: EntryChange)` in
+`services/database/entries/invalidation.ts`. It accepts an optional
+context (`showId`, `classId`, `dogId`) and returns the complete set of
+React Query keys that must be invalidated after a write. All entry
+mutation hooks (`useEntriesDatabase`, `useClassesDatabase`) call this
+helper in their `onSettled` handlers — never hand-assemble key lists at
+call sites.
+
+The canonical module for secretary entry-management workflows is
+`services/database/entries/management-actions.ts`. It exports three
+pure orchestration functions with injected adapters (no React
+dependency):
+
+- `executeStatusChange` — optimistic update → lifecycle transition →
+  armbandPatch or rollback on failure.
+- `executeBulkStatusChange` — DB write → local state update →
+  conditional full reload (ACCEPTED only, to pick up trigger-assigned
+  armbands).
+- `executeRemoveEntry` — snapshot → optimistic remove → soft-delete →
+  rollback on failure; returns `{ removed: boolean }` so callers can
+  gate toasts.
+
+`useEntryManagementActions` is the thin React binding that supplies
+these functions with React Query adapters and local `useState` setters.
+New orchestration logic belongs in the module, not in the hook.
+
 **Class**
 A competitive division within a Trial (e.g. "Novice A Agility"). Defines
 the rules, judge assignment, run order, and entry limit. Classes belong to

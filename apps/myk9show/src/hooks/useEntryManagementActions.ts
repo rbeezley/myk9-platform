@@ -13,6 +13,9 @@ import {
   getEntriesForExport,
   compEntry,
   uncompEntry,
+  executeStatusChange,
+  executeBulkStatusChange,
+  executeRemoveEntry,
 } from '@/services/database/entries';
 import {
   autoAssignArmbands,
@@ -23,7 +26,6 @@ import {
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
-import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
 import { changeSecretaryEntryStatus } from '@/services/secretary/entry-workflow';
 import type {
@@ -123,57 +125,10 @@ export function useEntryManagementActions({
     async (entryId: string, newStatus: EntryStatus, withdrawalReason?: string) => {
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return;
-
-      const oldStatus = entry.entryStatus;
-      const oldWithdrawalReason = entry.withdrawalReason;
-
-      setEntries(prev =>
-        prev.map(e =>
-          e.id === entryId
-            ? {
-                ...e,
-                entryStatus: newStatus,
-                lastUpdated: new Date(),
-                ...(withdrawalReason !== undefined ? { withdrawalReason } : {}),
-              }
-            : e
-        )
+      await executeStatusChange(
+        { entryId, newStatus, withdrawalReason, entry, userId: user?.id },
+        { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
       );
-
-      try {
-        const result = await changeSecretaryEntryStatus({
-          entry,
-          newStatus,
-          ...(user?.id ? { secretaryId: user.id } : {}),
-          ...(withdrawalReason !== undefined ? { withdrawalReason } : {}),
-        });
-
-        if (result.armbandPatch) {
-          const { armband, dogId, showId } = result.armbandPatch;
-          setEntries(prev =>
-            prev.map(e =>
-              e.dogId === dogId && e.showId === showId
-                ? { ...e, armbandNumber: armband, entryNumber: armband }
-                : e
-            )
-          );
-        }
-      } catch (error) {
-        logger.error('Failed to update entry status:', 'pages', {}, error as Error);
-        setEntries(prev =>
-          prev.map(e =>
-            e.id === entryId
-              ? {
-                  ...e,
-                  entryStatus: oldStatus,
-                  ...(oldWithdrawalReason !== undefined
-                    ? { withdrawalReason: oldWithdrawalReason }
-                    : {}),
-                }
-              : e
-          )
-        );
-      }
     },
     [entries, setEntries, user]
   );
@@ -265,24 +220,17 @@ export function useEntryManagementActions({
   // Handle enrollment-level bulk status change
   const handleEnrollmentBulkStatusChange = useCallback(
     async (entryIds: string[], status: EntryStatus) => {
-      if (entryIds.length === 0) return;
       setIsProcessing(true);
       try {
-        const { error: dbError } = await bulkUpdateEntryStatus(entryIds, mapStatusToDb(status));
-        if (dbError) {
-          setError('Failed to update entry statuses');
-          return;
-        }
-        setEntries(prev =>
-          prev.map(e =>
-            entryIds.includes(e.id) ? { ...e, entryStatus: status, lastUpdated: new Date() } : e
-          )
+        await executeBulkStatusChange(
+          { entryIds, status, selectedShowId },
+          {
+            bulkUpdateStatus: bulkUpdateEntryStatus,
+            reloadEntries: loadEntries,
+            patchEntries: setEntries,
+            setError,
+          }
         );
-
-        // Full reload picks up trigger-assigned armbands for all dogs in the group
-        if (status === EntryStatus.ACCEPTED && selectedShowId) {
-          await loadEntries(selectedShowId);
-        }
       } catch (err) {
         setError('Failed to update entry statuses');
         logger.error('Error bulk updating statuses:', 'secretary', {}, err as Error);
@@ -597,27 +545,14 @@ export function useEntryManagementActions({
 
   const handleRemoveEntry = useCallback(
     async (entryId: string) => {
-      const snapshot = entriesRef.current;
-      const entry = snapshot.find(e => e.id === entryId);
-      if (!entry) return;
-
-      setEntries(prev => prev.filter(e => e.id !== entryId));
-
-      try {
-        const { error: dbError } = await deleteEntry(entryId, user?.id);
-
-        if (dbError) {
-          setEntries(snapshot);
-          setError(dbError.message || 'Failed to remove entry');
-          return;
-        }
-
-        setError(null);
+      const currentEntries = entriesRef.current;
+      const entry = currentEntries.find(e => e.id === entryId);
+      const { removed } = await executeRemoveEntry(
+        { entryId, userId: user?.id, currentEntries },
+        { deleteEntry, patchEntries: setEntries, setError }
+      );
+      if (removed && entry) {
         toast.success(`Removed ${entry.dogName} from ${entry.classes[0]?.name ?? 'the class'}`);
-      } catch (err) {
-        setEntries(snapshot);
-        setError('Failed to remove entry');
-        logger.error('Error removing entry:', 'secretary', {}, err as Error);
       }
     },
     [setEntries, setError, user?.id]

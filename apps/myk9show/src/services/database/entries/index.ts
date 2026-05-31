@@ -24,3 +24,12 @@ export * from './secretary';
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';
 export { entryInvalidationKeys } from './invalidation';
 export type { EntryChange } from './invalidation';
+export { executeStatusChange, executeBulkStatusChange, executeRemoveEntry } from './management-actions';
+export type {
+  StatusChangeAdapters,
+  BulkStatusChangeAdapters,
+  RemoveEntryAdapters,
+  StatusChangeParams,
+  BulkStatusChangeParams,
+  RemoveEntryParams,
+} from './management-actions';

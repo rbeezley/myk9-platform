@@ -20,16 +20,20 @@ vi.mock('@/services/database/armbands', () => ({
   getNextArmbandForShow: mocks.getNextArmbandForShow,
 }));
 
-vi.mock('@/services/database/entries', () => ({
-  updateEntryStatus: vi.fn(),
-  updateCheckInStatus: vi.fn(),
-  bulkCheckIn: vi.fn(),
-  bulkUpdateEntryStatus: vi.fn(),
-  getEntriesForExport: vi.fn(),
-  compEntry: vi.fn(),
-  uncompEntry: vi.fn(),
-  deleteEntry: vi.fn(),
-}));
+vi.mock('@/services/database/entries', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/database/entries')>();
+  return {
+    ...actual, // real implementations for executeStatusChange, executeBulkStatusChange, executeRemoveEntry
+    updateEntryStatus: vi.fn(),
+    updateCheckInStatus: vi.fn(),
+    bulkCheckIn: vi.fn(),
+    bulkUpdateEntryStatus: vi.fn(),
+    getEntriesForExport: vi.fn(),
+    compEntry: vi.fn(),
+    uncompEntry: vi.fn(),
+    deleteEntry: vi.fn(),
+  };
+});
 
 vi.mock('@/services/notifications/ccSecretary', () => ({
   resolveSecretaryCc: vi.fn(),

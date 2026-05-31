@@ -15,6 +15,7 @@ import {
   targetArmbands,
   uniqueAccountRecipients,
   type EntryRecipientSource,
+  type CallerRoleSource,
   type RingsideSessionSource,
   type TargetType,
 } from './targeting.ts';
@@ -287,7 +288,7 @@ handle<SendTargetedMessagePayload>(
 
     if (callerRolesError) throw new HttpError(500, 'Failed to verify sender role');
 
-    const canSendForShow = (callerRoles ?? []).some((role: any) =>
+    const canSendForShow = ((callerRoles ?? []) as CallerRoleSource[]).some(role =>
       callerRoleAuthorizesShow(role, show)
     );
 

@@ -16,7 +16,7 @@ export interface RingsideSessionSource {
 export interface CallerRoleSource {
   club_id: string | null;
   show_id?: string | null;
-  roles?: { name?: string | null } | Array<{ name?: string | null }> | null;
+  roles?: { name?: string | null } | null;
 }
 
 export const RINGSIDE_SESSION_PUSH_TARGET_SELECT =
@@ -46,8 +46,7 @@ export function callerRoleAuthorizesShow(
   role: CallerRoleSource,
   show: { id: string; club_id: string | null }
 ): boolean {
-  const joinedRole = Array.isArray(role.roles) ? role.roles[0] : role.roles;
-  const roleName = joinedRole?.name;
+  const roleName = role.roles?.name;
   if (roleName === 'platform_admin' || roleName === 'site_admin') return true;
   if (roleName !== 'secretary' && roleName !== 'trial_secretary') return false;
   return role.club_id === show.club_id || role.show_id === show.id;

@@ -53,7 +53,13 @@ describe('send-targeted-message targeting helpers', () => {
       true
     );
     expect(
+      callerRoleAuthorizesShow({ club_id: null, roles: { name: 'platform_admin' } }, show)
+    ).toBe(true);
+    expect(
       callerRoleAuthorizesShow({ club_id: 'club-1', roles: { name: 'secretary' } }, show)
+    ).toBe(true);
+    expect(
+      callerRoleAuthorizesShow({ club_id: 'club-1', roles: { name: 'trial_secretary' } }, show)
     ).toBe(true);
     expect(
       callerRoleAuthorizesShow(

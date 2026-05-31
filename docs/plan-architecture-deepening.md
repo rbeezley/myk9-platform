@@ -267,7 +267,9 @@ at-show PRs touching `store/` (Framing).
 
 ---
 
-## Phase 4 — Give each entity data-access module ownership of its cache-invalidation contract
+## Phase 4 — Give each entity data-access module ownership of its cache-invalidation contract ✓ COMPLETE (entries slice)
+
+**Merged:** PR #463 (2026-05-31). New `entries/invalidation.ts` exports `entryInvalidationKeys(change)` — a pure key-set helper. Migrated 6 callers: `useEntriesDatabase`, `useShowMapActionExecutor`, `useShowMapReorderMode`, `useShowMapRunOrderAutoSort`, and entry mutations in `useClassesDatabase`. 9 assertion-first tests. 25/25 typecheck green.
 
 ### Goal
 Make "what becomes stale when I write entity X" part of the entity module's

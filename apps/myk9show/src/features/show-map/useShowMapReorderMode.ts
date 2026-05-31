@@ -12,6 +12,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
+import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import {
@@ -107,10 +108,10 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
   const invalidateForClass = useCallback(
     (classId: string) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.show(showId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.classEntries(classId) });
-      queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
       queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
+      entryInvalidationKeys({ showId, classId }).forEach(k =>
+        queryClient.invalidateQueries({ queryKey: k })
+      );
     },
     [queryClient, showId]
   );

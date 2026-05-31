@@ -49,6 +49,7 @@ import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
+import { useAtShowDogFavorites } from './ringsideDogFavorites';
 
 export const AtShowEntryListPage: React.FC = () => {
   const { showId, classId } = useParams<{ showId: string; classId: string }>();
@@ -60,8 +61,8 @@ export const AtShowEntryListPage: React.FC = () => {
   // the data hook, the permission bag, AND the provider auth (via `showRole` +
   // `grantRole` below) so all three agree. Shared with the combined-list and
   // scoresheet shims via `useRingsideEffectiveRole`.
-  const { showRole, grantRole, ringsideRole, hasPermission } =
-    useRingsideEffectiveRole(showId);
+  const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
+  const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavorites(showId);
 
   // ── Show metadata (org/name/date) for the ringside show context ────────
   const { data: show } = useQuery({
@@ -240,35 +241,36 @@ export const AtShowEntryListPage: React.FC = () => {
       <div className="ringside-root">
         <EntryListPage
           classId={classId}
-        data={{ entries, classInfo }}
-        dataStatus={{ isRefreshing, fetchError, refresh }}
-        handlers={handlers}
-        actions={actions}
-        uiState={uiState}
-        uiActions={uiActions}
-        derived={{
-          activeTab,
-          sortOrder,
-          searchTerm,
-          filteredEntries,
-          pendingEntries,
-          completedEntries,
-          currentEntries,
-          entryCounts,
-        }}
-        drag={{ sensors, handleDragStart, handleDragEnd, isDraggingRef }}
-        dialogs={atShowDialogSlots}
-        layout={atShowLayoutSlots}
-        context={{
-          role: ringsideRole,
-          showContext: pageShowContext,
-          hasPermission,
-          // INTENT (spike): hide org-rule max-time + class-settings options
-          // for anyone who can't manage classes. A faithful org-rule pass
-          // (mirroring myK9Q's hasRuleDefinedMaxTimes) lands in the UI sprint.
-          hideMaxTimeOption: !canManageClasses,
-          hideSettingsOption: !canManageClasses,
-        }}
+          data={{ entries, classInfo }}
+          dataStatus={{ isRefreshing, fetchError, refresh }}
+          handlers={handlers}
+          actions={actions}
+          uiState={uiState}
+          uiActions={uiActions}
+          derived={{
+            activeTab,
+            sortOrder,
+            searchTerm,
+            filteredEntries,
+            pendingEntries,
+            completedEntries,
+            currentEntries,
+            entryCounts,
+          }}
+          favorites={{ favoriteArmbands, onToggleFavoriteArmband: toggleFavoriteArmband }}
+          drag={{ sensors, handleDragStart, handleDragEnd, isDraggingRef }}
+          dialogs={atShowDialogSlots}
+          layout={atShowLayoutSlots}
+          context={{
+            role: ringsideRole,
+            showContext: pageShowContext,
+            hasPermission,
+            // INTENT (spike): hide org-rule max-time + class-settings options
+            // for anyone who can't manage classes. A faithful org-rule pass
+            // (mirroring myK9Q's hasRuleDefinedMaxTimes) lands in the UI sprint.
+            hideMaxTimeOption: !canManageClasses,
+            hideSettingsOption: !canManageClasses,
+          }}
         />
       </div>
     </RingsideProvider>

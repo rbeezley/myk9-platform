@@ -32,6 +32,7 @@ const StubDogCard: ComponentType<DogCardProps> = ({
   statusBorder,
   actionButton,
   dragHandle,
+  favoriteButton,
   resultBadges,
 }) => (
   <div
@@ -44,6 +45,7 @@ const StubDogCard: ComponentType<DogCardProps> = ({
     <span>{callName}</span>
     {dragHandle && <div data-testid="drag-handle-slot">{dragHandle}</div>}
     {actionButton && <div data-testid="action-button-slot">{actionButton}</div>}
+    {favoriteButton && <div data-testid="favorite-button-slot">{favoriteButton}</div>}
     {resultBadges && <div data-testid="result-badges-slot">{resultBadges}</div>}
   </div>
 );
@@ -259,6 +261,29 @@ describe('SortableEntryCard', () => {
     );
     fireEvent.click(screen.getByTestId('dog-card'));
     expect(onEntryClick).toHaveBeenCalledWith(baseEntry);
+  });
+
+  it('toggles favorite without firing card navigation', () => {
+    const onEntryClick = vi.fn();
+    const onToggleFavorite = vi.fn();
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={onEntryClick}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        onToggleFavorite={onToggleFavorite}
+        DogCard={StubDogCard}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Favorite Rex' }));
+
+    expect(onToggleFavorite).toHaveBeenCalledWith(42);
+    expect(onEntryClick).not.toHaveBeenCalled();
   });
 
   it('suppresses card click navigation while in drag mode', () => {

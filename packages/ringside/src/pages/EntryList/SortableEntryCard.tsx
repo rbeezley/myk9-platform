@@ -17,7 +17,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Heart } from 'lucide-react';
 import { cn } from '@myk9/ui';
 import { haptic } from '@myk9/scoring-ui';
 import type { ComponentType } from 'react';
@@ -55,6 +55,10 @@ export interface SortableEntryCardProps {
   sectionBadge?: 'A' | 'B' | null;
   /** Handler to open drag mode */
   onOpenDragMode?: () => void;
+  /** Whether this armband is one of the exhibitor's favorites. */
+  isFavorite?: boolean;
+  /** Toggle the exhibitor's favorite state for this armband. */
+  onToggleFavorite?: (armband: number) => void;
   /**
    * Host-injected card primitive. The host renders this with the
    * armband / dog details / badges; ringside controls only what's
@@ -80,6 +84,8 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   onPrefetch,
   sectionBadge,
   onOpenDragMode,
+  isFavorite = false,
+  onToggleFavorite,
   DogCard,
 }) => {
   const isInRing = entry.inRing || entry.status === 'in-ring';
@@ -157,6 +163,18 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
     handleResetMenuClick(e, entry.id);
   };
 
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation();
+    haptic.light();
+    onToggleFavorite?.(entry.armband);
+  };
+
+  const stopCardGesture = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -183,6 +201,28 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         statusBorder={getStatusBorderClass(entry)}
         resultBadges={<ResultBadges entry={entry} showContext={showContext} />}
         sectionBadge={sectionBadge}
+        favoriteButton={
+          onToggleFavorite ? (
+            <button
+              type="button"
+              aria-label={`Favorite ${entry.callName}`}
+              aria-pressed={isFavorite}
+              className={cn(
+                'flex h-11 w-11 items-center justify-center rounded-full border border-solid border-border bg-card/95 text-muted-foreground shadow-sm transition active:scale-95',
+                isFavorite && 'border-rose-200 bg-rose-50 text-rose-600'
+              )}
+              onClick={handleFavoriteClick}
+              onMouseDown={stopCardGesture}
+              onTouchStart={stopCardGesture}
+            >
+              <Heart
+                size={19}
+                className={cn('transition', isFavorite && 'fill-current')}
+                aria-hidden="true"
+              />
+            </button>
+          ) : undefined
+        }
         dragHandle={
           isDragMode && !isInRing ? (
             <div {...attributes} {...listeners} className="drag-handle">

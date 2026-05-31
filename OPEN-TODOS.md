@@ -10,6 +10,8 @@ Active work items only. Resolved historical context lives in git history and dat
   - [x] ~~**Phase 3 follow-up: regenerate Supabase types for ringside RPCs**~~ — Generated database types now include `upsert_ringside_session` / `clear_ringside_session_presence`, and `RingsideSessionHeartbeat` calls the typed RPC client directly.
   - [x] ~~**Phase 3 follow-up: wire ringside favorite armbands read path into presence**~~ — `RingsideSessionHeartbeat` now sends normalized `dog_favorites_<showId>` armbands to `upsert_ringside_session`.
   - [x] ~~**Phase 3 follow-up: add myK9Show dog-favorite write path**~~ — myK9Show `/at-show` entry cards now expose a touch-friendly favorite toggle that writes normalized armbands to `dog_favorites_<showId>` for passcode-only class-targeted push fanout.
+  - [x] ~~**Phase 3 follow-up: deployed synthetic push fanout verification**~~ — 2026-05-31 synthetic transport pilot against Supabase project `sojmvhhwsjxmfistvzbe` proved inbox persistence, account/passcode ringside fanout, fresh `/at-show` suppression, dead subscription cleanup, and response counts. `PUSH_FANOUT_ENABLED` was restored to `false`; synthetic subscriptions were cleaned up.
+  - [ ] **Phase 3 acceptance: real-device push tap verification** — Before Phase 4 sunset/deletion work, run a real browser/device pilot with an actual push subscription and confirm tapping the notification opens the correct inbox thread. The 2026-05-31 synthetic transport pilot could not cover this because staging had zero existing push subscriptions.
 
 ---
 

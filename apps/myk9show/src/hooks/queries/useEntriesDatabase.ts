@@ -163,8 +163,12 @@ export const useCreateEntryMutation = () => {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
       }
     },
-    onSettled: () => {
-      entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
+    onSettled: (_data, _error, variables) => {
+      entryInvalidationKeys({
+        ...(variables.show_id ? { showId: variables.show_id } : {}),
+        ...(variables.class_id ? { classId: variables.class_id } : {}),
+        ...(variables.dog_id ? { dogId: variables.dog_id } : {}),
+      }).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
     },
   });
 };
@@ -221,10 +225,13 @@ export const useUpdateEntryMutation = () => {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
       }
     },
-    onSettled: (_data, _error, { id }) => {
-      entryInvalidationKeys({ entryId: id }).forEach(k =>
-        queryClient.invalidateQueries({ queryKey: k })
-      );
+    onSettled: (data, _error, { id }) => {
+      entryInvalidationKeys({
+        entryId: id,
+        ...(data?.show_id ? { showId: data.show_id } : {}),
+        ...(data?.class_id ? { classId: data.class_id } : {}),
+        ...(data?.dog_id ? { dogId: data.dog_id } : {}),
+      }).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
     },
   });
 };
@@ -246,6 +253,11 @@ export const useDeleteEntryMutation = () => {
       // Snapshot the previous value
       const previousEntries = queryClient.getQueryData(queryKeys.entries);
 
+      // Capture show/class/dog context before optimistic removal
+      const deletedEntry = (previousEntries as Array<Record<string, unknown>> | undefined)?.find(
+        e => e.id === id
+      );
+
       // Optimistically remove from entries list
       queryClient.setQueryData(queryKeys.entries, (old: Array<Record<string, unknown>>) =>
         old ? old.filter(entry => entry.id !== id) : []
@@ -254,7 +266,12 @@ export const useDeleteEntryMutation = () => {
       // Remove individual entry cache
       queryClient.removeQueries({ queryKey: queryKeys.entry(id) });
 
-      return { previousEntries };
+      return {
+        previousEntries,
+        showId: deletedEntry?.show_id as string | undefined,
+        classId: deletedEntry?.class_id as string | undefined,
+        dogId: deletedEntry?.dog_id as string | undefined,
+      };
     },
     onError: (_err, _id, context) => {
       // Rollback on error
@@ -262,8 +279,12 @@ export const useDeleteEntryMutation = () => {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
       }
     },
-    onSettled: () => {
-      entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
+    onSettled: (_data, _error, _id, context) => {
+      entryInvalidationKeys({
+        ...(context?.showId ? { showId: context.showId } : {}),
+        ...(context?.classId ? { classId: context.classId } : {}),
+        ...(context?.dogId ? { dogId: context.dogId } : {}),
+      }).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
     },
   });
 };
@@ -318,10 +339,12 @@ export const useUpdateEntryStatusMutation = () => {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
       }
     },
-    onSettled: (_data, _error, { id }) => {
-      entryInvalidationKeys({ entryId: id }).forEach(k =>
-        queryClient.invalidateQueries({ queryKey: k })
-      );
+    onSettled: (data, _error, { id }) => {
+      entryInvalidationKeys({
+        entryId: id,
+        ...(data?.show_id ? { showId: data.show_id } : {}),
+        ...(data?.class_id ? { classId: data.class_id } : {}),
+      }).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
     },
   });
 };
@@ -361,8 +384,16 @@ export const useCreateMultipleEntriesMutation = () => {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
+      const uniqueShowIds = [...new Set(variables.map(e => e.show_id).filter((id): id is string => !!id))];
+      uniqueShowIds.forEach(showId =>
+        entryInvalidationKeys({ showId }).forEach(k => queryClient.invalidateQueries({ queryKey: k }))
+      );
+      const uniqueClassIds = [...new Set(variables.map(e => e.class_id).filter((id): id is string => !!id))];
+      uniqueClassIds.forEach(classId =>
+        entryInvalidationKeys({ classId }).forEach(k => queryClient.invalidateQueries({ queryKey: k }))
+      );
     },
   });
 };

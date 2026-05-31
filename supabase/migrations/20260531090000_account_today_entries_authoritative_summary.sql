@@ -44,7 +44,7 @@ as $func$
       nullif(trim(concat_ws(' ', c.element, c.level, nullif(c.section, '-'))), ''),
       c.name
     ) as class_name,
-    coalesce(c.start_time, t.planned_start_time)::text as class_start_time
+    coalesce(c.start_time::text, t.planned_start_time) as class_start_time
   from public.entries e
   left join public.trials t on t.id = e.trial_id
   left join public.classes c on c.id = e.class_id

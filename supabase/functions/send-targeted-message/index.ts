@@ -6,12 +6,16 @@ import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import {
   buildGroupLabel,
+  CALLER_ROLE_SELECT,
+  callerRoleAuthorizesShow,
   isPresenceSuppressed,
   normalizeTargetType,
+  RINGSIDE_SESSION_PUSH_TARGET_SELECT,
   ringsideSessionMatchesTarget,
   targetArmbands,
   uniqueAccountRecipients,
   type EntryRecipientSource,
+  type CallerRoleSource,
   type RingsideSessionSource,
   type TargetType,
 } from './targeting.ts';
@@ -28,7 +32,6 @@ interface SendTargetedMessagePayload {
 interface PushSubscriptionRow {
   id: string;
   endpoint: string;
-  keys?: { p256dh?: string; auth?: string } | null;
   p256dh?: string | null;
   auth?: string | null;
 }
@@ -50,8 +53,8 @@ function subscriptionFromSession(row: RingsideSessionRow): PushSubscriptionRow |
 }
 
 function subscriptionKeys(sub: PushSubscriptionRow): { p256dh: string; auth: string } | null {
-  const p256dh = sub.keys?.p256dh ?? sub.p256dh;
-  const auth = sub.keys?.auth ?? sub.auth;
+  const p256dh = sub.p256dh;
+  const auth = sub.auth;
   return p256dh && auth ? { p256dh, auth } : null;
 }
 
@@ -126,9 +129,7 @@ async function fetchRingsidePushTargets(
   // are included in "all show" notifications.
   const { data, error } = await supabase
     .from('ringside_sessions')
-    .select(
-      'subscription_id, role, favorited_armbands, last_seen_at, last_seen_route, push_subscriptions!inner(id, endpoint, keys, p256dh, auth)'
-    )
+    .select(RINGSIDE_SESSION_PUSH_TARGET_SELECT)
     .eq('show_id', showId)
     .eq('role', 'exhibitor');
 
@@ -279,15 +280,19 @@ handle<SendTargetedMessagePayload>(
 
     if (!show) throw new HttpError(404, 'Show not found');
 
-    const { data: callerRoles } = await supabase
+    const { data: callerRoles, error: callerRolesError } = await supabase
       .from('user_roles')
-      .select('id, club_id, people!inner(auth_user_id), roles!inner(name)')
-      .eq('people.auth_user_id', user.id)
-      .or(
-        `and(roles.name.in.(secretary,trial_secretary),club_id.eq.${show.club_id}),roles.name.eq.platform_admin,roles.name.eq.site_admin`
-      );
+      .select(CALLER_ROLE_SELECT)
+      .eq('auth_user_id', user.id)
+      .eq('is_active', true);
 
-    if (!callerRoles || callerRoles.length === 0) {
+    if (callerRolesError) throw new HttpError(500, 'Failed to verify sender role');
+
+    const canSendForShow = ((callerRoles ?? []) as CallerRoleSource[]).some(role =>
+      callerRoleAuthorizesShow(role, show)
+    );
+
+    if (!canSendForShow) {
       throw new HttpError(403, 'Forbidden: secretary or admin role required');
     }
 

@@ -13,6 +13,18 @@ export interface RingsideSessionSource {
   lastSeenRoute: string | null;
 }
 
+export interface CallerRoleSource {
+  club_id: string | null;
+  show_id?: string | null;
+  roles?: { name?: string | null } | null;
+}
+
+export const RINGSIDE_SESSION_PUSH_TARGET_SELECT =
+  'subscription_id, role, favorited_armbands, last_seen_at, last_seen_route, push_subscriptions!inner(id, endpoint, p256dh, auth)';
+
+export const CALLER_ROLE_SELECT =
+  'id, club_id, show_id, auth_user_id, is_active, roles!inner(name)';
+
 export function normalizeTargetType(value: unknown): TargetType {
   return value === 'checked_in' || value === 'all_show' ? value : 'class';
 }
@@ -28,6 +40,16 @@ export function uniqueAccountRecipients(
     }
   }
   return [...recipients];
+}
+
+export function callerRoleAuthorizesShow(
+  role: CallerRoleSource,
+  show: { id: string; club_id: string | null }
+): boolean {
+  const roleName = role.roles?.name;
+  if (roleName === 'platform_admin' || roleName === 'site_admin') return true;
+  if (roleName !== 'secretary' && roleName !== 'trial_secretary') return false;
+  return role.club_id === show.club_id || role.show_id === show.id;
 }
 
 export function targetArmbands(entries: EntryRecipientSource[]): string[] {

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildGroupLabel,
+  CALLER_ROLE_SELECT,
+  callerRoleAuthorizesShow,
   isPresenceSuppressed,
+  RINGSIDE_SESSION_PUSH_TARGET_SELECT,
   ringsideSessionMatchesTarget,
   targetArmbands,
   uniqueAccountRecipients,
@@ -29,6 +32,44 @@ describe('send-targeted-message targeting helpers', () => {
         { armband: null, authUserIds: [] },
       ])
     ).toEqual(['101', '202']);
+  });
+
+  it('selects push subscription key columns that exist in the unified schema', () => {
+    expect(RINGSIDE_SESSION_PUSH_TARGET_SELECT).toContain(
+      'push_subscriptions!inner(id, endpoint, p256dh, auth)'
+    );
+    expect(RINGSIDE_SESSION_PUSH_TARGET_SELECT).not.toContain('keys');
+  });
+
+  it('authorizes callers through the denormalized user_roles auth_user_id column', () => {
+    expect(CALLER_ROLE_SELECT).toContain('auth_user_id');
+    expect(CALLER_ROLE_SELECT).not.toContain('people!inner');
+  });
+
+  it('authorizes site admins and scoped secretary roles for a show', () => {
+    const show = { id: 'show-1', club_id: 'club-1' };
+
+    expect(callerRoleAuthorizesShow({ club_id: null, roles: { name: 'site_admin' } }, show)).toBe(
+      true
+    );
+    expect(
+      callerRoleAuthorizesShow({ club_id: null, roles: { name: 'platform_admin' } }, show)
+    ).toBe(true);
+    expect(
+      callerRoleAuthorizesShow({ club_id: 'club-1', roles: { name: 'secretary' } }, show)
+    ).toBe(true);
+    expect(
+      callerRoleAuthorizesShow({ club_id: 'club-1', roles: { name: 'trial_secretary' } }, show)
+    ).toBe(true);
+    expect(
+      callerRoleAuthorizesShow(
+        { club_id: 'club-2', show_id: 'show-1', roles: { name: 'secretary' } },
+        show
+      )
+    ).toBe(true);
+    expect(
+      callerRoleAuthorizesShow({ club_id: 'club-2', roles: { name: 'secretary' } }, show)
+    ).toBe(false);
   });
 
   it('matches passcode-only exhibitors by favorited armband for class-style targets', () => {

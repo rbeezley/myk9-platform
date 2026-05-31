@@ -108,7 +108,9 @@ delete saved it).
 
 ---
 
-## Phase 2 — Collapse hand-rolled Replicated Table Sync adapters onto `syncReplicatedTable()`
+## Phase 2 — Collapse hand-rolled Replicated Table Sync adapters onto `syncReplicatedTable()` ✓ COMPLETE
+
+**Merged:** PRs #457 (1/8 — ReplicatedArmbandsTable), #459 (2/8 — ReplicatedClassesTable), #460 (3/8 — ReplicatedClubsTable), #461 (4-8/8 — remaining 5 adapters) (2026-05-30). All 8 myK9Show adapters now delegate to `syncReplicatedTable()`; no inlined sync loop remains in myK9Show.
 
 > **[REVISED — myK9Q sunset]** myK9Q is being removed from the monorepo (unify
 > direction, memory `project_monorepo_decision`). Refactoring code slated for
@@ -207,7 +209,9 @@ interface while myK9Q still exists.
 
 ---
 
-## Phase 3 — Consolidate duplicated state directories and the twin `entryStore`
+## Phase 3 — Consolidate duplicated state directories and the twin `entryStore` ✓ COMPLETE
+
+**Merged:** PR #456 (2026-05-30). `stores/` collapsed into `store/`; `contexts/` collapsed into `context/`. One canonical home per state concern.
 
 ### Goal
 One predictable home per state concern; remove the `entryStore` name collision —

@@ -71,6 +71,23 @@ describe('processRequest', () => {
       expect(res.headers.get('Access-Control-Allow-Methods')).toBe('POST, OPTIONS');
     });
 
+    it('allows myK9Show Vercel preview origins', async () => {
+      const previewOrigin =
+        'https://myk9-platform-myk9show-eolf80hbs-richard-beezleys-projects.vercel.app';
+      const deps = makeDeps();
+      const res = await processRequest(
+        new Request('https://example.com/fn', {
+          method: 'OPTIONS',
+          headers: { origin: previewOrigin },
+        }),
+        { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
+        async () => ({ ok: true }),
+        deps,
+      );
+
+      expect(res.headers.get('Access-Control-Allow-Origin')).toBe(previewOrigin);
+    });
+
     it('returns 204 with no CORS headers when origins is undefined', async () => {
       const deps = makeDeps();
       const res = await processRequest(

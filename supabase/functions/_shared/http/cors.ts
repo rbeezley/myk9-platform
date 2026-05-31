@@ -23,12 +23,22 @@ export const MYK9Q_ORIGINS: readonly string[] = [
   'http://127.0.0.1:5173',
 ];
 
+const MYK9SHOW_ORIGIN_PATTERNS: readonly RegExp[] = [
+  /^https:\/\/myk9-platform-myk9show-[a-z0-9-]+\.vercel\.app$/i,
+];
+
 const DEFAULT_ALLOWED_HEADERS: readonly string[] = [
   'authorization',
   'x-client-info',
   'apikey',
   'content-type',
 ];
+
+function isAllowedOrigin(origin: string, origins: readonly string[]): boolean {
+  return origins.includes(origin) ||
+    (origins === MYK9SHOW_ORIGINS &&
+      MYK9SHOW_ORIGIN_PATTERNS.some(pattern => pattern.test(origin)));
+}
 
 /**
  * Build CORS headers for a request, echoing the origin if it's in the
@@ -41,7 +51,7 @@ export function corsHeaders(
 ): Record<string, string> {
   const requestOrigin = req.headers.get('origin');
   const origin =
-    requestOrigin && origins.includes(requestOrigin) ? requestOrigin : origins[0];
+    requestOrigin && isAllowedOrigin(requestOrigin, origins) ? requestOrigin : origins[0];
 
   return {
     'Access-Control-Allow-Origin': origin,

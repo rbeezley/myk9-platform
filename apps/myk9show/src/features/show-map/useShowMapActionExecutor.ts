@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
+import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import {
   bulkUpdateEntryStatus,
@@ -128,14 +129,12 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     (classId?: string | undefined, trialId?: string | undefined) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.show(showId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.showClasses(showId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(showId) });
       queryClient.invalidateQueries({ queryKey: ['show-day'] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.entries });
+      entryInvalidationKeys({ showId, ...(classId ? { classId } : {}) }).forEach(k =>
+        queryClient.invalidateQueries({ queryKey: k })
+      );
       if (classId) {
         queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.classEntries(classId) });
-        queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
       }
       if (trialId) {
         queryClient.invalidateQueries({ queryKey: classKeys.byTrial(trialId) });

@@ -22,3 +22,5 @@ export * from './lifecycle';
 export * from './search';
 export * from './secretary';
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';
+export { entryInvalidationKeys } from './invalidation';
+export type { EntryChange } from './invalidation';

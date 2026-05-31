@@ -18,7 +18,7 @@ import {
   searchEntries,
 } from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { invalidateQueries } from '@/services/database/queryClient';
+import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import type { DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 
 // Get all entries with related data
@@ -164,8 +164,7 @@ export const useCreateEntryMutation = () => {
       }
     },
     onSettled: () => {
-      // Invalidate and refetch related queries
-      invalidateQueries.all('entries');
+      entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
     },
   });
 };
@@ -223,9 +222,9 @@ export const useUpdateEntryMutation = () => {
       }
     },
     onSettled: (_data, _error, { id }) => {
-      // Invalidate and refetch related queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.entry(id) });
-      invalidateQueries.all('entries');
+      entryInvalidationKeys({ entryId: id }).forEach(k =>
+        queryClient.invalidateQueries({ queryKey: k })
+      );
     },
   });
 };
@@ -264,8 +263,7 @@ export const useDeleteEntryMutation = () => {
       }
     },
     onSettled: () => {
-      // Invalidate and refetch related queries
-      invalidateQueries.all('entries');
+      entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
     },
   });
 };
@@ -321,9 +319,9 @@ export const useUpdateEntryStatusMutation = () => {
       }
     },
     onSettled: (_data, _error, { id }) => {
-      // Invalidate and refetch related queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.entry(id) });
-      invalidateQueries.all('entries');
+      entryInvalidationKeys({ entryId: id }).forEach(k =>
+        queryClient.invalidateQueries({ queryKey: k })
+      );
     },
   });
 };
@@ -364,8 +362,7 @@ export const useCreateMultipleEntriesMutation = () => {
       }
     },
     onSettled: () => {
-      // Invalidate and refetch related queries
-      invalidateQueries.all('entries');
+      entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
     },
   });
 };

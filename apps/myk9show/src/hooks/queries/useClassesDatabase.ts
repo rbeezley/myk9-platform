@@ -24,6 +24,7 @@ import {
   hardDeleteEntry,
   restoreEntry,
   getDeletedEntries,
+  entryInvalidationKeys,
 } from '@/services/database/entries';
 import type { DbClassInsert, DbClassUpdate, DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 
@@ -255,8 +256,9 @@ export const useDeleteClassMutation = () => {
       // Invalidate trial-specific caches (we don't know which trial, so invalidate all)
       queryClient.invalidateQueries({ queryKey: [...classKeys.all, 'trial'] });
       
-      // Invalidate entries for this class
-      queryClient.invalidateQueries({ queryKey: entryKeys.byClass(id) });
+      entryInvalidationKeys({ classId: id }).forEach(k =>
+        queryClient.invalidateQueries({ queryKey: k })
+      );
     },
   });
 };
@@ -276,15 +278,13 @@ export const useCreateEntryMutation = () => {
       return data;
     },
     onSuccess: (newEntry) => {
-      // Invalidate entry lists
-      queryClient.invalidateQueries({ queryKey: entryKeys.lists() });
-      
-      // Invalidate class-specific entries
       if (newEntry?.class_id) {
-        queryClient.invalidateQueries({ queryKey: entryKeys.byClass(newEntry.class_id) });
-        
-        // Also invalidate the class details to update entry count
+        entryInvalidationKeys({ classId: newEntry.class_id }).forEach(k =>
+          queryClient.invalidateQueries({ queryKey: k })
+        );
         queryClient.invalidateQueries({ queryKey: classKeys.detail(newEntry.class_id) });
+      } else {
+        entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
       }
     },
   });
@@ -303,15 +303,13 @@ export const useUpdateEntryMutation = () => {
       return data;
     },
     onSuccess: (updatedEntry) => {
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: entryKeys.lists() });
-      
-      // Invalidate class-specific entries if class changed
       if (updatedEntry?.class_id) {
-        queryClient.invalidateQueries({ queryKey: entryKeys.byClass(updatedEntry.class_id) });
-        
-        // Update class details to reflect entry changes
+        entryInvalidationKeys({ classId: updatedEntry.class_id }).forEach(k =>
+          queryClient.invalidateQueries({ queryKey: k })
+        );
         queryClient.invalidateQueries({ queryKey: classKeys.detail(updatedEntry.class_id) });
+      } else {
+        entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
       }
     },
   });
@@ -345,14 +343,10 @@ export const useDeleteEntryMutation = () => {
       return { data, classId };
     },
     onSuccess: ({ classId }) => {
-      // Invalidate entry lists
-      queryClient.invalidateQueries({ queryKey: entryKeys.lists() });
-      
-      // Invalidate class-specific entries if we know the class
+      entryInvalidationKeys(classId ? { classId } : {}).forEach(k =>
+        queryClient.invalidateQueries({ queryKey: k })
+      );
       if (classId) {
-        queryClient.invalidateQueries({ queryKey: entryKeys.byClass(classId) });
-        
-        // Update class details to reflect entry count change
         queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
       }
     },
@@ -459,17 +453,14 @@ export const useRestoreEntryMutation = () => {
       return data;
     },
     onSuccess: (restoredEntry) => {
-      // Add back to the main entries list
-      queryClient.invalidateQueries({ queryKey: entryKeys.lists() });
-
-      // Update any class-specific caches if we know the class
       if (restoredEntry?.class_id) {
-        queryClient.invalidateQueries({ queryKey: entryKeys.byClass(restoredEntry.class_id) });
+        entryInvalidationKeys({ classId: restoredEntry.class_id }).forEach(k =>
+          queryClient.invalidateQueries({ queryKey: k })
+        );
         queryClient.invalidateQueries({ queryKey: classKeys.detail(restoredEntry.class_id) });
+      } else {
+        entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
       }
-
-      // Invalidate all related queries
-      queryClient.invalidateQueries({ queryKey: entryKeys.deleted() });
     },
   });
 };
@@ -487,10 +478,7 @@ export const useHardDeleteEntryMutation = () => {
       return data;
     },
     onSuccess: (_data, id) => {
-      // Remove from deleted entries cache
-      queryClient.invalidateQueries({ queryKey: entryKeys.deleted() });
-
-      // Remove from all caches
+      entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
       queryClient.removeQueries({ queryKey: entryKeys.detail(id) });
     },
   });

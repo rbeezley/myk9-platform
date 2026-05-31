@@ -328,6 +328,10 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 - [x] **Fix exhibitor check-in status column wiring** — Fixed on 2026-05-10. `/exhibitor/check-in/:entryId` and `/exhibitor/show-day` now read show-day status from `entries.check_in_status`, matching the `self_checkin_entry` RPC write path. Added focused tests for the check-in page data query and show-day class mapping.
 - [x] **Secretary Task Timeline View** — Fixed on 2026-05-10. The Tasks tab has a persisted List/Timeline toggle, Timeline renders dated and undated tasks with summary counts, and Timeline rows now support mark done/undone, edit, and delete using the same task mutations as List. No migration required for v1.
 
+## North Star — Phase 2.5: Internal Secretary QA Re-Walk
+
+- [ ] **Run updated secretary golden path checklist** — Walk all 7 parts of the updated checklist end-to-end to QA current app state before Phase 3 hand-off. Covers show setup wizard, entry management, Show Desk tab (day-of ops), closeout, at-show/ringside flow, and push notifications. Pre-req: enable `unified_ringside_enabled` flag on test show. Checklist: `docs/testing/secretary-golden-path-checklist.md`. Full context in TO-DOS.md § "Secretary QA Re-Walk — 2026-05-31 14:16".
+
 ## North Star — Phase 3: Real-User Testing
 
 - [ ] **Phase 3 — Real-User Testing** — Recruit 2–3 non-technical test users (one secretary, one or two exhibitors). Hand them written tasks, watch silently, fix every hesitation. Full plan: `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`.

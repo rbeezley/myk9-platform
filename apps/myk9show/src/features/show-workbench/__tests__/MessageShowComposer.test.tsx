@@ -5,6 +5,7 @@ import { MessageShowComposer } from '../MessageShowComposer';
 
 const mockPostAnnouncement = vi.hoisted(() => vi.fn());
 const mockSendTargetedMessage = vi.hoisted(() => vi.fn());
+const mockMessageMutationState = vi.hoisted(() => ({ isSending: false }));
 
 vi.mock('../workbenchAnnouncementPost', () => ({
   useWorkbenchAnnouncementPost: () => ({
@@ -15,7 +16,7 @@ vi.mock('../workbenchAnnouncementPost', () => ({
 vi.mock('@/hooks/mutations/useMessageMutations', () => ({
   useMessageMutations: () => ({
     sendTargetedMessage: mockSendTargetedMessage,
-    isSending: false,
+    isSending: mockMessageMutationState.isSending,
   }),
 }));
 
@@ -27,8 +28,23 @@ const classes = [
 describe('MessageShowComposer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockMessageMutationState.isSending = false;
     mockPostAnnouncement.mockResolvedValue(true);
     mockSendTargetedMessage.mockResolvedValue({ total_recipients: 8 });
+  });
+
+  it('only exposes title editing for everyone-in-show announcements', async () => {
+    const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    expect(screen.getByLabelText('Title')).toHaveValue('Lunch is ready');
+
+    await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
+    await user.click(await screen.findByRole('option', { name: 'A class' }));
+    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
+    await user.click(await screen.findByRole('option', { name: 'Everyone in show' }));
+    expect(screen.getByLabelText('Title')).toHaveValue('Lunch is ready');
   });
 
   it('sends everyone-in-show messages through announcements, not targeted messaging', async () => {
@@ -102,6 +118,15 @@ describe('MessageShowComposer', () => {
     expect(mockPostAnnouncement).not.toHaveBeenCalled();
   });
 
+  it('hides the title field for checked-in targeted messages', async () => {
+    const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
+    await user.click(await screen.findByRole('option', { name: 'Everyone checked in' }));
+
+    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+  });
+
   it('passes sendPush true for targeted messages when push alert is selected', async () => {
     const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
 
@@ -134,5 +159,13 @@ describe('MessageShowComposer', () => {
     });
     expect(screen.getByLabelText('Title')).toHaveValue('Hold lunch');
     expect(screen.getByLabelText('Message')).toHaveValue('Lunch will move to noon.');
+  });
+
+  it('disables reset while a send is in flight', () => {
+    mockMessageMutationState.isSending = true;
+
+    render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
   });
 });

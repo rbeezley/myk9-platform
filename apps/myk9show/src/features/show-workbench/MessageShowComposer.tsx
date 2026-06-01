@@ -68,6 +68,7 @@ export function MessageShowComposer({
     () => classes.find(cls => cls.id === selectedClassId) ?? classes[0] ?? null,
     [classes, selectedClassId]
   );
+  const isAnnouncementLane = getMessageShowDeliveryLane(recipient) === 'announcement';
   const isSendingMessage = isSending || isPostingAnnouncement;
 
   function reset() {
@@ -111,13 +112,12 @@ export function MessageShowComposer({
   }
 
   async function handleSend() {
-    if (!title.trim() || !message.trim()) {
+    if (!message.trim() || (isAnnouncementLane && !title.trim())) {
       toast.error('Add a title and message before sending');
       return;
     }
 
-    const lane = getMessageShowDeliveryLane(recipient);
-    if (lane === 'announcement') {
+    if (isAnnouncementLane) {
       setIsPostingAnnouncement(true);
       let handledPost = false;
       try {
@@ -193,7 +193,13 @@ export function MessageShowComposer({
               </Link>
             </Button>
           ) : null}
-          <Button type="button" variant="outline" size="sm" onClick={reset}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={reset}
+            disabled={isSendingMessage}
+          >
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
             Reset
           </Button>
@@ -267,15 +273,17 @@ export function MessageShowComposer({
       />
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="message-show-title-input">Title</Label>
-          <Input
-            id="message-show-title-input"
-            value={title}
-            onChange={event => setTitle(event.target.value)}
-            maxLength={200}
-          />
-        </div>
+        {isAnnouncementLane ? (
+          <div className="space-y-2">
+            <Label htmlFor="message-show-title-input">Title</Label>
+            <Input
+              id="message-show-title-input"
+              value={title}
+              onChange={event => setTitle(event.target.value)}
+              maxLength={200}
+            />
+          </div>
+        ) : null}
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="message-show-message">Message</Label>
           <Textarea

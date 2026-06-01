@@ -60,8 +60,7 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     for (const name of [
       'Late entry',
       'Hospitality',
-      'Quick broadcast',
-      'Message a class',
+      'Message Show',
       'Incident log',
       'Schedule delay script',
       'Show Access Codes',
@@ -70,8 +69,7 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
       await expect(page.getByRole('heading', { name })).toBeVisible();
     }
     await expect(page.getByRole('button', { name: /Add late entry/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Post broadcast/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Send class message/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Send message/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Save incident/i })).toBeDisabled();
 
     await prepareShowMapRows(page);

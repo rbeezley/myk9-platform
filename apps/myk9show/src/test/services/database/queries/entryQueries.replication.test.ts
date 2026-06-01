@@ -548,6 +548,23 @@ describe('entryQueries (replication)', () => {
       expect((result.data[0] as Record<string, unknown>).id).toBe('e1');
     });
 
+    it('includes entries for dogs owned by the user when handlerId differs', async () => {
+      const entries = [
+        makeEntry({ id: 'e1', dogId: 'dog-owned', handlerId: 'handler-other' }),
+        makeEntry({ id: 'e2', dogId: 'dog-other', handlerId: 'handler-other' }),
+      ];
+      const dogs = [
+        makeDog({ id: 'dog-owned', ownerId: 'user-1' }),
+        makeDog({ id: 'dog-other', ownerId: 'user-other' }),
+      ];
+      setupListMocks(entries, dogs);
+
+      const result = await getUserEntries('user-1');
+
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('e1');
+    });
+
     it('returns empty when user has no entries', async () => {
       setupListMocks([]);
 

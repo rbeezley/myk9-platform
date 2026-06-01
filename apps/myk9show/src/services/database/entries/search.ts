@@ -63,6 +63,18 @@ async function postgrestGetEntryStatistics(showId?: string) {
 }
 
 async function postgrestGetUserEntries(userId: string) {
+  const { data: ownedDogs, error: dogsError } = await supabase
+    .from('dogs')
+    .select('id')
+    .eq('owner_id', userId);
+
+  if (dogsError) throw createDatabaseError(dogsError, 'dogs', 'select_user_entry_dogs');
+
+  const ownedDogIds = (ownedDogs ?? []).map(dog => sanitizePostgRESTFilter(dog.id));
+  const userFilter = `handler_id.eq.${sanitizePostgRESTFilter(userId)}`;
+  const entryFilter =
+    ownedDogIds.length > 0 ? `${userFilter},dog_id.in.(${ownedDogIds.join(',')})` : userFilter;
+
   const { data, error } = await supabase
     .from('entries')
     .select(
@@ -117,7 +129,7 @@ async function postgrestGetUserEntries(userId: string) {
       )
     `
     )
-    .eq('handler_id', userId)
+    .or(entryFilter)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
@@ -256,7 +268,10 @@ export const getUserEntries = async (userId: string) => {
         const dogsMap = buildMapFromArray(dogs, d => d.id);
         const classesMap = buildMapFromArray(classes, c => c.id);
         const showsMap = buildMapFromArray(shows, s => s.id);
-        const filtered = allEntries.filter(e => e.handlerId === userId);
+        const ownedDogIds = new Set(dogs.filter(dog => dog.ownerId === userId).map(dog => dog.id));
+        const filtered = allEntries.filter(
+          e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
+        );
 
         // Load enrollment confirmation numbers (not in the replication store)
         const enrollmentIds = [...new Set(filtered.map(e => e.registrationId).filter(Boolean))];

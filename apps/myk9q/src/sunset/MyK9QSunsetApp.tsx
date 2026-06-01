@@ -14,7 +14,7 @@ export function MyK9QSunsetApp() {
           ringside view now live together there.
         </p>
         <div className="myk9q-sunset__actions">
-          <a className="myk9q-sunset__button" href={targetUrl}>
+          <a className="myk9q-sunset__button" href={targetUrl} rel="noopener noreferrer">
             Open myK9Show
           </a>
         </div>

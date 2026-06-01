@@ -24,6 +24,20 @@ describe('sunsetConfig', () => {
     ).toBe('https://myk9show.com/at-show');
   });
 
+  it('falls back to the staging myK9Show at-show URL when configured URL is invalid', () => {
+    expect(
+      getMyK9ShowRingsideUrl({
+        VITE_MYK9SHOW_RINGSIDE_URL: '/at-show',
+      })
+    ).toBe('https://myk9-platform-myk9show.vercel.app/at-show');
+  });
+
+  it('builds the myK9Show redirect URL with no query params', () => {
+    expect(buildMyK9ShowRedirectUrl('', {})).toBe(
+      'https://myk9-platform-myk9show.vercel.app/at-show'
+    );
+  });
+
   it('preserves legacy query params when building the myK9Show redirect URL', () => {
     expect(buildMyK9ShowRedirectUrl('?code=ABC12&ring=1', {})).toBe(
       'https://myk9-platform-myk9show.vercel.app/at-show?code=ABC12&ring=1'

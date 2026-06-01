@@ -15,7 +15,15 @@ export function isMyK9QSunsetEnabled(env?: SunsetEnv): boolean {
 
 export function getMyK9ShowRingsideUrl(env?: SunsetEnv): string {
   const configuredUrl = getSunsetEnv(env).VITE_MYK9SHOW_RINGSIDE_URL?.trim();
-  return configuredUrl || DEFAULT_MYK9SHOW_RINGSIDE_URL;
+  if (!configuredUrl) {
+    return DEFAULT_MYK9SHOW_RINGSIDE_URL;
+  }
+
+  try {
+    return new URL(configuredUrl).toString();
+  } catch {
+    return DEFAULT_MYK9SHOW_RINGSIDE_URL;
+  }
 }
 
 export function buildMyK9ShowRedirectUrl(search: string, env?: SunsetEnv): string {

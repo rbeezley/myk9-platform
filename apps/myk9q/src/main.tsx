@@ -25,5 +25,16 @@ if (isMyK9QSunsetEnabled()) {
     })
     .catch((error: unknown) => {
       console.error('Failed to start myK9Q', error);
+      root.render(
+        <React.StrictMode>
+          <main className="myk9q-sunset" aria-labelledby="myk9q-load-error-title">
+            <section className="myk9q-sunset__panel">
+              <p className="myk9q-sunset__brand">myK9Q</p>
+              <h1 id="myk9q-load-error-title">We couldn't load myK9Q.</h1>
+              <p className="myk9q-sunset__lead">Refresh the page and try again.</p>
+            </section>
+          </main>
+        </React.StrictMode>
+      );
     });
 }

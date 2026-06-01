@@ -26,7 +26,7 @@ const VOICE_CATEGORIES: Array<{
   { key: 'runOrder', label: 'Run order alerts', example: '"Max, number 42, you\'re up next"' },
   { key: 'results', label: 'Results posted', example: '"Bella, second place, qualified"' },
   { key: 'classStarting', label: 'Class starting', example: '"Novice A starting soon"' },
-  { key: 'announcements', label: 'Announcements', example: 'Secretary broadcasts (high/urgent)' },
+  { key: 'announcements', label: 'Announcements', example: 'Secretary messages (high/urgent)' },
 ];
 
 export function NotificationSettings() {

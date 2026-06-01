@@ -18,6 +18,9 @@ export const MYK9Q_ORIGINS: readonly string[] = [
   'https://myk9q.com',
   'https://www.myk9q.com',
   'https://app.myk9q.com',
+  // myK9Q staging passcode login calls validate-passcode; omitting this origin
+  // blocks browser preflight before the server-side HMAC validator can run.
+  'https://myk9-platform-myk9q.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',

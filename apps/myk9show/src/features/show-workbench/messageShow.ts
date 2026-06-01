@@ -89,6 +89,10 @@ export function getMessageShowDeliveryLane(
   return recipientType === 'all_show' ? 'announcement' : 'targeted';
 }
 
+export function buildMessageShowAnnouncementExpiresAt(now = new Date()): string {
+  return new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString();
+}
+
 export function buildMessageShowClassLabel({
   className,
   class_name,

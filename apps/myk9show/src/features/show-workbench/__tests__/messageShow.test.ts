@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MESSAGE_SHOW_TEMPLATES,
+  buildMessageShowAnnouncementExpiresAt,
   buildMessageShowDraft,
   buildMessageShowClassLabel,
   getMessageShowDeliveryLane,
@@ -36,6 +37,12 @@ describe('messageShow', () => {
     expect(getMessageShowDeliveryLane('all_show')).toBe('announcement');
     expect(getMessageShowDeliveryLane('class')).toBe('targeted');
     expect(getMessageShowDeliveryLane('checked_in')).toBe('targeted');
+  });
+
+  it('expires show announcements four hours after posting', () => {
+    expect(buildMessageShowAnnouncementExpiresAt(new Date('2026-05-19T12:00:00.000Z'))).toBe(
+      '2026-05-19T16:00:00.000Z'
+    );
   });
 
   it('falls back to the default template for missing template ids', () => {

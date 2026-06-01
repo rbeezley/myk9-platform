@@ -17,13 +17,13 @@ import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 import {
   DEFAULT_MESSAGE_SHOW_TEMPLATE,
   MESSAGE_SHOW_TEMPLATES,
+  buildMessageShowAnnouncementExpiresAt,
   buildMessageShowDraft,
   getMessageShowDeliveryLane,
   type MessageShowClassOption,
   type MessageShowRecipientType,
   type MessageShowTemplateId,
 } from './messageShow';
-import { buildQuickBroadcastExpiresAt } from './quickBroadcast';
 import { WorkbenchPushAlertToggle } from './WorkbenchPushAlertToggle';
 import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
@@ -126,7 +126,7 @@ export function MessageShowComposer({
           title: title.trim(),
           content: message.trim(),
           priority: getWorkbenchAnnouncementPriority(sendPushAlert),
-          expiresAt: buildQuickBroadcastExpiresAt(),
+          expiresAt: buildMessageShowAnnouncementExpiresAt(),
           successMessage: sendPushAlert
             ? 'Message posted and push alert queued'
             : 'Message posted to show',

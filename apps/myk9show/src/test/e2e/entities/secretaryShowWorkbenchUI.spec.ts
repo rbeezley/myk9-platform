@@ -65,13 +65,11 @@ test.describe('Secretary Show Workbench UI', () => {
     await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
     await expectWorkbenchSection(page, 'Late entry');
     await expectWorkbenchSection(page, 'Hospitality');
-    await expectWorkbenchSection(page, 'Quick broadcast');
-    await expectWorkbenchSection(page, 'Message a class');
+    await expectWorkbenchSection(page, 'Message Show');
     await expectWorkbenchSection(page, 'Incident log');
     await expectWorkbenchSection(page, 'Schedule delay script');
     await expect(page.getByRole('button', { name: /Add late entry/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Post broadcast/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Send class message/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Send message/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Save incident/i })).toBeDisabled();
 
     await page.getByRole('tab', { name: 'Wrap-up' }).click();
@@ -91,15 +89,12 @@ test.describe('Secretary Show Workbench UI', () => {
     await openWorkbench(page);
     await page.getByRole('tab', { name: 'Today' }).click();
 
-    const quickBroadcast = page.getByRole('region', { name: 'Quick broadcast' });
-    await expect(quickBroadcast.getByLabel('Title')).toHaveValue(/.+/);
-    await expect(quickBroadcast.getByLabel('Message')).toHaveValue(/.+/);
-    await expect(quickBroadcast.getByLabel('Send push alert')).toBeVisible();
-
-    const classMessage = page.getByRole('region', { name: 'Message a class' });
-    await expect(classMessage.getByLabel('Class')).toBeVisible();
-    await expect(classMessage.getByLabel('Message')).toBeVisible();
-    await expect(classMessage.getByRole('button', { name: /Reset/i })).toBeVisible();
+    const messageShow = page.getByRole('region', { name: 'Message Show' });
+    await expect(messageShow.getByRole('combobox', { name: 'Recipient' })).toBeVisible();
+    await expect(messageShow.getByLabel('Title')).toHaveValue(/.+/);
+    await expect(messageShow.getByLabel('Message')).toHaveValue(/.+/);
+    await expect(messageShow.getByLabel('Send push alert')).toBeVisible();
+    await expect(messageShow.getByRole('button', { name: /Reset/i })).toBeVisible();
 
     const incidentLog = page.getByRole('region', { name: 'Incident log' });
     const saveIncident = incidentLog.getByRole('button', { name: /Save incident/i });

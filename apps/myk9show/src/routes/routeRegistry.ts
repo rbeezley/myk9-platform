@@ -67,8 +67,8 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
 
   // Exhibitor pages
   '/exhibitor/entries': () => import('@/pages/MyEntriesPage'),
-  '/exhibitor/show-day': () => import('@/pages/ShowDayPage'),
-  '/exhibitor/check-in/:entryId': () => import('@/components/exhibitor/ClassCheckIn'),
+  '/exhibitor/show-day': () => import('@/features/at-show/AtShowClassListPage'),
+  '/exhibitor/check-in/:entryId': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/analytics': () => import('@/pages/AnalyticsPage'),
 
   // Dogs management

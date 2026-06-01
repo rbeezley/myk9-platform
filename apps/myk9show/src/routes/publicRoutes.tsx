@@ -11,11 +11,12 @@
 
 import { lazy, type ReactNode } from 'react';
 import { Route, Navigate } from 'react-router-dom';
-import { BarChart3, Calendar, ClipboardList, Flag } from 'lucide-react';
+import { BarChart3, Calendar, ClipboardList } from 'lucide-react';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { ClassDetailsRedirect } from './ClassDetailsRedirect';
+import { LegacyCheckInRedirect, LegacyShowDayRedirect } from './LegacyExhibitorRedirects';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
 import BrowseDogsPage from '@/pages/BrowseDogsPage';
@@ -49,9 +50,7 @@ const AccountPage = lazy(() => import('@/pages/AccountPage'));
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
-const ShowDayPage = lazy(() => import('@/pages/ShowDayPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
-const ClassCheckInPage = lazy(() => import('@/pages/ClassCheckInPage'));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
 
 // TV Display
@@ -178,11 +177,7 @@ export const PublicRoutes = () => (
       path="/exhibitor/show-day"
       element={
         <ProtectedRoute>
-          {featurePage(features.showDay, <ShowDayPage />, {
-            title: 'Show Day',
-            description: 'Show day check-in and management is coming soon.',
-            icon: Flag,
-          })}
+          <LegacyShowDayRedirect />
         </ProtectedRoute>
       }
     />
@@ -217,11 +212,7 @@ export const PublicRoutes = () => (
       path="/exhibitor/check-in/:entryId"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ClassCheckInPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <LegacyCheckInRedirect />
         </ProtectedRoute>
       }
     />

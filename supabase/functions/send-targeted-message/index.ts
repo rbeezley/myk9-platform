@@ -6,6 +6,7 @@ import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import {
   buildGroupLabel,
+  buildRingsidePushActionUrl,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
   isPresenceSuppressed,
@@ -191,17 +192,6 @@ async function sendPasscodePushes(args: {
   let suppressed = 0;
   let attempted = 0;
 
-  const payload = JSON.stringify({
-    title: 'Message from the show secretary',
-    body: args.body.length > 100 ? `${args.body.slice(0, 97)}...` : args.body,
-    data: {
-      type: 'show_message',
-      messageId: args.messageId,
-      showId: args.showId,
-      actionUrl: `/messages/${args.showId}`,
-    },
-  });
-
   for (let i = 0; i < args.targets.length; i += PUSH_CHUNK_SIZE) {
     const chunk = args.targets.slice(i, i + PUSH_CHUNK_SIZE);
     await Promise.allSettled(
@@ -218,6 +208,16 @@ async function sendPasscodePushes(args: {
         }
 
         attempted++;
+        const payload = JSON.stringify({
+          title: 'Message from the show secretary',
+          body: args.body.length > 100 ? `${args.body.slice(0, 97)}...` : args.body,
+          data: {
+            type: 'show_message',
+            messageId: args.messageId,
+            showId: args.showId,
+            actionUrl: buildRingsidePushActionUrl(args.showId, target.session),
+          },
+        });
         try {
           await webpush.sendNotification({ endpoint: target.subscription.endpoint, keys }, payload);
           sent++;

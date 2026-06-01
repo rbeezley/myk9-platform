@@ -95,3 +95,13 @@ export function buildGroupLabel(args: {
 
   return 'Sent to all class exhibitors';
 }
+
+export function buildRingsidePushActionUrl(
+  showId: string,
+  session: Pick<RingsideSessionSource, 'lastSeenRoute'>
+): string {
+  const fallback = `/at-show/${showId}`;
+  const route = session.lastSeenRoute?.trim();
+  if (!route) return fallback;
+  return route === fallback || route.startsWith(`${fallback}/`) ? route : fallback;
+}

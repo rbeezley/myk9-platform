@@ -10,6 +10,38 @@ export function getNotificationActionUrl(data: unknown, origin: string): string 
   }
 }
 
+type NotificationWindowClient = {
+  url?: string;
+  focus?: () => Promise<unknown>;
+  navigate?: (url: string) => Promise<NotificationWindowClient | null>;
+};
+
+export async function routeNotificationClick(
+  clients: NotificationWindowClient[],
+  targetUrl: string,
+  openWindow: (url: string) => Promise<NotificationWindowClient | null>
+): Promise<unknown> {
+  for (const client of clients) {
+    if (!client.focus || !client.navigate) continue;
+
+    if (client.url === targetUrl) {
+      return client.focus();
+    }
+
+    try {
+      const navigatedClient = await client.navigate(targetUrl);
+      if (navigatedClient?.focus) {
+        return navigatedClient.focus();
+      }
+    } catch {
+      // Try the next client, then fall back to opening a fresh window.
+    }
+  }
+
+  const openedClient = await openWindow(targetUrl);
+  return openedClient?.focus?.() ?? openedClient;
+}
+
 function readActionUrl(data: unknown): unknown {
   if (!data || typeof data !== 'object') return undefined;
 

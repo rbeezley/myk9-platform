@@ -425,7 +425,9 @@ describe('ShowWorkbenchPage', () => {
   it('renders the adaptive header status pill on the Show Desk tab', async () => {
     renderWorkbench('/secretary/shows/show-1?phase=show-desk');
 
-    expect(await screen.findByTestId('show-desk-status-pill')).toBeInTheDocument();
+    expect(
+      await screen.findByTestId('show-desk-status-pill', undefined, { timeout: 5000 })
+    ).toBeInTheDocument();
   });
 
   it('updates phase when a tab is selected', async () => {

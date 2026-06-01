@@ -11,6 +11,10 @@ const migrationPath = resolve(
   repoRoot,
   'supabase/migrations/20260601161000_add_show_message_push_alert.sql'
 );
+const chatPushHandlerPath = resolve(
+  repoRoot,
+  'supabase/functions/push-trigger-chat-message/index.ts'
+);
 
 describe('targeted message push contract', () => {
   it('adds an explicit push_alert flag to show messages', () => {
@@ -49,5 +53,13 @@ describe('targeted message push contract', () => {
 
     expect(source).toContain('const ringsideTargets = sendPush');
     expect(source).toContain(': [];');
+  });
+
+  it('uses current push subscription key columns for account chat pushes', () => {
+    const source = readFileSync(chatPushHandlerPath, 'utf8');
+
+    expect(source).toContain(".select('id, user_id, endpoint, p256dh, auth')");
+    expect(source).toContain('keys: { p256dh: sub.p256dh, auth: sub.auth }');
+    expect(source).not.toContain(".select('id, user_id, endpoint, keys')");
   });
 });

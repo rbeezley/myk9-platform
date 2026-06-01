@@ -111,7 +111,7 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
     const chunk = recipientUserIds.slice(i, i + CHUNK_SIZE);
     const { data: subs } = await supabase
       .from('push_subscriptions')
-      .select('id, user_id, endpoint, keys')
+      .select('id, user_id, endpoint, p256dh, auth')
       .in('user_id', chunk);
     if (subs) allSubscriptions.push(...subs);
   }
@@ -148,7 +148,11 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
   await Promise.allSettled(
     allSubscriptions.map(async sub => {
       try {
-        await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, pushPayload);
+        if (!sub.p256dh || !sub.auth) return;
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          pushPayload
+        );
         sentCount++;
       } catch (err: any) {
         if (err.statusCode === 410 || err.statusCode === 404) {

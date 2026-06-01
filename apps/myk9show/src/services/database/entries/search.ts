@@ -70,7 +70,7 @@ async function postgrestGetUserEntries(userId: string) {
 
   if (dogsError) throw createDatabaseError(dogsError, 'dogs', 'select_user_entry_dogs');
 
-  const ownedDogIds = (ownedDogs ?? []).map(dog => dog.id);
+  const ownedDogIds = (ownedDogs ?? []).map(dog => sanitizePostgRESTFilter(dog.id));
   const userFilter = `handler_id.eq.${sanitizePostgRESTFilter(userId)}`;
   const entryFilter =
     ownedDogIds.length > 0 ? `${userFilter},dog_id.in.(${ownedDogIds.join(',')})` : userFilter;

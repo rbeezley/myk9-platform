@@ -217,6 +217,14 @@ describe('MyEntriesPage UI Improvements', () => {
   });
 
   describe('Entry Loading', () => {
+    it('does not load entries when no person id source is available', async () => {
+      renderWithProviders(<MyEntriesPage />);
+
+      await screen.findByRole('tablist');
+
+      expect(getUserEntries).not.toHaveBeenCalled();
+    });
+
     it('loads entries with databaseUserId when the legacy person lookup is empty', async () => {
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,

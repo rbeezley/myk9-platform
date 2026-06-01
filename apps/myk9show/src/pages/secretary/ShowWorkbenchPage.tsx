@@ -49,6 +49,7 @@ import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
+import type { ShowDeskToolSection } from '@/features/show-map/ShowDeskToolsSheet';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
 import { isShowWorkbenchPhase, useActivePhase } from '@/hooks/useActivePhase';
 import { useTrialStore } from '@/store/trialStore';
@@ -235,6 +236,111 @@ export function ShowWorkbenchPage() {
     [currentShow?.assignedJudges, showClasses, showJudgeRoster]
   );
 
+  const showDeskTools = useMemo<ShowDeskToolSection[]>(() => {
+    if (!currentShow) return [];
+
+    return [
+      {
+        id: 'late-entry',
+        title: 'Late entries',
+        summary: 'Add a day-of entry without leaving Show Desk',
+        defaultOpen: true,
+        content: <WorkbenchLateEntryAction showId={currentShow.id} />,
+      },
+      {
+        id: 'judge-hospitality',
+        title: 'Judge hospitality',
+        summary: 'Track judge meals, breaks, and show-day notes',
+        content: (
+          <JudgeHospitalityCard
+            showId={currentShow.id}
+            judges={effectiveJudges.map(judge => ({
+              id: judge.judgeId,
+              name: judge.judgeName,
+            }))}
+          />
+        ),
+      },
+      {
+        id: 'quick-broadcast',
+        title: 'Quick broadcast',
+        summary: 'Send a general update to show participants',
+        content: <QuickBroadcastCard showId={currentShow.id} />,
+      },
+      {
+        id: 'class-broadcast',
+        title: 'Class broadcast',
+        summary: 'Send a class-specific update',
+        content: (
+          <ClassBroadcastCard
+            showId={currentShow.id}
+            classes={showClasses.map(cls => ({
+              id: cls.id,
+              label: buildClassBroadcastClassLabel({
+                name: cls.name,
+                section: cls.section,
+              }),
+              entryCount: cls.entryCount,
+            }))}
+          />
+        ),
+      },
+      {
+        id: 'incident-log',
+        title: 'Incident log',
+        summary: 'Record incidents while details are fresh',
+        content: (
+          <IncidentLogCard
+            showId={currentShow.id}
+            entries={incidentEntryOptions}
+            judges={effectiveJudges.map(judge => ({
+              id: judge.judgeId,
+              name: judge.judgeName,
+              personId: isValidUUID(judge.judgeId.trim()) ? judge.judgeId.trim() : null,
+            }))}
+          />
+        ),
+      },
+      {
+        id: 'schedule-slip',
+        title: 'Delay scripts',
+        summary: 'Draft calm wording for schedule slips',
+        content: (
+          <ScheduleSlipScriptCard
+            showId={currentShow.id}
+            showName={currentShow.name}
+            defaultClassName={showClasses[0]?.name ?? ''}
+          />
+        ),
+      },
+      {
+        id: 'access-codes',
+        title: 'Access codes',
+        summary: 'Share judge and ringside entry codes',
+        content: (
+          <ShowAccessCodesCard
+            showId={currentShow.id}
+            showName={currentShow.name}
+            showDate={currentShow.startDate}
+            canRegenerate
+          />
+        ),
+      },
+      {
+        id: 'volunteers',
+        title: 'Volunteers',
+        summary: 'Track helper assignments and gaps',
+        content: <VolunteersCard showId={currentShow.id} />,
+      },
+      {
+        id: 'tasks-notes',
+        title: 'Tasks and notes',
+        summary: 'Keep show-specific reminders together',
+        content: <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />,
+      },
+    ];
+  }, [currentShow, effectiveJudges, incidentEntryOptions, showClasses]);
+
   if (isLoading) {
     return (
       <PageShell>
@@ -347,52 +453,7 @@ export function ShowWorkbenchPage() {
               classes={showClasses}
               entries={showEntries}
               canManageShow
-              toolsContent={
-                <>
-                  <WorkbenchLateEntryAction showId={currentShow.id} />
-                  <JudgeHospitalityCard
-                    showId={currentShow.id}
-                    judges={effectiveJudges.map(judge => ({
-                      id: judge.judgeId,
-                      name: judge.judgeName,
-                    }))}
-                  />
-                  <QuickBroadcastCard showId={currentShow.id} />
-                  <ClassBroadcastCard
-                    showId={currentShow.id}
-                    classes={showClasses.map(cls => ({
-                      id: cls.id,
-                      label: buildClassBroadcastClassLabel({
-                        name: cls.name,
-                        section: cls.section,
-                      }),
-                      entryCount: cls.entryCount,
-                    }))}
-                  />
-                  <IncidentLogCard
-                    showId={currentShow.id}
-                    entries={incidentEntryOptions}
-                    judges={effectiveJudges.map(judge => ({
-                      id: judge.judgeId,
-                      name: judge.judgeName,
-                      personId: isValidUUID(judge.judgeId.trim()) ? judge.judgeId.trim() : null,
-                    }))}
-                  />
-                  <ScheduleSlipScriptCard
-                    showId={currentShow.id}
-                    showName={currentShow.name}
-                    defaultClassName={showClasses[0]?.name ?? ''}
-                  />
-                  <ShowAccessCodesCard
-                    showId={currentShow.id}
-                    showName={currentShow.name}
-                    showDate={currentShow.startDate}
-                    canRegenerate
-                  />
-                  <VolunteersCard showId={currentShow.id} />
-                  <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />
-                </>
-              }
+              tools={showDeskTools}
               closeoutContent={
                 <>
                   <ShowDayReconciliation entries={showEntries} />

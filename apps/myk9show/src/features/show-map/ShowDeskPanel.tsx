@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ShowDeskAdaptiveHeader } from './ShowDeskAdaptiveHeader';
 import { ShowDeskCloseoutSection } from './ShowDeskCloseoutSection';
-import { ShowDeskToolsSheet } from './ShowDeskToolsSheet';
+import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
 import { ShowMapReorderBanner } from './ShowMapReorderBanner';
 import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
@@ -38,7 +38,7 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   // Composed at the page level so this panel never needs to know about
   // judges, incident options, broadcast classes, or other tool-specific
   // data dependencies. When omitted, the Tools sheet is not rendered.
-  toolsContent?: ReactNode;
+  tools?: readonly ShowDeskToolSection[];
   // Composed at the page level — the closeout section renders only when
   // at least one class is wrap-up-eligible (see ShowDeskCloseoutSection).
   closeoutContent?: ReactNode;
@@ -72,7 +72,7 @@ export default function ShowDeskPanel({
   entries,
   canManageShow,
   scopeNow,
-  toolsContent,
+  tools,
   closeoutContent,
 }: ShowDeskPanelProps) {
   const state = useShowMapWorkbenchState({
@@ -232,9 +232,9 @@ export default function ShowDeskPanel({
 
   return (
     <div className="space-y-4 pt-6">
-      {toolsContent && (
+      {tools && tools.length > 0 && (
         <div className="flex justify-end">
-          <ShowDeskToolsSheet>{toolsContent}</ShowDeskToolsSheet>
+          <ShowDeskToolsSheet showId={show.id} tools={tools} />
         </div>
       )}
       <ShowDeskAdaptiveHeader

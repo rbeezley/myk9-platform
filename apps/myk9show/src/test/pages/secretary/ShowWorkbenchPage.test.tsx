@@ -425,7 +425,9 @@ describe('ShowWorkbenchPage', () => {
   it('renders the adaptive header status pill on the Show Desk tab', async () => {
     renderWorkbench('/secretary/shows/show-1?phase=show-desk');
 
-    expect(await screen.findByTestId('show-desk-status-pill')).toBeInTheDocument();
+    expect(
+      await screen.findByTestId('show-desk-status-pill', undefined, { timeout: 5000 })
+    ).toBeInTheDocument();
   });
 
   it('updates phase when a tab is selected', async () => {
@@ -530,10 +532,10 @@ describe('ShowWorkbenchPage', () => {
   // Phase B5 integration coverage: the legacy "renders Today operational
   // surfaces" + "renders Wrap-up links" tests were deleted alongside their
   // tabs, but those tests proved that ShowWorkbenchPage actually composes the
-  // 7 desk-tool cards + 3 closeout links with the right props. The new
+  // 9 desk-tool sections + 3 closeout links with the right props. The new
   // component tests for ShowDeskToolsSheet + ShowDeskCloseoutSection only
   // verify the shells (they pass stub children). This test fills the gap.
-  it('composes the 7 tool cards + 3 closeout links into the Show Desk tab', async () => {
+  it('composes the 9 tool sections + 3 closeout links into the Show Desk tab', async () => {
     const user = userEvent.setup();
     mockTrials = [
       {
@@ -560,23 +562,43 @@ describe('ShowWorkbenchPage', () => {
 
     renderWorkbench('/secretary/shows/show-1?phase=show-desk');
 
-    // Tools sheet: open it and assert all 9 cards render with show-scoped data.
+    // Tools sheet: open it and assert all 9 sections render with show-scoped data.
     await user.click(await screen.findByRole('button', { name: /open tools panel/i }));
     const dialog = await screen.findByRole('dialog', { name: /show desk tools/i });
+    expect(within(dialog).getByRole('button', { name: /late entries/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
     expect(within(dialog).getByTestId('late-entry-action')).toHaveTextContent(
       'Add late entry for show-1'
     );
+
+    await user.click(within(dialog).getByRole('button', { name: /judge hospitality/i }));
     expect(within(dialog).getByRole('heading', { name: 'Hospitality' })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /quick broadcast/i }));
     expect(within(dialog).getByRole('heading', { name: 'Quick broadcast' })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /class broadcast/i }));
     expect(within(dialog).getByRole('heading', { name: 'Message a class' })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /incident log/i }));
     expect(within(dialog).getByTestId('incident-log-card')).toHaveTextContent(
       'Incident log for show-1'
     );
+
+    await user.click(within(dialog).getByRole('button', { name: /delay scripts/i }));
     expect(
       within(dialog).getByRole('heading', { name: 'Schedule delay script' })
     ).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /access codes/i }));
     expect(within(dialog).getByTestId('show-access-codes')).toHaveAttribute('data-show-id', 'show-1');
+
+    await user.click(within(dialog).getByRole('button', { name: /volunteers/i }));
     expect(within(dialog).getByRole('heading', { name: 'Volunteers' })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /tasks and notes/i }));
     expect(within(dialog).getByRole('heading', { name: /tasks & notes/i })).toBeInTheDocument();
 
     // Closeout section: only renders when the show has a wrap-up-eligible

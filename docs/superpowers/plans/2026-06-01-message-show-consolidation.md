@@ -14,6 +14,12 @@
 
 This is one subsystem: secretary show-scoped messaging UI. It changes the `show_messages` table only to add an explicit `push_alert` flag needed for the approved push-alert behavior; it does not change announcement tables, RLS, push subscription schema, or service worker navigation.
 
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: This touches a database migration, edge functions, push delivery behavior, and a secretary show-day workflow; focused tests are required for each contract, then full typecheck/lint and manual staging verification before merge.
+
 ## File Map
 
 - Create `apps/myk9show/src/features/show-workbench/messageShow.ts`
@@ -28,6 +34,8 @@ This is one subsystem: secretary show-scoped messaging UI. It changes the `show_
   - Adds explicit per-message push intent for targeted group sends and recreates `notify_chat_message()` so it honors that flag.
 - Modify `supabase/functions/send-targeted-message/index.ts`
   - Accepts `send_push`, writes `show_messages.push_alert`, and skips passcode fanout when push is off.
+- Modify `supabase/functions/push-trigger-chat-message/index.ts`
+  - Reads current `push_subscriptions.p256dh/auth` columns for account-recipient pushes instead of stale `keys` JSON.
 - Modify `apps/myk9show/src/features/messages/types.ts`
   - Adds `sendPush?: boolean` to `MessageTarget`.
 - Modify `apps/myk9show/src/hooks/mutations/useMessageMutations.ts`
@@ -534,7 +542,89 @@ git add apps/myk9show/src/features/messages/types.ts apps/myk9show/src/hooks/mut
 git commit -m "feat(show): add targeted message push opt-in"
 ```
 
-## Task 3: Build Reusable Message Show Composer
+## Task 3: Fix Account Push Subscription Contract
+
+**Files:**
+- Modify: `supabase/functions/push-trigger-chat-message/index.ts`
+- Modify: `apps/myk9show/src/features/messages/__tests__/targetedPushContract.test.ts`
+
+- [ ] **Step 1: Expand the push contract test**
+
+In `apps/myk9show/src/features/messages/__tests__/targetedPushContract.test.ts`, add:
+
+```ts
+const chatPushFunctionPath = resolve(
+  repoRoot,
+  'supabase/functions/push-trigger-chat-message/index.ts'
+);
+
+it('uses current push subscription key columns for account chat pushes', () => {
+  const source = readFileSync(chatPushFunctionPath, 'utf8');
+
+  expect(source).toContain(".select('id, user_id, endpoint, p256dh, auth')");
+  expect(source).toContain('keys: { p256dh: sub.p256dh, auth: sub.auth }');
+  expect(source).not.toContain(".select('id, user_id, endpoint, keys')");
+});
+```
+
+- [ ] **Step 2: Run contract test and confirm failure**
+
+Run:
+
+```bash
+cd apps/myk9show && npx vitest run src/features/messages/__tests__/targetedPushContract.test.ts
+```
+
+Expected: fail because `push-trigger-chat-message` still selects `keys`.
+
+- [ ] **Step 3: Update `push-trigger-chat-message` subscription query**
+
+In `supabase/functions/push-trigger-chat-message/index.ts`, replace:
+
+```ts
+.select('id, user_id, endpoint, keys')
+```
+
+With:
+
+```ts
+.select('id, user_id, endpoint, p256dh, auth')
+```
+
+Replace:
+
+```ts
+await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, pushPayload);
+```
+
+With:
+
+```ts
+if (!sub.p256dh || !sub.auth) return;
+await webpush.sendNotification(
+  { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+  pushPayload
+);
+```
+
+- [ ] **Step 4: Run contract test**
+
+Run:
+
+```bash
+cd apps/myk9show && npx vitest run src/features/messages/__tests__/targetedPushContract.test.ts
+```
+
+Expected: pass.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add supabase/functions/push-trigger-chat-message/index.ts apps/myk9show/src/features/messages/__tests__/targetedPushContract.test.ts
+git commit -m "fix(show): align chat push subscription keys"
+```
+
+## Task 4: Build Reusable Message Show Composer
 
 **Files:**
 - Create: `apps/myk9show/src/features/show-workbench/MessageShowComposer.tsx`
@@ -974,7 +1064,7 @@ git add apps/myk9show/src/features/show-workbench/MessageShowComposer.tsx apps/m
 git commit -m "feat(show): add message show composer"
 ```
 
-## Task 4: Replace Show Desk Quick/Class Tools
+## Task 5: Replace Show Desk Quick/Class Tools
 
 **Files:**
 - Modify: `apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx`
@@ -1091,7 +1181,7 @@ git add apps/myk9show/src/pages/secretary/ShowWorkbenchPage.tsx apps/myk9show/sr
 git commit -m "refactor(show): replace broadcast tools with message show"
 ```
 
-## Task 5: Reuse Composer From Secretary Messages Page
+## Task 6: Reuse Composer From Secretary Messages Page
 
 **Files:**
 - Modify: `apps/myk9show/src/features/messages/pages/SecretaryMessagesPage.tsx`
@@ -1246,7 +1336,7 @@ git add -u apps/myk9show/src/features/messages/components
 git commit -m "refactor(show): reuse message show composer in inbox"
 ```
 
-## Task 6: Remove Obsolete Broadcast Card Surface
+## Task 7: Remove Obsolete Broadcast Card Surface
 
 **Files:**
 - Delete if unused:
@@ -1315,7 +1405,7 @@ git add -u apps/myk9show/src/features/show-workbench
 git commit -m "refactor(show): remove obsolete broadcast cards"
 ```
 
-## Task 7: Update Tracker And Run Verification
+## Task 8: Update Tracker And Run Verification
 
 **Files:**
 - Modify: `OPEN-TODOS.md`
@@ -1368,12 +1458,33 @@ pnpm lint
 
 Expected: pass, or report pre-existing unrelated lint failures without fixing them in this commit.
 
-- [ ] **Step 5: Commit tracker and verification cleanup**
+- [ ] **Step 5: Record deployment requirements**
+
+Because this plan changes `supabase/migrations/` and two edge functions, add this note to the PR body and release checklist:
+
+```md
+Deployment required after merge:
+- Run `supabase db push` for `20260601161000_add_show_message_push_alert.sql`.
+- Deploy `send-targeted-message` with `--no-verify-jwt`.
+- Deploy `push-trigger-chat-message` with `--no-verify-jwt`.
+- Re-test Message Show with push off and push on against stable staging.
+```
+
+Do not run these commands without explicit approval because they mutate shared Supabase resources.
+
+- [ ] **Step 6: Commit tracker and verification cleanup**
 
 ```bash
 git add OPEN-TODOS.md
 git commit -m "docs(show): mark message show consolidation complete"
 ```
+
+## Rollback And Recovery
+
+- If the UI PR causes trouble before the migration is deployed, revert the PR; old Quick Broadcast/Class Broadcast code should be gone only after equivalent Message Show coverage passes.
+- If the migration is deployed and needs rollback, keep the `push_alert` column in place unless it causes a confirmed production issue. The column is additive and defaults to `true`, so existing one-to-one chat push behavior remains compatible.
+- If targeted push opt-in fails after deployment, set the UI checkbox path aside by reverting the composer PR while leaving the additive DB column. Then redeploy the previous `send-targeted-message` and `push-trigger-chat-message` functions.
+- If push delivery fails but in-app messaging works, do not block secretary in-app sends. Record the push failure and continue with in-app delivery.
 
 ## Final Manual Verification
 

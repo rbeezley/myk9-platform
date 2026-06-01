@@ -39,8 +39,9 @@ interface UseMyEntriesDataReturn {
  * Handles loading, real-time updates, and check-in status changes
  */
 export function useMyEntriesData(): UseMyEntriesDataReturn {
-  const { user } = useAuthContext();
-  const personId = useCurrentUserPersonId();
+  const { user, userWithRoles } = useAuthContext();
+  const legacyPersonId = useCurrentUserPersonId();
+  const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
   const [entries, setEntries] = useState<MyEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);

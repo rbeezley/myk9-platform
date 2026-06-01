@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MyEntriesPage from '@/pages/MyEntriesPage';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { getUserEntries } from '@/services/database/entries';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { UserWithRoles } from '@/types/auth-types';
 
@@ -212,6 +213,22 @@ describe('MyEntriesPage UI Improvements', () => {
 
       const browseButton = screen.getByRole('link', { name: /browse all shows/i });
       expect(browseButton).toBeInTheDocument();
+    });
+  });
+
+  describe('Entry Loading', () => {
+    it('loads entries with databaseUserId when the legacy person lookup is empty', async () => {
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        isAuthenticated: true,
+      });
+
+      renderWithProviders(<MyEntriesPage />);
+
+      await screen.findByRole('tablist');
+
+      expect(getUserEntries).toHaveBeenCalledWith('person-1');
     });
   });
 });

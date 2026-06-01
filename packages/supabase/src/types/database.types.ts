@@ -4825,6 +4825,7 @@ export type Database = {
           created_at: string;
           group_label: string | null;
           id: string;
+          push_alert: boolean;
           read_at: string | null;
           sender_id: string;
           show_id: string;
@@ -4835,6 +4836,7 @@ export type Database = {
           created_at?: string;
           group_label?: string | null;
           id?: string;
+          push_alert?: boolean;
           read_at?: string | null;
           sender_id: string;
           show_id: string;
@@ -4845,6 +4847,7 @@ export type Database = {
           created_at?: string;
           group_label?: string | null;
           id?: string;
+          push_alert?: boolean;
           read_at?: string | null;
           sender_id?: string;
           show_id?: string;

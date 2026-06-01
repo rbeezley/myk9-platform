@@ -576,11 +576,10 @@ describe('ShowWorkbenchPage', () => {
     await user.click(within(dialog).getByRole('button', { name: /judge hospitality/i }));
     expect(within(dialog).getByRole('heading', { name: 'Hospitality' })).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: /quick broadcast/i }));
-    expect(within(dialog).getByRole('heading', { name: 'Quick broadcast' })).toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole('button', { name: /class broadcast/i }));
-    expect(within(dialog).getByRole('heading', { name: 'Message a class' })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /message show/i }));
+    expect(within(dialog).getByRole('heading', { name: 'Message Show' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('heading', { name: 'Quick broadcast' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('heading', { name: 'Message a class' })).not.toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('button', { name: /incident log/i }));
     expect(within(dialog).getByTestId('incident-log-card')).toHaveTextContent(

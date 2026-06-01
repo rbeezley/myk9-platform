@@ -34,12 +34,11 @@ import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { getShowStyle } from '@/features/registries';
 import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconciliation';
-import { ClassBroadcastCard } from '@/features/show-workbench/ClassBroadcastCard';
-import { buildClassBroadcastClassLabel } from '@/features/show-workbench/classBroadcast';
 import { IncidentCloseoutSummary } from '@/features/show-workbench/IncidentCloseoutSummary';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
-import { QuickBroadcastCard } from '@/features/show-workbench/QuickBroadcastCard';
+import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
+import { buildMessageShowClassLabel } from '@/features/show-workbench/messageShow';
 import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
 import { SetupAdaptiveHeader } from '@/features/show-workbench/SetupAdaptiveHeader';
 import { SetupPublishSection } from '@/features/show-workbench/SetupPublishSection';
@@ -262,22 +261,18 @@ export function ShowWorkbenchPage() {
         ),
       },
       {
-        id: 'quick-broadcast',
-        title: 'Quick broadcast',
-        summary: 'Send a general update to show participants',
-        content: <QuickBroadcastCard showId={currentShow.id} />,
-      },
-      {
-        id: 'class-broadcast',
-        title: 'Class broadcast',
-        summary: 'Send a class-specific update',
+        id: 'message-show',
+        title: 'Message Show',
+        summary: 'Send updates, class messages, and push alerts',
         content: (
-          <ClassBroadcastCard
+          <MessageShowComposer
             showId={currentShow.id}
             classes={showClasses.map(cls => ({
               id: cls.id,
-              label: buildClassBroadcastClassLabel({
+              label: buildMessageShowClassLabel({
                 name: cls.name,
+                element: cls.element,
+                level: cls.level,
                 section: cls.section,
               }),
               entryCount: cls.entryCount,

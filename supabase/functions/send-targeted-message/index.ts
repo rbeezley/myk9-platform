@@ -28,6 +28,7 @@ interface SendTargetedMessagePayload {
   class_id?: string;
   target_type?: TargetType;
   body?: string;
+  send_push?: boolean;
 }
 
 interface PushSubscriptionRow {
@@ -267,6 +268,7 @@ handle<SendTargetedMessagePayload>(
     const showId = payload.show_id;
     const targetType = normalizeTargetType(payload.target_type);
     const body = payload.body?.trim();
+    const sendPush = payload.send_push === true;
 
     if (!showId || !body) {
       throw new HttpError(400, 'Missing required fields: show_id, body');
@@ -338,6 +340,7 @@ handle<SendTargetedMessagePayload>(
         sender_id: user.id,
         body,
         group_label: groupLabel,
+        push_alert: sendPush,
       }));
 
       const { data: insertedMessages, error: insertError } = await supabase
@@ -349,7 +352,9 @@ handle<SendTargetedMessagePayload>(
       insertedMessageIds = (insertedMessages ?? []).map((message: { id: string }) => message.id);
     }
 
-    const ringsideTargets = await fetchRingsidePushTargets(supabase, showId, targetType, armbands);
+    const ringsideTargets = sendPush
+      ? await fetchRingsidePushTargets(supabase, showId, targetType, armbands)
+      : [];
     const pushResult = await sendPasscodePushes({
       supabase,
       body,

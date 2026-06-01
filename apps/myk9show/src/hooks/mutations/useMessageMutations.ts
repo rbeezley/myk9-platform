@@ -47,6 +47,7 @@ export function useMessageMutations() {
             show_id: showId,
             target_type: target.type,
             ...(target.classId ? { class_id: target.classId } : {}),
+            send_push: target.sendPush === true,
             body,
           },
         });

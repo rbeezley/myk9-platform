@@ -37,6 +37,7 @@ export type MessageTargetType = 'class' | 'checked_in' | 'all_show';
 export interface MessageTarget {
   type: MessageTargetType;
   classId?: string;
+  sendPush?: boolean;
 }
 
 export interface SendTargetedMessageParams {

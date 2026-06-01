@@ -65,6 +65,30 @@ describe('useMessageMutations', () => {
         show_id: 'show-1',
         target_type: 'class',
         class_id: 'class-1',
+        send_push: false,
+        body: 'Class 4 is delayed',
+      },
+    });
+  });
+
+  it('passes targeted push intent to the edge function', async () => {
+    const { supabase } = await import('@/lib/supabase-client');
+    const { result } = renderHook(() => useMessageMutations());
+
+    await act(async () => {
+      await result.current.sendTargetedMessage(
+        'show-1',
+        { type: 'class', classId: 'class-1', sendPush: true },
+        'Class 4 is delayed'
+      );
+    });
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('send-targeted-message', {
+      body: {
+        show_id: 'show-1',
+        target_type: 'class',
+        class_id: 'class-1',
+        send_push: true,
         body: 'Class 4 is delayed',
       },
     });

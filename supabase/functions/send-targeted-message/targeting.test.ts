@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
   accountPushSession,
+  buildAccountPushTargets,
   buildGroupLabel,
   buildRingsidePushActionUrl,
   buildTargetedMessageActionUrl,
@@ -185,6 +186,36 @@ describe('send-targeted-message targeting helpers', () => {
     });
     // Null last-seen means presence suppression never applies to account devices.
     expect(isPresenceSuppressed(session)).toBe(false);
+  });
+
+  it('grafts live /at-show presence onto an account device targeted by entry, not favorite', () => {
+    // An entered exhibitor is actively at /at-show but never favorited the messaged
+    // dog, so they are absent from the favorite-matched ringside targets. Their own
+    // device must still inherit that live presence so suppression applies — otherwise
+    // they get buzzed while staring at the screen (the P1 regression).
+    const presenceBySubscriptionId = new Map([
+      ['acct-sub-1', { lastSeenAt: '2026-05-30T20:00:30.000Z', lastSeenRoute: '/at-show/show-1' }],
+    ]);
+
+    const targets = buildAccountPushTargets(
+      [
+        { id: 'acct-sub-1', user_id: 'owner-1' },
+        { id: 'acct-sub-2', user_id: 'owner-2' },
+      ],
+      presenceBySubscriptionId
+    );
+
+    const present = targets.find(t => t.subscription.id === 'acct-sub-1');
+    expect(present?.session.lastSeenAt).toBe('2026-05-30T20:00:30.000Z');
+    expect(present?.session.lastSeenRoute).toBe('/at-show/show-1');
+    expect(isPresenceSuppressed(present!.session, Date.parse('2026-05-30T20:01:00.000Z'))).toBe(
+      true
+    );
+
+    // A device with no live ringside session keeps the non-suppressing fallback.
+    const absent = targets.find(t => t.subscription.id === 'acct-sub-2');
+    expect(absent?.session.lastSeenAt).toBeNull();
+    expect(isPresenceSuppressed(absent!.session)).toBe(false);
   });
 
   it('merges push targets deduped by subscription id, ringside winning', () => {

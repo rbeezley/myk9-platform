@@ -1,7 +1,7 @@
 import { HttpError } from '../_shared/http/responses.ts';
 import {
   ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
-  accountPushSession,
+  buildAccountPushTargets,
   buildGroupLabel,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
@@ -16,6 +16,15 @@ import {
   type RingsideSessionSource,
   type TargetType,
 } from './targeting.ts';
+
+// Chunk size for the account push-subscription user_id IN(...) filter, matching
+// push-trigger-announcement. Keeps large checked_in / all_show sends under
+// PostgREST URL length limits.
+const ACCOUNT_PUSH_FETCH_CHUNK_SIZE = 100;
+
+type RingsidePresence = Pick<RingsideSessionSource, 'lastSeenAt' | 'lastSeenRoute'>;
+
+type PushTarget = { session: RingsideSessionSource; subscription: PushSubscriptionRow };
 
 export interface SendTargetedMessagePayload {
   show_id?: string;
@@ -194,7 +203,7 @@ async function fetchRingsidePushTargets(
   showId: string,
   targetType: TargetType,
   armbands: string[]
-): Promise<Array<{ session: RingsideSessionSource; subscription: PushSubscriptionRow }>> {
+): Promise<{ targets: PushTarget[]; presenceBySubscriptionId: Map<string, RingsidePresence> }> {
   // The secretary targeted-message surface is currently exhibitor messaging.
   // Staff passcode roles need a separate operational broadcast lane before they
   // are included in "all show" notifications.
@@ -206,10 +215,12 @@ async function fetchRingsidePushTargets(
 
   if (error) throw new HttpError(500, 'Failed to resolve ringside recipients');
 
-  const bySubscriptionId = new Map<
-    string,
-    { session: RingsideSessionSource; subscription: PushSubscriptionRow }
-  >();
+  const bySubscriptionId = new Map<string, PushTarget>();
+  // Presence for EVERY exhibitor session, keyed by its real subscription id —
+  // including sessions that don't match the target's armbands. An account
+  // exhibitor targeted by entry (not favorite) reuses this so their live
+  // /at-show presence still suppresses a redundant push.
+  const presenceBySubscriptionId = new Map<string, RingsidePresence>();
 
   for (const row of (data ?? []) as RingsideSessionRow[]) {
     const subscription = subscriptionFromSession(row);
@@ -221,11 +232,15 @@ async function fetchRingsidePushTargets(
       lastSeenAt: row.last_seen_at,
       lastSeenRoute: row.last_seen_route,
     };
+    presenceBySubscriptionId.set(subscription.id, {
+      lastSeenAt: session.lastSeenAt,
+      lastSeenRoute: session.lastSeenRoute,
+    });
     if (!ringsideSessionMatchesTarget(session, targetType, armbands)) continue;
     bySubscriptionId.set(subscription.id, { session, subscription });
   }
 
-  return [...bySubscriptionId.values()];
+  return { targets: [...bySubscriptionId.values()], presenceBySubscriptionId };
 }
 
 // Push targets for entered account exhibitors, resolved by their entry's
@@ -235,21 +250,34 @@ async function fetchRingsidePushTargets(
 // too. buildTargetedMessageActionUrl routes these to /messages via user_id.
 async function fetchAccountRecipientPushTargets(
   supabase: TargetedMessageSupabaseClient,
-  accountRecipientIds: string[]
-): Promise<Array<{ session: RingsideSessionSource; subscription: PushSubscriptionRow }>> {
+  accountRecipientIds: string[],
+  presenceBySubscriptionId: Map<string, RingsidePresence>
+): Promise<PushTarget[]> {
   if (accountRecipientIds.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from('push_subscriptions')
-    .select(ACCOUNT_PUSH_SUBSCRIPTION_SELECT)
-    .in('user_id', accountRecipientIds);
+  // Chunk the user_id IN(...) filter so large checked_in / all_show sends stay
+  // under PostgREST URL length limits (mirrors push-trigger-announcement). The
+  // inbox threads + messages are already written by this point, so an unchunked
+  // overflow here would 500 after a successful write — a partial failure the
+  // secretary would read as a total one.
+  const chunkQueries: SupabaseQuery[] = [];
+  for (let i = 0; i < accountRecipientIds.length; i += ACCOUNT_PUSH_FETCH_CHUNK_SIZE) {
+    chunkQueries.push(
+      supabase
+        .from('push_subscriptions')
+        .select(ACCOUNT_PUSH_SUBSCRIPTION_SELECT)
+        .in('user_id', accountRecipientIds.slice(i, i + ACCOUNT_PUSH_FETCH_CHUNK_SIZE))
+    );
+  }
 
-  if (error) throw new HttpError(500, 'Failed to resolve account push recipients');
+  const chunkResults = await Promise.all(chunkQueries);
+  const subscriptions: PushSubscriptionRow[] = [];
+  for (const { data, error } of chunkResults) {
+    if (error) throw new HttpError(500, 'Failed to resolve account push recipients');
+    subscriptions.push(...((data ?? []) as PushSubscriptionRow[]));
+  }
 
-  return ((data ?? []) as PushSubscriptionRow[]).map(subscription => ({
-    session: accountPushSession(subscription.id),
-    subscription,
-  }));
+  return buildAccountPushTargets(subscriptions, presenceBySubscriptionId);
 }
 
 export function createSendTargetedMessageHandler(deps: {
@@ -345,15 +373,20 @@ export function createSendTargetedMessageHandler(deps: {
       insertedMessageIds = (insertedMessages ?? []).map((message: { id: string }) => message.id);
     }
 
-    const ringsideTargets = sendPush
-      ? await fetchRingsidePushTargets(supabase, showId, targetType, armbands)
-      : [];
     // Account exhibitors are notified by their entry, not by a favorited armband.
-    // Merge their own devices into the fan-out (deduped against any ringside
-    // session they already have, which wins so presence-suppression still holds).
-    const accountPushTargets = sendPush
-      ? await fetchAccountRecipientPushTargets(supabase, accountRecipientIds)
-      : [];
+    // Resolve ringside presence first so their own devices inherit any live
+    // /at-show presence (suppression), then merge — ringside wins on dedupe.
+    let ringsideTargets: PushTarget[] = [];
+    let accountPushTargets: PushTarget[] = [];
+    if (sendPush) {
+      const ringside = await fetchRingsidePushTargets(supabase, showId, targetType, armbands);
+      ringsideTargets = ringside.targets;
+      accountPushTargets = await fetchAccountRecipientPushTargets(
+        supabase,
+        accountRecipientIds,
+        ringside.presenceBySubscriptionId
+      );
+    }
     const pushTargets = mergePushTargetsBySubscriptionId(ringsideTargets, accountPushTargets);
     const pushResult = await deps.sendPasscodePushes({
       supabase,

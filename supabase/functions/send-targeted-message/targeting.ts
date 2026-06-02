@@ -139,6 +139,27 @@ export function accountPushSession(subscriptionId: string): RingsideSessionSourc
   };
 }
 
+// Build push targets for entered account exhibitors' own devices. A device that
+// also has a live ringside session (the exhibitor is actively at /at-show) inherits
+// that real presence so presence-suppression still applies — even though the
+// exhibitor was targeted by their entry, not by a favorited armband. Devices with
+// no ringside session fall back to the non-suppressing synthetic session.
+export function buildAccountPushTargets<S extends { id: string }>(
+  subscriptions: S[],
+  presenceBySubscriptionId: Map<string, Pick<RingsideSessionSource, 'lastSeenAt' | 'lastSeenRoute'>>
+): Array<{ session: RingsideSessionSource; subscription: S }> {
+  return subscriptions.map(subscription => {
+    const base = accountPushSession(subscription.id);
+    const presence = presenceBySubscriptionId.get(subscription.id);
+    return {
+      session: presence
+        ? { ...base, lastSeenAt: presence.lastSeenAt, lastSeenRoute: presence.lastSeenRoute }
+        : base,
+      subscription,
+    };
+  });
+}
+
 // Merge ringside + account push targets, deduped by subscription id. Ringside
 // entries win so an exhibitor who is actively at /at-show keeps their real
 // presence (and thus suppression); account-only subscriptions fill in everyone

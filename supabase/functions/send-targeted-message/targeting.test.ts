@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildGroupLabel,
   buildRingsidePushActionUrl,
+  buildTargetedMessageActionUrl,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
   isPresenceSuppressed,
@@ -37,7 +38,7 @@ describe('send-targeted-message targeting helpers', () => {
 
   it('selects push subscription key columns that exist in the unified schema', () => {
     expect(RINGSIDE_SESSION_PUSH_TARGET_SELECT).toContain(
-      'push_subscriptions!inner(id, endpoint, p256dh, auth)'
+      'push_subscriptions!inner(id, endpoint, p256dh, auth, user_id)'
     );
     expect(RINGSIDE_SESSION_PUSH_TARGET_SELECT).not.toContain('keys');
   });
@@ -133,6 +134,34 @@ describe('send-targeted-message targeting helpers', () => {
       buildRingsidePushActionUrl('show-1', {
         lastSeenRoute: '/at-show/other-show/class/class-1',
       })
+    ).toBe('/at-show/show-1');
+  });
+
+  it('routes account-keyed push taps to the exhibitor inbox thread, ignoring at-show presence', () => {
+    expect(
+      buildTargetedMessageActionUrl(
+        'show-1',
+        { user_id: 'account-1' },
+        { lastSeenRoute: '/at-show/show-1/class/class-1' }
+      )
+    ).toBe('/messages/show-1');
+  });
+
+  it('keeps passcode-keyed push taps in /at-show because they have no inbox page', () => {
+    expect(
+      buildTargetedMessageActionUrl(
+        'show-1',
+        { user_id: null },
+        { lastSeenRoute: '/at-show/show-1/class/class-1' }
+      )
+    ).toBe('/at-show/show-1/class/class-1');
+
+    expect(
+      buildTargetedMessageActionUrl('show-1', { user_id: null }, { lastSeenRoute: null })
+    ).toBe('/at-show/show-1');
+
+    expect(
+      buildTargetedMessageActionUrl('show-1', { user_id: undefined }, { lastSeenRoute: null })
     ).toBe('/at-show/show-1');
   });
 });

@@ -4,7 +4,7 @@ import webpush from 'npm:web-push@3';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import {
-  buildRingsidePushActionUrl,
+  buildTargetedMessageActionUrl,
   isPresenceSuppressed,
   type RingsideSessionSource,
 } from './targeting.ts';
@@ -74,7 +74,11 @@ const sendPasscodePushes: SendPasscodePushes = async args => {
             type: 'show_message',
             messageId: args.messageId,
             showId: args.showId,
-            actionUrl: buildRingsidePushActionUrl(args.showId, target.session),
+            actionUrl: buildTargetedMessageActionUrl(
+              args.showId,
+              target.subscription,
+              target.session
+            ),
           },
         });
         try {

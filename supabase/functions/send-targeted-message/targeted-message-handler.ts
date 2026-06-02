@@ -27,6 +27,9 @@ export interface PushSubscriptionRow {
   endpoint: string;
   p256dh?: string | null;
   auth?: string | null;
+  // Null for passcode (anonymous) subscriptions; set for signed-in accounts.
+  // Drives push-tap routing — see buildTargetedMessageActionUrl.
+  user_id?: string | null;
 }
 
 interface SupabaseQueryResult<T = unknown> {

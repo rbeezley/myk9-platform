@@ -21,6 +21,7 @@ function chain(result: QueryResult) {
 function makeSupabase() {
   const calls = {
     ringsideSessions: 0,
+    accountPushSubscriptions: 0,
     insertedMessages: [] as Array<Record<string, unknown>>,
   };
 
@@ -87,6 +88,23 @@ function makeSupabase() {
         });
       }
 
+      if (table === 'push_subscriptions') {
+        calls.accountPushSubscriptions += 1;
+        // The entered account exhibitor's own device — account-keyed (user_id),
+        // resolved by entry rather than by a ringside session.
+        return chain({
+          data: [
+            {
+              id: 'acct-sub-1',
+              endpoint: 'https://push.example/acct-sub-1',
+              p256dh: 'key',
+              auth: 'auth',
+              user_id: 'owner-1',
+            },
+          ],
+        });
+      }
+
       throw new Error(`Unexpected table: ${table}`);
     }),
   };
@@ -126,6 +144,7 @@ describe('send-targeted-message handler push contract', () => {
 
     expect(calls.insertedMessages).toMatchObject([{ push_alert: false }]);
     expect(calls.ringsideSessions).toBe(0);
+    expect(calls.accountPushSubscriptions).toBe(0);
     expect(sendPasscodePushes).toHaveBeenCalledWith(
       expect.objectContaining({
         targets: [],
@@ -138,24 +157,31 @@ describe('send-targeted-message handler push contract', () => {
     });
   });
 
-  it('stores push_alert true and includes matching ringside targets when send_push is true', async () => {
+  it('fans out to ringside AND entered account exhibitors (by entry, no favorite) when send_push is true', async () => {
     const { result, sendPasscodePushes, calls } = await sendTargetedMessage(true);
 
     expect(calls.insertedMessages).toMatchObject([{ push_alert: true }]);
     expect(calls.ringsideSessions).toBe(1);
-    expect(sendPasscodePushes).toHaveBeenCalledWith(
+    // Account recipients' own devices are resolved by their entry's user_id.
+    expect(calls.accountPushSubscriptions).toBe(1);
+
+    const targets = sendPasscodePushes.mock.calls[0][0].targets;
+    // Ringside passcode session...
+    expect(targets).toContainEqual(
+      expect.objectContaining({ subscription: expect.objectContaining({ id: 'sub-1' }) })
+    );
+    // ...PLUS the entered account exhibitor's device, account-keyed (user_id set)
+    // so buildTargetedMessageActionUrl routes its tap to /messages.
+    expect(targets).toContainEqual(
       expect.objectContaining({
-        targets: [
-          expect.objectContaining({
-            subscription: expect.objectContaining({ id: 'sub-1' }),
-          }),
-        ],
+        subscription: expect.objectContaining({ id: 'acct-sub-1', user_id: 'owner-1' }),
       })
     );
+
     expect(result).toMatchObject({
       sent_to: 1,
       total_recipients: 2,
-      push_sent: 1,
+      push_sent: 2,
     });
   });
 });

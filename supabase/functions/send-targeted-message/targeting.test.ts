@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
+  accountPushSession,
   buildGroupLabel,
   buildRingsidePushActionUrl,
   buildTargetedMessageActionUrl,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
   isPresenceSuppressed,
+  mergePushTargetsBySubscriptionId,
   RINGSIDE_SESSION_PUSH_TARGET_SELECT,
   ringsideSessionMatchesTarget,
   targetArmbands,
@@ -163,5 +166,41 @@ describe('send-targeted-message targeting helpers', () => {
     expect(
       buildTargetedMessageActionUrl('show-1', { user_id: undefined }, { lastSeenRoute: null })
     ).toBe('/at-show/show-1');
+  });
+
+  it('selects the account push subscription columns including user_id', () => {
+    expect(ACCOUNT_PUSH_SUBSCRIPTION_SELECT).toContain('user_id');
+    expect(ACCOUNT_PUSH_SUBSCRIPTION_SELECT).toContain('endpoint');
+    expect(ACCOUNT_PUSH_SUBSCRIPTION_SELECT).not.toContain('keys');
+  });
+
+  it('builds a non-suppressing exhibitor session for an account device', () => {
+    const session = accountPushSession('acct-sub-1');
+    expect(session).toEqual({
+      subscriptionId: 'acct-sub-1',
+      role: 'exhibitor',
+      favoritedArmbands: [],
+      lastSeenAt: null,
+      lastSeenRoute: null,
+    });
+    // Null last-seen means presence suppression never applies to account devices.
+    expect(isPresenceSuppressed(session)).toBe(false);
+  });
+
+  it('merges push targets deduped by subscription id, ringside winning', () => {
+    const ringside = [
+      { session: accountPushSession('shared'), subscription: { id: 'shared', source: 'ringside' } },
+      { session: accountPushSession('r-only'), subscription: { id: 'r-only', source: 'ringside' } },
+    ];
+    const account = [
+      { session: accountPushSession('shared'), subscription: { id: 'shared', source: 'account' } },
+      { session: accountPushSession('a-only'), subscription: { id: 'a-only', source: 'account' } },
+    ];
+
+    const merged = mergePushTargetsBySubscriptionId(ringside, account);
+
+    expect(merged.map(t => t.subscription.id).sort()).toEqual(['a-only', 'r-only', 'shared']);
+    // The shared subscription keeps the ringside entry (with its real presence).
+    expect(merged.find(t => t.subscription.id === 'shared')?.subscription.source).toBe('ringside');
   });
 });

@@ -22,6 +22,11 @@ export interface CallerRoleSource {
 export const RINGSIDE_SESSION_PUSH_TARGET_SELECT =
   'subscription_id, role, favorited_armbands, last_seen_at, last_seen_route, push_subscriptions!inner(id, endpoint, p256dh, auth, user_id)';
 
+// Columns for an entered account exhibitor's own push subscriptions. These are
+// notified by their entry (auth_user_id) — no ringside session or favorited
+// armband required, mirroring the inbox thread they already receive.
+export const ACCOUNT_PUSH_SUBSCRIPTION_SELECT = 'id, endpoint, p256dh, auth, user_id';
+
 export const CALLER_ROLE_SELECT =
   'id, club_id, show_id, auth_user_id, is_active, roles!inner(name)';
 
@@ -118,4 +123,36 @@ export function buildTargetedMessageActionUrl(
 ): string {
   if (subscription.user_id) return `/messages/${showId}`;
   return buildRingsidePushActionUrl(showId, session);
+}
+
+// Synthetic session for an entered account exhibitor's subscription that has no
+// ringside presence. Account subscriptions route to /messages via user_id, so
+// this only needs to be non-suppressing (null last-seen) — favorites/route are
+// irrelevant. Lets account devices flow through the same fan-out as ringside.
+export function accountPushSession(subscriptionId: string): RingsideSessionSource {
+  return {
+    subscriptionId,
+    role: 'exhibitor',
+    favoritedArmbands: [],
+    lastSeenAt: null,
+    lastSeenRoute: null,
+  };
+}
+
+// Merge ringside + account push targets, deduped by subscription id. Ringside
+// entries win so an exhibitor who is actively at /at-show keeps their real
+// presence (and thus suppression); account-only subscriptions fill in everyone
+// else notified purely by their entry.
+export function mergePushTargetsBySubscriptionId<T extends { subscription: { id: string } }>(
+  ringside: T[],
+  account: T[]
+): T[] {
+  const bySubscriptionId = new Map<string, T>();
+  for (const target of ringside) bySubscriptionId.set(target.subscription.id, target);
+  for (const target of account) {
+    if (!bySubscriptionId.has(target.subscription.id)) {
+      bySubscriptionId.set(target.subscription.id, target);
+    }
+  }
+  return [...bySubscriptionId.values()];
 }

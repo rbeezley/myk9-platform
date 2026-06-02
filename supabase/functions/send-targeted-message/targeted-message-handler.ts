@@ -1,8 +1,11 @@
 import { HttpError } from '../_shared/http/responses.ts';
 import {
+  ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
+  accountPushSession,
   buildGroupLabel,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
+  mergePushTargetsBySubscriptionId,
   normalizeTargetType,
   RINGSIDE_SESSION_PUSH_TARGET_SELECT,
   ringsideSessionMatchesTarget,
@@ -225,6 +228,30 @@ async function fetchRingsidePushTargets(
   return [...bySubscriptionId.values()];
 }
 
+// Push targets for entered account exhibitors, resolved by their entry's
+// auth_user_id — not by a favorited armband or ringside session. This is how a
+// signed-in exhibitor gets notified without the passcode-era favoriting step:
+// they already receive the inbox thread, and now their devices receive the push
+// too. buildTargetedMessageActionUrl routes these to /messages via user_id.
+async function fetchAccountRecipientPushTargets(
+  supabase: TargetedMessageSupabaseClient,
+  accountRecipientIds: string[]
+): Promise<Array<{ session: RingsideSessionSource; subscription: PushSubscriptionRow }>> {
+  if (accountRecipientIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select(ACCOUNT_PUSH_SUBSCRIPTION_SELECT)
+    .in('user_id', accountRecipientIds);
+
+  if (error) throw new HttpError(500, 'Failed to resolve account push recipients');
+
+  return ((data ?? []) as PushSubscriptionRow[]).map(subscription => ({
+    session: accountPushSession(subscription.id),
+    subscription,
+  }));
+}
+
 export function createSendTargetedMessageHandler(deps: {
   sendPasscodePushes: SendPasscodePushes;
 }) {
@@ -321,12 +348,19 @@ export function createSendTargetedMessageHandler(deps: {
     const ringsideTargets = sendPush
       ? await fetchRingsidePushTargets(supabase, showId, targetType, armbands)
       : [];
+    // Account exhibitors are notified by their entry, not by a favorited armband.
+    // Merge their own devices into the fan-out (deduped against any ringside
+    // session they already have, which wins so presence-suppression still holds).
+    const accountPushTargets = sendPush
+      ? await fetchAccountRecipientPushTargets(supabase, accountRecipientIds)
+      : [];
+    const pushTargets = mergePushTargetsBySubscriptionId(ringsideTargets, accountPushTargets);
     const pushResult = await deps.sendPasscodePushes({
       supabase,
       body,
       messageId: insertedMessageIds[0] ?? null,
       showId,
-      targets: ringsideTargets,
+      targets: pushTargets,
     });
 
     return {

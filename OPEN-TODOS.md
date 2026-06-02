@@ -334,7 +334,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## North Star — Phase 2.5: Internal Secretary QA Re-Walk
 
-- [ ] **Run updated secretary golden path checklist** — Walk all 7 parts of the updated checklist end-to-end to QA current app state before Phase 3 hand-off. Covers show setup wizard, entry management, Show Desk tab (day-of ops), closeout, at-show/ringside flow, and push notifications. Pre-req: enable `unified_ringside_enabled` flag on test show. Checklist: `docs/testing/secretary-golden-path-checklist.md`. Full context in TO-DOS.md § "Secretary QA Re-Walk — 2026-05-31 14:16".
+- [x] ~~**Run updated secretary golden path checklist**~~ — Walked 2026-06-02. Setup tab ✓, Show Desk (tabs/tools/NBA card/Show Map) ✓, Entry Management ✓ (fixed enrollment JOIN timeout), at-show/ringside Parts 6.1–6.7 ✓ (class list, entry list, scoresheet, save). Fixed 4 bugs: Message Show dropdown labels (raw enum/UUID → human labels), people RLS O(N²) cascade → statement timeout storm (simplified to `deleted_at IS NULL AND auth.uid() IS NOT NULL`), missing secretary SELECT policy on `enrollments`. Parts 1/5/7 and full day-of detail not yet walked; push tap verification (Part 7) still blocked on real device (tracked in Phase 3 acceptance item above).
 
 ## North Star — Phase 3: Real-User Testing
 

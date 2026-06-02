@@ -97,7 +97,6 @@
     "@myk9/secretary": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@myk9/ui": "workspace:*",
-    "@radix-ui/react-dialog": "^1.1.15",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.106.2",
     "@tanstack/react-query": "^5.100.14",

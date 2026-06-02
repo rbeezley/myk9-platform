@@ -1,6 +1,6 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { EntryBlankMailTo } from '../types';
-import { BODY, CLARET, DISPLAY, INK, QUILL } from './pdfPrimitives';
+import { BODY, CLARET, DISPLAY, INK, QUILL } from './pdfTokens';
 
 function PanelColumn({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (

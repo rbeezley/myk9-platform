@@ -1,6 +1,7 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { EntryBlankProps } from '../types';
-import { BODY, CLARET, DISPLAY, INK, OrnamentRule, QUILL } from './pdfPrimitives';
+import { OrnamentRule } from './pdfPrimitives';
+import { BODY, CLARET, DISPLAY, INK, QUILL } from './pdfTokens';
 
 type Props = Pick<
   EntryBlankProps,

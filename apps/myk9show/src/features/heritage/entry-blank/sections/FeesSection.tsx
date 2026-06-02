@@ -1,6 +1,7 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { EntryBlankFees } from '../types';
-import { BODY, Checkbox, CLARET, DISPLAY, GOLD, INK, QUILL, SectionHeader } from './pdfPrimitives';
+import { Checkbox, SectionHeader } from './pdfPrimitives';
+import { BODY, CLARET, DISPLAY, GOLD, INK, QUILL } from './pdfTokens';
 
 function FeeRow({ label, value }: { label: string; value: string }) {
   return (

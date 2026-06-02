@@ -9,7 +9,8 @@ import { DogParticularsSection } from './sections/DogParticularsSection';
 import { EntryBlankHeader } from './sections/EntryBlankHeader';
 import { FeesSection } from './sections/FeesSection';
 import { MailToPanel } from './sections/MailToPanel';
-import { OrnamentRule, DISPLAY, QUILL, INK, PAPER } from './sections/pdfPrimitives';
+import { OrnamentRule } from './sections/pdfPrimitives';
+import { DISPLAY, INK, PAPER, QUILL } from './sections/pdfTokens';
 import { OwnerHandlerSection } from './sections/OwnerHandlerSection';
 
 // Engraved double border — two nested absolute Views matching the EngravedCover pattern.

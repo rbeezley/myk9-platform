@@ -23,17 +23,9 @@ import { InlineEditingToolbar } from './components/InlineEditingToolbar';
 import { SaveBar } from './components/SaveBar';
 import { SummaryFooter } from './components/SummaryFooter';
 import { renderCell } from './components/renderCell';
+import { COMPLETED_STATUSES } from './completedStatuses';
 import { EntriesStatisticsPanel } from '../EntriesStatisticsPanel';
 import '@/styles/myk9-show-details.css';
-
-export const COMPLETED_STATUSES = new Set([
-  'Qualified',
-  'Not Qualified',
-  'Absent',
-  'Excused',
-  'Withdrawn',
-  'Eliminated',
-]);
 
 const EMPTY_EDIT_ENTRY: import('./types').InlineEditEntry = {
   time: '',

@@ -8,9 +8,9 @@ const functionPath = resolve(
   testDir,
   '../../../../../../supabase/functions/push-trigger-announcement/index.ts'
 );
-const guardMigrationPath = resolve(
+const vaultMigrationPath = resolve(
   testDir,
-  '../../../../../../supabase/migrations/20260602153923_guard_notify_announcement_push_missing_config.sql'
+  '../../../../../../supabase/migrations/20260602161813_notify_announcement_push_from_vault.sql'
 );
 
 describe('push-trigger-announcement function contract', () => {
@@ -28,24 +28,25 @@ describe('push-trigger-announcement function contract', () => {
   });
 });
 
-describe('notify_announcement_push config guard', () => {
-  const sql = readFileSync(guardMigrationPath, 'utf8');
+describe('notify_announcement_push config from Vault', () => {
+  const sql = readFileSync(vaultMigrationPath, 'utf8');
 
-  it('reads edge-function config with the non-raising two-arg current_setting', () => {
-    // The two-arg form returns NULL instead of raising on an unset GUC, so a
-    // high/urgent announcement INSERT no longer aborts when push config is absent.
-    expect(sql).toContain("current_setting('app.settings.edge_function_base_url', true)");
-    expect(sql).toContain("current_setting('app.settings.service_role_key', true)");
+  it('reads edge-function config from vault.decrypted_secrets, not GUCs', () => {
+    expect(sql).toContain('vault.decrypted_secrets');
+    expect(sql).toContain("where name = 'edge_function_base_url'");
+    expect(sql).toContain("where name = 'service_role_key'");
+    // Config no longer comes from app.settings GUCs (ALTER DATABASE SET is gone).
+    expect(sql).not.toContain('current_setting');
   });
 
-  it('skips the webhook (NOTICE + RETURN NEW) instead of failing the INSERT when config is missing', () => {
-    expect(sql).toMatch(/RAISE NOTICE[\s\S]*RETURN NEW;/i);
+  it('guards (NOTICE + RETURN NEW) instead of raising when a secret is missing', () => {
+    // An AFTER INSERT trigger must skip, not raise — otherwise the broadcast
+    // INSERT aborts again. (Unlike the heritage cron, which may raise.)
+    expect(sql).toMatch(/raise notice[\s\S]*return new;/i);
+    expect(sql).not.toContain('raise exception');
   });
 
-  it('targets the standardized edge_function_base_url path, not the legacy supabase_url GUC', () => {
+  it('targets the push-trigger-announcement edge function via the Vault base url', () => {
     expect(sql).toContain("edge_function_base_url || '/push-trigger-announcement'");
-    // Must not reintroduce the unset legacy GUC or the raising single-arg form.
-    expect(sql).not.toContain("current_setting('app.settings.supabase_url')");
-    expect(sql).not.toContain("current_setting('app.settings.service_role_key')");
   });
 });

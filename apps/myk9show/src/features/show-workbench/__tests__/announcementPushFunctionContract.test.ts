@@ -26,6 +26,18 @@ describe('push-trigger-announcement function contract', () => {
       source.indexOf('webpush.sendNotification')
     );
   });
+
+  it('reads push subscriptions with the current p256dh/auth columns, not the dropped keys column', () => {
+    const source = readFileSync(functionPath, 'utf8');
+
+    // push_subscriptions migrated keys -> (p256dh, auth). Selecting the dropped
+    // `keys` column made every chunk query error out, so the function reported
+    // no_subscriptions_found and never sent. Mirror push-trigger-chat-message.
+    expect(source).toContain(".select('user_id, endpoint, p256dh, auth')");
+    expect(source).toContain('keys: { p256dh: sub.p256dh, auth: sub.auth }');
+    expect(source).not.toContain("endpoint, keys')");
+    expect(source).not.toContain('keys: sub.keys');
+  });
 });
 
 describe('notify_announcement_push config from Vault', () => {

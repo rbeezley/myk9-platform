@@ -59,6 +59,18 @@ export const AtShowClassListPage: React.FC = () => {
     () => new Set(showId ? loadCollapsedTrialIds(showId) : [])
   );
 
+  // The `/at-show/:showId` route reuses this component instance across a param
+  // change (no remount), so re-load the per-show collapsed set whenever the
+  // show changes — otherwise the new show would inherit the previous show's
+  // collapsed sections and the next toggle would persist them under its key.
+  // React's "adjust state during render" pattern (no effect): reset when the
+  // tracked show id no longer matches the current one.
+  const [trackedShowId, setTrackedShowId] = useState(showId);
+  if (showId !== trackedShowId) {
+    setTrackedShowId(showId);
+    setCollapsedTrialIds(new Set(showId ? loadCollapsedTrialIds(showId) : []));
+  }
+
   const toggleTrial = useCallback(
     (trialId: string, open: boolean) => {
       setCollapsedTrialIds(current => {

@@ -10,7 +10,7 @@
  * per-show to localStorage (so a judge's focus on one ring survives reloads).
  */
 
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@/test/utils/testUtils';
 
@@ -173,5 +173,47 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
       'false'
     );
     expect(screen.queryByText(/Exterior Master/)).not.toBeInTheDocument();
+  });
+
+  it('re-syncs collapsed state when the show changes without a remount', async () => {
+    // show-1 has trial-2 collapsed; show-2 has nothing collapsed.
+    window.localStorage.setItem('at-show-collapsed-trials:show-1', JSON.stringify(['trial-2']));
+
+    const ShowSwitcher = () => {
+      const navigate = useNavigate();
+      return (
+        <button type="button" onClick={() => navigate('/at-show/show-2')}>
+          switch-show
+        </button>
+      );
+    };
+
+    render(
+      <>
+        <ShowSwitcher />
+        <Routes>
+          <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
+        </Routes>
+      </>,
+      { initialRoute: '/at-show/show-1' }
+    );
+
+    // show-1: trial 2 collapsed from persisted state.
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(screen.queryByText(/Exterior Master/)).not.toBeInTheDocument();
+
+    // Same route, new :showId — the component instance is reused (no remount).
+    fireEvent.click(screen.getByRole('button', { name: 'switch-show' }));
+
+    // show-2 has no collapsed state, so trial 2 must NOT inherit show-1's collapse.
+    expect(await screen.findByText(/Exterior Master/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Trial 2/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    // show-1's persisted state is untouched (no cross-show bleed).
+    expect(
+      JSON.parse(window.localStorage.getItem('at-show-collapsed-trials:show-1') as string)
+    ).toContain('trial-2');
   });
 });

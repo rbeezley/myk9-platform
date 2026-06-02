@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
+import { currentMonthWizardDates } from '../shared/wizardDates';
 
 const ADD_TRIALS_SHOW_ID =
   process.env.QA_ADD_TRIALS_SHOW_ID ?? '4584f257-19b5-4016-aae6-5e7827b769cb';
@@ -46,18 +47,21 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     }
     await page.keyboard.press('Escape');
 
+    const dates = currentMonthWizardDates();
     await selectRange(page, page.getByRole('button', { name: /Show Dates/i }), {
-      start: /May 30th, 2026/i,
-      end: /June 2nd, 2026/i,
+      start: dates.show.start.pick,
+      end: dates.show.end.pick,
     });
-    await expect(page.locator('#show-dates')).toContainText(/May 30, 2026.*Jun 2, 2026/i);
+    const showRange = new RegExp(`${dates.show.start.display}.*${dates.show.end.display}`, 'i');
+    await expect(page.locator('#show-dates')).toContainText(showRange);
 
     await selectRange(page, page.getByRole('button', { name: /Entry Period/i }), {
-      start: /May 1st, 2026/i,
-      end: /June 5th, 2026/i,
+      start: dates.entry.start.pick,
+      end: dates.entry.end.pick,
     });
-    await expect(page.locator('#show-dates')).toContainText(/May 30, 2026.*Jun 2, 2026/i);
-    await expect(page.locator('#show-entry-period')).toContainText(/May 1, 2026.*Jun 5, 2026/i);
+    const entryRange = new RegExp(`${dates.entry.start.display}.*${dates.entry.end.display}`, 'i');
+    await expect(page.locator('#show-dates')).toContainText(showRange);
+    await expect(page.locator('#show-entry-period')).toContainText(entryRange);
   });
 
   test('Add Trials mode lands on trial configuration with AKC event number guidance', async ({

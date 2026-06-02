@@ -44,7 +44,7 @@ const mockStoreState = {
   setCurrentUserId: vi.fn(),
   addMessage: vi.fn(),
   recalculateUnread: vi.fn(),
-  fetchThreads: vi.fn(),
+  fetchThreads: vi.fn().mockResolvedValue(undefined),
   reset: vi.fn(),
 };
 
@@ -92,5 +92,31 @@ describe('ChatPage', () => {
   it('renders the message input', () => {
     render(<ChatPage />);
     expect(screen.getByPlaceholderText(/message/i)).toBeInTheDocument();
+  });
+
+  it('cold-load: fetches this show\'s threads on mount and shows loading (not the empty state) until hydrated', async () => {
+    const originalThreads = mockStoreState.threads;
+    // Simulate a cold push-tap deep-link: the store has no threads yet, and the
+    // hydration fetch populates them (which then re-renders via the page's flag).
+    mockStoreState.threads = [];
+    mockStoreState.fetchThreads = vi.fn().mockImplementation(async () => {
+      mockStoreState.threads = originalThreads;
+    });
+
+    try {
+      render(<ChatPage />);
+
+      // Hydration is triggered for the route's showId...
+      expect(mockStoreState.fetchThreads).toHaveBeenCalledWith('show-1');
+      // ...and while cold we show loading, never the misleading empty state.
+      expect(screen.getByText('Loading messages...')).toBeInTheDocument();
+      expect(screen.queryByText('Start a conversation')).not.toBeInTheDocument();
+
+      // Once threads hydrate, the secretary message renders.
+      expect(await screen.findByText('Your paperwork is missing')).toBeInTheDocument();
+    } finally {
+      mockStoreState.threads = originalThreads;
+      mockStoreState.fetchThreads = vi.fn().mockResolvedValue(undefined);
+    }
   });
 });

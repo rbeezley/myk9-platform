@@ -20,7 +20,7 @@ export interface CallerRoleSource {
 }
 
 export const RINGSIDE_SESSION_PUSH_TARGET_SELECT =
-  'subscription_id, role, favorited_armbands, last_seen_at, last_seen_route, push_subscriptions!inner(id, endpoint, p256dh, auth)';
+  'subscription_id, role, favorited_armbands, last_seen_at, last_seen_route, push_subscriptions!inner(id, endpoint, p256dh, auth, user_id)';
 
 export const CALLER_ROLE_SELECT =
   'id, club_id, show_id, auth_user_id, is_active, roles!inner(name)';
@@ -104,4 +104,18 @@ export function buildRingsidePushActionUrl(
   const route = session.lastSeenRoute?.trim();
   if (!route) return fallback;
   return route === fallback || route.startsWith(`${fallback}/`) ? route : fallback;
+}
+
+// Decide where a tapped secretary-message push should land, per recipient identity.
+// Account-keyed subscriptions (push_subscriptions.user_id set) belong to a signed-in
+// exhibitor who has a real inbox thread page, so route them straight to that thread.
+// Passcode (anonymous) ringside sessions have no inbox surface, so they stay in
+// /at-show — falling back through buildRingsidePushActionUrl to their last ringside route.
+export function buildTargetedMessageActionUrl(
+  showId: string,
+  subscription: { user_id?: string | null },
+  session: Pick<RingsideSessionSource, 'lastSeenRoute'>
+): string {
+  if (subscription.user_id) return `/messages/${showId}`;
+  return buildRingsidePushActionUrl(showId, session);
 }

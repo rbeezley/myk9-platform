@@ -19,11 +19,15 @@ const mockChannel = vi.fn().mockReturnValue({
   subscribe: mockSubscribe,
 });
 const mockRemoveChannel = vi.fn();
+// Mirrors realtime-js: channel(topic) reuses an existing channel by topic, so
+// subscribe() now clears any stale same-topic channel first (QA-CONSOLE-ERROR-017).
+const mockGetChannels = vi.fn<() => unknown[]>(() => []);
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     channel: (...args: unknown[]) => mockChannel(...args),
     removeChannel: (...args: unknown[]) => mockRemoveChannel(...args),
+    getChannels: () => mockGetChannels(),
   },
 }));
 
@@ -84,6 +88,20 @@ describe('announcementStore', () => {
       expect(state.announcements).toHaveLength(1);
       expect(state.unreadCount).toBe(1);
       expect(state.currentShowIds).toEqual(['show-1']);
+      expect(mockChannel).toHaveBeenCalledWith('announcements-show-1');
+    });
+
+    it('removes a stale same-topic channel before re-subscribing (QA-CONSOLE-ERROR-017)', async () => {
+      // realtime-js channel(topic) reuses a registered channel by topic; a leftover
+      // joined channel makes the next `.on('postgres_changes')` throw. subscribe()
+      // must clear it first so it always builds a fresh subscription.
+      const staleChannel = { topic: 'realtime:announcements-show-1' };
+      mockGetChannels.mockReturnValueOnce([staleChannel]);
+      vi.mocked(getAnnouncementsByShow).mockResolvedValue([makeAnnouncement()]);
+
+      await useAnnouncementStore.getState().subscribe(['show-1']);
+
+      expect(mockRemoveChannel).toHaveBeenCalledWith(staleChannel);
       expect(mockChannel).toHaveBeenCalledWith('announcements-show-1');
     });
 
@@ -155,8 +173,7 @@ describe('announcementStore', () => {
 
   describe('deleteAnnouncement', () => {
     it('optimistically removes the announcement', async () => {
-      const { deleteAnnouncement: deleteMock } =
-        await import('@/services/database/announcements');
+      const { deleteAnnouncement: deleteMock } = await import('@/services/database/announcements');
       vi.mocked(deleteMock).mockResolvedValue(undefined);
       useAnnouncementStore.setState({
         announcements: [makeAnnouncement()],
@@ -203,8 +220,7 @@ describe('announcementStore', () => {
     });
 
     it('skips when no unread announcements', async () => {
-      const { markAllAnnouncementsRead } =
-        await import('@/services/database/announcements');
+      const { markAllAnnouncementsRead } = await import('@/services/database/announcements');
       useAnnouncementStore.setState({
         announcements: [makeAnnouncement({ is_read: true })],
         unreadCount: 0,

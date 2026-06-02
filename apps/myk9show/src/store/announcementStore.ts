@@ -83,6 +83,20 @@ export const useAnnouncementStore = create<AnnouncementState>()((set, get) => ({
       // Set up realtime channels
       const channels: RealtimeChannel[] = [];
       for (const showId of showIds) {
+        // Defensive: realtime-js `channel(topic)` returns an existing channel
+        // when one with this topic is already registered (RealtimeClient
+        // 2.106.2). A rapid re-subscribe — React StrictMode double-mount or a
+        // fast route change before the prior fetch resolves — can leave a joined
+        // `announcements-<id>` channel, and adding `.on('postgres_changes')` to
+        // an already-subscribed channel throws "cannot add postgres_changes
+        // callbacks" (QA-CONSOLE-ERROR-017). Remove any stale channel for this
+        // topic so we always build a fresh subscription.
+        const realtimeTopic = `realtime:announcements-${showId}`;
+        const staleChannel = supabase.getChannels().find(c => c.topic === realtimeTopic);
+        if (staleChannel) {
+          await supabase.removeChannel(staleChannel);
+        }
+
         const channel = supabase
           .channel(`announcements-${showId}`)
           .on(

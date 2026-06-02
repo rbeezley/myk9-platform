@@ -215,7 +215,7 @@ export function MessageShowComposer({
           <Label id="message-show-recipient-label">Recipient</Label>
           <Select value={recipient} onValueChange={handleRecipientChange}>
             <SelectTrigger aria-labelledby="message-show-recipient-label">
-              <SelectValue />
+              <SelectValue>{RECIPIENT_LABELS[recipient]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {Object.entries(RECIPIENT_LABELS).map(([value, label]) => (
@@ -236,7 +236,11 @@ export function MessageShowComposer({
               disabled={!classes.length}
             >
               <SelectTrigger aria-labelledby="message-show-class-label">
-                <SelectValue placeholder="Select a class" />
+                <SelectValue placeholder="Select a class">
+                  {selectedClass
+                    ? `${selectedClass.label} · ${entryCountLabel(selectedClass.entryCount)}`
+                    : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {classes.map(cls => (

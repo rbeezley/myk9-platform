@@ -46,9 +46,6 @@ import { DeleteEntryDialog } from './DeleteEntryDialog';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { SecretaryRunSheet } from './SecretaryRunSheet';
 import { useMyEntriesInClass } from './useMyEntriesInClass';
-import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
-import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
-
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -77,8 +74,6 @@ const ClassDetailsPage: React.FC = () => {
   // Dialog state
   const dialogs = useClassDetailsDialogs();
   const [requirementsPanelOpen, setRequirementsPanelOpen] = useState(false);
-  const [showMessageModal, setShowMessageModal] = useState(false);
-  const { sendTargetedMessage } = useMessageMutations();
   const { myEntries } = useMyEntriesInClass(classId);
   const myEntryIds = useMemo(() => new Set(myEntries.map(entry => entry.entryId)), [myEntries]);
 
@@ -211,9 +206,13 @@ const ClassDetailsPage: React.FC = () => {
     return (
       <div className="flex items-center gap-2">
         {(isSecretary || isAdmin) && parentShow?.id && (
-          <Button variant="outline" size="sm" onClick={() => setShowMessageModal(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/secretary/shows/${parentShow.id}?phase=show-desk`)}
+          >
             <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-            Message Class
+            Message Show
           </Button>
         )}
         {(isSecretary || isAdmin) && parentShow?.id && (
@@ -265,7 +264,6 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.openEditClassPanel,
     dialogs.openDeleteDialog,
     setRequirementsPanelOpen,
-    setShowMessageModal,
     isSecretary,
     isAdmin,
     parentShow,
@@ -374,22 +372,6 @@ const ClassDetailsPage: React.FC = () => {
         level={currentClass?.level || ''}
       />
 
-      {parentShow?.id && (
-        <ComposeTargetedModal
-          open={showMessageModal}
-          onClose={() => setShowMessageModal(false)}
-          onSend={(target, body) => sendTargetedMessage(parentShow.id, target, body)}
-          classes={[
-            {
-              id: currentClass.id,
-              class_number: Number(currentClass.classNumber ?? 0),
-              class_name: currentClass.className ?? formatClassTitle(currentClass) ?? '',
-              entry_count: classEntries.length,
-            },
-          ]}
-          preSelectedClassId={currentClass.id}
-        />
-      )}
     </PageShell>
   );
 };

@@ -65,8 +65,57 @@ describe('useMessageMutations', () => {
         show_id: 'show-1',
         target_type: 'class',
         class_id: 'class-1',
+        send_push: false,
         body: 'Class 4 is delayed',
       },
     });
+  });
+
+  it('passes targeted push intent to the edge function', async () => {
+    const { supabase } = await import('@/lib/supabase-client');
+    const { result } = renderHook(() => useMessageMutations());
+
+    await act(async () => {
+      await result.current.sendTargetedMessage(
+        'show-1',
+        { type: 'class', classId: 'class-1', sendPush: true },
+        'Class 4 is delayed'
+      );
+    });
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('send-targeted-message', {
+      body: {
+        show_id: 'show-1',
+        target_type: 'class',
+        class_id: 'class-1',
+        send_push: true,
+        body: 'Class 4 is delayed',
+      },
+    });
+  });
+
+  it('does not treat targeted messages with no recipients as success', async () => {
+    const { supabase } = await import('@/lib/supabase-client');
+    const { notifications } = await import('@/lib/notifications');
+    vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({
+      data: { sent_to: 0, total_recipients: 0 },
+      error: null,
+    });
+    const { result } = renderHook(() => useMessageMutations());
+
+    let sendResult: unknown;
+    await act(async () => {
+      sendResult = await result.current.sendTargetedMessage(
+        'show-1',
+        { type: 'checked_in' },
+        'Gate is moving now'
+      );
+    });
+
+    expect(sendResult).toBeNull();
+    expect(notifications.error).toHaveBeenCalledWith('No matching recipients to message');
+    expect(notifications.success).not.toHaveBeenCalledWith(
+      expect.stringContaining('0 exhibitors')
+    );
   });
 });

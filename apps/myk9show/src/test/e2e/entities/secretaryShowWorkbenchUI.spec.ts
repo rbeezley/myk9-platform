@@ -12,8 +12,8 @@ import {
  * Feature-audit smoke for the Secretary Show Workbench.
  *
  * This intentionally avoids posting announcements, messages, incidents, or late
- * entries. It proves the real secretary route renders the new setup, today, and
- * wrap-up surfaces together without console errors or owned 4xx/5xx responses.
+ * entries. It proves the real secretary route renders the setup and Show Desk
+ * surfaces together without console errors or owned 4xx/5xx responses.
  */
 
 // Keep this smoke serial so a broken phase-render check stops the dependent
@@ -41,7 +41,7 @@ test.describe('Secretary Show Workbench UI', () => {
     healthByTest.delete(testInfo.testId);
   });
 
-  test('renders setup, today, and wrap-up workbench phases for a managed show', async ({
+  test('renders setup and show desk phases for a managed show', async ({
     page,
   }, testInfo) => {
     await openWorkbench(page);
@@ -51,8 +51,7 @@ test.describe('Secretary Show Workbench UI', () => {
     });
     await expect(page.getByRole('button', { name: 'Edit' }).first()).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Setup' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Today' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Wrap-up' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Show Desk' })).toBeVisible();
 
     await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'About Setup' })).toBeVisible();
@@ -61,23 +60,14 @@ test.describe('Secretary Show Workbench UI', () => {
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Today' }).click();
-    await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
-    await expectWorkbenchSection(page, 'Late entry');
-    await expectWorkbenchSection(page, 'Hospitality');
-    await expectWorkbenchSection(page, 'Quick broadcast');
-    await expectWorkbenchSection(page, 'Message a class');
-    await expectWorkbenchSection(page, 'Incident log');
-    await expectWorkbenchSection(page, 'Schedule delay script');
-    await expect(page.getByRole('button', { name: /Add late entry/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Post broadcast/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Send class message/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Save incident/i })).toBeDisabled();
-
-    await page.getByRole('tab', { name: 'Wrap-up' }).click();
-    await expect(page.getByRole('heading', { name: 'Wrap-up', exact: true })).toBeVisible();
-    await expectWorkbenchSection(page, 'Show-day reconciliation');
-    await expectWorkbenchSection(page, 'Incident closeout');
+    await page.getByRole('tab', { name: 'Show Desk' }).click();
+    await page.getByRole('button', { name: /open tools panel/i }).click();
+    const toolsPanel = page.getByRole('dialog', { name: 'Tools panel' });
+    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toBeVisible();
+    await toolsPanel.getByRole('button', { name: /close/i }).click();
+    await expectWorkbenchSection(page, 'Closeout');
+    await expect(page.getByRole('heading', { name: 'Show-day reconciliation' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Incident closeout' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Results Control Verify results' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Reports Print and export' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Submit Results Send final files' })).toBeVisible();
@@ -89,19 +79,20 @@ test.describe('Secretary Show Workbench UI', () => {
     page,
   }, testInfo) => {
     await openWorkbench(page);
-    await page.getByRole('tab', { name: 'Today' }).click();
+    await page.getByRole('tab', { name: 'Show Desk' }).click();
+    await page.getByRole('button', { name: /open tools panel/i }).click();
+    const toolsPanel = page.getByRole('dialog', { name: 'Tools panel' });
 
-    const quickBroadcast = page.getByRole('region', { name: 'Quick broadcast' });
-    await expect(quickBroadcast.getByLabel('Title')).toHaveValue(/.+/);
-    await expect(quickBroadcast.getByLabel('Message')).toHaveValue(/.+/);
-    await expect(quickBroadcast.getByLabel('Send push alert')).toBeVisible();
+    await toolsPanel.getByRole('button', { name: /Message Show/i }).click();
+    await expect(toolsPanel.getByRole('heading', { name: 'Message Show' })).toBeVisible();
+    await expect(toolsPanel.getByRole('combobox', { name: 'Recipient' })).toBeVisible();
+    await expect(toolsPanel.getByLabel('Title')).toHaveValue(/.+/);
+    await expect(toolsPanel.getByLabel('Message')).toHaveValue(/.+/);
+    await expect(toolsPanel.getByLabel('Send push alert')).toBeVisible();
+    await expect(toolsPanel.getByRole('button', { name: /Reset/i })).toBeVisible();
 
-    const classMessage = page.getByRole('region', { name: 'Message a class' });
-    await expect(classMessage.getByLabel('Class')).toBeVisible();
-    await expect(classMessage.getByLabel('Message')).toBeVisible();
-    await expect(classMessage.getByRole('button', { name: /Reset/i })).toBeVisible();
-
-    const incidentLog = page.getByRole('region', { name: 'Incident log' });
+    await toolsPanel.getByRole('button', { name: /Incident log/i }).click();
+    const incidentLog = toolsPanel.getByRole('region', { name: 'Incident log' });
     const saveIncident = incidentLog.getByRole('button', { name: /Save incident/i });
     await expect(saveIncident).toBeDisabled();
     await incidentLog.getByLabel('Short summary').fill('Feature-audit visibility check');
@@ -109,7 +100,8 @@ test.describe('Secretary Show Workbench UI', () => {
     await incidentLog.getByRole('button', { name: /Reset/i }).click();
     await expect(saveIncident).toBeDisabled();
 
-    const scheduleDelay = page.getByRole('region', { name: 'Schedule delay script' });
+    await toolsPanel.getByRole('button', { name: /Delay scripts/i }).click();
+    const scheduleDelay = toolsPanel.getByRole('region', { name: 'Schedule delay script' });
     await scheduleDelay.getByLabel('Delay minutes').fill('20');
     await scheduleDelay.getByLabel('Affected class').fill('Container Novice A');
     await expect(scheduleDelay.getByLabel('PA script')).toContainText('20 minutes');

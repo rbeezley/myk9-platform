@@ -9,9 +9,16 @@ import { supabase } from '@/lib/supabase-client';
 import { ThreadList } from '@/features/messages/components/ThreadList';
 import { MessageBubble } from '@/features/messages/components/MessageBubble';
 import { MessageInput } from '@/features/messages/components/MessageInput';
-import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
-import type { MessageTarget } from '@/features/messages/types';
+import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
+import { buildMessageShowClassLabel } from '@/features/show-workbench/messageShow';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare, Users } from 'lucide-react';
@@ -57,22 +64,22 @@ export default function SecretaryMessagesPage() {
     subscribeMessages(allShowIdsKey.split(','));
   }, [allShowIdsKey, subscribeMessages]);
 
-  const { sendMessage, sendTargetedMessage, isSending } = useMessageMutations();
+  const { sendMessage, isSending } = useMessageMutations();
 
   const selectedShowId = filterShowId === ALL_SHOWS ? null : filterShowId;
 
-  // Targeted-modal class list — only meaningful when a specific show is selected.
+  // Message Show class list — only meaningful when a specific show is selected.
   const { data: classes = [] } = useQuery({
     queryKey: ['show-classes-for-messages', selectedShowId],
     queryFn: async () => {
       if (!selectedShowId) return [];
       const { data } = await supabase
         .from('classes')
-        .select('id, class_number, name, trials!inner(show_id)')
+        .select('id, class_number, name, element, level, section, trials!inner(show_id)')
         .eq('trials.show_id' as string, selectedShowId)
         .order('class_number');
       const withCounts = await Promise.all(
-        (data || []).map(async (c: { id: string; class_number: string | null; name: string }) => {
+        (data || []).map(async c => {
           const { count } = await supabase
             .from('entries')
             .select('id', { count: 'exact', head: true })
@@ -80,9 +87,13 @@ export default function SecretaryMessagesPage() {
             .is('deleted_at', null);
           return {
             id: c.id,
-            class_number: Number(c.class_number ?? 0),
-            class_name: c.name,
-            entry_count: count ?? 0,
+            label: buildMessageShowClassLabel({
+              name: c.name,
+              element: c.element,
+              level: c.level,
+              section: c.section,
+            }),
+            entryCount: count ?? 0,
           };
         })
       );
@@ -132,11 +143,6 @@ export default function SecretaryMessagesPage() {
     await sendMessage(activeThread.id, activeThread.show_id, body);
   };
 
-  const handleTargetedSend = async (target: MessageTarget, body: string) => {
-    if (!selectedShowId) return;
-    await sendTargetedMessage(selectedShowId, target, body);
-  };
-
   if (error) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -179,11 +185,11 @@ export default function SecretaryMessagesPage() {
             size="sm"
             onClick={() => setShowTargetedModal(true)}
             disabled={!selectedShowId}
-            aria-label="Message class"
+            aria-label="Message Show"
             title={
               selectedShowId
-                ? 'Send a targeted message in this show'
-                : 'Select a show to send a targeted message'
+                ? 'Send a message in this show'
+                : 'Select a show to send a show message'
             }
           >
             <Users className="h-4 w-4 mr-1" />
@@ -267,12 +273,23 @@ export default function SecretaryMessagesPage() {
       </div>
 
       {selectedShowId && (
-        <ComposeTargetedModal
-          open={showTargetedModal}
-          onClose={() => setShowTargetedModal(false)}
-          onSend={handleTargetedSend}
-          classes={classes}
-        />
+        <Dialog open={showTargetedModal} onOpenChange={setShowTargetedModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Message Show</DialogTitle>
+              <DialogDescription>
+                Use push alert to also notify recipients outside the app for time-sensitive
+                updates.
+              </DialogDescription>
+            </DialogHeader>
+            <MessageShowComposer
+              showId={selectedShowId}
+              classes={classes}
+              showHistoryLink={false}
+              onSent={() => setShowTargetedModal(false)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

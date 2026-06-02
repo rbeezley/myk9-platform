@@ -88,6 +88,12 @@ vi.mock('@/hooks/mutations/useMessageMutations', () => ({
   }),
 }));
 
+vi.mock('@/features/show-workbench/workbenchAnnouncementPost', () => ({
+  useWorkbenchAnnouncementPost: () => ({
+    postAnnouncement: vi.fn(),
+  }),
+}));
+
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector: (state: { shows: Array<{ id: string; name: string }> }) => unknown) =>
     selector({
@@ -153,9 +159,9 @@ describe('SecretaryMessagesPage — all-shows mode', () => {
     expect(select.value).toBe('all');
   });
 
-  it('disables the "Message Class" button until a specific show is selected', () => {
+  it('disables the "Message Show" button until a specific show is selected', () => {
     renderAtUrl('/secretary/messages');
-    expect(screen.getByRole('button', { name: /message class/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /message show/i })).toBeDisabled();
   });
 });
 
@@ -170,9 +176,20 @@ describe('SecretaryMessagesPage — filtered mode', () => {
     expect(screen.queryByText('Bob Handler')).not.toBeInTheDocument();
   });
 
-  it('enables the "Message Class" button when a specific show is selected', () => {
+  it('enables the "Message Show" button when a specific show is selected', () => {
     renderAtUrl('/secretary/messages?showId=show-1');
-    expect(screen.getByRole('button', { name: /message class/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /message show/i })).not.toBeDisabled();
+  });
+
+  it('opens the shared Message Show composer from the compose entry', async () => {
+    renderAtUrl('/secretary/messages?showId=show-1');
+    fireEvent.click(screen.getByRole('button', { name: /message show/i }));
+
+    expect(
+      await screen.findByRole('heading', { name: /message show/i, level: 2 })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/also notify recipients outside the app/i)).toBeInTheDocument();
+    expect(screen.queryByText(/message exhibitors/i)).not.toBeInTheDocument();
   });
 
   it('shows a "no messages in [show]" empty state with Clear filter affordance', () => {

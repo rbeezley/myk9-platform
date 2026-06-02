@@ -42,37 +42,22 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     healthByTest.delete(testInfo.testId);
   });
 
-  test('walks Setup, Today, Show Map row actions, and Wrap-up without blockers', async ({
+  test('walks Setup, Show Desk row actions, and closeout without blockers', async ({
     page,
   }, testInfo) => {
     await openWorkbench(page);
 
     await expect(page.getByRole('tab', { name: 'Setup' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Today' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Wrap-up' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Show Desk' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'About Setup' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Today' }).click();
-    await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'About Today' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'What do I do if...' })).toBeVisible();
-    for (const name of [
-      'Late entry',
-      'Hospitality',
-      'Quick broadcast',
-      'Message a class',
-      'Incident log',
-      'Schedule delay script',
-      'Show Access Codes',
-      'Show Map',
-    ]) {
-      await expect(page.getByRole('heading', { name })).toBeVisible();
-    }
-    await expect(page.getByRole('button', { name: /Add late entry/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Post broadcast/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Send class message/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Save incident/i })).toBeDisabled();
+    await page.getByRole('tab', { name: 'Show Desk' }).click();
+    await page.getByRole('button', { name: /open tools panel/i }).click();
+    const toolsPanel = page.getByRole('dialog', { name: 'Tools panel' });
+    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toBeVisible();
+    await toolsPanel.getByRole('button', { name: /close/i }).click();
+    await expect(page.getByRole('heading', { name: 'Closeout' })).toBeVisible();
 
     await prepareShowMapRows(page);
     await assertRovingTreeFocus(page);
@@ -80,8 +65,6 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     await assertClassRowActionsStayScoped(page);
     await assertEntryRowActionDialogs(page);
 
-    await page.getByRole('tab', { name: 'Wrap-up' }).click();
-    await expect(page.getByRole('heading', { name: 'Wrap-up', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Show-day reconciliation' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Incident closeout' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Results Control Verify results' })).toBeVisible();

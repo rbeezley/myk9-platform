@@ -8,7 +8,6 @@ import type { ClassData } from '@/components/classes/types/classTypes';
 const mockUseClassDetailsData = vi.hoisted(() => vi.fn());
 const mockUseClassDetailsDialogs = vi.hoisted(() => vi.fn());
 const mockUseAuthContext = vi.hoisted(() => vi.fn());
-const mockSendTargetedMessage = vi.hoisted(() => vi.fn());
 
 vi.mock('./useClassDetailsData', () => ({
   useClassDetailsData: mockUseClassDetailsData,
@@ -24,10 +23,6 @@ vi.mock('./useMyEntriesInClass', () => ({
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: mockUseAuthContext,
-}));
-
-vi.mock('@/hooks/mutations/useMessageMutations', () => ({
-  useMessageMutations: () => ({ sendTargetedMessage: mockSendTargetedMessage }),
 }));
 
 vi.mock('@/components/common/PageShell', () => ({
@@ -70,10 +65,6 @@ vi.mock('./DeleteEntryDialog', () => ({
 
 vi.mock('@/components/classes/ClassRequirementsPanel', () => ({
   ClassRequirementsPanel: () => null,
-}));
-
-vi.mock('@/features/messages/components/ComposeTargetedModal', () => ({
-  ComposeTargetedModal: () => null,
 }));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
@@ -181,6 +172,16 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.queryByRole('menuitem', { name: /mark completed/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /open in workbench/i }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/secretary/shows/show-1?phase=show-desk');
+  });
+
+  it('routes class messaging to the consolidated Message Show surface', async () => {
+    const { user } = renderClassDetailsPage();
+
+    expect(screen.queryByRole('button', { name: /message class/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /message show/i }));
 
     expect(screen.getByTestId('location')).toHaveTextContent('/secretary/shows/show-1?phase=show-desk');
   });

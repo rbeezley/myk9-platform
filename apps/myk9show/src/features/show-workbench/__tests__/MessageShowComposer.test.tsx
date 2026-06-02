@@ -168,4 +168,25 @@ describe('MessageShowComposer', () => {
 
     expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
   });
+
+  it('shows human-readable recipient label on initial render (not raw enum)', () => {
+    render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    // Trigger should show label, not raw value 'all_show'
+    expect(screen.getByRole('combobox', { name: 'Recipient' })).toHaveTextContent(
+      'Everyone in show'
+    );
+  });
+
+  it('shows class label with entry count on first render (not UUID)', async () => {
+    const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
+    await user.click(await screen.findByRole('option', { name: 'A class' }));
+
+    // Class trigger should show label + count, not UUID
+    const classTrigger = screen.getByRole('combobox', { name: 'Class' });
+    expect(classTrigger).toHaveTextContent('Container Novice A · 8 entries');
+    expect(classTrigger).not.toHaveTextContent('class-1');
+  });
 });

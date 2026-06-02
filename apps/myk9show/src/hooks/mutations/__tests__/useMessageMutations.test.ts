@@ -93,4 +93,29 @@ describe('useMessageMutations', () => {
       },
     });
   });
+
+  it('does not treat targeted messages with no recipients as success', async () => {
+    const { supabase } = await import('@/lib/supabase-client');
+    const { notifications } = await import('@/lib/notifications');
+    vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({
+      data: { sent_to: 0, total_recipients: 0 },
+      error: null,
+    });
+    const { result } = renderHook(() => useMessageMutations());
+
+    let sendResult: unknown;
+    await act(async () => {
+      sendResult = await result.current.sendTargetedMessage(
+        'show-1',
+        { type: 'checked_in' },
+        'Gate is moving now'
+      );
+    });
+
+    expect(sendResult).toBeNull();
+    expect(notifications.error).toHaveBeenCalledWith('No matching recipients to message');
+    expect(notifications.success).not.toHaveBeenCalledWith(
+      expect.stringContaining('0 exhibitors')
+    );
+  });
 });

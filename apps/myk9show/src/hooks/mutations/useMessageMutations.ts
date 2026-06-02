@@ -54,7 +54,13 @@ export function useMessageMutations() {
 
         if (error) throw error;
 
-        notifications.success(`Message sent to ${data?.total_recipients ?? 0} exhibitors`);
+        const recipientCount = Number(data?.total_recipients ?? data?.sent_to ?? 0);
+        if (recipientCount <= 0) {
+          notifications.error('No matching recipients to message');
+          return null;
+        }
+
+        notifications.success(`Message sent to ${recipientCount} exhibitors`);
         return data;
       } catch {
         notifications.error('Failed to send targeted message');

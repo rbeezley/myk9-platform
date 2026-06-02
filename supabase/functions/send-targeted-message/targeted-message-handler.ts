@@ -29,6 +29,54 @@ export interface PushSubscriptionRow {
   auth?: string | null;
 }
 
+interface SupabaseQueryResult<T = unknown> {
+  data: T | null;
+  error: unknown;
+}
+
+interface SupabaseQuery<T = unknown> extends PromiseLike<SupabaseQueryResult<T>> {
+  select(columns: string): SupabaseQuery<T>;
+  eq(column: string, value: unknown): SupabaseQuery<T>;
+  is(column: string, value: unknown): SupabaseQuery<T>;
+  in(column: string, values: readonly unknown[]): SupabaseQuery<T>;
+  upsert(rows: unknown, options?: unknown): SupabaseQuery<T>;
+  insert(rows: unknown): SupabaseQuery<T>;
+  single(): Promise<SupabaseQueryResult<T>>;
+}
+
+export interface TargetedMessageSupabaseClient {
+  from(table: string): SupabaseQuery;
+}
+
+interface ShowRow {
+  id: string;
+  club_id: string | null;
+}
+
+interface EntryRecipientRow {
+  armband?: unknown;
+  dog?: {
+    owner?: { auth_user_id?: string | null } | null;
+    co_owner?: { auth_user_id?: string | null } | null;
+  } | null;
+  handler?: { auth_user_id?: string | null } | null;
+}
+
+interface ClassInfoRow {
+  id: string;
+  class_number: number | string | null;
+  name: string | null;
+}
+
+interface MessageThreadRow {
+  id: string;
+  participant_id: string;
+}
+
+interface InsertedMessageRow {
+  id: string;
+}
+
 interface RingsideSessionRow {
   subscription_id: string;
   role: RingsideSessionSource['role'];
@@ -39,7 +87,7 @@ interface RingsideSessionRow {
 }
 
 export interface SendPasscodePushesArgs {
-  supabase: any;
+  supabase: TargetedMessageSupabaseClient;
   body: string;
   messageId: string | null;
   showId: string;
@@ -61,7 +109,7 @@ export type SendPasscodePushes = (
 export interface TargetedMessageHandlerContext {
   body: SendTargetedMessagePayload;
   user?: { id: string };
-  supabase: any;
+  supabase: TargetedMessageSupabaseClient;
 }
 
 function subscriptionFromSession(row: RingsideSessionRow): PushSubscriptionRow | null {
@@ -72,7 +120,7 @@ function subscriptionFromSession(row: RingsideSessionRow): PushSubscriptionRow |
 }
 
 async function fetchEntriesForTarget(
-  supabase: any,
+  supabase: TargetedMessageSupabaseClient,
   showId: string,
   targetType: TargetType,
   classId: string | undefined
@@ -95,7 +143,8 @@ async function fetchEntriesForTarget(
   const { data, error } = await query;
   if (error) throw new HttpError(500, 'Failed to resolve message recipients');
 
-  return (data ?? []).map((entry: any) => ({
+  const entries = Array.isArray(data) ? (data as EntryRecipientRow[]) : [];
+  return entries.map(entry => ({
     armband: entry.armband ? String(entry.armband) : null,
     authUserIds: [
       entry.dog?.owner?.auth_user_id,
@@ -105,18 +154,21 @@ async function fetchEntriesForTarget(
   }));
 }
 
-async function fetchClassInfo(supabase: any, classId: string | undefined) {
+async function fetchClassInfo(
+  supabase: TargetedMessageSupabaseClient,
+  classId: string | undefined
+): Promise<ClassInfoRow | null> {
   if (!classId) return null;
   const { data } = await supabase
     .from('classes')
     .select('id, class_number, name')
     .eq('id', classId)
     .single();
-  return data;
+  return data as ClassInfoRow | null;
 }
 
 async function assertClassBelongsToShow(
-  supabase: any,
+  supabase: TargetedMessageSupabaseClient,
   classId: string | undefined,
   showId: string
 ) {
@@ -132,7 +184,7 @@ async function assertClassBelongsToShow(
 }
 
 async function fetchRingsidePushTargets(
-  supabase: any,
+  supabase: TargetedMessageSupabaseClient,
   showId: string,
   targetType: TargetType,
   armbands: string[]
@@ -185,11 +237,11 @@ export function createSendTargetedMessageHandler(deps: {
       throw new HttpError(400, 'Missing required fields: show_id, body');
     }
 
-    const { data: show } = await supabase
+    const { data: show } = (await supabase
       .from('shows')
       .select('id, club_id')
       .eq('id', showId)
-      .single();
+      .single()) as SupabaseQueryResult<ShowRow>;
 
     if (!show) throw new HttpError(404, 'Show not found');
 
@@ -236,16 +288,16 @@ export function createSendTargetedMessageHandler(deps: {
         last_message_at: now,
       }));
 
-      const { data: upsertedThreads, error: upsertError } = await supabase
+      const { data: upsertedThreads, error: upsertError } = (await supabase
         .from('show_message_threads')
         .upsert(threadUpserts, { onConflict: 'show_id,participant_id' })
-        .select('id, participant_id');
+        .select('id, participant_id')) as SupabaseQueryResult<MessageThreadRow[]>;
 
       if (upsertError || !upsertedThreads) {
         throw new HttpError(500, 'Failed to create threads');
       }
 
-      const messageInserts = upsertedThreads.map((thread: any) => ({
+      const messageInserts = upsertedThreads.map(thread => ({
         show_id: showId,
         thread_id: thread.id,
         sender_id: user.id,
@@ -254,10 +306,10 @@ export function createSendTargetedMessageHandler(deps: {
         push_alert: sendPush,
       }));
 
-      const { data: insertedMessages, error: insertError } = await supabase
+      const { data: insertedMessages, error: insertError } = (await supabase
         .from('show_messages')
         .insert(messageInserts)
-        .select('id');
+        .select('id')) as SupabaseQueryResult<InsertedMessageRow[]>;
 
       if (insertError) throw new HttpError(500, 'Failed to send messages');
       insertedMessageIds = (insertedMessages ?? []).map((message: { id: string }) => message.id);

@@ -41,9 +41,6 @@ vi.mock('@/services/database/entries', () => ({
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsByOwnerQuery: () => ({ data: [] }),
 }));
-vi.mock('@/hooks/queries/useShowDayData', () => ({
-  useShowDayData: () => ({ isShowDay: false }),
-}));
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntryStatisticsQuery: () => ({ data: null }),
   useEntriesQuery: () => ({ data: [] }),

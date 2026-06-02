@@ -12,7 +12,7 @@ import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { EntryStatus } from '@/types/show-registration-types';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
-import { useShowDayData } from '@/hooks/queries/useShowDayData';
+import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip } from '@/components/exhibitor/DogStrip';
 import { AddDogPanel } from '@/components/panels/edit';
@@ -32,8 +32,6 @@ import {
   CalendarDays,
   CircleCheck,
   Calendar as CalendarIcon,
-  Activity,
-  ChevronRight,
 } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
 
@@ -78,7 +76,6 @@ const MyEntriesPage: React.FC = () => {
   const ownerId = userWithRoles?.databaseUserId ?? '';
 
   const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
-  const showDayData = useShowDayData();
 
   const statistics = useMemo(
     () => ({
@@ -204,23 +201,12 @@ const MyEntriesPage: React.FC = () => {
             </div>
           </div>
 
-          {showDayData.isShowDay && (
-            <Link
-              to="/exhibitor/show-day"
-              className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 p-4 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-300"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 flex-shrink-0">
-                <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground">You have a show today!</p>
-                <p className="text-sm text-muted-foreground">
-                  Check in, view run order, and see live results
-                </p>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-            </Link>
-          )}
+          {/* Canonical "Show today" entry point into /at-show (auto-favorites
+              today's dogs). Replaces a stale ad-hoc card that linked to the
+              retired /exhibitor/show-day route. Renders nothing when no show is
+              today. This is the surface an entered exhibitor actually lands on,
+              since HomeRedirect keeps them off Home (where the banner also mounts). */}
+          <ShowTodayBanner />
 
           <CompactStatsRow
             activeEntries={statistics.activeEntries}

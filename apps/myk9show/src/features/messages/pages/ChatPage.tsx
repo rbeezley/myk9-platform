@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessageStore } from '@/store/messageStore';
@@ -17,6 +17,7 @@ export default function ChatPage() {
   const threads = useMessageStore(s => s.threads);
   const messagesByThread = useMessageStore(s => s.messagesByThread);
   const isLoading = useMessageStore(s => s.isLoading);
+  const fetchThreads = useMessageStore(s => s.fetchThreads);
   const fetchMessages = useMessageStore(s => s.fetchMessages);
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
   const storeMarkThreadRead = useMessageStore(s => s.markThreadRead);
@@ -25,6 +26,24 @@ export default function ChatPage() {
 
   const thread = threads.find(t => t.show_id === showId && t.participant_id === user?.id);
   const messages = thread ? messagesByThread[thread.id] || [] : [];
+
+  // Cold-load hydration: a push-notification tap can deep-link here before the
+  // app-level message subscription has fetched this show's threads (it only
+  // tracks entered-today / Mission-Control shows, not the route param). Fetch on
+  // mount so the secretary thread renders instead of the "Start a conversation"
+  // empty state. The flag is set only after the fetch settles so the empty state
+  // is gated until hydration is attempted (see render guard below).
+  const [threadsHydrated, setThreadsHydrated] = useState(false);
+  useEffect(() => {
+    if (!showId || !user?.id) return;
+    let active = true;
+    fetchThreads(showId).finally(() => {
+      if (active) setThreadsHydrated(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [showId, user?.id, fetchThreads]);
 
   useEffect(() => {
     if (thread?.id) {
@@ -51,7 +70,10 @@ export default function ChatPage() {
     await sendMessage(threadId, showId, body);
   };
 
-  if (isLoading) {
+  // Show loading while the store is fetching OR while a cold-load deep-link is
+  // still hydrating this show's threads — but never when a thread is already
+  // present, so warm navigation renders immediately.
+  if (isLoading || (!thread && !threadsHydrated)) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-pulse text-muted-foreground">Loading messages...</div>

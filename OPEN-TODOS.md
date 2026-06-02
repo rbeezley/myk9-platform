@@ -334,7 +334,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## North Star — Phase 2.5: Internal Secretary QA Re-Walk
 
-- [x] ~~**Run updated secretary golden path checklist**~~ — Walked 2026-06-02. Setup tab ✓, Show Desk (tabs/tools/NBA card/Show Map) ✓, Entry Management ✓ (fixed enrollment JOIN timeout), at-show/ringside Parts 6.1–6.7 ✓ (class list, entry list, scoresheet, save). Fixed 4 bugs: Message Show dropdown labels (raw enum/UUID → human labels), people RLS O(N²) cascade → statement timeout storm (simplified to `deleted_at IS NULL AND auth.uid() IS NOT NULL`), missing secretary SELECT policy on `enrollments`. Parts 1/5/7 and full day-of detail not yet walked; push tap verification (Part 7) still blocked on real device (tracked in Phase 3 acceptance item above).
+- [x] ~~**Run updated secretary golden path checklist**~~ — Walked 2026-06-02. All 7 parts attempted; Parts 1–6 passed, Part 7 (push tap) blocked by browser context. **Part 1**: People CRUD ✓, Dogs CRUD ✓ (fixed 3 RLS bugs: people insert, dogs insert, dogs select). **Part 2**: Setup tab ✓, Show Desk (tabs/tools/NBA card/Message Show/Show Map) ✓. **Part 3**: Entry Management ✓ (fixed enrollment JOIN timeout + people RLS storm). **Part 4**: Tools panel (8 tools) ✓, broadcast send ✓. **Part 5**: Closeout ✓ (reconciliation, Reports, AKC XML export). **Part 6**: At-show class list/entry list/scoresheet/score-save ✓. **Part 7**: blocked — preview browser has push notifications denied; requires real device. Fixed 7 RLS bugs total across migrations 20260602000000–20260602040000 (all live on staging).
 
 ## North Star — Phase 3: Real-User Testing
 

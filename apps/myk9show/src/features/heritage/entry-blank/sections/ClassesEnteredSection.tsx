@@ -1,6 +1,7 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { EntryBlankLevelCell, EntryBlankTrialRow } from '../types';
-import { BODY, Checkbox, CLARET, DISPLAY, GOLD, INK, QUILL, SectionHeader } from './pdfPrimitives';
+import { Checkbox, SectionHeader } from './pdfPrimitives';
+import { BODY, CLARET, DISPLAY, GOLD, INK, QUILL } from './pdfTokens';
 
 // Groups level cells by level name for the 4-column grid.
 function groupByLevel(cells: EntryBlankLevelCell[]) {

@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 
 // Layout constants - single source of truth
-export const SIDEBAR_LAYOUT_CONSTANTS = {
+const SIDEBAR_LAYOUT_CONSTANTS = {
   /** App header height in pixels (h-12 = 3rem = 48px) */
   HEADER_HEIGHT: 48,
   /** Tailwind class for header height offset */

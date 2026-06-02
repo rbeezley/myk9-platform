@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { COMPLETED_STATUSES } from '../ClassEntriesTable';
+import { COMPLETED_STATUSES } from '../completedStatuses';
 
 function computeStatusCounts(entries: { status: string }[]) {
   let completed = 0;

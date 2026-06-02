@@ -673,7 +673,10 @@ export function ShowMapStructureTable({
     );
   };
 
-  const topLevelChildIds = tree.childIdsByParentId[tree.root.id] ?? [];
+  const topLevelChildIds = useMemo(
+    () => tree.childIdsByParentId[tree.root.id] ?? [],
+    [tree.childIdsByParentId, tree.root.id]
+  );
   const showFilteredEmptyState = useMemo(() => {
     if (topLevelChildIds.length === 0) return false;
     return !topLevelChildIds.some(childId => {

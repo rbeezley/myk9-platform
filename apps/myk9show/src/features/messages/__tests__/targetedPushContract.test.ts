@@ -51,8 +51,10 @@ describe('targeted message push contract', () => {
   it('skips passcode push fanout when send_push is false', () => {
     const source = readFileSync(handlerPath, 'utf8');
 
-    expect(source).toContain('const ringsideTargets = sendPush');
-    expect(source).toContain(': [];');
+    // Targets default to empty and the ringside/account fan-out only runs inside
+    // the send_push guard — so push resolution is skipped entirely when false.
+    expect(source).toContain('let ringsideTargets: PushTarget[] = [];');
+    expect(source).toContain('if (sendPush) {');
   });
 
   it('uses current push subscription key columns for account chat pushes', () => {

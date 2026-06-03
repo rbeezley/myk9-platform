@@ -12,6 +12,10 @@ const vaultMigrationPath = resolve(
   testDir,
   '../../../../../../supabase/migrations/20260603074455_notify_announcement_push_webhook_secret.sql'
 );
+const searchPathMigrationPath = resolve(
+  testDir,
+  '../../../../../../supabase/migrations/20260603090000_notify_announcement_push_search_path.sql'
+);
 const sendPushNotificationPath = resolve(
   testDir,
   '../../../../../../supabase/functions/send-push-notification/index.ts'
@@ -69,6 +73,35 @@ describe('notify_announcement_push config from Vault', () => {
 
   it('targets the push-trigger-announcement edge function via the Vault base url', () => {
     expect(sql).toContain("edge_function_base_url || '/push-trigger-announcement'");
+  });
+});
+
+describe('notify_announcement_push search_path hardening', () => {
+  const sql = readFileSync(searchPathMigrationPath, 'utf8');
+
+  it('pins search_path to empty on the SECURITY DEFINER function', () => {
+    // The Supabase linter flags SECURITY DEFINER functions with a mutable
+    // search_path (function_search_path_mutable). Pinning it to '' forces every
+    // reference to be schema-qualified so a caller can't shadow an unqualified
+    // name and run it with the function owner's privileges. Matches the sibling
+    // notify_chat_message hardening (20260603085719).
+    expect(sql).toContain('security definer');
+    expect(sql).toContain("set search_path = ''");
+  });
+
+  it('is behavior-preserving — same Vault secrets, bearer, guard-skip, and target', () => {
+    // The body must stay byte-compatible with the live definition (20260603074455);
+    // only the search_path clause is new. Re-assert the behavioral contract so a
+    // future edit that drifts the body fails here.
+    expect(sql).toContain('create or replace function public.notify_announcement_push()');
+    expect(sql).toContain("where name = 'edge_function_base_url'");
+    expect(sql).toContain("where name = 'push_webhook_secret'");
+    expect(sql).toContain("'Bearer ' || webhook_secret");
+    expect(sql).toContain("edge_function_base_url || '/push-trigger-announcement'");
+    expect(sql).toMatch(/raise notice[\s\S]*return new;/i);
+    expect(sql).not.toContain('raise exception');
+    expect(sql).not.toContain("where name = 'service_role_key'");
+    expect(sql).not.toContain('current_setting');
   });
 });
 

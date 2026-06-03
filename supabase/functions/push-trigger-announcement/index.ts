@@ -76,7 +76,12 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
     await Promise.all([
       supabase
         .from('entries')
-        .select('dog:dogs(owner:people!owner_id(auth_user_id))')
+        // Resolve owner + co-owner + handler, matching send-targeted-message's
+        // audience — everyone attached to an entry should get show-wide pushes,
+        // not just the primary owner.
+        .select(
+          'dog:dogs(owner:people!owner_id(auth_user_id), co_owner:people!co_owner_id(auth_user_id)), handler:people!handler_id(auth_user_id)'
+        )
         .eq('show_id', announcement.show_id)
         .is('deleted_at', null)
         .not('entry_status', 'in', '("withdrawn","scratched","absent")'),
@@ -101,8 +106,13 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
   const audienceIds = new Set<string>();
   if (exhibitors) {
     for (const entry of exhibitors) {
-      const authUserId = entry.dog?.owner?.auth_user_id;
-      if (authUserId) audienceIds.add(authUserId);
+      for (const authUserId of [
+        entry.dog?.owner?.auth_user_id,
+        entry.dog?.co_owner?.auth_user_id,
+        entry.handler?.auth_user_id,
+      ]) {
+        if (authUserId) audienceIds.add(authUserId);
+      }
     }
   }
   if (officials) {

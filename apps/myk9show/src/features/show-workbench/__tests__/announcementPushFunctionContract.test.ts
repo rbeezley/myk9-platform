@@ -37,6 +37,17 @@ describe('push-trigger-announcement function contract', () => {
     );
   });
 
+  it('resolves the audience from owner + co-owner + handler, not owner alone', () => {
+    const source = readFileSync(functionPath, 'utf8');
+
+    // Show-wide announcements should reach everyone attached to an entry, matching
+    // send-targeted-message — not just the primary owner.
+    expect(source).toContain('co_owner:people!co_owner_id(auth_user_id)');
+    expect(source).toContain('handler:people!handler_id(auth_user_id)');
+    expect(source).toContain('entry.dog?.co_owner?.auth_user_id');
+    expect(source).toContain('entry.handler?.auth_user_id');
+  });
+
   it('reads push subscriptions with the current p256dh/auth columns, not the dropped keys column', () => {
     const source = readFileSync(functionPath, 'utf8');
 

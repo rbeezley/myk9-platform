@@ -34,6 +34,11 @@ describe('useAuth', () => {
       error: null,
     });
 
+    mockSupabase.auth.resend.mockResolvedValue({
+      data: {},
+      error: null,
+    });
+
     mockSupabase.auth.signInWithPassword.mockResolvedValue({
       data: { user: mockUser, session: { user: mockUser } },
       error: null,
@@ -79,6 +84,7 @@ describe('useAuth', () => {
 
       expect(typeof result.current.signIn).toBe('function');
       expect(typeof result.current.signUp).toBe('function');
+      expect(typeof result.current.resendConfirmationEmail).toBe('function');
       expect(typeof result.current.signOut).toBe('function');
       expect(typeof result.current.resetPassword).toBe('function');
       expect(typeof result.current.updatePassword).toBe('function');
@@ -149,6 +155,37 @@ describe('useAuth', () => {
       const calledTables = fromSpy.mock.calls.map((c: [string]) => c[0]);
       expect(calledTables).not.toContain('people');
       expect(calledTables).not.toContain('exhibitor_profiles');
+    });
+  });
+
+  describe('resendConfirmationEmail', () => {
+    it('should call Supabase auth.resend with the signup type and email', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.resendConfirmationEmail('test@example.com');
+      });
+
+      expect(mockSupabase.auth.resend).toHaveBeenCalledWith({
+        type: 'signup',
+        email: 'test@example.com',
+      });
+    });
+
+    it('should propagate resend errors (e.g. rate limit)', async () => {
+      const mockError = new Error('For security purposes, you can only request this after 60s');
+      mockSupabase.auth.resend.mockResolvedValue({
+        data: {},
+        error: mockError,
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await expect(async () => {
+        await act(async () => {
+          await result.current.resendConfirmationEmail('test@example.com');
+        });
+      }).rejects.toThrow('For security purposes');
     });
   });
 

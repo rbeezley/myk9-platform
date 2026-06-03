@@ -7,19 +7,29 @@ import SignUpPage from '@/pages/SignUpPage';
 
 const mockSignUp = vi.fn();
 const mockSignInWithGoogle = vi.fn();
+const mockResendConfirmationEmail = vi.fn();
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     signUp: mockSignUp,
+    resendConfirmationEmail: mockResendConfirmationEmail,
     signInWithGoogle: mockSignInWithGoogle,
     loading: false,
   }),
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 describe('SignUpPage', () => {
   beforeEach(() => {
     mockSignUp.mockReset();
     mockSignInWithGoogle.mockReset();
+    mockResendConfirmationEmail.mockReset();
   });
 
   it('renders a Continue with Google button', () => {
@@ -163,6 +173,57 @@ describe('SignUpPage', () => {
         lastName: 'Morgan',
         roles: ['exhibitor', 'club_officer', 'secretary'],
       });
+    });
+  });
+
+  describe('resend confirmation email', () => {
+    /** Fill the form with a valid exhibitor signup and submit to reach the "Check your email" screen. */
+    async function reachConfirmationScreen(user: ReturnType<typeof userEvent.setup>) {
+      mockSignUp.mockResolvedValue(undefined);
+
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+
+      await user.type(screen.getByLabelText(/first name/i), 'Pat');
+      await user.type(screen.getByLabelText(/last name/i), 'Morgan');
+      await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
+      await user.type(screen.getByLabelText(/^password$/i), 'password123');
+      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
+      await user.click(screen.getByLabelText(/i agree to the/i));
+      await user.click(screen.getByRole('button', { name: /sign up/i }));
+
+      expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
+    }
+
+    it('shows a Resend email button on the confirmation screen', async () => {
+      const user = userEvent.setup();
+      await reachConfirmationScreen(user);
+
+      expect(screen.getByRole('button', { name: /resend email/i })).toBeInTheDocument();
+    });
+
+    it('resends to the registered email when clicked', async () => {
+      const user = userEvent.setup();
+      mockResendConfirmationEmail.mockResolvedValue(undefined);
+      await reachConfirmationScreen(user);
+
+      await user.click(screen.getByRole('button', { name: /resend email/i }));
+
+      expect(mockResendConfirmationEmail).toHaveBeenCalledWith('pat@example.com');
+    });
+
+    it('disables the button and shows a countdown after a successful resend', async () => {
+      const user = userEvent.setup();
+      mockResendConfirmationEmail.mockResolvedValue(undefined);
+      await reachConfirmationScreen(user);
+
+      await user.click(screen.getByRole('button', { name: /resend email/i }));
+
+      const button = screen.getByRole('button', { name: /resend email in \d+s/i });
+      expect(button).toBeDisabled();
     });
   });
 });

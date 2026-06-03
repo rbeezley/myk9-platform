@@ -1,9 +1,63 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildShowTodayBannerItems,
+  classTimeToMinutes,
+  formatClassTime,
   getShowTodayBannerVariant,
   type HydratedAccountTodayEntry,
 } from './showTodayBanner.helpers';
+
+describe('classTimeToMinutes', () => {
+  it('converts 24h and meridiem times to minutes-since-midnight', () => {
+    expect(classTimeToMinutes('08:00')).toBe(480);
+    expect(classTimeToMinutes('8:00 AM')).toBe(480);
+    expect(classTimeToMinutes('1:30 PM')).toBe(810);
+    expect(classTimeToMinutes('12:00 AM')).toBe(0);
+    expect(classTimeToMinutes('12:00 PM')).toBe(720);
+  });
+
+  it('orders meridiem times numerically (8:00 AM before 1:30 PM)', () => {
+    // The bug: a lexicographic string compare ranks "1:30 PM" first because "1" < "8".
+    expect(classTimeToMinutes('8:00 AM')! < classTimeToMinutes('1:30 PM')!).toBe(true);
+  });
+
+  it('returns null for null/unparseable input', () => {
+    expect(classTimeToMinutes(null)).toBeNull();
+    expect(classTimeToMinutes('soon')).toBeNull();
+  });
+});
+
+describe('formatClassTime', () => {
+  it('formats a raw 24h time', () => {
+    expect(formatClassTime('08:00')).toBe('8:00 AM');
+    expect(formatClassTime('13:30')).toBe('1:30 PM');
+  });
+
+  it('formats a 24h time with seconds', () => {
+    expect(formatClassTime('08:00:00')).toBe('8:00 AM');
+  });
+
+  it('does NOT double-append the meridiem when the source already has one', () => {
+    expect(formatClassTime('8:00 AM')).toBe('8:00 AM');
+    expect(formatClassTime('08:00 AM')).toBe('8:00 AM');
+    expect(formatClassTime('1:30 PM')).toBe('1:30 PM');
+  });
+
+  it('handles midnight and noon boundaries', () => {
+    expect(formatClassTime('00:00')).toBe('12:00 AM');
+    expect(formatClassTime('12:00')).toBe('12:00 PM');
+  });
+
+  it('returns a pending label for null/empty input', () => {
+    expect(formatClassTime(null)).toBe('Time pending');
+    expect(formatClassTime('')).toBe('Time pending');
+    expect(formatClassTime('   ')).toBe('Time pending');
+  });
+
+  it('returns unparseable input as-is', () => {
+    expect(formatClassTime('soon')).toBe('soon');
+  });
+});
 
 const entry = (
   overrides: Partial<HydratedAccountTodayEntry>
@@ -42,6 +96,16 @@ describe('showTodayBanner helpers', () => {
         classCount: 2,
       },
     ]);
+  });
+
+  it('picks the true earliest class time across meridiem strings', () => {
+    // '8:00 AM' is earlier than '1:30 PM' despite sorting later lexicographically.
+    const items = buildShowTodayBannerItems([
+      entry({ entryId: 'e-pm', classId: 'class-pm', classStartTime: '1:30 PM' }),
+      entry({ entryId: 'e-am', classId: 'class-am', classStartTime: '8:00 AM' }),
+    ]);
+
+    expect(items[0]?.earliestClassTime).toBe('8:00 AM');
   });
 
   it('orders multiple shows by earliest class time', () => {

@@ -341,6 +341,10 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 - [x] ~~**Run updated secretary golden path checklist**~~ — Walked 2026-06-02. All 7 parts attempted; Parts 1–6 passed, Part 7 (push tap) blocked by browser context. **Part 1**: People CRUD ✓, Dogs CRUD ✓ (fixed 3 RLS bugs: people insert, dogs insert, dogs select). **Part 2**: Setup tab ✓, Show Desk (tabs/tools/NBA card/Message Show/Show Map) ✓. **Part 3**: Entry Management ✓ (fixed enrollment JOIN timeout + people RLS storm). **Part 4**: Tools panel (8 tools) ✓, broadcast send ✓. **Part 5**: Closeout ✓ (reconciliation, Reports, AKC XML export). **Part 6**: At-show class list/entry list/scoresheet/score-save ✓. **Part 7**: blocked — preview browser has push notifications denied; requires real device. Fixed 7 RLS bugs total across migrations 20260602000000–20260602040000 (all live on staging).
 
+## North Star — Phase 2.5: Internal Exhibitor QA Re-Walk
+
+- [ ] **Walk exhibitor golden path (QA)** — Real-browser QA of the full exhibitor journey end-to-end: browse/find a show → enter (registration + entry agreement + payment) → add a dog → check in to a class → view results. Mirror the secretary Phase 2.5 walk — author a parallel 7-part checklist doc, fix every hesitation + RLS/UX bug at root cause, and leave behind Playwright + unit coverage. Files: `apps/myk9show/src/pages/BrowseShowsPage.tsx`, `apps/myk9show/src/pages/MyEntriesPage.tsx`, `apps/myk9show/src/pages/ClassDetailsPage/ExhibitorClassCallout.tsx`, `apps/myk9show/src/hooks/queries/useExhibitorResults.ts`, `apps/myk9show/src/hooks/mutations/useCheckInMutation.ts`. Full context in TO-DOS.md § "Exhibitor Golden-Path QA Walk — 2026-06-02 19:55".
+
 ## North Star — Phase 3: Real-User Testing
 
 - [ ] **Phase 3 — Real-User Testing** — Recruit 2–3 non-technical test users (one secretary, one or two exhibitors). Hand them written tasks, watch silently, fix every hesitation. Full plan: `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`.

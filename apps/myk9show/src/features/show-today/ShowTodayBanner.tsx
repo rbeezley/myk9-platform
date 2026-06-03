@@ -3,17 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarDays, ChevronRight, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useShowTodayBanner } from './useShowTodayBanner';
-import type { ShowTodayBannerItem } from './showTodayBanner.helpers';
-
-function formatTime(time: string | null): string {
-  if (!time) return 'Time pending';
-  const [hour = '', minute = ''] = time.split(':');
-  const hourNumber = Number(hour);
-  if (!Number.isFinite(hourNumber)) return time;
-  const period = hourNumber >= 12 ? 'PM' : 'AM';
-  const displayHour = hourNumber % 12 || 12;
-  return `${displayHour}:${minute.padStart(2, '0')} ${period}`;
-}
+import { formatClassTime, type ShowTodayBannerItem } from './showTodayBanner.helpers';
 
 export function ShowTodayBanner() {
   const navigate = useNavigate();
@@ -48,7 +38,7 @@ export function ShowTodayBanner() {
             </p>
             <p className="mt-1 flex items-center gap-1 text-sm text-emerald-800">
               <Clock size={14} />
-              First class {formatTime(singleItem.earliestClassTime)}
+              First class {formatClassTime(singleItem.earliestClassTime)}
             </p>
           </div>
           <Button type="button" onClick={() => void openShow(singleItem.showId)}>
@@ -94,7 +84,7 @@ function ShowTodayRow({
         <span className="block truncate font-semibold text-emerald-950">{item.showName}</span>
         <span className="mt-0.5 flex items-center gap-1 text-sm text-emerald-800">
           <Clock size={14} />
-          First class {formatTime(item.earliestClassTime)}
+          First class {formatClassTime(item.earliestClassTime)}
         </span>
       </span>
       <ChevronRight size={18} className="shrink-0 text-emerald-700" />

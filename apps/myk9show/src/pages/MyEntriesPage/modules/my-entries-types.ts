@@ -41,6 +41,8 @@ export interface MyEntry {
   showId: string;
   showName: string;
   showDate: Date;
+  /** Final calendar day the show runs; absent for legacy/single-day rows. */
+  showEndDate?: Date | undefined;
   location: {
     venue: string;
     city: string;
@@ -66,8 +68,12 @@ export interface MyEntryStats {
   total: number;
   accepted: number;
   pending: number;
+  /** Entries belonging to a non-past (current or future) show. */
   upcoming: number;
+  /** Distinct shows whose final day is before today. */
   pastShows: number;
+  /** Distinct shows running today or in the future. */
+  upcomingShows: number;
   acceptedPaid: number;
   acceptedUnpaid: number;
   needsAction: number;

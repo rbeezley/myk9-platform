@@ -59,7 +59,8 @@ function RegistrationWizardContent() {
   const isInsideSidebar = !!useMatch('/secretary/*');
 
   // Auth and permissions
-  const { isSecretary, isClubAdmin, isSiteAdmin } = useRegistrationPermissions();
+  const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } =
+    useRegistrationPermissions();
   const { user } = useAuthContext();
   const { triggerSync } = useReplicationSync();
 
@@ -401,6 +402,7 @@ function RegistrationWizardContent() {
           classSelections,
           handlerAssignments,
           classes,
+          canAssignArmbands,
           showFeeInfo: {
             preEntryFee: currentShow.preEntryFee || '0',
             dayOfShowFee: currentShow.dayOfShowFee,

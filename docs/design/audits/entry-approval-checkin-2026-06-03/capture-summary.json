@@ -1,0 +1,32 @@
+[
+  {
+    "step": 1,
+    "url": "http://127.0.0.1:5174/secretary/dashboard",
+    "title": "Check-in route redirects to Show Desk",
+    "text": "myK9Show\nS\nGood morning, Test\n\nManaging 7 shows\n\nNew Show\nNEEDS ATTENTION\n\n1 entry pending review\n\nQA Walk Show 1777260779\n\n3 entries pending review\n\nQA Walk Show 1777261593\n\n76 entries pending review\n\nHeritage\n\n80 entries pending review\n\nHeadline\n\n1 entry pending review\n\nTest Golden Path Show\n\nEntries close in 1 day\n\nHeadline\n\nDraft — complete setup before publishing\n\nJune 2026\n\nDraft — complete setup before publishing\n\nE2E QA Show 1746201600\n\nUpcoming\n\nShows that haven't started yet.\n\n1 show\nDraft — not yet published\n\nComplete setup before exhibitors can enter.\n\n2 shows\nPast shows\n4 shows\nPERSONAL TASKS\n+ Add Task\n\nNo personal tasks. Per-show tasks live in each show's Tools sheet.\n\nShow completed"
+  },
+  {
+    "step": 2,
+    "url": "http://127.0.0.1:5174/secretary/shows/4584f257-19b5-4016-aae6-5e7827b769cb",
+    "title": "Show-specific workbench",
+    "text": "myK9Show\nS\nJune 2026 workbench\nSecretary\nJune 2026\nPreview public page\nEdit\nJUN\n13–14\nJune 2026\nAKC\nTest Club 1\nDraft\nENTRIES CLOSE\nJun 13\nLOCATION\nBroken Arrow, OK 74011\nENTRY FEE\n$10.00\nDay of show: $20.00\nPAYMENT METHODS\nCard\nSetup\nShow Desk\nTools\n8\nSetup\n\nNo activity yet\n\n4 entries waiting for check-in\nUP NEXT\nOpen Schedule\nReview this trial timeline\nOpen\nPrint Trial Reports\nPrepare trial paperwork\nOpen\nShow Map\n\nScan the show by trial and class, then open the class you need.\n\n1\nTRIALS\n0\nCLASSES\n5\nENTRIES\n0\nNEED ATTENTION\nToday\nTomorrow\nAll dates\nActive\nCompleted\nAll\nIn progress\nAttention\nCollapse all\nExpand trials\nSaturday Trial 1\n2026-06-13 · Trial Saturday Trial 1\nNot started\n-"
+  },
+  {
+    "step": 3,
+    "url": "http://127.0.0.1:5174/secretary/entries/4584f257-19b5-4016-aae6-5e7827b769cb",
+    "title": "Entry Management overview",
+    "text": "myK9Show\nS\nEntry Management\n\nManage show entries, process payments, and communicate with exhibitors\n\nNew Entry\nExport CSV\nSelect Show\n\nChoose a show to manage its entries\n\nJune 2026 (Jun 13, 2026)\nEntries\nWaitlist\nAll Trials\nSaturday Trial 1 — Jun 13, 2026\nAll Classes\nTOTAL ENTRIES\n5\n\nAll entries\n\nPENDING\n0\n\nNeed review\n\nACCEPTED\n5\n\nConfirmed entries\n\nWAITLIST\n0\n\nWaiting for spots\n\nREVENUE\n$0\n\nCollected fees\n\nFilters\nall\nall\nClear Filters\nAll (5)\nPending (0)\nAccepted (5)\nWaitlist (0)\nMove-Ups\nPulled\nIssues (5)\nLiz Beezley#MK9-000022789…\nPayment Due\n$50.00\nActions\nEmailed 4/29/2026\nEmail Exhibitor\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Novice A:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Advanced:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Novice B:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Master:\nAccepted\n●\nAt Gate\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Excellent:\nAccepted\nNot Checked In"
+  },
+  {
+    "step": 4,
+    "url": "http://127.0.0.1:5174/secretary/entries/4584f257-19b5-4016-aae6-5e7827b769cb",
+    "title": "Entry cards with check-in statuses",
+    "text": "myK9Show\nS\nEntry Management\n\nManage show entries, process payments, and communicate with exhibitors\n\nNew Entry\nExport CSV\nSelect Show\n\nChoose a show to manage its entries\n\nJune 2026 (Jun 13, 2026)\nEntries\nWaitlist\nAll Trials\nSaturday Trial 1 — Jun 13, 2026\nAll Classes\nTOTAL ENTRIES\n5\n\nAll entries\n\nPENDING\n0\n\nNeed review\n\nACCEPTED\n5\n\nConfirmed entries\n\nWAITLIST\n0\n\nWaiting for spots\n\nREVENUE\n$0\n\nCollected fees\n\nFilters\nall\nall\nClear Filters\nAll (5)\nPending (0)\nAccepted (5)\nWaitlist (0)\nMove-Ups\nPulled\nIssues (5)\nLiz Beezley#MK9-000022789…\nPayment Due\n$50.00\nActions\nEmailed 4/29/2026\nEmail Exhibitor\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Novice A:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Advanced:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Novice B:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Master:\nAccepted\n●\nAt Gate\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Excellent:\nAccepted\nNot Checked In"
+  },
+  {
+    "step": 5,
+    "url": "http://127.0.0.1:5174/secretary/entries/4584f257-19b5-4016-aae6-5e7827b769cb",
+    "title": "Entry actions menu",
+    "text": "myK9Show\nS\nEntry Management\n\nManage show entries, process payments, and communicate with exhibitors\n\nNew Entry\nExport CSV\nSelect Show\n\nChoose a show to manage its entries\n\nJune 2026 (Jun 13, 2026)\nEntries\nWaitlist\nAll Trials\nSaturday Trial 1 — Jun 13, 2026\nAll Classes\nTOTAL ENTRIES\n5\n\nAll entries\n\nPENDING\n0\n\nNeed review\n\nACCEPTED\n5\n\nConfirmed entries\n\nWAITLIST\n0\n\nWaiting for spots\n\nREVENUE\n$0\n\nCollected fees\n\nFilters\nall\nall\nClear Filters\nAll (5)\nPending (0)\nAccepted (5)\nWaitlist (0)\nMove-Ups\nPulled\nIssues (5)\nLiz Beezley#MK9-000022789…\nPayment Due\n$50.00\nActions\nEmailed 4/29/2026\nEmail Exhibitor\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Novice A:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Advanced:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Novice B:\nAccepted\nNot Checked In\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Master:\nAccepted\n●\nAt Gate\nZiva\nAssign\nOwner: Liz Beezley\nHandler: Liz Beezley\nFee: $10 (Paid: $0)\nComp\nInterior Excellent:\nAccepted\nNot Checked In\nAccept All\nWaitlist All\nReject All\nMissing Info\nCheck In All"
+  }
+]

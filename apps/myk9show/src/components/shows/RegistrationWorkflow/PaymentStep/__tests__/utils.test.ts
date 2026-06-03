@@ -105,3 +105,25 @@ describe('calculateTotalFees — isFree gate (total <= 0 → payment method opti
     expect(result.total).toBe(0);
   });
 });
+
+describe('calculateTotalFees — multi-dog discount', () => {
+  it('does not apply the multi-dog discount when one entered dog has several owned dogs', () => {
+    const ownedDogs = [
+      dog,
+      { id: 'dog-2', name: 'Breeze' },
+      { id: 'dog-3', name: 'Comet' },
+      { id: 'dog-4', name: 'Dash' },
+    ];
+
+    const result = calculateTotalFees(
+      ownedDogs.map(ownedDog => ownedDog.id),
+      [selection],
+      ownedDogs,
+      [classObj]
+    );
+
+    expect(result.subtotal).toBe(25);
+    expect(result.discounts).toEqual([]);
+    expect(result.total).toBe(25);
+  });
+});

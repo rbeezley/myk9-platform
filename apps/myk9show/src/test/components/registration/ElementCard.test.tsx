@@ -76,6 +76,11 @@ describe('ElementCard', () => {
     expect(onToggle).toHaveBeenCalledWith('c3');
   });
 
+  it('gives each class checkbox an explicit accessible name', () => {
+    render(<ElementCard {...defaultProps} />);
+    expect(screen.getByRole('checkbox', { name: 'Select Advanced' })).toBeInTheDocument();
+  });
+
   it('shows selected chip with accent styling', () => {
     const levels = baseLevels.map(l => (l.classId === 'c3' ? { ...l, isSelected: true } : l));
     render(<ElementCard {...defaultProps} levels={levels} />);
@@ -114,6 +119,29 @@ describe('ElementCard', () => {
     );
     expect(screen.getByText('Detective')).toBeInTheDocument();
     expect(screen.queryByText('Novice')).not.toBeInTheDocument();
+  });
+
+  it('gives the single-class checkbox an explicit accessible name', () => {
+    const singleLevel: LevelInfo[] = [
+      {
+        classId: 'det1',
+        level: '',
+        section: undefined,
+        displayLabel: '',
+        isSelected: false,
+        isAlreadyEntered: false,
+      },
+    ];
+    render(
+      <ElementCard
+        element="Detective"
+        levels={singleLevel}
+        fee={10}
+        isSingleClass={true}
+        onToggle={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('checkbox', { name: 'Select Detective' })).toBeInTheDocument();
   });
 
   it('renders fee as "$10" (not "$10/class") for single-class elements', () => {

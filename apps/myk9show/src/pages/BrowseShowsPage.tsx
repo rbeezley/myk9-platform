@@ -52,6 +52,7 @@ import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { ViewPicker } from '@/components/common/ViewPicker';
+import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
 
 import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
 
@@ -215,6 +216,7 @@ const BrowseShowsPage: React.FC = () => {
       mineCount: mine.length,
     };
   }, [isMine, allEnhancedShows]);
+  const countUserId = useMemo(() => getBrowseShowsCountUserId(user), [user]);
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
@@ -386,10 +388,18 @@ const BrowseShowsPage: React.FC = () => {
       tabConfig.tabs.map(tab => {
         const def: PrimaryTabDef = { id: tab.id, label: tab.label };
         if (tab.icon) def.icon = tab.icon;
-        if (tab.getCount) def.count = tab.getCount(shows, entries, user?.id);
+        const count = getBrowseShowsTabCount({
+          tab,
+          selectedTab,
+          selectedTabCount: allEnhancedShows.length,
+          shows,
+          entries,
+          userId: countUserId,
+        });
+        if (count !== undefined) def.count = count;
         return def;
       }),
-    [tabConfig.tabs, shows, entries, user?.id]
+    [allEnhancedShows.length, countUserId, entries, selectedTab, shows, tabConfig.tabs]
   );
 
   // Render shows in different view modes
@@ -514,9 +524,9 @@ const BrowseShowsPage: React.FC = () => {
 
               <ResultsCount
                 showing={enhancedShows.length}
-                total={shows.length}
+                total={allEnhancedShows.length}
                 filtered={hasActiveFilters}
-                entityName={shows.length === 1 ? 'show' : 'shows'}
+                entityName={allEnhancedShows.length === 1 ? 'show' : 'shows'}
               />
             </div>
           </div>

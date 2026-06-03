@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Check,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -43,6 +44,7 @@ import {
   removeDogSelection,
   removeVisibleDogSelections,
 } from './DogSelectionStepEnhanced.helpers';
+import { cn } from '@/lib/utils';
 
 type SortColumn = 'callName' | 'breed' | 'owner' | 'regNumber';
 
@@ -136,6 +138,19 @@ const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
   const breed = dog.registrations?.[0]?.breed || dog.breed || '—';
   const reg = dog.registrations?.[0];
   const ownerDisplay = dog.ownerName || dog.owner?.name || '—';
+  const dogDisplayName = getDogDisplayName(dog);
+
+  const handleRowToggle = () => {
+    if (eligible) onToggle(dog.id);
+  };
+
+  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!eligible) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onToggle(dog.id);
+    }
+  };
 
   const tooltipDetails: { label: string; value: string }[] = [];
   if (reg?.registeredName)
@@ -154,16 +169,25 @@ const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
       className={`grid items-center gap-x-3 px-3 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors ${
         isSelected ? 'bg-primary/5' : ''
       } ${!eligible ? 'opacity-50 cursor-not-allowed' : ''}`}
-      onClick={() => eligible && onToggle(dog.id)}
+      role="checkbox"
+      tabIndex={eligible ? 0 : -1}
+      aria-label={`Select ${dogDisplayName}`}
+      aria-checked={isSelected}
+      aria-disabled={!eligible || undefined}
+      onClick={handleRowToggle}
+      onKeyDown={handleRowKeyDown}
     >
-      <Checkbox
-        checked={isSelected}
-        disabled={!eligible}
-        onCheckedChange={() => eligible && onToggle(dog.id)}
-        onClick={e => e.stopPropagation()}
-        className="shrink-0"
-      />
-      <span className="min-w-0 truncate text-sm font-medium">{getDogDisplayName(dog)}</span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-primary shadow',
+          isSelected && 'bg-primary text-primary-foreground',
+          !eligible && 'opacity-50'
+        )}
+      >
+        {isSelected && <Check className="h-4 w-4" />}
+      </span>
+      <span className="min-w-0 truncate text-sm font-medium">{dogDisplayName}</span>
       <span className="min-w-0 truncate text-sm text-muted-foreground">{breed}</span>
       <span className="min-w-0 truncate text-sm text-muted-foreground">{ownerDisplay}</span>
       <span>

@@ -47,6 +47,7 @@ import {
   canModifyEntry,
 } from '@/services/database/entries';
 import { logger } from '@/services/LoggingService';
+import { disciplineUsesJumpHeight } from '@/types/template.types';
 
 interface EntryClass {
   id: string;
@@ -54,6 +55,8 @@ interface EntryClass {
   number: string;
   fee: number;
   jumpHeight?: string;
+  /** Trial discipline; gates the jump-height field (scent work has no jump height). */
+  trialType?: string;
   runOrder?: number;
   status: 'entered' | 'scratched' | 'moved' | 'absent';
 }
@@ -322,7 +325,10 @@ export function EntryEditDialog({
                         )}
                       </div>
 
-                      {!isPulled && (
+                      {/* Jump height only applies to jumping disciplines
+                          (agility, obedience, rally). Scent work has none, so
+                          hide the field rather than show an irrelevant select. */}
+                      {!isPulled && disciplineUsesJumpHeight(classEntry.trialType) && (
                         <div className="mt-3 flex items-center gap-2">
                           <Label
                             htmlFor={`jump-height-${classEntry.id}`}

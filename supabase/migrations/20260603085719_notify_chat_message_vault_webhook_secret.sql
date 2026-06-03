@@ -30,6 +30,7 @@ create or replace function public.notify_chat_message()
 returns trigger
 language plpgsql
 security definer
+set search_path = ''
 as $$
 declare
   edge_function_base_url text;

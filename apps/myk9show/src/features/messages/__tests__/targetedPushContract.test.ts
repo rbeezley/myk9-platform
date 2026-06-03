@@ -99,4 +99,10 @@ describe('chat push Vault + webhook-secret parity', () => {
     // Broadcasts (send-targeted-message) set group_label and already push directly.
     expect(sql).toContain('when (new.group_label is null)');
   });
+
+  it('pins search_path on the SECURITY DEFINER function (advisor hardening)', () => {
+    const sql = readFileSync(chatVaultMigrationPath, 'utf8');
+
+    expect(sql).toContain("set search_path = ''");
+  });
 });

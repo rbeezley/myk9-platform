@@ -17,7 +17,6 @@
 
 import {
   LayoutDashboard,
-  Activity,
   Calendar,
   Heart,
   Users,
@@ -83,12 +82,13 @@ export function buildUnifiedSidebarConfig(
           icon: Heart,
           description: 'Manage your dogs and registrations',
         },
-        {
-          title: 'Show Day',
-          href: '/exhibitor/show-day',
-          icon: Activity,
-          description: 'Check-in, run order, results',
-        },
+        // NOTE: No standalone "Show Day" item. The at-show/ringside experience
+        // (`/at-show/:showId`) is inherently per-show, and an exhibitor may be
+        // entered in several shows — a static link can't supply the right
+        // showId. The canonical, context-aware entry point is <ShowTodayBanner>
+        // on MyEntriesPage (the "My Shows" page), which appears on show day and
+        // deep-links to the correct show. A prior link to the retired
+        // `/exhibitor/show-day` route was removed for this reason.
         {
           title: 'Find Shows',
           href: '/shows',

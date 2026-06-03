@@ -27,8 +27,8 @@ export type PosterEntryReceivedProps = HeritageEntryReceivedProps;
  *
  * Visual structure mirrors the design mock:
  *   - 240px ink-blot in upper-right (smaller sibling of the hero ink-blot)
- *   - "NO 01 / CONFIRMED · RECEIPT 2026-0137" mono kicker
- *   - "YOU'RE IN." Archivo Black headline at 48px (red `IN.` accent)
+ *   - "NO 01 / READY TO SUBMIT · ENTRY 2026-0137" mono kicker
+ *   - "READY TO SUBMIT." Archivo Black headline at 48px
  *   - Inter Tight 700 byline with the show / club / dates
  *   - Detail card with mono folio, Archivo Black dog name, mono call name
  *   - Total in Archivo Black 32px red
@@ -93,8 +93,8 @@ export function PosterEntryReceived({
             color: posterColors.red,
           }}
         >
-          NO 01 / CONFIRMED
-          {registrationNumber ? ` · RECEIPT ${registrationNumber}` : ''}
+          NO 01 / READY TO SUBMIT
+          {registrationNumber ? ` · ENTRY ${registrationNumber}` : ''}
         </p>
         <h2
           style={{
@@ -107,7 +107,7 @@ export function PosterEntryReceived({
             color: posterColors.ink,
           }}
         >
-          YOU&apos;RE <span style={{ color: posterColors.red }}>IN.</span>
+          READY TO <span style={{ color: posterColors.red }}>SUBMIT.</span>
         </h2>
         <p
           style={{
@@ -206,7 +206,7 @@ export function PosterEntryReceived({
               color: posterColors.mute,
             }}
           >
-            TOTAL · FEES RECEIVED
+            TOTAL · FEES DUE
           </span>
           <span
             style={{

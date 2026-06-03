@@ -26,7 +26,7 @@ const MUTE = monogramColors.mute;
 const SOFT = monogramColors.soft;
 
 /**
- * Monogram-styled "your entry is received" wizard completion step.
+ * Monogram-styled entry-summary wizard completion step.
  *
  * Rendered from `RegistrationWorkflow/WorkflowStepContent.tsx` when the show
  * has `style='monogram'` or `'banner'`. The data flow comes from the same
@@ -103,7 +103,7 @@ export function MonogramEntryReceived({
           }}
         >
           Your entry is{' '}
-          <span style={{ fontStyle: 'italic', color: BRONZE }}>received</span>.
+          <span style={{ fontStyle: 'italic', color: BRONZE }}>ready</span>.
         </h2>
         <p
           style={{
@@ -195,7 +195,7 @@ export function MonogramEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? `Receipt № ${registrationNumber}` : 'Fees received'}
+            {registrationNumber ? `Entry № ${registrationNumber}` : 'Fees due'}
           </span>
           <span
             style={{

@@ -7,7 +7,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { generateReceiptHtml, getPaymentMethodDisplay, type ReceiptData } from '../ConfirmationStep.helpers';
+import {
+  generateReceiptHtml,
+  getConfirmationHeroCopy,
+  getPaymentMethodDisplay,
+  type ReceiptData,
+} from '../ConfirmationStep.helpers';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
 function makeReceipt(overrides: Partial<ReceiptData> = {}): ReceiptData {
@@ -65,6 +70,22 @@ describe('getPaymentMethodDisplay', () => {
 
   it('returns Credit/Debit Card for unrecognised values', () => {
     expect(getPaymentMethodDisplay('stripe')).toBe('Credit/Debit Card (Online)');
+  });
+});
+
+describe('getConfirmationHeroCopy', () => {
+  it('uses final-review language while the entry and payment are pending', () => {
+    expect(getConfirmationHeroCopy(EntryStatus.PENDING, PaymentStatus.PENDING)).toEqual({
+      title: 'Registration Ready to Submit',
+      description: 'Review this summary, then choose Complete Registration to submit your entry.',
+    });
+  });
+
+  it('uses confirmed language only once entry and payment are recorded', () => {
+    expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PAID_BY_CHECK)).toEqual({
+      title: 'Registration Confirmed',
+      description: 'Your registration has been submitted and payment has been recorded.',
+    });
   });
 });
 

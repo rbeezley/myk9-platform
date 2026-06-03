@@ -23,9 +23,9 @@ const BASE_PROPS = {
 };
 
 describe('PosterEntryReceived', () => {
-  it('renders the "YOU\'RE IN." heading', () => {
+  it('renders the ready-to-submit heading', () => {
     render(<PosterEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /you're in/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready to submit/i })).toBeTruthy();
   });
 
   it('renders the byline (uppercased) with show, club, and date range', () => {
@@ -35,15 +35,15 @@ describe('PosterEntryReceived', () => {
     expect(container.textContent).toContain('JUN 12–14, 2026');
   });
 
-  it('renders the receipt number in the kicker when provided', () => {
+  it('renders the entry number in the kicker when provided', () => {
     render(<PosterEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/NO 01 \/ CONFIRMED · RECEIPT 2026-0137/)).toBeInTheDocument();
+    expect(screen.getByText(/NO 01 \/ READY TO SUBMIT · ENTRY 2026-0137/)).toBeInTheDocument();
   });
 
-  it('omits the receipt suffix when registration number is null', () => {
+  it('omits the entry suffix when registration number is null', () => {
     render(<PosterEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.queryByText(/RECEIPT/)).toBeNull();
-    expect(screen.getByText(/NO 01 \/ CONFIRMED/)).toBeInTheDocument();
+    expect(screen.queryByText(/ENTRY 2026/)).toBeNull();
+    expect(screen.getByText(/NO 01 \/ READY TO SUBMIT/)).toBeInTheDocument();
   });
 
   it('renders the dog registered name in uppercase', () => {

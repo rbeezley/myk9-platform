@@ -35,9 +35,9 @@ const BASE_PROPS = {
 };
 
 describe('GazetteEntryReceived', () => {
-  it('renders the "Your entry is received" heading', () => {
+  it('renders the ready heading', () => {
     render(<GazetteEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /received/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
   });
 
   it('renders the club name in the mini-masthead (auto-italic split)', () => {
@@ -70,9 +70,9 @@ describe('GazetteEntryReceived', () => {
     expect(screen.getByText('$69.00')).toBeTruthy();
   });
 
-  it('renders the receipt number label when supplied', () => {
+  it('renders the entry number label when supplied', () => {
     render(<GazetteEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Receipt № 2026-0137/)).toBeTruthy();
+    expect(screen.getByText(/Entry № 2026-0137/)).toBeTruthy();
   });
 
   it('falls back to "Total fees" label when no registration number', () => {

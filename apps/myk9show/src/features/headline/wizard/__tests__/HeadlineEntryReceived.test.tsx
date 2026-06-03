@@ -25,7 +25,7 @@ const BASE_PROPS = {
 describe('HeadlineEntryReceived', () => {
   it('renders the Headline completion heading', () => {
     render(<HeadlineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /you're in/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready to submit/i })).toBeTruthy();
   });
 
   it('displays club, show, dog, classes, fees, and receipt number', () => {
@@ -71,7 +71,7 @@ describe('HeadlineEntryReceived', () => {
       <HeadlineEntryReceived {...BASE_PROPS} dogCallName={null} confirmationDateLabel={null} />
     );
 
-    expect(screen.getByRole('heading', { name: /you're in/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready to submit/i })).toBeTruthy();
     expect(screen.queryByText(/Watch your inbox/i)).toBeNull();
   });
 });

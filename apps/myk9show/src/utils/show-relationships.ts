@@ -20,12 +20,10 @@ export function getUserEntries(
   // Find all entries for this user
   const userEntryShowIds = entries
     .filter(entry => {
-      // Check if user is the handler or owner of the dog
+      // Entries store people.id in handlerId; handler is kept as a legacy fallback.
       return (
-        entry.registrationData.handler === userId ||
-        entry.registrationData.handlerId === userId ||
-        entry.dogId.includes(userId)
-      ); // Assuming dogId contains owner info
+        entry.registrationData.handler === userId || entry.registrationData.handlerId === userId
+      );
     })
     .map(entry => entry.showId);
 

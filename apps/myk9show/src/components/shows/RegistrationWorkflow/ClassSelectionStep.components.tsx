@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { Dog } from '@/types/dog-types';
+import { formatTrialTypeLabel } from '@/types/template.types';
 import type { LevelInfo } from './ClassSelectionStep.types';
 
 // ─── Dog Tab Trigger ───────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ export const TrialSection: React.FC<TrialSectionProps> = ({
         <h4 className="font-medium text-sm">{trialName || 'Unnamed Trial'}</h4>
         {trialType && (
           <Badge variant="outline" className="text-xs">
-            {trialType}
+            {formatTrialTypeLabel(trialType)}
           </Badge>
         )}
       </div>
@@ -162,6 +163,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 cls.isAlreadyEntered && 'text-teal-600'
               )}
             >
+              <span className="sr-only">Select</span>{' '}
               {element}
             </Label>
             {cls.isAlreadyEntered && <CheckCircle2 className="h-3.5 w-3.5 text-teal-600" />}
@@ -253,6 +255,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
           onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
           className="h-3.5 w-3.5"
         />
+        <span className="sr-only">Select</span>{' '}
         <span className="text-xs">{displayLabel}</span>
       </label>
       {isJudgeDayFull && !isAlreadyEntered && <WaitlistBadge waitlistCount={waitlistCount} />}

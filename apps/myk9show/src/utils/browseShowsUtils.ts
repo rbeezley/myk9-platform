@@ -1,5 +1,9 @@
 import { Badge } from '@/components/ui/badge';
 import React from 'react';
+import type { UserWithRoles } from '@/types/auth-types';
+import type { ShowTab } from '@/types/unified-shows-types';
+import type { Show } from '@/types/show-types';
+import type { SyncableShowEntry } from '@/store/entry-store-types';
 
 /**
  * Utility functions for BrowseShowsPage
@@ -105,3 +109,31 @@ export const DATE_RANGE_LABELS: Record<string, string> = {
   'this_month': 'This Month',
   'next_month': 'Next Month'
 };
+
+export function getBrowseShowsCountUserId(
+  user: UserWithRoles | null | undefined
+): string | undefined {
+  return user?.databaseUserId ?? user?.id;
+}
+
+interface BrowseShowsTabCountInput {
+  tab: ShowTab | undefined;
+  selectedTab: string;
+  selectedTabCount: number;
+  shows: Show[];
+  entries: SyncableShowEntry[];
+  userId: string | undefined;
+}
+
+export function getBrowseShowsTabCount({
+  tab,
+  selectedTab,
+  selectedTabCount,
+  shows,
+  entries,
+  userId,
+}: BrowseShowsTabCountInput): number | undefined {
+  if (!tab?.getCount) return undefined;
+  if (tab.id === selectedTab) return selectedTabCount;
+  return tab.getCount(shows, entries, userId);
+}

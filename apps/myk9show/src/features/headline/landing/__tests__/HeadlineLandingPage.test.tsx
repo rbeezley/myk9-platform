@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HeadlineLandingPage } from '../HeadlineLandingPage';
@@ -72,6 +72,16 @@ vi.mock('@/features/heritage/landing/useHeritageLandingData', () => ({
 }));
 
 describe('HeadlineLandingPage', () => {
+  const originalTimezone = process.env.TZ;
+
+  afterEach(() => {
+    if (originalTimezone) {
+      process.env.TZ = originalTimezone;
+    } else {
+      delete process.env.TZ;
+    }
+  });
+
   it('renders the Headline masthead, sections, and entry call to action', () => {
     render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
 
@@ -84,5 +94,13 @@ describe('HeadlineLandingPage', () => {
       'href',
       '/shows/show-1/register'
     );
+  });
+
+  it('renders date-only show dates as Jun 12-14 in the hero and footer', () => {
+    process.env.TZ = 'Asia/Tokyo';
+
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    expect(screen.getAllByText('Jun 12, 2026 – Jun 14, 2026')).toHaveLength(2);
   });
 });

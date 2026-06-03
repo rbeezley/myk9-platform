@@ -20,6 +20,16 @@ describe('TrialSection', () => {
     expect(screen.getByText('Scent Work')).toBeInTheDocument();
   });
 
+  it('humanizes stored trial type enum values', () => {
+    render(
+      <TrialSection {...defaultProps} trialType="scent_work">
+        <div />
+      </TrialSection>
+    );
+    expect(screen.getByText('Scent Work')).toBeInTheDocument();
+    expect(screen.queryByText('scent_work')).not.toBeInTheDocument();
+  });
+
   it('shows selected count when > 0', () => {
     render(
       <TrialSection {...defaultProps}>

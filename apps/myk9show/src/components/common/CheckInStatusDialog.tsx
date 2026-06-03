@@ -105,15 +105,15 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
           <DialogTitle className="text-xl font-semibold">
             {readOnly ? 'Check-In Status' : 'Update Check-In Status'}
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground space-y-2">
-            <div className="flex items-center gap-2 mt-2">
+          <DialogDescription className="text-muted-foreground">
+            <span className="flex items-center gap-2 mt-2">
               <span className="font-medium">Armband #{entryInfo.armband}</span>
               <span>•</span>
               <span>{entryInfo.handlerName}</span>
-            </div>
-            <div className="text-sm">
+            </span>
+            <span className="block text-sm mt-2">
               {entryInfo.dogName} • {entryInfo.className} #{entryInfo.classNumber}
-            </div>
+            </span>
           </DialogDescription>
         </DialogHeader>
 

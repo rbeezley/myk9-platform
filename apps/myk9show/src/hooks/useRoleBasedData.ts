@@ -30,14 +30,16 @@ export function useRoleBasedDogs() {
       return allDogs;
     }
 
-    // Exhibitors only see their own dogs
-    const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
+    // Exhibitors only see their own dogs. Prefer the canonical people.id from RBAC;
+    // the auth id lookup is only for legacy sessions that predate databaseUserId.
+    const userPersonId =
+      userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
 
-    if (!userPerson) {
+    if (!userPersonId) {
       return [];
     }
 
-    return allDogs.filter(dog => dog.ownerId === userPerson.id);
+    return allDogs.filter(dog => dog.ownerId === userPersonId);
   }, [userWithRoles, allDogs, allPeople, hasRole, isLoading, error]);
 
   return filteredDogs;
@@ -105,8 +107,9 @@ export function useCanAccessDog(dogId: string): boolean {
     const dog = dogs.find(d => d.id === dogId);
     if (!dog) return false;
 
-    const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
-    return dog.ownerId === userPerson?.id;
+    const userPersonId =
+      userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
+    return dog.ownerId === userPersonId;
   }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
 }
 
@@ -130,8 +133,9 @@ export function useCanAccessPerson(personId: string): boolean {
     }
 
     // Exhibitors can only access themselves
-    const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
-    return personId === userPerson?.id;
+    const userPersonId =
+      userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
+    return personId === userPersonId;
   }, [userWithRoles, hasRole, personId, allPeople]);
 }
 
@@ -144,6 +148,7 @@ export function useCurrentUserPersonId(): string | null {
 
   return useMemo(() => {
     if (!userWithRoles) return null;
+    if (userWithRoles.databaseUserId) return userWithRoles.databaseUserId;
 
     const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
     return userPerson?.id || null;

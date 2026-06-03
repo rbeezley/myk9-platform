@@ -299,7 +299,7 @@ export function getUserShowContext(
 ): UserShowContext | null {
   if (!user) return null;
 
-  const userId = user.id;
+  const userId = user.databaseUserId ?? user.id;
   const userRoles = user.roles || [];
 
   const userEntries = getUserEntries(userId, shows, entries).map(s => s.id);

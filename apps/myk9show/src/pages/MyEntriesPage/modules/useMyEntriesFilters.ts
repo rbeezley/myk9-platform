@@ -7,7 +7,7 @@
 import { useState, useMemo } from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isAcceptedEntry, isWaitlistEntry } from '@/utils/entryPredicates';
-import { computeMyEntriesShowDateStats } from './myEntriesStats.helpers';
+import { computeMyEntriesShowDateStats, isPastShowEntry } from './myEntriesStats.helpers';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
 interface UseMyEntriesFiltersProps {
@@ -44,14 +44,15 @@ export function useMyEntriesFilters({
         break;
       case 'upcoming': {
         const now = new Date();
+        // Date-range aware: a multi-day show running today is still upcoming.
         filtered = filtered.filter(
-          entry => entry.showDate >= now && entry.entryStatus === EntryStatus.ACCEPTED
+          entry => !isPastShowEntry(entry, now) && entry.entryStatus === EntryStatus.ACCEPTED
         );
         break;
       }
       case 'completed': {
         const now = new Date();
-        filtered = filtered.filter(entry => entry.showDate < now);
+        filtered = filtered.filter(entry => isPastShowEntry(entry, now));
         break;
       }
       default:
@@ -59,11 +60,12 @@ export function useMyEntriesFilters({
         break;
     }
 
-    // Sort by show date — upcoming first (nearest date at top)
-    const nowMs = new Date().getTime();
+    // Sort by show date — upcoming first (nearest date at top). Use the same
+    // date-range rule as the tabs so a show running today sorts as upcoming.
+    const now = new Date();
     filtered.sort((a, b) => {
-      const aUpcoming = a.showDate.getTime() >= nowMs;
-      const bUpcoming = b.showDate.getTime() >= nowMs;
+      const aUpcoming = !isPastShowEntry(a, now);
+      const bUpcoming = !isPastShowEntry(b, now);
       // Upcoming entries before past entries
       if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
       // Within upcoming: soonest first; within past: most recent first

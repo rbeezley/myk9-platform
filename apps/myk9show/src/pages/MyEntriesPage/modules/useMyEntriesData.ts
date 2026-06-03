@@ -18,6 +18,7 @@ import {
   mapPaymentStatus,
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
+import { parseShowDate } from './myEntriesStats.helpers';
 import type { MyEntry, EntryClass } from './my-entries-types';
 
 interface UseMyEntriesDataReturn {
@@ -104,8 +105,10 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       registrationId: (entry.registration_id as string) ?? (entry.id as string),
       showId: show?.id || '',
       showName: show?.name || 'Unknown Show',
-      showDate: new Date(show?.start_date || Date.now()),
-      showEndDate: show?.end_date ? new Date(show.end_date) : undefined,
+      // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
+      // or a show ending today is misread as yesterday (see parseShowDate).
+      showDate: parseShowDate(show?.start_date) ?? new Date(),
+      showEndDate: parseShowDate(show?.end_date),
       location: {
         venue: show?.venue || '',
         city: show?.city || '',

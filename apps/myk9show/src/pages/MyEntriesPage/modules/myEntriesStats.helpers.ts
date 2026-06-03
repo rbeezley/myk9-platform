@@ -17,7 +17,26 @@
  * @module MyEntriesPage/stats
  */
 
+import { parseLocalDateString } from '@/utils/dateLocal';
 import type { MyEntry } from './my-entries-types';
+
+/**
+ * Parse a show date that may be a date-only string ("YYYY-MM-DD") or a full
+ * timestamp.
+ *
+ * `new Date("2026-06-02")` parses as **UTC** midnight, which in a negative-offset
+ * zone (e.g. America/Chicago) becomes the *previous* local day — so a show
+ * ending today would be read as yesterday and wrongly bucketed "past". For
+ * date-only strings we build a local-midnight Date instead; full timestamps
+ * (which already carry an offset) fall through to the native parser.
+ */
+export function parseShowDate(value: string | null | undefined): Date | undefined {
+  if (!value) return undefined;
+  const local = parseLocalDateString(value); // only matches bare YYYY-MM-DD
+  if (local) return local;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
 
 /** Midnight (local) for the given date — strips the time component. */
 export function startOfLocalDay(date: Date): Date {

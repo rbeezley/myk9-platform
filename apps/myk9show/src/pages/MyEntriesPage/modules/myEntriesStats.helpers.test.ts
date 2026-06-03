@@ -4,6 +4,7 @@ import {
   startOfLocalDay,
   isPastShowEntry,
   computeMyEntriesShowDateStats,
+  parseShowDate,
 } from './myEntriesStats.helpers';
 import type { MyEntry } from './my-entries-types';
 
@@ -28,6 +29,34 @@ function makeEntry(overrides: Partial<MyEntry>): MyEntry {
     ...overrides,
   };
 }
+
+describe('parseShowDate', () => {
+  it('parses a date-only "YYYY-MM-DD" string as a LOCAL day (not UTC)', () => {
+    // The bug: new Date("2026-06-02") is UTC midnight → previous local day in
+    // negative-offset zones. parseShowDate must yield local Jun 2 at 00:00.
+    const d = parseShowDate('2026-06-02')!;
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(5); // June
+    expect(d.getDate()).toBe(2);
+    expect(d.getHours()).toBe(0);
+  });
+
+  it('a show ending today (date-only) is NOT past — the exact root case', () => {
+    const entry = makeEntry({ showDate: parseShowDate('2026-05-31'), showEndDate: parseShowDate('2026-06-02') });
+    expect(isPastShowEntry(entry, NOW)).toBe(false);
+  });
+
+  it('a show that ended yesterday (date-only) IS past', () => {
+    const entry = makeEntry({ showEndDate: parseShowDate('2026-06-01') });
+    expect(isPastShowEntry(entry, NOW)).toBe(true);
+  });
+
+  it('passes through a full timestamp and returns undefined for empty', () => {
+    expect(parseShowDate('2026-06-02T08:30:00-05:00')?.getFullYear()).toBe(2026);
+    expect(parseShowDate(null)).toBeUndefined();
+    expect(parseShowDate('')).toBeUndefined();
+  });
+});
 
 describe('startOfLocalDay', () => {
   it('strips the time component', () => {

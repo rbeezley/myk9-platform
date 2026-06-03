@@ -62,3 +62,39 @@ describe('MyEntryCard — entry close date label', () => {
     expect(screen.queryByText('Entries close')).not.toBeInTheDocument();
   });
 });
+
+describe('MyEntryCard — venue directions link', () => {
+  it('renders the location as a Google Maps directions link built from venue, city, and state', () => {
+    render(
+      <MyEntryCard
+        entry={baseEntry}
+        onCheckInClick={noop}
+        onEditClick={noop}
+        onReceiptClick={noop}
+      />
+    );
+
+    const link = screen.getByRole('link', { name: 'Get directions to Test Venue, Portland, OR' });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/dir/?api=1&destination=Test%20Venue%2C%20Portland%2C%20OR'
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    // The visible label stays the short "city, state" form.
+    expect(link).toHaveTextContent('Portland, OR');
+  });
+
+  it('falls back to a non-interactive row when no address parts are available', () => {
+    render(
+      <MyEntryCard
+        entry={{ ...baseEntry, location: { venue: '', city: '', state: '' } }}
+        onCheckInClick={noop}
+        onEditClick={noop}
+        onReceiptClick={noop}
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: /Get directions/i })).not.toBeInTheDocument();
+  });
+});

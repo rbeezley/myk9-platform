@@ -13,6 +13,7 @@ import { EntryStatusStepper } from '@/components/entries/EntryStatusStepper';
 import { Calendar, MapPin, DollarSign, Eye, Edit, Download } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
+import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
   getEntryStatusBadge,
@@ -56,6 +57,24 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
 
   const canShowReceipt = entry.confirmationNumber && isPaid;
 
+  // Build a "Get directions" link from the full venue address (venue, city,
+  // state) while the card still displays the shorter "city, state" label.
+  // Falls back to a non-interactive row when no address parts are available.
+  const mapAddress = formatVenueAddress([
+    entry.location.venue,
+    entry.location.city,
+    entry.location.state,
+  ]);
+  const directionsUrl = mapAddress ? buildVenueMapsUrls(mapAddress).directionsUrl : null;
+  const locationContent = (
+    <>
+      <MapPin className="h-4 w-4" />
+      <span>
+        {entry.location.city}, {entry.location.state}
+      </span>
+    </>
+  );
+
   return (
     <div className="myk9-entries-card">
       {/* Header */}
@@ -97,12 +116,19 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
           </div>
         )}
 
-        <div className="myk9-entries-detail-item">
-          <MapPin className="h-4 w-4" />
-          <span>
-            {entry.location.city}, {entry.location.state}
-          </span>
-        </div>
+        {directionsUrl ? (
+          <a
+            href={directionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Get directions to ${mapAddress}`}
+            className="myk9-entries-detail-item rounded text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            {locationContent}
+          </a>
+        ) : (
+          <div className="myk9-entries-detail-item">{locationContent}</div>
+        )}
 
         <div className="myk9-entries-detail-item">
           <DollarSign className="h-4 w-4" />

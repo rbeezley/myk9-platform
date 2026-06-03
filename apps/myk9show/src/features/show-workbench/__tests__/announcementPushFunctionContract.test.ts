@@ -12,6 +12,10 @@ const vaultMigrationPath = resolve(
   testDir,
   '../../../../../../supabase/migrations/20260602161813_notify_announcement_push_from_vault.sql'
 );
+const sendPushNotificationPath = resolve(
+  testDir,
+  '../../../../../../supabase/functions/send-push-notification/index.ts'
+);
 
 describe('push-trigger-announcement function contract', () => {
   it('requires the service-role bearer before sending announcement push notifications', () => {
@@ -25,6 +29,18 @@ describe('push-trigger-announcement function contract', () => {
     expect(source.indexOf("req.headers.get('Authorization')")).toBeLessThan(
       source.indexOf('webpush.sendNotification')
     );
+  });
+
+  it('reads push subscriptions with the current p256dh/auth columns, not the dropped keys column', () => {
+    const source = readFileSync(functionPath, 'utf8');
+
+    // push_subscriptions migrated keys -> (p256dh, auth). Selecting the dropped
+    // `keys` column made every chunk query error out, so the function reported
+    // no_subscriptions_found and never sent. Mirror push-trigger-chat-message.
+    expect(source).toContain(".select('user_id, endpoint, p256dh, auth')");
+    expect(source).toContain('keys: { p256dh: sub.p256dh, auth: sub.auth }');
+    expect(source).not.toContain("endpoint, keys')");
+    expect(source).not.toContain('keys: sub.keys');
   });
 });
 
@@ -48,5 +64,18 @@ describe('notify_announcement_push config from Vault', () => {
 
   it('targets the push-trigger-announcement edge function via the Vault base url', () => {
     expect(sql).toContain("edge_function_base_url || '/push-trigger-announcement'");
+  });
+});
+
+describe('send-push-notification subscription columns', () => {
+  // Invoked by push-trigger-class-status and push-trigger-scoring — same dropped
+  // `keys` column bug would silently break class-start / results-posted pushes.
+  const source = readFileSync(sendPushNotificationPath, 'utf8');
+
+  it('reads p256dh/auth, not the dropped keys column', () => {
+    expect(source).toContain(".select('endpoint, p256dh, auth')");
+    expect(source).toContain('keys: { p256dh: sub.p256dh, auth: sub.auth }');
+    expect(source).not.toContain("'endpoint, keys'");
+    expect(source).not.toContain('keys: sub.keys');
   });
 });

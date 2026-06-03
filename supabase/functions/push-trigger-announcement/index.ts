@@ -123,14 +123,18 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
     chunkPromises.push(
       supabase
         .from('push_subscriptions')
-        .select('user_id, endpoint, keys')
+        .select('user_id, endpoint, p256dh, auth')
         .in('user_id', allUserIds.slice(i, i + CHUNK_SIZE))
     );
   }
 
   const chunkResults = await Promise.all(chunkPromises);
-  const allSubscriptions: { user_id: string; endpoint: string; keys: Record<string, string> }[] =
-    [];
+  const allSubscriptions: {
+    user_id: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  }[] = [];
   for (const { data: subs, error: subError } of chunkResults) {
     if (subError) {
       console.error(
@@ -166,7 +170,10 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
   await Promise.allSettled(
     allSubscriptions.map(async sub => {
       try {
-        await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, pushPayload);
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          pushPayload
+        );
         sent++;
       } catch (err: unknown) {
         const statusCode = (err as { statusCode?: number }).statusCode;

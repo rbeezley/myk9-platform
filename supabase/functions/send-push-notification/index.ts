@@ -53,7 +53,7 @@ handle<SendPushPayload>(
 
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
-      .select('endpoint, keys')
+      .select('endpoint, p256dh, auth')
       .eq('user_id', user_id);
 
     if (error) throw error;
@@ -70,7 +70,7 @@ handle<SendPushPayload>(
         await webpush.sendNotification(
           {
             endpoint: sub.endpoint,
-            keys: sub.keys,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
           },
           JSON.stringify(payload)
         );

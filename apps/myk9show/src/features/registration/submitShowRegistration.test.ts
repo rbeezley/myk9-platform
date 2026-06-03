@@ -91,6 +91,25 @@ describe('submitShowRegistration', () => {
     });
   });
 
+  it('skips armband assignment for exhibitor self-entries (canAssignArmbands=false)', async () => {
+    // Exhibitors are not authorized for the staff-only assign_armband RPC; the
+    // submit flow must not call it (otherwise every self-entry fires a 400).
+    const params = makeParams({ canAssignArmbands: false });
+
+    const result = await submitShowRegistration(params);
+
+    // Entries still submit; only the armband claim is skipped.
+    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
+    expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
+    expect(params.deps.updateEntryRegistration).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      aborted: false,
+      registrationNumber: 'MK9-000001',
+      dbRegistrationId: 'db-reg-1',
+      armbandAssignments: [],
+    });
+  });
+
   it('rejects non-credit-card submission when selected dogs cannot resolve to one owner', async () => {
     const params = makeParams({
       paymentMethod: 'check',

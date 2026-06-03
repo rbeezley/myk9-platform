@@ -1,9 +1,42 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildShowTodayBannerItems,
+  formatClassTime,
   getShowTodayBannerVariant,
   type HydratedAccountTodayEntry,
 } from './showTodayBanner.helpers';
+
+describe('formatClassTime', () => {
+  it('formats a raw 24h time', () => {
+    expect(formatClassTime('08:00')).toBe('8:00 AM');
+    expect(formatClassTime('13:30')).toBe('1:30 PM');
+  });
+
+  it('formats a 24h time with seconds', () => {
+    expect(formatClassTime('08:00:00')).toBe('8:00 AM');
+  });
+
+  it('does NOT double-append the meridiem when the source already has one', () => {
+    expect(formatClassTime('8:00 AM')).toBe('8:00 AM');
+    expect(formatClassTime('08:00 AM')).toBe('8:00 AM');
+    expect(formatClassTime('1:30 PM')).toBe('1:30 PM');
+  });
+
+  it('handles midnight and noon boundaries', () => {
+    expect(formatClassTime('00:00')).toBe('12:00 AM');
+    expect(formatClassTime('12:00')).toBe('12:00 PM');
+  });
+
+  it('returns a pending label for null/empty input', () => {
+    expect(formatClassTime(null)).toBe('Time pending');
+    expect(formatClassTime('')).toBe('Time pending');
+    expect(formatClassTime('   ')).toBe('Time pending');
+  });
+
+  it('returns unparseable input as-is', () => {
+    expect(formatClassTime('soon')).toBe('soon');
+  });
+});
 
 const entry = (
   overrides: Partial<HydratedAccountTodayEntry>

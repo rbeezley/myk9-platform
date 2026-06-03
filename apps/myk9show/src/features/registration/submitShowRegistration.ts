@@ -66,6 +66,14 @@ export interface SubmitShowRegistrationParams {
   handlerAssignments: Record<string, HandlerInfo>;
   classes: ClassLike[];
   showFeeInfo: ShowFeeInfo;
+  /**
+   * Whether the submitting user may assign armbands. Armband assignment is a
+   * staff-only action (the `assign_armband` RPC rejects everyone else with
+   * P0001). Exhibitor self-entries leave armbands unassigned for the secretary
+   * to set later, so the doomed RPC call must be skipped — otherwise every
+   * self-entry fires a guaranteed 400. Defaults to true for staff callers.
+   */
+  canAssignArmbands?: boolean | undefined;
   isActive?: (() => boolean) | undefined;
   deps: Pick<
     SubmitShowRegistrationDeps,
@@ -100,6 +108,7 @@ export async function submitShowRegistration({
   handlerAssignments,
   classes,
   showFeeInfo,
+  canAssignArmbands = true,
   isActive,
   deps,
 }: SubmitShowRegistrationParams): Promise<SubmitShowRegistrationResult> {
@@ -144,14 +153,18 @@ export async function submitShowRegistration({
     });
     if (!isStillActive(isActive)) return { aborted: true };
 
-    armbandAssignments = await assignArmbandsForEntries({
-      showId,
-      userId,
-      dogIds: entryInputs.map(entry => entry.dogId),
-      submittedEntries: rpcResult.entries,
-      deps: resolvedDeps,
-    });
-    if (!isStillActive(isActive)) return { aborted: true };
+    // Only staff may claim armbands; exhibitor self-entries skip this so the
+    // staff-only assign_armband RPC isn't called (and rejected) on every submit.
+    if (canAssignArmbands) {
+      armbandAssignments = await assignArmbandsForEntries({
+        showId,
+        userId,
+        dogIds: entryInputs.map(entry => entry.dogId),
+        submittedEntries: rpcResult.entries,
+        deps: resolvedDeps,
+      });
+      if (!isStillActive(isActive)) return { aborted: true };
+    }
   }
 
   return {

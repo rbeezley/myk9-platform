@@ -57,6 +57,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       id: string;
       name: string;
       start_date: string;
+      end_date?: string | null;
       entry_close_date?: string | null;
       venue?: string;
       city?: string;
@@ -104,6 +105,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       showId: show?.id || '',
       showName: show?.name || 'Unknown Show',
       showDate: new Date(show?.start_date || Date.now()),
+      showEndDate: show?.end_date ? new Date(show.end_date) : undefined,
       location: {
         venue: show?.venue || '',
         city: show?.city || '',

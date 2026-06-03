@@ -7,6 +7,7 @@
 import { useState, useMemo } from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isAcceptedEntry, isWaitlistEntry } from '@/utils/entryPredicates';
+import { computeMyEntriesShowDateStats } from './myEntriesStats.helpers';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
 interface UseMyEntriesFiltersProps {
@@ -81,8 +82,9 @@ export function useMyEntriesFilters({
     const now = new Date();
     const accepted = entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
     const pending = entries.filter(e => e.entryStatus === EntryStatus.PENDING);
-    const upcoming = entries.filter(e => e.showDate >= now);
-    const pastShows = entries.filter(e => e.showDate < now).length;
+    // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day
+    // show running today counts as upcoming, not past, matching the Show Today banner.
+    const showDateStats = computeMyEntriesShowDateStats(entries, now);
     const paidEntries = entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
     const unpaidEntries = entries.filter(e => e.paymentStatus === PaymentStatus.PENDING);
     const acceptedPaid = accepted.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
@@ -99,8 +101,9 @@ export function useMyEntriesFilters({
       total: entries.length,
       accepted: accepted.length,
       pending: pending.length,
-      upcoming: upcoming.length,
-      pastShows,
+      upcoming: showDateStats.upcomingEntries,
+      pastShows: showDateStats.pastShows,
+      upcomingShows: showDateStats.upcomingShows,
       acceptedPaid: acceptedPaid.length,
       acceptedUnpaid: acceptedUnpaid.length,
       needsAction: needsAction.length,

@@ -35,16 +35,22 @@ function truncate(text: string, maxLength: number): string {
 }
 
 handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseServiceKey) {
-    console.error('push-trigger-announcement: missing SUPABASE_SERVICE_ROLE_KEY');
+  // Webhook auth uses a dedicated shared secret (PUSH_WEBHOOK_SECRET), seeded into
+  // Vault as `push_webhook_secret` and sent by notify_announcement_push(). This is
+  // decoupled from SUPABASE_SERVICE_ROLE_KEY on purpose: after the project migrated
+  // to new JWT Signing Keys, the function's injected service-role token no longer
+  // matches the legacy service_role JWT a DB trigger can send, so the static-string
+  // compare 401'd. Falls back to the service-role key when the dedicated secret is
+  // unset (pre-rollout safety).
+  const webhookSecret =
+    Deno.env.get('PUSH_WEBHOOK_SECRET') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!webhookSecret) {
+    console.error('push-trigger-announcement: missing PUSH_WEBHOOK_SECRET');
     throw new HttpError(503, 'Push trigger is not configured');
   }
 
-  // Webhook auth: only accept calls bearing the service-role key
-  // (the DB webhook is configured to send this header).
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader || authHeader !== `Bearer ${supabaseServiceKey}`) {
+  if (!authHeader || authHeader !== `Bearer ${webhookSecret}`) {
     throw new HttpError(401, 'Unauthorized');
   }
 

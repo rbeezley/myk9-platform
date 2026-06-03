@@ -370,6 +370,10 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 - [ ] **Phase 3 — Real-User Testing** — Recruit 2–3 non-technical test users (one secretary, one or two exhibitors). Hand them written tasks, watch silently, fix every hesitation. Full plan: `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`.
 
+## Dogs
+
+- [x] **Fix dog photo upload not persisting** — RESOLVED 2026-06-03. On the dog detail page (`/dogs/:id`) the photo dialog showed a "Photo updated successfully" toast but only set local React state with the base64 FileReader preview — no Storage upload, no DB write — so the photo vanished on reload. Now extracted `saveDogPhoto()` (`DogDetailsMain/utils.ts`) which uploads the real `File` via the existing `uploadDogPhoto()` Storage helper and persists the returned URL through the same `onUpdate` mutation the edit panel uses; the success toast/celebration is gated on a real save, `PhotoDialog` shows a Saving… state and blocks re-submit, and failures surface an error toast. Assertion-first unit tests in `__tests__/saveDogPhoto.test.ts`. Note: the person-details twin (`UserDetailsTabs.handleUpdateDogPhoto`) persists but stores a base64 data URL — separate lower-severity follow-up. Full context in TO-DOS.md § "Dog photo upload does not persist".
+
 ## Health Records
 
 - [x] **Import Records button** — Fixed on 2026-05-11 as part of Batch 6. Health Timeline now supports pasted CSV import for vaccination, vet visit, medication, and allergy rows, with preview validation before creating records.

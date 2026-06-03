@@ -1,4 +1,5 @@
 import { getDogDisplayName, type Dog, type DogInput } from '@/types/dog-types';
+import { uploadDogPhoto } from '@/services/imageUploadService';
 
 // Constants
 export const CELEBRATION_DURATION_MS = 3000;
@@ -77,4 +78,55 @@ export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Pa
   if (dogData.spayedNeutered !== undefined) result.spayedNeutered = dogData.spayedNeutered;
 
   return result;
+}
+
+export interface SaveDogPhotoArgs {
+  ownerId: string;
+  dogId: string;
+  file: File;
+  onUpdate?: ((id: string, updates: Partial<DogInput>) => Promise<Dog | null>) | undefined;
+}
+
+export interface SaveDogPhotoResult {
+  success: boolean;
+  dog?: Dog;
+  imageUrl?: string;
+  error?: string;
+}
+
+/**
+ * Upload a dog photo to Storage and persist the resulting URL to the database.
+ *
+ * The dog detail photo dialog previously only set local React state with the
+ * base64 FileReader preview, so the photo silently vanished on reload. This
+ * mirrors the edit-panel save path: upload the real File → persist the durable
+ * Storage URL via `onUpdate` → return the saved row. On any failure it returns a
+ * typed result (never throws an uncaught success) so the UI cannot report a
+ * false "Photo updated successfully".
+ */
+export async function saveDogPhoto({
+  ownerId,
+  dogId,
+  file,
+  onUpdate,
+}: SaveDogPhotoArgs): Promise<SaveDogPhotoResult> {
+  const upload = await uploadDogPhoto(ownerId, dogId, file);
+  if (!upload.success || !upload.url) {
+    return { success: false, error: upload.error ?? 'Image upload failed' };
+  }
+
+  const imageUrl = upload.url;
+
+  // Without a persistence path the photo cannot survive a reload — fail loudly
+  // rather than claim success (this is the bug we are fixing).
+  if (!onUpdate) {
+    return { success: false, imageUrl, error: 'Saving is not available right now' };
+  }
+
+  const savedDog = await onUpdate(dogId, { imageUrl });
+  if (!savedDog) {
+    return { success: false, imageUrl, error: 'No data returned from dog update' };
+  }
+
+  return { success: true, dog: savedDog, imageUrl };
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
@@ -11,13 +11,14 @@ import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types
 import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { supabase } from '@/services/database/supabaseClient';
+import { logger } from '@/services/LoggingService';
 import '@/styles/myk9-show-details.css';
 
 import HeroProfileCard from './HeroProfileCard';
 import DogDetailsTabs from './DogDetailsTabs';
 import DogDialogs from './DogDialogs';
 import DogStatusDialog from '@/components/dogs/DogStatusDialog';
-import { validateImageFile } from './utils';
+import { saveDogPhoto, validateImageFile } from './utils';
 import type { DogDetailsMainProps } from './types';
 
 import TitleProgressCard from './sidebar/TitleProgressCard';
@@ -115,7 +116,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  // The raw File is what we upload to Storage; photoPreview is only the data-URL
+  // shown in the dialog. Keeping just the preview was the original bug.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isPhotoDragging, setIsPhotoDragging] = useState(false);
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const savingPhotoRef = useRef(false);
   const [updatedDog, setUpdatedDog] = useState<Dog>(dog);
   const [showCelebration, setShowCelebration] = useState(false);
 
@@ -125,7 +131,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
 
   const handlePhotoDialogOpen = (open: boolean) => {
     setIsPhotoDialogOpen(open);
-    if (!open) setPhotoPreview(null);
+    if (!open) {
+      setPhotoPreview(null);
+      setPhotoFile(null);
+    }
   };
 
   const handlePhotoDrop = (e: React.DragEvent) => {
@@ -139,6 +148,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         toast.error(validation.error);
         return;
       }
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onload = ev => setPhotoPreview(ev.target?.result as string);
       reader.onerror = () => toast.error('Failed to read the image file');
@@ -165,6 +175,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         e.target.value = '';
         return;
       }
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onload = ev => setPhotoPreview(ev.target?.result as string);
       reader.onerror = () => toast.error('Failed to read the image file');
@@ -172,10 +183,41 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
     }
   };
 
-  const handlePhotoSave = (preview: string | null) => {
-    if (preview) setUpdatedDog({ ...updatedDog, imageUrl: preview });
-    setIsPhotoDialogOpen(false);
-    setPhotoPreview(null);
+  // Upload the selected file to Storage and persist the URL to the dog row.
+  // Returns true only when the photo is actually saved, so the dialog can gate
+  // its success toast/celebration on a real save instead of a no-op.
+  const handlePhotoSave = async (): Promise<boolean> => {
+    if (!photoFile) {
+      toast.error('No photo selected');
+      return false;
+    }
+    if (savingPhotoRef.current) return false;
+    savingPhotoRef.current = true;
+    setIsSavingPhoto(true);
+    try {
+      const result = await saveDogPhoto({
+        ownerId: updatedDog.ownerId,
+        dogId: updatedDog.id,
+        file: photoFile,
+        onUpdate,
+      });
+      if (!result.success || !result.dog) {
+        toast.error(result.error ?? 'Failed to update photo. Please try again.');
+        return false;
+      }
+      setUpdatedDog(result.dog);
+      setIsPhotoDialogOpen(false);
+      setPhotoPreview(null);
+      setPhotoFile(null);
+      return true;
+    } catch (error) {
+      logger.error('Dog photo save failed', 'dogs', { dogId: updatedDog.id }, error as Error);
+      toast.error('Failed to update photo. Please try again.');
+      return false;
+    } finally {
+      savingPhotoRef.current = false;
+      setIsSavingPhoto(false);
+    }
   };
 
   const handleStatusSave = async (status: DogStatus, deceasedDate?: string) => {
@@ -263,6 +305,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         isPhotoDialogOpen={isPhotoDialogOpen}
         photoPreview={photoPreview}
         isPhotoDragging={isPhotoDragging}
+        isSavingPhoto={isSavingPhoto}
         showCelebration={showCelebration}
         userRole={userRole}
         people={people}

@@ -19,6 +19,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   isPhotoDialogOpen,
   photoPreview,
   isPhotoDragging,
+  isSavingPhoto,
   showCelebration: _showCelebration,
   userRole,
   people,
@@ -150,19 +151,15 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           onDragLeave={onPhotoDragLeave}
           onFileInput={onPhotoFileInput}
           onCancel={() => onPhotoDialogOpen(false)}
-          onSave={preview => {
-            if (!preview) {
-              toast.error('No photo selected');
-              return;
-            }
-            try {
-              onPhotoSave(preview);
+          isSaving={isSavingPhoto}
+          onSave={async () => {
+            // onPhotoSave uploads to Storage + persists to the DB and resolves
+            // true only on a real save. Celebrate/toast success only then; the
+            // handler surfaces its own error toast on failure.
+            const saved = await onPhotoSave();
+            if (saved) {
               toast.success('Photo updated successfully');
-              // Show celebration for photo update
               startCelebration(`Photo updated for ${dog.callName}`);
-            } catch (error) {
-              toast.error('Failed to update photo');
-              logger.error('Photo save failed', 'dogs', { dogId: dog.id }, error as Error);
             }
           }}
           title={`Update ${dog.callName}'s Photo`}

@@ -378,6 +378,7 @@ const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUp
     fee: c.fee,
     status: c.status,
     ...(c.jumpHeight !== undefined && { jumpHeight: c.jumpHeight }),
+    ...(c.trialType !== undefined && { trialType: c.trialType }),
     ...(c.runOrder !== undefined && { runOrder: c.runOrder }),
   }));
 

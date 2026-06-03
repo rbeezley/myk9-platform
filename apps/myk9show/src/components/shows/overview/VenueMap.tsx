@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalLink, MapPin, Navigation } from 'lucide-react';
+import { buildVenueMapsUrls } from '@/utils/venueMaps';
 
 // Fast navigation away within this window avoids firing an aborted map request.
 export const IFRAME_DEFER_MS = 200;
@@ -65,8 +66,7 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
   if (!location?.trim()) return null;
 
   const encodedAddress = encodeURIComponent(location);
-  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
-  const viewOnMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+  const { directionsUrl, viewOnMapsUrl } = buildVenueMapsUrls(location);
 
   if (!hasApiKey || iframeError) {
     return (

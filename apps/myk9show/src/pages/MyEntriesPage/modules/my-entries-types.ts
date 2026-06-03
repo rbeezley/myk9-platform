@@ -16,6 +16,8 @@ export interface EntryClass {
   number: string;
   fee: number;
   jumpHeight?: string | undefined;
+  /** Trial discipline (e.g. "Scent Work", "Agility"); gates the jump-height field. */
+  trialType?: string | undefined;
   runOrder?: number | undefined;
   status: 'entered' | 'scratched' | 'moved' | 'absent';
   checkInStatus?: CheckInStatus | undefined;

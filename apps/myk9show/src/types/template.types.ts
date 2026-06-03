@@ -112,6 +112,31 @@ export function formatTrialTypeLabel(trialType: string | null | undefined): stri
   return TRIAL_TYPE_LABEL_BY_KEY[normalizedKey] ?? titleCaseTrialType(trialType);
 }
 
+/**
+ * Disciplines for which a per-entry jump height is a meaningful field. Scent
+ * Work / Nosework / Scent Detection (the platform's primary disciplines today)
+ * have no jump height, so the exhibitor entry-edit UI hides the field for them.
+ */
+const JUMP_HEIGHT_DISCIPLINES: ReadonlySet<string> = new Set<string>([
+  TrialType.AGILITY,
+  TrialType.OBEDIENCE,
+  TrialType.RALLY,
+  TrialType.OBEDIENCE_RALLY,
+]);
+
+/**
+ * Whether a trial discipline uses a per-entry jump height (agility, obedience,
+ * rally). Gated on discipline rather than per-class config so a newly-created
+ * agility class with no heights configured yet still shows the field. Accepts
+ * any stored format (`scent_work`, `SCENT_WORK`, `Scent Work`) by normalizing
+ * through `formatTrialTypeLabel`, and returns false for unknown/missing values
+ * so the field stays hidden unless the discipline is known to use it.
+ */
+export function disciplineUsesJumpHeight(trialType: string | null | undefined): boolean {
+  if (!trialType) return false;
+  return JUMP_HEIGHT_DISCIPLINES.has(formatTrialTypeLabel(trialType));
+}
+
 // Class status tracking - aligned with @myk9/core CLASS_STATUS constants
 // Includes 'Upcoming' as a valid alias for 'Scheduled' for backward compatibility
 export type ClassStatus = 'Scheduled' | 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';

@@ -62,23 +62,13 @@ async function postgrestGetEntryStatistics(showId?: string) {
   return { data: stats, error: null };
 }
 
-async function postgrestGetUserEntries(userId: string) {
-  const { data: ownedDogs, error: dogsError } = await supabase
-    .from('dogs')
-    .select('id')
-    .eq('owner_id', userId);
-
-  if (dogsError) throw createDatabaseError(dogsError, 'dogs', 'select_user_entry_dogs');
-
-  const ownedDogIds = (ownedDogs ?? []).map(dog => sanitizePostgRESTFilter(dog.id));
-  const userFilter = `handler_id.eq.${sanitizePostgRESTFilter(userId)}`;
-  const entryFilter =
-    ownedDogIds.length > 0 ? `${userFilter},dog_id.in.(${ownedDogIds.join(',')})` : userFilter;
-
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
+/**
+ * Columns the MyEntries mapper reads (transformEntry). Keep in sync with the
+ * replication path — a dropped column silently renders as a default on the
+ * PostgREST fallback (e.g. a missing `check_in_status` reads as "Not Checked In"
+ * even after a persisted check-in).
+ */
+export const USER_ENTRIES_SELECT = `
       id,
       dog_id,
       show_id,
@@ -88,6 +78,7 @@ async function postgrestGetUserEntries(userId: string) {
       handler_id,
       payment_status,
       entry_status,
+      check_in_status,
       entry_fee,
       armband,
       run_order,
@@ -127,8 +118,24 @@ async function postgrestGetUserEntries(userId: string) {
         name,
         class_number
       )
-    `
-    )
+    `;
+
+async function postgrestGetUserEntries(userId: string) {
+  const { data: ownedDogs, error: dogsError } = await supabase
+    .from('dogs')
+    .select('id')
+    .eq('owner_id', userId);
+
+  if (dogsError) throw createDatabaseError(dogsError, 'dogs', 'select_user_entry_dogs');
+
+  const ownedDogIds = (ownedDogs ?? []).map(dog => sanitizePostgRESTFilter(dog.id));
+  const userFilter = `handler_id.eq.${sanitizePostgRESTFilter(userId)}`;
+  const entryFilter =
+    ownedDogIds.length > 0 ? `${userFilter},dog_id.in.(${ownedDogIds.join(',')})` : userFilter;
+
+  const { data, error } = await supabase
+    .from('entries')
+    .select(USER_ENTRIES_SELECT)
     .or(entryFilter)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });

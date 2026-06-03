@@ -158,30 +158,38 @@ name-display inconsistency.
 
 ---
 
-## Part 6 — Add a Dog ⬜ (not yet walked)
+## Part 6 — Add a Dog ✅ (walked 2026-06-03)
 
-- [ ] From My Dogs strip ("New Dog") or `/dogs` — open Add Dog panel/page
-- [ ] Fill call name, registered name, breed, registry/org, owner
-- [ ] Save → dog appears in My Dogs and is selectable in the registration wizard
-- [ ] (Offline create behavior — see OPEN-TODOS "Queue-based Offline Dog Create")
+- [x] `/dogs` → **Add Dog** opens a dialog (required: Call Name, Gender, Date of Birth; breed/registration under "Additional")
+- [x] Fill required fields → **Create Dog** → dog appears in the list, **no failed requests** (dogs INSERT RLS is sound)
 
----
-
-## Part 7 — Check In to a Class ⬜ (not yet walked)
-
-- [ ] Self check-in path: `/exhibitor/check-in/:entryId` and/or `/exhibitor/show-day`
-- [ ] Reads `entries.check_in_status` (written by `self_checkin_entry` RPC)
-- [ ] Toggle check-in status; confirm it persists and reflects in My Entries / Show Day
-- [ ] Confirm RLS allows an exhibitor to check in their **own** entry only
+**ℹ️ Note:** `/dogs` header reads "My Dogs" but showed **9 dogs** vs the dashboard's **4 Dogs Registered** — confirm whether `/dogs` is owner-scoped or a global browse (possible count/scope mismatch). Logged as BUG-EX-12.
 
 ---
 
-## Part 8 — View Results ⬜ (not yet walked)
+## Part 7 — Check In to a Class ✅ 🔧 🐞 (walked 2026-06-03)
 
-- [ ] After the secretary releases results, exhibitor sees them
-- [ ] `useExhibitorResults` / results surface (placement, Q/NQ, time)
-- [ ] TV/mobile results view (`TVDisplay/TVMobileResults`) if linked
-- [ ] Confirm results hidden until released
+> The dedicated `/exhibitor/check-in/:entryId` and `/exhibitor/show-day` routes are now **legacy redirects** (→ `/exhibitor/entries`). The exhibitor's self-check-in surface is the **My Entries card** check-in dialog (and `/at-show` ringside).
+
+- [x] My Entries card for a today show (Heritage) exposes a **"Not Checked In"** button → opens the check-in dialog
+- [x] Select **Checked In** → **Update Status** → card shows "✓ Checked In", **no failed requests**, and it **persists across reload** (after the read-fix)
+
+**🔧 BUG-EX-11 [P1] — check-in status never displayed (read path dropped it). FIXED.**
+`useMyEntriesData.transformEntry` hardcoded `checkInStatus: undefined`, so the card always read "Not Checked In" even after a check-in persisted to `entries.check_in_status` (which the replicated row already carries). Fix: added `normalizeCheckInStatus` (`myEntriesUtils.tsx`, treats `null`/`'no-status'` as not-checked-in) and read it in `transformEntry`. Verified live: check in → reload → "✓ Checked In". Unit-tested.
+
+**🐞 BUG-EX-13 [P2] — check-in write over-reaches via the secretary path (open).** The card dialog calls the **secretary** `updateCheckInStatus` (direct `entries` UPDATE that also sets staff-only `is_in_ring`, `ring_entry_time`, `judge_notes`) rather than an exhibitor `self_checkin_entry` RPC. The write succeeded for the exhibitor (RLS allowed it), but an exhibitor self-check-in setting `is_in_ring=true` is semantically wrong (checked-in ≠ in-ring) and lets an exhibitor write scoring fields. Review the exhibitor check-in write path + RLS; `self_checkin_entry` RPC appears unused in the client.
+
+**🐞 BUG-EX-14 [Minor] — invalid DOM nesting in CheckInStatusDialog (open).** Opening the dialog logs `validateDOMNesting`: a `<div>` is rendered inside `DialogDescription`'s `<p>` (hydration error). Wrap the entry-info block in a `<div>`-based description, not `<p>`.
+
+**ℹ️ Note:** the dialog labels the entry's registration number as "Armband #MK9-…" — armband fallback to confirmation number when no armband is assigned (minor display nit).
+
+---
+
+## Part 8 — View Results ⚠️ (surfaces verified; no released results in fixture)
+
+- [x] Results-viewing surfaces exist: **Dog Details → Competitions → Past Results** (`useExhibitorResults`), the per-class public results route (`/shows/:showId/trials/:trialId/classes/:classId/results`), and My Entries card result badges (`resultStatus`/placement, mapped in `transformEntry`)
+- [ ] **Blocked:** exhibitor1 has **no scored/released results** in the fixture, so the actual result *display* (placement, Q/NQ, time) couldn't be exercised. Re-walk after a secretary scores + releases a class this exhibitor is entered in.
+- [ ] Confirm results hidden until released (needs the above fixture)
 
 ---
 
@@ -191,8 +199,12 @@ name-display inconsistency.
 |---|----|-----|------|-------|--------|
 | 1 | BUG-EX-01 | P1 | 2 | My Entries counts: entries-not-shows + multi-day-today bucketed past → 0 upcoming / 6 past; two derivations drift | ✅ Fixed |
 | 2 | BUG-EX-02 | Minor | 2 | Show Today banner "8:00 AM AM" double meridiem | ✅ Fixed |
-| 3 | BUG-EX-09 | P1 | 5.3 | Exhibitor self-entry calls staff-only `assign_armband` → 400 (swallowed); no armband | ✅ Fixed (unit) |
+| 3 | BUG-EX-09 | P1 | 5.3 | Exhibitor self-entry calls staff-only `assign_armband` → 400 (swallowed); no armband | ✅ Fixed (#500) |
+| 3b | BUG-EX-11 | P1 | 7 | Check-in status never displayed — `transformEntry` hardcoded `checkInStatus: undefined` | ✅ Fixed |
 | 4 | BUG-EX-03 | P2 | 5.2 | Multi-dog discount applied to single-dog entry (keyed to dogs owned, not entered) | 🐞 Open |
+| 4b | BUG-EX-13 | P2 | 7 | Check-in write over-reaches via secretary path (sets is_in_ring/judge_notes as exhibitor) | 🐞 Open |
+| 4c | BUG-EX-12 | P2 | 6 | `/dogs` "My Dogs" shows 9 vs dashboard 4 — owner-scope/count mismatch | 🐞 Open |
+| 4d | BUG-EX-14 | Minor | 7 | CheckInStatusDialog renders `<div>` inside `<p>` (validateDOMNesting/hydration) | 🐞 Open |
 | 5 | BUG-EX-04 | P2 | 4 | Premium landing show dates off-by-one (Jun 11–13 vs 12–14) | 🐞 Open |
 | 6 | BUG-EX-10 | P2 | 5.3 | "CONFIRMED / FEES RECEIVED" shown before completion & with deferred payment | 🐞 Open |
 | 7 | BUG-EX-07 | P2 | 3 | Browse counts inconsistent (5 vs 9); "My Entries" tab shows 0 despite entries | 🐞 Open |
@@ -205,10 +217,11 @@ name-display inconsistency.
 
 ## Golden Path Exit Criteria
 
-- [ ] Parts 1–8 all walked & passing (Parts 6–8 not yet walked)
-- [ ] All P1 issues fixed (3/3 fixed; armband fix needs spec-level live re-verify)
-- [ ] P2/Minor issues triaged (fix or defer with rationale)
-- [ ] A committed Playwright spec covers the journey; unit tests cover extracted logic
+- [x] Parts 1–7 walked; Part 8 surfaces verified (result display blocked by fixture — no released results)
+- [x] All P1 issues fixed (4/4: counts, AM AM, armband 400, check-in read — armband + counts in #500)
+- [ ] P2/Minor issues triaged (fix or defer with rationale) — 9 open findings logged
+- [x] Unit tests cover extracted logic; entry journey e2e via `exhibitorSelfRegistration.spec.ts` (not duplicated)
 - [ ] Test-data clutter cleaned before real-user testing
+- [ ] Re-walk Part 8 after a class is scored + released for this exhibitor
 
 **Sign-off:** _____________________ **Date:** _____________

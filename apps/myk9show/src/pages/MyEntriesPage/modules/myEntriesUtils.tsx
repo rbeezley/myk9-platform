@@ -7,7 +7,19 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { CheckInStatus } from '@/types/check-in-types';
 import { CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react';
+
+/**
+ * Normalize a raw DB check-in status into the dialog's model. Both `null` and
+ * the replication default `'no-status'` mean "not checked in" (→ undefined).
+ * Without this, MyEntriesPage hardcoded `undefined` and the card always read
+ * "Not Checked In" even after a check-in persisted.
+ */
+export function normalizeCheckInStatus(raw: unknown): CheckInStatus | undefined {
+  if (!raw || raw === 'no-status') return undefined;
+  return raw as CheckInStatus;
+}
 
 /**
  * Returns a styled badge for entry status

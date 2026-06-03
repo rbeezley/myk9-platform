@@ -10,7 +10,7 @@ const functionPath = resolve(
 );
 const vaultMigrationPath = resolve(
   testDir,
-  '../../../../../../supabase/migrations/20260602161813_notify_announcement_push_from_vault.sql'
+  '../../../../../../supabase/migrations/20260603074455_notify_announcement_push_webhook_secret.sql'
 );
 const sendPushNotificationPath = resolve(
   testDir,
@@ -18,12 +18,14 @@ const sendPushNotificationPath = resolve(
 );
 
 describe('push-trigger-announcement function contract', () => {
-  it('requires the service-role bearer before sending announcement push notifications', () => {
+  it('authenticates the webhook against the dedicated PUSH_WEBHOOK_SECRET bearer', () => {
     const source = readFileSync(functionPath, 'utf8');
 
-    expect(source).toContain('if (!supabaseServiceKey)');
+    // Decoupled from SUPABASE_SERVICE_ROLE_KEY (which a DB trigger can't match
+    // after the JWT signing-key migration) — validates a dedicated shared secret.
+    expect(source).toContain("Deno.env.get('PUSH_WEBHOOK_SECRET')");
     expect(source).toContain("req.headers.get('Authorization')");
-    expect(source).toContain('Bearer ${supabaseServiceKey}');
+    expect(source).toContain('Bearer ${webhookSecret}');
     expect(source).toContain("throw new HttpError(401, 'Unauthorized')");
     expect(source).toContain(".eq('is_active', true)");
     expect(source.indexOf("req.headers.get('Authorization')")).toBeLessThan(
@@ -47,10 +49,13 @@ describe('push-trigger-announcement function contract', () => {
 describe('notify_announcement_push config from Vault', () => {
   const sql = readFileSync(vaultMigrationPath, 'utf8');
 
-  it('reads edge-function config from vault.decrypted_secrets, not GUCs', () => {
+  it('reads edge config + a dedicated webhook secret from Vault, not GUCs or the service key', () => {
     expect(sql).toContain('vault.decrypted_secrets');
     expect(sql).toContain("where name = 'edge_function_base_url'");
-    expect(sql).toContain("where name = 'service_role_key'");
+    // Bearer is a dedicated webhook secret, decoupled from the service-role key.
+    expect(sql).toContain("where name = 'push_webhook_secret'");
+    expect(sql).toContain("'Bearer ' || webhook_secret");
+    expect(sql).not.toContain("where name = 'service_role_key'");
     // Config no longer comes from app.settings GUCs (ALTER DATABASE SET is gone).
     expect(sql).not.toContain('current_setting');
   });

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PawPrint, Plus } from 'lucide-react';
@@ -10,6 +11,7 @@ import type { User, Dog } from '@/types/dog-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { mapDogToDogInput } from '@/services/mappers/dogMappers';
+import { saveDogPhoto } from '@/components/dogs/DogDetailsMain/utils';
 
 interface PeopleDetailsTabsProps {
   selectedUser: User;
@@ -40,9 +42,19 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
     setDogToEdit(null);
   };
 
-  // Handler for updating dog photo
-  const handleUpdateDogPhoto = (dogId: string, newPhotoUrl: string) => {
-    updateDog(dogId, { imageUrl: newPhotoUrl });
+  // Handler for updating dog photo — uploads the raw File to Storage, then
+  // persists the durable Storage URL. Returns true only on a real save so
+  // AssociatedDogsSection can gate dialog-close on success.
+  const handleUpdateDogPhoto = async (dogId: string, file: File): Promise<boolean> => {
+    const dog = userDogs.find(d => d.id === dogId);
+    const ownerId = dog?.ownerId ?? selectedUser.id;
+    const result = await saveDogPhoto({ ownerId, dogId, file, onUpdate: updateDog });
+    if (result.success) {
+      toast.success('Photo updated successfully');
+    } else {
+      toast.error(result.error ?? 'Failed to update photo. Please try again.');
+    }
+    return result.success;
   };
 
   // Handler for deleting a dog

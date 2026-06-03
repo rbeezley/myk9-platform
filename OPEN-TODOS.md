@@ -27,6 +27,12 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Exhibitor Navigation
+
+- [x] ~~**Fix exhibitor "Show Day" sidebar item duplicating "My Shows"**~~ — Resolved 2026-06-03. Removed the standalone "Show Day" item from the exhibitor-only sidebar (`unifiedSidebarConfig.ts`). It linked to the retired `/exhibitor/show-day` route, which — carrying no `?showId=` from a static nav link — redirected to `/exhibitor/entries`, the same page "My Shows" opens. The at-show/ringside experience is inherently per-show; an exhibitor may be entered in several shows, so a static link can't supply the right showId. The canonical, context-aware entry point is `<ShowTodayBanner>` on `MyEntriesPage` (the "My Shows" page), which appears on show day and deep-links to the correct show. The `/exhibitor/show-day` route stays registered as `LegacyShowDayRedirect` for old bookmarks/emails (`?showId=` → `/at-show/:showId`). Regression coverage added in `unifiedSidebarConfig.test.ts` (no "Show Day" title, no `/exhibitor/show-day` href, no two items share an href). Full context in TO-DOS.md § "Exhibitor 'Show Day' nav duplicates 'My Shows'".
+
+---
+
 ## Follow-ups from 2026-05-27 session
 
 Source: PR [myk9-platform#405](https://github.com/rbeezley/myk9-platform/pull/405) (unify `RunOrderPreset` across monorepo, merged 2026-05-27). Memory pointer: `[[project_myk9q_sunset_coverage]]`.

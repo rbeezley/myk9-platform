@@ -25,6 +25,7 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     'call_name',
     'confirmation_number',
     'class_number',
+    'trial_type',
   ];
 
   it.each(requiredColumns)('selects "%s"', column => {

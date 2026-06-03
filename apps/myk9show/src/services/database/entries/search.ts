@@ -11,6 +11,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
 
@@ -117,6 +118,10 @@ export const USER_ENTRIES_SELECT = `
         id,
         name,
         class_number
+      ),
+      trial:trial_id (
+        id,
+        trial_type
       )
     `;
 
@@ -266,15 +271,17 @@ export const getUserEntries = async (userId: string) => {
   try {
     return await withReplicationFallback(
       async () => {
-        const [allEntries, dogs, classes, shows] = await Promise.all([
+        const [allEntries, dogs, classes, shows, trials] = await Promise.all([
           replicatedEntriesTable.getAll(),
           replicatedDogsTable.getAllDogs(),
           replicatedClassesTable.getAll(),
           replicatedShowsTable.getAllShows(),
+          replicatedTrialsTable.getAll(),
         ]);
         const dogsMap = buildMapFromArray(dogs, d => d.id);
         const classesMap = buildMapFromArray(classes, c => c.id);
         const showsMap = buildMapFromArray(shows, s => s.id);
+        const trialsMap = buildMapFromArray(trials, t => t.id);
         const ownedDogIds = new Set(dogs.filter(dog => dog.ownerId === userId).map(dog => dog.id));
         const filtered = allEntries.filter(
           e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
@@ -296,10 +303,18 @@ export const getUserEntries = async (userId: string) => {
         }
 
         const data = filtered.map(entry => {
+          // Resolve the entry's discipline via its class → trial. Entries carry
+          // class_id (not trial_id) in the replication store, so hop through the
+          // class to read trial_type. The trial sub-object shape mirrors the
+          // PostgREST `trial:trial_id(id, trial_type)` join so transformEntry
+          // reads it identically on both paths.
+          const cls = entry.classId ? (classesMap.get(entry.classId) ?? null) : null;
+          const trial = cls?.trialId ? (trialsMap.get(cls.trialId) ?? null) : null;
           const row = mapReplicatedEntryToDbRow(entry, {
             dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
-            cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+            cls,
             show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+            trial: trial ? { id: trial.id, trial_type: trial.trialType ?? null } : null,
           });
           const enrollment = entry.registrationId ? enrollmentsMap.get(entry.registrationId) : null;
           if (enrollment) {

@@ -10,6 +10,7 @@ import type { User } from '@supabase/supabase-js';
  * @property {boolean} loading - Indicates if authentication state is being checked
  * @property {Function} signIn - Method to sign in a user with email and password
  * @property {Function} signUp - Method to register a new user
+ * @property {Function} resendConfirmationEmail - Method to resend the sign-up confirmation email
  * @property {Function} signOut - Method to sign out the current user
  * @property {Function} resetPassword - Method to send a password reset email
  * @property {Function} updatePassword - Method to update user's password
@@ -165,6 +166,25 @@ export function useAuth() {
   );
 
   /**
+   * Resends the sign-up confirmation email to an account that registered but
+   * has not yet confirmed. Routes through the same Supabase Send Email Hook as
+   * the original signUp, so the email is identical to the one sent at
+   * registration. No-op for already-confirmed accounts (Supabase returns an
+   * error, which surfaces to the caller). Subject to Supabase's email rate limit.
+   * @param {string} email - The address that registered but hasn't confirmed
+   * @throws {AuthError} If the resend fails (e.g. rate-limited or unknown email)
+   */
+  const resendConfirmationEmail = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  /**
    * Signs in a user with email and password
    * @param {string} email - User's email address
    * @param {string} password - User's password
@@ -267,6 +287,7 @@ export function useAuth() {
     user,
     loading,
     signUp,
+    resendConfirmationEmail,
     signIn,
     signInWithGoogle,
     signOut,

@@ -50,6 +50,7 @@ export function createMockSupabase() {
       .fn()
       .mockResolvedValue({ data: { user: null, session: null }, error: null }),
     signUp: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
+    resend: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
     onAuthStateChange: vi.fn().mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
     }),

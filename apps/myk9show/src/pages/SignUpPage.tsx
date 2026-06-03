@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
+import { notifications } from '@/lib/notifications';
+
+/** Seconds to disable the resend button, aligned with Supabase's email rate limit. */
+const RESEND_COOLDOWN_SECONDS = 60;
 
 const SignUp: React.FC = () => {
   const [firstName, setFirstName] = useState('');
@@ -15,12 +19,45 @@ const SignUp: React.FC = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { signUp, signInWithGoogle, loading: authLoading } = useAuthContext();
+  const { signUp, resendConfirmationEmail, signInWithGoogle, loading: authLoading } =
+    useAuthContext();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['exhibitor']);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const isLoading = loading || authLoading;
+
+  // Tick the resend cooldown down to zero. setState lives inside the interval
+  // callback with a functional updater, so it doesn't trip the repo's
+  // react-hooks/set-state-in-effect lint (mirrors UndoToast's countdown).
+  const isCoolingDown = resendCooldown > 0;
+  useEffect(() => {
+    if (!isCoolingDown) return;
+    const timer = window.setInterval(() => {
+      setResendCooldown(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isCoolingDown]);
+
+  const handleResend = async () => {
+    if (resending || resendCooldown > 0) return;
+    setResending(true);
+    try {
+      await resendConfirmationEmail(email);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      notifications.success('Confirmation email resent', {
+        description: `We sent another link to ${email}.`,
+      });
+    } catch (err: unknown) {
+      notifications.error(
+        err instanceof Error ? err.message : 'Could not resend the email. Please try again.'
+      );
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -87,9 +124,21 @@ const SignUp: React.FC = () => {
             We sent a confirmation link to <strong>{email}</strong>. Click the link in the email to
             activate your account.
           </p>
-          <p className="text-sm text-muted-foreground mb-6">
-            Didn&apos;t receive it? Check your spam folder or try signing up again.
+          <p className="text-sm text-muted-foreground mb-4">
+            Didn&apos;t receive it? Check your spam folder, or resend the email below.
           </p>
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending || resendCooldown > 0}
+            className="w-full mb-6 px-4 py-2 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring transition"
+          >
+            {resending
+              ? 'Sending…'
+              : resendCooldown > 0
+                ? `Resend email in ${resendCooldown}s`
+                : 'Resend email'}
+          </button>
           <Link to="/sign-in" className="text-primary hover:underline font-medium">
             Back to sign in
           </Link>

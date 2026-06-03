@@ -6,15 +6,16 @@ interface DogPhotoEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   previewImage: string | null;
-  currentPhoto?: string; // Make currentPhoto optional, as a new dog might not have one
+  currentPhoto?: string;
   isDragging: boolean;
   onDrop: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
   onFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onCancel: () => void;
-  onSave: (previewImage: string | null) => void;
-  dogName?: string; // To display in the title and alt text
+  onSave: (previewImage: string | null) => void | Promise<void>;
+  isSaving?: boolean;
+  dogName?: string;
 }
 
 const DogPhotoEditDialog: React.FC<DogPhotoEditDialogProps> = (props) => {

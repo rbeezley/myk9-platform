@@ -13,9 +13,11 @@ interface PhotoDialogProps {
   onDragLeave: (e: React.DragEvent) => void;
   onFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onCancel: () => void;
-  onSave: (previewImage: string | null) => void;
+  onSave: (previewImage: string | null) => void | Promise<void>;
   title: string;
   previewAlt?: string;
+  /** When true, the dialog shows a saving state and blocks close + re-submit. */
+  isSaving?: boolean;
 }
 
 const PhotoDialog: React.FC<PhotoDialogProps> = (props) => {
@@ -33,10 +35,11 @@ const PhotoDialog: React.FC<PhotoDialogProps> = (props) => {
     onSave,
     title,
     previewAlt = 'Photo Preview',
+    isSaving = false,
   } = props;
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={next => !isSaving && onOpenChange(next)}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -79,16 +82,19 @@ const PhotoDialog: React.FC<PhotoDialogProps> = (props) => {
             type="button"
             variant="outline"
             onClick={onCancel}
+            disabled={isSaving}
             className="!rounded-button whitespace-nowrap"
           >
             Cancel
           </Button>
           <Button
-            onClick={() => onSave(previewImage)}
+            onClick={() => {
+              void onSave(previewImage);
+            }}
             className="bg-gray-900 hover:bg-gray-800 !rounded-button whitespace-nowrap"
-            disabled={!previewImage}
+            disabled={!previewImage || isSaving}
           >
-            Save
+            {isSaving ? 'Saving…' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>

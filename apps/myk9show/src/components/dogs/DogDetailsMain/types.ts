@@ -54,6 +54,7 @@ export interface DogDialogsProps {
   isPhotoDialogOpen: boolean;
   photoPreview: string | null;
   isPhotoDragging: boolean;
+  isSavingPhoto: boolean;
   showCelebration: boolean;
   userRole: UserRole;
   people: User[];
@@ -67,7 +68,7 @@ export interface DogDialogsProps {
   onPhotoDragOver: (e: React.DragEvent) => void;
   onPhotoDragLeave: (e: React.DragEvent) => void;
   onPhotoFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onPhotoSave: (preview: string | null) => void;
+  onPhotoSave: () => Promise<boolean>;
   onSetUpdatedDog: React.Dispatch<React.SetStateAction<Dog>>;
   onSetShowCelebration: React.Dispatch<React.SetStateAction<boolean>>;
   onSetRecentUpdate: React.Dispatch<React.SetStateAction<string | null>>;

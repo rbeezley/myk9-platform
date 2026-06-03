@@ -138,10 +138,32 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Exhibitor-only ───────────────────────────────────────────────────────
-  it('exhibitor-only sidebar has exactly My Shows, My Dogs, Show Day, Find Shows', () => {
+  it('exhibitor-only sidebar has exactly My Shows, My Dogs, Find Shows', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'Show Day', 'Find Shows']);
+    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'Find Shows']);
+  });
+
+  // Regression: the "Show Day" item linked to the retired /exhibitor/show-day
+  // route, which (with no ?showId=) redirected to /exhibitor/entries — the same
+  // page "My Shows" opens. The canonical at-show entry point is the
+  // context-aware <ShowTodayBanner> on MyEntriesPage, not a static nav link.
+  it('exhibitor-only sidebar omits a standalone Show Day item', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
+    expect(allTitles).not.toContain('Show Day');
+  });
+
+  it('exhibitor-only sidebar never links to the retired /exhibitor/show-day route', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const allHrefs = config.groups.flatMap(g => g.items.map(i => i.href));
+    expect(allHrefs).not.toContain('/exhibitor/show-day');
+  });
+
+  it('exhibitor-only sidebar has no two items pointing at the same href', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const allHrefs = config.groups.flatMap(g => g.items.map(i => i.href));
+    expect(new Set(allHrefs).size).toBe(allHrefs.length);
   });
 
   it('exhibitor-only My Shows href is /exhibitor/entries', () => {

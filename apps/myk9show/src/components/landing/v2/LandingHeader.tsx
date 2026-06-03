@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { LAUNCH_YEAR } from './constants';
 
 interface LandingHeaderProps {
@@ -46,13 +47,12 @@ export function LandingHeader({ onJoinWaitlistClick }: LandingHeaderProps) {
           <a href="#offline">Ringside</a>
           <a href="#trust">Who we are</a>
         </nav>
+        <Link to="/sign-in" className="l-btn l-btn-ghost">
+          Sign in
+        </Link>
         <button type="button" className="l-btn l-btn-ghost" onClick={onJoinWaitlistClick}>
           Join the waitlist
         </button>
-        {/* "Pricing" + "Early access →" links intentionally removed pre-launch.
-            /pricing-page and /sign-in are still reachable by direct URL for
-            internal testing — bookmark them. Re-expose both as part of the
-            launch PR when the product goes live. */}
       </div>
     </header>
   );

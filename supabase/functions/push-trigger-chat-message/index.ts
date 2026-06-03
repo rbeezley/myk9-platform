@@ -22,11 +22,15 @@ interface WebhookPayload {
 }
 
 handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }) => {
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-  // Verify caller is the Supabase service role (called by DB trigger via pg_net)
+  // Webhook auth uses the dedicated PUSH_WEBHOOK_SECRET shared secret (seeded into
+  // Vault as `push_webhook_secret`, sent by notify_chat_message). Decoupled from
+  // SUPABASE_SERVICE_ROLE_KEY: after the project migrated to new JWT Signing Keys,
+  // the function's injected service-role token no longer matches what a DB trigger
+  // can send. Falls back to the service-role key when the dedicated secret is unset.
+  const webhookSecret =
+    Deno.env.get('PUSH_WEBHOOK_SECRET') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader || authHeader !== `Bearer ${serviceRoleKey}`) {
+  if (!webhookSecret || !authHeader || authHeader !== `Bearer ${webhookSecret}`) {
     throw new HttpError(401, 'Unauthorized');
   }
 

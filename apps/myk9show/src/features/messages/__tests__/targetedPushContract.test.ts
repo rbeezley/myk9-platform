@@ -15,6 +15,10 @@ const chatPushHandlerPath = resolve(
   repoRoot,
   'supabase/functions/push-trigger-chat-message/index.ts'
 );
+const chatVaultMigrationPath = resolve(
+  repoRoot,
+  'supabase/migrations/20260603085719_notify_chat_message_vault_webhook_secret.sql'
+);
 
 describe('targeted message push contract', () => {
   it('adds an explicit push_alert flag to show messages', () => {
@@ -63,5 +67,42 @@ describe('targeted message push contract', () => {
     expect(source).toContain(".select('id, user_id, endpoint, p256dh, auth')");
     expect(source).toContain('keys: { p256dh: sub.p256dh, auth: sub.auth }');
     expect(source).not.toContain(".select('id, user_id, endpoint, keys')");
+  });
+});
+
+describe('chat push Vault + webhook-secret parity', () => {
+  it('chat function authenticates against the dedicated PUSH_WEBHOOK_SECRET', () => {
+    const source = readFileSync(chatPushHandlerPath, 'utf8');
+
+    expect(source).toContain("Deno.env.get('PUSH_WEBHOOK_SECRET')");
+    expect(source).toContain('Bearer ${webhookSecret}');
+    expect(source).not.toContain('Bearer ${serviceRoleKey}');
+  });
+
+  it('notify_chat_message reads Vault config + webhook secret, not GUCs or the service key', () => {
+    const sql = readFileSync(chatVaultMigrationPath, 'utf8');
+
+    expect(sql).toContain('vault.decrypted_secrets');
+    expect(sql).toContain("where name = 'edge_function_base_url'");
+    expect(sql).toContain("where name = 'push_webhook_secret'");
+    expect(sql).toContain("'Bearer ' || webhook_secret");
+    expect(sql).not.toContain('current_setting');
+    expect(sql).not.toContain("where name = 'service_role_key'");
+    // Guard-skip, not raise — a missing secret must not abort the message INSERT.
+    expect(sql).toMatch(/raise notice[\s\S]*return new;/i);
+    expect(sql).not.toContain('raise exception');
+  });
+
+  it('scopes the chat trigger to individual messages to avoid double-pushing broadcasts', () => {
+    const sql = readFileSync(chatVaultMigrationPath, 'utf8');
+
+    // Broadcasts (send-targeted-message) set group_label and already push directly.
+    expect(sql).toContain('when (new.group_label is null)');
+  });
+
+  it('pins search_path on the SECURITY DEFINER function (advisor hardening)', () => {
+    const sql = readFileSync(chatVaultMigrationPath, 'utf8');
+
+    expect(sql).toContain("set search_path = ''");
   });
 });

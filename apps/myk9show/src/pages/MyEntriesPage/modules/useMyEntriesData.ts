@@ -19,6 +19,7 @@ import {
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
 import { parseShowDate } from './myEntriesStats.helpers';
+import { normalizeCheckInStatus } from './myEntriesUtils';
 import type { MyEntry, EntryClass } from './my-entries-types';
 
 interface UseMyEntriesDataReturn {
@@ -79,7 +80,9 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
             jumpHeight: (entry.jump_height as string) || undefined,
             runOrder: (entry.run_order as number) || undefined,
             status: mapClassEntryStatus(entry.entry_status as string),
-            checkInStatus: undefined,
+            // Read the persisted check-in status instead of hardcoding undefined,
+            // or the card always shows "Not Checked In" even after a check-in.
+            checkInStatus: normalizeCheckInStatus(entry.check_in_status),
             isScored: (entry.is_scored as boolean) || false,
             resultStatus: (entry.result_status as EntryClass['resultStatus']) ?? undefined,
             searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,

@@ -26,6 +26,7 @@
 - Keep `apps/myk9show/src/components/notifications/NotificationCenter.tsx` as a compatibility wrapper that exports `MessageCenterPanel` as `NotificationCenter`, so `App.tsx` can be changed in a small follow-up or remain stable during the transition.
 - Modify `apps/myk9show/src/components/notifications/NotificationBell.tsx` so the bell opens the center directly and the badge includes messages.
 - Modify `apps/myk9show/src/hooks/useMessageSubscription.ts` to subscribe to all role-relevant message shows: active-today exhibitor shows, all entered exhibitor shows discoverable from local entry/dog stores, selected show, and staff-managed shows.
+- [ADDED] In `MessageCenterPanel`, make the global "Mark all read" action clear notifications, announcements, and message thread unread state. `messageStore` exposes `markThreadRead(threadId)`, not `markAllRead`, so the panel must iterate unread threads instead of assuming a store-level bulk method exists.
 - Add or update tests:
   - `apps/myk9show/src/components/notifications/__tests__/NotificationBell.test.tsx`
   - `apps/myk9show/src/components/notifications/__tests__/MessageCenterPanel.test.tsx`
@@ -509,6 +510,41 @@ describe('MessageCenterPanel', () => {
 
     expect(subscribe).toHaveBeenCalledWith(['show-1']);
   });
+
+  it('marks unread message threads read when using the global mark-all action', async () => {
+    const markThreadRead = vi.fn();
+    const { useMessageStore } = await import('@/store/messageStore');
+    (useMessageStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      threads: [
+        {
+          id: 'thread-1',
+          show_id: 'show-1',
+          participant_id: 'user-1',
+          show_name: 'Spring Trial',
+          last_message_at: '2026-06-04T12:00:00Z',
+          created_at: '2026-06-04T12:00:00Z',
+          unread_count: 2,
+        },
+        {
+          id: 'thread-2',
+          show_id: 'show-2',
+          participant_id: 'user-1',
+          show_name: 'Summer Trial',
+          last_message_at: '2026-06-04T12:00:00Z',
+          created_at: '2026-06-04T12:00:00Z',
+          unread_count: 0,
+        },
+      ],
+      unreadCount: 2,
+      markThreadRead,
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /mark all read/i }));
+
+    expect(markThreadRead).toHaveBeenCalledWith('thread-1');
+    expect(markThreadRead).not.toHaveBeenCalledWith('thread-2');
+  });
 });
 ```
 
@@ -573,6 +609,7 @@ export function MessageCenterPanel() {
   const messagesError = useMessageStore(s => s.error);
   const messageShowIds = useMessageStore(s => s.currentShowIds);
   const retryMessageSubscribe = useMessageStore(s => s.subscribe);
+  const markThreadRead = useMessageStore(s => s.markThreadRead);
 
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const author = getAnnouncementAuthor(user, userWithRoles);
@@ -587,7 +624,21 @@ export function MessageCenterPanel() {
 Use the same notification item logic from `NotificationCenter.tsx`, then add a messages list:
 
 ```tsx
+  function handleMarkAllRead() {
+    markAllRead();
+    if (author.id) void annMarkAllRead(author.id);
+    for (const thread of threads) {
+      if ((thread.unread_count ?? 0) > 0) {
+        markThreadRead(thread.id);
+      }
+    }
+  }
+
   function handleThreadClick(showId: string) {
+    const thread = threads.find(candidate => candidate.show_id === showId);
+    if (thread && (thread.unread_count ?? 0) > 0) {
+      markThreadRead(thread.id);
+    }
     closeCenter();
     navigate(isStaffDestination ? `/secretary/messages?showId=${showId}` : `/messages/${showId}`);
   }
@@ -1193,7 +1244,19 @@ pnpm typecheck
 
 Expected: PASS. If it hangs for more than 60 seconds without useful output, stop and report the hang per project instructions.
 
-- [ ] **Step 3: Update tracking docs**
+- [ ] **Step 3: Run a browser smoke check**
+
+[ADDED] Start the myK9Show dev server if needed:
+
+```bash
+pnpm dev:show
+```
+
+Then use the in-app browser to verify the header bell opens a left-side Message Center slide-out and the tab order is Notifications, Announcements, Messages. Capture or inspect the viewport at desktop and mobile widths if the browser tooling supports it.
+
+Expected: The panel opens from the left, content is readable, tabs do not overflow incoherently, and closing/navigating does not leave the center stuck open.
+
+- [ ] **Step 4: Update tracking docs**
 
 In `OPEN-TODOS.md`, replace the unchecked Message Center todo with:
 
@@ -1207,14 +1270,14 @@ In `TO-DOS.md`, append a `RESOLVED` note under `Bell should be the global Messag
 **Resolved:** The top-bar bell now opens a left-side Message Center slide-out for every role. The center is ordered Notifications, Announcements, Messages; unread badge counts all three sources; message rows route to `/messages/:showId` for exhibitors and `/secretary/messages?showId=:showId` for staff.
 ```
 
-- [ ] **Step 4: Commit tracking updates**
+- [ ] **Step 5: Commit tracking updates**
 
 ```bash
 git add OPEN-TODOS.md TO-DOS.md
 git commit -m "docs: mark message center todo resolved"
 ```
 
-- [ ] **Step 5: Final status**
+- [ ] **Step 6: Final status**
 
 Run:
 

@@ -10,6 +10,7 @@ export interface SlideOverPanelProps {
   subtitle?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  side?: 'left' | 'right';
   showBackButton?: boolean;
   onBack?: () => void;
   loading?: boolean;
@@ -55,6 +56,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   subtitle,
   children,
   size = 'lg',
+  side = 'right',
   showBackButton = false,
   onBack,
   loading = false,
@@ -161,6 +163,8 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     return null;
   }
 
+  const isLeft = side === 'left';
+
   const panelContent = (
     <div
       className={cn(
@@ -176,26 +180,29 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
       aria-modal="true"
       aria-labelledby="panel-title"
     >
-      {/* Desktop: Slide from right */}
+      {/* Desktop: Slide from selected side */}
       <div
         className={cn(
           // Solid panel - consistent with our design system
-          'fixed inset-y-0 right-0 flex flex-col slide-over-panel',
+          'fixed inset-y-0 flex flex-col slide-over-panel',
+          isLeft ? 'left-0' : 'right-0',
           // Solid background matching our card system
           appleDesign.panelBackground,
           // Premium border and shadow
-          appleDesign.border,
+          isLeft ? 'border-r border-border' : appleDesign.border,
           appleDesign.shadow,
           // Corner radius for visual polish
-          'rounded-l-xl',
+          isLeft ? 'rounded-r-xl' : 'rounded-l-xl',
           // Size classes
           sizeClasses[size],
           // Mobile: Full screen on small devices
-          'sm:max-w-none sm:w-full sm:rounded-none md:max-w-lg md:rounded-l-xl lg:max-w-2xl xl:max-w-4xl',
+          isLeft
+            ? 'sm:max-w-none sm:w-full sm:rounded-none md:max-w-lg md:rounded-r-xl lg:max-w-2xl xl:max-w-4xl'
+            : 'sm:max-w-none sm:w-full sm:rounded-none md:max-w-lg md:rounded-l-xl lg:max-w-2xl xl:max-w-4xl',
           // Animation - remove transform when open to prevent stacking context issues
           // (transforms create new containing blocks that break Select dropdown positioning)
           `transition-all ${appleDesign.animation.duration} ${appleDesign.animation.easing}`,
-          open ? '' : 'translate-x-full',
+          open ? '' : isLeft ? '-translate-x-full' : 'translate-x-full',
           className
         )}
         ref={panelRef}

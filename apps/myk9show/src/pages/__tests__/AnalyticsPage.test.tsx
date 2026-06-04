@@ -213,6 +213,16 @@ describe('AnalyticsPage', () => {
       expect(screen.getAllByText('Rex').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('Luna').length).toBeGreaterThanOrEqual(1);
     });
+
+    it('falls back to all-dogs when ?dog= contains a stale/unknown id', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
+
+      render(<AnalyticsPage />, { initialRoute: '/exhibitor/analytics?dog=deleted-dog-id' });
+
+      // Both dogs should be visible — stale id coerced to 'all', not blank body
+      expect(screen.getAllByText('Rex').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Luna').length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   describe('premium gating', () => {

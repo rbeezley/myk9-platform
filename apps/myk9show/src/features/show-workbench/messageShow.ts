@@ -12,7 +12,6 @@ export interface MessageShowTemplate {
   label: string;
   title: string;
   body: (className?: string) => string;
-  preferredRecipient: MessageShowRecipientType;
 }
 
 export interface MessageShowClassOption {
@@ -26,7 +25,6 @@ export const MESSAGE_SHOW_TEMPLATES = [
     id: 'lunch-ready',
     label: 'Lunch ready',
     title: 'Lunch is ready',
-    preferredRecipient: 'all_show',
     body: () =>
       'Lunch is ready for judges, stewards, and volunteers. Please check in at hospitality.',
   },
@@ -34,7 +32,6 @@ export const MESSAGE_SHOW_TEMPLATES = [
     id: 'ring-paused',
     label: 'Ring paused',
     title: 'Ring paused',
-    preferredRecipient: 'all_show',
     body: () =>
       'The ring is paused. Please stay nearby and listen for the next update from the show desk.',
   },
@@ -42,14 +39,12 @@ export const MESSAGE_SHOW_TEMPLATES = [
     id: 'results-posted',
     label: 'Results posted',
     title: 'Results posted',
-    preferredRecipient: 'all_show',
     body: () => 'Results have been posted. Please contact the secretary desk with questions.',
   },
   {
     id: 'report-to-gate',
     label: 'Report to gate',
     title: 'Report to gate',
-    preferredRecipient: 'class',
     body: className =>
       `Please report to the gate for ${className?.trim() || 'your class'}. We are getting ready for your class.`,
   },
@@ -57,7 +52,6 @@ export const MESSAGE_SHOW_TEMPLATES = [
     id: 'class-delayed',
     label: 'Class delayed',
     title: 'Class delayed',
-    preferredRecipient: 'class',
     body: className =>
       `${className?.trim() || 'Your class'} is running later than posted. Please stay nearby and listen for updates.`,
   },

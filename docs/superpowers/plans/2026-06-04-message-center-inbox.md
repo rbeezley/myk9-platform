@@ -10,6 +10,14 @@
 
 ---
 
+## Validation Profile
+
+- Risk: medium
+- Validation: app
+- Rationale: This is a small myK9Show TypeScript/UI-state change that affects a global header workflow for all roles, so focused unit tests plus app typecheck are required before PR.
+
+---
+
 ## File Structure
 
 - Modify `apps/myk9show/src/components/panels/SlideOverPanel.tsx` to support `side="left" | "right"` with right as the default.
@@ -17,7 +25,7 @@
 - Add `apps/myk9show/src/components/notifications/MessageCenterPanel.tsx` as the new bell-driven panel.
 - Keep `apps/myk9show/src/components/notifications/NotificationCenter.tsx` as a compatibility wrapper that exports `MessageCenterPanel` as `NotificationCenter`, so `App.tsx` can be changed in a small follow-up or remain stable during the transition.
 - Modify `apps/myk9show/src/components/notifications/NotificationBell.tsx` so the bell opens the center directly and the badge includes messages.
-- Modify `apps/myk9show/src/hooks/useMessageSubscription.ts` to subscribe to all role-relevant message shows, not only active-today exhibitor shows.
+- Modify `apps/myk9show/src/hooks/useMessageSubscription.ts` to subscribe to all role-relevant message shows: active-today exhibitor shows, all entered exhibitor shows discoverable from local entry/dog stores, selected show, and staff-managed shows.
 - Add or update tests:
   - `apps/myk9show/src/components/notifications/__tests__/NotificationBell.test.tsx`
   - `apps/myk9show/src/components/notifications/__tests__/MessageCenterPanel.test.tsx`
@@ -319,18 +327,22 @@ vi.mock('@/store/messageStore', async () => {
     unreadCount: 0,
     isLoading: false,
     error: null,
+    currentShowIds: [],
+    subscribe: vi.fn(),
   }));
   return { useMessageStore };
 });
 
+let authContext: Record<string, unknown> = {
+  user: { id: 'user-1', email: 'test@test.com' },
+  userWithRoles: { id: 'user-1', roles: ['exhibitor'], scopes: [], user_metadata: {} },
+  isSecretary: false,
+  isAdmin: false,
+  hasRole: () => false,
+};
+
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({
-    user: { id: 'user-1', email: 'test@test.com' },
-    userWithRoles: { id: 'user-1', roles: ['exhibitor'], scopes: [], user_metadata: {} },
-    isSecretary: false,
-    isAdmin: false,
-    hasRole: () => false,
-  }),
+  useAuthContext: () => authContext,
 }));
 
 vi.mock('@/components/announcements/AnnouncementItem', () => ({
@@ -365,6 +377,13 @@ function renderPanel() {
 
 beforeEach(async () => {
   navigateMock.mockReset();
+  authContext = {
+    user: { id: 'user-1', email: 'test@test.com' },
+    userWithRoles: { id: 'user-1', roles: ['exhibitor'], scopes: [], user_metadata: {} },
+    isSecretary: false,
+    isAdmin: false,
+    hasRole: () => false,
+  };
   useNotificationStore.setState({
     preferences: { ...DEFAULT_PREFERENCES },
     isInRing: false,
@@ -385,6 +404,8 @@ beforeEach(async () => {
     unreadCount: 0,
     isLoading: false,
     error: null,
+    currentShowIds: [],
+    subscribe: vi.fn(),
   });
 });
 
@@ -432,6 +453,61 @@ describe('MessageCenterPanel', () => {
 
     expect(navigateMock).toHaveBeenCalledWith('/messages/show-1');
     expect(useNotificationStore.getState().isCenterOpen).toBe(false);
+  });
+
+  it('routes staff users to /secretary/messages?showId=:showId', async () => {
+    authContext = {
+      user: { id: 'user-1', email: 'test@test.com' },
+      userWithRoles: { id: 'user-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    const { useMessageStore } = await import('@/store/messageStore');
+    (useMessageStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      threads: [
+        {
+          id: 'thread-1',
+          show_id: 'show-1',
+          participant_id: 'user-1',
+          show_name: 'Spring Trial',
+          last_message_at: '2026-06-04T12:00:00Z',
+          created_at: '2026-06-04T12:00:00Z',
+        },
+      ],
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('button', { name: /Spring Trial/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/secretary/messages?showId=show-1');
+  });
+
+  it('renders independent empty states for every tab', () => {
+    renderPanel();
+
+    expect(screen.getByText('No notifications yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Announcements' }));
+    expect(screen.getByText('No announcements yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    expect(screen.getByText('No messages yet')).toBeInTheDocument();
+  });
+
+  it('shows a retry action when message loading fails', async () => {
+    const subscribe = vi.fn();
+    const { useMessageStore } = await import('@/store/messageStore');
+    (useMessageStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      error: 'Failed to load messages',
+      currentShowIds: ['show-1'],
+      subscribe,
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+
+    expect(subscribe).toHaveBeenCalledWith(['show-1']);
   });
 });
 ```
@@ -495,6 +571,8 @@ export function MessageCenterPanel() {
   const messageUnread = useMessageStore(s => s.unreadCount);
   const messagesLoading = useMessageStore(s => s.isLoading);
   const messagesError = useMessageStore(s => s.error);
+  const messageShowIds = useMessageStore(s => s.currentShowIds);
+  const retryMessageSubscribe = useMessageStore(s => s.subscribe);
 
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const author = getAnnouncementAuthor(user, userWithRoles);
@@ -513,45 +591,149 @@ Use the same notification item logic from `NotificationCenter.tsx`, then add a m
     closeCenter();
     navigate(isStaffDestination ? `/secretary/messages?showId=${showId}` : `/messages/${showId}`);
   }
+
+  function handleRetryMessages() {
+    void retryMessageSubscribe(messageShowIds);
+  }
+
+  function EmptyPanelState({
+    icon: Icon,
+    title,
+    body,
+  }: {
+    icon: typeof Inbox;
+    title: string;
+    body: string;
+  }) {
+    return (
+      <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <Icon className="mb-3 h-8 w-8 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground">{title}</p>
+        <p className="mt-1 text-xs text-muted-foreground/60">{body}</p>
+      </div>
+    );
+  }
+
+  function renderNotificationsTab() {
+    const filteredAlerts = unreadOnly ? recentAlerts.filter(alert => !alert.read) : recentAlerts;
+    if (filteredAlerts.length === 0) {
+      return (
+        <EmptyPanelState
+          icon={Inbox}
+          title="No notifications yet"
+          body={unreadOnly ? 'No unread notifications' : "You're all caught up"}
+        />
+      );
+    }
+    return (
+      <div className="flex-1 overflow-y-auto">
+        {filteredAlerts.map(entry => (
+          <NotificationItem
+            key={entry.payload.id}
+            entry={entry}
+            onView={id => {
+              markRead(id);
+              closeCenter();
+            }}
+            onDismiss={dismissAlert}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  function renderAnnouncementsTab() {
+    const filteredAnnouncements = unreadOnly
+      ? announcements.filter(announcement => !announcement.is_read)
+      : announcements;
+    if (filteredAnnouncements.length === 0) {
+      return (
+        <EmptyPanelState
+          icon={Megaphone}
+          title="No announcements yet"
+          body={unreadOnly ? 'No unread announcements' : "You're all caught up"}
+        />
+      );
+    }
+    return (
+      <div className="flex-1 overflow-y-auto">
+        {author.isOfficial && (
+          <div className="border-b border-border/50 p-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setIsCreateOpen(true)}
+              disabled={currentShowIds.length === 0}
+            >
+              <Plus className="mr-1.5 h-3 w-3" />
+              New Announcement
+            </Button>
+          </div>
+        )}
+        {filteredAnnouncements.map(announcement => (
+          <AnnouncementItem
+            key={announcement.id}
+            announcement={announcement}
+            onMarkRead={id => {
+              if (author.id) void annMarkRead(id, author.id);
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  function renderMessagesTab() {
+    const visibleThreads = unreadOnly
+      ? threads.filter(thread => (thread.unread_count ?? 0) > 0)
+      : threads;
+    return (
+      <div className="flex-1 overflow-y-auto">
+        {messagesLoading ? (
+          <div className="p-6 text-sm text-muted-foreground">Loading messages...</div>
+        ) : messagesError ? (
+          <div className="space-y-3 p-6">
+            <p className="text-sm text-destructive">Couldn&apos;t load messages.</p>
+            <Button variant="outline" size="sm" onClick={handleRetryMessages}>
+              Try again
+            </Button>
+          </div>
+        ) : visibleThreads.length === 0 ? (
+          <EmptyPanelState
+            icon={MessageSquare}
+            title="No messages yet"
+            body={unreadOnly ? 'No unread messages' : 'Conversations with show organizers will appear here.'}
+          />
+        ) : (
+          visibleThreads.map(thread => (
+            <button
+              key={thread.id}
+              type="button"
+              onClick={() => handleThreadClick(thread.show_id)}
+              className="flex w-full items-start gap-3 border-b border-border/50 px-4 py-3 text-left hover:bg-muted/40"
+            >
+              <MessageSquare className="mt-0.5 h-4 w-4 text-muted-foreground" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">{thread.show_name ?? 'Show message'}</span>
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                  {thread.last_message_preview ?? thread.participant_name ?? 'Open conversation'}
+                </span>
+              </span>
+              {(thread.unread_count ?? 0) > 0 && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  {thread.unread_count}
+                </span>
+              )}
+            </button>
+          ))
+        )}
+      </div>
+    );
+  }
 ```
 
-For message rows:
-
-```tsx
-{activeTab === 'messages' && (
-  <div className="flex-1 overflow-y-auto">
-    {messagesLoading ? (
-      <div className="p-6 text-sm text-muted-foreground">Loading messages...</div>
-    ) : messagesError ? (
-      <div className="p-6 text-sm text-destructive">Couldn&apos;t load messages.</div>
-    ) : threads.length === 0 ? (
-      <EmptyPanelState icon={MessageSquare} title="No messages yet" body="Conversations with show organizers will appear here." />
-    ) : (
-      threads.map(thread => (
-        <button
-          key={thread.id}
-          type="button"
-          onClick={() => handleThreadClick(thread.show_id)}
-          className="flex w-full items-start gap-3 border-b border-border/50 px-4 py-3 text-left hover:bg-muted/40"
-        >
-          <MessageSquare className="mt-0.5 h-4 w-4 text-muted-foreground" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">{thread.show_name ?? 'Show message'}</span>
-            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-              {thread.last_message_preview ?? thread.participant_name ?? 'Open conversation'}
-            </span>
-          </span>
-          {(thread.unread_count ?? 0) > 0 && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              {thread.unread_count}
-            </span>
-          )}
-        </button>
-      ))
-    )}
-  </div>
-)}
-```
+The `renderMessagesTab()` helper above owns loading, retry, empty, unread-only, and row rendering for the Messages tab.
 
 Wrap the panel:
 
@@ -575,7 +757,43 @@ Wrap the panel:
         ) : undefined
       }
     >
-      {/* tablist and selected tab body */}
+      <div className="flex border-b border-border/50 px-4" role="tablist">
+        {[
+          { key: 'notifications' as const, label: 'Notifications', icon: Bell },
+          { key: 'announcements' as const, label: 'Announcements', icon: Megaphone },
+          { key: 'messages' as const, label: 'Messages', icon: MessageSquare },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium ${
+              activeTab === tab.key
+                ? 'border-b-2 border-orange-500 text-orange-500'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <tab.icon className="h-3 w-3" />
+            {tab.label}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={unreadOnly}
+            onChange={event => setUnreadOnly(event.target.checked)}
+            aria-label="Unread only"
+            className="h-3 w-3 rounded border-border"
+          />
+          Unread only
+        </label>
+      </div>
+      {activeTab === 'notifications' && renderNotificationsTab()}
+      {activeTab === 'announcements' && renderAnnouncementsTab()}
+      {activeTab === 'messages' && renderMessagesTab()}
     </SlideOverPanel>
   );
 }
@@ -643,7 +861,7 @@ vi.mock('@/store/messageStore', () => ({
     }),
 }));
 
-let authState = {
+let authState: Record<string, unknown> = {
   user: { id: 'auth-user-1' },
   userWithRoles: { id: 'person-1', roles: ['exhibitor'], scopes: [] },
   isSecretary: false,
@@ -667,6 +885,17 @@ vi.mock('@/store/showStore', () => ({
     selector({ selectedShowId, shows }),
 }));
 
+let storeEntries: Array<{ id: string; showId: string; dogId: string }> = [];
+vi.mock('@/store/entryStore', () => ({
+  useEntryStore: (selector: (s: unknown) => unknown) =>
+    selector({ entries: storeEntries }),
+}));
+
+let dogs: Array<{ id: string; ownerId: string }> = [];
+vi.mock('@/hooks/useDogStoreCompat', () => ({
+  useDogStoreCompat: () => ({ dogs }),
+}));
+
 beforeEach(() => {
   subscribeMock.mockReset();
   unsubscribeMock.mockReset();
@@ -681,6 +910,8 @@ beforeEach(() => {
   activeShows = [{ showId: 'today-show' }];
   selectedShowId = null;
   shows = [];
+  storeEntries = [];
+  dogs = [];
 });
 
 describe('useMessageSubscription', () => {
@@ -702,6 +933,31 @@ describe('useMessageSubscription', () => {
     renderHook(() => useMessageSubscription());
     expect(subscribeMock).toHaveBeenCalledWith(['managed-1', 'managed-2']);
   });
+
+  it('subscribes exhibitors to entered shows beyond active show-day shows', () => {
+    activeShows = [];
+    authState = {
+      user: { id: 'auth-user-1' },
+      userWithRoles: {
+        id: 'person-1',
+        databaseUserId: 'person-1',
+        roles: ['exhibitor'],
+        scopes: [],
+      },
+      isSecretary: false,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    dogs = [{ id: 'dog-1', ownerId: 'person-1' }];
+    storeEntries = [
+      { id: 'entry-1', showId: 'upcoming-show', dogId: 'dog-1' },
+      { id: 'entry-2', showId: 'other-owner-show', dogId: 'dog-2' },
+    ];
+
+    renderHook(() => useMessageSubscription());
+    expect(subscribeMock).toHaveBeenCalledWith(['upcoming-show']);
+  });
+
 
   it('unions active, selected, and managed shows without duplicates', () => {
     authState = {
@@ -748,6 +1004,22 @@ const shows = useShowStore(s => s.shows);
 Replace the show ID union with:
 
 ```tsx
+const databaseUserId = userWithRoles?.databaseUserId;
+const storeEntries = useEntryStore(s => s.entries);
+const { dogs } = useDogStoreCompat();
+
+const exhibitorEnteredShowIds = useMemo(() => {
+  if (!databaseUserId) return [];
+  const ownedDogIds = new Set(dogs.filter(dog => dog.ownerId === databaseUserId).map(dog => dog.id));
+  const showIds = new Set<string>();
+  for (const entry of storeEntries) {
+    if (ownedDogIds.has(entry.dogId) && entry.showId) {
+      showIds.add(entry.showId);
+    }
+  }
+  return [...showIds];
+}, [databaseUserId, dogs, storeEntries]);
+
 const managedShowIds = useMemo(() => {
   if (!(isSecretary || isAdmin || hasRole('club_admin'))) return [];
   return shows.map(show => show.id).filter(Boolean);
@@ -756,10 +1028,18 @@ const managedShowIds = useMemo(() => {
 const showIds = useMemo(() => {
   const ids = new Set<string>();
   for (const showId of exhibitorShowIds) ids.add(showId);
+  for (const showId of exhibitorEnteredShowIds) ids.add(showId);
   if (selectedShowId) ids.add(selectedShowId);
   for (const showId of managedShowIds) ids.add(showId);
   return [...ids];
-}, [exhibitorShowIds, selectedShowId, managedShowIds]);
+}, [exhibitorShowIds, exhibitorEnteredShowIds, selectedShowId, managedShowIds]);
+```
+
+Add the required imports:
+
+```tsx
+import { useEntryStore } from '@/store/entryStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 ```
 
 - [ ] **Step 4: Run the subscription test**

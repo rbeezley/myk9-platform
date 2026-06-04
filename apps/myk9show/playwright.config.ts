@@ -5,6 +5,11 @@ import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:5173';
+const parsedBaseURL = new URL(baseURL);
+const webServerPort = Number(process.env.PLAYWRIGHT_PORT || parsedBaseURL.port || '5173');
+const webServerHmrPort = Number(process.env.PLAYWRIGHT_HMR_PORT || webServerPort + 20000);
+
 export default defineConfig({
   testDir: './src/test/e2e',
   fullyParallel: true,
@@ -28,7 +33,7 @@ export default defineConfig({
     // Use 127.0.0.1 explicitly so we don't accidentally hit a different
     // worktree's vite that's bound to IPv6 ::1:5173 (macOS resolves
     // "localhost" to IPv6 first).
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:5173',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     // Video recording for debugging failed tests
@@ -66,8 +71,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm run dev',
-    port: 5173,
+    command: `VITE_HMR_PORT=${webServerHmrPort} pnpm run dev --host 127.0.0.1 --port ${webServerPort} --strictPort`,
+    port: webServerPort,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

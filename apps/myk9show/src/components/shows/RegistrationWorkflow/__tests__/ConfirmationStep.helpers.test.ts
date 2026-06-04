@@ -11,6 +11,7 @@ import {
   generateReceiptHtml,
   getConfirmationHeroCopy,
   getPaymentMethodDisplay,
+  isRegistrationRecorded,
   type ReceiptData,
 } from '../ConfirmationStep.helpers';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -86,6 +87,21 @@ describe('getConfirmationHeroCopy', () => {
       title: 'Registration Confirmed',
       description: 'Your registration has been submitted and payment has been recorded.',
     });
+  });
+
+  it('keeps deferred accepted entries in final-review language until payment is recorded', () => {
+    expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PENDING)).toEqual({
+      title: 'Registration Ready to Submit',
+      description: 'Review this summary, then choose Complete Registration to submit your entry.',
+    });
+  });
+});
+
+describe('isRegistrationRecorded', () => {
+  it('requires both an accepted entry and a paid status', () => {
+    expect(isRegistrationRecorded(EntryStatus.ACCEPTED, PaymentStatus.PAID_BY_CHECK)).toBe(true);
+    expect(isRegistrationRecorded(EntryStatus.ACCEPTED, PaymentStatus.PENDING)).toBe(false);
+    expect(isRegistrationRecorded(EntryStatus.PENDING, PaymentStatus.PAID_BY_CHECK)).toBe(false);
   });
 });
 

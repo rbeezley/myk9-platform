@@ -25,11 +25,18 @@ export interface ConfirmationHeroCopy {
   description: string;
 }
 
+export function isRegistrationRecorded(
+  entryStatus: EntryStatus,
+  paymentStatus: PaymentStatus
+): boolean {
+  return entryStatus === EntryStatus.ACCEPTED && isPaidStatus(paymentStatus);
+}
+
 export function getConfirmationHeroCopy(
   entryStatus: EntryStatus,
   paymentStatus: PaymentStatus
 ): ConfirmationHeroCopy {
-  if (entryStatus === EntryStatus.ACCEPTED && isPaidStatus(paymentStatus)) {
+  if (isRegistrationRecorded(entryStatus, paymentStatus)) {
     return {
       title: 'Registration Confirmed',
       description: 'Your registration has been submitted and payment has been recorded.',

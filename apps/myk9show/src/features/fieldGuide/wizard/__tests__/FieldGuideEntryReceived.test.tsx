@@ -44,7 +44,7 @@ describe('FieldGuideEntryReceived', () => {
     const { container } = render(
       <FieldGuideEntryReceived {...BASE_PROPS} registrationNumber={null} />
     );
-    expect(container.textContent).not.toContain('ENTRY 2026');
+    expect(container.textContent).not.toContain('ENTRY');
   });
 
   it('renders the ready-to-submit orange chip in the header', () => {

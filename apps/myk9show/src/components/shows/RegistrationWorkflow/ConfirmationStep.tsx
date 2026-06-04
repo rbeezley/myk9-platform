@@ -33,6 +33,7 @@ import {
   getStatusBadgeVariant,
   isPaidStatus,
   getConfirmationHeroCopy,
+  isRegistrationRecorded,
   generateReceiptText,
   generateReceiptHtml,
   downloadBlob,
@@ -227,12 +228,17 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     0
   );
   const heroCopy = getConfirmationHeroCopy(entryStatus, paymentStatus);
+  const isRecorded = isRegistrationRecorded(entryStatus, paymentStatus);
+  const HeroIcon = isRecorded ? CheckCircle : Clock4;
+  const heroIconClassName = isRecorded
+    ? 'h-16 w-16 text-green-600 dark:text-green-400 mx-auto mb-4'
+    : 'h-16 w-16 text-muted-foreground mx-auto mb-4';
 
   return (
     <div className="space-y-6">
       {/* Success Message */}
       <div className="text-center py-6">
-        <CheckCircle className="h-16 w-16 text-green-600 dark:text-green-400 mx-auto mb-4" />
+        <HeroIcon className={heroIconClassName} />
         <h2 className="text-2xl font-bold mb-2">{heroCopy.title}</h2>
         <p className="text-muted-foreground">{heroCopy.description}</p>
         <Badge variant="default" className="mt-3 text-lg py-1 px-4">

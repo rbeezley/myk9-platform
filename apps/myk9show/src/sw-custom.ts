@@ -22,9 +22,9 @@ self.addEventListener('push', (event: PushEvent) => {
     const title = payload.title || 'myK9Show';
     const options: NotificationOptions = {
       body: payload.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-badge.png',
-      tag: payload.type || 'default',
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      tag: payload.data?.announcementId || payload.data?.messageId || payload.type || 'default',
       data: payload,
     };
 

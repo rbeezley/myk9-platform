@@ -171,7 +171,7 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
     title: announcement.title,
     body: truncate(announcement.content, 200),
     priority: announcement.priority,
-    actionUrl: `/shows/${announcement.show_id}`,
+    actionUrl: `/at-show/${announcement.show_id}`,
     timestamp: Date.now(),
     data: {
       announcementId: announcement.id,

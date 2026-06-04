@@ -324,23 +324,28 @@ export function MessageCenterPanel() {
 
   if (!isCenterOpen) return null;
 
+  const unreadHeaderProps =
+    totalUnread > 0
+      ? {
+          subtitle: `${totalUnread} unread`,
+          headerActions: (
+            <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
+              <CheckCheck className="mr-1.5 h-4 w-4" />
+              Mark all read
+            </Button>
+          ),
+        }
+      : {};
+
   return (
     <>
       <SlideOverPanel
         open={isCenterOpen}
         onClose={closeCenter}
         title="Message Center"
-        subtitle={totalUnread > 0 ? `${totalUnread} unread` : undefined}
         side="left"
         size="sm"
-        headerActions={
-          totalUnread > 0 ? (
-            <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
-              <CheckCheck className="mr-1.5 h-4 w-4" />
-              Mark all read
-            </Button>
-          ) : undefined
-        }
+        {...unreadHeaderProps}
       >
         <div className="flex border-b border-border/50 px-4" role="tablist">
           {[

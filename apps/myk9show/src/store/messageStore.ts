@@ -167,25 +167,63 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
         }
       }
 
+      const threadIds = rows.map(row => row.id);
+      let messagesByThread = new Map<string, Message[]>();
+      if (threadIds.length > 0) {
+        const { data: messageData, error: messageError } = (await db('show_messages')
+          .select('id, show_id, thread_id, sender_id, body, group_label, read_at, created_at')
+          .in('thread_id', threadIds)
+          .order('created_at', { ascending: true })) as {
+          data: DbMessage[] | null;
+          error: Error | null;
+        };
+
+        if (messageError) throw messageError;
+
+        messagesByThread = (messageData ?? []).reduce((map, row) => {
+          const existing = map.get(row.thread_id) ?? [];
+          existing.push(row as Message);
+          map.set(row.thread_id, existing);
+          return map;
+        }, new Map<string, Message[]>());
+      }
+
+      const currentUserId = get().currentUserId;
+      let unreadCount = 0;
       const threads: MessageThread[] = rows.map(row => {
         const name = peopleMap.get(row.participant_id);
+        const messages = messagesByThread.get(row.id) ?? [];
+        const threadUnread = messages.filter(
+          message => message.read_at === null && message.sender_id !== currentUserId
+        ).length;
+        unreadCount += threadUnread;
+        const lastMessage = messages[messages.length - 1];
         const thread: MessageThread = {
           id: row.id,
           show_id: row.show_id,
           participant_id: row.participant_id,
           last_message_at: row.last_message_at,
           created_at: row.created_at,
+          unread_count: threadUnread,
         };
         if (name !== undefined) thread.participant_name = name;
+        if (lastMessage?.body) thread.last_message_preview = lastMessage.body.substring(0, 100);
         return thread;
       });
 
       set(state => {
         const others = state.threads.filter(t => t.show_id !== showId);
-        return { threads: [...others, ...threads] };
+        const nextMessagesByThread = { ...state.messagesByThread };
+        for (const [threadId, messages] of messagesByThread) {
+          nextMessagesByThread[threadId] = messages;
+        }
+        const otherUnread = others.reduce((count, thread) => count + (thread.unread_count ?? 0), 0);
+        return {
+          threads: [...others, ...threads],
+          messagesByThread: nextMessagesByThread,
+          unreadCount: otherUnread + unreadCount,
+        };
       });
-
-      await Promise.all(threads.map(thread => get().fetchMessages(thread.id)));
     } catch (err) {
       logger.error('Failed to fetch threads:', 'messages', { data: err });
     }

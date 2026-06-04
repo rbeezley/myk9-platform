@@ -30,6 +30,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: vi.fn((table: string) => {
       const filters: Record<string, unknown> = {};
+      const inFilters: Record<string, unknown[]> = {};
       const query = {
         select: vi.fn(() => query),
         eq: vi.fn((column: string, value: unknown) => {
@@ -39,7 +40,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
         is: vi.fn(() => query),
         neq: vi.fn(() => query),
         order: vi.fn(() => query),
-        in: vi.fn(() => query),
+        in: vi.fn((column: string, values: unknown[]) => {
+          inFilters[column] = values;
+          return query;
+        }),
         upsert: vi.fn(() => query),
         insert: vi.fn(() => query),
         update: vi.fn(() => query),
@@ -52,7 +56,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
             table === 'show_message_threads'
               ? dbState.threads.filter(thread => thread.show_id === filters.show_id)
               : table === 'show_messages'
-                ? dbState.messages.filter(message => message.thread_id === filters.thread_id)
+                ? dbState.messages.filter(message => {
+                    if (filters.thread_id) return message.thread_id === filters.thread_id;
+                    const threadIds = inFilters.thread_id;
+                    if (threadIds) return threadIds.includes(message.thread_id);
+                    return true;
+                  })
                 : table === 'people'
                   ? dbState.people
                   : [];

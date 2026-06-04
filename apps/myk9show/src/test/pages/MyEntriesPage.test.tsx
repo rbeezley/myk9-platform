@@ -14,7 +14,7 @@ const mockCheckInMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefi
 
 vi.mock('@/hooks/useAuthContext');
 vi.mock('@/hooks/useBreadcrumb', () => ({
-  useBreadcrumb: () => [{ label: 'Home', href: '/' }, { label: 'My Entries' }],
+  useBreadcrumb: () => [{ label: 'Home', href: '/' }, { label: 'My Shows' }],
 }));
 vi.mock('@/services/NotificationService', () => ({
   useStatusUpdates: () => ({ status: null }),
@@ -136,6 +136,12 @@ describe('MyEntriesPage UI Improvements', () => {
       userWithRoles: null,
       isAuthenticated: true,
     });
+  });
+
+  it('names the exhibitor hub My Shows', async () => {
+    renderWithProviders(<MyEntriesPage />);
+
+    expect(await screen.findByRole('heading', { name: 'My Shows' })).toBeInTheDocument();
   });
 
   describe('Fake Trend Data Removal', () => {

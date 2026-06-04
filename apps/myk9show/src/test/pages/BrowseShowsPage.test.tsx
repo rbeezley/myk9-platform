@@ -305,7 +305,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /my entries/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /managing/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
@@ -325,13 +325,13 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
     });
 
-    it('should render base tabs plus My Entries for exhibitors', async () => {
+    it('should render base tabs plus My Shows for exhibitors', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /my entries/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /my shows/i })).toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /managing/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
@@ -353,14 +353,14 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: secretaryUser });
     });
 
-    it('should render Managing and Browse All tabs for secretaries (no My Entries)', async () => {
+    it('should render Managing and Browse All tabs for secretaries (no My Shows)', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /my entries/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
     });
@@ -408,13 +408,13 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: judgeUser, shows: showsWithJudge });
     });
 
-    it('should render base tabs plus My Assignments for judges (no My Entries)', async () => {
+    it('should render base tabs plus My Assignments for judges (no My Shows)', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /my entries/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /managing/i })).not.toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /my assignments/i })).toBeInTheDocument();
       });
@@ -435,14 +435,14 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: createMockUser(UserRole.SITE_ADMIN) });
     });
 
-    it('should render Managing, Browse All, Past Shows for site admins (no My Entries or Assignments)', async () => {
+    it('should render Managing, Browse All, Past Shows for site admins (no My Shows or Assignments)', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /my entries/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
     });
@@ -460,7 +460,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
   });
 
   describe('Multi-Role User Tab Rendering', () => {
-    it('should render combined tabs for exhibitor + secretary (includes My Entries)', async () => {
+    it('should render combined tabs for exhibitor + secretary (includes My Shows)', async () => {
       const multiRoleUser = createMockUser([UserRole.EXHIBITOR, UserRole.SECRETARY], 'multi-user');
       setupMocks({ user: multiRoleUser });
 
@@ -470,12 +470,12 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /my entries/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /my shows/i })).toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
     });
 
-    it('should render Managing, Browse All, Past Shows, My Assignments for secretary + judge (no My Entries)', async () => {
+    it('should render Managing, Browse All, Past Shows, My Assignments for secretary + judge (no My Shows)', async () => {
       const multiRoleUser = createMockUser([UserRole.SECRETARY, UserRole.JUDGE], 'multi-user');
       setupMocks({ user: multiRoleUser });
 
@@ -485,7 +485,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /my entries/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /my assignments/i })).toBeInTheDocument();
       });
     });

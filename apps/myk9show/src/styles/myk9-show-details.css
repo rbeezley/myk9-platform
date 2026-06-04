@@ -778,7 +778,7 @@
 }
 
 /* AKC Placement Badge Styles */
-/* My Entries Page - myK9 Style Cards */
+/* My Shows page - myK9 Style Cards */
 .myk9-entries-card {
   @apply relative overflow-hidden;
   background: var(--card);

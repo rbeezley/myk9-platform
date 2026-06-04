@@ -42,11 +42,11 @@ test.describe('Cross-role workflow smoke', () => {
     await expect(page.getByRole('link', { name: 'Messages' })).toBeVisible();
   });
 
-  test('exhibitor can land on My Entries and continue to show discovery', async ({ page }) => {
+  test('exhibitor can land on My Shows and continue to show discovery', async ({ page }) => {
     await signIn(page, TEST_USERS.EXHIBITOR, '/exhibitor/entries');
 
     await expect(page).toHaveURL(/\/exhibitor\/entries|\/my-entries/);
-    await expect(page.getByText('My Entries')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'My Shows' })).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('tab', { name: 'All' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Enter a Show' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Find Shows' })).toBeVisible();

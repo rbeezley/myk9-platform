@@ -135,13 +135,13 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     });
   }
 
-  // --- My Entries tab (only for exhibitor/handler roles) ---
+  // --- My Shows tab (only for exhibitor/handler roles) ---
   if (accessibleTabs.includes('entries')) {
     tabs.push({
       id: 'entries',
-      label: 'My Entries',
+      label: 'My Shows',
       icon: ClipboardList,
-      description: 'Shows you have entered as an exhibitor',
+      description: 'Your shows, entries, and dogs',
       getCount: (shows, entries, userId) => {
         if (!userId || !entries) return 0;
         const userEntries = getUserEntries(userId, shows, entries);

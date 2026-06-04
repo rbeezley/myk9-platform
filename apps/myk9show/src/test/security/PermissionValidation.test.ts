@@ -115,7 +115,7 @@ describe('Permission Validation Security Tests', () => {
       expect(ShowPermissionValidator.canDelete(exhibitor, show)).toBe(false);
     });
 
-    it('should provide basic tabs plus My Entries for exhibitors', () => {
+    it('should provide basic tabs plus My Shows for exhibitors', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(exhibitor);
       expect(accessibleTabs).toEqual(['all', 'past', 'entries']);
     });

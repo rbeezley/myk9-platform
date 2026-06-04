@@ -56,6 +56,8 @@ describe('ShowTodayBanner', () => {
 
     renderBanner();
 
+    expect(screen.getByLabelText('Show today')).toHaveClass('bg-[#f2faf5]', 'dark:bg-[#16221b]');
+
     fireEvent.click(screen.getByRole('button', { name: /at the show/i }));
 
     await waitFor(() => expect(preFavoriteShow).toHaveBeenCalledWith('show-1'));

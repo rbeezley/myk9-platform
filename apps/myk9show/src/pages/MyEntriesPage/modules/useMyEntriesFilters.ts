@@ -44,10 +44,9 @@ export function useMyEntriesFilters({
         break;
       case 'upcoming': {
         const now = new Date();
-        // Date-range aware: a multi-day show running today is still upcoming.
-        filtered = filtered.filter(
-          entry => !isPastShowEntry(entry, now) && entry.entryStatus === EntryStatus.ACCEPTED
-        );
+        // Date-range aware: all non-past entry rows belong here, including
+        // entries that still need payment or review.
+        filtered = filtered.filter(entry => !isPastShowEntry(entry, now));
         break;
       }
       case 'completed': {

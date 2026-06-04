@@ -184,6 +184,8 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
         const others = state.threads.filter(t => t.show_id !== showId);
         return { threads: [...others, ...threads] };
       });
+
+      await Promise.all(threads.map(thread => get().fetchMessages(thread.id)));
     } catch (err) {
       logger.error('Failed to fetch threads:', 'messages', { data: err });
     }

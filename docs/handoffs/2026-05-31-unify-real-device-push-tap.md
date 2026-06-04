@@ -107,13 +107,13 @@ If UI/service-worker code changes, add or update focused tests around notificati
 
 ## Completion checklist
 
-- [ ] Real device receives push.
-- [ ] Tapping push opens the correct inbox thread.
-- [ ] Inbox persistence still works when push is suppressed.
-- [ ] Dead subscriptions are not left behind from testing.
+- [x] Real device receives push. Completed 2026-06-04 on an Android phone per user confirmation.
+- [x] Tapping push opens the correct inbox thread. Completed 2026-06-04 on an Android phone per user confirmation.
+- [x] Inbox persistence still works when push is suppressed. Covered by the 2026-05-31 synthetic transport pilot.
+- [x] Dead subscriptions are not left behind from testing. Covered by the 2026-05-31 synthetic transport pilot.
 - [ ] `PUSH_FANOUT_ENABLED` restored to `false` unless explicitly approved otherwise.
-- [ ] `OPEN-TODOS.md` marks the Phase 3 acceptance item complete.
-- [ ] Unify plan changelog records the real-device verification date and result.
+- [x] `OPEN-TODOS.md` marks the Phase 3 acceptance item complete.
+- [x] Unify plan changelog records the real-device verification date and result.
 
 Only after this checklist is complete should Phase 4 begin: retiring `ShowDayPage`, `ClassCheckInPage`, duplicated alert stores, and the standalone myK9Q staging deployment.
 

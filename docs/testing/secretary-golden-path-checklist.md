@@ -240,7 +240,7 @@ If you cannot set the flag, skip Part 6 and note it in the issue log.
   - [ ] Class Broadcast
   - [ ] Incident Log
   - [ ] Schedule Slip Script
-  - [ ] **Show Access Codes** — view the QR code and passcode (note: "Generate new codes" confirm dialog has a known bug; skip that specific action for now)
+  - [ ] **Show Access Codes** — view the QR code and passcode; if no plaintext codes are displayed, use **Generate new codes** and confirm the regenerated codes appear
   - [ ] Volunteers
   - [ ] Tasks & Notes
 
@@ -548,7 +548,6 @@ Use this section to list every issue found during the walk. Bring this back to C
 
 | Step | Item | Reason |
 | ---- | ---- | ------ |
-| 4.2  | Show Access Codes "Generate new codes" confirm dialog | Known bug: nested `AlertDialog` inside `Sheet` does not fire the confirm action. Tracked in OPEN-TODOS.md (2026-05-31). |
 | 6.1  | At-show feature flag | `unified_ringside_enabled` is DEV-only. If testing against staging without the flag set, the inline gate notice is expected. |
 | 4.9  | Ring number display | Ring numbers are not yet persisted. `Ring 0` or absent ring labels are expected behavior until the ring-number contract is implemented. |
 

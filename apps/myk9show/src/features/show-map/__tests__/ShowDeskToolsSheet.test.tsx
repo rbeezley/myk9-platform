@@ -1,13 +1,44 @@
-import { screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
+import { notifications } from '@/lib/notifications';
+import { mockSupabase } from '@/test/mocks/supabase';
 import { render } from '@/test/utils/testUtils';
 import { ShowDeskToolsSheet } from '../ShowDeskToolsSheet';
+
+vi.mock('qrcode.react', () => ({
+  QRCodeSVG: () => <svg data-testid="qr-code" />,
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+function mockRegenerateRpc() {
+  mockSupabase.rpc.mockImplementation((fn: string) => {
+    if (fn === 'regenerate_show_passcodes') {
+      return Promise.resolve({
+        data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+        error: null,
+      }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+    }
+    return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
+      typeof mockSupabase.rpc
+    >;
+  });
+}
 
 // INTENT: Sheet is a pure container — these tests verify the trigger /
 // open / close behavior + the badge contract, not the seven tools' own
 // rendering. Each tool already has its own test file.
 describe('ShowDeskToolsSheet', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     window.localStorage.clear();
   });
 
@@ -200,5 +231,42 @@ describe('ShowDeskToolsSheet', () => {
       'false'
     );
     expect(screen.queryByTestId('access-codes-tool')).not.toBeInTheDocument();
+  });
+
+  it('lets Show Access Codes regenerate from inside the nested tools sheet', async () => {
+    mockRegenerateRpc();
+
+    const { user } = render(
+      <ShowDeskToolsSheet
+        showId="show-1"
+        tools={[
+          {
+            id: 'access-codes',
+            title: 'Access codes',
+            summary: 'Share judge and ringside entry codes',
+            content: (
+              <ShowAccessCodesCard
+                showId="63165809-e025-25c6-6cf9-979f63165809"
+                showName="Spring Trial"
+                canRegenerate
+              />
+            ),
+          },
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /access codes/i }));
+    await user.click(screen.getByRole('button', { name: /generate new codes/i }));
+    await user.click(await screen.findByRole('button', { name: /^generate$/i }));
+
+    await waitFor(() => {
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('regenerate_show_passcodes', {
+        p_show_id: '63165809-e025-25c6-6cf9-979f63165809',
+      });
+    });
+    expect(notifications.success).toHaveBeenCalledWith('New codes generated — copy or print them now.');
+    expect(await screen.findByText('e4444')).toBeInTheDocument();
   });
 });

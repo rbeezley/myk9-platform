@@ -33,7 +33,7 @@ async function login(page: Page) {
 }
 
 // Helper to navigate to My Shows
-async function navigateToMyEntries(page: Page) {
+async function navigateToMyShows(page: Page) {
   await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
   // Wait for page to load
   await expect(page.getByText('MY ENTRIES')).toBeVisible({ timeout: 10000 });
@@ -42,7 +42,7 @@ async function navigateToMyEntries(page: Page) {
 test.describe('My Shows Page - Fake Trend Data Removal', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await navigateToMyEntries(page);
+    await navigateToMyShows(page);
   });
 
   test('should not display hardcoded trend percentages', async ({ page }) => {
@@ -84,7 +84,7 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
 test.describe('My Shows Page - Enter a Show CTA', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await navigateToMyEntries(page);
+    await navigateToMyShows(page);
   });
 
   test('should display "Enter a Show" button in header', async ({ page }) => {
@@ -109,7 +109,7 @@ test.describe('My Shows Page - Enter a Show CTA', () => {
 test.describe('My Shows Page - Tab Structure', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await navigateToMyEntries(page);
+    await navigateToMyShows(page);
   });
 
   test('should render all tabs without redundant counts', async ({ page }) => {
@@ -163,7 +163,7 @@ test.describe('My Shows Page - Mobile Tab Usability', () => {
 
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await navigateToMyEntries(page);
+    await navigateToMyShows(page);
   });
 
   test('tabs should be accessible on mobile via scrolling', async ({ page }) => {
@@ -194,7 +194,7 @@ test.describe('My Shows Page - Mobile Tab Usability', () => {
 test.describe('My Shows Page - Status Stepper', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await navigateToMyEntries(page);
+    await navigateToMyShows(page);
   });
 
   test('should not display old progress bar with percentages', async ({ page }) => {
@@ -229,7 +229,7 @@ test.describe('My Shows Page - Status Stepper', () => {
 test.describe('My Shows Page - Empty State', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await navigateToMyEntries(page);
+    await navigateToMyShows(page);
   });
 
   test('should display helpful empty state message when no entries', async ({ page }) => {
@@ -263,7 +263,7 @@ test.describe('My Shows Page - Empty State', () => {
 test.describe('My Shows Page - Context-Aware Messaging', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await navigateToMyEntries(page);
+    await navigateToMyShows(page);
   });
 
   test('should display context-aware status messages for entries', async ({ page }) => {

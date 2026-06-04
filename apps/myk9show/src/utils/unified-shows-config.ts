@@ -141,7 +141,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       id: 'entries',
       label: 'My Shows',
       icon: ClipboardList,
-      description: 'Shows you have entered as an exhibitor',
+      description: 'Your shows, entries, and dogs',
       getCount: (shows, entries, userId) => {
         if (!userId || !entries) return 0;
         const userEntries = getUserEntries(userId, shows, entries);

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
 import { useMyLifetimeStats } from '@/hooks/queries/useMyLifetimeStats';
 import {
@@ -35,9 +35,10 @@ const FASTEST_TIMES_LIMIT = 10;
 
 export default function AnalyticsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: allEntries = [], isLoading } = useMyLifetimeStats();
 
-  const [selectedDog, setSelectedDog] = useState<string>('all');
+  const selectedDog = searchParams.get('dog') ?? 'all';
   const [selectedOrg, setSelectedOrg] = useState<string>('all');
 
   const dogOptions = useMemo(() => {
@@ -97,7 +98,17 @@ export default function AnalyticsPage() {
 
   const filterControls = hasData ? (
     <>
-      <Select value={selectedDog} onValueChange={setSelectedDog}>
+      <Select
+        value={selectedDog}
+        onValueChange={value => {
+          setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (value === 'all') next.delete('dog');
+            else next.set('dog', value);
+            return next;
+          });
+        }}
+      >
         <SelectTrigger className="w-[180px]" data-testid="dog-filter">
           <SelectValue placeholder="All Dogs" />
         </SelectTrigger>

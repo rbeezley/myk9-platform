@@ -222,6 +222,14 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName }) => {
                 <ResultRow key={e.id} entry={e} />
               ))}
             </div>
+            <div className="pt-3 border-t border-border mt-1">
+              <Link
+                to={`/exhibitor/analytics?dog=${dogId}`}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                View full analytics for {dogName} <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       )}

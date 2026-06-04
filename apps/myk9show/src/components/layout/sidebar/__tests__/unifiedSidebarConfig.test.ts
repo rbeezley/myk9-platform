@@ -138,10 +138,16 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Exhibitor-only ───────────────────────────────────────────────────────
-  it('exhibitor-only sidebar has exactly My Shows, My Dogs, Find Shows', () => {
+  it('exhibitor-only sidebar has exactly My Shows, My Dogs, My Stats, Find Shows', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'Find Shows']);
+    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Stats', 'Find Shows']);
+  });
+
+  it('exhibitor-only My Stats href points to /exhibitor/analytics', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'My Stats');
+    expect(item?.href).toBe('/exhibitor/analytics');
   });
 
   // Regression: the "Show Day" item linked to the retired /exhibitor/show-day

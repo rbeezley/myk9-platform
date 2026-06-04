@@ -51,6 +51,14 @@ export default function AnalyticsPage() {
     return Array.from(map, ([id, name]) => ({ id, name }));
   }, [allEntries]);
 
+  // Coerce unknown/stale dog IDs to 'all' once data has loaded.
+  // Without this, a bookmarked ?dog=<deleted-id> filters to zero entries and
+  // hasFilteredData is false, leaving users with header + filters but no body.
+  const effectiveDog =
+    isLoading || selectedDog === 'all' || dogOptions.some(d => d.id === selectedDog)
+      ? selectedDog
+      : 'all';
+
   const orgOptions = useMemo(() => {
     const set = new Set<string>();
     for (const entry of allEntries) {
@@ -61,14 +69,14 @@ export default function AnalyticsPage() {
 
   const filteredEntries = useMemo(() => {
     let entries: StatsEntry[] = allEntries;
-    if (selectedDog !== 'all') {
-      entries = entries.filter(e => e.dogId === selectedDog);
+    if (effectiveDog !== 'all') {
+      entries = entries.filter(e => e.dogId === effectiveDog);
     }
     if (selectedOrg !== 'all') {
       entries = entries.filter(e => e.organization === selectedOrg);
     }
     return entries;
-  }, [allEntries, selectedDog, selectedOrg]);
+  }, [allEntries, effectiveDog, selectedOrg]);
 
   const summary = useMemo(() => computeSummaryStats(filteredEntries), [filteredEntries]);
   const dogStats = useMemo(() => computePerDogStats(filteredEntries), [filteredEntries]);
@@ -99,7 +107,7 @@ export default function AnalyticsPage() {
   const filterControls = hasData ? (
     <>
       <Select
-        value={selectedDog}
+        value={effectiveDog}
         onValueChange={value => {
           setSearchParams(prev => {
             const next = new URLSearchParams(prev);

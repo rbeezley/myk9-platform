@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 /**
- * E2E Tests for My Entries Page UI/UX Improvements
+ * E2E Tests for My Shows Page UI/UX Improvements
  *
  * Tests the following features:
  * - No fake trend data in stat cards
@@ -32,14 +32,14 @@ async function login(page: Page) {
   await page.waitForLoadState('networkidle');
 }
 
-// Helper to navigate to My Entries
+// Helper to navigate to My Shows
 async function navigateToMyEntries(page: Page) {
   await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
   // Wait for page to load
   await expect(page.getByText('MY ENTRIES')).toBeVisible({ timeout: 10000 });
 }
 
-test.describe('My Entries Page - Fake Trend Data Removal', () => {
+test.describe('My Shows Page - Fake Trend Data Removal', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToMyEntries(page);
@@ -81,7 +81,7 @@ test.describe('My Entries Page - Fake Trend Data Removal', () => {
   });
 });
 
-test.describe('My Entries Page - Enter a Show CTA', () => {
+test.describe('My Shows Page - Enter a Show CTA', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToMyEntries(page);
@@ -106,7 +106,7 @@ test.describe('My Entries Page - Enter a Show CTA', () => {
   });
 });
 
-test.describe('My Entries Page - Tab Structure', () => {
+test.describe('My Shows Page - Tab Structure', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToMyEntries(page);
@@ -158,7 +158,7 @@ test.describe('My Entries Page - Tab Structure', () => {
   });
 });
 
-test.describe('My Entries Page - Mobile Tab Usability', () => {
+test.describe('My Shows Page - Mobile Tab Usability', () => {
   test.use({ viewport: { width: 375, height: 667 } }); // iPhone SE size
 
   test.beforeEach(async ({ page }) => {
@@ -191,7 +191,7 @@ test.describe('My Entries Page - Mobile Tab Usability', () => {
   });
 });
 
-test.describe('My Entries Page - Status Stepper', () => {
+test.describe('My Shows Page - Status Stepper', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToMyEntries(page);
@@ -226,7 +226,7 @@ test.describe('My Entries Page - Status Stepper', () => {
   });
 });
 
-test.describe('My Entries Page - Empty State', () => {
+test.describe('My Shows Page - Empty State', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToMyEntries(page);
@@ -260,7 +260,7 @@ test.describe('My Entries Page - Empty State', () => {
   });
 });
 
-test.describe('My Entries Page - Context-Aware Messaging', () => {
+test.describe('My Shows Page - Context-Aware Messaging', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToMyEntries(page);

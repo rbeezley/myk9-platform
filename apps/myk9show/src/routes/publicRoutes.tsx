@@ -156,15 +156,15 @@ export const PublicRoutes = () => (
     <Route path="/browse-shows" element={<Navigate to="/shows" replace />} />
     <Route path="/shows/browse" element={<Navigate to="/shows" replace />} />
 
-    {/* My Entries - View and manage exhibitor's entries */}
+    {/* My Shows - exhibitor's show hub; entries are one section inside it. */}
     <Route
       path="/my-entries"
       element={
         <ProtectedRoute>
           {featurePage(features.myEntries, <MyEntriesPage />, {
-            title: 'My Entries',
+            title: 'My Shows',
             description:
-              'Show entry management is coming soon. Your dogs and training data will be ready and waiting when it arrives.',
+              'Your entries, dogs, and upcoming shows are ready here when you need them.',
             icon: ClipboardList,
           })}
         </ProtectedRoute>
@@ -200,9 +200,9 @@ export const PublicRoutes = () => (
       element={
         <ProtectedRoute>
           {featurePage(features.myEntries, <MyEntriesPage />, {
-            title: 'My Entries',
+            title: 'My Shows',
             description:
-              'Show entry management is coming soon. Your dogs and training data will be ready and waiting when it arrives.',
+              'Your entries, dogs, and upcoming shows are ready here when you need them.',
             icon: ClipboardList,
           })}
         </ProtectedRoute>

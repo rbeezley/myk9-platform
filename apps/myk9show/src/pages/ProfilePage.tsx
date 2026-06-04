@@ -57,7 +57,7 @@ export default function ProfilePage() {
             your profile.
           </p>
           <Button variant="outline" asChild>
-            <Link to="/exhibitor/dashboard">Go to Dashboard</Link>
+            <Link to="/exhibitor/dashboard">Go to My Shows</Link>
           </Button>
         </div>
       </div>

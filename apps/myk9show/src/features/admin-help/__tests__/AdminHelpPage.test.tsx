@@ -31,8 +31,8 @@ vi.mock('../data/pageDirectory', async () => {
       },
       {
         path: '/exhibitor/entries',
-        title: 'My Entries',
-        description: 'Exhibitor entries list.',
+        title: 'My Shows',
+        description: 'Exhibitor show hub.',
         roles: [UserRole.EXHIBITOR],
         classification: 'critical-path',
         category: 'Entries',
@@ -57,7 +57,7 @@ describe('AdminHelpPage', () => {
   it('hides parked entries by default', () => {
     render(<AdminHelpPage />);
     expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('My Entries')).toBeInTheDocument();
+    expect(screen.getByText('My Shows')).toBeInTheDocument();
     expect(screen.queryByText('Calendar')).not.toBeInTheDocument();
   });
 
@@ -72,7 +72,7 @@ describe('AdminHelpPage', () => {
     const user = userEvent.setup();
     render(<AdminHelpPage />);
     await user.type(screen.getByPlaceholderText(/search pages/i), 'exhibitor');
-    expect(screen.getByText('My Entries')).toBeInTheDocument();
+    expect(screen.getByText('My Shows')).toBeInTheDocument();
     expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
   });
 });

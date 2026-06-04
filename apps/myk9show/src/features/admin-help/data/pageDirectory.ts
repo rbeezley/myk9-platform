@@ -336,7 +336,7 @@ export const pageDirectory: readonly PageEntry[] = [
   },
   {
     path: '/my-entries',
-    title: 'My Entries (legacy path)',
+    title: 'My Shows (legacy path)',
     description: 'Backwards-compat redirect to /exhibitor/entries.',
     roles: [UserRole.EXHIBITOR, UserRole.SITE_ADMIN],
     classification: 'park',
@@ -346,8 +346,8 @@ export const pageDirectory: readonly PageEntry[] = [
   },
   {
     path: '/exhibitor/entries',
-    title: 'My Entries',
-    description: "Exhibitor's entries across all shows with status pills.",
+    title: 'My Shows',
+    description: "Exhibitor's show hub with entries, dogs, upcoming shows, and show-day access.",
     roles: [UserRole.EXHIBITOR, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Entries',

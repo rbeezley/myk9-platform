@@ -104,10 +104,10 @@ export const useBreadcrumb = ({
       });
     }
 
-    // Add My Entries level
+    // Add My Shows level
     if (currentPage === 'my-entries') {
       items.push({
-        label: 'My Entries',
+        label: 'My Shows',
         isCurrentPage: true,
       });
     }

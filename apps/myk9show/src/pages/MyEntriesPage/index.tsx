@@ -192,6 +192,7 @@ const MyEntriesPage: React.FC = () => {
       <div className="container mx-auto px-6 py-6 max-w-7xl">
         <div className="space-y-8">
           <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
+            <h1 className="sr-only">My Shows</h1>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <DashboardGreeting

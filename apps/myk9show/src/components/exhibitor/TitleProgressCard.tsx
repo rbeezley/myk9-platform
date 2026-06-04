@@ -1,11 +1,11 @@
 /**
- * TitleProgressCard — Free-tier visible title summary for the Exhibitor Dashboard.
+ * TitleProgressCard — Free-tier visible title summary for My Shows.
  *
  * Shows each dog's earned title abbreviations at a glance. No gating — every
  * exhibitor should see their progress without hunting through the dog detail page.
  *
  * INTENT: Titles feel like achievements you've *already* earned, surfaced where you
- * live (the dashboard), not buried behind a premium tab.
+ * live (My Shows), not buried behind a premium tab.
  */
 
 import React from 'react';

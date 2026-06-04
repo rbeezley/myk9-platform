@@ -90,7 +90,7 @@ describe('ProfilePage', () => {
     renderPage();
 
     expect(screen.getByText('Unable to load your profile.')).toBeInTheDocument();
-    expect(screen.getByText('Go to Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Go to My Shows')).toBeInTheDocument();
   });
 
   it('renders all form cards (Profile Photo, Personal Information, Address)', () => {

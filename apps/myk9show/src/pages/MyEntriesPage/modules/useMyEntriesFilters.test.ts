@@ -54,13 +54,33 @@ const endedShow = makeEntry({
 
 describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
   it('keeps a show running today in the Upcoming tab', () => {
-    const { result } = renderHook(() => useMyEntriesFilters({ entries: [runningTodayShow, endedShow] }));
+    const { result } = renderHook(() =>
+      useMyEntriesFilters({ entries: [runningTodayShow, endedShow] })
+    );
     act(() => result.current.setSelectedTab('upcoming'));
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['running']);
   });
 
+  it('keeps future entries in the Upcoming tab even when they still need action', () => {
+    const pendingFutureEntry = makeEntry({
+      id: 'pending-future',
+      showId: 'headline-show',
+      showDate: new Date(2026, 5, 9),
+      entryStatus: EntryStatus.PENDING,
+      paymentStatus: PaymentStatus.PENDING,
+    });
+
+    const { result } = renderHook(() =>
+      useMyEntriesFilters({ entries: [pendingFutureEntry, endedShow] })
+    );
+    act(() => result.current.setSelectedTab('upcoming'));
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['pending-future']);
+  });
+
   it('puts only genuinely-ended shows in the Completed tab', () => {
-    const { result } = renderHook(() => useMyEntriesFilters({ entries: [runningTodayShow, endedShow] }));
+    const { result } = renderHook(() =>
+      useMyEntriesFilters({ entries: [runningTodayShow, endedShow] })
+    );
     act(() => result.current.setSelectedTab('completed'));
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['ended']);
   });

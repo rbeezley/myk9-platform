@@ -78,9 +78,14 @@ export function useMyEntriesData({
     } | null;
     // Each entry row from getUserEntries represents one dog in one class.
     // The class data is available via the `class` join (class:class_id).
-    const classData = entry.class as { id: string; name: string; class_number?: string } | null;
-    // Discipline comes from the trial (trial:trial_id). Used to gate the jump
-    // height field in the edit dialog — scent work has no jump height.
+    const classData = entry.class as {
+      id: string;
+      name: string;
+      class_number?: string;
+      trial?: { trial_type?: string } | null;
+    } | null;
+    // Discipline gates the jump-height field. Prefer entries.trial_id, but fall
+    // back through class.trial_id so legacy entries with NULL trial_id still work.
     const trialData = entry.trial as { trial_type?: string } | null;
 
     // Build a single-element classes array from this entry row's own data
@@ -92,7 +97,7 @@ export function useMyEntriesData({
             number: classData.class_number || '',
             fee: (entry.entry_fee as number) || 0,
             jumpHeight: (entry.jump_height as string) || undefined,
-            trialType: trialData?.trial_type || undefined,
+            trialType: trialData?.trial_type || classData.trial?.trial_type || undefined,
             runOrder: (entry.run_order as number) || undefined,
             status: mapClassEntryStatus(entry.entry_status as string),
             // Read the persisted check-in status instead of hardcoding undefined,

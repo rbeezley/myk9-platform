@@ -117,7 +117,11 @@ export const USER_ENTRIES_SELECT = `
       class:class_id (
         id,
         name,
-        class_number
+        class_number,
+        trial:trial_id (
+          id,
+          trial_type
+        )
       ),
       trial:trial_id (
         id,

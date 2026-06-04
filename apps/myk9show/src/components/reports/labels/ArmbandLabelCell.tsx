@@ -24,7 +24,7 @@ export const ArmbandLabelCell: React.FC<ArmbandLabelCellProps> = ({
     config.callName,
     config.trialDate,
     config.handlerName,
-    config.myk9qCode && !!passcode,
+    config.showAccessCode && !!passcode,
     config.venueWifi && !!wifiNetwork,
   ].filter(Boolean).length;
 
@@ -33,29 +33,18 @@ export const ArmbandLabelCell: React.FC<ArmbandLabelCellProps> = ({
   return (
     <div className="armband-label">
       <div className="armband-label__top">
-        <span
-          className="armband-label__number"
-          style={{ fontSize: `${fontSize}px` }}
-        >
+        <span className="armband-label__number" style={{ fontSize: `${fontSize}px` }}>
           {item.armband}
         </span>
         <div className="armband-label__info">
-          {config.callName && (
-            <span className="armband-label__call-name">{item.callName}</span>
-          )}
-          {config.handlerName && (
-            <span className="armband-label__handler">{item.handler}</span>
-          )}
+          {config.callName && <span className="armband-label__call-name">{item.callName}</span>}
+          {config.handlerName && <span className="armband-label__handler">{item.handler}</span>}
         </div>
       </div>
       <div className="armband-label__bottom">
-        {config.trialDate && (
-          <span className="armband-label__date">{item.trialDate}</span>
-        )}
+        {config.trialDate && <span className="armband-label__date">{item.trialDate}</span>}
         <div className="armband-label__actions">
-          {config.myk9qCode && passcode && (
-            <span>myK9Q: {passcode}</span>
-          )}
+          {config.showAccessCode && passcode && <span>Show code: {passcode}</span>}
           {config.venueWifi && wifiNetwork && (
             <span>
               WiFi: {wifiNetwork}

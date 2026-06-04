@@ -65,6 +65,9 @@ const SmartSignInPage: React.FC = () => {
       : kind === 'passcode'
         ? "Looks like a show passcode — you'll be signed in"
         : '';
+  const describedBy = ['credential-hint', 'credential-help', error ? 'credential-error' : null]
+    .filter(Boolean)
+    .join(' ');
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -188,7 +191,7 @@ const SmartSignInPage: React.FC = () => {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isLoading || googleLoading}
-              className="w-full flex items-center justify-center gap-3 border border-input bg-background text-foreground py-2 px-4 rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex h-11 w-full items-center justify-center gap-3 rounded-md border border-input bg-background px-4 text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <GoogleIcon className="h-5 w-5" />
               Continue with Google
@@ -227,13 +230,15 @@ const SmartSignInPage: React.FC = () => {
                       if (error) setError('');
                     }}
                     aria-invalid={!!error}
-                    aria-describedby={error ? 'credential-error' : undefined}
-                    className="w-full p-2 pl-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    aria-describedby={describedBy}
+                    className="h-11 w-full rounded-md border border-input bg-background p-2 pl-10 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
               </div>
               {/* Live disambiguation (visible) — empty while invalid/empty. */}
-              <div className="min-h-5 mb-3 text-sm text-muted-foreground">{liveHint}</div>
+              <div id="credential-hint" className="min-h-5 mb-3 text-sm text-muted-foreground">
+                {liveHint}
+              </div>
 
               {error && (
                 <div id="credential-error" className="text-destructive mb-4 text-center">
@@ -246,13 +251,13 @@ const SmartSignInPage: React.FC = () => {
                 data-testid="continue-button"
                 disabled={!canContinue || isLoading}
                 aria-disabled={!canContinue || isLoading}
-                className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="h-11 w-full rounded-md bg-primary px-4 text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoading ? 'Checking…' : 'Continue'}
               </button>
             </form>
 
-            <div className="mt-6 text-sm text-muted-foreground space-y-1">
+            <div id="credential-help" className="mt-6 text-sm text-muted-foreground space-y-1">
               <p>Have an account? Use your email.</p>
               <p>Working a show? Use the passcode your secretary gave you (5 characters).</p>
             </div>
@@ -272,7 +277,7 @@ const SmartSignInPage: React.FC = () => {
               <button
                 type="button"
                 onClick={editCredential}
-                className="flex items-center gap-1 text-sm text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-ring rounded px-1"
+                className="flex min-h-11 items-center gap-1 rounded px-2 text-sm text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <Pencil size={14} /> Edit
               </button>

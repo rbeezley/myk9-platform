@@ -1,8 +1,8 @@
 # Terms of Service
 
-**Last Updated: April 7, 2026**
+**Last Updated: June 4, 2026**
 
-These Terms of Service ("Terms") constitute a legally binding agreement between you ("User," "you," or "your") and RyKris LLC, an Oklahoma limited liability company ("RyKris," "Company," "we," "us," or "our"), governing your access to and use of the myK9 platform, including the myK9Show web application, the myK9Q web application, and all related services, features, and content (collectively, the "Service").
+These Terms of Service ("Terms") constitute a legally binding agreement between you ("User," "you," or "your") and RyKris LLC, an Oklahoma limited liability company ("RyKris," "Company," "we," "us," or "our"), governing your access to and use of the myK9 platform, including the myK9Show web application, the built-in Ringside experience, and all related services, features, and content (collectively, the "Service").
 
 **By creating an account, accessing, or using the Service, you acknowledge that you have read, understood, and agree to be bound by these Terms and our [Privacy Policy](/privacy). If you do not agree to these Terms, do not use the Service.**
 

@@ -20,9 +20,9 @@ const CARDS: CredCard[] = [
     stat: 'Since 2013',
   },
   {
-    name: 'myK9Q',
+    name: 'Ringside',
     dotColor: 'var(--terracotta-500)',
-    desc: 'Ringside PWA for judges & exhibitors.',
+    desc: 'Offline scoring and ring-flow tools.',
     stat: 'Offline-first · 2025',
   },
   {
@@ -44,17 +44,14 @@ export function CredibilityBand() {
             The same team you've trusted at trial since <em>2013.</em>
           </h2>
           <p className="l-body">
-            myK9Show is the next chapter from RyKris — the people behind mySWT, myNWT, and
-            myK9Q. Thirteen years of building scent-sport software, alongside the judges,
-            secretaries, and exhibitors who use it every weekend.
+            myK9Show is the next chapter from RyKris — the people behind mySWT, myNWT, and the
+            ringside tools now built into this platform. Thirteen years of building scent-sport
+            software, alongside the judges, secretaries, and exhibitors who use it every weekend.
           </p>
         </div>
         <div className="l-cred-cards">
-          {CARDS.map((card) => (
-            <div
-              key={card.name}
-              className={`l-cred-card${card.isNew ? ' l-is-new' : ''}`}
-            >
+          {CARDS.map(card => (
+            <div key={card.name} className={`l-cred-card${card.isNew ? ' l-is-new' : ''}`}>
               <div className="l-name">
                 <span className="l-dot" style={{ background: card.dotColor }} aria-hidden="true" />
                 {card.name}

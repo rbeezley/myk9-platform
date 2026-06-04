@@ -37,7 +37,7 @@ vi.mock('@/hooks/useLabelPreferences', () => ({
         trialDate: true,
         handlerName: false,
         clubLogo: false,
-        myk9qCode: true,
+        showAccessCode: true,
         venueWifi: false,
       },
       skip: 0,

@@ -14,13 +14,7 @@ const item: ArmbandLabelItem = {
 
 describe('ArmbandLabelCell', () => {
   it('always renders the armband number', () => {
-    render(
-      <ArmbandLabelCell
-        item={item}
-        config={DEFAULT_CONTENT_CONFIG}
-        labelHeight={1.333}
-      />
-    );
+    render(<ArmbandLabelCell item={item} config={DEFAULT_CONTENT_CONFIG} labelHeight={1.333} />);
     expect(screen.getByText('101')).toBeInTheDocument();
   });
 
@@ -79,15 +73,16 @@ describe('ArmbandLabelCell', () => {
     expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
   });
 
-  it('renders myK9Q code when enabled and provided', () => {
+  it('renders show access code when enabled and provided', () => {
     render(
       <ArmbandLabelCell
         item={item}
-        config={{ ...DEFAULT_CONTENT_CONFIG, myk9qCode: true }}
+        config={{ ...DEFAULT_CONTENT_CONFIG, showAccessCode: true }}
         labelHeight={1.333}
         passcode="eab12"
       />
     );
+    expect(screen.getByText(/Show code/i)).toBeInTheDocument();
     expect(screen.getByText(/eab12/)).toBeInTheDocument();
   });
 

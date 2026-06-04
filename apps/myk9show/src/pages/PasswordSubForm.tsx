@@ -53,14 +53,13 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
             autoComplete="current-password"
             value={password}
             onChange={e => onPasswordChange(e.target.value)}
-            className="w-full p-2 pl-10 pr-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+            className="h-11 w-full rounded-md border border-input bg-background p-2 pl-10 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             required
           />
           <button
             type="button"
             onClick={onToggleShowPassword}
-            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            tabIndex={-1}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-ring dark:hover:text-gray-300"
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -72,7 +71,7 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
         type="submit"
         data-testid="sign-in-button"
         disabled={isLoading}
-        className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 dark:bg-primary/90 dark:text-white dark:hover:bg-primary/80"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary/90 dark:text-white dark:hover:bg-primary/80"
       >
         {isLoading ? (
           <>

@@ -44,15 +44,16 @@ export function OfflineCallout() {
     <section className="l-ringside" id="offline">
       <div className="l-container l-ringside-grid">
         <div>
-          <span className="l-eyebrow">Offline-first · myK9Q</span>
+          <span className="l-eyebrow">Offline-first · Ringside</span>
           <h2>
             Trial venues have <em>terrible signal.</em> So we built for it.
           </h2>
           <p>
-            Judges score in the ring on their own device. Exhibitors check their armband and
-            next-up in the parking lot. When a tower comes back online, every record syncs in
-            the order it happened — no conflicts, no lost scores, no “please refresh.”
+            Judges score in the ring on their own device. Exhibitors check their armband and next-up
+            in the parking lot. When a tower comes back online, every record syncs in the order it
+            happened — no conflicts, no lost scores, no “please refresh.”
           </p>
+          <p>It&apos;s the ringside experience you may know as myK9Q, now built right in.</p>
           <ul className="l-checks">
             <li>
               <Check width={18} height={18} strokeWidth={2.5} aria-hidden="true" />
@@ -76,7 +77,7 @@ export function OfflineCallout() {
               Offline
             </span>
           </div>
-          {ENTRIES.map((entry) => (
+          {ENTRIES.map(entry => (
             <div key={entry.armband} className="l-entry">
               <div className="l-armband">{entry.armband}</div>
               <div className="l-dog">

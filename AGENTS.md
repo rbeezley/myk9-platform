@@ -46,10 +46,12 @@ Before any code edit, file write, formatter, generated snapshot, commit, PR, or 
 
 1. Run `git branch --show-current` and `git rev-parse --git-dir --git-common-dir`.
 2. If already in a linked worktree (`git-dir` differs from `git-common-dir`), continue there.
-3. If in the primary checkout on `main`, stop and create or enter a feature worktree/branch first.
-4. Do not edit files in the primary checkout except docs-only direct-to-`main` work explicitly approved by the user.
+3. If in the primary checkout on `main`, stop and create or enter a feature worktree/branch first. Use the `EnterWorktree` tool when available, otherwise follow the Worktrees section below.
+4. Do not edit files in the primary checkout except docs-only direct-to-`main` work explicitly approved by the user. See `CLAUDE.md` for the docs-only direct-to-`main` scope.
 
 This check happens before `apply_patch` or any other file-writing command.
+
+> Note: the pre-commit hook described below enforces this same invariant at commit time; this start check prevents dirtying the primary checkout in the first place.
 
 Git worktrees share history but **not** gitignored files (`node_modules/`, `.env`, `dist/`). A `PostToolUse` hook runs `scripts/bootstrap-worktree.sh` automatically after `EnterWorktree`. If something is missing, run it manually:
 

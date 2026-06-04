@@ -168,7 +168,7 @@ async function preventSharedEntryWrites(page: Page, captured: CapturedWrites) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify('777'),
+      body: JSON.stringify(777),
     });
   });
 

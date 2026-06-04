@@ -254,8 +254,8 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                checked={config.myk9qCode}
-                onChange={(e) => updateConfig('myk9qCode', e.target.checked)}
+                checked={config.showAccessCode}
+                onChange={(e) => updateConfig('showAccessCode', e.target.checked)}
               />
               Show Access Code
             </label>

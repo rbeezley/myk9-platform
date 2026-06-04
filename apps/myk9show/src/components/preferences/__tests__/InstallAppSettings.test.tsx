@@ -63,8 +63,8 @@ describe('InstallAppSettings', () => {
 
   it('shows benefits list', () => {
     render(<InstallAppSettings />);
-    expect(screen.getByText(/push notifications/i)).toBeInTheDocument();
-    expect(screen.getByText(/offline access/i)).toBeInTheDocument();
+    expect(screen.getByText('Show alerts when your dogs are up')).toBeInTheDocument();
+    expect(screen.getByText('Offline Ringside access at trial grounds')).toBeInTheDocument();
     expect(screen.getByText(/faster loading/i)).toBeInTheDocument();
   });
 

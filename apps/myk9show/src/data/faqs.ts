@@ -9,7 +9,7 @@ const faqs: FAQ[] = [
   {
     question: 'Does it work offline at the show grounds?',
     answer:
-      "Yes. Our companion app myK9Q is built for show day — it works fully offline with automatic sync when you're back online. Scores, run orders, and check-ins all work without an internet connection.",
+      "Yes. The built-in Ringside experience is made for show day — it works fully offline with automatic sync when you're back online. Scores, run orders, and check-ins all work without an internet connection.",
   },
   {
     question: 'Which organizations do you support?',
@@ -29,7 +29,7 @@ const faqs: FAQ[] = [
   {
     question: 'Can I use it on my phone or tablet?',
     answer:
-      'Absolutely. myK9Show works in any modern browser on phone, tablet, or desktop. For show day, our companion app myK9Q is optimized for tablets at ringside.',
+      'Absolutely. myK9Show works in any modern browser on phone, tablet, or desktop. For show day, Ringside is optimized for tablets at the ring.',
   },
 ];
 

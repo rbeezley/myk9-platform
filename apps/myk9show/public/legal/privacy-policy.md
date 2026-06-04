@@ -1,8 +1,8 @@
 # Privacy Policy
 
-**Last Updated: April 7, 2026**
+**Last Updated: June 4, 2026**
 
-This Privacy Policy describes how RyKris LLC, an Oklahoma limited liability company ("RyKris," "Company," "we," "us," or "our"), collects, uses, discloses, and protects your personal information when you use the myK9 platform, including the myK9Show web application, the myK9Q web application, and all related services (collectively, the "Service").
+This Privacy Policy describes how RyKris LLC, an Oklahoma limited liability company ("RyKris," "Company," "we," "us," or "our"), collects, uses, discloses, and protects your personal information when you use the myK9 platform, including the myK9Show web application, the built-in Ringside experience, and all related services (collectively, the "Service").
 
 **By using the Service, you consent to the collection, use, and disclosure of your information as described in this Privacy Policy. If you do not agree with this Privacy Policy, do not use the Service.**
 
@@ -286,7 +286,7 @@ The Service may contain links to third-party websites or services that are not o
 
 ### 11.1 Local Data Storage
 
-The Service (particularly myK9Q for ringside operations) may store data locally on your device to support offline functionality. This data may include:
+The Service, particularly Ringside for show-day operations, may store data locally on your device to support offline functionality. This data may include:
 
 - Event, trial, and class information
 - Entry and scoring data

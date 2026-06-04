@@ -19,7 +19,7 @@ export interface LabelContentConfig {
   trialDate: boolean;
   handlerName: boolean;
   clubLogo: boolean;
-  myk9qCode: boolean;
+  showAccessCode: boolean;
   venueWifi: boolean;
 }
 
@@ -34,6 +34,6 @@ export const DEFAULT_CONTENT_CONFIG: LabelContentConfig = {
   trialDate: true,
   handlerName: false,
   clubLogo: false,
-  myk9qCode: true,
+  showAccessCode: true,
   venueWifi: false,
 };

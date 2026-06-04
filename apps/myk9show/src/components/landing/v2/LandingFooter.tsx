@@ -22,7 +22,7 @@ export function LandingFooter() {
                 <a href="#features">For exhibitors</a>
               </li>
               <li>
-                <a href="#offline">Offline / myK9Q</a>
+                <a href="#offline">Offline ringside</a>
               </li>
             </ul>
           </div>

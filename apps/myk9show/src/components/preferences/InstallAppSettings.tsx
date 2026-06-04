@@ -12,7 +12,9 @@ export function InstallAppSettings() {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold">Install App</h2>
-        <p className="text-sm text-muted-foreground">Add myK9Show to your home screen</p>
+        <p className="text-sm text-muted-foreground">
+          Add myK9Show to your home screen for entries, Ringside, and show alerts
+        </p>
       </div>
 
       {/* Status */}
@@ -37,11 +39,11 @@ export function InstallAppSettings() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex items-start gap-2">
               <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-              Push notifications when your dogs are up
+              Show alerts when your dogs are up
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
-              Offline access at trial grounds
+              Offline Ringside access at trial grounds
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />

@@ -62,6 +62,16 @@ describe('SmartSignInPage', () => {
     expect(button).toBeEnabled();
   });
 
+  it('keeps the smart input labelled, described, and sized for touch', () => {
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    const input = screen.getByLabelText('Email or show passcode');
+    expect(input).toHaveAttribute('aria-describedby', 'credential-hint credential-help');
+    expect(input).toHaveClass('h-11');
+    expect(screen.getByTestId('continue-button')).toHaveClass('h-11');
+    expect(screen.getByRole('button', { name: /continue with google/i })).toHaveClass('h-11');
+  });
+
   it('email branch reveals the password step in place', async () => {
     const user = userEvent.setup();
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });

@@ -44,8 +44,8 @@ export function PWAInstallBanner() {
             <span className="truncate text-sm font-semibold">Install myK9Show</span>
             <span className="truncate text-xs opacity-90">
               {isIOSSafari
-                ? 'Get notifications for your dogs'
-                : 'Quick access from your home screen'}
+                ? 'Use Ringside offline and get show alerts'
+                : 'One home-screen app for entries, Ringside, and alerts'}
             </span>
           </div>
           <Button
@@ -80,7 +80,8 @@ export function PWAInstallBanner() {
           </DialogHeader>
 
           <p className="text-center text-sm text-muted-foreground">
-            Add to your home screen to receive notifications when your dogs are up!
+            Add myK9Show to your home screen for Ringside access, offline show-day work, and
+            notifications when your dogs are up.
           </p>
 
           <ol className="my-4 space-y-0 divide-y divide-border">
@@ -121,7 +122,7 @@ export function PWAInstallBanner() {
           </ol>
 
           <p className="text-center text-xs italic text-muted-foreground">
-            Then open myK9Show from your home screen to get notified!
+            Then open myK9Show from your home screen before show day.
           </p>
 
           <Button className="mt-2 w-full" onClick={() => setShowIOSInstructions(false)}>

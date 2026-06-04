@@ -1,9 +1,6 @@
 import { useState, useCallback } from 'react';
 import { DEFAULT_TEMPLATE_ID } from '@/lib/labels/labelTemplates';
-import {
-  DEFAULT_CONTENT_CONFIG,
-  type LabelContentConfig,
-} from '@/lib/labels/armbandLabelTypes';
+import { DEFAULT_CONTENT_CONFIG, type LabelContentConfig } from '@/lib/labels/armbandLabelTypes';
 
 const STORAGE_KEY = 'myk9show-label-prefs';
 
@@ -26,7 +23,16 @@ function loadPrefs(): LabelPreferences {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_PREFS;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_PREFS, ...parsed };
+    const { myk9qCode: legacyShowAccessCode, ...savedContentConfig } = parsed.contentConfig ?? {};
+    return {
+      ...DEFAULT_PREFS,
+      ...parsed,
+      contentConfig: {
+        ...DEFAULT_CONTENT_CONFIG,
+        ...savedContentConfig,
+        showAccessCode: savedContentConfig.showAccessCode ?? legacyShowAccessCode ?? true,
+      },
+    };
   } catch {
     return DEFAULT_PREFS;
   }
@@ -42,16 +48,13 @@ export function useLabelPreferences(): [
 ] {
   const [prefs, setPrefsState] = useState<LabelPreferences>(loadPrefs);
 
-  const setPrefs = useCallback(
-    (updater: (prev: LabelPreferences) => LabelPreferences) => {
-      setPrefsState((prev) => {
-        const next = updater(prev);
-        savePrefs(next);
-        return next;
-      });
-    },
-    [],
-  );
+  const setPrefs = useCallback((updater: (prev: LabelPreferences) => LabelPreferences) => {
+    setPrefsState(prev => {
+      const next = updater(prev);
+      savePrefs(next);
+      return next;
+    });
+  }, []);
 
   return [prefs, setPrefs];
 }

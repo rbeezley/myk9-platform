@@ -35,6 +35,7 @@ import {
   ListChecks,
   HelpCircle,
   MessageSquare,
+  BarChart3,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
@@ -81,6 +82,12 @@ export function buildUnifiedSidebarConfig(
           href: '/dogs',
           icon: Heart,
           description: 'Manage your dogs and registrations',
+        },
+        {
+          title: 'My Stats',
+          href: '/exhibitor/analytics',
+          icon: BarChart3,
+          description: 'Lifetime performance and qualification trends',
         },
         // NOTE: No standalone "Show Day" item. The at-show/ringside experience
         // (`/at-show/:showId`) is inherently per-show, and an exhibitor may be

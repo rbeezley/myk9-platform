@@ -177,7 +177,8 @@ name-display inconsistency.
 **🔧 BUG-EX-11 [P1] — check-in status never displayed (read path dropped it). FIXED.**
 `useMyEntriesData.transformEntry` hardcoded `checkInStatus: undefined`, so the card always read "Not Checked In" even after a check-in persisted to `entries.check_in_status` (which the replicated row already carries). Fix: added `normalizeCheckInStatus` (`myEntriesUtils.tsx`, treats `null`/`'no-status'` as not-checked-in) and read it in `transformEntry`. Verified live: check in → reload → "✓ Checked In". Unit-tested.
 
-**🐞 BUG-EX-13 [P2] — check-in write over-reaches via the secretary path (open).** The card dialog calls the **secretary** `updateCheckInStatus` (direct `entries` UPDATE that also sets staff-only `is_in_ring`, `ring_entry_time`, `judge_notes`) rather than an exhibitor `self_checkin_entry` RPC. The write succeeded for the exhibitor (RLS allowed it), but an exhibitor self-check-in setting `is_in_ring=true` is semantically wrong (checked-in ≠ in-ring) and lets an exhibitor write scoring fields. Review the exhibitor check-in write path + RLS; `self_checkin_entry` RPC appears unused in the client.
+**✅ BUG-EX-13 [P2] — check-in write over-reaches via the secretary path. FIXED.**
+The My Entries card dialog now persists through `useCheckInMutation` / `self_checkin_entry` instead of the secretary `updateCheckInStatus` helper, so exhibitor self-check-in updates only `entries.check_in_status` bookkeeping. RLS follow-up migration `20260604004045_restrict_entries_update_to_managers.sql` restores direct `entries_update` to show managers only and keeps handler/owner/co-owner self-check-in on the narrow RPC path. Regression coverage verifies the page calls the RPC mutation and that the SQL contract does not reopen handler direct UPDATE or staff/scoring fields.
 
 **🐞 BUG-EX-14 [Minor] — invalid DOM nesting in CheckInStatusDialog (open).** Opening the dialog logs `validateDOMNesting`: a `<div>` is rendered inside `DialogDescription`'s `<p>` (hydration error). Wrap the entry-info block in a `<div>`-based description, not `<p>`.
 
@@ -202,7 +203,7 @@ name-display inconsistency.
 | 3 | BUG-EX-09 | P1 | 5.3 | Exhibitor self-entry calls staff-only `assign_armband` → 400 (swallowed); no armband | ✅ Fixed (#500) |
 | 3b | BUG-EX-11 | P1 | 7 | Check-in status never displayed — `transformEntry` hardcoded `checkInStatus: undefined` | ✅ Fixed |
 | 4 | BUG-EX-03 | P2 | 5.2 | Multi-dog discount applied to single-dog entry (keyed to dogs owned, not entered) | 🐞 Open |
-| 4b | BUG-EX-13 | P2 | 7 | Check-in write over-reaches via secretary path (sets is_in_ring/judge_notes as exhibitor) | 🐞 Open |
+| 4b | BUG-EX-13 | P2 | 7 | Check-in write over-reaches via secretary path (sets is_in_ring/judge_notes as exhibitor) | ✅ Fixed |
 | 4c | BUG-EX-12 | P2 | 6 | `/dogs` "My Dogs" shows 9 vs dashboard 4 — owner-scope/count mismatch | 🐞 Open |
 | 4d | BUG-EX-14 | Minor | 7 | CheckInStatusDialog renders `<div>` inside `<p>` (validateDOMNesting/hydration) | 🐞 Open |
 | 5 | BUG-EX-04 | P2 | 4 | Premium landing show dates off-by-one (Jun 11–13 vs 12–14) | 🐞 Open |

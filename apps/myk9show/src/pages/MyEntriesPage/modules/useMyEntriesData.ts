@@ -12,7 +12,6 @@ import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { logger } from '@/services/LoggingService';
 import { getUserEntries } from '@/services/database/entries';
-import { updateCheckInStatus } from '@/services/database/entries';
 import {
   mapEntryStatus,
   mapPaymentStatus,
@@ -36,11 +35,23 @@ interface UseMyEntriesDataReturn {
   ) => Promise<void>;
 }
 
+interface PersistCheckInStatusInput {
+  entryId: string;
+  classId: string;
+  newStatus: CheckInStatus;
+}
+
+interface UseMyEntriesDataOptions {
+  persistCheckInStatus: (input: PersistCheckInStatusInput) => Promise<unknown>;
+}
+
 /**
  * Hook for managing user entries data
  * Handles loading, real-time updates, and check-in status changes
  */
-export function useMyEntriesData(): UseMyEntriesDataReturn {
+export function useMyEntriesData({
+  persistCheckInStatus,
+}: UseMyEntriesDataOptions): UseMyEntriesDataReturn {
   const { user, userWithRoles } = useAuthContext();
   const legacyPersonId = useCurrentUserPersonId();
   const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
@@ -219,11 +230,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
           })
         );
 
-        // Persist check-in status to database
-        const { error: dbError } = await updateCheckInStatus(entryId, status, notes);
-        if (dbError) {
-          throw dbError;
-        }
+        await persistCheckInStatus({ entryId, classId, newStatus: status });
 
         // Log the check-in status change
         auditService.log({
@@ -264,7 +271,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
         throw error;
       }
     },
-    [entries, user?.id]
+    [entries, persistCheckInStatus, user?.id]
   );
 
   return {

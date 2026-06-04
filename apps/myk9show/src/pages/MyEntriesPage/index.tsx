@@ -22,6 +22,7 @@ import { CheckInStatus } from '@/types/check-in-types';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
+import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import {
   Calendar,
   RefreshCw,
@@ -64,10 +65,13 @@ import {
 
 const MyEntriesPage: React.FC = () => {
   const { user, userWithRoles, firstName } = useAuthContext();
+  const checkInMutation = useCheckInMutation();
 
   // Data and filters
   const { entries, isLoading, isError, refreshing, refreshEntries, updateEntryCheckIn } =
-    useMyEntriesData();
+    useMyEntriesData({
+      persistCheckInStatus: checkInMutation.mutateAsync,
+    });
   const { filteredEntries, selectedTab, setSelectedTab, entryStats } = useMyEntriesFilters({
     entries,
   });

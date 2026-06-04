@@ -194,6 +194,27 @@ describe('AnalyticsPage', () => {
     expect(screen.queryByTestId('org-filter')).not.toBeInTheDocument();
   });
 
+  describe('?dog= URL param deep link', () => {
+    it('pre-selects the dog filter when ?dog=<id> is in the URL', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
+
+      render(<AnalyticsPage />, { initialRoute: '/exhibitor/analytics?dog=d1' });
+
+      // Only Rex (d1) entries are in scope — Luna (d2) should not appear in breakdown
+      expect(screen.getAllByText('Rex').length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByText('Luna')).not.toBeInTheDocument();
+    });
+
+    it('shows all dogs when no ?dog= param is present', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
+
+      render(<AnalyticsPage />, { initialRoute: '/exhibitor/analytics' });
+
+      expect(screen.getAllByText('Rex').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Luna').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   describe('premium gating', () => {
     it('shows all sections for premium subscribers', () => {
       mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });

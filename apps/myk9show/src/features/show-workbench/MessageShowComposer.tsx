@@ -59,7 +59,7 @@ export function MessageShowComposer({
   const initialDraft = buildMessageShowDraft(DEFAULT_MESSAGE_SHOW_TEMPLATE.id, classes[0]?.label);
   const [title, setTitle] = useState(initialDraft.title);
   const [message, setMessage] = useState(initialDraft.body);
-  const [sendPushAlert, setSendPushAlert] = useState(false);
+  const [sendPushAlert, setSendPushAlert] = useState(true);
   const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
   const { postAnnouncement } = useWorkbenchAnnouncementPost();
   const { sendTargetedMessage, isSending } = useMessageMutations();
@@ -79,7 +79,7 @@ export function MessageShowComposer({
     setSelectedClassId(nextClassId);
     setTitle(draft.title);
     setMessage(draft.body);
-    setSendPushAlert(false);
+    setSendPushAlert(true);
   }
 
   function handleSent() {
@@ -88,13 +88,9 @@ export function MessageShowComposer({
   }
 
   function applyTemplate(templateId: MessageShowTemplateId) {
-    const template = MESSAGE_SHOW_TEMPLATES.find(candidate => candidate.id === templateId);
-    const nextRecipient = template?.preferredRecipient ?? recipient;
     const classLabel = selectedClass?.label;
     const draft = buildMessageShowDraft(templateId, classLabel);
-
     setSelectedTemplateId(templateId);
-    setRecipient(nextRecipient);
     setTitle(draft.title);
     setMessage(draft.body);
   }
@@ -210,14 +206,14 @@ export function MessageShowComposer({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mt-4 flex flex-col gap-3">
         <div className="space-y-2">
           <Label id="message-show-recipient-label">Recipient</Label>
           <Select value={recipient} onValueChange={handleRecipientChange}>
-            <SelectTrigger aria-labelledby="message-show-recipient-label">
+            <SelectTrigger className="w-full" aria-labelledby="message-show-recipient-label">
               <SelectValue>{RECIPIENT_LABELS[recipient]}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="w-full">
               {Object.entries(RECIPIENT_LABELS).map(([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {label}
@@ -235,14 +231,14 @@ export function MessageShowComposer({
               onValueChange={handleClassChange}
               disabled={!classes.length}
             >
-              <SelectTrigger aria-labelledby="message-show-class-label">
+              <SelectTrigger className="w-full" aria-labelledby="message-show-class-label">
                 <SelectValue placeholder="Select a class">
                   {selectedClass
                     ? `${selectedClass.label} · ${entryCountLabel(selectedClass.entryCount)}`
                     : undefined}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="w-full">
                 {classes.map(cls => (
                   <SelectItem key={cls.id} value={cls.id}>
                     {cls.label} · {entryCountLabel(cls.entryCount)}

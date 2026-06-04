@@ -59,14 +59,14 @@ describe('MessageShowComposer', () => {
           showId: 'show-1',
           title: 'Results posted',
           content: 'Results have been posted. Please contact the secretary desk with questions.',
-          priority: 'normal',
+          priority: 'high',
         })
       );
     });
     expect(mockSendTargetedMessage).not.toHaveBeenCalled();
   });
 
-  it('sends push-selected everyone-in-show messages with high announcement priority', async () => {
+  it('sends quiet everyone-in-show messages with normal priority when push is unchecked', async () => {
     const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
 
     await user.click(screen.getByRole('checkbox', { name: 'Send push alert' }));
@@ -75,7 +75,7 @@ describe('MessageShowComposer', () => {
     await waitFor(() => {
       expect(mockPostAnnouncement).toHaveBeenCalledWith(
         expect.objectContaining({
-          priority: 'high',
+          priority: 'normal',
         })
       );
     });
@@ -92,7 +92,7 @@ describe('MessageShowComposer', () => {
     await waitFor(() => {
       expect(mockSendTargetedMessage).toHaveBeenCalledWith(
         'show-1',
-        { type: 'class', classId: 'class-1', sendPush: false },
+        { type: 'class', classId: 'class-1', sendPush: true },
         'Please report to the gate for Container Novice A. We are getting ready for your class.'
       );
     });
@@ -111,7 +111,7 @@ describe('MessageShowComposer', () => {
     await waitFor(() => {
       expect(mockSendTargetedMessage).toHaveBeenCalledWith(
         'show-1',
-        { type: 'checked_in', sendPush: false },
+        { type: 'checked_in', sendPush: true },
         'Please return your armbands.'
       );
     });
@@ -127,7 +127,7 @@ describe('MessageShowComposer', () => {
     expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
   });
 
-  it('passes sendPush true for targeted messages when push alert is selected', async () => {
+  it('passes sendPush false for targeted messages when push alert is unchecked', async () => {
     const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
 
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
@@ -138,7 +138,7 @@ describe('MessageShowComposer', () => {
     await waitFor(() => {
       expect(mockSendTargetedMessage).toHaveBeenCalledWith(
         'show-1',
-        { type: 'checked_in', sendPush: true },
+        { type: 'checked_in', sendPush: false },
         expect.any(String)
       );
     });

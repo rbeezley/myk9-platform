@@ -23,9 +23,9 @@ const BASE_PROPS = {
 };
 
 describe('MonogramEntryReceived', () => {
-  it('renders the "Your entry is received" heading', () => {
+  it('renders the ready heading', () => {
     render(<MonogramEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /received/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
   });
 
   it('displays the club name', () => {
@@ -58,14 +58,14 @@ describe('MonogramEntryReceived', () => {
     expect(screen.getByText(/Excellent Containers/)).toBeInTheDocument();
   });
 
-  it('renders the receipt number with № glyph when registrationNumber is supplied', () => {
+  it('renders the entry number with № glyph when registrationNumber is supplied', () => {
     render(<MonogramEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Receipt № 2026-0137/)).toBeInTheDocument();
+    expect(screen.getByText(/Entry № 2026-0137/)).toBeInTheDocument();
   });
 
-  it('falls back to "Fees received" label when no registration number', () => {
+  it('falls back to "Fees due" label when no registration number', () => {
     render(<MonogramEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.getByText('Fees received')).toBeInTheDocument();
+    expect(screen.getByText('Fees due')).toBeInTheDocument();
   });
 
   it('renders the total fees amount', () => {

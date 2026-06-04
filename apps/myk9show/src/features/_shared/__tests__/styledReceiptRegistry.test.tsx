@@ -52,8 +52,18 @@ describe('STYLED_RECEIPT_BY_STYLE', () => {
     const element = STYLED_RECEIPT_BY_STYLE.fieldGuide(BASE_PROPS, { brandColor: null });
     const { container } = render(element);
     expect(container.querySelector('[data-field-guide]')).not.toBeNull();
-    // The "CONFIRMED" orange chip is the Field Guide signature element.
-    expect(container.textContent).toContain('CONFIRMED');
+    expect(container.textContent).toContain('READY TO SUBMIT');
+  });
+
+  it('uses pre-submit language across styled receipts', () => {
+    for (const style of ALL_STYLES) {
+      const element = STYLED_RECEIPT_BY_STYLE[style](BASE_PROPS, { brandColor: '#7a1f1f' });
+      const { container } = render(element);
+      const text = container.textContent?.toLowerCase() ?? '';
+
+      expect(text).not.toContain('confirmed');
+      expect(text).not.toContain('fees received');
+    }
   });
 
   it('renders the gazette receipt for style=gazette', () => {

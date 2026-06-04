@@ -113,7 +113,7 @@ export function HeritageEntryReceived({
             margin: '0 0 6px',
           }}
         >
-          Your entry is <em style={{ color: CLARET, fontStyle: 'italic' }}>received</em>.
+          Your entry is <em style={{ color: CLARET, fontStyle: 'italic' }}>ready</em>.
         </h2>
 
         <p
@@ -207,7 +207,7 @@ export function HeritageEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? `Receipt #${registrationNumber}` : 'Fees received'}
+            {registrationNumber ? `Entry #${registrationNumber}` : 'Fees due'}
           </span>
           <span
             style={{

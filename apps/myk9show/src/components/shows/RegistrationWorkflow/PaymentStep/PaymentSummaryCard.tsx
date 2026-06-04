@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, Calendar } from 'lucide-react';
+import { CreditCard, Calendar, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -17,9 +17,9 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
   feeOverride,
 }) => {
   const isWaived = paymentMethod === 'waived' || waiveFees;
-  const amountDue = isWaived
-    ? '$0.00 (Waived)'
-    : `$${(feeOverride || feeCalculation.total).toFixed(2)}`;
+  const amountDueValue = feeOverride ?? feeCalculation.total;
+  const requiresPaymentMethod = !isWaived && amountDueValue > 0 && !paymentMethod;
+  const amountDue = isWaived ? '$0.00 (Waived)' : `$${amountDueValue.toFixed(2)}`;
 
   return (
     <Card>
@@ -30,7 +30,9 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
         <div className="space-y-2">
           <div className="flex justify-between">
             <span>Selected Payment Method:</span>
-            <Badge variant="outline">{getPaymentMethodLabel(paymentMethod)}</Badge>
+            <Badge variant="outline">
+              {paymentMethod ? getPaymentMethodLabel(paymentMethod) : 'Not selected'}
+            </Badge>
           </div>
           <div className="flex justify-between font-semibold text-lg">
             <span>Amount Due:</span>
@@ -40,6 +42,14 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
             <Alert>
               <CreditCard className="h-4 w-4" />
               <AlertDescription>{PAYMENT_MESSAGES.CARD_COMING_SOON}</AlertDescription>
+            </Alert>
+          )}
+          {requiresPaymentMethod && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Choose a payment method to continue to the final review.
+              </AlertDescription>
             </Alert>
           )}
           {['check', 'cash'].includes(paymentMethod) && (

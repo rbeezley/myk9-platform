@@ -23,9 +23,9 @@ const BASE_PROPS = {
 };
 
 describe('FieldGuideEntryReceived', () => {
-  it('renders the "Entry confirmed." heading', () => {
+  it('renders the ready-to-submit heading', () => {
     render(<FieldGuideEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /entry confirmed/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /entry ready to submit/i })).toBeTruthy();
   });
 
   it('renders the byline with show, club, and date range', () => {
@@ -35,23 +35,23 @@ describe('FieldGuideEntryReceived', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows the receipt number in both the top strip and a chip', () => {
+  it('shows the entry number in both the top strip and a chip', () => {
     const { container } = render(<FieldGuideEntryReceived {...BASE_PROPS} />);
-    expect(container.textContent).toContain('RECEIPT 2026-0137');
+    expect(container.textContent).toContain('ENTRY 2026-0137');
   });
 
-  it('omits the receipt strip + chip when registrationNumber is null', () => {
+  it('omits the entry strip + chip when registrationNumber is null', () => {
     const { container } = render(
       <FieldGuideEntryReceived {...BASE_PROPS} registrationNumber={null} />
     );
-    expect(container.textContent).not.toContain('RECEIPT');
+    expect(container.textContent).not.toContain('ENTRY');
   });
 
-  it('renders the "CONFIRMED" orange chip in the header', () => {
+  it('renders the ready-to-submit orange chip in the header', () => {
     const { container } = render(<FieldGuideEntryReceived {...BASE_PROPS} />);
     const chip = container.querySelector('[data-variant="orange"]') as HTMLElement;
     expect(chip).not.toBeNull();
-    expect(chip.textContent).toBe('CONFIRMED');
+    expect(chip.textContent).toBe('READY TO SUBMIT');
   });
 
   it('derives a "3 RUNS" chip from the leading run-count in classSummary', () => {

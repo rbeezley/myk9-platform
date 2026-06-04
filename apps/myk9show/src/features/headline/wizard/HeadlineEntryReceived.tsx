@@ -56,7 +56,7 @@ export function HeadlineEntryReceived({
               textTransform: 'uppercase',
             }}
           >
-            Confirmed
+            Ready
           </span>
           <span
             style={{
@@ -67,7 +67,7 @@ export function HeadlineEntryReceived({
               color: MUTE,
             }}
           >
-            {registrationNumber ? `Receipt #${registrationNumber}` : 'Receipt pending'}
+            {registrationNumber ? `Entry #${registrationNumber}` : 'Entry pending'}
           </span>
         </div>
 
@@ -96,14 +96,14 @@ export function HeadlineEntryReceived({
             color: INK,
           }}
         >
-          You&apos;re{' '}
+          Ready to{' '}
           <span
             style={{
               background: MARKER,
               padding: '0 6px',
             }}
           >
-            in.
+            submit.
           </span>
         </h2>
 
@@ -215,7 +215,7 @@ export function HeadlineEntryReceived({
               color: MUTE,
             }}
           >
-            Total · Fees received
+            Total · Fees due
           </span>
           <span
             style={{

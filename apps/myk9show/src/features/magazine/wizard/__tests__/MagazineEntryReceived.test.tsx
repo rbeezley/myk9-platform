@@ -29,19 +29,19 @@ const BASE_PROPS = {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('MagazineEntryReceived', () => {
-  it('renders "Your entry is received" heading', () => {
+  it('renders the ready heading', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByRole('heading', { name: /received/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
   });
 
-  it('renders the "Confirmed · Receipt …" kicker when registrationNumber present', () => {
+  it('renders the ready-to-submit kicker when registrationNumber present', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Confirmed · Receipt 2026-0137/)).toBeTruthy();
+    expect(screen.getByText(/Ready to submit · Entry 2026-0137/)).toBeTruthy();
   });
 
-  it('renders bare "Confirmed" kicker when registrationNumber is null', () => {
+  it('renders bare ready-to-submit kicker when registrationNumber is null', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.getByText('Confirmed')).toBeTruthy();
+    expect(screen.getByText('Ready to submit')).toBeTruthy();
   });
 
   it('renders club + show + date range in the byline', () => {
@@ -75,14 +75,14 @@ describe('MagazineEntryReceived', () => {
     expect(screen.getByText('$69.00')).toBeTruthy();
   });
 
-  it('renders the "Receipt №" label when registrationNumber is set', () => {
+  it('renders the "Entry №" label when registrationNumber is set', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Receipt № 2026-0137/)).toBeTruthy();
+    expect(screen.getByText(/Entry № 2026-0137/)).toBeTruthy();
   });
 
-  it('renders "Fees received" instead of "Receipt №" when no number', () => {
+  it('renders "Fees due" instead of "Entry №" when no number', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.getByText('Fees received')).toBeTruthy();
+    expect(screen.getByText('Fees due')).toBeTruthy();
   });
 
   it('renders confirmation date caption', () => {
@@ -121,6 +121,6 @@ describe('MagazineEntryReceived', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
     expect(screen.queryByText(/A formal confirmation will be emailed/)).toBeNull();
     // Header still renders.
-    expect(screen.getByRole('heading', { name: /received/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
   });
 });

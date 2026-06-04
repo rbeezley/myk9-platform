@@ -124,9 +124,9 @@ instead of "Scent Work" (a `formatTrialTypeLabel` exists on the secretary side).
 registration. It appears keyed to dogs the account *owns* (4), not dogs *entered
 in this registration* (1). Verify the fee calculator's dog-count source.
 
-**🐞 BUG-EX-08 [Minor UX] (open).** On the payment step, **Next is disabled with no
-inline reason** until a payment method is selected; the only cue is a blank
-"Selected Payment Method:". Add a hint or inline validation.
+**✅ BUG-EX-08 [Minor UX] — fixed.** On the payment step, the summary now shows
+"Not selected" and an inline "Choose a payment method to continue" hint while a
+payment method is required.
 
 ### 5.3 Confirmation ✅ 🔧 🐞
 - [x] Receipt (#MK9-…), dog, class, total, "Complete Registration"
@@ -147,10 +147,10 @@ preserving for the persisted entry; removes the doomed call. Unit test added.
 "Next" resisted synthetic clicks during the walk — re-verify in the committed spec
 with real Playwright clicks.)*
 
-**🐞 BUG-EX-10 [P2] — premature "CONFIRMED" / "FEES RECEIVED" (open).** The
-confirmation step shows "CONFIRMED" and "TOTAL · FEES RECEIVED $27.00" **before**
-"Complete Registration" is clicked and while payment is explicitly deferred
-("collected later"). Misleading — fees are not received and it isn't yet saved.
+**✅ BUG-EX-10 [P2] — fixed.** The final review step now avoids premature
+"CONFIRMED" / "FEES RECEIVED" language before **Complete Registration** and while
+payment is deferred. Styled receipts and the generic confirmation card use
+pre-submit copy ("ready to submit", "fees due") until entry + payment are recorded.
 
 **ℹ️ Not a bug:** receipt shows the dog's *registered* name ("E2E Dog A …") while
 the selector/list show the *call* name ("Dog 1"). Same dog; minor cross-surface
@@ -206,10 +206,10 @@ name-display inconsistency.
 | 4c | BUG-EX-12 | P2 | 6 | `/dogs` "My Dogs" shows 9 vs dashboard 4 — owner-scope/count mismatch | 🐞 Open |
 | 4d | BUG-EX-14 | Minor | 7 | CheckInStatusDialog renders `<div>` inside `<p>` (validateDOMNesting/hydration) | 🐞 Open |
 | 5 | BUG-EX-04 | P2 | 4 | Premium landing show dates off-by-one (Jun 11–13 vs 12–14) | 🐞 Open |
-| 6 | BUG-EX-10 | P2 | 5.3 | "CONFIRMED / FEES RECEIVED" shown before completion & with deferred payment | 🐞 Open |
+| 6 | BUG-EX-10 | P2 | 5.3 | "CONFIRMED / FEES RECEIVED" shown before completion & with deferred payment | ✅ Fixed |
 | 7 | BUG-EX-07 | P2 | 3 | Browse counts inconsistent (5 vs 9); "My Entries" tab shows 0 despite entries | 🐞 Open |
 | 8 | BUG-EX-05 | Minor | 5.1 | Class checkboxes lack accessible name; dog chips lack aria-pressed | 🐞 Open |
-| 9 | BUG-EX-08 | Minor | 5.2 | Disabled "Next" on payment with no inline reason | 🐞 Open |
+| 9 | BUG-EX-08 | Minor | 5.2 | Disabled "Next" on payment with no inline reason | ✅ Fixed |
 | 10 | BUG-EX-06 | Minor | 5.1 | Raw enum "scent_work" in wizard trial header | 🐞 Open |
 | 11 | HYGIENE | — | 3 | Leftover "Update Test Show …" rows + E2E dogs pollute browse/My Dogs | 🐞 Open |
 

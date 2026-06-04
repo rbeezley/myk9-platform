@@ -41,10 +41,10 @@ const BASE_PROPS = {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('HeritageEntryReceived', () => {
-  it('renders "Your entry is received" heading', () => {
+  it('renders the ready heading', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} />);
     // h2 has an <em> child — use role query which checks full accessible name
-    expect(screen.getByRole('heading', { name: /received/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
   });
 
   it('displays club name', () => {
@@ -124,7 +124,7 @@ describe('HeritageEntryReceived', () => {
 
   it('renders without confirmationDateLabel when null', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
-    expect(screen.getByRole('heading', { name: /received/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /ready/i })).toBeTruthy();
     // No crash, caption just omits the date
   });
 });

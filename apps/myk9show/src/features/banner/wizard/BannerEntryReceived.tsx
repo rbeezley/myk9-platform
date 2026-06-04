@@ -68,7 +68,7 @@ export function BannerEntryReceived({
             opacity: 0.7,
           }}
         >
-          Confirmed{registrationNumber ? ` · Receipt ${registrationNumber}` : ''}
+          Ready to submit{registrationNumber ? ` · Entry ${registrationNumber}` : ''}
         </p>
         <h2
           style={{
@@ -81,7 +81,7 @@ export function BannerEntryReceived({
             color: colors.textOnFlag,
           }}
         >
-          You&apos;re in.
+          Ready to submit.
         </h2>
         <p
           style={{
@@ -175,7 +175,7 @@ export function BannerEntryReceived({
               color: bannerColors.mute,
             }}
           >
-            Total · Fees received
+            Total · Fees due
           </span>
           <span
             style={{

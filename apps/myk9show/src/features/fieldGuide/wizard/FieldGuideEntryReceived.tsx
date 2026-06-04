@@ -22,8 +22,7 @@ import '../fieldGuide.css';
  * Field Guide wizard completion props mirror Heritage 1:1, no extensions.
  * Per the reconciliation notes, the chip system in this surface is
  * decorative — chips are derived from props (run count from
- * `classSummary`, receipt from `registrationNumber`, "CONFIRMED" is
- * constant). We never invent props the cross-style wiring layer doesn't
+ * `classSummary`, and entry number from `registrationNumber`). We never invent props the cross-style wiring layer doesn't
  * already pass.
  */
 export type FieldGuideEntryReceivedProps = HeritageEntryReceivedProps;
@@ -38,7 +37,7 @@ function extractRunsLabel(classSummary: string): string | null {
 }
 
 /**
- * Field-Guide-styled "your entry is recorded" wizard completion. Renders
+ * Field-Guide-styled entry-summary wizard completion. Renders
  * as a compact receipt: dark ID strip, chip-tagged header, §-numbered
  * detail panel with dog + class summary + total, two stacked CTAs, and
  * a mono "next steps" caption.
@@ -83,7 +82,7 @@ export function FieldGuideEntryReceived({
           </strong>{' '}
           · REV 01
         </span>
-        {registrationNumber && <span>RECEIPT {registrationNumber}</span>}
+        {registrationNumber && <span>ENTRY {registrationNumber}</span>}
       </FieldGuideDarkBand>
 
       {/* ── Chip-tagged header ── */}
@@ -94,10 +93,10 @@ export function FieldGuideEntryReceived({
         }}
       >
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-          <FieldGuideChip variant="orange">CONFIRMED</FieldGuideChip>
+          <FieldGuideChip variant="orange">READY TO SUBMIT</FieldGuideChip>
           {runsLabel && <FieldGuideChip>{runsLabel}</FieldGuideChip>}
           {registrationNumber && (
-            <FieldGuideChip>RECEIPT {registrationNumber}</FieldGuideChip>
+            <FieldGuideChip>ENTRY {registrationNumber}</FieldGuideChip>
           )}
         </div>
         <h2
@@ -111,7 +110,7 @@ export function FieldGuideEntryReceived({
             color: fieldGuideColors.ink,
           }}
         >
-          Entry confirmed.
+          Entry ready to submit.
         </h2>
         <p
           style={{
@@ -205,7 +204,7 @@ export function FieldGuideEntryReceived({
               color: fieldGuideColors.mute,
             }}
           >
-            TOTAL · FEES RECEIVED
+            TOTAL · FEES DUE
           </span>
           <span
             style={{

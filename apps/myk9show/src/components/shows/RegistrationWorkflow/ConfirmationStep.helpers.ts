@@ -20,6 +20,35 @@ export interface ReceiptData {
   generatedAt: string;
 }
 
+export interface ConfirmationHeroCopy {
+  title: string;
+  description: string;
+}
+
+export function isRegistrationRecorded(
+  entryStatus: EntryStatus,
+  paymentStatus: PaymentStatus
+): boolean {
+  return entryStatus === EntryStatus.ACCEPTED && isPaidStatus(paymentStatus);
+}
+
+export function getConfirmationHeroCopy(
+  entryStatus: EntryStatus,
+  paymentStatus: PaymentStatus
+): ConfirmationHeroCopy {
+  if (isRegistrationRecorded(entryStatus, paymentStatus)) {
+    return {
+      title: 'Registration Confirmed',
+      description: 'Your registration has been submitted and payment has been recorded.',
+    };
+  }
+
+  return {
+    title: 'Registration Ready to Submit',
+    description: 'Review this summary, then choose Complete Registration to submit your entry.',
+  };
+}
+
 /** Generate a plain-text receipt for clipboard/download */
 export function generateReceiptText(data: ReceiptData): string {
   const divider = '═'.repeat(48);

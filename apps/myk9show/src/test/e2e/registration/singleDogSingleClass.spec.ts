@@ -143,7 +143,7 @@ async function preventSharedWrites(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify('9001'),
+      body: JSON.stringify(9001),
     });
   });
 

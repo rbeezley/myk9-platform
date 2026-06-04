@@ -58,6 +58,8 @@ $$;
 revoke all on function public.self_checkin_entry(uuid, text) from public;
 grant execute on function public.self_checkin_entry(uuid, text) to authenticated;
 
+drop policy if exists "entries_checkin_update_staff" on public.entries;
+drop policy if exists "entries_checkin_update_own" on public.entries;
 drop policy if exists "entries_update" on public.entries;
 
 create policy "entries_update" on public.entries

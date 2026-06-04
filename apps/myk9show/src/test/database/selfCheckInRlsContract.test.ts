@@ -34,6 +34,11 @@ describe('self check-in RLS contract', () => {
     expect(updatePolicy).not.toContain('co_owner_id');
   });
 
+  it('removes older permissive check-in UPDATE policies before recreating entries_update', () => {
+    expect(migration).toContain('drop policy if exists "entries_checkin_update_staff"');
+    expect(migration).toContain('drop policy if exists "entries_checkin_update_own"');
+  });
+
   it('keeps self_checkin_entry limited to check-in status bookkeeping', () => {
     const updateStatement = sliceBetween(
       migration,

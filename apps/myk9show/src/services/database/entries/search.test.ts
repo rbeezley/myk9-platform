@@ -31,4 +31,10 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
   it.each(requiredColumns)('selects "%s"', column => {
     expect(USER_ENTRIES_SELECT).toContain(column);
   });
+
+  it('selects trial type through class_id for legacy rows with entries.trial_id null', () => {
+    expect(USER_ENTRIES_SELECT).toMatch(
+      /class:class_id\s*\([^)]*trial:trial_id\s*\([^)]*trial_type/s
+    );
+  });
 });

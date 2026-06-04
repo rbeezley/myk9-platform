@@ -6,6 +6,7 @@ const SECRETARY_EMAIL = 'secretary@myk9t.com';
 const SECRETARY_PASSWORD = 'TestPass4567!';
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const DOG_SEARCH = 'Bravo';
+const MOCK_CART_ID = 'e2e-single-dog-cart';
 
 async function signInAsSecretary(page: Page, returnTo = '/secretary/dashboard') {
   await page.goto(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, {
@@ -21,6 +22,82 @@ async function signInAsSecretary(page: Page, returnTo = '/secretary/dashboard') 
 }
 
 async function preventSharedWrites(page: Page) {
+  await page.route('**/rest/v1/entry_carts**', async route => {
+    const request = route.request();
+
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: 'null',
+      });
+      return;
+    }
+
+    if (request.method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: MOCK_CART_ID,
+          show_id: SHOW_ID,
+          exhibitor_id: 'e2e-single-dog-exhibitor',
+          status: 'active',
+          expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          subtotal_cents: 0,
+          platform_fee_cents: 0,
+          total_cents: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      return;
+    }
+
+    if (request.method() === 'PATCH') {
+      await route.fulfill({ status: 204, body: '' });
+      return;
+    }
+
+    await route.fallback();
+  });
+
+  await page.route('**/rest/v1/entry_cart_items**', async route => {
+    const request = route.request();
+
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+      return;
+    }
+
+    if (request.method() === 'POST') {
+      const requestBody = request.postDataJSON() as Record<string, unknown>;
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'e2e-single-dog-cart-item',
+          cart_id: MOCK_CART_ID,
+          dog_id: requestBody.dog_id,
+          class_id: requestBody.class_id,
+          handler_id: null,
+          entry_fee_cents: requestBody.entry_fee_cents,
+          created_at: new Date().toISOString(),
+          dog: null,
+          class: null,
+          handler: null,
+        }),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+
   await page.route('**/rest/v1/enrollments**', async route => {
     const request = route.request();
     if (request.method() !== 'POST') return route.fallback();
@@ -97,9 +174,9 @@ async function searchAndSelectDog(page: Page) {
   await search.fill(DOG_SEARCH);
   await waitForDogSearch(page, DOG_SEARCH.toLowerCase());
 
-  const dogRow = page.locator('.grid.items-center.gap-x-3').filter({ hasText: DOG_SEARCH }).last();
-  await expect(dogRow).toBeVisible({ timeout: 10000 });
-  await dogRow.getByRole('checkbox').click({ force: true });
+  const dogCheckbox = page.getByRole('checkbox', { name: new RegExp(`Select ${DOG_SEARCH}`, 'i') });
+  await expect(dogCheckbox).toBeVisible({ timeout: 10000 });
+  await dogCheckbox.click({ force: true });
   await expect(page.getByText(/1(?: dog)? selected/).first()).toBeVisible({ timeout: 5000 });
 }
 

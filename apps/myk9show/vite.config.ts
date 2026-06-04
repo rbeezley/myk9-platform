@@ -216,7 +216,7 @@ export default defineConfig({
     // Force reload on file changes
     hmr: {
       overlay: true,
-      port: 24678,
+      port: Number(process.env.VITE_HMR_PORT || 24678),
     },
     // Force file watching
     watch: {

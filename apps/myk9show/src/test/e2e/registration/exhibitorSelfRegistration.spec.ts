@@ -239,10 +239,10 @@ test('exhibitor can enter an online show through confirmation without shared DB 
 
   await page.getByRole('button', { name: /^Next$/ }).click();
 
-  await expect(page.getByRole('heading', { name: /Your entry is received/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /Your entry is ready/i })).toBeVisible({
     timeout: 15000,
   });
-  await expect(page.getByText(`Receipt #${MOCK_CONFIRMATION}`)).toBeVisible();
+  await expect(page.getByText(new RegExp(`Entry\\s*#${MOCK_CONFIRMATION}`))).toBeVisible();
   await expect(page.getByText(/Container Novice A/)).toBeVisible();
 
   expect(captured.cartItem?.cart_id).toBe(MOCK_CART_ID);

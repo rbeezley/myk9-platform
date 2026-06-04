@@ -166,16 +166,6 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
     return { status: 'no_subscriptions_found' };
   }
 
-  // One notification per account — dedupe by user_id to avoid hitting the same
-  // person twice when they have multiple push subscriptions (e.g. Chrome browser
-  // + installed PWA both registered on the same device).
-  const seenUserIds = new Set<string>();
-  const dedupedSubscriptions = allSubscriptions.filter(sub => {
-    if (seenUserIds.has(sub.user_id)) return false;
-    seenUserIds.add(sub.user_id);
-    return true;
-  });
-
   const pushPayload = JSON.stringify({
     type: 'announcement',
     title: announcement.title,
@@ -194,7 +184,7 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
   const expiredEndpoints: string[] = [];
 
   await Promise.allSettled(
-    dedupedSubscriptions.map(async sub => {
+    allSubscriptions.map(async sub => {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -217,7 +207,7 @@ handle<WebhookPayload>({ auth: 'none' }, async ({ req, body: payload, supabase }
   }
 
   console.log(
-    `push-trigger-announcement: sent=${sent}/${dedupedSubscriptions.length} (deduped from ${allSubscriptions.length}) expired=${expiredEndpoints.length}`
+    `push-trigger-announcement: sent=${sent}/${allSubscriptions.length} expired=${expiredEndpoints.length}`
   );
 
   return {

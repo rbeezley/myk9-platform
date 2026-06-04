@@ -24,7 +24,7 @@ self.addEventListener('push', (event: PushEvent) => {
       body: payload.body || '',
       icon: '/pwa-192x192.png',
       badge: '/pwa-192x192.png',
-      tag: payload.type || 'default',
+      tag: payload.data?.announcementId || payload.data?.messageId || payload.type || 'default',
       data: payload,
     };
 

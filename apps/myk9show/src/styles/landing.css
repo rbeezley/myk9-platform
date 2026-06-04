@@ -995,6 +995,10 @@
   .landing-v2 .l-features-grid { grid-template-columns: 1fr; }
   .landing-v2 .l-foot-grid { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 480px) {
+  .landing-v2 .l-status-chip { display: none; }
+  .landing-v2 .l-waitlist-btn { display: none; }
+}
 @media (max-width: 640px) {
   .landing-v2 .l-container,
   .landing-v2 .l-hdr-inner,

@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MyEntriesPage from '@/pages/MyEntriesPage';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { getUserEntries } from '@/services/database/entries';
+import { getUserEntries, updateCheckInStatus } from '@/services/database/entries';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { UserWithRoles } from '@/types/auth-types';
 
 // Mock dependencies
+const mockCheckInMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
 vi.mock('@/hooks/useAuthContext');
 vi.mock('@/hooks/useBreadcrumb', () => ({
   useBreadcrumb: () => [{ label: 'Home', href: '/' }, { label: 'My Entries' }],
@@ -37,6 +40,11 @@ vi.mock('@/services/LoggingService', () => ({
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null }),
   updateCheckInStatus: vi.fn().mockResolvedValue({ data: null, error: null }),
+}));
+vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
+  useCheckInMutation: () => ({
+    mutateAsync: mockCheckInMutateAsync,
+  }),
 }));
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsByOwnerQuery: () => ({ data: [] }),
@@ -234,6 +242,78 @@ describe('MyEntriesPage UI Improvements', () => {
       await screen.findByRole('tablist');
 
       expect(getUserEntries).toHaveBeenCalledWith('person-1');
+    });
+
+    it('routes exhibitor self check-in through the owner-scoped RPC mutation', async () => {
+      const user = userEvent.setup();
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        isAuthenticated: true,
+      });
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: [
+          {
+            id: 'entry-1',
+            registration_id: 'reg-1',
+            show_id: 'show-1',
+            dog_id: 'dog-1',
+            class_id: 'class-1',
+            trial_id: 'trial-1',
+            handler_id: 'person-1',
+            entry_status: 'accepted',
+            payment_status: 'paid_online',
+            entry_fee: 25,
+            check_in_status: 'no-status',
+            is_scored: false,
+            result_status: null,
+            search_time_seconds: null,
+            total_faults: null,
+            final_placement: null,
+            submitted_at: '2026-06-01T12:00:00.000Z',
+            created_at: '2026-06-01T12:00:00.000Z',
+            updated_at: '2026-06-01T12:00:00.000Z',
+            dog: { id: 'dog-1', name: 'Koda', call_name: 'Koda' },
+            show: {
+              id: 'show-1',
+              name: 'Spring Trial',
+              start_date: '2026-06-15',
+              end_date: '2026-06-16',
+              entry_close_date: '2026-06-01',
+              venue: 'Test Venue',
+              city: 'Portland',
+              state: 'OR',
+            },
+            class: { id: 'class-1', name: 'Novice A', class_number: '101' },
+            trial: { id: 'trial-1', trial_type: 'Scent Work' },
+            registration: { id: 'reg-1', confirmation_number: 'ABC123' },
+          },
+        ],
+        error: null,
+      });
+
+      renderWithProviders(<MyEntriesPage />);
+
+      await screen.findByText('Spring Trial');
+      await user.click(screen.getByRole('button', { name: /not checked in/i }));
+      const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
+      const checkedInOption = statusOptions.find(
+        option => option.getAttribute('aria-labelledby') === 'checked-in-label'
+      );
+      expect(checkedInOption).toBeDefined();
+      await user.click(checkedInOption as HTMLElement);
+      await user.click(screen.getByRole('button', { name: /update status/i }));
+
+      await waitFor(() =>
+        expect(mockCheckInMutateAsync).toHaveBeenCalledWith({
+          entryId: 'entry-1',
+          // My Entries models each class row as the concrete entry row, so
+          // EntryClass.id is entry.id rather than the catalog class_id.
+          classId: 'entry-1',
+          newStatus: 'checked-in',
+        })
+      );
+      expect(updateCheckInStatus).not.toHaveBeenCalled();
     });
   });
 });

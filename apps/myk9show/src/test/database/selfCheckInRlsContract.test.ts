@@ -10,11 +10,23 @@ const migration = readFileSync(
   'utf8'
 );
 
+function sliceBetween(source: string, start: string, end: string): string {
+  const startIndex = source.indexOf(start);
+  expect(startIndex).toBeGreaterThanOrEqual(0);
+
+  const endIndex = source.indexOf(end, startIndex);
+  expect(endIndex).toBeGreaterThan(startIndex);
+
+  return source.slice(startIndex, endIndex);
+}
+
 describe('self check-in RLS contract', () => {
   it('keeps direct entries UPDATE scoped to show managers only', () => {
-    const updatePolicy = migration.match(
-      /create policy "entries_update" on public\.entries[\s\S]*?;/i
-    )?.[0];
+    const updatePolicy = sliceBetween(
+      migration,
+      'create policy "entries_update" on public.entries',
+      "notify pgrst, 'reload schema'"
+    );
 
     expect(updatePolicy).toContain('public.can_manage_show(entries.show_id)');
     expect(updatePolicy).not.toContain('handler_id');
@@ -23,12 +35,16 @@ describe('self check-in RLS contract', () => {
   });
 
   it('keeps self_checkin_entry limited to check-in status bookkeeping', () => {
-    const updateStatement = migration.match(/update public\.entries e[\s\S]*?;/i)?.[0];
+    const updateStatement = sliceBetween(
+      migration,
+      'update public.entries e',
+      'if not found then'
+    );
 
     expect(updateStatement).toContain('check_in_status = p_new_status');
     expect(updateStatement).toContain('updated_at = now()');
-    expect(updateStatement).not.toContain('is_in_ring');
-    expect(updateStatement).not.toContain('ring_entry_time');
-    expect(updateStatement).not.toContain('judge_notes');
+    expect(migration).not.toContain('is_in_ring');
+    expect(migration).not.toContain('ring_entry_time');
+    expect(migration).not.toContain('judge_notes');
   });
 });

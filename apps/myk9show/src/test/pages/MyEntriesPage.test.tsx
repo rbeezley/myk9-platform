@@ -307,6 +307,8 @@ describe('MyEntriesPage UI Improvements', () => {
       await waitFor(() =>
         expect(mockCheckInMutateAsync).toHaveBeenCalledWith({
           entryId: 'entry-1',
+          // My Entries models each class row as the concrete entry row, so
+          // EntryClass.id is entry.id rather than the catalog class_id.
           classId: 'entry-1',
           newStatus: 'checked-in',
         })

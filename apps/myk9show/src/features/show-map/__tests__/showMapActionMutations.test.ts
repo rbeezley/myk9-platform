@@ -18,6 +18,7 @@ const mockGetReplicatedClassById = vi.fn();
 const mockGetReplicatedEntriesByClass = vi.fn();
 const mockCreateReplicatedEntry = vi.fn();
 const mockDeleteReplicatedEntry = vi.fn();
+const mockAuditLog = vi.fn<() => Promise<void>>(() => Promise.resolve());
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -55,6 +56,18 @@ vi.mock('@/services/replication', () => ({
     getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
     createEntry: (...args: unknown[]) => mockCreateReplicatedEntry(...args),
     deleteEntry: (...args: unknown[]) => mockDeleteReplicatedEntry(...args),
+  },
+}));
+
+vi.mock('@/services/AuditService', () => ({
+  auditService: {
+    log: (...args: unknown[]) => mockAuditLog(...args),
+  },
+}));
+
+vi.mock('@/types/audit-types', () => ({
+  AuditAction: {
+    UPDATE: 'update',
   },
 }));
 
@@ -98,6 +111,7 @@ describe('showMapActionMutations', () => {
     mockGetReplicatedEntriesByClass.mockResolvedValue([]);
     mockCreateReplicatedEntry.mockImplementation(entry => Promise.resolve(entry));
     mockDeleteReplicatedEntry.mockResolvedValue('delete-mutation-1');
+    mockAuditLog.mockResolvedValue();
   });
 
   it('extracts the source id from a typed Show Map node id', () => {
@@ -236,6 +250,19 @@ describe('showMapActionMutations', () => {
         specialRequests: 'Moved up from class class-1: Qualified today',
       })
     );
+    expect(mockAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'update',
+        entityType: 'entry',
+        entityId: 'entry-1',
+        changes: { entryStatus: { from: 'checked-in', to: 'moved' } },
+        metadata: expect.objectContaining({
+          action: 'mark_entry_moved',
+          reason: 'Qualified today',
+          targetClassName: 'Advanced A',
+        }),
+      })
+    );
     expect(mockFrom).not.toHaveBeenCalled();
     expect(mockProcessMoveUp).not.toHaveBeenCalled();
   });
@@ -299,6 +326,18 @@ describe('showMapActionMutations', () => {
         check_in_status: 'checked-in',
         specialRequests: null,
         special_requests: null,
+      })
+    );
+    expect(mockAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'update',
+        entityType: 'entry',
+        entityId: 'entry-1',
+        changes: { entryStatus: { from: 'moved', to: 'checked-in' } },
+        metadata: expect.objectContaining({
+          action: 'restore_entry_status',
+          checkInStatus: 'checked-in',
+        }),
       })
     );
     expect(mockFrom).not.toHaveBeenCalled();

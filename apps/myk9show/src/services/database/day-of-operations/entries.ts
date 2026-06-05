@@ -102,6 +102,9 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
 
   try {
     const armbandRows = await replicatedEntriesTable.getEntriesByShow(entryData.showId);
+    // INTENT: Walk-in armband assignment is local-first so secretaries can keep
+    // entering dogs offline. An incomplete replica or concurrent device can
+    // collide; sync/reconciliation remains the launch-readiness hardening gap.
     let nextArmband = 1;
     if (armbandRows && armbandRows.length > 0) {
       const maxParsed = armbandRows

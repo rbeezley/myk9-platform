@@ -21,9 +21,14 @@ vi.mock('@/services/database/supabaseClient', () => ({
 const mockUpdateReplicatedCheckInStatus = vi.fn<
   (entryId: string, status: CheckInStatus) => Promise<string | null>
 >(() => Promise.resolve('mutation-1'));
+const mockUpdateSelfCheckInStatus = vi.fn<(entryId: string, status: CheckInStatus) => Promise<void>>(
+  () => Promise.resolve()
+);
 vi.mock('@/services/show-day/checkInStatus', () => ({
   updateReplicatedCheckInStatus: (entryId: string, status: CheckInStatus) =>
     mockUpdateReplicatedCheckInStatus(entryId, status),
+  updateSelfCheckInStatus: (entryId: string, status: CheckInStatus) =>
+    mockUpdateSelfCheckInStatus(entryId, status),
 }));
 
 // Mock queryKeys
@@ -79,13 +84,14 @@ describe('useCheckInMutation', () => {
     vi.clearAllMocks();
     mockRpc.mockResolvedValue({ error: null });
     mockUpdateReplicatedCheckInStatus.mockResolvedValue('mutation-1');
+    mockUpdateSelfCheckInStatus.mockResolvedValue();
   });
 
   afterEach(() => {
     queryClient.clear();
   });
 
-  it('queues a replicated check-in status update without calling the RPC', async () => {
+  it('queues a replicated check-in status update by default without calling the RPC writer', async () => {
     const { result } = renderHook(() => useCheckInMutation(), { wrapper });
 
     await act(async () => {
@@ -95,7 +101,23 @@ describe('useCheckInMutation', () => {
     await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
 
     expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(mockUpdateSelfCheckInStatus).not.toHaveBeenCalled();
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('routes exhibitor self check-in through the owner-scoped RPC writer', async () => {
+    const { result } = renderHook(() => useCheckInMutation({ writer: 'self-checkin-rpc' }), {
+      wrapper,
+    });
+
+    await act(async () => {
+      result.current.mutate({ entryId: 'entry-1', newStatus: 'checked-in' });
+    });
+
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+
+    expect(mockUpdateSelfCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(mockUpdateReplicatedCheckInStatus).not.toHaveBeenCalled();
   });
 
   it('should optimistically update cached ShowDayClass arrays', async () => {
@@ -123,6 +145,7 @@ describe('useCheckInMutation', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toContain('Check-in update failed');
+    expect(mockUpdateSelfCheckInStatus).not.toHaveBeenCalled();
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
@@ -151,6 +174,7 @@ describe('useCheckInMutation', () => {
         )
       );
       expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', status);
+      expect(mockUpdateSelfCheckInStatus).not.toHaveBeenCalled();
       expect(mockRpc).not.toHaveBeenCalled();
     }
   });

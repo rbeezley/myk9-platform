@@ -1,15 +1,18 @@
 /**
  * useCheckInMutation — Optimistic check-in status update via React Query.
  *
- * Queues a narrow replicated status mutation with optimistic UI updates on
- * showDayDetails and entries caches. The replicated writer intentionally sends
- * only `{ id, check_in_status, updated_at }` to preserve the same RLS boundary
- * the previous `self_checkin_entry` RPC enforced.
+ * Uses optimistic UI updates on showDayDetails and entries caches. Staff flows
+ * default to the narrow replicated writer. Exhibitor self check-in must opt into
+ * `self-checkin-rpc` because direct `entries` UPDATE is manager-only under RLS;
+ * the `self_checkin_entry` SECURITY DEFINER RPC preserves owner-scoped authority.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CheckInStatus } from '@myk9/core';
 import { queryKeys } from '@/lib/queryClient';
-import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
+import {
+  updateReplicatedCheckInStatus,
+  updateSelfCheckInStatus,
+} from '@/services/show-day/checkInStatus';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
 
 interface CheckInMutationInput {
@@ -18,8 +21,28 @@ interface CheckInMutationInput {
   classId?: string | undefined;
 }
 
-async function updateCheckInStatus({ entryId, newStatus }: CheckInMutationInput): Promise<void> {
+interface CheckInMutationContext {
+  previousShowDay: [readonly unknown[], ShowDayDetailRow[] | undefined][];
+  previousEntries: [readonly unknown[], unknown][];
+  previousClassEntries: [readonly unknown[], unknown][];
+}
+
+export type CheckInWriter = 'replicated' | 'self-checkin-rpc';
+
+interface UseCheckInMutationOptions {
+  writer?: CheckInWriter | undefined;
+}
+
+async function updateCheckInStatus(
+  { entryId, newStatus }: CheckInMutationInput,
+  writer: CheckInWriter
+): Promise<void> {
   try {
+    if (writer === 'self-checkin-rpc') {
+      await updateSelfCheckInStatus(entryId, newStatus);
+      return;
+    }
+
     await updateReplicatedCheckInStatus(entryId, newStatus);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -27,11 +50,12 @@ async function updateCheckInStatus({ entryId, newStatus }: CheckInMutationInput)
   }
 }
 
-export function useCheckInMutation() {
+export function useCheckInMutation(options: UseCheckInMutationOptions = {}) {
   const queryClient = useQueryClient();
+  const writer = options.writer ?? 'replicated';
 
-  return useMutation({
-    mutationFn: updateCheckInStatus,
+  return useMutation<void, Error, CheckInMutationInput, CheckInMutationContext>({
+    mutationFn: input => updateCheckInStatus(input, writer),
 
     onMutate: async ({ entryId, newStatus, classId }) => {
       // Cancel in-flight queries to avoid overwriting our optimistic update

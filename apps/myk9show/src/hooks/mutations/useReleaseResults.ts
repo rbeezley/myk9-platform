@@ -22,6 +22,9 @@ export function useReleaseResults() {
     mutationFn: async ({ classIds }: ReleaseResultsInput) => {
       if (classIds.length === 0) return;
       const releasedAt = new Date().toISOString();
+      // INTENT: Replication queues one class update per selected class. A partial
+      // local failure can leave a mixed release state; the secretary can retry
+      // the failed class selection and sync will preserve queued successes.
       await Promise.all(
         classIds.map(classId =>
           replicatedClassesTable.updateClass(classId, {

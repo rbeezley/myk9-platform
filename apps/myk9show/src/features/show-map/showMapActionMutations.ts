@@ -6,6 +6,7 @@ import {
   updateReplicatedCheckInStatus,
   updateReplicatedDayOfScratch,
 } from '@/services/show-day/checkInStatus';
+import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusAudit';
 import { generateUUID } from '@/utils/idUtils';
 
 export interface ShowMapMoveUpInput {
@@ -185,6 +186,9 @@ export async function moveUpShowMapEntry({
   }
 
   const targetEntries = await replicatedEntriesTable.getEntriesByClass(targetClassId);
+  // INTENT: This is an offline-first local capacity guard. It can under-count if
+  // the replica is incomplete; server sync/conflict review remains the backstop
+  // for concurrent move-ups or stale devices.
   const acceptedCount = targetEntries.filter(entry => {
     const status = entry.entryStatus ?? entry.entry_status;
     return status === 'confirmed' || status === 'checked-in';
@@ -243,6 +247,15 @@ export async function moveUpShowMapEntry({
     throw createDatabaseError(error, 'entries', 'show_map_move_up_create');
   }
 
+  await logReplicatedEntryStatusChange({
+    entryId,
+    fromStatus: previousEntryStatus,
+    toStatus: 'moved',
+    action: 'mark_entry_moved',
+    reason,
+    metadata: { targetClassName: targetClass.name },
+  });
+
   return {
     originalEntryId: entryId,
     newEntryId,
@@ -275,5 +288,15 @@ export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<
     check_in_status: restoredCheckInStatus,
     specialRequests: input.previousSpecialRequests,
     special_requests: input.previousSpecialRequests,
+  });
+
+  await logReplicatedEntryStatusChange({
+    entryId: input.originalEntryId,
+    fromStatus: 'moved',
+    toStatus: input.previousEntryStatus,
+    action: 'restore_entry_status',
+    metadata: {
+      checkInStatus: restoredCheckInStatus,
+    },
   });
 }

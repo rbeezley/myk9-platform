@@ -1,7 +1,4 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
@@ -12,6 +9,7 @@ import {
   type AttentionCounts,
 } from '@/features/show-map/attention';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
+import { DashboardQuickLinks } from './DashboardQuickLinks';
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
 
@@ -23,7 +21,6 @@ function greeting(): string {
 }
 
 export function SecretaryDashboardPage() {
-  const navigate = useNavigate();
   const { firstName } = useAuthContext();
 
   const { shows, classesByStage, isLoading: showsLoading } = useMissionControlData();
@@ -86,7 +83,7 @@ export function SecretaryDashboardPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Header */}
-      <div className="flex items-start justify-between px-5 pb-2 pt-6">
+      <div className="px-5 pb-2 pt-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {greeting()}, {firstName ?? 'there'}
@@ -97,15 +94,9 @@ export function SecretaryDashboardPage() {
               : `Managing ${shows.length} ${shows.length === 1 ? 'show' : 'shows'}`}
           </p>
         </div>
-        <Button
-          size="sm"
-          className="mt-1 shrink-0"
-          onClick={() => navigate('/secretary/create-show')}
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          New Show
-        </Button>
       </div>
+
+      <DashboardQuickLinks />
 
       {/* Attention strip */}
       <AttentionNeededStrip items={attentionNeeded} />

@@ -43,15 +43,28 @@ function generateFilePath(folder: string, userId: string, fileName: string): str
 }
 
 /**
- * Upload a profile photo for a person
+ * Upload a profile photo for a person.
+ *
+ * Path: profiles/{auth.uid()}/{timestamp}-{name}
+ * Storage policy "Users can upload their own profile photos" requires the second
+ * path segment to equal auth.uid(), so we derive it here rather than accept a
+ * person_id (which is a different UUID and would fail the policy).
  */
-export async function uploadProfilePhoto(userId: string, file: File): Promise<UploadResult> {
+export async function uploadProfilePhoto(file: File): Promise<UploadResult> {
   const validationError = validateFile(file);
   if (validationError) {
     return { success: false, error: validationError };
   }
 
-  const filePath = generateFilePath('profiles', userId, file.name);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const authUid = session?.user?.id;
+  if (!authUid) {
+    return { success: false, error: 'Not authenticated' };
+  }
+
+  const filePath = generateFilePath('profiles', authUid, file.name);
 
   try {
     const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, {
@@ -76,19 +89,28 @@ export async function uploadProfilePhoto(userId: string, file: File): Promise<Up
 }
 
 /**
- * Upload a photo for a dog
+ * Upload a photo for a dog.
+ *
+ * Path: dogs/{auth.uid()}/{timestamp}-{name}
+ * Storage policy "Users can upload dog photos to their folder" requires the second
+ * path segment to equal auth.uid(), so we derive it from the session rather than
+ * using the dog's owner_id (a people.id UUID, not an auth UID).
  */
-export async function uploadDogPhoto(
-  ownerId: string,
-  dogId: string,
-  file: File
-): Promise<UploadResult> {
+export async function uploadDogPhoto(dogId: string, file: File): Promise<UploadResult> {
   const validationError = validateFile(file);
   if (validationError) {
     return { success: false, error: validationError };
   }
 
-  const filePath = generateFilePath(`dogs/${ownerId}`, dogId, file.name);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const authUid = session?.user?.id;
+  if (!authUid) {
+    return { success: false, error: 'Not authenticated' };
+  }
+
+  const filePath = generateFilePath(`dogs/${authUid}`, dogId, file.name);
 
   try {
     const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, {

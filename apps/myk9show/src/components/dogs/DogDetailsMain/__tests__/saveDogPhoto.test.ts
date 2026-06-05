@@ -12,7 +12,7 @@ const mockUploadDogPhoto = vi.mocked(uploadDogPhoto);
 // A real Supabase Storage public URL — deliberately NOT a `data:` URL, which is
 // what the buggy path used to persist.
 const STORAGE_URL =
-  'https://example.supabase.co/storage/v1/object/public/images/dogs/owner-1/dog-1/123-photo.png';
+  'https://example.supabase.co/storage/v1/object/public/images/dogs/auth-uid-1/dog-1/123-photo.png';
 
 function makeFile() {
   return new File(['fake-bytes'], 'photo.png', { type: 'image/png' });
@@ -32,10 +32,10 @@ describe('saveDogPhoto', () => {
     const onUpdate = vi.fn().mockResolvedValue(makeSavedDog(STORAGE_URL));
     const file = makeFile();
 
-    const result = await saveDogPhoto({ ownerId: 'owner-1', dogId: 'dog-1', file, onUpdate });
+    const result = await saveDogPhoto({ dogId: 'dog-1', file, onUpdate });
 
-    // The actual File is uploaded to Storage (not a base64 data URL).
-    expect(mockUploadDogPhoto).toHaveBeenCalledWith('owner-1', 'dog-1', file);
+    // uploadDogPhoto now derives auth.uid() internally — only dogId + file are passed.
+    expect(mockUploadDogPhoto).toHaveBeenCalledWith('dog-1', file);
     // The durable Storage URL — not a `data:` URL — is what gets written to the row.
     expect(onUpdate).toHaveBeenCalledWith('dog-1', { imageUrl: STORAGE_URL });
     expect(result).toEqual({
@@ -49,12 +49,7 @@ describe('saveDogPhoto', () => {
     mockUploadDogPhoto.mockResolvedValue({ success: false, error: 'Storage 500' });
     const onUpdate = vi.fn();
 
-    const result = await saveDogPhoto({
-      ownerId: 'owner-1',
-      dogId: 'dog-1',
-      file: makeFile(),
-      onUpdate,
-    });
+    const result = await saveDogPhoto({ dogId: 'dog-1', file: makeFile(), onUpdate });
 
     expect(onUpdate).not.toHaveBeenCalled();
     expect(result.success).toBe(false);
@@ -65,12 +60,7 @@ describe('saveDogPhoto', () => {
     mockUploadDogPhoto.mockResolvedValue({ success: true, url: STORAGE_URL });
     const onUpdate = vi.fn().mockResolvedValue(null);
 
-    const result = await saveDogPhoto({
-      ownerId: 'owner-1',
-      dogId: 'dog-1',
-      file: makeFile(),
-      onUpdate,
-    });
+    const result = await saveDogPhoto({ dogId: 'dog-1', file: makeFile(), onUpdate });
 
     expect(result.success).toBe(false);
     expect(result.imageUrl).toBe(STORAGE_URL);
@@ -79,7 +69,7 @@ describe('saveDogPhoto', () => {
   it('does not claim success when no persistence path is wired', async () => {
     mockUploadDogPhoto.mockResolvedValue({ success: true, url: STORAGE_URL });
 
-    const result = await saveDogPhoto({ ownerId: 'owner-1', dogId: 'dog-1', file: makeFile() });
+    const result = await saveDogPhoto({ dogId: 'dog-1', file: makeFile() });
 
     expect(result.success).toBe(false);
   });

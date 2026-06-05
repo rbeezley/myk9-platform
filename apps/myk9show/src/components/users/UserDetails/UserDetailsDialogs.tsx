@@ -29,7 +29,8 @@ interface UserDetailsDialogsProps {
   onDeleteUser: () => Promise<void>;
   onUserEditSave: (userData: Partial<UserType>) => Promise<void>;
   onQualificationsSaved: () => void;
-  onPhotoSave: () => void;
+  onPhotoSave: () => void | Promise<void>;
+  isSavingPhoto?: boolean;
   onFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
@@ -55,6 +56,7 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   onUserEditSave,
   onQualificationsSaved,
   onPhotoSave,
+  isSavingPhoto,
   onFileInput,
 }) => {
   const blockedByDogs = ownedDogCount > 0;
@@ -86,6 +88,7 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
           setPreviewImage(null);
         }}
         onSave={onPhotoSave}
+        isSaving={isSavingPhoto ?? false}
       />
 
       <StandardDialog

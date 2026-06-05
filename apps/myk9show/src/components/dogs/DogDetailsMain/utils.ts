@@ -81,10 +81,11 @@ export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Pa
 }
 
 export interface SaveDogPhotoArgs {
-  ownerId: string;
   dogId: string;
   file: File;
   onUpdate?: ((id: string, updates: Partial<DogInput>) => Promise<Dog | null>) | undefined;
+  /** @deprecated — no longer used; path is derived from auth.uid() in uploadDogPhoto */
+  ownerId?: string;
 }
 
 export interface SaveDogPhotoResult {
@@ -105,12 +106,11 @@ export interface SaveDogPhotoResult {
  * false "Photo updated successfully".
  */
 export async function saveDogPhoto({
-  ownerId,
   dogId,
   file,
   onUpdate,
 }: SaveDogPhotoArgs): Promise<SaveDogPhotoResult> {
-  const upload = await uploadDogPhoto(ownerId, dogId, file);
+  const upload = await uploadDogPhoto(dogId, file);
   if (!upload.success || !upload.url) {
     return { success: false, error: upload.error ?? 'Image upload failed' };
   }

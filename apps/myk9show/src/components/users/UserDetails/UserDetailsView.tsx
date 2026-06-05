@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, MapPin, Settings, PawPrint } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
+import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { getErrorMessage } from '@myk9/core';
 import { useUserStore } from '@/store/userStore';
 import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
@@ -47,6 +48,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const [formData, setFormData] = useState(buildFormData(person));
   const [isDragging, setIsDragging] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const photoSaveInFlight = useRef(false);
 
   const canManageQualifications = () => {
     if (hasPermission('admin:manage')) return true;
@@ -129,6 +133,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   const handleFileUpload = (file: File) => {
     if (file.type.startsWith('image/')) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onload = e => {
         const result = e.target?.result as string;
@@ -313,23 +318,36 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         onDeleteUser={handleDeleteUser}
         onUserEditSave={handleUserEditSave}
         onQualificationsSaved={handleQualificationsSaved}
-        onPhotoSave={() => {
-          if (previewImage) {
-            setFormData(prev => ({ ...prev, photo: previewImage }));
+        isSavingPhoto={isSavingPhoto}
+        onPhotoSave={async () => {
+          if (!selectedFile || photoSaveInFlight.current) return;
+          photoSaveInFlight.current = true;
+          setIsSavingPhoto(true);
+          try {
+            const upload = await uploadProfilePhoto(selectedFile);
+            if (!upload.success || !upload.url) {
+              notifications.error(upload.error ?? 'Failed to upload photo');
+              return;
+            }
+            await updateUserMutation.mutateAsync({
+              id: person.id,
+              updates: { profileImage: upload.url },
+            });
+            setFormData(prev => ({ ...prev, photo: upload.url! }));
+            setIsPhotoModalOpen(false);
+            setPreviewImage(null);
+            setSelectedFile(null);
+            notifications.success('Photo updated successfully');
+          } catch {
+            notifications.error('Failed to save photo. Please try again.');
+          } finally {
+            setIsSavingPhoto(false);
+            photoSaveInFlight.current = false;
           }
-          setIsPhotoModalOpen(false);
-          setPreviewImage(null);
         }}
         onFileInput={e => {
           const file = e.target.files?.[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = ev => {
-              const result = ev.target?.result as string;
-              setPreviewImage(result);
-            };
-            reader.readAsDataURL(file);
-          }
+          if (file) handleFileUpload(file);
         }}
       />
     </>

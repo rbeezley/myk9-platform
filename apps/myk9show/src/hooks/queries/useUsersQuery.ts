@@ -61,6 +61,7 @@ const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
   if (user.state !== undefined) dbUpdate.state = user.state;
   if (user.zipCode !== undefined) dbUpdate.zip_code = user.zipCode;
   if (user.country !== undefined) dbUpdate.country = user.country;
+  if (user.profileImage !== undefined) dbUpdate.profile_image = user.profileImage;
   // roles are managed via user_roles table, not the people table (people.roles was dropped in migration 066)
   if (user.status !== undefined) dbUpdate.status = user.status;
 

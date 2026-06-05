@@ -440,6 +440,7 @@ handle<ConfirmationEmailPayload>(
         `
         )
         .eq('trial_id', trialId)
+        .is('confirmation_email_sent_at', null)
         .in('confirmation_email_status', ['pending', 'failed']);
 
       for (const entry of entries ?? []) {
@@ -581,12 +582,6 @@ handle<ConfirmationEmailPayload>(
           html = buildHtml(emailData);
         }
 
-        // Mark pending before send (prevents double-sends on retry)
-        await supabase
-          .from('entries')
-          .update({ confirmation_email_status: 'pending' })
-          .eq('id', entry.id);
-
         const resendRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -628,5 +623,5 @@ handle<ConfirmationEmailPayload>(
     }
 
     return { sent, skipped, failed };
-  },
+  }
 );

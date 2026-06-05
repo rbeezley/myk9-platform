@@ -304,7 +304,13 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         isEditModalOpen={isEditModalOpen}
         setIsEditModalOpen={setIsEditModalOpen}
         isPhotoModalOpen={isPhotoModalOpen}
-        setIsPhotoModalOpen={setIsPhotoModalOpen}
+        setIsPhotoModalOpen={open => {
+          setIsPhotoModalOpen(open);
+          if (!open) {
+            setPreviewImage(null);
+            setSelectedFile(null);
+          }
+        }}
         isDeleteDialogOpen={isDeleteDialogOpen}
         setIsDeleteDialogOpen={setIsDeleteDialogOpen}
         isQualificationsPanelOpen={isQualificationsPanelOpen}

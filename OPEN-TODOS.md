@@ -378,7 +378,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## People
 
-- [x] **Fix person picture RLS error on save** — RESOLVED 2026-06-04 via PR #534. Storage path used `people.id` instead of `auth.uid()`, mapper omitted `profileImage → profile_image`, and `onPhotoSave` never called upload/mutation. All three fixed. Full context in TO-DOS.md § "Person picture save RLS error".
+- [x] **Fix person picture RLS error on save** — RESOLVED 2026-06-05 via PR #534 + PR #536. PR #534 fixed DB mapper + UserDetailsView async handler; PR #536 fixed `useAvatarUpload` Storage path (the path used by ProfilePage and AccountPage). Full context in TO-DOS.md § "Person picture save RLS error".
 
 ---
 

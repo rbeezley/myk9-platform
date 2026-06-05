@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getShowMapHandlerMessageTarget,
+  approveShowMapEntry,
+  bulkApproveShowMapEntries,
   markShowMapEntryCheckedIn,
   moveUpShowMapEntry,
   scratchShowMapEntry,
@@ -124,6 +126,30 @@ describe('showMapActionMutations', () => {
     await markShowMapEntryCheckedIn('entry-1');
 
     expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('approves a Show Desk review entry through the replicated entry table', async () => {
+    await approveShowMapEntry('entry-1');
+
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith('entry-1', {
+      entryStatus: 'confirmed',
+      entry_status: 'confirmed',
+    });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('bulk approves Show Desk review entries through replicated entry mutations', async () => {
+    await bulkApproveShowMapEntries(['entry-1', 'entry-2']);
+
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith('entry-1', {
+      entryStatus: 'confirmed',
+      entry_status: 'confirmed',
+    });
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith('entry-2', {
+      entryStatus: 'confirmed',
+      entry_status: 'confirmed',
+    });
     expect(mockFrom).not.toHaveBeenCalled();
   });
 

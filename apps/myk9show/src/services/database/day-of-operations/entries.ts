@@ -11,8 +11,12 @@
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
-import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import {
+  replicatedClassesTable,
+  replicatedDogsTable,
+  replicatedEntriesTable,
+  replicatedTrialsTable,
+} from '@/services/replication';
 import { generateUUID } from '@/utils/idUtils';
 import type { DayOfEntry } from './types';
 
@@ -23,63 +27,44 @@ export const getClassesWithCapacity = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // First get all trials for the show
-    const { data: trials, error: trialsError } = await supabase
-      .from('trials')
-      .select('id')
-      .eq('show_id', showId);
-
-    if (trialsError) {
-      throw createDatabaseError(trialsError, 'trials', 'get_trials_for_capacity');
-    }
-
-    const trialIds = trials?.map(t => t.id) || [];
+    const trials = await replicatedTrialsTable.getTrialsByShow(showId);
+    const trialIds = trials.map(t => t.id);
 
     if (trialIds.length === 0) {
       return { data: [], error: null };
     }
 
-    // Get classes with their entry counts
-    // Note: class_number column exists but Supabase types need regeneration
-    const { data: classes, error: classError } = await supabase
-      .from('classes')
-      .select(
-        `
-        id,
-        name,
-        class_number,
-        max_entries,
-        trial_id
-      `
-      )
-      .in('trial_id', trialIds)
-      .is('deleted_at', null)
-      .order('name', { ascending: true });
+    const [classesByTrial, showEntries] = await Promise.all([
+      Promise.all(trialIds.map(trialId => replicatedClassesTable.getClassesByTrial(trialId))),
+      replicatedEntriesTable.getEntriesByShow(showId),
+    ]);
+    const classes = classesByTrial.flat();
 
-    if (classError) {
-      throw createDatabaseError(classError, 'classes', 'get_classes_for_capacity');
-    }
-
-    // Get counts for each class
-    const classesWithCapacity = await Promise.all(
-      (classes || []).map(async cls => {
-        const { count: acceptedCount } = await supabase
-          .from('entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('class_id', cls.id)
-          .in('entry_status', ['confirmed', 'checked-in'])
-          .is('deleted_at', null);
-
-        const limit = cls.max_entries || 999;
-        const accepted = acceptedCount || 0;
+    const classesWithCapacity = classes
+      .map(cls => {
+        const classNumber =
+          (cls as { class_number?: string | null; classNumber?: string | null }).class_number ??
+          (cls as { classNumber?: string | null }).classNumber ??
+          null;
+        const trialId = cls.trialId ?? cls.trial_id;
+        const accepted = showEntries.filter(entry => {
+          const entryClassId = entry.classId ?? entry.class_id;
+          const status = entry.entryStatus ?? entry.entry_status;
+          return entryClassId === cls.id && (status === 'confirmed' || status === 'checked-in');
+        }).length;
+        const limit = cls.maxEntries ?? 999;
 
         return {
-          ...cls,
+          id: cls.id,
+          name: cls.name,
+          class_number: classNumber,
+          max_entries: cls.maxEntries ?? null,
+          trial_id: trialId ?? '',
           accepted_count: accepted,
           available_spots: Math.max(0, limit - accepted),
         };
       })
-    );
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     const duration = Date.now() - startTime;
     logQuery('classes', 'get_classes_with_capacity', duration);
@@ -251,36 +236,25 @@ export const searchDogs = async (searchTerm: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('dogs')
-      .select(
-        `
-        id,
-        name,
-        call_name,
-        breed,
-        owner:people!owner_id (
-          id,
-          first_name,
-          last_name
-        )
-      `
-      )
-      .or(
-        `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,call_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
-      )
-      .is('deleted_at', null)
-      .eq('status', 'active')
-      .limit(20);
+    const dogs = await replicatedDogsTable.searchDogs(searchTerm);
+    const data = dogs.slice(0, 20).map(dog => ({
+      id: dog.id,
+      name: dog.name,
+      call_name: dog.callName ?? null,
+      breed: dog.breed ?? null,
+      owner: dog.ownerId
+        ? {
+            id: dog.ownerId,
+            first_name: null,
+            last_name: null,
+          }
+        : null,
+    }));
 
     const duration = Date.now() - startTime;
-    logQuery('dogs', 'search_dogs', duration, error?.message);
+    logQuery('dogs', 'search_dogs', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'dogs', 'search_dogs');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'dogs', 'search_dogs');

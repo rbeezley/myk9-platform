@@ -45,6 +45,31 @@ export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> 
   await updateReplicatedCheckInStatus(entryId, 'checked-in');
 }
 
+function readEntryStatus(entry: Awaited<ReturnType<typeof replicatedEntriesTable.getEntryById>>) {
+  return entry?.entryStatus ?? entry?.entry_status ?? entry?.status ?? null;
+}
+
+export async function approveShowMapEntry(entryId: string): Promise<string | null> {
+  const entry = await replicatedEntriesTable.getEntryById(entryId);
+  const mutationId = await replicatedEntriesTable.updateEntry(entryId, {
+    entryStatus: 'confirmed',
+    entry_status: 'confirmed',
+  });
+
+  await logReplicatedEntryStatusChange({
+    entryId,
+    fromStatus: readEntryStatus(entry),
+    toStatus: 'confirmed',
+    action: 'approve_entry',
+  });
+
+  return mutationId;
+}
+
+export async function bulkApproveShowMapEntries(entryIds: string[]): Promise<(string | null)[]> {
+  return Promise.all(entryIds.map(entryId => approveShowMapEntry(entryId)));
+}
+
 export async function markShowMapClassStarted(classId: string): Promise<void> {
   await replicatedClassesTable.updateClass(classId, {
     classStatus: CLASS_STATUS.IN_PROGRESS,

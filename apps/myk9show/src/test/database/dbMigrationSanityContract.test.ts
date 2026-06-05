@@ -54,6 +54,8 @@ describe('DB migration sanity contracts', () => {
       'return { sent, skipped, failed };'
     );
     expect(sendLoop).not.toContain(".update({ confirmation_email_status: 'pending' })");
+    expect(sendLoop).toContain("'Idempotency-Key': `confirmation-email-${entry.id}`");
+    expect(sendLoop).not.toContain("'Idempotency-Key': `${showStyle}-confirm-${entry.id}`");
   });
 
   it('keeps the final people_insert_secretary policy role-gated', () => {

@@ -587,7 +587,9 @@ handle<ConfirmationEmailPayload>(
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${RESEND_API_KEY}`,
-            'Idempotency-Key': `${showStyle}-confirm-${entry.id}`,
+            // Keep this stable across style/config edits; the DB sent-at
+            // filter is best-effort, while Resend owns duplicate suppression.
+            'Idempotency-Key': `confirmation-email-${entry.id}`,
           },
           body: JSON.stringify({
             from: FROM_EMAIL,

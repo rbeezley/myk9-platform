@@ -1,0 +1,2 @@
+# Plugin-managed agents (installed by MCP, not project config)
+playwright-*.md

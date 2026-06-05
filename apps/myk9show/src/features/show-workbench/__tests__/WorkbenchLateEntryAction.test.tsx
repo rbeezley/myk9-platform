@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { waitFor } from '@testing-library/react';
-import { createTestQueryClient, render, screen } from '@/test/utils/testUtils';
-import { queryKeys } from '@/lib/queryClient';
+import { render, screen } from '@/test/utils/testUtils';
 import { WorkbenchLateEntryAction } from '../WorkbenchLateEntryAction';
 
 const getClassesWithCapacityMock = vi.hoisted(() => vi.fn());
 const mockUseAuth = vi.hoisted(() => vi.fn());
+const navigateMock = vi.hoisted(() => vi.fn());
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
@@ -13,32 +20,6 @@ vi.mock('@/hooks/useAuth', () => ({
 
 vi.mock('@/services/database/day-of-operations', () => ({
   getClassesWithCapacity: getClassesWithCapacityMock,
-}));
-
-vi.mock('@/pages/secretary/DayOfOperationsPage/DayOfEntryDialog', () => ({
-  DayOfEntryDialog: ({
-    open,
-    showId,
-    userId,
-    classes,
-    onSuccess,
-  }: {
-    open: boolean;
-    showId: string;
-    userId?: string;
-    classes: Array<{ id: string }>;
-    onSuccess: () => void;
-  }) =>
-    open ? (
-      <div role="dialog" aria-label="Add Day-of Entry">
-        <span data-testid="dialog-show-id">{showId}</span>
-        <span data-testid="dialog-user-id">{userId}</span>
-        <span data-testid="dialog-class-count">{classes.length}</span>
-        <button type="button" onClick={onSuccess}>
-          Complete late entry
-        </button>
-      </div>
-    ) : null,
 }));
 
 type CapacityClass = {
@@ -72,33 +53,26 @@ describe('WorkbenchLateEntryAction', () => {
     });
   });
 
-  it('opens the existing day-of entry dialog with show, user, and class capacity', async () => {
+  it('routes to secretary registration in late-entry mode', async () => {
     const { user } = render(<WorkbenchLateEntryAction showId="show-1" />);
 
     expect(await screen.findByText('1 class with space')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add late entry' }));
 
-    expect(screen.getByRole('dialog', { name: 'Add Day-of Entry' })).toBeInTheDocument();
-    expect(screen.getByTestId('dialog-show-id')).toHaveTextContent('show-1');
-    expect(screen.getByTestId('dialog-user-id')).toHaveTextContent('user-1');
-    expect(screen.getByTestId('dialog-class-count')).toHaveTextContent('1');
+    expect(navigateMock).toHaveBeenCalledWith(
+      '/secretary/register/show-1?source=show-desk&entryMode=late'
+    );
   });
 
-  it('refreshes capacity and show-day entry queries after success', async () => {
-    const queryClient = createTestQueryClient();
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { user } = render(<WorkbenchLateEntryAction showId="show-1" />, { queryClient });
+  it('encodes the show id in the late-entry route', async () => {
+    const { user } = render(<WorkbenchLateEntryAction showId="show 1/late" />);
 
-    await user.click(await screen.findByRole('button', { name: 'Add late entry' }));
-    await user.click(screen.getByRole('button', { name: 'Complete late entry' }));
+    expect(await screen.findByText('1 class with space')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add late entry' }));
 
-    await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ['show-workbench', 'show-1', 'class-capacity'],
-      });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.showEntries('show-1') });
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.checkInReport('show-1') });
-    });
+    expect(navigateMock).toHaveBeenCalledWith(
+      '/secretary/register/show%201%2Flate?source=show-desk&entryMode=late'
+    );
   });
 
   it('disables the action when no class has space', async () => {

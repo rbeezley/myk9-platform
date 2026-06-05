@@ -108,13 +108,12 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       microchip_number: dog.microchipNumber ?? null,
       spayed_neutered: dog.isSpayedNeutered ?? null,
       image_url: dog.imageUrl ?? null,
-      status: dog.status ?? null,
-      deleted_at:
-        dog.deletedAt !== undefined
-          ? dog.deletedAt
-          : dog.deleted_at !== undefined
-            ? dog.deleted_at
-            : null,
+      ...(dog.status !== undefined && { status: dog.status }),
+      ...(dog.deletedAt !== undefined
+        ? { deleted_at: dog.deletedAt }
+        : dog.deleted_at !== undefined
+          ? { deleted_at: dog.deleted_at }
+          : {}),
       updated_at: new Date().toISOString(),
     };
   }

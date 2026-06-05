@@ -39,7 +39,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
       testInfo,
       '/secretary/dashboard',
       'secretary-dashboard',
-      page.getByRole('button', { name: 'New Show' })
+      page.getByRole('link', { name: 'Add Show' })
     );
 
     await captureSecretaryPage(

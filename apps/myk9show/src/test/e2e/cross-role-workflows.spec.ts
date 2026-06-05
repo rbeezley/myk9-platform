@@ -37,7 +37,7 @@ test.describe('Cross-role workflow smoke', () => {
     await expect(
       page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })
     ).toBeVisible({ timeout: 15000 });
-    await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Add Show' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Personal tasks' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Messages' })).toBeVisible();
   });

@@ -378,7 +378,7 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 
 ## People
 
-- [ ] **Fix person picture RLS error on save** — Uploading a person's profile picture fails with an RLS (Row Level Security) error; the image never persists. Files: `apps/myk9show/src/components/users/UserDetails/UserDetailsTabs.tsx` (`handleUpdateDogPhoto`), `apps/myk9show/src/services/imageUploadService.ts`, relevant `people` / Storage bucket RLS policies. Full context in TO-DOS.md § "Person picture save RLS error".
+- [x] **Fix person picture RLS error on save** — RESOLVED 2026-06-04 via PR #534. Storage path used `people.id` instead of `auth.uid()`, mapper omitted `profileImage → profile_image`, and `onPhotoSave` never called upload/mutation. All three fixed. Full context in TO-DOS.md § "Person picture save RLS error".
 
 ---
 

@@ -47,7 +47,7 @@ export const mapDbUserToUser = (dbUser: DbUser): User => ({
 });
 
 // UI to Database mapper for User updates
-const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
+export const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
   const dbUpdate: DbUserUpdate = {};
 
   if (user.firstName !== undefined) dbUpdate.first_name = user.firstName;

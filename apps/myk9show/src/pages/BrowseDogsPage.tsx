@@ -27,7 +27,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import '@/styles/myk9-show-details.css';
 
 const BrowseDogsPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useViewPreference('dogs', 'cards');
@@ -95,6 +95,21 @@ const BrowseDogsPage: React.FC = () => {
   const pageTitle = isExhibitorOnly ? 'My Dogs' : 'Dogs';
   const breadcrumbs = useMemo(() => [{ label: pageTitle, href: '/dogs' }], [pageTitle]);
 
+  const openCreateDogPanel = useCallback(() => {
+    setShowCreateDogPanel(true);
+    const params = new URLSearchParams(searchParams);
+    params.set('add', 'true');
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const closeCreateDogPanel = useCallback(() => {
+    setShowCreateDogPanel(false);
+    if (!searchParams.has('add')) return;
+    const params = new URLSearchParams(searchParams);
+    params.delete('add');
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const handleDogCreated = useCallback(
     (newDog: DogType) => {
       setShowCreateDogPanel(false);
@@ -107,12 +122,12 @@ const BrowseDogsPage: React.FC = () => {
   const actionButtons = useMemo(
     () =>
       canCreateDogs ? (
-        <Button onClick={() => setShowCreateDogPanel(true)}>
+        <Button onClick={openCreateDogPanel}>
           <Plus className="h-4 w-4 mr-2" />
           {isExhibitorOnly ? 'Add Dog' : 'New Dog'}
         </Button>
       ) : undefined,
-    [canCreateDogs, isExhibitorOnly]
+    [canCreateDogs, isExhibitorOnly, openCreateDogPanel]
   );
 
   const renderContent = () => {
@@ -130,7 +145,7 @@ const BrowseDogsPage: React.FC = () => {
             canCreateDogs
               ? {
                   label: isExhibitorOnly ? 'Add Dog' : 'New Dog',
-                  onClick: () => setShowCreateDogPanel(true),
+                  onClick: openCreateDogPanel,
                   icon: Plus,
                 }
               : undefined
@@ -213,7 +228,7 @@ const BrowseDogsPage: React.FC = () => {
       {/* Create Dog Panel */}
       <AddDogPanel
         open={showCreateDogPanel}
-        onClose={() => setShowCreateDogPanel(false)}
+        onClose={closeCreateDogPanel}
         onDogCreated={handleDogCreated}
         userRole={getPrimaryRole(getUserRoles())}
         currentUserPersonId={currentUserPersonId || undefined}

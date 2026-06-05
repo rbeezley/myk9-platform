@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, render } from '@/test/utils/testUtils';
+import { useLocation } from 'react-router-dom';
 import BrowsePeoplePage from '../BrowsePeoplePage';
 
 const mockAddUser = vi.fn();
@@ -55,9 +56,21 @@ vi.mock('@/components/users/browse', () => ({
 }));
 
 vi.mock('@/components/panels/edit', () => ({
-  UserEditPanel: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="add-person-panel">Add person panel</div> : null,
+  UserEditPanel: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+    open ? (
+      <div data-testid="add-person-panel">
+        Add person panel
+        <button type="button" onClick={onClose}>
+          Close person panel
+        </button>
+      </div>
+    ) : null,
 }));
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="current-location">{`${location.pathname}${location.search}`}</div>;
+}
 
 describe('BrowsePeoplePage', () => {
   beforeEach(() => {
@@ -95,5 +108,22 @@ describe('BrowsePeoplePage', () => {
     render(<BrowsePeoplePage />, { initialRoute: '/people?add=true' });
 
     expect(screen.getByTestId('add-person-panel')).toBeInTheDocument();
+  });
+
+  it('removes the add query parameter when the add person panel closes', async () => {
+    const { user } = render(
+      <>
+        <BrowsePeoplePage />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/people?add=true' }
+    );
+
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/people?add=true');
+
+    await user.click(screen.getByRole('button', { name: 'Close person panel' }));
+
+    expect(screen.queryByTestId('add-person-panel')).not.toBeInTheDocument();
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/people');
   });
 });

@@ -86,7 +86,5 @@ tmpclaude-*-cwd
 .turbo
 .superpowers/
 .agents/*
-!.agents/skills/
-!.agents/skills/**
 !.agents/agents/
 !.agents/agents/**

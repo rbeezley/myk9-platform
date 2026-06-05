@@ -12,7 +12,8 @@ interface ProfilePhotoDialogProps {
   onDragLeave: (e: React.DragEvent) => void;
   onFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onCancel: () => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
+  isSaving?: boolean;
 }
 
 const ProfilePhotoDialog: React.FC<ProfilePhotoDialogProps> = (props) => (

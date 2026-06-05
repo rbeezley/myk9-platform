@@ -24,7 +24,14 @@ export async function seedSecretaryEntry(testInfo: TestInfo): Promise<SecretaryU
   const suffix = runId.slice(-8);
   const dogName = `UAT Secretary Dog ${suffix}`;
   const className = `UAT Interior Novice A ${suffix}`;
-  const armband = `89${suffix.replace(/\D/g, '').slice(0, 3).padEnd(3, '0')}`;
+  // Wide, unique-per-run armband. The legacy `89XXX` scheme had only a
+  // 1,000-value space against a fixed SHOW_ID, so armbands left behind by
+  // prior killed runs (no afterEach cleanup) eventually collide and the app
+  // correctly rejects the duplicate — the recurring disposable-entry flake
+  // (QA-TEST-FLAKE-010). Derive 6 digits from the run timestamp instead: a
+  // 1,000,000-value space off the polluted 89xxx band. Serial workers seed one
+  // at a time, so no two seeds share a millisecond.
+  const armband = String(Date.now()).slice(-6);
 
   const { data: person, error: personError } = await client
     .from('people')
@@ -162,5 +169,8 @@ async function writeManifest(testInfo: TestInfo, data: unknown, phase: string) {
   await mkdir(outputDir, { recursive: true });
   const filePath = path.join(outputDir, `manifest-${testInfo.testId}-${phase}.json`);
   await writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-  await testInfo.attach(`uat-manifest-${phase}`, { path: filePath, contentType: 'application/json' });
+  await testInfo.attach(`uat-manifest-${phase}`, {
+    path: filePath,
+    contentType: 'application/json',
+  });
 }

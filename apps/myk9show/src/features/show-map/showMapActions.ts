@@ -407,7 +407,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         nodeId: node.id,
         label: 'Score Class',
         why: 'Open scoring without changing class status',
-        priority: 46,
+        priority: 34,
         href: node.scoreHref,
         icon: ClipboardCheck,
         classId,

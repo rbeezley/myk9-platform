@@ -161,6 +161,17 @@ When asked to review a PR, run focused verification by default when practical:
 
 Update plan/tracking documents (`OPEN-TODOS.md`, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
 
+## Small Maintenance Changes
+
+For docs-only, `OPEN-TODOS.md`, skill, and agent prompt edits:
+
+- Prefer one standing maintenance worktree/branch instead of one branch per tiny change.
+- Default branch name: `codex/maintenance-notes`.
+- Batch related small edits into one commit/PR when practical.
+- Validate Markdown/prompt-only changes with `git diff --check` plus targeted `rg` checks.
+- Do not run app tests/typecheck unless TypeScript, app code, migrations, or executable scripts changed.
+- Direct-to-`main` is allowed only when the user explicitly says "direct-to-main approved" for that session.
+
 ## Debugging seed-data / config bugs
 
 Before writing a migration or code fix for a "why doesn't this data flow" bug, **inventory every related table up front** with a single query pass: the role table(s), the permission/config table(s), and the join/link table(s). Writing one migration, pushing it, then discovering a second missing row in a different table is a sign you didn't survey first. For RBAC specifically: check `roles`, `permissions`, and `role_permissions` in the same query batch before writing any `INSERT`. This also means `systematic-debugging`'s full four-phase ceremony can be collapsed when the data path is obvious — go straight to Phase 1 Step 4 (gather evidence across all layers at once).

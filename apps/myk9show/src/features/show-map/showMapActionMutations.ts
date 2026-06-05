@@ -51,10 +51,7 @@ function readEntryStatus(entry: Awaited<ReturnType<typeof replicatedEntriesTable
 
 export async function approveShowMapEntry(entryId: string): Promise<string | null> {
   const entry = await replicatedEntriesTable.getEntryById(entryId);
-  const mutationId = await replicatedEntriesTable.updateEntry(entryId, {
-    entryStatus: 'confirmed',
-    entry_status: 'confirmed',
-  });
+  const mutationId = await replicatedEntriesTable.updateEntryStatus(entryId, 'confirmed');
 
   await logReplicatedEntryStatusChange({
     entryId,
@@ -198,11 +195,7 @@ export async function moveUpShowMapEntry({
   const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
 
   if (!currentEntry) {
-    throw createDatabaseError(
-      new Error('Entry not found'),
-      'entries',
-      'show_map_move_up_fetch'
-    );
+    throw createDatabaseError(new Error('Entry not found'), 'entries', 'show_map_move_up_fetch');
   }
 
   const targetClass = await replicatedClassesTable.getClassById(targetClassId);

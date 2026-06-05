@@ -20,6 +20,17 @@ import {
 import { generateUUID } from '@/utils/idUtils';
 import type { DayOfEntry } from './types';
 
+function isNotDeleted(row: {
+  deletedAt?: string | null | undefined;
+  deleted_at?: string | null | undefined;
+}) {
+  return !row.deletedAt && !row.deleted_at;
+}
+
+function isActiveDog(dog: { status?: string | null | undefined }) {
+  return !dog.status || dog.status === 'active';
+}
+
 /**
  * Get classes with available capacity for day-of entries
  */
@@ -38,7 +49,8 @@ export const getClassesWithCapacity = async (showId: string) => {
       Promise.all(trialIds.map(trialId => replicatedClassesTable.getClassesByTrial(trialId))),
       replicatedEntriesTable.getEntriesByShow(showId),
     ]);
-    const classes = classesByTrial.flat();
+    const classes = classesByTrial.flat().filter(isNotDeleted);
+    const activeShowEntries = showEntries.filter(isNotDeleted);
 
     const classesWithCapacity = classes
       .map(cls => {
@@ -47,7 +59,7 @@ export const getClassesWithCapacity = async (showId: string) => {
           (cls as { classNumber?: string | null }).classNumber ??
           null;
         const trialId = cls.trialId ?? cls.trial_id;
-        const accepted = showEntries.filter(entry => {
+        const accepted = activeShowEntries.filter(entry => {
           const entryClassId = entry.classId ?? entry.class_id;
           const status = entry.entryStatus ?? entry.entry_status;
           return entryClassId === cls.id && (status === 'confirmed' || status === 'checked-in');
@@ -237,19 +249,16 @@ export const searchDogs = async (searchTerm: string) => {
 
   try {
     const dogs = await replicatedDogsTable.searchDogs(searchTerm);
-    const data = dogs.slice(0, 20).map(dog => ({
-      id: dog.id,
-      name: dog.name,
-      call_name: dog.callName ?? null,
-      breed: dog.breed ?? null,
-      owner: dog.ownerId
-        ? {
-            id: dog.ownerId,
-            first_name: null,
-            last_name: null,
-          }
-        : null,
-    }));
+    const data = dogs
+      .filter(dog => isActiveDog(dog) && isNotDeleted(dog))
+      .slice(0, 20)
+      .map(dog => ({
+        id: dog.id,
+        name: dog.name,
+        call_name: dog.callName ?? null,
+        breed: dog.breed ?? null,
+        owner: null,
+      }));
 
     const duration = Date.now() - startTime;
     logQuery('dogs', 'search_dogs', duration);

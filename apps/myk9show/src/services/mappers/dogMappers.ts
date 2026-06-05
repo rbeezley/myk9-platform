@@ -154,6 +154,9 @@ export const mapReplicatedDogToDbRow = (
     microchipNumber?: string | undefined;
     isSpayedNeutered?: boolean | undefined;
     imageUrl?: string | undefined;
+    status?: string | undefined;
+    deletedAt?: string | null | undefined;
+    deleted_at?: string | null | undefined;
   },
   options?: {
     owner?: Record<string, unknown> | null;
@@ -177,9 +180,10 @@ export const mapReplicatedDogToDbRow = (
       microchip_number: 'microchipNumber',
       spayed_neutered: 'isSpayedNeutered',
       image_url: 'imageUrl',
+      status: 'status',
     }),
     co_owner_id: null,
-    deleted_at: null,
+    deleted_at: d.deletedAt ?? d.deleted_at ?? null,
     owner: options?.owner ?? null,
     registrations: options?.registrations ?? [],
   };

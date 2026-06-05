@@ -47,6 +47,13 @@ describe('createDayOfEntry', () => {
     replicationMocks.getTrialsByShow.mockResolvedValue([{ id: 'trial-1' }]);
     replicationMocks.getClassesByTrial.mockResolvedValue([
       { id: 'class-1', name: 'Novice A', trialId: 'trial-1', maxEntries: 2 },
+      {
+        id: 'class-deleted',
+        name: 'Deleted Class',
+        trialId: 'trial-1',
+        maxEntries: 2,
+        deletedAt: '2026-06-05T12:00:00.000Z',
+      },
     ]);
     replicationMocks.searchReplicatedDogs.mockResolvedValue([
       {
@@ -55,6 +62,24 @@ describe('createDayOfEntry', () => {
         callName: 'Rocket',
         breed: 'Border Collie',
         ownerId: 'person-1',
+        status: 'active',
+      },
+      {
+        id: 'dog-inactive',
+        name: 'Rocket Retired',
+        callName: 'Retired',
+        breed: 'Border Collie',
+        ownerId: 'person-2',
+        status: 'inactive',
+      },
+      {
+        id: 'dog-deleted',
+        name: 'Rocket Deleted',
+        callName: 'Deleted',
+        breed: 'Border Collie',
+        ownerId: 'person-3',
+        status: 'active',
+        deletedAt: '2026-06-05T12:00:00.000Z',
       },
     ]);
     replicationMocks.createEntry.mockImplementation(entry => Promise.resolve(entry));
@@ -94,6 +119,12 @@ describe('createDayOfEntry', () => {
   it('loads class capacity from replicated trials, classes, and show entries', async () => {
     replicationMocks.getEntriesByShow.mockResolvedValue([
       { id: 'entry-1', classId: 'class-1', entryStatus: 'confirmed' },
+      {
+        id: 'entry-deleted',
+        classId: 'class-1',
+        entryStatus: 'confirmed',
+        deletedAt: '2026-06-05T12:00:00.000Z',
+      },
     ]);
 
     const result = await getClassesWithCapacity('show-1');
@@ -126,7 +157,7 @@ describe('createDayOfEntry', () => {
         name: 'Rocket Dog',
         call_name: 'Rocket',
         breed: 'Border Collie',
-        owner: { id: 'person-1', first_name: null, last_name: null },
+        owner: null,
       },
     ]);
   });

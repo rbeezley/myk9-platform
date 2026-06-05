@@ -401,6 +401,19 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         recommended: true,
       });
     }
+    if (node.status?.kind === 'neutral' && classId && node.scoreHref) {
+      actions.push({
+        id: 'score-class',
+        nodeId: node.id,
+        label: 'Score Class',
+        why: 'Open scoring without changing class status',
+        priority: 34,
+        href: node.scoreHref,
+        icon: ClipboardCheck,
+        classId,
+        ...(trialId ? { trialId } : {}),
+      });
+    }
     if (isClassReadyToScore(node) && node.scoreHref) {
       actions.push({
         id: 'score-class',
@@ -410,6 +423,8 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         priority: 70,
         href: node.scoreHref,
         icon: ClipboardCheck,
+        ...(classId ? { classId } : {}),
+        ...(trialId ? { trialId } : {}),
         recommended: true,
       });
     }

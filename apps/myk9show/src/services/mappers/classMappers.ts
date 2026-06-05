@@ -83,10 +83,22 @@ const VALID_CLASS_STATUSES = new Set<ClassInput['status']>([
   'Upcoming',
 ]);
 
+const DB_CLASS_STATUS_TO_UI: Record<string, ClassInput['status']> = {
+  scheduled: 'Scheduled',
+  upcoming: 'Upcoming',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
 /** Map a database status string to a valid ClassInput status */
 function mapClassStatus(status: string | null): ClassInput['status'] {
   if (status && VALID_CLASS_STATUSES.has(status as ClassInput['status'])) {
     return status as ClassInput['status'];
+  }
+  const normalizedStatus = status?.trim().toLowerCase();
+  if (normalizedStatus && normalizedStatus in DB_CLASS_STATUS_TO_UI) {
+    return DB_CLASS_STATUS_TO_UI[normalizedStatus]!;
   }
   return 'Scheduled';
 }

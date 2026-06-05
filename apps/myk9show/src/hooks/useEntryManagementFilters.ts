@@ -87,21 +87,16 @@ export function useEntryManagementFilters({
   const [paymentFilter, setPaymentFilter] = useState('all');
   const routeEntryTab = searchParams.get('entryTab');
   const resolvedEntryTab = isEntryTab(routeEntryTab) ? routeEntryTab : 'all';
-  const [selectedTab, setSelectedTabState] = useState<EntryTab>(resolvedEntryTab);
+  const selectedTab: EntryTab = resolvedEntryTab;
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
   // Trial/class filters — read from URL search params
   const trialFilter = searchParams.get('trial');
   const classFilter = searchParams.get('class');
 
-  useEffect(() => {
-    setSelectedTabState(resolvedEntryTab);
-  }, [resolvedEntryTab]);
-
   const setSelectedTab = useCallback(
     (tab: string) => {
       const nextTab = isEntryTab(tab) ? tab : 'all';
-      setSelectedTabState(nextTab);
       setSearchParams(
         prev => {
           const next = new URLSearchParams(prev);
@@ -250,7 +245,6 @@ export function useEntryManagementFilters({
     setSearchTerm('');
     setStatusFilter('all');
     setPaymentFilter('all');
-    setSelectedTabState('all');
     setSearchParams(
       prev => {
         const next = new URLSearchParams(prev);

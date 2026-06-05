@@ -1,15 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { createElement, useEffect, type ReactNode } from 'react';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 const emptyTabCounts = { all: 0, pending: 0, accepted: 0, waitlist: 0, issues: 0 };
 
-function createWrapper(initialEntry = '/') {
+function LocationProbe({ onSearch }: { onSearch?: (search: string) => void }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    onSearch?.(location.search);
+  }, [location.search, onSearch]);
+
+  return null;
+}
+
+function createWrapper(initialEntry = '/', onSearch?: (search: string) => void) {
   return function Wrapper({ children }: { children: ReactNode }) {
-    return MemoryRouter({ initialEntries: [initialEntry], children });
+    return createElement(
+      MemoryRouter,
+      { initialEntries: [initialEntry] },
+      createElement(LocationProbe, { onSearch }),
+      children
+    );
   };
 }
 
@@ -35,6 +50,139 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 }
 
 describe('useEntryManagementFilters — trial/class filters', () => {
+  it('initializes selectedTab from entryTab=pending and filters to pending entries', () => {
+    const entries = [
+      makeEntry({ id: 'pending-entry', entryStatus: 'pending' }),
+      makeEntry({ id: 'accepted-entry', entryStatus: 'accepted' }),
+    ] as EntryManagementEntry[];
+    const tabCounts = { all: 2, pending: 1, accepted: 1, waitlist: 0, issues: 0 };
+
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts }),
+      { wrapper: createWrapper('/?entryTab=pending') }
+    );
+
+    expect(result.current.selectedTab).toBe('pending');
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['pending-entry']);
+  });
+
+  it('falls back to all when entryTab is unsupported', () => {
+    const entries = [
+      makeEntry({ id: 'pending-entry', entryStatus: 'pending' }),
+      makeEntry({ id: 'accepted-entry', entryStatus: 'accepted' }),
+    ] as EntryManagementEntry[];
+    const tabCounts = { all: 2, pending: 1, accepted: 1, waitlist: 0, issues: 0 };
+
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries, tabCounts }),
+      { wrapper: createWrapper('/?entryTab=unknown') }
+    );
+
+    expect(result.current.selectedTab).toBe('all');
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual([
+      'pending-entry',
+      'accepted-entry',
+    ]);
+  });
+
+  it('setSelectedTab updates selectedTab and syncs entryTab to the URL', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      { wrapper: createWrapper('/', search => (latestSearch = search)) }
+    );
+
+    act(() => {
+      result.current.setSelectedTab('accepted');
+    });
+
+    expect(result.current.selectedTab).toBe('accepted');
+    expect(new URLSearchParams(latestSearch).get('entryTab')).toBe('accepted');
+  });
+
+  it('setSelectedTab("move-ups") preserves the special tab and syncs entryTab to the URL', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      { wrapper: createWrapper('/', search => (latestSearch = search)) }
+    );
+
+    act(() => {
+      result.current.setSelectedTab('move-ups');
+    });
+
+    expect(result.current.selectedTab).toBe('move-ups');
+    expect(new URLSearchParams(latestSearch).get('entryTab')).toBe('move-ups');
+  });
+
+  it('setSelectedTab("scratches") preserves the special tab and syncs entryTab to the URL', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      { wrapper: createWrapper('/', search => (latestSearch = search)) }
+    );
+
+    act(() => {
+      result.current.setSelectedTab('scratches');
+    });
+
+    expect(result.current.selectedTab).toBe('scratches');
+    expect(new URLSearchParams(latestSearch).get('entryTab')).toBe('scratches');
+  });
+
+  it('setSelectedTab("all") removes entryTab and preserves unrelated params', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper('/?entryTab=pending&tab=waitlist', search => {
+          latestSearch = search;
+        }),
+      }
+    );
+
+    expect(result.current.selectedTab).toBe('pending');
+
+    act(() => {
+      result.current.setSelectedTab('all');
+    });
+
+    const params = new URLSearchParams(latestSearch);
+    expect(result.current.selectedTab).toBe('all');
+    expect(params.get('entryTab')).toBeNull();
+    expect(params.get('tab')).toBe('waitlist');
+  });
+
+  it('clearFilters resets selectedTab, clears owned filters, removes entryTab, and preserves unrelated params', () => {
+    let latestSearch = '';
+    const { result } = renderHook(
+      () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),
+      {
+        wrapper: createWrapper(
+          '/?tab=waitlist&entryTab=pending&trial=trial-1&class=class-1',
+          search => (latestSearch = search)
+        ),
+      }
+    );
+
+    expect(result.current.selectedTab).toBe('pending');
+    expect(result.current.trialFilter).toBe('trial-1');
+    expect(result.current.classFilter).toBe('class-1');
+
+    act(() => {
+      result.current.clearFilters();
+    });
+
+    const params = new URLSearchParams(latestSearch);
+    expect(result.current.selectedTab).toBe('all');
+    expect(result.current.trialFilter).toBeNull();
+    expect(result.current.classFilter).toBeNull();
+    expect(params.get('entryTab')).toBeNull();
+    expect(params.get('trial')).toBeNull();
+    expect(params.get('class')).toBeNull();
+    expect(params.get('tab')).toBe('waitlist');
+  });
+
   it('initializes trialFilter and classFilter as null', () => {
     const { result } = renderHook(
       () => useEntryManagementFilters({ entries: [], tabCounts: emptyTabCounts }),

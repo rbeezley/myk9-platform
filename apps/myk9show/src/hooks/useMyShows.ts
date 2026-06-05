@@ -24,8 +24,8 @@ export interface MyShowsBuckets {
 
 function toPhase(show: Show): ShowPhase {
   const start = toLocalDate(show.startDate);
-  if (isToday(start)) return 'today';
   if (show.status === 'draft') return 'draft';
+  if (isToday(start)) return 'today';
   if (show.status === 'completed' || show.status === 'cancelled') return 'past';
   if (isBefore(start, new Date())) return 'past';
   // 'published' (entries open) or 'upcoming' (entries closed) — both go in upcoming
@@ -37,7 +37,19 @@ function buildAttentionItems(shows: Show[], phases: Map<string, ShowPhase>): Att
 
   for (const show of shows) {
     const phase = phases.get(show.id);
-    const href = `/shows/${show.id}`;
+    const setupHref = `/secretary/shows/${show.id}?phase=setup`;
+    const showDeskHref = `/secretary/shows/${show.id}?phase=show-desk`;
+
+    if (show.status === 'draft') {
+      items.push({
+        showId: show.id,
+        showName: show.name,
+        kind: 'info',
+        text: 'Draft — complete setup before publishing',
+        href: setupHref,
+      });
+      continue;
+    }
 
     if (phase === 'today') {
       items.push({
@@ -45,18 +57,7 @@ function buildAttentionItems(shows: Show[], phases: Map<string, ShowPhase>): Att
         showName: show.name,
         kind: 'urgent',
         text: 'Happening today — check-in is open',
-        href,
-      });
-      continue;
-    }
-
-    if (phase === 'draft') {
-      items.push({
-        showId: show.id,
-        showName: show.name,
-        kind: 'info',
-        text: 'Draft — complete setup before publishing',
-        href,
+        href: showDeskHref,
       });
       continue;
     }
@@ -69,7 +70,7 @@ function buildAttentionItems(shows: Show[], phases: Map<string, ShowPhase>): Att
           showName: show.name,
           kind: daysToClose <= 7 ? 'urgent' : 'info',
           text: `Entries close in ${daysToClose} day${daysToClose === 1 ? '' : 's'}`,
-          href,
+          href: setupHref,
         });
       }
     }

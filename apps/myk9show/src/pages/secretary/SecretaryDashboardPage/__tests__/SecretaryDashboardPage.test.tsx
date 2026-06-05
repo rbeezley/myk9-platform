@@ -57,6 +57,7 @@ function renderPage() {
 
 describe('SecretaryDashboardPage', () => {
   beforeEach(() => {
+    localStorage.clear();
     mockPendingEntries = [];
     mockUseSecretaryTasks.mockReturnValue({ data: [] });
     mockUseMissionControlData.mockReturnValue({
@@ -160,6 +161,10 @@ describe('SecretaryDashboardPage', () => {
 
     expect(screen.getByText('Managing 1 show')).toBeInTheDocument();
     expect(screen.getByText('1 entry pending review')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /1 entry pending review/i })).toHaveAttribute(
+      'href',
+      '/secretary/entries/managed-show?entryTab=pending'
+    );
     expect(screen.getAllByText('Managed Show').length).toBeGreaterThan(0);
     expect(screen.queryByText('Other Club Show')).not.toBeInTheDocument();
   });

@@ -90,8 +90,10 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   });
 
   const { isExhibitor, isSecretary, isJudge } = useAuthContext();
-  const checkInMutation = useCheckInMutation();
   const isStaff = isSecretary || isJudge || !isExhibitor;
+  const checkInMutation = useCheckInMutation({
+    writer: isStaff ? 'replicated' : 'self-checkin-rpc',
+  });
 
   const classState = useMemo(
     () => deriveClassState(classStatus, resultsReleasedAt ?? null),

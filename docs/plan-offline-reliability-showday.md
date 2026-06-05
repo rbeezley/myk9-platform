@@ -55,6 +55,7 @@ Make the first secretary/show-day offline reliability slice releasable for fall 
 
 - [x] Restore exhibitor self check-in to the `self_checkin_entry` RPC boundary and keep staff/scoring flows on the replicated writer.
 - [x] Add regression coverage proving `MyEntriesPage` opts into the RPC writer.
+- [x] Add regression coverage proving exhibitor `ClassResultsTable` check-in opts into the RPC writer.
 - [x] Restore audit trail entries for replicated day-of scratch, move-up, undo, and request denial/approval transitions.
 - [x] Restore stale request guards before replicated move-up/pull approve/deny actions.
 - [x] Document accepted local-replica trade-offs for move-up capacity checks, walk-in armband assignment, and bulk results release.
@@ -71,7 +72,7 @@ Make the first secretary/show-day offline reliability slice releasable for fall 
 
 ## Testing
 
-- Focused Vitest: 18 files / 215 tests covering check-in, request management, day-of entry creation, pull/move-up dialogs, Show Map mutations, exhibitor self check-in, offline check-in sync, result release, scoring mapper, replication tables, and entry store.
+- Focused Vitest: 19 files / 222 tests covering check-in, request management, day-of entry creation, pull/move-up dialogs, Show Map mutations, exhibitor self check-in, ClassResultsTable check-in writer selection, offline check-in sync, result release, scoring mapper, replication tables, and entry store.
 - `pnpm typecheck`
 - `pnpm lint`
 - `git diff --check`

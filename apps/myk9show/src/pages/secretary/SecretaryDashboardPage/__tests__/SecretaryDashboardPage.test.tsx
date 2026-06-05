@@ -97,9 +97,21 @@ describe('SecretaryDashboardPage', () => {
       'href',
       '/secretary/create-show/wizard'
     );
-    expect(screen.getByRole('link', { name: /Add Dog/i })).toHaveAttribute('href', '/dogs');
-    expect(screen.getByRole('link', { name: /Add Person/i })).toHaveAttribute('href', '/people');
-    expect(screen.getByRole('navigation', { name: /Dashboard quick links/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Add Dog/i })).toHaveAttribute(
+      'href',
+      '/dogs?add=true'
+    );
+    expect(screen.getByRole('link', { name: /Add Person/i })).toHaveAttribute(
+      'href',
+      '/people?add=true'
+    );
+    const quickLinks = screen.getByRole('navigation', { name: /Dashboard quick links/i });
+    expect(quickLinks).toBeInTheDocument();
+    expect(quickLinks.querySelector('[data-testid="dashboard-quick-links-row"]')).toHaveClass(
+      'grid-cols-3'
+    );
+    expect(screen.queryByText('Open dogs')).not.toBeInTheDocument();
+    expect(screen.queryByText('Open people')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /New Show/i })).not.toBeInTheDocument();
   });
 

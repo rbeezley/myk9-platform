@@ -70,7 +70,11 @@ export function AttentionNeededStrip({ items }: AttentionNeededStripProps) {
           {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <div id={contentId} hidden={!open} className="flex flex-col divide-y divide-border">
+      <div
+        id={contentId}
+        hidden={!open}
+        className={`${open ? 'flex' : 'hidden'} flex-col divide-y divide-border`}
+      >
         {items.map(item => (
           <Link
             key={`${item.showId}-${item.text}`}

@@ -1,7 +1,8 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Dog } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
@@ -84,7 +85,15 @@ vi.mock('@/hooks/useRBAC', () => ({
 }));
 
 vi.mock('@/components/panels/edit', () => ({
-  AddDogPanel: () => null,
+  AddDogPanel: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+    open ? (
+      <div data-testid="add-dog-panel">
+        Add dog panel
+        <button type="button" onClick={onClose}>
+          Close dog panel
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('@/components/common/SkeletonLoaders', () => ({
@@ -95,14 +104,20 @@ vi.mock('@/components/common/SkeletonLoaders', () => ({
 
 import BrowseDogsPage from '../BrowseDogsPage';
 
-function renderPage() {
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="current-location">{`${location.pathname}${location.search}`}</div>;
+}
+
+function renderPage(initialRoute = '/dogs') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialRoute]}>
         <BrowseDogsPage />
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -243,6 +258,24 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     // 1 of 1 dog
     expect(screen.getByText('1 dog')).toBeInTheDocument();
+  });
+
+  it('opens the add dog panel from the add query parameter', () => {
+    renderPage('/dogs?add=true');
+
+    expect(screen.getByTestId('add-dog-panel')).toBeInTheDocument();
+  });
+
+  it('removes the add query parameter when the add dog panel closes', async () => {
+    const user = userEvent.setup();
+    renderPage('/dogs?add=true');
+
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/dogs?add=true');
+
+    await user.click(screen.getByRole('button', { name: 'Close dog panel' }));
+
+    expect(screen.queryByTestId('add-dog-panel')).not.toBeInTheDocument();
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/dogs');
   });
 
   it('shows loading skeleton when isLoading and no dogs', () => {

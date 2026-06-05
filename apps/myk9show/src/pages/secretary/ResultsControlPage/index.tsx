@@ -5,7 +5,8 @@
  * self check-in, and releasing results with bulk operations.
  */
 
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -32,6 +33,9 @@ export default function ResultsControlPage() {
   const { selectedShowId, shows, selectShow } = useShowStore();
   const { trials } = useTrialStore();
   const { classes } = useClassStore();
+  const [searchParams] = useSearchParams();
+  const [initialRouteShowId] = useState(() => searchParams.get('showId')?.trim() || undefined);
+  const hasAppliedInitialShowRef = useRef(false);
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
   const showTrials = useMemo(
@@ -46,12 +50,34 @@ export default function ResultsControlPage() {
 
   const bulkOps = useBulkSelection({ items: showClasses, getItemId: getClassId });
 
-  // Auto-select first show if none selected
+  // Honor show-scoped workbench links once, then let later show changes stand.
   useEffect(() => {
+    if (!hasAppliedInitialShowRef.current) {
+      const initialShowExists = Boolean(
+        initialRouteShowId && shows.some(show => show.id === initialRouteShowId)
+      );
+
+      if (initialRouteShowId && initialShowExists) {
+        hasAppliedInitialShowRef.current = true;
+        if (initialRouteShowId !== selectedShowId) {
+          selectShow(initialRouteShowId);
+        }
+        return;
+      }
+
+      if (!initialRouteShowId || shows.length > 0) {
+        hasAppliedInitialShowRef.current = true;
+        if (!selectedShowId && shows.length > 0) {
+          selectShow(shows[0].id);
+        }
+        return;
+      }
+    }
+
     if (!selectedShowId && shows.length > 0) {
       selectShow(shows[0].id);
     }
-  }, [selectedShowId, shows, selectShow]);
+  }, [initialRouteShowId, selectedShowId, shows, selectShow]);
 
   useEffect(() => {
     bulkOps.clearSelection();

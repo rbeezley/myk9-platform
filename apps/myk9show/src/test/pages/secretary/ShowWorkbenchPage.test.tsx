@@ -602,15 +602,21 @@ describe('ShowWorkbenchPage', () => {
 
     // Closeout section: only renders when the show has a wrap-up-eligible
     // class (we seeded class-1 as 'completed'). All 3 destination links
-    // present with the correct hrefs the legacy Wrap-up tab used. Resolve
-    // via the labeled text then walk up to the anchor — Button asChild +
+    // present with the active show id preserved. Resolve via the labeled
+    // text then walk up to the anchor — Button asChild +
     // Link composes the accessible name differently than a plain anchor.
     const closeout = await screen.findByTestId('show-desk-closeout-section');
     const resultsControlLink = within(closeout).getByText('Results Control').closest('a');
-    expect(resultsControlLink).toHaveAttribute('href', '/secretary/results-control');
+    expect(resultsControlLink).toHaveAttribute(
+      'href',
+      '/secretary/results-control?showId=show-1'
+    );
     const reportsLink = within(closeout).getByText('Reports').closest('a');
-    expect(reportsLink).toHaveAttribute('href', '/secretary/reports');
+    expect(reportsLink).toHaveAttribute('href', '/secretary/reports?showId=show-1');
     const submitLink = within(closeout).getByText('Submit Results').closest('a');
-    expect(submitLink).toHaveAttribute('href', '/secretary/results-submission');
+    expect(submitLink).toHaveAttribute(
+      'href',
+      '/secretary/results-submission?showId=show-1'
+    );
   });
 });

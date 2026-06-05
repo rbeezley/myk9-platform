@@ -172,7 +172,7 @@ export default function ShowDeskPanel({
   }, [bulkApproveRequest, dispatchBulkApprove]);
 
   const openEntryManagement = useCallback(() => {
-    navigateTo(`/secretary/entries/${show.id}`);
+    navigateTo(`/secretary/entries/${show.id}?entryTab=pending`);
   }, [navigateTo, show.id]);
 
   const desk = useMemo(

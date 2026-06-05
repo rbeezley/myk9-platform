@@ -30,18 +30,30 @@ const mockAKCData = vi.hoisted(() => ({
   isSuccess: true,
 }));
 
+const mockShowStoreState = vi.hoisted(() => {
+  const state = {
+    selectedShowId: 'show-1',
+    shows: [
+      { id: 'show-1', name: 'Spring Scent Trial' },
+      { id: 'show-2', name: 'Fall Classic' },
+    ],
+    selectShow: vi.fn((showId: string) => {
+      state.selectedShowId = showId;
+    }),
+  };
+  return state;
+});
+const mockSelectShow = mockShowStoreState.selectShow;
+
 // ---------------------------------------------------------------------------
 // Module mocks
 // ---------------------------------------------------------------------------
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
-    selectedShowId: 'show-1',
-    shows: [
-      { id: 'show-1', name: 'Spring Scent Trial' },
-      { id: 'show-2', name: 'Fall Classic' },
-    ],
-    selectShow: vi.fn(),
+    selectedShowId: mockShowStoreState.selectedShowId,
+    shows: mockShowStoreState.shows,
+    selectShow: mockShowStoreState.selectShow,
   }),
 }));
 
@@ -102,6 +114,11 @@ describe('ResultsSubmissionPage', () => {
     mockAKCData.isLoading = false;
     mockAKCData.isError = false;
     mockAKCData.isSuccess = true;
+    mockShowStoreState.selectedShowId = 'show-1';
+    mockShowStoreState.shows = [
+      { id: 'show-1', name: 'Spring Scent Trial' },
+      { id: 'show-2', name: 'Fall Classic' },
+    ];
     mockInvoke.mockResolvedValue({ data: { success: true }, error: null });
     vi.clearAllMocks();
   });
@@ -119,6 +136,42 @@ describe('ResultsSubmissionPage', () => {
   it('renders the organization selector', async () => {
     render(<ResultsSubmissionPage />);
     await waitFor(() => expect(screen.getByTestId('org-selector')).toBeInTheDocument());
+  });
+
+  it('selects the route show when ?showId exists', async () => {
+    render(<ResultsSubmissionPage />, {
+      initialRoute: '/secretary/results-submission?showId=show-2',
+    });
+
+    await waitFor(() => expect(mockSelectShow).toHaveBeenCalledWith('show-2'));
+  });
+
+  it('applies the route show once without overriding later show changes', async () => {
+    const { rerender } = render(<ResultsSubmissionPage />, {
+      initialRoute: '/secretary/results-submission?showId=show-2',
+    });
+
+    await waitFor(() => expect(mockSelectShow).toHaveBeenCalledWith('show-2'));
+    expect(mockShowStoreState.selectedShowId).toBe('show-2');
+
+    mockSelectShow.mockClear();
+    mockShowStoreState.selectedShowId = 'show-1';
+    rerender(<ResultsSubmissionPage />);
+
+    await waitFor(() => expect(screen.getByText('Spring Scent Trial')).toBeInTheDocument());
+    expect(mockSelectShow).not.toHaveBeenCalledWith('show-2');
+  });
+
+  it('keeps the selected show when ?showId is invalid', async () => {
+    mockShowStoreState.selectedShowId = 'show-2';
+
+    render(<ResultsSubmissionPage />, {
+      initialRoute: '/secretary/results-submission?showId=missing-show',
+    });
+
+    await waitFor(() => expect(screen.getByText('Fall Classic')).toBeInTheDocument());
+    expect(mockSelectShow).not.toHaveBeenCalledWith('missing-show');
+    expect(mockSelectShow).not.toHaveBeenCalledWith('show-1');
   });
 
   it('renders the XML preview area', async () => {

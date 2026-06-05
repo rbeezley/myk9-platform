@@ -115,11 +115,11 @@ beforeEach(async () => {
 });
 
 describe('MessageCenterPanel', () => {
-  it('renders a left-side Message Center dialog', () => {
+  it('renders a right-side Message Center dialog', () => {
     renderPanel();
     const dialog = screen.getByRole('dialog', { name: /message center/i });
     expect(dialog).toBeInTheDocument();
-    expect(dialog.querySelector('.slide-over-panel')).toHaveClass('left-0');
+    expect(dialog.querySelector('.slide-over-panel')).toHaveClass('right-0');
   });
 
   it('orders tabs as Notifications, Announcements, Messages', () => {

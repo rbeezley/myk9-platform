@@ -343,7 +343,7 @@ export function MessageCenterPanel() {
         open={isCenterOpen}
         onClose={closeCenter}
         title="Message Center"
-        side="left"
+        side="right"
         size="sm"
         {...unreadHeaderProps}
       >

@@ -5,10 +5,6 @@ import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import { getUserFriendlyError } from '@/utils/errorMessages';
-import {
-  bulkUpdateEntryStatus,
-  updateEntryStatus,
-} from '@/services/database/entries/secretary';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
@@ -25,6 +21,8 @@ import {
   undoShowMapMoveUp,
   type ShowMapMoveUpResult,
   type ShowMapMoveUpUndoInput,
+  approveShowMapEntry,
+  bulkApproveShowMapEntries,
 } from './showMapActionMutations';
 
 interface UseShowMapActionExecutorInput {
@@ -370,9 +368,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   const bulkApproveMutation = useMutation({
     mutationFn: async ({ entryIds }: { entryIds: string[]; classId?: string | undefined }) => {
       if (entryIds.length === 0) return [];
-      const result = await bulkUpdateEntryStatus(entryIds, 'confirmed');
-      if (result.error) throw result.error;
-      return result.data;
+      return bulkApproveShowMapEntries(entryIds);
     },
     onSuccess: (_data, { entryIds }) => {
       const count = entryIds.length;
@@ -392,9 +388,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     mutationFn: async ({ action }: { action: ShowMapAction }) => {
       const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
       if (!entryId) throw new Error('Unable to find the entry for this action.');
-      const result = await updateEntryStatus(entryId, 'confirmed');
-      if (result.error) throw result.error;
-      return result.data;
+      return approveShowMapEntry(entryId);
     },
     onSuccess: () => {
       toast.success('Entry approved');

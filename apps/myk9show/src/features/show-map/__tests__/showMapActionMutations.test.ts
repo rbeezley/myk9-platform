@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getShowMapHandlerMessageTarget,
+  approveShowMapEntry,
+  bulkApproveShowMapEntries,
   markShowMapEntryCheckedIn,
   moveUpShowMapEntry,
   scratchShowMapEntry,
@@ -13,6 +15,7 @@ const mockProcessMoveUp = vi.fn();
 const mockUpdateReplicatedCheckInStatus = vi.fn();
 const mockUpdateReplicatedDayOfScratch = vi.fn();
 const mockUpdateReplicatedEntry = vi.fn();
+const mockUpdateReplicatedEntryStatus = vi.fn();
 const mockGetReplicatedEntryById = vi.fn();
 const mockGetReplicatedClassById = vi.fn();
 const mockGetReplicatedEntriesByClass = vi.fn();
@@ -39,10 +42,8 @@ vi.mock('@/services/database/day-of-operations', () => ({
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
-  updateReplicatedCheckInStatus: (...args: unknown[]) =>
-    mockUpdateReplicatedCheckInStatus(...args),
-  updateReplicatedDayOfScratch: (...args: unknown[]) =>
-    mockUpdateReplicatedDayOfScratch(...args),
+  updateReplicatedCheckInStatus: (...args: unknown[]) => mockUpdateReplicatedCheckInStatus(...args),
+  updateReplicatedDayOfScratch: (...args: unknown[]) => mockUpdateReplicatedDayOfScratch(...args),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -52,6 +53,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedEntriesTable: {
     updateEntry: (...args: unknown[]) => mockUpdateReplicatedEntry(...args),
+    updateEntryStatus: (...args: unknown[]) => mockUpdateReplicatedEntryStatus(...args),
     getEntryById: (...args: unknown[]) => mockGetReplicatedEntryById(...args),
     getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
     createEntry: (...args: unknown[]) => mockCreateReplicatedEntry(...args),
@@ -124,6 +126,23 @@ describe('showMapActionMutations', () => {
     await markShowMapEntryCheckedIn('entry-1');
 
     expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('approves a Show Desk review entry through the replicated entry table', async () => {
+    await approveShowMapEntry('entry-1');
+
+    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed');
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('bulk approves Show Desk review entries through replicated entry mutations', async () => {
+    await bulkApproveShowMapEntries(['entry-1', 'entry-2']);
+
+    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed');
+    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-2', 'confirmed');
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
     expect(mockFrom).not.toHaveBeenCalled();
   });
 

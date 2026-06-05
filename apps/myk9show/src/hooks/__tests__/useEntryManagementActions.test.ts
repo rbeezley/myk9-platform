@@ -4,7 +4,8 @@ import { useEntryManagementActions } from '../useEntryManagementActions';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { setEntryArmband } from '@/services/database/armbands';
-import { deleteEntry } from '@/services/database/entries';
+import { bulkCheckIn, deleteEntry, updateCheckInStatus } from '@/services/database/entries';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 
 const mocks = vi.hoisted(() => ({
   setEntryArmband: vi.fn(),
@@ -39,12 +40,17 @@ vi.mock('@/services/notifications/ccSecretary', () => ({
   resolveSecretaryCc: vi.fn(),
 }));
 
+vi.mock('@/services/show-day/checkInStatus', () => ({
+  updateReplicatedCheckInStatus: vi.fn(),
+}));
+
 vi.mock('@/services/database/show-registrations', () => ({
   updateEnrollmentPaymentStatus: vi.fn(),
 }));
 
 vi.mock('@/services/AuditService', () => ({
   auditService: {
+    log: vi.fn(),
     logAction: vi.fn(),
   },
 }));
@@ -82,6 +88,7 @@ describe('useEntryManagementActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.setEntryArmband.mockResolvedValue({ data: { updated: 1, armband: '89742' }, error: null });
+    vi.mocked(updateReplicatedCheckInStatus).mockResolvedValue('mutation-1');
   });
 
   it('assigns secretary armbands by entry id and requested armband number', async () => {
@@ -155,5 +162,70 @@ describe('useEntryManagementActions', () => {
     const updater = setEntries.mock.calls[0]?.[0];
     expect(typeof updater).toBe('function');
     expect(updater([entry])).toEqual([]);
+  });
+
+  it('bulk checks in selected entries through the replicated check-in writer', async () => {
+    vi.mocked(bulkCheckIn).mockResolvedValue({ data: [], error: null });
+    const entry = makeEntry();
+    const setEntries = vi.fn();
+    const setError = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [entry],
+        setEntries,
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError,
+        user: { id: 'secretary-1', email: 'secretary@example.test' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleEnrollmentBulkCheckIn(['entry-1', 'entry-2']);
+    });
+
+    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-2', 'checked-in');
+    expect(bulkCheckIn).not.toHaveBeenCalled();
+    expect(setError).not.toHaveBeenCalled();
+  });
+
+  it('updates inline class check-in through the replicated check-in writer', async () => {
+    vi.mocked(updateCheckInStatus).mockResolvedValue({ data: null, error: null });
+    const cls = {
+      id: 'class-1',
+      name: 'Novice A',
+      number: '1',
+      fee: 35,
+      status: 'entered' as const,
+      checkInStatus: 'no-status' as const,
+    };
+    const entry = {
+      ...makeEntry(),
+      classes: [cls],
+    };
+    const setEntries = vi.fn();
+    const setError = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [entry],
+        setEntries,
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError,
+        user: { id: 'secretary-1', email: 'secretary@example.test' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleCheckInStatusChange(entry, cls, 'checked-in');
+    });
+
+    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(updateCheckInStatus).not.toHaveBeenCalled();
   });
 });

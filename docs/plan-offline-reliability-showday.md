@@ -60,10 +60,20 @@ Make the first secretary/show-day offline reliability slice releasable for fall 
 - [x] Restore stale request guards before replicated move-up/pull approve/deny actions.
 - [x] Document accepted local-replica trade-offs for move-up capacity checks, walk-in armband assignment, and bulk results release.
 
+## Post-Merge Audit Follow-Ups
+
+- [x] Route Show Desk single review approval through replicated entry mutations instead of direct Supabase status updates.
+- [x] Route Show Desk grouped review approval through replicated entry mutations instead of direct Supabase bulk status updates.
+- [x] Route Entry Management bulk check-in through the shared replicated check-in writer.
+- [x] Route Entry Management inline class check-in through the shared replicated check-in writer.
+- [x] Route Show Workbench late-entry class capacity reads through replicated trials/classes/entries.
+- [x] Route day-of existing dog search through the replicated dog table.
+- [x] Add regression coverage for Show Desk replicated review approval, Entry Management replicated check-in, and late-entry replicated reads.
+
 ## Deferred Follow-Ups
 
 - `OfflineCheckInService` still keeps gate/check-in metadata locally; this slice migrates the durable check-in status write, but syncing gate/time/steward metadata needs a schema-backed design.
-- Creating brand-new dog/person records from the day-of entry dialog remains online because it writes identity/profile data outside the entries/classes show-day replica contract.
+- Creating brand-new dog/person records from the day-of entry dialog remains online because people/profile data is outside the entries/classes/dogs show-day replica contract.
 - Refund processing/status remains online because it is payment/accounting state outside the durable show-day entry state.
 - TV/public display reads remain direct Supabase and need an online-only vs offline-critical boundary decision.
 - Move-up capacity checks and day-of walk-in armband assignment now use the local entries replica. That is necessary for offline operation but can under-count on incomplete replicas or concurrent devices; launch readiness still needs a reconciliation/backstop design.

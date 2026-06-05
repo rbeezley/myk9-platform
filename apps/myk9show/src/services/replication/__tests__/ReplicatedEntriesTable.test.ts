@@ -10,7 +10,11 @@
  * - Data transformation (rowToEntry conversion)
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ReplicatedEntriesTable, type ReplicatedEntry } from '../ReplicatedEntriesTable';
+import {
+  ReplicatedEntriesTable,
+  rowToEntry,
+  type ReplicatedEntry,
+} from '../ReplicatedEntriesTable';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -62,6 +66,29 @@ describe('ReplicatedEntriesTable', () => {
 
     it('should be an instance of ReplicatedEntriesTable', () => {
       expect(table).toBeInstanceOf(ReplicatedEntriesTable);
+    });
+  });
+
+  describe('rowToEntry', () => {
+    it('maps deleted_at so day-of capacity filters can exclude soft-deleted entries', () => {
+      const deletedAt = '2026-06-05T12:00:00.000Z';
+
+      const entry = rowToEntry({
+        id: 'entry-deleted',
+        class_id: 'class-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        handler_id: 'handler-1',
+        armband: '101',
+        handler: 'Jamie Walker',
+        entry_status: 'confirmed',
+        check_in_status: 'checked-in',
+        deleted_at: deletedAt,
+        updated_at: '2026-06-05T12:01:00.000Z',
+      } as Parameters<typeof rowToEntry>[0]);
+
+      expect(entry.deletedAt).toBe(deletedAt);
+      expect(entry.deleted_at).toBe(deletedAt);
     });
   });
 

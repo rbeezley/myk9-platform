@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockSupabase } from '@/test/mocks/supabase';
-import { createDayOfEntry } from '../entries';
+import { createDayOfEntry, getClassesWithCapacity, searchDogs } from '../entries';
 
 const replicationMocks = vi.hoisted(() => ({
   getEntriesByShow: vi.fn(),
   getClassById: vi.fn(),
+  getClassesByTrial: vi.fn(),
+  getTrialsByShow: vi.fn(),
+  searchReplicatedDogs: vi.fn(),
   createEntry: vi.fn(),
 }));
 
@@ -21,6 +24,13 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedClassesTable: {
     getClassById: (...args: unknown[]) => replicationMocks.getClassById(...args),
+    getClassesByTrial: (...args: unknown[]) => replicationMocks.getClassesByTrial(...args),
+  },
+  replicatedTrialsTable: {
+    getTrialsByShow: (...args: unknown[]) => replicationMocks.getTrialsByShow(...args),
+  },
+  replicatedDogsTable: {
+    searchDogs: (...args: unknown[]) => replicationMocks.searchReplicatedDogs(...args),
   },
 }));
 
@@ -34,6 +44,44 @@ describe('createDayOfEntry', () => {
       trialId: 'trial-1',
       entryFee: 45,
     });
+    replicationMocks.getTrialsByShow.mockResolvedValue([{ id: 'trial-1' }]);
+    replicationMocks.getClassesByTrial.mockResolvedValue([
+      { id: 'class-1', name: 'Novice A', trialId: 'trial-1', maxEntries: 2 },
+      {
+        id: 'class-deleted',
+        name: 'Deleted Class',
+        trialId: 'trial-1',
+        maxEntries: 2,
+        deletedAt: '2026-06-05T12:00:00.000Z',
+      },
+    ]);
+    replicationMocks.searchReplicatedDogs.mockResolvedValue([
+      {
+        id: 'dog-1',
+        name: 'Rocket Dog',
+        callName: 'Rocket',
+        breed: 'Border Collie',
+        ownerId: 'person-1',
+        status: 'active',
+      },
+      {
+        id: 'dog-inactive',
+        name: 'Rocket Retired',
+        callName: 'Retired',
+        breed: 'Border Collie',
+        ownerId: 'person-2',
+        status: 'inactive',
+      },
+      {
+        id: 'dog-deleted',
+        name: 'Rocket Deleted',
+        callName: 'Deleted',
+        breed: 'Border Collie',
+        ownerId: 'person-3',
+        status: 'active',
+        deletedAt: '2026-06-05T12:00:00.000Z',
+      },
+    ]);
     replicationMocks.createEntry.mockImplementation(entry => Promise.resolve(entry));
   });
 
@@ -66,5 +114,51 @@ describe('createDayOfEntry', () => {
       })
     );
     expect(result.data?.totalFees).toBe(45);
+  });
+
+  it('loads class capacity from replicated trials, classes, and show entries', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-1', classId: 'class-1', entryStatus: 'confirmed' },
+      {
+        id: 'entry-deleted',
+        classId: 'class-1',
+        entryStatus: 'confirmed',
+        deletedAt: '2026-06-05T12:00:00.000Z',
+      },
+    ]);
+
+    const result = await getClassesWithCapacity('show-1');
+
+    expect(replicationMocks.getTrialsByShow).toHaveBeenCalledWith('show-1');
+    expect(replicationMocks.getClassesByTrial).toHaveBeenCalledWith('trial-1');
+    expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
+    expect(mockSupabase.from).not.toHaveBeenCalled();
+    expect(result.data).toEqual([
+      {
+        id: 'class-1',
+        name: 'Novice A',
+        class_number: null,
+        max_entries: 2,
+        trial_id: 'trial-1',
+        accepted_count: 1,
+        available_spots: 1,
+      },
+    ]);
+  });
+
+  it('searches day-of entry dogs from the replicated dog table', async () => {
+    const result = await searchDogs('Rocket');
+
+    expect(replicationMocks.searchReplicatedDogs).toHaveBeenCalledWith('Rocket');
+    expect(mockSupabase.from).not.toHaveBeenCalled();
+    expect(result.data).toEqual([
+      {
+        id: 'dog-1',
+        name: 'Rocket Dog',
+        call_name: 'Rocket',
+        breed: 'Border Collie',
+        owner: null,
+      },
+    ]);
   });
 });

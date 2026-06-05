@@ -17,9 +17,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { upload, uploading } = useAvatarUpload({
-    userId: form.personId || '',
     onSuccess: publicUrl => {
-      // Update person record with new photo URL
       if (form.person) {
         updatePerson.mutate({ ...form.person, profileImage: publicUrl });
       }

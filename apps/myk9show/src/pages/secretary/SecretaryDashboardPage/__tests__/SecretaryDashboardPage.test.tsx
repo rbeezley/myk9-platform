@@ -90,6 +90,19 @@ describe('SecretaryDashboardPage', () => {
     expect(screen.getByText('No shows yet.')).toBeInTheDocument();
   });
 
+  it('renders compact quick links to existing creation surfaces without duplicating the show action', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: /Add Show/i })).toHaveAttribute(
+      'href',
+      '/secretary/create-show/wizard'
+    );
+    expect(screen.getByRole('link', { name: /Add Dog/i })).toHaveAttribute('href', '/dogs');
+    expect(screen.getByRole('link', { name: /Add Person/i })).toHaveAttribute('href', '/people');
+    expect(screen.getByRole('navigation', { name: /Dashboard quick links/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /New Show/i })).not.toBeInTheDocument();
+  });
+
   it('only surfaces pending-entry attention for shows the secretary manages', () => {
     mockUseMissionControlData.mockReturnValue({
       shows: [

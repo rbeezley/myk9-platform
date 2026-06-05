@@ -43,9 +43,14 @@ describe('MyShowsSection', () => {
     expect(screen.getByText('Published and accepting entries')).toBeInTheDocument();
   });
 
-  it('renders show count in the toggle button', () => {
+  it('renders the show count as a badge inside the toggle button', () => {
     renderSection({ shows: [makeShow('a'), makeShow('b')] });
-    expect(screen.getByText(/2 shows/i)).toBeInTheDocument();
+
+    const button = screen.getByRole('button', { name: /Upcoming shows/i });
+    const badge = screen.getByTestId('my-shows-section-count-badge');
+
+    expect(button).toContainElement(badge);
+    expect(badge).toHaveTextContent('2 shows');
   });
 
   it('shows show cards by default when defaultCollapsed is false', () => {

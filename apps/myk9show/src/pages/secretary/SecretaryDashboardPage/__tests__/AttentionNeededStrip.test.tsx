@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ComponentProps } from 'react';
@@ -24,6 +25,7 @@ vi.mock('react-router-dom', async () => {
 
 beforeEach(() => {
   linkPropCaptures.length = 0;
+  localStorage.clear();
 });
 
 function renderStrip(items: AttentionItem[]) {
@@ -75,6 +77,40 @@ describe('AttentionNeededStrip', () => {
     expect(screen.getAllByRole('link')).toHaveLength(3);
   });
 
+  it('defaults long attention queues collapsed, expands on demand, and persists the choice', async () => {
+    const user = userEvent.setup();
+    const items: AttentionItem[] = [
+      { showId: 's1', showName: 'Show 1', kind: 'info', text: 'Item 1', href: '/shows/s1' },
+      { showId: 's2', showName: 'Show 2', kind: 'info', text: 'Item 2', href: '/shows/s2' },
+      { showId: 's3', showName: 'Show 3', kind: 'info', text: 'Item 3', href: '/shows/s3' },
+      { showId: 's4', showName: 'Show 4', kind: 'info', text: 'Item 4', href: '/shows/s4' },
+    ];
+
+    const { unmount } = renderStrip(items);
+
+    const toggle = screen.getByRole('button', { name: /show 4 attention items/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('4 items need attention')).toBeInTheDocument();
+    const controlledId = toggle.getAttribute('aria-controls');
+    expect(controlledId).toBeTruthy();
+    expect(document.getElementById(controlledId!)).toHaveAttribute('hidden');
+    expect(screen.queryByRole('link', { name: /item 1/i })).not.toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByRole('link')).toHaveLength(4);
+
+    unmount();
+    renderStrip(items);
+
+    expect(screen.getByRole('button', { name: /hide 4 attention items/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(screen.getAllByRole('link')).toHaveLength(4);
+  });
+
   // D4 regression: the dashboard is a "where to go" surface, not an "act here"
   // surface. Every attention item MUST be a navigation primitive — no in-place
   // mutation buttons. This test fails if a future PR adds a `<button onClick={mutate}>`
@@ -86,9 +122,9 @@ describe('AttentionNeededStrip', () => {
       { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Item A', href: '/shows/s1' },
       { showId: 's2', showName: 'Fall Classic', kind: 'info', text: 'Item B', href: '/shows/s2' },
     ]);
-    // Every item is an <a> tag, not a <button>.
-    expect(container.querySelectorAll('button')).toHaveLength(0);
-    // And the number of anchors equals the item count (no decorative-only buttons either).
+    // Every attention item is an <a> tag; the only button is the section-level
+    // collapse toggle.
+    expect(container.querySelectorAll('button')).toHaveLength(1);
     expect(container.querySelectorAll('a')).toHaveLength(2);
   });
 
@@ -115,11 +151,11 @@ describe('AttentionNeededStrip', () => {
     }
   });
 
-  it('renders no role="button" elements (catches tabIndex + onKeyDown patterns)', () => {
+  it('renders no extra role="button" elements inside the attention item list', () => {
     renderStrip([
       { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Item A', href: '/shows/s1' },
       { showId: 's2', showName: 'Fall Classic', kind: 'info', text: 'Item B', href: '/shows/s2' },
     ]);
-    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryAllByRole('button')).toHaveLength(1);
   });
 });

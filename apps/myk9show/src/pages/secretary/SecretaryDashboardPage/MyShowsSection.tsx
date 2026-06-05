@@ -68,9 +68,20 @@ export function MyShowsSection({
           <h2 className="text-base font-semibold text-foreground leading-tight">{title}</h2>
           {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
-        <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
-          {shows.length} {shows.length === 1 ? 'show' : 'shows'}
-          {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        <span className="shrink-0 flex items-center gap-2">
+          <span
+            data-testid="my-shows-section-count-badge"
+            className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+          >
+            {shows.length} {shows.length === 1 ? 'show' : 'shows'}
+          </span>
+          <span className="text-muted-foreground">
+            {open ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
+          </span>
         </span>
       </button>
 

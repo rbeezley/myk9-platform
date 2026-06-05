@@ -30,7 +30,7 @@ export function DashboardQuickLinks() {
           <Link
             key={href}
             to={href}
-            className="flex min-h-16 items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-16 items-center gap-2 rounded-md border border-border bg-card px-3 py-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Icon className="h-4 w-4" />

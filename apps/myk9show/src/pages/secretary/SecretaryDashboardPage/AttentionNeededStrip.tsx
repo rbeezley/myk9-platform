@@ -70,33 +70,31 @@ export function AttentionNeededStrip({ items }: AttentionNeededStripProps) {
           {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
-      {open && (
-        <div id={contentId} className="flex flex-col divide-y divide-border">
-          {items.map(item => (
-            <Link
-              key={`${item.showId}-${item.text}`}
-              to={item.href}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
-            >
-              {item.kind === 'urgent' ? (
-                <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-              ) : (
-                <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+      <div id={contentId} hidden={!open} className="flex flex-col divide-y divide-border">
+        {items.map(item => (
+          <Link
+            key={`${item.showId}-${item.text}`}
+            to={item.href}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
+          >
+            {item.kind === 'urgent' ? (
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+            ) : (
+              <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p
+                className={`text-sm font-medium ${item.kind === 'urgent' ? 'text-destructive' : 'text-foreground'}`}
+              >
+                {item.text}
+              </p>
+              {item.showName && (
+                <p className="text-xs text-muted-foreground truncate">{item.showName}</p>
               )}
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`text-sm font-medium ${item.kind === 'urgent' ? 'text-destructive' : 'text-foreground'}`}
-                >
-                  {item.text}
-                </p>
-                {item.showName && (
-                  <p className="text-xs text-muted-foreground truncate">{item.showName}</p>
-                )}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

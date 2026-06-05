@@ -91,6 +91,9 @@ describe('AttentionNeededStrip', () => {
     const toggle = screen.getByRole('button', { name: /show 4 attention items/i });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByText('4 items need attention')).toBeInTheDocument();
+    const controlledId = toggle.getAttribute('aria-controls');
+    expect(controlledId).toBeTruthy();
+    expect(document.getElementById(controlledId!)).toHaveAttribute('hidden');
     expect(screen.queryByRole('link', { name: /item 1/i })).not.toBeInTheDocument();
 
     await user.click(toggle);

@@ -35,6 +35,7 @@ Read these first when relevant:
 - Focus on end-to-end behavior, not only component appearance.
 - Verify next-action clarity: a user under pressure should know what to do next.
 - Treat scoring correctness, class completion accuracy, and offline tolerance as high severity.
+- Report residual QA-process gaps as findings when they could let a show-day regression return silently.
 - Do not create new UI proposals unless the existing workflow cannot be made clear with the current surfaces.
 - Stop test runners that hang for more than 60 seconds and report the hang.
 

@@ -27,7 +27,7 @@ export function ProfileSection() {
     [form.person, updatePerson]
   );
 
-  const { upload, uploading } = useAvatarUpload({ userId: form.personId || '', onSuccess });
+  const { upload, uploading } = useAvatarUpload({ onSuccess });
   const fullName = `${form.person?.firstName || ''} ${form.person?.lastName || ''}`.trim();
 
   return (

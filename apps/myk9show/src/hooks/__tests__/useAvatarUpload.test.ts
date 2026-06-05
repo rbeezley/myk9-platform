@@ -15,29 +15,33 @@ import { notifications } from '@/lib/notifications';
 
 import { useAvatarUpload } from '../useAvatarUpload';
 
+const AUTH_UID = 'auth-uid-abc';
+
 function createFile(name: string, size: number, type: string): File {
   const buffer = new ArrayBuffer(size);
   return new File([buffer], name, { type });
 }
 
 describe('useAvatarUpload', () => {
-  const userId = 'user-123';
   const onSuccess = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset storage mock defaults
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: AUTH_UID } } },
+      error: null,
+    });
     mockSupabase.storage.from.mockReturnValue({
-      upload: vi.fn().mockResolvedValue({ data: { path: 'profiles/user-123/avatar.jpg' }, error: null }),
+      upload: vi.fn().mockResolvedValue({ data: { path: `profiles/${AUTH_UID}/avatar.jpg` }, error: null }),
       getPublicUrl: vi.fn().mockReturnValue({
-        data: { publicUrl: 'https://storage.test/profiles/user-123/avatar.jpg' },
+        data: { publicUrl: `https://storage.test/profiles/${AUTH_UID}/avatar.jpg` },
       }),
       remove: vi.fn().mockResolvedValue({ data: [], error: null }),
     });
   });
 
   it('rejects files with invalid MIME type', async () => {
-    const { result } = renderHook(() => useAvatarUpload({ userId, onSuccess }));
+    const { result } = renderHook(() => useAvatarUpload({ onSuccess }));
     const pdfFile = createFile('doc.pdf', 1024, 'application/pdf');
 
     await act(async () => {
@@ -50,7 +54,7 @@ describe('useAvatarUpload', () => {
   });
 
   it('rejects files over 5MB', async () => {
-    const { result } = renderHook(() => useAvatarUpload({ userId, onSuccess }));
+    const { result } = renderHook(() => useAvatarUpload({ onSuccess }));
     const largeFile = createFile('big.jpg', 6 * 1024 * 1024, 'image/jpeg');
 
     await act(async () => {
@@ -62,8 +66,8 @@ describe('useAvatarUpload', () => {
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it('uploads successfully and calls onSuccess with public URL', async () => {
-    const { result } = renderHook(() => useAvatarUpload({ userId, onSuccess }));
+  it('uses auth.uid() — not a people.id — as the Storage path segment', async () => {
+    const { result } = renderHook(() => useAvatarUpload({ onSuccess }));
     const file = createFile('photo.png', 1024, 'image/png');
 
     await act(async () => {
@@ -72,15 +76,34 @@ describe('useAvatarUpload', () => {
 
     expect(mockSupabase.storage.from).toHaveBeenCalledWith('images');
     const storageBucket = mockSupabase.storage.from.mock.results[0]!.value;
+    // Path must be profiles/{auth.uid()}/... — Storage RLS checks foldername[2] = auth.uid()
     expect(storageBucket.upload).toHaveBeenCalledWith(
-      'profiles/user-123/avatar.png',
+      `profiles/${AUTH_UID}/avatar.png`,
       file,
       { upsert: true, contentType: 'image/png' },
     );
     expect(onSuccess).toHaveBeenCalledWith(
-      expect.stringContaining('https://storage.test/profiles/user-123/avatar.jpg'),
+      expect.stringContaining(`https://storage.test/profiles/${AUTH_UID}/avatar.jpg`),
     );
     expect(notifications.success).toHaveBeenCalledWith('Profile photo updated.');
+  });
+
+  it('errors when user is not authenticated', async () => {
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useAvatarUpload({ onSuccess }));
+    const file = createFile('photo.jpg', 1024, 'image/jpeg');
+
+    await act(async () => {
+      await result.current.upload(file);
+    });
+
+    expect(notifications.error).toHaveBeenCalledWith('Not authenticated.');
+    expect(mockSupabase.storage.from).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it('calls notifications.error on upload failure', async () => {
@@ -90,7 +113,7 @@ describe('useAvatarUpload', () => {
       remove: vi.fn(),
     });
 
-    const { result } = renderHook(() => useAvatarUpload({ userId, onSuccess }));
+    const { result } = renderHook(() => useAvatarUpload({ onSuccess }));
     const file = createFile('photo.jpg', 1024, 'image/jpeg');
 
     await act(async () => {
@@ -115,7 +138,7 @@ describe('useAvatarUpload', () => {
       remove: vi.fn(),
     });
 
-    const { result } = renderHook(() => useAvatarUpload({ userId, onSuccess }));
+    const { result } = renderHook(() => useAvatarUpload({ onSuccess }));
     const file = createFile('photo.jpg', 1024, 'image/jpeg');
 
     expect(result.current.uploading).toBe(false);
@@ -125,10 +148,8 @@ describe('useAvatarUpload', () => {
       uploadFinished = result.current.upload(file);
     });
 
-    // uploading should be true while waiting
     expect(result.current.uploading).toBe(true);
 
-    // Resolve the upload
     await act(async () => {
       resolveUpload({ data: { path: 'test' }, error: null });
       await uploadFinished!;

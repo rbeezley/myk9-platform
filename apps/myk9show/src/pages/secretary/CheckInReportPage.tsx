@@ -15,11 +15,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@/lib/notifications';
 import { DAY_ABBREVS, type ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 
 type StatusFilter = 'needs-action' | 'done' | 'all';
 
@@ -144,20 +144,18 @@ export default function CheckInReportPage({ showId: showIdProp }: CheckInReportP
         })
     );
 
-    const { error } = await supabase
-      .from('entries')
-      .update({ check_in_status: 'checked-in' })
-      .eq('id', entryId);
-
-    if (error) {
+    try {
+      await updateReplicatedCheckInStatus(entryId, 'checked-in');
+    } catch {
       queryClient.setQueryData(queryKeys.checkInReport(selectedShowId), previousData);
       notifications.error('Failed to check in entry');
-    } else {
-      setSecretaryCheckedIds(prev => new Set(prev).add(entryId));
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.checkInReport(selectedShowId),
-      });
+      return;
     }
+
+    setSecretaryCheckedIds(prev => new Set(prev).add(entryId));
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.checkInReport(selectedShowId),
+    });
   };
 
   const handleCheckInAll = async (entryIds: string[]) => {
@@ -183,24 +181,24 @@ export default function CheckInReportPage({ showId: showIdProp }: CheckInReportP
         })
     );
 
-    const { error } = await supabase
-      .from('entries')
-      .update({ check_in_status: 'checked-in' })
-      .in('id', entryIds);
-
-    if (error) {
+    try {
+      await Promise.all(
+        entryIds.map(entryId => updateReplicatedCheckInStatus(entryId, 'checked-in'))
+      );
+    } catch {
       queryClient.setQueryData(queryKeys.checkInReport(selectedShowId), previousData);
       notifications.error('Failed to check in entries');
-    } else {
-      setSecretaryCheckedIds(prev => {
-        const next = new Set(prev);
-        entryIds.forEach(id => next.add(id));
-        return next;
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.checkInReport(selectedShowId),
-      });
+      return;
     }
+
+    setSecretaryCheckedIds(prev => {
+      const next = new Set(prev);
+      entryIds.forEach(id => next.add(id));
+      return next;
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.checkInReport(selectedShowId),
+    });
   };
 
   if (!selectedShowId) {

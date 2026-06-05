@@ -1,6 +1,10 @@
 import { render } from '@/test/utils/testUtils';
 import { screen } from '@testing-library/react';
 import CheckInReportPage from '../secretary/CheckInReportPage';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mockSupabaseFrom = vi.hoisted(() => vi.fn());
+const mockUpdateReplicatedCheckInStatus = vi.hoisted(() => vi.fn());
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: vi.fn(() => ({
@@ -76,11 +80,49 @@ vi.mock('@/hooks/queries/useCheckInReport', () => ({
   })),
 }));
 
+vi.mock('@/hooks/queries/useShowTrials', () => ({
+  useShowTrials: vi.fn(() => ({
+    data: [
+      {
+        id: 't1',
+        trialDate: '2026-04-12',
+        trialNumber: 1,
+      },
+      {
+        id: 't2',
+        trialDate: '2026-04-12',
+        trialNumber: 2,
+      },
+    ],
+  })),
+}));
+
 vi.mock('@/hooks/useShowCheckInSubscription', () => ({
   useShowCheckInSubscription: vi.fn(),
 }));
 
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: {
+    from: (...args: unknown[]) => mockSupabaseFrom(...args),
+  },
+}));
+
+vi.mock('@/services/show-day/checkInStatus', () => ({
+  updateReplicatedCheckInStatus: (...args: unknown[]) =>
+    mockUpdateReplicatedCheckInStatus(...args),
+}));
+
 describe('CheckInReportPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateReplicatedCheckInStatus.mockResolvedValue('mutation-1');
+    mockSupabaseFrom.mockReturnValue({
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockResolvedValue({ error: null }),
+      in: vi.fn().mockResolvedValue({ error: null }),
+    });
+  });
+
   it('renders page title', () => {
     render(<CheckInReportPage />);
     expect(screen.getByText('Check-In')).toBeInTheDocument();
@@ -105,5 +147,24 @@ describe('CheckInReportPage', () => {
   it('renders search bar', () => {
     render(<CheckInReportPage />);
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+  });
+
+  it('queues a single staff check-in through the replicated entry table', async () => {
+    const { user } = render(<CheckInReportPage />);
+
+    await user.click(screen.getByText('Sarah Mitchell'));
+    await user.click(screen.getByRole('button', { name: 'Check In' }));
+
+    expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('e1', 'checked-in');
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+  });
+
+  it('queues bulk staff check-in through the replicated entry table', async () => {
+    const { user } = render(<CheckInReportPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Check In All' }));
+
+    expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('e1', 'checked-in');
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
   });
 });

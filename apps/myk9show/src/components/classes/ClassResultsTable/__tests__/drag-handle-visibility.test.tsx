@@ -130,13 +130,14 @@ let mockAuthContext = {
   isAdmin: false,
   user: { id: 'u1' },
 };
+const mockUseCheckInMutation = vi.hoisted(() => vi.fn(() => ({ mutate: vi.fn() })));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthContext,
 }));
 
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
-  useCheckInMutation: () => ({ mutate: vi.fn() }),
+  useCheckInMutation: (...args: unknown[]) => mockUseCheckInMutation(...args),
 }));
 
 vi.mock('@/hooks/useVisibleResultFields', () => ({
@@ -215,6 +216,7 @@ describe('ClassResultsTable drag handle visibility', () => {
       isAdmin: false,
       user: { id: 'u1' },
     };
+    mockUseCheckInMutation.mockClear();
     vi.clearAllMocks();
   });
 
@@ -262,5 +264,24 @@ describe('ClassResultsTable drag handle visibility', () => {
       } as UserPermissions,
     });
     expect(screen.queryByTestId('drag-handle')).not.toBeInTheDocument();
+  });
+
+  it('routes exhibitor self check-in through the RPC writer', () => {
+    mockAuthContext = {
+      isExhibitor: true,
+      isSecretary: false,
+      isJudge: false,
+      isAdmin: false,
+      user: { id: 'u1' },
+    };
+
+    renderTable({
+      userPermissions: {
+        canEditEntries: false,
+        canViewResults: true,
+      } as UserPermissions,
+    });
+
+    expect(mockUseCheckInMutation).toHaveBeenCalledWith({ writer: 'self-checkin-rpc' });
   });
 });

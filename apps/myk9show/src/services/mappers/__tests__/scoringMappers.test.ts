@@ -33,6 +33,7 @@ function makeEntry(entry_status: string | null): DbEntryWithDog {
     submitted_at: null,
     created_at: null,
     updated_at: null,
+    check_in_status: null,
     result_status: null,
     search_time_seconds: null,
     total_faults: null,
@@ -66,5 +67,17 @@ describe('mapDbEntryToScentWorkEntry — entry_status mapping', () => {
   it('passes through confirmed', () => {
     const result = mapDbEntryToScentWorkEntry(makeEntry('confirmed'), CLASS_CONFIG);
     expect(result.status).toBe('confirmed');
+  });
+
+  it('uses check_in_status, not result_status, for check-in state', () => {
+    const entry = {
+      ...makeEntry('confirmed'),
+      check_in_status: 'checked-in',
+      result_status: 'Not Qualified',
+    } as DbEntryWithDog & { check_in_status: string | null };
+
+    const result = mapDbEntryToScentWorkEntry(entry, CLASS_CONFIG);
+
+    expect(result.checkInStatus).toBe('checked-in');
   });
 });

@@ -19,7 +19,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { AlertCircle } from 'lucide-react';
-import { scratchEntry as pullEntry } from '@/services/database/day-of-operations';
+import { updateReplicatedDayOfScratch } from '@/services/show-day/checkInStatus';
 import type { PullableEntry } from './types';
 
 interface PullDialogProps {
@@ -38,17 +38,14 @@ export function PullDialog({ open, onOpenChange, entry, onSuccess }: PullDialogP
 
     setIsPulling(true);
     try {
-      const { error } = await pullEntry(entry.id, reason || undefined);
-
-      if (error) {
-        toast.error(getUserFriendlyError(error));
-        return;
-      }
+      await updateReplicatedDayOfScratch(entry.id, reason || 'Marked pulled from Day of Show');
 
       toast.success('Entry pulled successfully');
       onOpenChange(false);
       setReason('');
       onSuccess();
+    } catch (error) {
+      toast.error(getUserFriendlyError(error));
     } finally {
       setIsPulling(false);
     }

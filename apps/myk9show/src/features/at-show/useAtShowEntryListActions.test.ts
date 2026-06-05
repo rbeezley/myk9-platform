@@ -1,8 +1,8 @@
 /**
  * Tests for useAtShowEntryListActions — the real check-in-status mutation core.
  * Assertion-first (CLAUDE.md): prove each status maps to the exact
- * `updateEntry({ checkInStatus, check_in_status })` write, and that the
- * spike-stubbed reset does NOT touch the DB.
+ * shared replicated check-in writer, and that the spike-stubbed reset does
+ * NOT touch the DB.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,6 +16,10 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     updateEntry: (id: string, updates: Record<string, unknown>) => updateEntry(id, updates),
   },
+}));
+vi.mock('@/services/show-day/checkInStatus', () => ({
+  updateReplicatedCheckInStatus: (id: string, status: string) =>
+    updateEntry(id, { checkInStatus: status, check_in_status: status }),
 }));
 vi.mock('@/utils/logger', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), log: vi.fn() },

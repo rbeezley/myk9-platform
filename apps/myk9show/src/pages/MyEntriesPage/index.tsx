@@ -65,7 +65,7 @@ import {
 
 const MyEntriesPage: React.FC = () => {
   const { user, userWithRoles, firstName } = useAuthContext();
-  const checkInMutation = useCheckInMutation();
+  const checkInMutation = useCheckInMutation({ writer: 'self-checkin-rpc' });
 
   // Data and filters
   const { entries, isLoading, isError, refreshing, refreshEntries, updateEntryCheckIn } =

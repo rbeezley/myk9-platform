@@ -85,4 +85,8 @@ tmpclaude-*-cwd
 # Turborepo
 .turbo
 .superpowers/
-.agents/
+.agents/*
+!.agents/skills/
+!.agents/skills/**
+!.agents/agents/
+!.agents/agents/**

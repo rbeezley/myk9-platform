@@ -35,7 +35,9 @@ const BrowsePeoplePage: React.FC = () => {
   const rawView = searchParams.get('view');
   const initialViewMode: ViewMode = rawView === 'grid' || rawView === 'table' ? rawView : 'grid';
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
-  const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(false);
+  const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(
+    () => searchParams.get('add') === 'true'
+  );
 
   const { hasPermission, isLoading: rbacLoading } = useRBAC();
   const { addUser } = useUserStore();
@@ -74,6 +76,21 @@ const BrowsePeoplePage: React.FC = () => {
 
   const breadcrumbItems = useMemo(() => [{ label: 'People' }], []);
 
+  const openCreatePersonDialog = useCallback(() => {
+    setShowCreatePersonDialog(true);
+    const params = new URLSearchParams(searchParams);
+    params.set('add', 'true');
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const closeCreatePersonDialog = useCallback(() => {
+    setShowCreatePersonDialog(false);
+    if (!searchParams.has('add')) return;
+    const params = new URLSearchParams(searchParams);
+    params.delete('add');
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   // Stable reference avoids re-firing the dialog's form-reset effect on each render.
   const newPersonInitialData = useMemo(
     () => ({
@@ -111,7 +128,7 @@ const BrowsePeoplePage: React.FC = () => {
       };
 
       const newUser = await addUser(newPersonInput);
-      setShowCreatePersonDialog(false);
+      closeCreatePersonDialog();
       // Seed the cache synchronously so PersonDetailPage finds the new user
       // immediately. Without this, navigation races the cache refresh and
       // PersonDetailPage's not-found guard ping-pongs back to /people.
@@ -125,7 +142,7 @@ const BrowsePeoplePage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       navigate(`/people/${newUser.id}`, { replace: true });
     },
-    [addUser, navigate, queryClient]
+    [addUser, closeCreatePersonDialog, navigate, queryClient]
   );
 
   // FilterBar definitions
@@ -172,7 +189,7 @@ const BrowsePeoplePage: React.FC = () => {
               exhibitors.
             </p>
             {canCreatePeople && (
-              <Button onClick={() => setShowCreatePersonDialog(true)}>
+              <Button onClick={openCreatePersonDialog}>
                 <Plus className="h-4 w-4 mr-2" />
                 New Person
               </Button>
@@ -230,7 +247,7 @@ const BrowsePeoplePage: React.FC = () => {
                 />
 
                 {canCreatePeople && (
-                  <Button onClick={() => setShowCreatePersonDialog(true)}>
+                  <Button onClick={openCreatePersonDialog}>
                     <Plus className="h-4 w-4 mr-2" />
                     New Person
                   </Button>
@@ -286,7 +303,7 @@ const BrowsePeoplePage: React.FC = () => {
       {/* Create User Dialog */}
       <UserEditPanel
         open={showCreatePersonDialog}
-        onClose={() => setShowCreatePersonDialog(false)}
+        onClose={closeCreatePersonDialog}
         userId=""
         userName="New User"
         initialUserData={newPersonInitialData}

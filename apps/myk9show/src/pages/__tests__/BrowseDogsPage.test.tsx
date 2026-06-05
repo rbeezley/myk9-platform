@@ -84,7 +84,8 @@ vi.mock('@/hooks/useRBAC', () => ({
 }));
 
 vi.mock('@/components/panels/edit', () => ({
-  AddDogPanel: () => null,
+  AddDogPanel: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="add-dog-panel">Add dog panel</div> : null,
 }));
 
 vi.mock('@/components/common/SkeletonLoaders', () => ({
@@ -95,13 +96,13 @@ vi.mock('@/components/common/SkeletonLoaders', () => ({
 
 import BrowseDogsPage from '../BrowseDogsPage';
 
-function renderPage() {
+function renderPage(initialRoute = '/dogs') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialRoute]}>
         <BrowseDogsPage />
       </MemoryRouter>
     </QueryClientProvider>
@@ -243,6 +244,12 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     // 1 of 1 dog
     expect(screen.getByText('1 dog')).toBeInTheDocument();
+  });
+
+  it('opens the add dog panel from the add query parameter', () => {
+    renderPage('/dogs?add=true');
+
+    expect(screen.getByTestId('add-dog-panel')).toBeInTheDocument();
   });
 
   it('shows loading skeleton when isLoading and no dogs', () => {

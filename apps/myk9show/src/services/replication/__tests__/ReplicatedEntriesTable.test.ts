@@ -262,6 +262,51 @@ describe('ReplicatedEntriesTable', () => {
       expect(result?._syncStatus).toBe('pending');
     });
 
+    it('should queue only check_in_status for narrow check-in status updates', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handler: 'Jane Handler',
+        armband: '101',
+        resultStatus: 'qualified',
+      });
+
+      await table.updateCheckInStatus('entry-1', 'checked-in');
+
+      const payload = queueMutation.mock.calls[0]?.[2];
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          id: 'entry-1',
+          check_in_status: 'checked-in',
+          updated_at: expect.any(String),
+        })
+      );
+      expect(payload).not.toHaveProperty('result_status');
+      expect(payload).not.toHaveProperty('handler');
+      expect(payload).not.toHaveProperty('class_id');
+
+      const result = await table.get('entry-1');
+      expect(result?.checkInStatus).toBe('checked-in');
+      expect(result?.check_in_status).toBe('checked-in');
+      expect(result?._syncStatus).toBe('pending');
+    });
+
     it('should throw error when updating status of non-existent entry', async () => {
       await expect(table.updateEntryStatus('nonexistent', 'checked-in')).rejects.toThrow(
         'Entry nonexistent not found'
@@ -326,6 +371,43 @@ describe('ReplicatedEntriesTable', () => {
 
       const result = await table.get('entry-1');
       expect(result?._syncStatus).toBe('pending');
+    });
+
+    it('should queue withdrawal_reason when updating a day-of scratch', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        armband: '101',
+      });
+      await table.updateEntry('entry-1', {
+        entryStatus: 'scratched',
+        checkInStatus: 'pulled',
+        withdrawalReason: 'Dog absent',
+        specialRequests: 'Dog absent',
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          entry_status: 'scratched',
+          check_in_status: 'pulled',
+          withdrawal_reason: 'Dog absent',
+          special_requests: 'Dog absent',
+        })
+      );
     });
 
     it('should throw error when updating non-existent entry', async () => {

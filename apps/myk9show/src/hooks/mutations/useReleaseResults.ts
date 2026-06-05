@@ -4,10 +4,10 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
 import { useAuth } from '@/hooks/useAuth';
 import { settingsQueryKeys } from '../queries/useShowSettingsDatabase';
+import { replicatedClassesTable } from '@/services/replication';
 
 interface ReleaseResultsInput {
   classIds: string[];
@@ -21,15 +21,17 @@ export function useReleaseResults() {
   return useMutation({
     mutationFn: async ({ classIds }: ReleaseResultsInput) => {
       if (classIds.length === 0) return;
-      const { error } = await supabase
-        .from('classes')
-        .update({
-          results_released_at: new Date().toISOString(),
-          results_released_by: user?.id ?? null,
-        })
-        .in('id', classIds);
-
-      if (error) throw error;
+      const releasedAt = new Date().toISOString();
+      await Promise.all(
+        classIds.map(classId =>
+          replicatedClassesTable.updateClass(classId, {
+            resultsReleasedAt: releasedAt,
+            results_released_at: releasedAt,
+            resultsReleasedBy: user?.id ?? null,
+            results_released_by: user?.id ?? null,
+          })
+        )
+      );
     },
     onSuccess: (_, variables) => {
       notifications.success(

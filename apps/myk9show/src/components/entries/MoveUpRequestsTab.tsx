@@ -43,11 +43,13 @@ import {
 } from 'lucide-react';
 import {
   getPendingMoveUpRequests,
-  approveMoveUpRequest,
-  denyMoveUpRequest,
   getClassesWithCapacity,
-  ClassWithCapacity,
+  type ClassWithCapacity,
 } from '@/services/database/day-of-operations';
+import {
+  approveMoveUpRequestReplicated,
+  denyMoveUpRequestReplicated,
+} from '@/services/show-day/requestManagement';
 
 interface MoveUpRequest {
   id: string;
@@ -157,7 +159,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     setIsProcessing(true);
 
     try {
-      const { error } = await approveMoveUpRequest(selectedRequest.id, targetClassId);
+      const { error } = await approveMoveUpRequestReplicated(selectedRequest.id, targetClassId);
 
       if (error) {
         if (error.message?.includes('full')) {
@@ -184,7 +186,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     setIsProcessing(true);
 
     try {
-      const { error } = await denyMoveUpRequest(selectedRequest.id, denyReason);
+      const { error } = await denyMoveUpRequestReplicated(selectedRequest.id, denyReason);
 
       if (error) {
         toast.error('Failed to deny move-up request');

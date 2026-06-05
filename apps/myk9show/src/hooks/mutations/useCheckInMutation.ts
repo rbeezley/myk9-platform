@@ -6,8 +6,8 @@
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CheckInStatus } from '@myk9/core';
-import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
 
 interface CheckInMutationInput {
@@ -16,18 +16,13 @@ interface CheckInMutationInput {
   classId?: string | undefined;
 }
 
-/**
- * Persist check-in status to Supabase via SECURITY DEFINER RPC.
- * Using RPC instead of direct UPDATE restricts handlers to check_in_status
- * only — the policy no longer allows handlers to update other columns.
- */
 async function updateCheckInStatus({ entryId, newStatus }: CheckInMutationInput): Promise<void> {
-  const { error } = await supabase.rpc('self_checkin_entry', {
-    p_entry_id: entryId,
-    p_new_status: newStatus,
-  });
-
-  if (error) throw new Error(`Check-in update failed: ${error.message}`);
+  try {
+    await updateReplicatedCheckInStatus(entryId, newStatus);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Check-in update failed: ${message}`);
+  }
 }
 
 export function useCheckInMutation() {

@@ -41,7 +41,7 @@ import { PullEntriesTable } from './PullEntriesTable';
 import { DayOfEntryDialog } from './DayOfEntryDialog';
 import { PullDialog } from './PullDialog';
 import { MoveUpDialog } from './MoveUpDialog';
-import { scratchEntry as pullEntry } from '@/services/database/day-of-operations';
+import { updateReplicatedDayOfScratch } from '@/services/show-day/checkInStatus';
 import { toast } from 'sonner';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import type { DayOfOperationEntry, PullableEntry } from './types';
@@ -82,13 +82,11 @@ export default function DayOfOperationsPage() {
     if (isPullingDirect) return;
     setIsPullingDirect(true);
     try {
-      const { error } = await pullEntry(entry.id, undefined);
-      if (error) {
-        toast.error(getUserFriendlyError(error));
-      } else {
-        toast.success('Entry pulled');
-        loadData();
-      }
+      await updateReplicatedDayOfScratch(entry.id, 'Marked pulled from Day of Show');
+      toast.success('Entry pulled');
+      loadData();
+    } catch (error) {
+      toast.error(getUserFriendlyError(error));
     } finally {
       setIsPullingDirect(false);
     }

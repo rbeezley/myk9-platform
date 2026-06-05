@@ -11,7 +11,9 @@
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import { generateUUID } from '@/utils/idUtils';
 import type { DayOfEntry } from './types';
 
 /**
@@ -99,32 +101,38 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
   const startTime = Date.now();
 
   try {
-    // Fetch all armbands and compute numeric max — TEXT ordering gives wrong
-    // results for 10+ entries ("9" > "100" lexicographically).
-    const { data: armbandRows } = await supabase
-      .from('entries')
-      .select('armband')
-      .eq('show_id', entryData.showId)
-      .is('deleted_at', null)
-      .not('armband', 'is', null);
-
+    const armbandRows = await replicatedEntriesTable.getEntriesByShow(entryData.showId);
     let nextArmband = 1;
     if (armbandRows && armbandRows.length > 0) {
       const maxParsed = armbandRows
-        .map(r => parseInt(r.armband!, 10))
+        .map(r => parseInt(r.armband ?? '', 10))
         .filter(n => !isNaN(n))
         .reduce((max, n) => (n > max ? n : max), 0);
       if (maxParsed > 0) nextArmband = maxParsed + 1;
     }
 
-    // Get trial_id and entry_fee for each class
-    const { data: classData } = await supabase
-      .from('classes')
-      .select('id, trial_id, entry_fee')
-      .in('id', entryData.classIds);
+    const classData = await Promise.all(
+      entryData.classIds.map(async classId => {
+        const cls = await replicatedClassesTable.getClassById(classId);
+        if (!cls) {
+          throw createDatabaseError(
+            new Error(`Class ${classId} not found`),
+            'classes',
+            'create_day_of_entry_class_lookup'
+          );
+        }
+        return cls;
+      })
+    );
 
     const classInfoMap = new Map(
-      classData?.map(c => [c.id, { trial_id: c.trial_id, entry_fee: c.entry_fee }]) || []
+      classData.map(c => [
+        c.id,
+        {
+          trial_id: c.trialId ?? c.trial_id,
+          entry_fee: c.entryFee,
+        },
+      ])
     );
 
     // Calculate total fees
@@ -138,34 +146,32 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
     const entries = entryData.classIds.map((classId: string, index: number) => {
       const classInfo = classInfoMap.get(classId);
       return {
-        dog_id: entryData.dogId,
-        show_id: entryData.showId,
-        class_id: classId,
+        id: generateUUID(),
+        dogId: entryData.dogId,
+        showId: entryData.showId,
+        classId,
+        ...(classInfo?.trial_id !== undefined && { trialId: classInfo.trial_id }),
         ...(classInfo?.trial_id !== undefined && { trial_id: classInfo.trial_id }),
         handler: entryData.handler,
-        handler_id: userId, // Track who created the day-of entry
-        is_day_of_show: true,
-        payment_method: entryData.paymentMethod,
-        payment_status: entryData.paymentMethod === 'waived' ? 'waived' : 'paid',
+        handlerId: userId,
+        isDayOfShow: true,
+        paymentMethod: entryData.paymentMethod,
+        paymentStatus: entryData.paymentMethod === 'waived' ? 'waived' : 'paid',
+        entryStatus: 'confirmed',
         entry_status: 'confirmed',
-        entry_fee: entryData.paymentMethod === 'waived' ? 0 : classInfo?.entry_fee || defaultFee,
+        entryFee: entryData.paymentMethod === 'waived' ? 0 : classInfo?.entry_fee || defaultFee,
         armband: String(nextArmband), // Same armband for all classes (same dog/handler)
-        jump_height: entryData.jumpHeight || null,
-        special_requests: index === 0 ? entryData.notes || null : null, // Only on first entry
-        submitted_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
+        jumpHeight: entryData.jumpHeight || undefined,
+        specialRequests: index === 0 ? entryData.notes || null : null, // Only on first entry
+        special_requests: index === 0 ? entryData.notes || null : null,
+        submittedAt: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
     });
 
-    const { data: createdEntries, error: entryError } = await supabase
-      .from('entries')
-      .insert(entries)
-      .select();
-
-    if (entryError) {
-      throw createDatabaseError(entryError, 'entries', 'create_day_of_entry');
-    }
+    const createdEntries = await Promise.all(
+      entries.map(entry => replicatedEntriesTable.createEntry(entry))
+    );
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'create_day_of_entry', duration);

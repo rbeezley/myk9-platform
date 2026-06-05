@@ -3,8 +3,8 @@
  *
  * Exercises the full shim wiring end-to-end against a mocked replication
  * layer: data adapter → useEntryListData → filters → ringside EntryListPage
- * render, and the card-click path → handlers → actions → the real
- * `replicatedEntriesTable.updateEntry(...)` write. Assertion-first on the
+ * render, and the card-click path → handlers → actions → the shared
+ * replicated check-in writer. Assertion-first on the
  * value-sensitive bit (the in-ring enum lands in BOTH the camel + snake
  * check-in columns), per CLAUDE.md.
  *

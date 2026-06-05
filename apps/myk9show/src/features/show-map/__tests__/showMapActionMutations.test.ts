@@ -10,6 +10,14 @@ import {
 
 const mockFrom = vi.fn();
 const mockProcessMoveUp = vi.fn();
+const mockUpdateReplicatedCheckInStatus = vi.fn();
+const mockUpdateReplicatedDayOfScratch = vi.fn();
+const mockUpdateReplicatedEntry = vi.fn();
+const mockGetReplicatedEntryById = vi.fn();
+const mockGetReplicatedClassById = vi.fn();
+const mockGetReplicatedEntriesByClass = vi.fn();
+const mockCreateReplicatedEntry = vi.fn();
+const mockDeleteReplicatedEntry = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -29,32 +37,26 @@ vi.mock('@/services/database/day-of-operations', () => ({
   processMoveUp: (...args: unknown[]) => mockProcessMoveUp(...args),
 }));
 
-function makeUpdateChain(result: { error: Error | null } = { error: null }) {
-  const chain = {
-    update: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockResolvedValue(result),
-  };
-  return chain;
-}
+vi.mock('@/services/show-day/checkInStatus', () => ({
+  updateReplicatedCheckInStatus: (...args: unknown[]) =>
+    mockUpdateReplicatedCheckInStatus(...args),
+  updateReplicatedDayOfScratch: (...args: unknown[]) =>
+    mockUpdateReplicatedDayOfScratch(...args),
+}));
 
-/**
- * Chain that mirrors `update(...).eq('id', ...).select(...).single()` — used
- * by lifecycle transitions that return the updated row.
- */
-function makeUpdateSelectSingleChain(
-  result: { data: Record<string, unknown> | null; error: Error | null } = {
-    data: { id: 'entry-1' },
-    error: null,
-  }
-) {
-  const chain = {
-    update: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue(result),
-  };
-  return chain;
-}
+vi.mock('@/services/replication', () => ({
+  replicatedClassesTable: {
+    updateClass: vi.fn(() => Promise.resolve('class-mutation-1')),
+    getClassById: (...args: unknown[]) => mockGetReplicatedClassById(...args),
+  },
+  replicatedEntriesTable: {
+    updateEntry: (...args: unknown[]) => mockUpdateReplicatedEntry(...args),
+    getEntryById: (...args: unknown[]) => mockGetReplicatedEntryById(...args),
+    getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
+    createEntry: (...args: unknown[]) => mockCreateReplicatedEntry(...args),
+    deleteEntry: (...args: unknown[]) => mockDeleteReplicatedEntry(...args),
+  },
+}));
 
 function makeSelectSingleChain(result: {
   data: Record<string, unknown> | null;
@@ -71,6 +73,31 @@ function makeSelectSingleChain(result: {
 describe('showMapActionMutations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUpdateReplicatedCheckInStatus.mockResolvedValue('mutation-1');
+    mockUpdateReplicatedDayOfScratch.mockResolvedValue('mutation-2');
+    mockUpdateReplicatedEntry.mockResolvedValue('entry-mutation-1');
+    mockGetReplicatedEntryById.mockResolvedValue({
+      id: 'entry-1',
+      showId: 'show-1',
+      dogId: 'dog-1',
+      classId: 'class-1',
+      trialId: 'trial-1',
+      entryStatus: 'checked-in',
+      checkInStatus: 'checked-in',
+      specialRequests: 'Bring paper form',
+      jumpHeight: '12',
+      handler: 'Jane Handler',
+      armband: '101',
+    });
+    mockGetReplicatedClassById.mockResolvedValue({
+      id: 'class-2',
+      trialId: 'trial-2',
+      name: 'Advanced A',
+      maxEntries: 50,
+    });
+    mockGetReplicatedEntriesByClass.mockResolvedValue([]);
+    mockCreateReplicatedEntry.mockImplementation(entry => Promise.resolve(entry));
+    mockDeleteReplicatedEntry.mockResolvedValue('delete-mutation-1');
   });
 
   it('extracts the source id from a typed Show Map node id', () => {
@@ -79,55 +106,32 @@ describe('showMapActionMutations', () => {
     expect(sourceIdFromShowMapNodeId('entry:', 'entry')).toBeNull();
   });
 
-  it('writes check_in_status = "checked-in" to the matching entry row', async () => {
-    const chain = makeUpdateChain();
-    mockFrom.mockReturnValue(chain);
-
+  it('queues check_in_status = "checked-in" through the replicated entry table', async () => {
     await markShowMapEntryCheckedIn('entry-1');
 
-    expect(mockFrom).toHaveBeenCalledWith('entries');
-    expect(chain.update).toHaveBeenCalledWith({ check_in_status: 'checked-in' });
-    expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
+    expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('throws a friendly database error when the update fails', async () => {
-    const chain = makeUpdateChain({ error: new Error('permission denied') });
-    mockFrom.mockReturnValue(chain);
+  it('surfaces replicated check-in update failures', async () => {
+    mockUpdateReplicatedCheckInStatus.mockRejectedValueOnce(new Error('replica unavailable'));
 
-    await expect(markShowMapEntryCheckedIn('entry-1')).rejects.toThrow('permission denied');
+    await expect(markShowMapEntryCheckedIn('entry-1')).rejects.toThrow('replica unavailable');
   });
 
-  it('marks a scratch / no-show as pulled for ringside propagation', async () => {
-    const chain = makeUpdateSelectSingleChain();
-    mockFrom.mockReturnValue(chain);
-
+  it('queues a scratch / no-show as pulled through the replicated entry table', async () => {
     await scratchShowMapEntry('entry-1', 'Dog absent');
 
-    expect(mockFrom).toHaveBeenCalledWith('entries');
-    expect(chain.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        entry_status: 'scratched',
-        check_in_status: 'pulled',
-        withdrawal_reason: 'Dog absent',
-        // Routed through scratchEntryDayOf, which also writes special_requests
-        // so the pull reason is visible ringside.
-        special_requests: 'Dog absent',
-        updated_at: expect.any(String),
-      })
-    );
-    expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
+    expect(mockUpdateReplicatedDayOfScratch).toHaveBeenCalledWith('entry-1', 'Dog absent');
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('uses a plain default reason when scratch / no-show has no typed reason', async () => {
-    const chain = makeUpdateSelectSingleChain();
-    mockFrom.mockReturnValue(chain);
-
     await scratchShowMapEntry('entry-1', '  ');
 
-    expect(chain.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        withdrawal_reason: 'Marked no-show from Show Map',
-      })
+    expect(mockUpdateReplicatedDayOfScratch).toHaveBeenCalledWith(
+      'entry-1',
+      'Marked no-show from Show Map'
     );
   });
 
@@ -194,57 +198,56 @@ describe('showMapActionMutations', () => {
     );
   });
 
-  it('moves an entry up through the day-of move-up operation and returns undo data', async () => {
-    const chain = makeSelectSingleChain({
-      data: {
-        entry_status: 'checked-in',
-        check_in_status: 'checked-in',
-        special_requests: 'Bring paper form',
-      },
-      error: null,
-    });
-    mockFrom.mockReturnValue(chain);
-    mockProcessMoveUp.mockResolvedValue({
-      data: { id: 'new-entry-1', class: { name: 'Advanced A' } },
-      error: null,
+  it('moves an entry up through replicated entry mutations and returns undo data', async () => {
+    const result = await moveUpShowMapEntry({
+      entryId: 'entry-1',
+      targetClassId: 'class-2',
+      reason: 'Qualified today',
     });
 
-    await expect(
-      moveUpShowMapEntry({
-        entryId: 'entry-1',
-        targetClassId: 'class-2',
-        reason: 'Qualified today',
-      })
-    ).resolves.toEqual({
+    expect(result).toMatchObject({
       originalEntryId: 'entry-1',
-      newEntryId: 'new-entry-1',
       previousEntryStatus: 'checked-in',
       previousCheckInStatus: 'checked-in',
       previousSpecialRequests: 'Bring paper form',
       targetClassName: 'Advanced A',
     });
+    expect(result.newEntryId).toEqual(expect.any(String));
 
-    expect(chain.select).toHaveBeenCalledWith(
-      'id, entry_status, check_in_status, special_requests'
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        entryStatus: 'moved',
+        entry_status: 'moved',
+        specialRequests: 'Moved up to Advanced A: Qualified today',
+        special_requests: 'Moved up to Advanced A: Qualified today',
+      })
     );
-    expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
-    expect(mockProcessMoveUp).toHaveBeenCalledWith('entry-1', 'class-2', 'Qualified today');
+    expect(mockCreateReplicatedEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: result.newEntryId,
+        dogId: 'dog-1',
+        showId: 'show-1',
+        classId: 'class-2',
+        trialId: 'trial-2',
+        entryStatus: 'confirmed',
+        paymentStatus: 'waived',
+        entryFee: 0,
+        specialRequests: 'Moved up from class class-1: Qualified today',
+      })
+    );
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockProcessMoveUp).not.toHaveBeenCalled();
   });
 
-  it('surfaces a day-of move-up operation error', async () => {
-    const chain = makeSelectSingleChain({
-      data: {
-        entry_status: 'checked-in',
-        check_in_status: 'checked-in',
-        special_requests: null,
-      },
-      error: null,
+  it('surfaces a replicated move-up capacity error', async () => {
+    mockGetReplicatedClassById.mockResolvedValue({
+      id: 'class-2',
+      trialId: 'trial-2',
+      name: 'Advanced A',
+      maxEntries: 1,
     });
-    mockFrom.mockReturnValue(chain);
-    mockProcessMoveUp.mockResolvedValue({
-      data: null,
-      error: { message: 'Target class is full' },
-    });
+    mockGetReplicatedEntriesByClass.mockResolvedValue([{ entryStatus: 'confirmed' }]);
 
     await expect(
       moveUpShowMapEntry({
@@ -254,11 +257,7 @@ describe('showMapActionMutations', () => {
     ).rejects.toThrow('Target class is full');
   });
 
-  it('undoes a move-up by soft-deleting the new entry before restoring the original entry', async () => {
-    const removeChain = makeUpdateChain();
-    const restoreChain = makeUpdateChain();
-    mockFrom.mockReturnValueOnce(removeChain).mockReturnValueOnce(restoreChain);
-
+  it('undoes a move-up by deleting the new replicated entry before restoring the original entry', async () => {
     await undoShowMapMoveUp({
       originalEntryId: 'entry-1',
       newEntryId: 'new-entry-1',
@@ -267,27 +266,23 @@ describe('showMapActionMutations', () => {
       previousSpecialRequests: null,
     });
 
-    expect(removeChain.update).toHaveBeenCalledWith(
+    expect(mockDeleteReplicatedEntry).toHaveBeenCalledWith('new-entry-1');
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
+      'entry-1',
       expect.objectContaining({
-        deleted_at: expect.any(String),
-        updated_at: expect.any(String),
-      })
-    );
-    expect(removeChain.eq).toHaveBeenCalledWith('id', 'new-entry-1');
-    expect(restoreChain.update).toHaveBeenCalledWith(
-      expect.objectContaining({
+        entryStatus: 'checked-in',
         entry_status: 'checked-in',
+        checkInStatus: 'checked-in',
         check_in_status: 'checked-in',
+        specialRequests: null,
         special_requests: null,
-        updated_at: expect.any(String),
       })
     );
-    expect(restoreChain.eq).toHaveBeenCalledWith('id', 'entry-1');
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('does not restore the original entry when undo cannot soft-delete the move-up entry', async () => {
-    const removeChain = makeUpdateChain({ error: new Error('permission denied') });
-    mockFrom.mockReturnValueOnce(removeChain);
+  it('does not restore the original entry when undo cannot delete the move-up entry', async () => {
+    mockDeleteReplicatedEntry.mockRejectedValueOnce(new Error('replica delete failed'));
 
     await expect(
       undoShowMapMoveUp({
@@ -297,10 +292,10 @@ describe('showMapActionMutations', () => {
         previousCheckInStatus: 'checked-in',
         previousSpecialRequests: null,
       })
-    ).rejects.toThrow('permission denied');
+    ).rejects.toThrow('replica delete failed');
 
-    expect(removeChain.eq).toHaveBeenCalledWith('id', 'new-entry-1');
-    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(mockDeleteReplicatedEntry).toHaveBeenCalledWith('new-entry-1');
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
   });
 
   it('fails loudly when undo did not capture the original entry status', async () => {

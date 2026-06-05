@@ -18,8 +18,8 @@
 import { useCallback, useRef, useState } from 'react';
 import type { EntryListActions } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
-import { replicatedEntriesTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 
 export interface UseAtShowEntryListActionsDeps {
   /** Refresh callback from the data hook; awaited after a successful mutation. */
@@ -28,10 +28,7 @@ export interface UseAtShowEntryListActionsDeps {
 
 /** Write a check-in status to an entry (camel + snake alias for sync compat). */
 async function writeCheckInStatus(entryId: string, status: EntryStatus): Promise<void> {
-  await replicatedEntriesTable.updateEntry(entryId, {
-    checkInStatus: status,
-    check_in_status: status,
-  });
+  await updateReplicatedCheckInStatus(entryId, status);
 }
 
 export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): EntryListActions {

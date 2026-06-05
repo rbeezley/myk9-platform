@@ -377,6 +377,8 @@ describe('showMapActions', () => {
     });
     expect(findAction(actions, 'score-class')).toMatchObject({
       href: '/scoring/classes/class-active/entries?mode=split',
+      classId: 'class-active',
+      trialId: 'trial-1',
     });
     expect(findAction(actions, 'print-check-in-sheet')).toMatchObject({
       href: '/secretary/reports?report=check-in-sheet&showId=show-1&trialId=trial-1&classId=class-active',

@@ -1,4 +1,4 @@
-import { getPaperScoringClassHref, getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
+import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import { getShowMapReportHref, getShowMapTrialScheduleHref } from './showMapRoutes';
 import {
   ArrowUpCircle,
@@ -401,14 +401,14 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         recommended: true,
       });
     }
-    if (node.status?.kind === 'neutral' && classId) {
+    if (node.status?.kind === 'neutral' && classId && node.scoreHref) {
       actions.push({
         id: 'score-class',
         nodeId: node.id,
         label: 'Score Class',
         why: 'Open scoring without changing class status',
         priority: 46,
-        href: node.scoreHref ?? getPaperScoringClassHref(classId),
+        href: node.scoreHref,
         icon: ClipboardCheck,
         classId,
         ...(trialId ? { trialId } : {}),
@@ -423,6 +423,8 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         priority: 70,
         href: node.scoreHref,
         icon: ClipboardCheck,
+        ...(classId ? { classId } : {}),
+        ...(trialId ? { trialId } : {}),
         recommended: true,
       });
     }

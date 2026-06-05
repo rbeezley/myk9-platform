@@ -220,6 +220,36 @@ describe('showMapActions', () => {
     });
   });
 
+  it('keeps Score Class in the row menu for not-started classes', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [],
+    });
+    const notStartedClass = tree.nodesById['class:class-future'];
+    const actions = getRankedActions(notStartedClass, { tree });
+
+    expect(findAction(actions, 'mark-class-started')).toMatchObject({
+      label: 'Mark Class Started',
+      classId: 'class-future',
+      trialId: 'trial-1',
+      recommended: true,
+    });
+    const scoreAction = findAction(actions, 'score-class');
+    expect(scoreAction).toMatchObject({
+      label: 'Score Class',
+      classId: 'class-future',
+      trialId: 'trial-1',
+      href: '/scoring/classes/class-future/entries?mode=split',
+    });
+    expect(scoreAction.recommended).toBeUndefined();
+    expect(getPrimaryActionForNode(notStartedClass, { tree })).toMatchObject({
+      id: 'mark-class-started',
+      label: 'Mark Class Started',
+    });
+  });
+
   it('emits class lifecycle quick actions only for matching class states', () => {
     const tree = buildShowMapTree({
       show,

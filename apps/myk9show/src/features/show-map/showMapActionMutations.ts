@@ -1,4 +1,4 @@
-import { CLASS_STATUS, type CheckInStatus } from '@myk9/core';
+import { CLASS_STATUS, logger, type CheckInStatus } from '@myk9/core';
 
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
 import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
@@ -228,14 +228,18 @@ export async function moveUpShowMapEntry({
       special_requests: `Moved up from class ${currentEntry.classId ?? currentEntry.class_id}${reason ? ': ' + reason : ''}`,
     });
   } catch (error) {
-    await replicatedEntriesTable.updateEntry(entryId, {
-      entryStatus: previousEntryStatus ?? undefined,
-      entry_status: previousEntryStatus ?? undefined,
-      checkInStatus: previousCheckInStatus ?? undefined,
-      check_in_status: previousCheckInStatus ?? undefined,
-      specialRequests: previousSpecialRequests,
-      special_requests: previousSpecialRequests,
-    });
+    try {
+      await replicatedEntriesTable.updateEntry(entryId, {
+        entryStatus: previousEntryStatus ?? undefined,
+        entry_status: previousEntryStatus ?? undefined,
+        checkInStatus: previousCheckInStatus ?? undefined,
+        check_in_status: previousCheckInStatus ?? undefined,
+        specialRequests: previousSpecialRequests,
+        special_requests: previousSpecialRequests,
+      });
+    } catch (rollbackError) {
+      logger.error('[show-map] Failed to roll back move-up after create failure', rollbackError);
+    }
     throw createDatabaseError(error, 'entries', 'show_map_move_up_create');
   }
 
@@ -258,7 +262,11 @@ export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<
     );
   }
 
-  await replicatedEntriesTable.deleteEntry(input.newEntryId);
+  const deletedAt = new Date().toISOString();
+  await replicatedEntriesTable.updateEntry(input.newEntryId, {
+    deletedAt,
+    deleted_at: deletedAt,
+  });
   const restoredCheckInStatus = (input.previousCheckInStatus ?? 'no-status') as CheckInStatus;
   await replicatedEntriesTable.updateEntry(input.originalEntryId, {
     entryStatus: input.previousEntryStatus,

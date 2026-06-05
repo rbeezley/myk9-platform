@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { screen } from '@/test/utils/testUtils';
-import { render } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 import type { CheckInStatus } from '@myk9/core';
 import type { EntryWithResult } from './ResultEntryNavigation';
 import { ResultEntryNavigation } from './ResultEntryNavigation';

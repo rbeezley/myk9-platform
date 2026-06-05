@@ -342,6 +342,9 @@ export class OfflineCheckInService extends EventEmitter {
 
   private async syncOperation(operation: CheckInOperation): Promise<void> {
     try {
+      // INTENT: Persist only the durable check-in status through replication here.
+      // Gate, steward, and timestamp metadata remain local until a schema-backed
+      // offline metadata sync contract exists.
       await updateReplicatedCheckInStatus(operation.entryId, operation.newStatus);
 
       operation.isSynced = true;

@@ -1,8 +1,10 @@
 /**
  * useCheckInMutation — Optimistic check-in status update via React Query.
  *
- * Updates the entry's check-in status in Supabase with optimistic UI update
- * on both the showDayDetails and entries query caches. Rolls back on failure.
+ * Queues a narrow replicated status mutation with optimistic UI updates on
+ * showDayDetails and entries caches. The replicated writer intentionally sends
+ * only `{ id, check_in_status, updated_at }` to preserve the same RLS boundary
+ * the previous `self_checkin_entry` RPC enforced.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CheckInStatus } from '@myk9/core';

@@ -257,7 +257,23 @@ describe('showMapActionMutations', () => {
     ).rejects.toThrow('Target class is full');
   });
 
-  it('undoes a move-up by deleting the new replicated entry before restoring the original entry', async () => {
+  it('preserves the create failure when move-up rollback also fails', async () => {
+    mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
+    mockUpdateReplicatedEntry
+      .mockResolvedValueOnce('mark-moved')
+      .mockRejectedValueOnce(new Error('rollback failed'));
+
+    await expect(
+      moveUpShowMapEntry({
+        entryId: 'entry-1',
+        targetClassId: 'class-2',
+      })
+    ).rejects.toThrow('create failed');
+
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(2);
+  });
+
+  it('undoes a move-up by soft-deleting the new replicated entry before restoring the original entry', async () => {
     await undoShowMapMoveUp({
       originalEntryId: 'entry-1',
       newEntryId: 'new-entry-1',
@@ -266,7 +282,14 @@ describe('showMapActionMutations', () => {
       previousSpecialRequests: null,
     });
 
-    expect(mockDeleteReplicatedEntry).toHaveBeenCalledWith('new-entry-1');
+    expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
+      'new-entry-1',
+      expect.objectContaining({
+        deletedAt: expect.any(String),
+        deleted_at: expect.any(String),
+      })
+    );
     expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
       'entry-1',
       expect.objectContaining({
@@ -281,8 +304,8 @@ describe('showMapActionMutations', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('does not restore the original entry when undo cannot delete the move-up entry', async () => {
-    mockDeleteReplicatedEntry.mockRejectedValueOnce(new Error('replica delete failed'));
+  it('does not restore the original entry when undo cannot soft-delete the move-up entry', async () => {
+    mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('replica soft delete failed'));
 
     await expect(
       undoShowMapMoveUp({
@@ -292,10 +315,10 @@ describe('showMapActionMutations', () => {
         previousCheckInStatus: 'checked-in',
         previousSpecialRequests: null,
       })
-    ).rejects.toThrow('replica delete failed');
+    ).rejects.toThrow('replica soft delete failed');
 
-    expect(mockDeleteReplicatedEntry).toHaveBeenCalledWith('new-entry-1');
-    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+    expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
+    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(1);
   });
 
   it('fails loudly when undo did not capture the original entry status', async () => {

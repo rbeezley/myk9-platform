@@ -53,6 +53,8 @@ describe('show-day request management replication actions', () => {
     expect(updateEntry).toHaveBeenCalledWith('entry-1', {
       entryStatus: 'confirmed',
       entry_status: 'confirmed',
+      moveUpRequested: false,
+      move_up_requested: false,
       specialRequests: 'Move-up denied: Class full',
       special_requests: 'Move-up denied: Class full',
     });

@@ -53,6 +53,7 @@ export interface ReplicatedEntry {
   isDayOfShow?: boolean | undefined;
   runOrder?: number | undefined;
   moveUpRequested?: boolean | undefined;
+  move_up_requested?: boolean | undefined;
   preferredJudge?: string | undefined;
   specialRequests?: string | null | undefined;
   special_requests?: string | null | undefined;
@@ -109,6 +110,8 @@ export interface ReplicatedEntry {
 
   // Timestamps
   updated_at?: string | undefined;
+  deletedAt?: string | null | undefined;
+  deleted_at?: string | null | undefined;
 
   // Sync metadata
   _version?: number | undefined;
@@ -150,6 +153,7 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     isDayOfShow: row.is_day_of_show ?? undefined,
     runOrder: row.run_order ?? undefined,
     moveUpRequested: row.move_up_requested ?? undefined,
+    move_up_requested: row.move_up_requested ?? undefined,
     preferredJudge: row.preferred_judge ?? undefined,
     specialRequests: row.special_requests ?? undefined,
     special_requests: row.special_requests ?? undefined,
@@ -209,6 +213,8 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
 
     // Timestamps
     updated_at: row.updated_at ?? undefined,
+    deletedAt: row.deleted_at ?? undefined,
+    deleted_at: row.deleted_at ?? undefined,
   };
 }
 
@@ -257,7 +263,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       entry_source: entry.entrySource ?? 'myk9',
       is_day_of_show: entry.isDayOfShow ?? null,
       run_order: entry.runOrder ?? null,
-      move_up_requested: entry.moveUpRequested ?? null,
+      move_up_requested: entry.moveUpRequested ?? entry.move_up_requested ?? null,
       preferred_judge: entry.preferredJudge ?? null,
       special_requests:
         entry.specialRequests !== undefined
@@ -293,6 +299,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
               : null,
       ring_entry_time: entry.ring_entry_time ?? null,
       ring_exit_time: entry.ring_exit_time ?? null,
+      deleted_at:
+        entry.deletedAt !== undefined
+          ? entry.deletedAt
+          : entry.deleted_at !== undefined
+            ? entry.deleted_at
+            : null,
       updated_at: new Date().toISOString(),
     };
   }

@@ -410,6 +410,39 @@ describe('ReplicatedEntriesTable', () => {
       );
     });
 
+    it('should queue deleted_at when soft-deleting a move-up entry', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      const deletedAt = '2026-06-05T18:00:00.000Z';
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        armband: '101',
+      });
+      await table.updateEntry('entry-1', {
+        deletedAt,
+        deleted_at: deletedAt,
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          deleted_at: deletedAt,
+        })
+      );
+    });
+
     it('should throw error when updating non-existent entry', async () => {
       await expect(table.updateEntry('nonexistent', { armband: '102' })).rejects.toThrow(
         'Entry nonexistent not found'

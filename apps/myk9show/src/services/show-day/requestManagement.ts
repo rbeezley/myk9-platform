@@ -33,6 +33,8 @@ export async function denyMoveUpRequestReplicated(
     await replicatedEntriesTable.updateEntry(entryId, {
       entryStatus: 'confirmed',
       entry_status: 'confirmed',
+      moveUpRequested: false,
+      move_up_requested: false,
       specialRequests: note,
       special_requests: note,
     });

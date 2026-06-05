@@ -4,8 +4,8 @@
  *
  * Modeled on myK9Q's `useEntryListActions` (pattern, not copy). myK9Show
  * carries the show-day flow in the dedicated `check_in_status` column, so all
- * status mutations write `checkInStatus` (+ snake alias) via
- * `replicatedEntriesTable.updateEntry` — offline-first, queued for sync.
+ * status mutations write through the shared replicated check-in status writer
+ * — offline-first, queued for sync.
  *
  * Real vs stub (per the Phase 1a service-layer audit + DB checks):
  *  - status change / toggle in-ring / mark in-ring / mark completed / batch →
@@ -26,7 +26,7 @@ export interface UseAtShowEntryListActionsDeps {
   refresh: (forceSync?: boolean) => Promise<void>;
 }
 
-/** Write a check-in status to an entry (camel + snake alias for sync compat). */
+/** Write a check-in status to an entry through the replicated writer. */
 async function writeCheckInStatus(entryId: string, status: EntryStatus): Promise<void> {
   await updateReplicatedCheckInStatus(entryId, status);
 }

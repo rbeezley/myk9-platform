@@ -134,6 +134,8 @@ export function getBrowseShowsTabCount({
   userId,
 }: BrowseShowsTabCountInput): number | undefined {
   if (!tab?.getCount) return undefined;
+  // The active tab badge should mirror the list the user is looking at, including
+  // page-level filters like Mine. Inactive tab badges keep advertising tab totals.
   if (tab.id === selectedTab) return selectedTabCount;
   return tab.getCount(shows, entries, userId);
 }

@@ -92,6 +92,10 @@ export function getCartCountForDog(cartItems: CartItemWithDetails[], dogId: stri
 /**
  * Build updated selections after adding a class.
  */
+function makeClassSelection(classId: string) {
+  return { classId, jumpHeight: undefined as string | undefined, moveUpRequested: false };
+}
+
 export function addClassToSelections(
   classSelections: ClassSelectionData[],
   dogId: string,
@@ -102,10 +106,7 @@ export function addClassToSelections(
   const updated: ClassSelectionData = {
     ...current,
     trialId,
-    selectedClasses: [
-      ...current.selectedClasses,
-      { classId, jumpHeight: undefined, moveUpRequested: false },
-    ],
+    selectedClasses: [...current.selectedClasses, makeClassSelection(classId)],
   };
   const filtered = classSelections.filter(s => s.dogId !== dogId);
   filtered.push(updated);
@@ -163,4 +164,57 @@ export function buildDisplayLabel(level: string, section: string | undefined): s
   // "Unknown" is used for Detective-style classes that have no real level
   if (!level || level === 'Unknown') return undefined;
   return [level, section].filter(Boolean).join(' ');
+}
+
+/**
+ * Reconcile wizard-level classSelections from loaded cart items.
+ *
+ * Returns an updated ClassSelectionData[] merging any cart items not yet
+ * reflected in classSelections (i.e. returning to the form in a new session
+ * where the Supabase cart persisted but wizard state was reset). Returns null
+ * when already in sync — caller should skip calling onSelectionChange.
+ *
+ * Uses composite dog+class keys so that two dogs entering the same class are
+ * each correctly detected as unsynced rather than masking each other.
+ */
+export function reconcileCartToSelections(
+  cartItems: CartItemWithDetails[],
+  classSelections: ClassSelectionData[]
+): ClassSelectionData[] | null {
+  const existingPairs = new Set(
+    classSelections.flatMap(s => s.selectedClasses.map(c => `${s.dogId}:${c.classId}`))
+  );
+
+  // Single pass: collect only the dog+class pairs missing from wizard state.
+  const additions = new Map<string, { trialId: string; classIds: string[] }>();
+  for (const item of cartItems) {
+    if (!item.dog_id || !item.class_id) continue;
+    if (existingPairs.has(`${item.dog_id}:${item.class_id}`)) continue;
+    const trialId = item.class?.trial_id ?? '';
+    const entry = additions.get(item.dog_id);
+    if (entry) {
+      entry.classIds.push(item.class_id);
+    } else {
+      additions.set(item.dog_id, { trialId, classIds: [item.class_id] });
+    }
+  }
+
+  if (additions.size === 0) return null;
+
+  // Merge additions into a copy of existing selections (preserves draft metadata
+  // such as jump heights on classes that were already present).
+  const result = classSelections.map(s => ({ ...s, selectedClasses: [...s.selectedClasses] }));
+  for (const [dogId, data] of additions) {
+    const existing = result.find(s => s.dogId === dogId);
+    if (existing) {
+      existing.selectedClasses.push(...data.classIds.map(makeClassSelection));
+    } else {
+      result.push({
+        dogId,
+        trialId: data.trialId,
+        selectedClasses: data.classIds.map(makeClassSelection),
+      });
+    }
+  }
+  return result;
 }

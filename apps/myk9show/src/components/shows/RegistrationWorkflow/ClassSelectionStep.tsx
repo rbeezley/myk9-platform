@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList } from '@/components/ui/tabs';
@@ -27,6 +27,7 @@ import {
   addClassToSelections,
   removeClassFromSelections,
   buildDisplayLabel,
+  reconcileCartToSelections,
 } from './ClassSelectionStep.helpers';
 import {
   DogTabTrigger,
@@ -209,6 +210,21 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // may only be in the replication layer (IndexedDB). Local selection state is
   // sufficient — the cart is only needed for exhibitor self-service persistence.
   const useCartFlow = !!exhibitorId && !isSecretary && !isAdmin;
+
+  // When returning to the form in a new session, the Supabase cart loads with
+  // persisted items but classSelections (wizard-level state) starts empty.
+  // isClassSelected() shows them as checked (inCart), but canProceed() only
+  // reads classSelections — so Next stays grayed out. Reconcile once on load.
+  const hasReconciledFromCart = useRef(false);
+  useEffect(() => {
+    if (hasReconciledFromCart.current) return;
+    if (!useCartFlow) return;
+    if (cartItems.length === 0) return;
+    const reconstructed = reconcileCartToSelections(cartItems, classSelections);
+    if (!reconstructed) return;
+    hasReconciledFromCart.current = true;
+    onSelectionChange(reconstructed);
+  }, [cartItems, classSelections, useCartFlow, onSelectionChange]);
 
   const handleClassToggle = async (
     dogId: string,

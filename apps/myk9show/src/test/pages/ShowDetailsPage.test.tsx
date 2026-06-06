@@ -51,15 +51,17 @@ vi.mock('@/hooks/useFastShowDetails', () => ({
 
 // Mock entries for "mine" detection
 let mockUserEntries: Array<{ id: string; showId: string }> = [];
+let mockUserEntriesLoading = false;
 vi.mock('@/hooks/useMyEntries', () => ({
   useMyEntries: () => ({
     entries: mockUserEntries,
     entriesByClass: [],
-    isLoading: false,
+    isLoading: mockUserEntriesLoading,
     isError: false,
   }),
 }));
 
+let mockShowEntriesLoading = false;
 let mockShowEntries: Array<{
   id: string;
   show_id?: string;
@@ -69,7 +71,7 @@ let mockShowEntries: Array<{
   check_in_status?: string;
 }> = [];
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
-  useEntriesByShowQuery: () => ({ data: mockShowEntries }),
+  useEntriesByShowQuery: () => ({ data: mockShowEntries, isLoading: mockShowEntriesLoading }),
 }));
 
 let mockDogs: Array<{ id: string; ownerId: string }> = [];
@@ -305,7 +307,9 @@ describe('ShowDetailsPage', () => {
     };
     mockLoading = false;
     mockUserEntries = [];
+    mockUserEntriesLoading = false;
     mockShowEntries = [];
+    mockShowEntriesLoading = false;
     mockDogs = [];
     mockTrials = [];
     mockTrialClasses = {};
@@ -348,6 +352,14 @@ describe('ShowDetailsPage', () => {
     renderPage();
     const tab = screen.getByRole('tab', { name: /My Entries/ });
     expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
+  });
+
+  it('holds the exhibitor tabs while entry defaulting is loading', () => {
+    mockUserEntriesLoading = true;
+    mockShowEntriesLoading = true;
+    renderPage();
+    expect(screen.queryByRole('tab', { name: /Overview/ })).toBeNull();
+    expect(document.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
   });
 
   it('defaults to Overview tab when user has no entries', () => {

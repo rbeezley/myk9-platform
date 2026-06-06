@@ -100,12 +100,7 @@ function EntryRow({ entry, showId }: EntryRowProps) {
   const { icon: Icon, bg, fg } = getElementIcon(entry.element);
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
 
-  const meta = [
-    entry.dayLabel,
-    entry.startTime,
-    entry.armband ? `Armband ${entry.armband}` : '',
-    entry.judgeName ? `Judge ${entry.judgeName}` : '',
-  ]
+  const meta = [entry.dayLabel, entry.startTime, entry.judgeName ? `Judge ${entry.judgeName}` : '']
     .filter(Boolean)
     .join(' · ');
 

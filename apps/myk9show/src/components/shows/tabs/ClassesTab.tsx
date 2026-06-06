@@ -69,11 +69,25 @@ function formatTrialDate(dateStr: string): string {
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
   const navigate = useNavigate();
   const { hasPermission } = useRBAC();
-  const [viewMode, setViewMode] = useViewPreference('classes', userHasEntries ? 'cards' : 'table');
+  const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
+    'classes',
+    userHasEntries ? 'cards' : 'table'
+  );
+  const [viewModeTouched, setViewModeTouched] = useState(false);
   const [isMine, setIsMine] = useState(userHasEntries);
   const [mineFilterTouched, setMineFilterTouched] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+  const viewMode =
+    userHasEntries && !hasStoredViewPreference && !viewModeTouched ? 'cards' : storedViewMode;
+
+  const setViewMode = (mode: string) => {
+    setViewModeTouched(true);
+    setViewModePreference(mode);
+  };
+
+  // Entry ownership resolves after mount. Keep defaulting to "Mine" until the
+  // exhibitor explicitly asks for all classes.
   const effectiveIsMine = userHasEntries && !mineFilterTouched ? true : isMine;
 
   const handleMineToggle = () => {

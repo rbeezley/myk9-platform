@@ -122,7 +122,7 @@ describe('showMapActionMutations', () => {
     expect(sourceIdFromShowMapNodeId('entry:', 'entry')).toBeNull();
   });
 
-  it('queues check_in_status = "checked-in" through the replicated entry table', async () => {
+  it('marks the entry checked in through the replicated show-day helper', async () => {
     await markShowMapEntryCheckedIn('entry-1');
 
     expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');

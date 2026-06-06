@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import type { CheckInStatus } from '@myk9/core';
 import type { EntryWithResult } from './ResultEntryNavigation';
@@ -32,8 +32,8 @@ vi.mock('@/components/common/CheckInManagementOverlay', () => ({
     onUpdateStatus: (entryId: string, status: CheckInStatus) => Promise<void>;
   }) =>
     open ? (
-      <button type="button" onClick={() => onUpdateStatus('entry-1', 'checked-in')}>
-        Mock Check In
+      <button type="button" onClick={() => onUpdateStatus('entry-1', 'at-gate')}>
+        Send to gate
       </button>
     ) : null,
 }));
@@ -41,14 +41,34 @@ vi.mock('@/components/common/CheckInManagementOverlay', () => ({
 function makeEntry(): EntryWithResult {
   return {
     id: 'entry-1',
-    navigationStatus: 'pending',
-    checkInStatus: 'no-status',
+    dogId: 'dog-1',
+    classId: 'class-1',
+    showId: 'show-1',
+    status: 'checked-in',
+    registrationData: {
+      submittedAt: new Date('2026-05-18T12:00:00.000Z'),
+      handler: 'Jane Handler',
+      handlerId: 'handler-1',
+      entryFee: 35,
+      paymentStatus: 'paid',
+    },
+    statusHistory: [],
+    classConfig: {
+      element: 'Container',
+      level: 'Novice',
+      timeLimit: 120000,
+      warningsEnabled: true,
+    },
     displayInfo: {
       armband: '101',
-      dogName: 'Fido',
+      dogName: 'Piper',
+      dogBreed: 'Beagle',
       handlerName: 'Jane Handler',
-      breed: 'Beagle',
+      dogId: 'dog-1',
+      handlerId: 'handler-1',
     },
+    navigationStatus: 'pending',
+    checkInStatus: 'checked-in',
   } as EntryWithResult;
 }
 
@@ -62,9 +82,9 @@ describe('ResultEntryNavigation', () => {
       <ResultEntryNavigation
         entries={[makeEntry()]}
         classInfo={{
-          element: 'Interior',
+          element: 'Container',
           level: 'Novice',
-          judge: 'Judge A',
+          judge: 'Judge One',
           totalEntries: 1,
         }}
         onSelectEntry={vi.fn()}
@@ -72,8 +92,8 @@ describe('ResultEntryNavigation', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /manage check-in/i }));
-    await user.click(screen.getByRole('button', { name: /mock check in/i }));
+    await user.click(screen.getByRole('button', { name: /send to gate/i }));
 
-    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'at-gate');
   });
 });

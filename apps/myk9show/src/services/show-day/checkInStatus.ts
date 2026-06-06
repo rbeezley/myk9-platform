@@ -1,6 +1,6 @@
 import type { CheckInStatus } from '@myk9/core';
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
-import { replicatedEntriesTable } from '@/services/replication';
+import { replicatedEntriesTable, type ReplicatedEntry } from '@/services/replication';
 import { logReplicatedEntryStatusChange } from './entryStatusAudit';
 
 export interface ReplicatedDayOfScratchOptions {
@@ -10,9 +10,18 @@ export interface ReplicatedDayOfScratchOptions {
 
 export async function updateReplicatedCheckInStatus(
   entryId: string,
-  status: CheckInStatus
+  status: CheckInStatus,
+  updates: Partial<ReplicatedEntry> = {}
 ): Promise<string | null> {
-  return replicatedEntriesTable.updateCheckInStatus(entryId, status);
+  if (Object.keys(updates).length === 0) {
+    return replicatedEntriesTable.updateCheckInStatus(entryId, status);
+  }
+
+  return replicatedEntriesTable.updateEntry(entryId, {
+    ...updates,
+    checkInStatus: status,
+    check_in_status: status,
+  });
 }
 
 export async function updateSelfCheckInStatus(

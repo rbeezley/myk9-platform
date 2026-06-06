@@ -62,6 +62,21 @@ describe('updateReplicatedCheckInStatus', () => {
     expect(updateEntry).not.toHaveBeenCalled();
   });
 
+  it('writes both replicated model and database check-in fields when extra fields are queued', async () => {
+    await expect(
+      updateReplicatedCheckInStatus('entry-1', 'checked-in', {
+        ring_entry_time: '2026-05-18T12:00:00.000Z',
+      })
+    ).resolves.toBe('mutation-1');
+
+    expect(updateEntry).toHaveBeenCalledWith('entry-1', {
+      checkInStatus: 'checked-in',
+      check_in_status: 'checked-in',
+      ring_entry_time: '2026-05-18T12:00:00.000Z',
+    });
+    expect(updateCheckInStatus).not.toHaveBeenCalled();
+  });
+
   it('routes self check-in through the owner-scoped RPC contract', async () => {
     await expect(updateSelfCheckInStatus('entry-1', 'checked-in')).resolves.toBeUndefined();
 

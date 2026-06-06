@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildClassProgress,
   classifyClassWrapUpStatus,
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
@@ -61,6 +62,36 @@ describe('showMapStatus', () => {
       ).toMatchObject({
         value: 'signed-by-judge',
         label: 'Signed by judge',
+        kind: 'neutral',
+      });
+    });
+
+    it('counts pulled entries as accounted for without requiring judge signatures', () => {
+      const entries = [
+        { is_scored: true, judge_signature_timestamp: '2026-05-18' },
+        { entry_status: 'scratched', check_in_status: 'pulled' },
+      ];
+
+      expect(buildClassProgress({ status: 'In Progress' }, entries)).toMatchObject({
+        completed: 2,
+        total: 2,
+        label: '2/2 entries complete',
+      });
+      expect(classifyClassWrapUpStatus({ status: 'In Progress' }, entries)).toMatchObject({
+        value: 'signed-by-judge',
+        label: 'Signed by judge',
+        kind: 'neutral',
+      });
+    });
+
+    it('skips signature requirement when all entries are scratched', () => {
+      expect(
+        classifyClassWrapUpStatus({ status: 'In Progress' }, [
+          { entry_status: 'scratched', check_in_status: 'pulled' },
+        ])
+      ).toMatchObject({
+        value: 'class-ready-for-wrap-up',
+        label: 'Ready for wrap-up',
         kind: 'neutral',
       });
     });

@@ -18,7 +18,7 @@ import {
   replicatedTrialsTable,
 } from '@/services/replication';
 import { generateUUID } from '@/utils/idUtils';
-import type { DayOfEntry } from './types';
+import type { DayOfEntry, DayOfEntryDogOwner } from './types';
 
 function isNotDeleted(row: {
   deletedAt?: string | null | undefined;
@@ -29,6 +29,33 @@ function isNotDeleted(row: {
 
 function isActiveDog(dog: { status?: string | null | undefined }) {
   return !dog.status || dog.status === 'active';
+}
+
+async function loadDayOfDogOwners(ownerIds: string[]): Promise<Map<string, DayOfEntryDogOwner>> {
+  const uniqueOwnerIds = [...new Set(ownerIds)].filter(Boolean);
+  if (uniqueOwnerIds.length === 0) return new Map();
+
+  try {
+    const { data, error } = await supabase
+      .from('people')
+      .select('id, first_name, last_name')
+      .in('id', uniqueOwnerIds);
+
+    if (error || !data) return new Map();
+
+    return new Map(
+      data.map(owner => [
+        owner.id,
+        {
+          id: owner.id,
+          first_name: owner.first_name,
+          last_name: owner.last_name,
+        },
+      ])
+    );
+  } catch {
+    return new Map();
+  }
 }
 
 /**
@@ -249,16 +276,18 @@ export const searchDogs = async (searchTerm: string) => {
 
   try {
     const dogs = await replicatedDogsTable.searchDogs(searchTerm);
-    const data = dogs
-      .filter(dog => isActiveDog(dog) && isNotDeleted(dog))
-      .slice(0, 20)
-      .map(dog => ({
-        id: dog.id,
-        name: dog.name,
-        call_name: dog.callName ?? null,
-        breed: dog.breed ?? null,
-        owner: null,
-      }));
+    const matchedDogs = dogs.filter(dog => isActiveDog(dog) && isNotDeleted(dog)).slice(0, 20);
+    const ownerIds = matchedDogs
+      .map(dog => dog.ownerId)
+      .filter((ownerId): ownerId is string => Boolean(ownerId));
+    const owners = await loadDayOfDogOwners(ownerIds);
+    const data = matchedDogs.map(dog => ({
+      id: dog.id,
+      name: dog.name,
+      call_name: dog.callName ?? null,
+      breed: dog.breed ?? null,
+      owner: dog.ownerId ? (owners.get(dog.ownerId) ?? null) : null,
+    }));
 
     const duration = Date.now() - startTime;
     logQuery('dogs', 'search_dogs', duration);

@@ -391,7 +391,7 @@ const BrowseShowsPage: React.FC = () => {
         const count = getBrowseShowsTabCount({
           tab,
           selectedTab,
-          selectedTabCount: allEnhancedShows.length,
+          selectedTabCount: enhancedShows.length,
           shows,
           entries,
           userId: countUserId,
@@ -399,7 +399,7 @@ const BrowseShowsPage: React.FC = () => {
         if (count !== undefined) def.count = count;
         return def;
       }),
-    [allEnhancedShows.length, countUserId, entries, selectedTab, shows, tabConfig.tabs]
+    [countUserId, enhancedShows.length, entries, selectedTab, shows, tabConfig.tabs]
   );
 
   // Render shows in different view modes

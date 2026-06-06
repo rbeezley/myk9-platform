@@ -97,8 +97,9 @@ vi.mock('@/components/common/MineToggle', () => ({
   MineToggle: ({ hidden }: { hidden?: boolean }) =>
     hidden ? null : <div data-testid="mine-toggle">Mine Toggle</div>,
 }));
+const mockMineState = { current: false };
 vi.mock('@/hooks/useMineToggle', () => ({
-  useMineToggle: () => ({ isMine: false, toggle: vi.fn(), setMine: vi.fn() }),
+  useMineToggle: () => ({ isMine: mockMineState.current, toggle: vi.fn(), setMine: vi.fn() }),
 }));
 
 // Mock useAuthContext — needed since BrowseShowsPage now calls it directly
@@ -292,6 +293,7 @@ const renderWithProviders = (ui: React.ReactElement, { route = '/shows' } = {}) 
 describe('BrowseShowsPage - Tab Rendering Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockMineState.current = false;
   });
 
   describe('Guest User Tab Rendering', () => {
@@ -342,6 +344,36 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
 
       await waitFor(() => {
         expect(screen.queryByRole('button', { name: /new show/i })).not.toBeInTheDocument();
+      });
+    });
+
+    it('uses the visible Mine-filtered count for the selected Browse All tab badge', async () => {
+      const shows = Array.from({ length: 9 }, (_, index) => ({
+        ...mockShows[0],
+        id: `show-${index + 1}`,
+        name: `Show ${index + 1}`,
+      }));
+      const enhancedShows = shows.map((show, index) => ({
+        ...show,
+        relationship: ['all' as const],
+        userCanManage: false,
+        userIsJudging: false,
+        userHasEntries: index < 5,
+      }));
+
+      mockMineState.current = true;
+      setupMocks({
+        user: createMockUser(UserRole.EXHIBITOR),
+        shows,
+        enhancedShows,
+      });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        const browseAllTab = screen.getByRole('tab', { name: /browse all/i });
+        expect(browseAllTab.textContent).toContain('5');
+        expect(browseAllTab.textContent).not.toContain('9');
       });
     });
   });

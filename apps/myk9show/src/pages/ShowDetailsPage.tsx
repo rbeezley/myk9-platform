@@ -256,7 +256,7 @@ const ShowDetailsPage: React.FC = () => {
   );
   const [activeTab, setTab] = useUrlTab(allowedTabs, 'overview');
 
-  // Flatten trial classes into ClassInfo for ClassesTab
+  // Flatten trial classes for judge roster resolution and entry overlap detection
   const showClasses = useMemo(() => {
     return associatedTrials.flatMap(trial => {
       const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
@@ -442,7 +442,7 @@ const ShowDetailsPage: React.FC = () => {
           }
           secondaryActions={
             canManageShow ? (
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 {workbenchHref && (
                   <Button asChild variant="default" size="sm">
@@ -454,7 +454,12 @@ const ShowDetailsPage: React.FC = () => {
                 )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" aria-label="More actions">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label="More actions"
+                      className="min-h-[44px] sm:min-h-8"
+                    >
                       <span className="text-base leading-none tracking-widest">···</span>
                     </Button>
                   </DropdownMenuTrigger>
@@ -476,13 +481,18 @@ const ShowDetailsPage: React.FC = () => {
               </div>
             ) : entryStatus.canEnter ? (
               <button
-                className="h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5]"
+                className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
                 onClick={handleRegisterForShow}
               >
                 {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
               </button>
             ) : hasUserEntries ? (
-              <Button variant="outline" size="sm" onClick={handleRegisterForShow}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-[44px] sm:min-h-8"
+                onClick={handleRegisterForShow}
+              >
                 View Entry
               </Button>
             ) : undefined

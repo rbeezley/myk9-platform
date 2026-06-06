@@ -1,12 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
-import type { CheckInStatus } from '@myk9/core';
-import type { EntryWithResult } from './ResultEntryNavigation';
-import { ResultEntryNavigation } from './ResultEntryNavigation';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { screen } from '@/test/utils/testUtils';
+import { render } from '@/test/utils/testUtils';
+import { ResultEntryNavigation, type EntryWithResult } from './ResultEntryNavigation';
 
-const updateReplicatedCheckInStatus = vi.fn<
-  (entryId: string, status: CheckInStatus) => Promise<string | null>
->(() => Promise.resolve('mutation-1'));
+const { updateReplicatedCheckInStatusMock } = vi.hoisted(() => ({
+  updateReplicatedCheckInStatusMock: vi.fn(),
+}));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -15,12 +14,8 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
-  updateReplicatedCheckInStatus: (entryId: string, status: CheckInStatus) =>
-    updateReplicatedCheckInStatus(entryId, status),
-}));
-
-vi.mock('@/components/common/CheckInStatusDialog', () => ({
-  CheckInStatusDialog: () => null,
+  updateReplicatedCheckInStatus: (...args: unknown[]) =>
+    updateReplicatedCheckInStatusMock(...args),
 }));
 
 vi.mock('@/components/common/CheckInManagementOverlay', () => ({
@@ -29,60 +24,46 @@ vi.mock('@/components/common/CheckInManagementOverlay', () => ({
     onUpdateStatus,
   }: {
     open: boolean;
-    onUpdateStatus: (entryId: string, status: CheckInStatus) => Promise<void>;
+    onUpdateStatus: (entryId: string, status: 'checked-in') => Promise<void>;
   }) =>
     open ? (
-      <button type="button" onClick={() => onUpdateStatus('entry-1', 'at-gate')}>
-        Send to gate
+      <button type="button" onClick={() => void onUpdateStatus('entry-1', 'checked-in')}>
+        Mock mark checked in
       </button>
     ) : null,
 }));
 
-function makeEntry(): EntryWithResult {
-  return {
+vi.mock('@/components/common/CheckInStatusDialog', () => ({
+  CheckInStatusDialog: () => null,
+}));
+
+const entries: EntryWithResult[] = [
+  {
     id: 'entry-1',
-    dogId: 'dog-1',
-    classId: 'class-1',
-    showId: 'show-1',
-    status: 'checked-in',
-    registrationData: {
-      submittedAt: new Date('2026-05-18T12:00:00.000Z'),
-      handler: 'Jane Handler',
-      handlerId: 'handler-1',
-      entryFee: 35,
-      paymentStatus: 'paid',
-    },
-    statusHistory: [],
-    classConfig: {
-      element: 'Container',
-      level: 'Novice',
-      timeLimit: 120000,
-      warningsEnabled: true,
-    },
+    navigationStatus: 'pending',
     displayInfo: {
       armband: '101',
-      dogName: 'Piper',
-      dogBreed: 'Beagle',
-      handlerName: 'Jane Handler',
-      dogId: 'dog-1',
-      handlerId: 'handler-1',
+      dogName: 'Riley',
+      handlerName: 'Sam Handler',
+      breed: 'Mixed',
+      className: 'Novice',
+      jumpHeight: '',
     },
-    navigationStatus: 'pending',
-    checkInStatus: 'checked-in',
-  } as EntryWithResult;
-}
+  } as EntryWithResult,
+];
 
-describe('ResultEntryNavigation', () => {
+describe('ResultEntryNavigation check-in updates', () => {
   beforeEach(() => {
-    updateReplicatedCheckInStatus.mockClear();
+    updateReplicatedCheckInStatusMock.mockReset();
+    updateReplicatedCheckInStatusMock.mockResolvedValue('mutation-1');
   });
 
-  it('updates check-in status through the replicated check-in writer', async () => {
+  it('writes check-in status through the replicated check-in helper', async () => {
     const { user } = render(
       <ResultEntryNavigation
-        entries={[makeEntry()]}
+        entries={entries}
         classInfo={{
-          element: 'Container',
+          element: 'Scent Work',
           level: 'Novice',
           judge: 'Judge One',
           totalEntries: 1,
@@ -91,9 +72,9 @@ describe('ResultEntryNavigation', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /manage check-in/i }));
-    await user.click(screen.getByRole('button', { name: /send to gate/i }));
+    await user.click(screen.getByRole('button', { name: 'Manage Check-In' }));
+    await user.click(screen.getByRole('button', { name: 'Mock mark checked in' }));
 
-    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'at-gate');
+    expect(updateReplicatedCheckInStatusMock).toHaveBeenCalledWith('entry-1', 'checked-in');
   });
 });

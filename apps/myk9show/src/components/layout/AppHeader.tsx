@@ -42,10 +42,13 @@ import { useCartItemCount } from '@/store/cartStore';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
+import { useCurrentUserPerson } from '@/hooks/useProfileForm';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { user, signOut, userWithRoles, getUserRoles, hasRole } = useAuthContext();
+  const { data: currentPerson } = useCurrentUserPerson(user?.id);
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const navigate = useNavigate();
@@ -263,9 +266,14 @@ const AppHeader: React.FC = () => {
                       className={`${buildClasses.button.ghost} flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg hover:bg-muted/50`}
                       aria-label="Account menu"
                     >
-                      <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium">
-                        {user.email?.charAt(0).toUpperCase() || 'U'}
-                      </div>
+                      <Avatar className="w-7 h-7">
+                        {currentPerson?.profileImage && (
+                          <AvatarImage src={currentPerson.profileImage} alt="Profile photo" />
+                        )}
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                          {user.email?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
                       <ChevronDown className="h-3 w-3 text-muted-foreground hidden sm:block" />
                     </Button>
                   </DropdownMenuTrigger>

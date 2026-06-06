@@ -29,8 +29,10 @@ interface ProfileFormErrors {
 /**
  * Query the current user's person record directly by auth_user_id.
  * This avoids depending on the Zustand store being loaded first.
+ * Exported so other components (e.g. AppHeader) can read profileImage
+ * from the same shared React Query cache entry.
  */
-function useCurrentUserPerson(authUserId: string | undefined) {
+export function useCurrentUserPerson(authUserId: string | undefined) {
   return useQuery({
     queryKey: [...queryKeys.users.all, 'currentProfile', authUserId],
     queryFn: async () => {

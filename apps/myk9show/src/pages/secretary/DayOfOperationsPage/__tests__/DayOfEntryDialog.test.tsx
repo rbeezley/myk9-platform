@@ -127,6 +127,39 @@ describe('DayOfEntryDialog', () => {
     expect(onSuccess).toHaveBeenCalled();
   });
 
+  it('does not clear a typed handler when selecting a replicated dog without owner names', async () => {
+    searchDogsMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: 'dog-existing',
+          name: 'Existing Rocket',
+          call_name: 'Rocket',
+          breed: 'Beagle',
+          owner: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { user } = render(
+      <DayOfEntryDialog
+        open
+        onOpenChange={vi.fn()}
+        showId="show-1"
+        userId="secretary-auth-1"
+        classes={classes}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    await user.type(screen.getByLabelText(/Handler Name/), 'Jamie Walker');
+    await user.type(screen.getByLabelText('Search for Dog'), 'Rocket');
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByText('Existing Rocket'));
+
+    expect(screen.getByLabelText(/Handler Name/)).toHaveValue('Jamie Walker');
+  });
+
   it('keeps new dog fields open when dog creation fails', async () => {
     createDayOfEntryDogMock.mockResolvedValueOnce({
       data: null,

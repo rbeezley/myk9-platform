@@ -272,11 +272,7 @@ export const useEntryStore = create<EntryStoreState>()(
           _syncStatus: 'pending',
         };
 
-        // Queue mutation through replication layer
-        await replicatedEntriesTable.updateEntry(entryId, {
-          checkInStatus,
-          check_in_status: checkInStatus,
-        });
+        await replicatedEntriesTable.updateCheckInStatus(entryId, checkInStatus);
 
         // Update local state
         set(state => ({

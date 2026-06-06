@@ -11,6 +11,11 @@ import type { UserWithRoles } from '@/types/auth-types';
 
 // Mock dependencies
 const mockCheckInMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockUseCheckInMutation = vi.hoisted(() =>
+  vi.fn(() => ({
+    mutateAsync: mockCheckInMutateAsync,
+  }))
+);
 
 vi.mock('@/hooks/useAuthContext');
 vi.mock('@/hooks/useBreadcrumb', () => ({
@@ -42,9 +47,7 @@ vi.mock('@/services/database/entries', () => ({
   updateCheckInStatus: vi.fn().mockResolvedValue({ data: null, error: null }),
 }));
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
-  useCheckInMutation: () => ({
-    mutateAsync: mockCheckInMutateAsync,
-  }),
+  useCheckInMutation: (...args: unknown[]) => mockUseCheckInMutation(...args),
 }));
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsByOwnerQuery: () => ({ data: [] }),
@@ -300,6 +303,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       renderWithProviders(<MyEntriesPage />);
 
+      expect(mockUseCheckInMutation).toHaveBeenCalledWith({ writer: 'self-checkin-rpc' });
       await screen.findByText('Spring Trial');
       await user.click(screen.getByRole('button', { name: /not checked in/i }));
       const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });

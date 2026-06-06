@@ -85,6 +85,10 @@ export interface ReplicatedClass {
   // Pipeline workflow flags (secretary review/publish flow)
   isScoringFinalized?: boolean | undefined;
   isResultsReviewed?: boolean | undefined;
+  resultsReleasedAt?: string | null | undefined;
+  results_released_at?: string | null | undefined;
+  resultsReleasedBy?: string | null | undefined;
+  results_released_by?: string | null | undefined;
 
   // Scoring rule fields (from sport template, baked in at class creation)
   timerMode?: string | undefined;
@@ -181,6 +185,10 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     // Pipeline workflow flags
     isScoringFinalized: row.is_scoring_finalized ?? false,
     isResultsReviewed: row.is_results_reviewed ?? false,
+    resultsReleasedAt: row.results_released_at ?? null,
+    results_released_at: row.results_released_at ?? null,
+    resultsReleasedBy: row.results_released_by ?? null,
+    results_released_by: row.results_released_by ?? null,
 
     // Scoring rule fields
     timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,
@@ -274,6 +282,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       // silently reverting a finalized class during an unrelated mutation
       ...(cls.isScoringFinalized !== undefined && { is_scoring_finalized: cls.isScoringFinalized }),
       ...(cls.isResultsReviewed !== undefined && { is_results_reviewed: cls.isResultsReviewed }),
+      ...(cls.resultsReleasedAt !== undefined && { results_released_at: cls.resultsReleasedAt }),
+      ...(cls.resultsReleasedBy !== undefined && { results_released_by: cls.resultsReleasedBy }),
+      ...(cls.results_released_at !== undefined && { results_released_at: cls.results_released_at }),
+      ...(cls.results_released_by !== undefined && { results_released_by: cls.results_released_by }),
       ...(cls.displayOrder !== undefined && { display_order: cls.displayOrder }),
       actual_start_time: cls.actual_start_time ?? null,
       actual_end_time: cls.actual_end_time ?? null,

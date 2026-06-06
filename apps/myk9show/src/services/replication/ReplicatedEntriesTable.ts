@@ -53,10 +53,16 @@ export interface ReplicatedEntry {
   isDayOfShow?: boolean | undefined;
   runOrder?: number | undefined;
   moveUpRequested?: boolean | undefined;
+  move_up_requested?: boolean | undefined;
   preferredJudge?: string | undefined;
-  specialRequests?: string | undefined;
+  specialRequests?: string | null | undefined;
+  special_requests?: string | null | undefined;
+  withdrawalReason?: string | null | undefined;
+  withdrawal_reason?: string | null | undefined;
   submittedAt?: string | undefined;
   registrationId?: string | undefined;
+  trialId?: string | undefined;
+  trial_id?: string | undefined;
 
   // Extra fields for scoring/display (camelCase)
   isScored?: boolean | undefined;
@@ -104,6 +110,8 @@ export interface ReplicatedEntry {
 
   // Timestamps
   updated_at?: string | undefined;
+  deletedAt?: string | null | undefined;
+  deleted_at?: string | null | undefined;
 
   // Sync metadata
   _version?: number | undefined;
@@ -145,10 +153,16 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     isDayOfShow: row.is_day_of_show ?? undefined,
     runOrder: row.run_order ?? undefined,
     moveUpRequested: row.move_up_requested ?? undefined,
+    move_up_requested: row.move_up_requested ?? undefined,
     preferredJudge: row.preferred_judge ?? undefined,
     specialRequests: row.special_requests ?? undefined,
+    special_requests: row.special_requests ?? undefined,
+    withdrawalReason: row.withdrawal_reason ?? undefined,
+    withdrawal_reason: row.withdrawal_reason ?? undefined,
     submittedAt: row.submitted_at ?? undefined,
     registrationId: (dbRow.registration_id as string | undefined) ?? undefined,
+    trialId: (dbRow.trial_id as string | undefined) ?? undefined,
+    trial_id: (dbRow.trial_id as string | undefined) ?? undefined,
 
     // CamelCase fields
     disqualification_reason: (dbRow.disqualification_reason as string | undefined) ?? undefined,
@@ -199,6 +213,8 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
 
     // Timestamps
     updated_at: row.updated_at ?? undefined,
+    deletedAt: row.deleted_at ?? undefined,
+    deleted_at: row.deleted_at ?? undefined,
   };
 }
 
@@ -247,11 +263,23 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       entry_source: entry.entrySource ?? 'myk9',
       is_day_of_show: entry.isDayOfShow ?? null,
       run_order: entry.runOrder ?? null,
-      move_up_requested: entry.moveUpRequested ?? null,
+      move_up_requested: entry.moveUpRequested ?? entry.move_up_requested ?? null,
       preferred_judge: entry.preferredJudge ?? null,
-      special_requests: entry.specialRequests ?? null,
+      special_requests:
+        entry.specialRequests !== undefined
+          ? entry.specialRequests
+          : entry.special_requests !== undefined
+            ? entry.special_requests
+            : null,
+      withdrawal_reason:
+        entry.withdrawalReason !== undefined
+          ? entry.withdrawalReason
+          : entry.withdrawal_reason !== undefined
+            ? entry.withdrawal_reason
+            : null,
       submitted_at: entry.submittedAt ?? null,
       registration_id: fk(entry.registrationId),
+      trial_id: fk(entry.trialId ?? entry.trial_id),
       is_scored: entry.isScored ?? entry.is_scored ?? null,
       result_status: entry.resultStatus ?? entry.result_status ?? null,
       disqualification_reason: entry.disqualification_reason ?? null,
@@ -271,6 +299,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
               : null,
       ring_entry_time: entry.ring_entry_time ?? null,
       ring_exit_time: entry.ring_exit_time ?? null,
+      deleted_at:
+        entry.deletedAt !== undefined
+          ? entry.deletedAt
+          : entry.deleted_at !== undefined
+            ? entry.deleted_at
+            : null,
       updated_at: new Date().toISOString(),
     };
   }
@@ -413,6 +447,37 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const mutationId = await this.queueMutation('UPDATE', entryId, this.toSupabaseRow(updated));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} status to ${status}`);
+    return mutationId;
+  }
+
+  /**
+   * Update only the show-day check-in status.
+   *
+   * This deliberately queues a narrow payload because handler/self check-in
+   * policies allow `check_in_status` changes without granting broad row writes.
+   */
+  async updateCheckInStatus(entryId: string, status: CheckInStatus): Promise<string | null> {
+    const entry = await this.get(entryId);
+    if (!entry) {
+      throw new Error(`Entry ${entryId} not found`);
+    }
+
+    const updated: ReplicatedEntry = {
+      ...entry,
+      checkInStatus: status,
+      check_in_status: status,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+    };
+
+    await this.set(entryId, updated, true);
+    const mutationId = await this.queueMutation('UPDATE', entryId, {
+      id: entryId,
+      check_in_status: status,
+      updated_at: new Date().toISOString(),
+    });
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Updated entry ${entryId} check-in status to ${status}`);
     return mutationId;
   }
 

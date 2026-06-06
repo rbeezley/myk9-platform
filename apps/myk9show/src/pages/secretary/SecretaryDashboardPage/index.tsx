@@ -65,7 +65,7 @@ export function SecretaryDashboardPage() {
           text: `${counts.pending_review} ${
             counts.pending_review === 1 ? 'entry' : 'entries'
           } pending review`,
-          href: `/secretary/entries/${showId}`,
+          href: `/secretary/entries/${encodeURIComponent(showId)}?entryTab=pending`,
         });
       }
       return rows;

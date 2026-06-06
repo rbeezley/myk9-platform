@@ -6,8 +6,6 @@ import { AuditAction } from '@/types/audit-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
-  updateCheckInStatus,
-  bulkCheckIn,
   bulkUpdateEntryStatus,
   deleteEntry,
   getEntriesForExport,
@@ -17,6 +15,7 @@ import {
   executeBulkStatusChange,
   executeRemoveEntry,
 } from '@/services/database/entries';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import {
   autoAssignArmbands,
   getNextArmbandForShow,
@@ -247,11 +246,9 @@ export function useEntryManagementActions({
       if (entryIds.length === 0) return;
       setIsProcessing(true);
       try {
-        const { error: dbError } = await bulkCheckIn(entryIds);
-        if (dbError) {
-          setError('Failed to check in entries');
-          return;
-        }
+        await Promise.all(
+          entryIds.map(entryId => updateReplicatedCheckInStatus(entryId, 'checked-in'))
+        );
         setEntries(prev =>
           prev.map(e =>
             entryIds.includes(e.id)
@@ -347,8 +344,7 @@ export function useEntryManagementActions({
       );
 
       try {
-        const { error: dbError } = await updateCheckInStatus(entry.id, status);
-        if (dbError) throw dbError;
+        await updateReplicatedCheckInStatus(entry.id, status);
 
         await auditService.log({
           action: AuditAction.UPDATE,

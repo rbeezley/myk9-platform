@@ -369,6 +369,8 @@ export function ShowWorkbenchPage() {
     );
   }
 
+  const closeoutShowQuery = `?showId=${encodeURIComponent(currentShow.id)}`;
+
   function handlePhaseChange(value: string) {
     if (isShowWorkbenchPhase(value)) {
       setActivePhase(value);
@@ -455,7 +457,7 @@ export function ShowWorkbenchPage() {
                   <IncidentCloseoutSummary showId={currentShow.id} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                      <Link to="/secretary/results-control">
+                      <Link to={`/secretary/results-control${closeoutShowQuery}`}>
                         <ListChecks className="h-5 w-5" />
                         <span className="text-left">
                           <span className="block font-medium">Results Control</span>
@@ -466,7 +468,7 @@ export function ShowWorkbenchPage() {
                       </Link>
                     </Button>
                     <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                      <Link to="/secretary/reports">
+                      <Link to={`/secretary/reports${closeoutShowQuery}`}>
                         <FileBarChart className="h-5 w-5" />
                         <span className="text-left">
                           <span className="block font-medium">Reports</span>
@@ -477,7 +479,7 @@ export function ShowWorkbenchPage() {
                       </Link>
                     </Button>
                     <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                      <Link to="/secretary/results-submission">
+                      <Link to={`/secretary/results-submission${closeoutShowQuery}`}>
                         <Send className="h-5 w-5" />
                         <span className="text-left">
                           <span className="block font-medium">Submit Results</span>

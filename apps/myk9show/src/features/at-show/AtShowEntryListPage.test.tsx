@@ -3,10 +3,10 @@
  *
  * Exercises the full shim wiring end-to-end against a mocked replication
  * layer: data adapter → useEntryListData → filters → ringside EntryListPage
- * render, and the card-click path → handlers → actions → the real
- * `replicatedEntriesTable.updateEntry(...)` write. Assertion-first on the
- * value-sensitive bit (the in-ring enum lands in BOTH the camel + snake
- * check-in columns), per CLAUDE.md.
+ * render, and the card-click path → handlers → actions → the shared
+ * replicated check-in writer. Assertion-first on the
+ * value-sensitive bit (the in-ring enum lands at the shared replicated
+ * check-in status writer), per CLAUDE.md.
  *
  * Also pins Phase 1d: `AtShowRoutes()` now registers its routes unconditionally
  * (per-show enablement moved into `UnifiedRingsideGate`, tested separately).
@@ -29,7 +29,12 @@ import {
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn(), updateClass: vi.fn() },
-  replicatedEntriesTable: { getEntriesByClass: vi.fn(), sync: vi.fn(), updateEntry: vi.fn() },
+  replicatedEntriesTable: {
+    getEntriesByClass: vi.fn(),
+    sync: vi.fn(),
+    updateCheckInStatus: vi.fn(),
+    updateEntry: vi.fn(),
+  },
   replicatedTrialsTable: { getTrialById: vi.fn() },
 }));
 
@@ -77,6 +82,7 @@ function seedReplication() {
     date: '2026-06-01',
   } as never);
   vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([PENDING_ENTRY] as never);
+  vi.mocked(replicatedEntriesTable.updateCheckInStatus).mockResolvedValue('entry-1');
   vi.mocked(replicatedEntriesTable.updateEntry).mockResolvedValue('entry-1');
 }
 
@@ -102,17 +108,14 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
   });
 
-  it('writes the in-ring check-in status to BOTH columns when a pending card is tapped', async () => {
+  it('writes the in-ring check-in status through the replicated status writer when a pending card is tapped', async () => {
     renderPage();
     const card = await screen.findByText('Rex');
 
     fireEvent.click(card);
 
     await waitFor(() =>
-      expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith('entry-1', {
-        checkInStatus: 'in-ring',
-        check_in_status: 'in-ring',
-      })
+      expect(replicatedEntriesTable.updateCheckInStatus).toHaveBeenCalledWith('entry-1', 'in-ring')
     );
   });
 

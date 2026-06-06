@@ -62,10 +62,16 @@ describe('AttentionNeededStrip', () => {
 
   it('links each item to its href', () => {
     renderStrip([
-      { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Check-in open', href: '/shows/s1' },
+      {
+        showId: 's1',
+        showName: 'Spring Trial',
+        kind: 'urgent',
+        text: 'Check-in open',
+        href: '/secretary/shows/s1?phase=show-desk',
+      },
     ]);
     const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/shows/s1');
+    expect(link).toHaveAttribute('href', '/secretary/shows/s1?phase=show-desk');
   });
 
   it('renders multiple items as separate links', () => {

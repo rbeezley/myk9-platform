@@ -26,7 +26,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { ArrowUpCircle } from 'lucide-react';
-import { processMoveUp, ClassWithCapacity } from '@/services/database/day-of-operations';
+import type { ClassWithCapacity } from '@/services/database/day-of-operations';
+import { moveUpShowMapEntry } from '@/features/show-map/showMapActionMutations';
 import type { DayOfOperationEntry } from './types';
 
 interface MoveUpDialogProps {
@@ -51,18 +52,19 @@ export function MoveUpDialog({ open, onOpenChange, entry, classes, onSuccess }: 
 
     setIsProcessing(true);
     try {
-      const { data, error } = await processMoveUp(entry.id, targetClassId, reason || undefined);
+      const result = await moveUpShowMapEntry({
+        entryId: entry.id,
+        targetClassId,
+        reason: reason || undefined,
+      });
 
-      if (error) {
-        toast.error(getUserFriendlyError(error));
-        return;
-      }
-
-      toast.success(`Move-up processed! Entry moved to ${data?.class?.name || 'new class'}`);
+      toast.success(`Move-up processed! Entry moved to ${result.targetClassName || 'new class'}`);
       onOpenChange(false);
       setTargetClassId('');
       setReason('');
       onSuccess();
+    } catch (error) {
+      toast.error(getUserFriendlyError(error));
     } finally {
       setIsProcessing(false);
     }

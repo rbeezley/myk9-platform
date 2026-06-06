@@ -37,6 +37,7 @@ export interface DbEntryWithDog {
   submitted_at: string | null;
   created_at: string | null;
   updated_at: string | null;
+  check_in_status: string | null;
   result_status: string | null;
   search_time_seconds: number | null;
   total_faults: number | null;
@@ -139,7 +140,7 @@ export function mapDbEntryToScentWorkEntry(
       dbEntry.scoring_started_at && !dbEntry.scoring_completed_at
         ? { timerStarted: new Date(dbEntry.scoring_started_at), isInProgress: true }
         : undefined,
-    checkInStatus: mapCheckInStatus(dbEntry.result_status, dbEntry.is_scored),
+    checkInStatus: mapCheckInStatus(dbEntry.check_in_status),
   };
 }
 
@@ -232,13 +233,8 @@ function mapEntryStatus(dbStatus: string | null): EntryStatus {
   return valid.includes(dbStatus as EntryStatus) ? (dbStatus as EntryStatus) : 'confirmed';
 }
 
-/**
- * Before scoring completes, result_status stores check-in state.
- * After scoring, it stores the qualification result.
- */
-function mapCheckInStatus(resultStatus: string | null, isScored: boolean | null): CheckInStatus {
-  if (isScored) return 'no-status';
-  switch (resultStatus) {
+function mapCheckInStatus(checkInStatus: string | null): CheckInStatus {
+  switch (checkInStatus) {
     case 'checked-in':
       return 'checked-in';
     case 'conflict':

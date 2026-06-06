@@ -47,6 +47,14 @@ function entryHasJudgeSignature(entry: ShowMapEntryInput): boolean {
   );
 }
 
+function isEntryPulledOrScratched(entry: ShowMapEntryInput): boolean {
+  const entryStatus = readString(entry, 'entry_status')?.toLowerCase();
+  const checkInStatus = readString(entry, 'check_in_status')?.toLowerCase();
+  return Boolean(
+    (entryStatus && SCRATCH_ENTRY_STATUSES.has(entryStatus)) || checkInStatus === 'pulled'
+  );
+}
+
 export function classifyClassStatus(status?: string): ShowMapDisplayStatus | undefined {
   if (!status) return undefined;
   const normalized = normalizeClassStatus(status);
@@ -85,8 +93,9 @@ export function classifyClassWrapUpStatus(
     };
   }
 
-  if (entries.length > 0) {
-    if (entries.every(entryHasJudgeSignature)) {
+  const entriesRequiringSignature = entries.filter(entry => !isEntryPulledOrScratched(entry));
+  if (entriesRequiringSignature.length > 0) {
+    if (entriesRequiringSignature.every(entryHasJudgeSignature)) {
       return {
         value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
         label: 'Signed by judge',
@@ -113,7 +122,7 @@ export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplay
   const resultStatus = readString(entry, 'result_status')?.toLowerCase();
   const checkInStatus = readString(entry, 'check_in_status')?.toLowerCase();
 
-  if ((entryStatus && SCRATCH_ENTRY_STATUSES.has(entryStatus)) || checkInStatus === 'pulled') {
+  if (isEntryPulledOrScratched(entry)) {
     return { value: entryStatus ?? 'pulled', label: 'Pulled', kind: 'muted' };
   }
 
@@ -175,7 +184,8 @@ export function classifyEntryCheckInStatus(
 }
 
 export function isEntryComplete(entry: ShowMapEntryInput): boolean {
-  return classifyEntryRunStatus(entry)?.kind === 'complete';
+  const runStatus = classifyEntryRunStatus(entry);
+  return runStatus?.kind === 'complete' || isEntryPulledOrScratched(entry);
 }
 
 export function buildProgress(

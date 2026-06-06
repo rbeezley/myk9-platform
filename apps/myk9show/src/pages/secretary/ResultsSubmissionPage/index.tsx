@@ -1,6 +1,7 @@
 // apps/myk9show/src/pages/secretary/ResultsSubmissionPage/index.tsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -78,6 +79,9 @@ function formatDate(iso: string): string {
 
 export default function ResultsSubmissionPage() {
   const { shows, selectedShowId, selectShow } = useShowStore();
+  const [searchParams] = useSearchParams();
+  const [initialRouteShowId] = useState(() => searchParams.get('showId')?.trim() || undefined);
+  const hasAppliedInitialShowRef = useRef(false);
 
   const formatters = listFormatters();
   const [formatterKey, setFormatterKey] = useState<string>(
@@ -94,12 +98,34 @@ export default function ResultsSubmissionPage() {
   const isAKCScentWork =
     activeFormatter?.organization === 'AKC' && activeFormatter?.sportType === 'scent_work';
 
-  // Auto-select first show
+  // Honor show-scoped workbench links once, then let later show changes stand.
   useEffect(() => {
+    if (!hasAppliedInitialShowRef.current) {
+      const initialShowExists = Boolean(
+        initialRouteShowId && shows.some(show => show.id === initialRouteShowId)
+      );
+
+      if (initialRouteShowId && initialShowExists) {
+        hasAppliedInitialShowRef.current = true;
+        if (initialRouteShowId !== selectedShowId) {
+          selectShow(initialRouteShowId);
+        }
+        return;
+      }
+
+      if (!initialRouteShowId || shows.length > 0) {
+        hasAppliedInitialShowRef.current = true;
+        if (!selectedShowId && shows.length > 0) {
+          selectShow(shows[0].id);
+        }
+        return;
+      }
+    }
+
     if (!selectedShowId && shows.length > 0) {
       selectShow(shows[0].id);
     }
-  }, [selectedShowId, shows, selectShow]);
+  }, [initialRouteShowId, selectedShowId, shows, selectShow]);
 
   // Fetch real AKC data when AKC scent work formatter is selected
   const { data: akcData, isLoading: isAKCLoading } = useAKCSubmissionData(

@@ -17,6 +17,13 @@ import {
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
@@ -273,7 +280,7 @@ const ShowDetailsPage: React.FC = () => {
       : 'overview';
   const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
 
-  // Flatten trial classes into ClassInfo for ClassesTab
+  // Flatten trial classes for judge roster resolution and entry overlap detection
   const showClasses = useMemo(() => {
     return associatedTrials.flatMap(trial => {
       const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
@@ -430,8 +437,10 @@ const ShowDetailsPage: React.FC = () => {
       ? { ...actualCurrentShow, style: actualCurrentShow.experiencePublishedStyle }
       : actualCurrentShow;
 
-  // Styled public landing — renders for any visitor who is not staff.
+  // Styled public landing — renders for non-staff visitors who are NOT yet entered.
   // Staff (secretary / admin / club_admin) always reach the management UI.
+  // Authenticated exhibitors with entries bypass the marketing landing and see
+  // the tabbed details UI (classes, my entries, run order) instead.
   //
   // We gate on an *explicit* style being set, not the `getShowStyle()` fallback
   // value ('monogram'). Otherwise legacy shows with `style = null` would
@@ -448,14 +457,25 @@ const ShowDetailsPage: React.FC = () => {
   // component. The `hasExplicitStyle` gate skips the styled path
   // entirely when no style is set.
   if (hasExplicitStyle && !isSecretary && !isAdmin && !hasRole('club_admin')) {
-    const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
-    return (
-      <StyledLanding
-        show={publicLandingShow}
-        trial={associatedTrials[0] ?? null}
-        allTrials={associatedTrials}
-      />
-    );
+    // For authenticated users, wait for entries to resolve before deciding
+    // which experience to render — avoids flashing the landing page briefly.
+    if (user && userEntriesLoading) {
+      return (
+        <PageShell>
+          <LoadingSkeleton variant="cards" />
+        </PageShell>
+      );
+    }
+    if (!hasUserEntries) {
+      const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
+      return (
+        <StyledLanding
+          show={publicLandingShow}
+          trial={associatedTrials[0] ?? null}
+          allTrials={associatedTrials}
+        />
+      );
+    }
   }
 
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries);
@@ -501,21 +521,9 @@ const ShowDetailsPage: React.FC = () => {
           closedMessage={
             !canManageShow && !entryStatus.canEnter ? entryStatus.description : undefined
           }
-          {...(!canManageShow
-            ? entryStatus.canEnter
-              ? {
-                  primaryAction: {
-                    label: hasUserEntries ? 'Manage Entry' : 'Enter This Show',
-                    onClick: handleRegisterForShow,
-                  },
-                }
-              : hasUserEntries
-                ? { primaryAction: { label: 'View Entry', onClick: handleRegisterForShow } }
-                : {}
-            : {})}
           secondaryActions={
-            canManageShow && (
-              <div className="flex items-center gap-1">
+            canManageShow ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 {workbenchHref && (
                   <Button asChild variant="default" size="sm">
@@ -525,34 +533,69 @@ const ShowDetailsPage: React.FC = () => {
                     </Link>
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setShowEditPanel(true)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label="More actions"
+                      className="min-h-[44px] sm:min-h-8"
+                    >
+                      <span className="text-base leading-none tracking-widest">···</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            )
+            ) : entryStatus.canEnter ? (
+              <button
+                className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
+                onClick={handleRegisterForShow}
+              >
+                {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
+              </button>
+            ) : hasUserEntries ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-[44px] sm:min-h-8"
+                onClick={handleRegisterForShow}
+              >
+                View Entry
+              </Button>
+            ) : undefined
           }
-          footer={<QuickInfoCards show={actualCurrentShow} />}
+          footer={
+            <QuickInfoCards
+              show={actualCurrentShow}
+              canManageShow={canManageShow}
+              entryCount={catalogEntryCount}
+            />
+          }
         />
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
-          {canManageShow && (
+        {canManageShow && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
             <LandingPageCard
               showId={actualCurrentShow.id}
               showStyle={getShowStyle(actualCurrentShow)}
             />
-          )}
-        </div>
+          </div>
+        )}
 
         {isWaitingForExhibitorEntryDefault ? (
           <div className="mt-6">

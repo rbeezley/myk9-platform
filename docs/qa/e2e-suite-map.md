@@ -77,16 +77,20 @@ pnpm test:e2e:clean \
   src/test/e2e/secretary/show-wizard-officials.spec.ts \
   src/test/e2e/registration/entryCreationCore.spec.ts \
   src/test/e2e/public-shows-responsive.spec.ts \
+  src/test/e2e/route-health-by-role.spec.ts \
   --project=chromium --workers=1 --timeout=90000 --retries=0
 ```
 
-Phase 3 is the route-health sweep:
+Phase 3 is the committed route-health sweep spec (promoted 2026-06-06):
 
-```text
-/audit-pages full
+```bash
+cd apps/myk9show
+pnpm test:e2e:clean \
+  src/test/e2e/route-health-by-role.spec.ts \
+  --project=chromium --workers=1 --timeout=90000 --retries=0
 ```
 
-The route-health sweep should cover public, exhibitor, secretary, judge, club-admin, and admin route groups as far as local credentials and seeded IDs allow. It checks render, console errors, owned 4xx/5xx network responses, unresolved skeletons, obvious broken UI, and 375px mobile sanity. Log durable issues in `docs/qa/findings.md`.
+The spec covers public, exhibitor, secretary, judge, club-admin, and admin route groups with seeded show `4584f257-19b5-4016-aae6-5e7827b769cb`. Per route it checks: render-not-blank, console errors (budget 0, minus documented noise), replication errors (QA-CONSOLE-ERROR-011 regression guard), owned 4xx/5xx, and 375px horizontal overflow on marked routes (`/` and `/admin/dashboard`). Log durable issues in `docs/qa/findings.md`.
 
 ### Feature Audit
 
@@ -150,6 +154,7 @@ These specs are in the current scheduled Nightly routine. Do not add to this tab
 | `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`                | Public browse-to-detail navigation.                          |
 | `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                   | Current public, secretary, exhibitor, and judge route smoke. |
 | `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts`                | Public Browse Shows mobile layout and touch targets.         |
+| `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`                   | Route-health sweep: 6 role groups, console/network/overflow. |
 | `apps/myk9show/src/test/e2e/registration/entryCreationCore.spec.ts`         | Core entry store workflow and audit trail.                   |
 | `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts` | Exhibitor online-entry journey through receipt.              |
 | `apps/myk9show/src/test/e2e/registration/index.spec.ts`                     | Maintained registration spec inventory guard.                |

@@ -295,39 +295,6 @@ test.describe('Shows Page - Card Visual Status Cues', () => {
   });
 });
 
-test.describe('Shows Page - Full Calendar Button', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-    await navigateToBrowseShows(page);
-  });
-
-  test('should have Full Calendar button with tooltip', async ({ page }) => {
-    // Find the Full Calendar button
-    const calendarLink = page
-      .locator('a:has-text("Full Calendar"), a:has-text("Calendar")')
-      .first();
-    await expect(calendarLink).toBeVisible();
-
-    // Hover to see tooltip
-    await calendarLink.hover();
-    await page.waitForTimeout(500);
-
-    // Tooltip should mention "full calendar" or "show management"
-    const _tooltip2 = page.locator('[role="tooltip"]');
-    // Tooltip visibility depends on implementation
-  });
-
-  test('should navigate to /calendar when clicking Full Calendar', async ({ page }) => {
-    const calendarLink = page.locator('a[href="/calendar"]').first();
-
-    if (await calendarLink.isVisible()) {
-      await calendarLink.click();
-      await page.waitForURL('/calendar', { timeout: 5000 });
-      expect(page.url()).toContain('/calendar');
-    }
-  });
-});
-
 test.describe('Shows Page - List View Enhancements', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);

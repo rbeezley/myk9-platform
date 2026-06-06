@@ -14,6 +14,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { WORKFLOW_CONFIGS } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.constants';
+import {
+  isShowDeskLateEntryMode,
+  resolveRegistrationCompletionPath,
+} from '../RegistrationWizardPage.routes';
+
+const navigateMock = vi.hoisted(() => vi.fn());
 
 // ─── react-router-dom ────────────────────────────────────────────────────────
 vi.mock('react-router-dom', async () => {
@@ -21,7 +27,7 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useParams: () => ({ showId: 'show-1' }),
-    useNavigate: () => vi.fn(),
+    useNavigate: () => navigateMock,
     useMatch: () => null,
   };
 });
@@ -150,6 +156,7 @@ import RegistrationWizardPage from '../RegistrationWizardPage';
 describe('RegistrationWizardPage — workflowMode derivation', () => {
   beforeEach(() => {
     capturedWorkflowConfig = null;
+    navigateMock.mockReset();
     // Reset to exhibitor defaults
     mockPermissions.canCreateExhibitor = false;
     mockPermissions.isSecretary = false;
@@ -220,5 +227,36 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
 
     // Should map to 'site_admin' config, not 'secretary_existing'
     expect(capturedWorkflowConfig).toStrictEqual(WORKFLOW_CONFIGS.site_admin);
+  });
+
+  it('keeps secretary config and labels late-entry context from Show Desk', async () => {
+    mockPermissions.isSecretary = true;
+
+    render(<RegistrationWizardPage />, {
+      initialRoute: '/secretary/register/show-1?source=show-desk&entryMode=late',
+    });
+
+    await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
+
+    expect(screen.getAllByText('Late entry').length).toBeGreaterThan(0);
+    expect(capturedWorkflowConfig).toStrictEqual(WORKFLOW_CONFIGS.secretary_new);
+    expect(capturedWorkflowConfig?.features.advancedSearch).toBe(true);
+    expect(capturedWorkflowConfig?.features.createNew).toBe(true);
+    expect(capturedWorkflowConfig?.features.paymentOverride).toBe(true);
+  });
+
+  it('recognizes only Show Desk late-entry search params as late-entry mode', () => {
+    expect(isShowDeskLateEntryMode(new URLSearchParams('source=show-desk&entryMode=late'))).toBe(
+      true
+    );
+    expect(isShowDeskLateEntryMode(new URLSearchParams('source=show-desk'))).toBe(false);
+    expect(isShowDeskLateEntryMode(new URLSearchParams('entryMode=late'))).toBe(false);
+  });
+
+  it('returns to Show Desk after late-entry completion', () => {
+    expect(resolveRegistrationCompletionPath('show 1/late', true)).toBe(
+      '/secretary/shows/show%201%2Flate?phase=show-desk'
+    );
+    expect(resolveRegistrationCompletionPath('show 1/late', false)).toBe('/shows/show%201%2Flate');
   });
 });

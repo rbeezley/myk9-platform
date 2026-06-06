@@ -14,9 +14,6 @@ import '@/styles/myk9-show-details.css';
 // UI Components
 import { Button } from '@/components/ui/button';
 
-// Data operations
-import { useUpdateEntryMutation } from '@/hooks/queries/useEntriesDatabase';
-
 // Types
 import type { ScentWorkEntry, ScentWorkResult } from '@/types/scent-work-types';
 import type { CheckInStatus } from '@myk9/core';
@@ -26,6 +23,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { msToDisplay } from '@/lib/timeUtils';
 import { logger } from '@/services/LoggingService';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 
 // Entry status for navigation
 export type EntryNavigationStatus = 'pending' | 'in-progress' | 'completed';
@@ -78,8 +76,6 @@ export function ResultEntryNavigation({
     null
   );
 
-  const updateEntryMutation = useUpdateEntryMutation();
-
   // Check if user can manage check-in status
   const canManageCheckIn =
     hasRole(UserRole.JUDGE) ||
@@ -106,12 +102,9 @@ export function ResultEntryNavigation({
   const updateCheckInStatus = useCallback(
     async (entryId: string, status: CheckInStatus) => {
       logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
-      await updateEntryMutation.mutateAsync({
-        id: entryId,
-        updates: { result_status: status } as Record<string, unknown>,
-      });
+      await updateReplicatedCheckInStatus(entryId, status);
     },
-    [updateEntryMutation]
+    []
   );
 
   const handleCheckInStatusUpdate = async (status: CheckInStatus) => {

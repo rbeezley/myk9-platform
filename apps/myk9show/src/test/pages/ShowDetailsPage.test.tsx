@@ -163,26 +163,6 @@ vi.mock('@/components/shows/ShowDetails/dialogs/DeleteShowDialog', () => ({
 vi.mock('@/components/shows/tabs/MyEntriesTab', () => ({
   MyEntriesTab: () => <div data-testid="my-entries-tab">MyEntriesTab</div>,
 }));
-vi.mock('@/components/shows/tabs/ClassesTab', () => ({
-  ClassesTab: ({
-    classes,
-    userHasEntries,
-  }: {
-    classes: Array<{ userHasEntry: boolean }>;
-    userHasEntries: boolean;
-  }) => (
-    <div
-      data-testid="classes-tab"
-      data-mine-count={classes.filter(cls => cls.userHasEntry).length}
-      data-user-has-entries={String(userHasEntries)}
-    >
-      ClassesTab
-    </div>
-  ),
-}));
-vi.mock('@/components/shows/tabs/TrialsTab', () => ({
-  TrialsTab: () => <div data-testid="trials-tab">TrialsTab</div>,
-}));
 vi.mock('@/features/show-map/ShowMapTab', () => ({
   default: ({ canManageShow }: { canManageShow: boolean }) => (
     <div data-testid="show-map-tab" data-can-manage={String(canManageShow)}>
@@ -345,6 +325,8 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /My Stats/ })).toBeNull();
     expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Show Map/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /^Entries$/ })).toBeNull();
   });
 
   it('defaults to My Entries tab when user has entries', () => {
@@ -369,36 +351,14 @@ describe('ShowDetailsPage', () => {
     expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
   });
 
-  it('marks show classes as mine when an owned dog is entered', () => {
+  it('shows Manage Entry when an owned dog has an active entry', () => {
     mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
-    mockShowEntries = [
-      { id: 'entry-1', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-1' },
-      { id: 'entry-2', show_id: 'show-1', dog_id: 'dog-2', class_id: 'class-2' },
-    ];
-    mockTrials = [
-      {
-        id: 'trial-1',
-        showId: 'show-1',
-        trialDate: '2026-03-22',
-        trialNumber: '1',
-        name: 'Trial 1',
-      },
-    ];
-    mockTrialClasses = {
-      'trial-1': [
-        { id: 'class-1', element: 'Container', level: 'Novice', status: 'scheduled' },
-        { id: 'class-2', element: 'Interior', level: 'Advanced', status: 'scheduled' },
-      ],
-    };
-
-    renderPage('show-1', '?tab=classes');
-
-    const classesTab = screen.getByTestId('classes-tab');
-    expect(classesTab).toHaveAttribute('data-mine-count', '1');
-    expect(classesTab).toHaveAttribute('data-user-has-entries', 'true');
+    mockShowEntries = [{ id: 'entry-1', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-1' }];
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Manage Entry' })).toBeInTheDocument();
   });
 
-  it('does not mark pulled entries as my classes', () => {
+  it('shows Enter This Show when owned dog entries are all pulled or scratched', () => {
     mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
     mockShowEntries = [
       {
@@ -415,33 +375,12 @@ describe('ShowDetailsPage', () => {
         class_id: 'class-2',
         entry_status: 'scratched',
       },
-      { id: 'entry-3', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-3' },
     ];
-    mockTrials = [
-      {
-        id: 'trial-1',
-        showId: 'show-1',
-        trialDate: '2026-03-22',
-        trialNumber: '1',
-        name: 'Trial 1',
-      },
-    ];
-    mockTrialClasses = {
-      'trial-1': [
-        { id: 'class-1', element: 'Container', level: 'Novice A', status: 'scheduled' },
-        { id: 'class-2', element: 'Container', level: 'Novice B', status: 'scheduled' },
-        { id: 'class-3', element: 'Interior', level: 'Advanced', status: 'scheduled' },
-      ],
-    };
-
-    renderPage('show-1', '?tab=classes');
-
-    const classesTab = screen.getByTestId('classes-tab');
-    expect(classesTab).toHaveAttribute('data-mine-count', '1');
-    expect(classesTab).toHaveAttribute('data-user-has-entries', 'true');
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
   });
 
-  it('hides Entries and Results tabs for unauthenticated users', () => {
+  it('hides Show Map, My Entries and My Stats tabs for unauthenticated users', () => {
     mockAuthContext.user = null;
     renderPage();
     expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
@@ -449,6 +388,9 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('tab', { name: /My Entries/ })).toBeNull();
     // Results tab is now visible to all users (including unauthenticated)
     expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Show Map/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /My Entries/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /My Stats/ })).toBeNull();
   });
 
   it('renders NotFoundState when show does not exist', () => {
@@ -466,15 +408,13 @@ describe('ShowDetailsPage', () => {
   it('shows "Enter This Show" button when user has no entries and entries are open', () => {
     mockUserEntries = [];
     renderPage();
-    const btn = screen.getByTestId('hero-action');
-    expect(btn).toHaveTextContent('Enter This Show');
+    expect(screen.getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
   });
 
   it('shows "Manage Entry" button when user has entries and entries are open', () => {
     mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
-    const btn = screen.getByTestId('hero-action');
-    expect(btn).toHaveTextContent('Manage Entry');
+    expect(screen.getByRole('button', { name: 'Manage Entry' })).toBeInTheDocument();
   });
 
   it('shows "View Entry" button when user has entries and entries are closed', () => {
@@ -485,8 +425,7 @@ describe('ShowDetailsPage', () => {
     };
     mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
-    const btn = screen.getByTestId('hero-action');
-    expect(btn).toHaveTextContent('View Entry');
+    expect(screen.getByRole('button', { name: 'View Entry' })).toBeInTheDocument();
   });
 
   it('shows no action button when entries are closed and user has no entries', () => {
@@ -497,7 +436,8 @@ describe('ShowDetailsPage', () => {
     };
     mockUserEntries = [];
     renderPage();
-    expect(screen.queryByTestId('hero-action')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enter This Show' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Manage Entry' })).not.toBeInTheDocument();
   });
 
   it('does not render a separate Premium List edit button for show managers', () => {
@@ -509,7 +449,7 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /more actions/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
@@ -618,6 +558,19 @@ describe('ShowDetailsPage', () => {
     renderPage();
 
     expect(screen.queryByTestId('monogram-landing')).toBeNull();
+  });
+
+  it('renders the tabbed UI for an authenticated exhibitor with entries, even on a styled show', () => {
+    mockShow = {
+      ...mockShow,
+      style: 'headline',
+    };
+    mockUserEntries = [{ id: 'entry-1', showId: 'show-1' }];
+
+    renderPage();
+
+    expect(screen.queryByTestId('headline-landing')).toBeNull();
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
   });
 
   it('shows success feedback after saving show edits', async () => {

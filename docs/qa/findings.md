@@ -123,25 +123,6 @@ Copy this block for each new finding.
 - **2026-06-04 update — DID NOT REPRODUCE ON COMPLETED ROUTE GROUPS.** Public, judge, club-admin, and admin route groups completed with zero console errors and zero owned 4xx/5xx responses. The exhibitor and secretary route groups timed out before producing full summaries, so this finding stays open despite no visible replication flood in the captured failure snapshots.
 - **2026-06-05 — CLOSED (non-reproducing; proof met).** Phase 3 route sweep from an isolated single-occupant worktree (port `5191`) completed **all six role groups** — public `8/8`, exhibitor `8/8`, secretary `7/7`, judge `4/4`, club-admin `1/1`, admin `9/9` plus a 375px pass — and every authenticated route reported `repl=0` (zero `Failed to fetch` / `ReplicatedClassesTable` / `Database query failed` console errors) and `http=0` owned 4xx/5xx. This is the third consecutive scheduled run with `repl=0` across every authenticated route (05-30, 06-02, 06-05), satisfying this finding's `Proof required`. Consistent with the original diagnosis that the 2026-05-28 flood was a transient local connectivity failure (`TypeError: Failed to fetch` is a network-reach failure, not a Supabase rejection), not a code defect. Closed as non-reproducing per the 005 route-sweep-proof precedent. **Durable follow-up still recommended:** add a committed console-error budget to a permanent route-health spec so a future flood fails a test rather than going latent (the Wave 1 suite still does not assert console-error-free pages).
 
-### QA-MOBILE-LAYOUT-BREAK-012
-
-- **Status:** open
-- **Severity:** medium
-- **Role:** public (all)
-- **Surface:** public home route `/` at 375px mobile width.
-- **Suite category:** none (surfaced by route-health sweep; nearest existing spec is `public-shows-responsive.spec.ts`, which covers `/shows` not `/`)
-- **Pattern:** mobile-layout-break
-- **Detected by:** audit-pages
-- **Evidence:** 2026-05-30 route-health sweep measured `document.documentElement.scrollWidth - window.innerWidth = 52px` of horizontal overflow on `/` at a 375px viewport. It was the only route of 40 swept (6 role groups, desktop + 375px) to report non-zero overflow — every other public, exhibitor, secretary, judge, club-admin, and admin route reported `overflow=0px`, so this is specific to the landing page, not a global measurement artifact. The page otherwise renders fine (`render=ok`, 0 console errors, 0 owned 4xx/5xx). Measurement is deterministic and contention-independent (a static layout read).
-- **User impact:** First-time visitors on a phone get a horizontally-scrollable landing page — content can be clipped or shifted, undercutting the first-impression polish the public/exhibitor experience depends on.
-- **Intent check:** Harms the public/exhibitor target feeling that the platform looks trustworthy and considered before sign-up.
-- **Fix owner:** public landing page layout (`apps/myk9show/src/pages` home/landing component and any full-bleed hero/section that exceeds the viewport width at 375px).
-- **Proof required:** Focused 375px replay of `/` confirming `scrollWidth - innerWidth <= 0` (or fold into `public-shows-responsive.spec.ts` as a `/` overflow assertion).
-- **Notes:** Low-risk to fix once the overflowing element is identified (usually a fixed-width hero, image, or negative-margin section). Not fixed this run because the route sweep ran while a concurrent agent held the dev server, and the project convention is to verify fixes from a clean tree.
-- **2026-06-02 update — REPRODUCED, deterministic.** Phase 2 route sweep measured `scrollWidth - innerWidth = 52px` on `/` at 375px again — identical to 2026-05-30, and again the only non-zero overflow of all 50 routes swept (every other route `overflow=0px`). This confirms the bug is a stable layout defect, not the contention artifact the prior note hedged on: tonight's sweep ran from a single-occupant tree and still measured exactly 52px. Render is otherwise clean (`render=ok`, 0 console errors, 0 owned 4xx/5xx). Still unfixed — pinpointing the overflowing element on the multi-section landing (`HomeRedirect` → Hero/Features/Pricing/FAQ/etc.) needs per-element runtime measurement, which is out of scope for the autonomous gate but is now a clean, fix-ready ticket.
-- **2026-06-04 update — INCONCLUSIVE CLEAN MEASUREMENT.** The public route sweep completed cleanly and measured `/` at 375px with `overflow=0`, but this finding reproduced identically on 2026-05-30 and 2026-06-02. Keep it open until a focused `/` mobile overflow replay confirms whether the layout changed or the temporary route-health measurement varied.
-- **2026-06-05 update — DID NOT REPRODUCE (2nd consecutive clean).** Phase 3 route sweep (isolated single-occupant worktree on port `5191`) measured `/` at 375px with `overflow375=0px` — the second consecutive clean measurement (06-04, 06-05) after two deterministic 52px reproductions (05-30, 06-02). Something between 06-02 and 06-04 appears to have changed the landing layout. **Kept open** because the prior reproductions were deterministic; close only after a committed `/`-overflow assertion in `public-shows-responsive.spec.ts` stays green, or `git log` confirms a landing-page layout change between 06-02 and 06-04 that explains the fix.
-
 ### QA-LOADING-STATE-013
 
 - **Status:** fixed
@@ -180,6 +161,26 @@ Copy this block for each new finding.
 - **2026-06-05 — CLOSED (non-reproducing; proof met).** Phase 3 route sweep (site-admin session, isolated single-occupant worktree on port `5191`) reported `/admin/dashboard` `render=ok` with `loading=N`, `skel=0`, `err=0`, `repl=0`, `http=0` at both desktop and 375px, alongside all 9 admin routes rendering cleanly. This is the third consecutive clean scheduled replay (06-02, 06-04, 06-05) and the first where the full route sweep completed, satisfying this finding's `Proof required`. The original 2026-05-30 stuck-`Loading...` evidence was gathered under cross-agent dev-server contention. Closed as non-reproducing.
 
 ## Closed Findings
+
+### QA-MOBILE-LAYOUT-BREAK-012
+
+- **Status:** fixed
+- **Severity:** medium
+- **Role:** public (all)
+- **Surface:** public home route `/` at 375px mobile width.
+- **Suite category:** nightly (committed assertion in `route-health-by-role.spec.ts`)
+- **Pattern:** mobile-layout-break
+- **Detected by:** audit-pages
+- **Evidence:** 2026-05-30 route-health sweep measured `document.documentElement.scrollWidth - window.innerWidth = 52px` of horizontal overflow on `/` at a 375px viewport. It was the only route of 40 swept (6 role groups, desktop + 375px) to report non-zero overflow — every other public, exhibitor, secretary, judge, club-admin, and admin route reported `overflow=0px`, so this is specific to the landing page, not a global measurement artifact. The page otherwise renders fine (`render=ok`, 0 console errors, 0 owned 4xx/5xx). Measurement is deterministic and contention-independent (a static layout read).
+- **User impact:** First-time visitors on a phone get a horizontally-scrollable landing page — content can be clipped or shifted, undercutting the first-impression polish the public/exhibitor experience depends on.
+- **Intent check:** Harms the public/exhibitor target feeling that the platform looks trustworthy and considered before sign-up.
+- **Fix owner:** public landing page layout (`apps/myk9show/src/pages` home/landing component and any full-bleed hero/section that exceeds the viewport width at 375px).
+- **Proof required:** Focused 375px replay of `/` confirming `scrollWidth - innerWidth <= 0` (or fold into `public-shows-responsive.spec.ts` as a `/` overflow assertion).
+- **Notes:** Low-risk to fix once the overflowing element is identified (usually a fixed-width hero, image, or negative-margin section). Not fixed this run because the route sweep ran while a concurrent agent held the dev server, and the project convention is to verify fixes from a clean tree.
+- **2026-06-02 update — REPRODUCED, deterministic.** Phase 2 route sweep measured `scrollWidth - innerWidth = 52px` on `/` at 375px again — identical to 2026-05-30, and again the only non-zero overflow of all 50 routes swept (every other route `overflow=0px`). This confirms the bug is a stable layout defect, not the contention artifact the prior note hedged on: tonight's sweep ran from a single-occupant tree and still measured exactly 52px. Render is otherwise clean (`render=ok`, 0 console errors, 0 owned 4xx/5xx). Still unfixed — pinpointing the overflowing element on the multi-section landing (`HomeRedirect` → Hero/Features/Pricing/FAQ/etc.) needs per-element runtime measurement, which is out of scope for the autonomous gate but is now a clean, fix-ready ticket.
+- **2026-06-04 update — INCONCLUSIVE CLEAN MEASUREMENT.** The public route sweep completed cleanly and measured `/` at 375px with `overflow=0`, but this finding reproduced identically on 2026-05-30 and 2026-06-02. Keep it open until a focused `/` mobile overflow replay confirms whether the layout changed or the temporary route-health measurement varied.
+- **2026-06-05 update — DID NOT REPRODUCE (2nd consecutive clean).** Phase 3 route sweep (isolated single-occupant worktree on port `5191`) measured `/` at 375px with `overflow375=0px` — the second consecutive clean measurement (06-04, 06-05) after two deterministic 52px reproductions (05-30, 06-02). Something between 06-02 and 06-04 appears to have changed the landing layout. **Kept open** because the prior reproductions were deterministic; close only after a committed `/`-overflow assertion stays green.
+- **2026-06-06 — CLOSED (committed assertion green).** `route-health-by-role.spec.ts` (promoted to Nightly Active today) includes an explicit `check375: true` assertion on `/`: `expect.soft(overflowPx, 'public/landing: horizontal overflow at 375px').toBe(0)`. Ran alone twice and in the full active Nightly Playwright command (`50 passed, --retries=0`, port `5199`); `/` reported `overflow=0px` both times. Assertion is now a standing gate — any future regression will fail the nightly immediately.
 
 ### QA-CONSOLE-ERROR-017
 

@@ -654,6 +654,34 @@ describe('ReplicatedClassesTable', () => {
       expect(result.operation).toBe('incremental-sync');
     });
 
+    it('should queue results release fields on update', async () => {
+      const queueMutation = vi.spyOn(
+        classesTable as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await classesTable.set('class-1', createMockClass({ id: 'class-1' }));
+      await classesTable.updateClass('class-1', {
+        resultsReleasedAt: '2026-06-05T12:00:00.000Z',
+        resultsReleasedBy: 'user-123',
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'class-1',
+        expect.objectContaining({
+          results_released_at: '2026-06-05T12:00:00.000Z',
+          results_released_by: 'user-123',
+        })
+      );
+    });
+
     it('should track conflicts resolved', async () => {
       const mockRows = [createDbRow({ id: 1 })];
       mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });

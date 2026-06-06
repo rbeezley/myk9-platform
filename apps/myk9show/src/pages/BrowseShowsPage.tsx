@@ -355,16 +355,21 @@ const BrowseShowsPage: React.FC = () => {
       tabConfig.tabs.map(tab => {
         const def: PrimaryTabDef = { id: tab.id, label: tab.label };
         if (tab.icon) def.icon = tab.icon;
-        const count = getBrowseShowsTabCount({
-          tab,
-          shows,
-          entries,
-          userId: countUserId,
-        });
+        // The active tab badge mirrors the enhanced list the user is looking at.
+        // Inactive tab badges advertise tab totals.
+        const count =
+          tab.id === selectedTab
+            ? enhancedShows.length
+            : getBrowseShowsTabCount({
+                tab,
+                shows,
+                entries,
+                userId: countUserId,
+              });
         if (count !== undefined) def.count = count;
         return def;
       }),
-    [countUserId, entries, shows, tabConfig.tabs]
+    [countUserId, enhancedShows.length, entries, selectedTab, shows, tabConfig.tabs]
   );
 
   // Render shows in different view modes

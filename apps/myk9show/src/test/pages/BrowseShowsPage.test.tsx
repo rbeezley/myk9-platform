@@ -337,6 +337,35 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.queryByRole('button', { name: /new show/i })).not.toBeInTheDocument();
       });
     });
+
+    it('uses the visible enhanced count for the selected Browse All tab badge', async () => {
+      const shows = Array.from({ length: 9 }, (_, index) => ({
+        ...mockShows[0],
+        id: `show-${index + 1}`,
+        name: `Show ${index + 1}`,
+      }));
+      const enhancedShows = shows.slice(0, 5).map(show => ({
+        ...show,
+        relationship: ['all' as const],
+        userCanManage: false,
+        userIsJudging: false,
+        userHasEntries: false,
+      }));
+
+      setupMocks({
+        user: createMockUser(UserRole.EXHIBITOR),
+        shows,
+        enhancedShows,
+      });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        const browseAllTab = screen.getByRole('tab', { name: /browse all/i });
+        expect(browseAllTab.textContent).toContain('5');
+        expect(browseAllTab.textContent).not.toContain('9');
+      });
+    });
   });
 
   describe('Secretary Tab Rendering', () => {

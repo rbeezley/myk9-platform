@@ -104,9 +104,9 @@ describe('WhereToBe', () => {
     expect(screen.getByLabelText('Armband 104')).toHaveTextContent('104');
   });
 
-  it('shows dash when armband is empty', () => {
+  it('shows explicit fallbacks when armband and start time are empty', () => {
     render(<WhereToBe entries={[makeEntry({ armband: '', startTime: '' })]} showId={SHOW_ID} />);
-    expect(screen.getByLabelText('No armband assigned')).toHaveTextContent('-');
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByLabelText('No armband assigned')).toHaveTextContent('No #');
+    expect(screen.getByText('TBD')).toBeInTheDocument();
   });
 });

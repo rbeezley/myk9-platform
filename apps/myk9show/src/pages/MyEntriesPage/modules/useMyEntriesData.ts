@@ -113,15 +113,15 @@ export function useMyEntriesData({
       : [];
 
     const entryStatus = mapEntryStatus(entry.entry_status as string);
-    const paymentStatus = mapPaymentStatus(entry.payment_status as string);
-
     // Use real confirmation number from joined registration, fall back to UUID slice for legacy entries
     const registration = entry.registration as {
       id: string;
       confirmation_number: string;
+      payment_status?: string | null;
     } | null;
     const confirmationNumber =
       registration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
+    const effectivePaymentStatus = registration?.payment_status ?? (entry.payment_status as string);
 
     return {
       id: entry.id as string,
@@ -142,7 +142,7 @@ export function useMyEntriesData({
       classes,
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
-      paymentStatus,
+      paymentStatus: mapPaymentStatus(effectivePaymentStatus),
       registrationNumber: registration?.confirmation_number,
       confirmationNumber,
       entryCloseDate: show?.entry_close_date ? new Date(show.entry_close_date) : undefined,

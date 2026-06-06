@@ -325,6 +325,64 @@ describe('MyEntriesPage UI Improvements', () => {
       );
       expect(updateCheckInStatus).not.toHaveBeenCalled();
     });
+
+    it('uses enrollment payment status when secretary marks a grouped entry paid', async () => {
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        isAuthenticated: true,
+      });
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: [
+          {
+            id: 'entry-1',
+            registration_id: 'reg-1',
+            show_id: 'show-1',
+            dog_id: 'dog-1',
+            class_id: 'class-1',
+            trial_id: 'trial-1',
+            handler_id: 'person-1',
+            entry_status: 'accepted',
+            payment_status: 'pending',
+            entry_fee: 30,
+            check_in_status: 'checked-in',
+            is_scored: false,
+            result_status: null,
+            search_time_seconds: null,
+            total_faults: null,
+            final_placement: null,
+            submitted_at: '2026-06-01T12:00:00.000Z',
+            created_at: '2026-06-01T12:00:00.000Z',
+            updated_at: '2026-06-01T12:00:00.000Z',
+            dog: { id: 'dog-1', name: 'Blakley', call_name: 'Blakley' },
+            show: {
+              id: 'show-1',
+              name: 'A Trial',
+              start_date: '2026-06-15',
+              end_date: '2026-06-16',
+              entry_close_date: '2026-06-01',
+              venue: 'Test Venue',
+              city: 'Portland',
+              state: 'OR',
+            },
+            class: { id: 'class-1', name: 'Exterior Novice B', class_number: '104' },
+            trial: { id: 'trial-1', trial_type: 'Scent Work' },
+            registration: {
+              id: 'reg-1',
+              confirmation_number: 'MK9-000049',
+              payment_status: 'paid_by_cash',
+            },
+          },
+        ],
+        error: null,
+      });
+
+      renderWithProviders(<MyEntriesPage />);
+
+      await screen.findByText('A Trial');
+      expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+    });
   });
 });
 

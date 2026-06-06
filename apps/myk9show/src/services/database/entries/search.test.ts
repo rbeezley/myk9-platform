@@ -37,4 +37,10 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
       /class:class_id\s*\([^)]*trial:trial_id\s*\([^)]*trial_type/s
     );
   });
+
+  it('selects enrollment payment status for secretary-recorded grouped payments', () => {
+    expect(USER_ENTRIES_SELECT).toMatch(
+      /registration:registration_id\s*\([^)]*confirmation_number[^)]*payment_status/s
+    );
+  });
 });

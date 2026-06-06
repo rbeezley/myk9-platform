@@ -178,6 +178,7 @@ Before writing a migration or code fix for a "why doesn't this data flow" bug, *
 
 ## Worktree & Merge Workflow
 
+- When asked to merge or enable auto-merge for a PR, own the merge through completion. Re-check against current `main`, resolve/update the branch if needed, run focused verification, and keep monitoring until the PR merges or hits a real blocker. If checks fail after auto-merge is enabled, proactively inspect logs, fix actionable failures, verify locally, push, and re-check. Stop for user input only when the failure is unrelated to the PR, risky/destructive to fix, or requires a product decision.
 - ALWAYS run `gh pr merge` from the main repo directory, NEVER from inside a feature worktree (causes stale worktree + cwd lockup).
 - Before reporting a branch as having unpushed work, run `gh pr list --state merged --head <branch>` AND grep merged PR titles for the branch's commit messages. Only flag as truly unpushed if both checks return empty.
 - After a PR merge, immediately do the branch hygiene for that PR while the branch name is still known:

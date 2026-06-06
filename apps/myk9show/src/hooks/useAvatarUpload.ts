@@ -6,7 +6,7 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 interface UseAvatarUploadOptions {
-  onSuccess?: (publicUrl: string) => void;
+  onSuccess?: (publicUrl: string) => Promise<void> | void;
 }
 
 export function useAvatarUpload({ onSuccess }: UseAvatarUploadOptions) {
@@ -48,10 +48,10 @@ export function useAvatarUpload({ onSuccess }: UseAvatarUploadOptions) {
       const { data: urlData } = supabase.storage.from('images').getPublicUrl(path);
 
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-      onSuccess?.(publicUrl);
+      await onSuccess?.(publicUrl);
       notifications.success('Profile photo updated.');
     } catch (err) {
-      notifications.error(err instanceof Error ? err.message : 'Failed to upload photo.');
+      notifications.error(err instanceof Error ? err.message : 'Failed to save profile photo.');
     } finally {
       setUploading(false);
     }

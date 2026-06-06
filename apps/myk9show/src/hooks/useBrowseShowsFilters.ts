@@ -163,12 +163,13 @@ export function useBrowseShowsFilters({
           return showDate >= now && showDate <= nextMonth;
         });
       } else if (filters.dateRange === 'next_month') {
-        const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const firstOfMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 1);
-        filtered = filtered.filter(show => {
-          const showDate = new Date(show.startDate);
-          return showDate >= firstOfNextMonth && showDate < firstOfMonthAfter;
-        });
+        // Compare YYYY-MM string prefixes to avoid UTC-vs-local boundary issues.
+        // new Date('2026-08-01') parses as UTC midnight; new Date(2026,7,1) is local
+        // midnight — they differ by the timezone offset, causing off-by-one at month
+        // boundaries in US time zones.
+        const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const nextMonthKey = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`;
+        filtered = filtered.filter(show => show.startDate.slice(0, 7) === nextMonthKey);
       }
     }
 

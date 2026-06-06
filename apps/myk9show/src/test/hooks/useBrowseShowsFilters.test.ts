@@ -61,6 +61,35 @@ describe('useBrowseShowsFilters — date range filter', () => {
       expect(result.current.filteredShows.map(s => s.id)).toEqual(['next-month']);
     });
   });
+
+  it('next_month includes the 1st of next month (UTC/local boundary regression)', async () => {
+    const now = new Date();
+    // Day 1 of next month as an ISO string — historically parsed as UTC midnight,
+    // which falls before local midnight in US time zones and was excluded.
+    const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const firstOfMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+
+    const shows = [
+      makeShow({ id: 'first-of-next', startDate: isoDate(firstOfNextMonth) }),
+      makeShow({ id: 'first-of-after', startDate: isoDate(firstOfMonthAfter) }),
+    ];
+
+    const { result } = renderHook(() =>
+      useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' })
+    );
+
+    await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));
+
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, dateRange: 'next_month' }));
+    });
+
+    await waitFor(() => {
+      const ids = result.current.filteredShows.map(s => s.id);
+      expect(ids).toContain('first-of-next');
+      expect(ids).not.toContain('first-of-after');
+    });
+  });
 });
 
 describe('useBrowseShowsFilters — discipline filter', () => {

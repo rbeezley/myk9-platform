@@ -41,8 +41,6 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ResultsCount } from '@/components/common/ResultsCount';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
-import { MineToggle } from '@/components/common/MineToggle';
-import { useMineToggle } from '@/hooks/useMineToggle';
 
 // Extracted hooks and components
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -104,9 +102,6 @@ const BrowseShowsPage: React.FC = () => {
   useEffect(() => {
     setFilteredShowsState(filteredShows);
   }, [filteredShows]);
-
-  // Mine toggle — filter to shows where user has entries
-  const { isMine, toggle: toggleMine } = useMineToggle('shows');
 
   // Saved views
   const {
@@ -208,14 +203,7 @@ const BrowseShowsPage: React.FC = () => {
     [setFilters]
   );
 
-  // Apply "mine" filter — when toggled, show only shows where user has entries
-  const { enhancedShows, mineCount } = useMemo(() => {
-    const mine = allEnhancedShows.filter(s => s.userHasEntries);
-    return {
-      enhancedShows: isMine ? mine : allEnhancedShows,
-      mineCount: mine.length,
-    };
-  }, [isMine, allEnhancedShows]);
+  const enhancedShows = allEnhancedShows;
   const countUserId = useMemo(() => getBrowseShowsCountUserId(user), [user]);
 
   // Bulk selection for shows
@@ -489,17 +477,6 @@ const BrowseShowsPage: React.FC = () => {
                 values={chipFilterValues}
                 onChange={handleChipFilterChange}
               />
-              {user && selectedTab !== 'entries' && (
-                <MineToggle
-                  className="ml-auto"
-                  isMine={isMine}
-                  onToggle={toggleMine}
-                  allLabel="All Shows"
-                  mineLabel="My Shows"
-                  allCount={allEnhancedShows.length}
-                  mineCount={mineCount}
-                />
-              )}
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/20">
@@ -519,7 +496,7 @@ const BrowseShowsPage: React.FC = () => {
               </div>
 
               <ResultsCount
-                showing={enhancedShows.length}
+                showing={allEnhancedShows.length}
                 total={allEnhancedShows.length}
                 filtered={hasActiveFilters}
                 entityName={allEnhancedShows.length === 1 ? 'show' : 'shows'}

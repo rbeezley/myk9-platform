@@ -17,6 +17,13 @@ import {
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
@@ -143,7 +150,10 @@ const ShowDetailsPage: React.FC = () => {
   const trialClasses = useTrialStore(s => s.trialClasses);
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
-  const { data: showEntries = [] } = useEntriesByShowQuery(id || '', !!id);
+  const { data: showEntries = [], isLoading: showEntriesLoading } = useEntriesByShowQuery(
+    id || '',
+    !!id
+  );
   const catalogEntryCount = countCatalogEntries(showEntries);
   const { dogs } = useDogStoreCompat();
 
@@ -219,7 +229,7 @@ const ShowDetailsPage: React.FC = () => {
 
   // Check if user has entries in this show (determines default tab)
   // Only enable polling when the My Entries tab is active (fix #3)
-  const { entries: userEntries } = useMyEntries(showId_);
+  const { entries: userEntries, isLoading: userEntriesLoading } = useMyEntries(showId_);
   const userDogIds = useMemo(() => {
     const databaseUserId = userWithRoles?.databaseUserId;
     if (!databaseUserId) return new Set<string>();
@@ -239,28 +249,38 @@ const ShowDetailsPage: React.FC = () => {
     return classIds;
   }, [showEntries, userDogIds]);
   const hasUserEntries = userEntryClassIds.size > 0 || userEntries.length > 0;
+  const isAuthenticated = !!user;
+  const requestedTab = searchParams.get('tab');
+  const isWaitingForExhibitorEntryDefault =
+    isAuthenticated &&
+    !canManageShow &&
+    !requestedTab &&
+    (showEntriesLoading || userEntriesLoading);
 
   // Tab state — URL-synced with dynamic allowed tabs
-  const isAuthenticated = !!user;
   const canShowMap = features.showMap && canManageShow;
-  const allowedTabs = useMemo(
-    () =>
-      isAuthenticated
-        ? [
-            'overview',
-            'trials',
-            'classes',
-            'my-entries',
-            'my-stats',
-            'results',
-            ...(canShowMap ? ['map'] : []),
-          ]
-        : ['overview', 'trials', 'classes', 'results'],
-    [isAuthenticated, canShowMap]
-  );
-  const [activeTab, setTab] = useUrlTab(allowedTabs, 'overview');
+  const allowedTabs = useMemo(() => {
+    if (!isAuthenticated) return ['overview', 'trials', 'classes', 'results'];
+    if (canManageShow) {
+      return [
+        'overview',
+        ...(canShowMap ? ['map'] : []),
+        'trials',
+        'classes',
+        'my-entries',
+        'my-stats',
+        'results',
+      ];
+    }
+    return ['overview', 'trials', 'my-entries', 'classes', 'results'];
+  }, [isAuthenticated, canManageShow, canShowMap]);
+  const defaultTab =
+    isAuthenticated && !canManageShow && !isWaitingForExhibitorEntryDefault && hasUserEntries
+      ? 'my-entries'
+      : 'overview';
+  const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
 
-  // Flatten trial classes into ClassInfo for ClassesTab
+  // Flatten trial classes for judge roster resolution and entry overlap detection
   const showClasses = useMemo(() => {
     return associatedTrials.flatMap(trial => {
       const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
@@ -350,14 +370,24 @@ const ShowDetailsPage: React.FC = () => {
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       ...(canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
       { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
+      ...(!canManageShow && isAuthenticated
+        ? [
+            {
+              id: 'my-entries',
+              label: 'My Entries',
+              icon: ClipboardList,
+              count: userEntries.length,
+            },
+          ]
+        : []),
       { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
-      ...(isAuthenticated
+      ...(canManageShow && isAuthenticated
         ? [
             {
               id: 'my-entries',
               label: 'Entries',
               icon: ClipboardList,
-              count: canManageShow ? catalogEntryCount : userEntries.length,
+              count: catalogEntryCount,
             },
             { id: 'my-stats', label: 'My Stats', icon: BarChart3 },
           ]
@@ -407,8 +437,10 @@ const ShowDetailsPage: React.FC = () => {
       ? { ...actualCurrentShow, style: actualCurrentShow.experiencePublishedStyle }
       : actualCurrentShow;
 
-  // Styled public landing — renders for any visitor who is not staff.
+  // Styled public landing — renders for non-staff visitors who are NOT yet entered.
   // Staff (secretary / admin / club_admin) always reach the management UI.
+  // Authenticated exhibitors with entries bypass the marketing landing and see
+  // the tabbed details UI (classes, my entries, run order) instead.
   //
   // We gate on an *explicit* style being set, not the `getShowStyle()` fallback
   // value ('monogram'). Otherwise legacy shows with `style = null` would
@@ -425,14 +457,25 @@ const ShowDetailsPage: React.FC = () => {
   // component. The `hasExplicitStyle` gate skips the styled path
   // entirely when no style is set.
   if (hasExplicitStyle && !isSecretary && !isAdmin && !hasRole('club_admin')) {
-    const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
-    return (
-      <StyledLanding
-        show={publicLandingShow}
-        trial={associatedTrials[0] ?? null}
-        allTrials={associatedTrials}
-      />
-    );
+    // For authenticated users, wait for entries to resolve before deciding
+    // which experience to render — avoids flashing the landing page briefly.
+    if (user && userEntriesLoading) {
+      return (
+        <PageShell>
+          <LoadingSkeleton variant="cards" />
+        </PageShell>
+      );
+    }
+    if (!hasUserEntries) {
+      const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
+      return (
+        <StyledLanding
+          show={publicLandingShow}
+          trial={associatedTrials[0] ?? null}
+          allTrials={associatedTrials}
+        />
+      );
+    }
   }
 
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries);
@@ -478,21 +521,9 @@ const ShowDetailsPage: React.FC = () => {
           closedMessage={
             !canManageShow && !entryStatus.canEnter ? entryStatus.description : undefined
           }
-          {...(!canManageShow
-            ? entryStatus.canEnter
-              ? {
-                  primaryAction: {
-                    label: hasUserEntries ? 'Manage Entry' : 'Enter This Show',
-                    onClick: handleRegisterForShow,
-                  },
-                }
-              : hasUserEntries
-                ? { primaryAction: { label: 'View Entry', onClick: handleRegisterForShow } }
-                : {}
-            : {})}
           secondaryActions={
-            canManageShow && (
-              <div className="flex items-center gap-1">
+            canManageShow ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 {workbenchHref && (
                   <Button asChild variant="default" size="sm">
@@ -502,98 +533,141 @@ const ShowDetailsPage: React.FC = () => {
                     </Link>
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setShowEditPanel(true)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label="More actions"
+                      className="min-h-[44px] sm:min-h-8"
+                    >
+                      <span className="text-base leading-none tracking-widest">···</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            )
+            ) : entryStatus.canEnter ? (
+              <button
+                className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
+                onClick={handleRegisterForShow}
+              >
+                {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
+              </button>
+            ) : hasUserEntries ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-[44px] sm:min-h-8"
+                onClick={handleRegisterForShow}
+              >
+                View Entry
+              </Button>
+            ) : undefined
           }
-          footer={<QuickInfoCards show={actualCurrentShow} />}
-        />
-
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
-          <LandingPageCard
-            showId={actualCurrentShow.id}
-            showStyle={getShowStyle(actualCurrentShow)}
-          />
-        </div>
-
-        <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
-          <TabsContent value="overview">
-            <ShowOverviewTab
+          footer={
+            <QuickInfoCards
               show={actualCurrentShow}
               canManageShow={canManageShow}
-              judges={effectiveJudges}
+              entryCount={catalogEntryCount}
             />
-          </TabsContent>
+          }
+        />
 
-          <TabsContent value="trials">
-            <TrialsTab
-              trials={associatedTrials}
+        {canManageShow && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
+            <LandingPageCard
               showId={actualCurrentShow.id}
-              trialStats={trialStats}
+              showStyle={getShowStyle(actualCurrentShow)}
             />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="classes">
-            <ClassesTab
-              classes={showClasses}
-              showId={actualCurrentShow.id}
-              userHasEntries={hasUserEntries}
-              hideRing={associatedTrials.some(
-                t =>
-                  t.trialType === 'Scent Work' ||
-                  t.trialType === 'Nosework' ||
-                  t.trialType === 'Scent Detection'
-              )}
-            />
-          </TabsContent>
-
-          {isAuthenticated && (
-            <TabsContent value="my-entries">
-              {canManageShow ? (
-                <EntriesTab showId={actualCurrentShow.id} />
-              ) : (
-                <MyEntriesTab showId={actualCurrentShow.id} />
-              )}
+        {isWaitingForExhibitorEntryDefault ? (
+          <div className="mt-6">
+            <LoadingSkeleton variant="cards" count={2} />
+          </div>
+        ) : (
+          <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
+            <TabsContent value="overview">
+              <ShowOverviewTab
+                show={actualCurrentShow}
+                canManageShow={canManageShow}
+                judges={effectiveJudges}
+              />
             </TabsContent>
-          )}
 
-          {isAuthenticated && (
-            <TabsContent value="my-stats">
-              <MyShowStatsTab showId={actualCurrentShow.id} />
+            <TabsContent value="trials">
+              <TrialsTab
+                trials={associatedTrials}
+                showId={actualCurrentShow.id}
+                trialStats={trialStats}
+              />
             </TabsContent>
-          )}
 
-          <TabsContent value="results">
-            <ShowResultsTab showId={actualCurrentShow.id} />
-          </TabsContent>
-
-          {canShowMap && (
-            <TabsContent value="map">
-              <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-                <ShowMapTab
-                  show={actualCurrentShow}
-                  trials={associatedTrials}
-                  classes={showClasses}
-                  entries={showEntries}
-                  canManageShow={false}
-                />
-              </Suspense>
+            <TabsContent value="classes">
+              <ClassesTab
+                classes={showClasses}
+                showId={actualCurrentShow.id}
+                userHasEntries={hasUserEntries}
+                hideRing={associatedTrials.some(
+                  t =>
+                    t.trialType === 'Scent Work' ||
+                    t.trialType === 'Nosework' ||
+                    t.trialType === 'Scent Detection'
+                )}
+              />
             </TabsContent>
-          )}
-        </PrimaryTabs>
+
+            {isAuthenticated && (
+              <TabsContent value="my-entries">
+                {canManageShow ? (
+                  <EntriesTab showId={actualCurrentShow.id} />
+                ) : (
+                  <MyEntriesTab showId={actualCurrentShow.id} />
+                )}
+              </TabsContent>
+            )}
+
+            {isAuthenticated && canManageShow && (
+              <TabsContent value="my-stats">
+                <MyShowStatsTab showId={actualCurrentShow.id} />
+              </TabsContent>
+            )}
+
+            <TabsContent value="results">
+              <ShowResultsTab showId={actualCurrentShow.id} />
+            </TabsContent>
+
+            {canShowMap && (
+              <TabsContent value="map">
+                <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+                  <ShowMapTab
+                    show={actualCurrentShow}
+                    trials={associatedTrials}
+                    classes={showClasses}
+                    entries={showEntries}
+                    canManageShow={false}
+                  />
+                </Suspense>
+              </TabsContent>
+            )}
+          </PrimaryTabs>
+        )}
       </PageShell>
 
       {/* Dialogs */}

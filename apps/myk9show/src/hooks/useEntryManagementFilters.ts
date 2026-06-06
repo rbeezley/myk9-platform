@@ -23,6 +23,20 @@ interface UseEntryManagementFiltersProps {
 }
 
 type ViewMode = 'registration' | 'roster' | 'scoring';
+const ENTRY_TABS = [
+  'all',
+  'pending',
+  'accepted',
+  'waitlist',
+  'move-ups',
+  'scratches',
+  'issues',
+] as const;
+type EntryTab = (typeof ENTRY_TABS)[number];
+
+function isEntryTab(value: string | null): value is EntryTab {
+  return ENTRY_TABS.includes(value as EntryTab);
+}
 
 interface UseEntryManagementFiltersReturn {
   // Filter state
@@ -71,12 +85,33 @@ export function useEntryManagementFilters({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
-  const [selectedTab, setSelectedTab] = useState('all');
+  const routeEntryTab = searchParams.get('entryTab');
+  const resolvedEntryTab = isEntryTab(routeEntryTab) ? routeEntryTab : 'all';
+  const selectedTab: EntryTab = resolvedEntryTab;
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
   // Trial/class filters — read from URL search params
   const trialFilter = searchParams.get('trial');
   const classFilter = searchParams.get('class');
+
+  const setSelectedTab = useCallback(
+    (tab: string) => {
+      const nextTab = isEntryTab(tab) ? tab : 'all';
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (nextTab === 'all') {
+            next.delete('entryTab');
+          } else {
+            next.set('entryTab', nextTab);
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   // Derived view mode
   const viewMode: ViewMode = useMemo(() => {
@@ -215,6 +250,7 @@ export function useEntryManagementFilters({
         const next = new URLSearchParams(prev);
         next.delete('trial');
         next.delete('class');
+        next.delete('entryTab');
         return next;
       },
       { replace: true }

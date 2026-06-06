@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -41,8 +40,6 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ResultsCount } from '@/components/common/ResultsCount';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
-import { MineToggle } from '@/components/common/MineToggle';
-import { useMineToggle } from '@/hooks/useMineToggle';
 
 // Extracted hooks and components
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -104,9 +101,6 @@ const BrowseShowsPage: React.FC = () => {
   useEffect(() => {
     setFilteredShowsState(filteredShows);
   }, [filteredShows]);
-
-  // Mine toggle — filter to shows where user has entries
-  const { isMine, toggle: toggleMine } = useMineToggle('shows');
 
   // Saved views
   const {
@@ -208,14 +202,7 @@ const BrowseShowsPage: React.FC = () => {
     [setFilters]
   );
 
-  // Apply "mine" filter — when toggled, show only shows where user has entries
-  const { enhancedShows, mineCount } = useMemo(() => {
-    const mine = allEnhancedShows.filter(s => s.userHasEntries);
-    return {
-      enhancedShows: isMine ? mine : allEnhancedShows,
-      mineCount: mine.length,
-    };
-  }, [isMine, allEnhancedShows]);
+  const enhancedShows = allEnhancedShows;
   const countUserId = useMemo(() => getBrowseShowsCountUserId(user), [user]);
 
   // Bulk selection for shows
@@ -326,8 +313,7 @@ const BrowseShowsPage: React.FC = () => {
                 onClick={() => action.onClick({} as Show)}
               >
                 <IconComponent className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">{action.label}</span>
-                <span className="sm:hidden">Create</span>
+                <span>{action.label}</span>
               </Button>
             </PermissionGuard>
           ) : (
@@ -338,33 +324,14 @@ const BrowseShowsPage: React.FC = () => {
               onClick={() => action.onClick({} as Show)}
             >
               <IconComponent className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">{action.label}</span>
-              <span className="sm:hidden">Create</span>
+              <span>{action.label}</span>
             </Button>
           );
         })}
 
-        {authUser && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link to="/calendar">
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 shadow-sm rounded-full"
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Full Calendar</span>
-                  <span className="sm:hidden">Calendar</span>
-                </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>Open full calendar with show management</TooltipContent>
-          </Tooltip>
-        )}
       </div>
     ),
-    [tabQuickActions, authUser]
+    [tabQuickActions]
   );
 
   // Audit page access
@@ -388,14 +355,17 @@ const BrowseShowsPage: React.FC = () => {
       tabConfig.tabs.map(tab => {
         const def: PrimaryTabDef = { id: tab.id, label: tab.label };
         if (tab.icon) def.icon = tab.icon;
-        const count = getBrowseShowsTabCount({
-          tab,
-          selectedTab,
-          selectedTabCount: enhancedShows.length,
-          shows,
-          entries,
-          userId: countUserId,
-        });
+        // The active tab badge mirrors the enhanced list the user is looking at.
+        // Inactive tab badges advertise tab totals.
+        const count =
+          tab.id === selectedTab
+            ? enhancedShows.length
+            : getBrowseShowsTabCount({
+                tab,
+                shows,
+                entries,
+                userId: countUserId,
+              });
         if (count !== undefined) def.count = count;
         return def;
       }),
@@ -408,11 +378,11 @@ const BrowseShowsPage: React.FC = () => {
       return (
         <EmptyState
           icon={Search}
-          title={hasActiveFilters ? 'No matching shows' : 'No shows found'}
+          title={hasActiveFilters ? 'No matching shows' : 'No shows yet'}
           description={
             hasActiveFilters
-              ? 'Try adjusting your filters or search to find what you are looking for.'
-              : 'Check back soon for upcoming shows in your area.'
+              ? 'Try clearing a filter or broadening your search.'
+              : 'Shows will appear here as they are added. Try searching by discipline or club name above.'
           }
           action={
             hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : undefined
@@ -480,7 +450,7 @@ const BrowseShowsPage: React.FC = () => {
           <PageHeader breadcrumbs={breadcrumbs} title="Shows" actions={actionButtons} />
 
           {/* Filter toolbar */}
-          <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
+          <div className="bg-card border border-border/40 rounded-2xl p-4 space-y-3">
             <SearchBar
               value={filters.search}
               onChange={value => setFilters(prev => ({ ...prev, search: value }))}
@@ -493,17 +463,6 @@ const BrowseShowsPage: React.FC = () => {
                 values={chipFilterValues}
                 onChange={handleChipFilterChange}
               />
-              {user && selectedTab !== 'entries' && (
-                <MineToggle
-                  className="ml-auto"
-                  isMine={isMine}
-                  onToggle={toggleMine}
-                  allLabel="All Shows"
-                  mineLabel="My Shows"
-                  allCount={allEnhancedShows.length}
-                  mineCount={mineCount}
-                />
-              )}
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/20">
@@ -523,7 +482,7 @@ const BrowseShowsPage: React.FC = () => {
               </div>
 
               <ResultsCount
-                showing={enhancedShows.length}
+                showing={allEnhancedShows.length}
                 total={allEnhancedShows.length}
                 filtered={hasActiveFilters}
                 entityName={allEnhancedShows.length === 1 ? 'show' : 'shows'}

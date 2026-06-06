@@ -335,6 +335,70 @@ describe('ReplicatedDogsTable', () => {
           })
         );
       });
+
+      it('does not queue unknown lifecycle fields as null during unrelated dog updates', async () => {
+        const mockDog = createMockDog({ status: undefined, deletedAt: undefined });
+        const mockRow = createReplicatedRow(mockDog);
+        const queueMutation = vi.spyOn(
+          dogsTable as unknown as {
+            queueMutation: (
+              operation: string,
+              rowId: string,
+              payload: Record<string, unknown>
+            ) => Promise<string | null>;
+          },
+          'queueMutation'
+        );
+
+        mockDb.get.mockResolvedValue(mockRow);
+        mockDb.transaction.mockReturnValue({
+          store: {
+            get: vi.fn().mockResolvedValue(mockRow),
+            put: vi.fn().mockResolvedValue(undefined),
+          },
+          done: Promise.resolve(),
+        });
+
+        await dogsTable.updateDog('1', { name: 'Updated' });
+
+        const payload = queueMutation.mock.calls[0]?.[2];
+        expect(payload).not.toHaveProperty('status');
+        expect(payload).not.toHaveProperty('deleted_at');
+      });
+
+      it('preserves loaded lifecycle fields when queueing dog updates', async () => {
+        const deletedAt = '2026-06-05T12:00:00.000Z';
+        const mockDog = createMockDog({ status: 'retired', deletedAt });
+        const mockRow = createReplicatedRow(mockDog);
+        const queueMutation = vi.spyOn(
+          dogsTable as unknown as {
+            queueMutation: (
+              operation: string,
+              rowId: string,
+              payload: Record<string, unknown>
+            ) => Promise<string | null>;
+          },
+          'queueMutation'
+        );
+
+        mockDb.get.mockResolvedValue(mockRow);
+        mockDb.transaction.mockReturnValue({
+          store: {
+            get: vi.fn().mockResolvedValue(mockRow),
+            put: vi.fn().mockResolvedValue(undefined),
+          },
+          done: Promise.resolve(),
+        });
+
+        await dogsTable.updateDog('1', { name: 'Updated' });
+
+        expect(queueMutation.mock.calls[0]?.[2]).toEqual(
+          expect.objectContaining({
+            status: 'retired',
+            deleted_at: deletedAt,
+          })
+        );
+      });
     });
 
     describe('createDog', () => {
@@ -600,10 +664,12 @@ describe('ReplicatedDogsTable', () => {
         expect(result.conflictsResolved).toBe(0);
 
         expect(batchSetSpy).toHaveBeenCalledWith(expect.arrayContaining([expect.any(Object)]));
-        expect(updateMetadataSpy).toHaveBeenCalledWith(expect.objectContaining({
-          lastIncrementalSyncAt: expect.any(Number),
-          syncStatus: 'idle',
-        }));
+        expect(updateMetadataSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            lastIncrementalSyncAt: expect.any(Number),
+            syncStatus: 'idle',
+          })
+        );
       });
 
       it('should handle sync with no remote changes', async () => {

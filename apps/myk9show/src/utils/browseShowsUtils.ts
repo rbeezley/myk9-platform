@@ -118,8 +118,6 @@ export function getBrowseShowsCountUserId(
 
 interface BrowseShowsTabCountInput {
   tab: ShowTab | undefined;
-  selectedTab: string;
-  selectedTabCount: number;
   shows: Show[];
   entries: SyncableShowEntry[];
   userId: string | undefined;
@@ -127,15 +125,10 @@ interface BrowseShowsTabCountInput {
 
 export function getBrowseShowsTabCount({
   tab,
-  selectedTab,
-  selectedTabCount,
   shows,
   entries,
   userId,
 }: BrowseShowsTabCountInput): number | undefined {
   if (!tab?.getCount) return undefined;
-  // The active tab badge should mirror the list the user is looking at, including
-  // page-level filters like Mine. Inactive tab badges keep advertising tab totals.
-  if (tab.id === selectedTab) return selectedTabCount;
   return tab.getCount(shows, entries, userId);
 }

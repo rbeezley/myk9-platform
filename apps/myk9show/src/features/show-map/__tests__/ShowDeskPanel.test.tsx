@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import ShowDeskPanel from '../ShowDeskPanel';
@@ -67,6 +68,11 @@ const futureTrial = {
   _syncStatus: 'synced',
 } as SyncableTrial;
 
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="current-location">{`${location.pathname}${location.search}`}</div>;
+}
+
 describe('ShowDeskPanel', () => {
   it('uses scopeNow for status summary attention counts', () => {
     render(
@@ -99,5 +105,42 @@ describe('ShowDeskPanel', () => {
     );
     expect(within(status).getByText('1 of 1 classes complete')).toBeInTheDocument();
     expect(within(status).queryByText(/attention/i)).not.toBeInTheDocument();
+  });
+
+  it('deep-links pending-review entry management to the pending tab', async () => {
+    const { user } = render(
+      <>
+        <ShowDeskPanel
+          show={show}
+          trials={[futureTrial]}
+          classes={[
+            {
+              id: 'class-1',
+              trialId: 'trial-1',
+              name: 'Container Novice A',
+              status: 'Not Started',
+            },
+          ]}
+          entries={[
+            {
+              id: 'entry-1',
+              class_id: 'class-1',
+              entry_status: 'submitted',
+              check_in_status: null,
+            },
+          ]}
+          canManageShow
+          scopeNow={new Date('2026-05-28T15:00:00.000Z')}
+        />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/secretary/show-map/show-1' }
+    );
+
+    await user.click(screen.getByTestId('open-entry-management'));
+
+    expect(screen.getByTestId('current-location')).toHaveTextContent(
+      '/secretary/entries/show-1?entryTab=pending'
+    );
   });
 });

@@ -41,6 +41,9 @@ export interface ReplicatedDog {
   microchipNumber?: string | undefined;
   isSpayedNeutered?: boolean | undefined;
   imageUrl?: string | undefined;
+  status?: string | undefined;
+  deletedAt?: string | null | undefined;
+  deleted_at?: string | null | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -67,6 +70,9 @@ function rowToDog(row: DogRow): ReplicatedDog {
     microchipNumber: row.microchip_number ?? undefined,
     isSpayedNeutered: row.spayed_neutered ?? undefined,
     imageUrl: row.image_url ?? undefined,
+    status: row.status ?? undefined,
+    deletedAt: row.deleted_at ?? undefined,
+    deleted_at: row.deleted_at ?? undefined,
   };
 }
 
@@ -102,6 +108,12 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       microchip_number: dog.microchipNumber ?? null,
       spayed_neutered: dog.isSpayedNeutered ?? null,
       image_url: dog.imageUrl ?? null,
+      ...(dog.status !== undefined && { status: dog.status }),
+      ...(dog.deletedAt !== undefined
+        ? { deleted_at: dog.deletedAt }
+        : dog.deleted_at !== undefined
+          ? { deleted_at: dog.deleted_at }
+          : {}),
       updated_at: new Date().toISOString(),
     };
   }
@@ -185,10 +197,11 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     const allDogs = await this.getAll();
     const lowerQuery = query.toLowerCase();
 
-    return allDogs.filter(dog =>
-      dog.name.toLowerCase().includes(lowerQuery) ||
-      dog.callName?.toLowerCase().includes(lowerQuery) ||
-      dog.breed.toLowerCase().includes(lowerQuery)
+    return allDogs.filter(
+      dog =>
+        dog.name.toLowerCase().includes(lowerQuery) ||
+        dog.callName?.toLowerCase().includes(lowerQuery) ||
+        dog.breed.toLowerCase().includes(lowerQuery)
     );
   }
 

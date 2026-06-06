@@ -94,21 +94,19 @@ describe('browse show count scope', () => {
     expect(getBrowseShowsCountUserId(user)).toBe('person-1');
   });
 
-  it('uses the selected tab display scope for the selected tab badge count', () => {
+  it('returns raw tab count from getCount regardless of which tab is selected', () => {
     const config = getTabsForUser(makeUser());
     const allTab = config.tabs.find(tab => tab.id === 'all');
     const shows = Array.from({ length: 9 }, (_, index) => makeShow({ id: `show-${index + 1}` }));
 
     const count = getBrowseShowsTabCount({
       tab: allTab,
-      selectedTab: 'all',
-      selectedTabCount: 5,
       shows,
       entries: [],
       userId: 'person-1',
     });
 
-    expect(count).toBe(5);
+    expect(count).toBe(9);
   });
 
   it('does not infer ownership from a dog id containing the user id', () => {

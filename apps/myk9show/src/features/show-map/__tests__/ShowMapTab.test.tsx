@@ -10,6 +10,13 @@ const mockUpdate = vi.fn();
 const mockFrom = vi.fn();
 const mockProcessMoveUp = vi.fn();
 const mockUpdateClass = vi.hoisted(() => vi.fn());
+const mockUpdateReplicatedCheckInStatus = vi.hoisted(() => vi.fn());
+const mockUpdateReplicatedDayOfScratch = vi.hoisted(() => vi.fn());
+const mockUpdateReplicatedEntry = vi.hoisted(() => vi.fn());
+const mockCreateReplicatedEntry = vi.hoisted(() => vi.fn());
+const mockGetReplicatedEntryById = vi.hoisted(() => vi.fn());
+const mockGetReplicatedClassById = vi.hoisted(() => vi.fn());
+const mockGetReplicatedEntriesByClass = vi.hoisted(() => vi.fn());
 const mockMessageStore = vi.hoisted(() => ({
   getOrCreateThread: vi.fn(),
   sendMessage: vi.fn(),
@@ -29,7 +36,21 @@ vi.mock('@/services/database/day-of-operations', () => ({
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
     updateClass: (...args: unknown[]) => mockUpdateClass(...args),
+    getClassById: (...args: unknown[]) => mockGetReplicatedClassById(...args),
   },
+  replicatedEntriesTable: {
+    updateEntry: (...args: unknown[]) => mockUpdateReplicatedEntry(...args),
+    createEntry: (...args: unknown[]) => mockCreateReplicatedEntry(...args),
+    getEntryById: (...args: unknown[]) => mockGetReplicatedEntryById(...args),
+    getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
+  },
+}));
+
+vi.mock('@/services/show-day/checkInStatus', () => ({
+  updateReplicatedCheckInStatus: (...args: unknown[]) =>
+    mockUpdateReplicatedCheckInStatus(...args),
+  updateReplicatedDayOfScratch: (...args: unknown[]) =>
+    mockUpdateReplicatedDayOfScratch(...args),
 }));
 
 vi.mock('@/store/messageStore', () => ({
@@ -81,6 +102,29 @@ describe('ShowMapTab', () => {
       error: null,
     });
     mockUpdateClass.mockResolvedValue('mutation-1');
+    mockUpdateReplicatedCheckInStatus.mockResolvedValue('mutation-1');
+    mockUpdateReplicatedDayOfScratch.mockResolvedValue('mutation-2');
+    mockUpdateReplicatedEntry.mockResolvedValue('entry-mutation-1');
+    mockCreateReplicatedEntry.mockImplementation(entry => Promise.resolve(entry));
+    mockGetReplicatedEntryById.mockResolvedValue({
+      id: 'entry-1',
+      showId: 'show-1',
+      dogId: 'dog-1',
+      classId: 'class-1',
+      trialId: 'trial-1',
+      entryStatus: 'checked-in',
+      checkInStatus: 'checked-in',
+      jumpHeight: '12',
+      handler: 'Jane Handler',
+      armband: '12',
+    });
+    mockGetReplicatedClassById.mockResolvedValue({
+      id: 'class-2',
+      trialId: 'trial-1',
+      name: 'Exterior Advanced',
+      maxEntries: 50,
+    });
+    mockGetReplicatedEntriesByClass.mockResolvedValue([]);
     mockMessageStore.getOrCreateThread.mockResolvedValue({ id: 'thread-1' });
     mockMessageStore.sendMessage.mockResolvedValue(undefined);
   });
@@ -466,9 +510,8 @@ describe('ShowMapTab', () => {
     await user.click(within(queueRow).getByRole('button', { name: /^open$/i }));
 
     expect(queueRow).toContainElement(label);
-    expect(mockFrom).toHaveBeenCalledWith('entries');
-    expect(mockUpdate).toHaveBeenCalledWith({ check_in_status: 'checked-in' });
-    expect(mockEq).toHaveBeenCalledWith('id', 'entry-1');
+    expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('marks a not-started class started from row actions', async () => {
@@ -583,29 +626,12 @@ describe('ShowMapTab', () => {
     await user.click(screen.getByRole('button', { name: /mark pulled/i }));
 
     await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          entry_status: 'scratched',
-          check_in_status: 'pulled',
-          withdrawal_reason: 'Dog absent',
-          updated_at: expect.any(String),
-        })
-      );
+      expect(mockUpdateReplicatedDayOfScratch).toHaveBeenCalledWith('entry-1', 'Dog absent');
     });
-    expect(mockEq).toHaveBeenCalledWith('id', 'entry-1');
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('opens the move-up dialog and saves the move-up', async () => {
-    const fetchChain = makeSelectSingleChain({
-      data: {
-        entry_status: 'checked-in',
-        check_in_status: 'checked-in',
-        special_requests: null,
-      },
-      error: null,
-    });
-    mockFrom.mockReset().mockReturnValueOnce(fetchChain);
-
     const { user } = render(
       <ShowMapTab
         show={show}
@@ -650,8 +676,21 @@ describe('ShowMapTab', () => {
     await user.click(screen.getByRole('button', { name: /move entry/i }));
 
     await waitFor(() => {
-      expect(mockProcessMoveUp).toHaveBeenCalledWith('entry-1', 'class-2', 'Qualified today');
+      expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({
+          entryStatus: 'moved',
+          specialRequests: 'Moved up to Exterior Advanced: Qualified today',
+        })
+      );
     });
+    expect(mockCreateReplicatedEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classId: 'class-2',
+        entryStatus: 'confirmed',
+      })
+    );
+    expect(mockProcessMoveUp).not.toHaveBeenCalled();
   });
 
   it('opens the message handler dialog and sends a canned reply', async () => {

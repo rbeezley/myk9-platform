@@ -31,18 +31,28 @@ function MetadataItem({ label, value, secondary }: MetadataItemProps) {
   );
 }
 
-const PAYMENT_BADGE_CLASS = 'bg-indigo-500/12 border-indigo-500/30 text-indigo-300 font-normal';
+const PAYMENT_BADGE_CLASS = 'bg-[#e8e6dc] border-[#d1cfc5] text-[#4d4c48] font-normal';
 
 interface QuickInfoCardsProps {
   show: Show;
+  canManageShow?: boolean;
+  entryCount?: number;
 }
 
-export function QuickInfoCards({ show }: QuickInfoCardsProps) {
+export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCardsProps) {
   const entryCloseValue = show.entryCloseDate ? getEntryCloseValue(show.entryCloseDate) : null;
 
   return (
     <div className="flex flex-wrap">
-      <MetadataItem label="Entries Close" value={entryCloseValue ?? 'TBD'} />
+      {canManageShow && entryCount !== undefined ? (
+        <MetadataItem
+          label="Total Entries"
+          value={String(entryCount)}
+          {...(entryCloseValue ? { secondary: `Closes ${entryCloseValue}` } : {})}
+        />
+      ) : (
+        <MetadataItem label="Entries Close" value={entryCloseValue ?? 'TBD'} />
+      )}
       <MetadataItem label="Location" value={show.location || 'TBD'} />
       <MetadataItem
         label="Entry Fee"

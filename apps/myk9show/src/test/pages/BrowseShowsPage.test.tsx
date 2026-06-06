@@ -93,14 +93,6 @@ vi.mock('@/components/common/ErrorState', () => ({
 vi.mock('@/components/common/EmptyState', () => ({
   EmptyState: () => <div data-testid="empty-state">No shows</div>,
 }));
-vi.mock('@/components/common/MineToggle', () => ({
-  MineToggle: ({ hidden }: { hidden?: boolean }) =>
-    hidden ? null : <div data-testid="mine-toggle">Mine Toggle</div>,
-}));
-const mockMineState = { current: false };
-vi.mock('@/hooks/useMineToggle', () => ({
-  useMineToggle: () => ({ isMine: mockMineState.current, toggle: vi.fn(), setMine: vi.fn() }),
-}));
 
 // Mock useAuthContext — needed since BrowseShowsPage now calls it directly
 const mockAuthUser = { current: null as UserWithRoles | null };
@@ -293,7 +285,6 @@ const renderWithProviders = (ui: React.ReactElement, { route = '/shows' } = {}) 
 describe('BrowseShowsPage - Tab Rendering Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockMineState.current = false;
   });
 
   describe('Guest User Tab Rendering', () => {
@@ -347,21 +338,20 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       });
     });
 
-    it('uses the visible Mine-filtered count for the selected Browse All tab badge', async () => {
+    it('uses the visible enhanced count for the selected Browse All tab badge', async () => {
       const shows = Array.from({ length: 9 }, (_, index) => ({
         ...mockShows[0],
         id: `show-${index + 1}`,
         name: `Show ${index + 1}`,
       }));
-      const enhancedShows = shows.map((show, index) => ({
+      const enhancedShows = shows.slice(0, 5).map(show => ({
         ...show,
         relationship: ['all' as const],
         userCanManage: false,
         userIsJudging: false,
-        userHasEntries: index < 5,
+        userHasEntries: false,
       }));
 
-      mockMineState.current = true;
       setupMocks({
         user: createMockUser(UserRole.EXHIBITOR),
         shows,
@@ -569,27 +559,6 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
     });
   });
 
-  describe('MineToggle', () => {
-    it('should show MineToggle for authenticated users', async () => {
-      setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
-
-      renderWithProviders(<BrowseShowsPage />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('mine-toggle')).toBeInTheDocument();
-      });
-    });
-
-    it('should hide MineToggle for guests', async () => {
-      setupMocks({ user: null });
-
-      renderWithProviders(<BrowseShowsPage />);
-
-      await waitFor(() => {
-        expect(screen.queryByTestId('mine-toggle')).not.toBeInTheDocument();
-      });
-    });
-  });
 
   describe('Loading and Error States', () => {
     it('should show loading skeleton while data is loading', async () => {

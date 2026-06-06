@@ -84,6 +84,10 @@ describe('usePaperScoring', () => {
         searchTimeSeconds: 83.45,
         total_faults: 0,
         totalFaults: 0,
+        is_scored: true,
+        isScored: true,
+        scoring_completed_at: expect.any(String),
+        scoringCompletedAt: expect.any(String),
         checkInStatus: 'completed',
         check_in_status: 'completed',
       })

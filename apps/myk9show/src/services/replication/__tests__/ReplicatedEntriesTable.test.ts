@@ -10,7 +10,11 @@
  * - Data transformation (rowToEntry conversion)
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ReplicatedEntriesTable, type ReplicatedEntry } from '../ReplicatedEntriesTable';
+import {
+  ReplicatedEntriesTable,
+  rowToEntry,
+  type ReplicatedEntry,
+} from '../ReplicatedEntriesTable';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -62,6 +66,29 @@ describe('ReplicatedEntriesTable', () => {
 
     it('should be an instance of ReplicatedEntriesTable', () => {
       expect(table).toBeInstanceOf(ReplicatedEntriesTable);
+    });
+  });
+
+  describe('rowToEntry', () => {
+    it('maps deleted_at so day-of capacity filters can exclude soft-deleted entries', () => {
+      const deletedAt = '2026-06-05T12:00:00.000Z';
+
+      const entry = rowToEntry({
+        id: 'entry-deleted',
+        class_id: 'class-1',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        handler_id: 'handler-1',
+        armband: '101',
+        handler: 'Jamie Walker',
+        entry_status: 'confirmed',
+        check_in_status: 'checked-in',
+        deleted_at: deletedAt,
+        updated_at: '2026-06-05T12:01:00.000Z',
+      } as Parameters<typeof rowToEntry>[0]);
+
+      expect(entry.deletedAt).toBe(deletedAt);
+      expect(entry.deleted_at).toBe(deletedAt);
     });
   });
 
@@ -262,6 +289,51 @@ describe('ReplicatedEntriesTable', () => {
       expect(result?._syncStatus).toBe('pending');
     });
 
+    it('should queue only check_in_status for narrow check-in status updates', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handler: 'Jane Handler',
+        armband: '101',
+        resultStatus: 'qualified',
+      });
+
+      await table.updateCheckInStatus('entry-1', 'checked-in');
+
+      const payload = queueMutation.mock.calls[0]?.[2];
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          id: 'entry-1',
+          check_in_status: 'checked-in',
+          updated_at: expect.any(String),
+        })
+      );
+      expect(payload).not.toHaveProperty('result_status');
+      expect(payload).not.toHaveProperty('handler');
+      expect(payload).not.toHaveProperty('class_id');
+
+      const result = await table.get('entry-1');
+      expect(result?.checkInStatus).toBe('checked-in');
+      expect(result?.check_in_status).toBe('checked-in');
+      expect(result?._syncStatus).toBe('pending');
+    });
+
     it('should throw error when updating status of non-existent entry', async () => {
       await expect(table.updateEntryStatus('nonexistent', 'checked-in')).rejects.toThrow(
         'Entry nonexistent not found'
@@ -314,6 +386,45 @@ describe('ReplicatedEntriesTable', () => {
       expect(result?.armband).toBe('101'); // Unchanged
     });
 
+    it('should queue null final_placement when a reset clears both placement aliases', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        resultStatus: 'qualified',
+        result_status: 'qualified',
+        finalPlacement: '1',
+        final_placement: '1',
+      });
+
+      await table.updateEntry('entry-1', {
+        resultStatus: 'pending',
+        result_status: 'pending',
+        finalPlacement: null,
+        final_placement: undefined,
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          result_status: 'pending',
+          final_placement: null,
+        })
+      );
+    });
+
     it('should mark entry as pending sync after update', async () => {
       const entry: ReplicatedEntry = {
         id: 'entry-1',
@@ -326,6 +437,76 @@ describe('ReplicatedEntriesTable', () => {
 
       const result = await table.get('entry-1');
       expect(result?._syncStatus).toBe('pending');
+    });
+
+    it('should queue withdrawal_reason when updating a day-of scratch', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        armband: '101',
+      });
+      await table.updateEntry('entry-1', {
+        entryStatus: 'scratched',
+        checkInStatus: 'pulled',
+        withdrawalReason: 'Dog absent',
+        specialRequests: 'Dog absent',
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          entry_status: 'scratched',
+          check_in_status: 'pulled',
+          withdrawal_reason: 'Dog absent',
+          special_requests: 'Dog absent',
+        })
+      );
+    });
+
+    it('should queue deleted_at when soft-deleting a move-up entry', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      const deletedAt = '2026-06-05T18:00:00.000Z';
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        armband: '101',
+      });
+      await table.updateEntry('entry-1', {
+        deletedAt,
+        deleted_at: deletedAt,
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          deleted_at: deletedAt,
+        })
+      );
     });
 
     it('should throw error when updating non-existent entry', async () => {

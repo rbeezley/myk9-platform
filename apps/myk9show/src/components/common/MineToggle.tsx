@@ -30,7 +30,7 @@ export function MineToggle({
     <div className={cn('flex bg-muted/50 rounded-lg p-1 gap-0.5', className)}>
       <button
         className={cn(
-          'h-10 rounded-md px-4 text-sm font-medium transition-colors',
+          'h-12 rounded-md px-4 text-sm font-medium transition-colors',
           !isMine
             ? 'bg-background text-foreground shadow-sm'
             : 'text-muted-foreground hover:text-foreground'
@@ -41,7 +41,7 @@ export function MineToggle({
       </button>
       <button
         className={cn(
-          'h-10 rounded-md px-4 text-sm font-medium transition-colors',
+          'h-12 rounded-md px-4 text-sm font-medium transition-colors',
           isMine
             ? 'bg-background text-foreground shadow-sm'
             : 'text-muted-foreground hover:text-foreground'

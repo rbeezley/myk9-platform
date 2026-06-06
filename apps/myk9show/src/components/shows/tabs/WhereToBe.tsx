@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
@@ -54,21 +54,21 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
   return (
     <Link
       to={href}
-      className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2.5 hover:bg-muted/70 transition-colors"
+      className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
       aria-label={`${entry.classTitle} — ${entry.dayLabel} ${entry.startTime}`}
     >
-      <span
-        className="w-16 shrink-0 font-mono text-sm font-semibold tabular-nums"
-        aria-label={entry.armband ? `Armband ${entry.armband}` : 'No armband assigned'}
-      >
-        {entry.armband || '-'}
-      </span>
-
-      <span
-        className="hidden"
-        aria-hidden="true"
-      >
-        {entry.startTime || '—'}
+      <span className="flex w-20 shrink-0 flex-col gap-1">
+        <span className="inline-flex items-center gap-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+          <Clock className="h-3.5 w-3.5 text-primary" />
+          {entry.startTime || 'TBD'}
+        </span>
+        <span
+          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
+          aria-label={entry.armband ? `Armband ${entry.armband}` : 'No armband assigned'}
+        >
+          <Hash className="h-3 w-3" />
+          {entry.armband || 'No #'}
+        </span>
       </span>
 
       <PersonAvatar name={entry.dogName} size="sm" className="h-7 w-7" />
@@ -95,7 +95,6 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
     </Link>
   );
 }
-
 
 function ResultChip({ entry }: { entry: EnrichedShowEntry }) {
   if (!entry.hasResult || !entry.result) {

@@ -56,9 +56,9 @@ export function DetailHero({
     <div className={cn('rounded-xl border border-border/50 bg-card overflow-hidden', className)}>
       <div
         className={cn(
-          'gap-6 p-6',
+          'gap-4 sm:gap-6 p-6',
           cover
-            ? 'flex flex-row items-start sm:items-center'
+            ? 'flex flex-row flex-wrap sm:flex-nowrap items-start sm:items-center'
             : 'flex flex-col sm:flex-row sm:items-start sm:justify-between'
         )}
       >
@@ -97,8 +97,8 @@ export function DetailHero({
           )}
         </div>
 
-        <div className="flex flex-col items-end gap-2 flex-shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-2 w-full sm:w-auto sm:flex-shrink-0">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {secondaryActions}
             {primaryAction && (
               <button

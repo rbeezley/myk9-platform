@@ -53,6 +53,13 @@ describe('useMyShows', () => {
     expect(result.current.draft[0].id).toBe('s4');
   });
 
+  it('places a draft show starting today in the draft bucket', () => {
+    const show = makeShow({ id: 'draft-today', startDate: TODAY, status: 'draft' });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.draft.map(s => s.id)).toEqual(['draft-today']);
+    expect(result.current.today).toHaveLength(0);
+  });
+
   it('places a completed show in the past bucket', () => {
     const show = makeShow({ id: 's5', startDate: PAST_30, status: 'completed' });
     const { result } = renderHook(() => useMyShows([show]));
@@ -188,9 +195,32 @@ describe('useMyShows', () => {
     expect(items[1].kind).toBe('info');
   });
 
-  it('attention href points to the show detail route', () => {
-    const show = makeShow({ id: 'x', startDate: TODAY, status: 'in_progress' });
+  it('today attention href points to the show desk workbench phase', () => {
+    const show = makeShow({ id: 'show-today', startDate: TODAY, status: 'in_progress' });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/shows/x');
+    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-today?phase=show-desk');
+  });
+
+  it('draft attention href points to the setup workbench phase', () => {
+    const show = makeShow({ id: 'show-draft', startDate: FUTURE_30, status: 'draft' });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-draft?phase=setup');
+  });
+
+  it('draft attention href points to setup even when the show starts today', () => {
+    const show = makeShow({ id: 'show-draft-today', startDate: TODAY, status: 'draft' });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-draft-today?phase=setup');
+  });
+
+  it('closing-soon attention href points to the setup workbench phase', () => {
+    const show = makeShow({
+      id: 'show-upcoming',
+      startDate: FUTURE_30,
+      status: 'published',
+      entryCloseDate: FUTURE_7,
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-upcoming?phase=setup');
   });
 });

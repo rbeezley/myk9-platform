@@ -213,7 +213,7 @@ export function HeroBlock({
               fontFamily: "'EB Garamond', Georgia, serif",
             }}
           >
-            Submit Entry
+            Enter this show
           </a>
         </div>
       </HeritageEngravedFrame>

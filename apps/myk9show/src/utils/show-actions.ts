@@ -292,26 +292,6 @@ export function getTabQuickActions(currentTab: string, user: UserWithRoles | nul
       }
       break;
 
-    case 'entries':
-      // Quick entry search
-      actions.push({
-        id: 'search_entries',
-        label: 'Search My Entries',
-        icon: 'Search',
-        variant: 'default',
-        onClick: () => logger.logUserAction('search_entries', 'entries', {}),
-      });
-
-      // Export entries
-      actions.push({
-        id: 'export_entries',
-        label: 'Export Entries',
-        icon: 'Download',
-        variant: 'default',
-        onClick: () => logger.logUserAction('export_entries', 'entries', {}),
-      });
-      break;
-
     case 'managing':
       // Create new show
       if (userPermissions.includes(PERMISSIONS.SHOW_CREATE)) {

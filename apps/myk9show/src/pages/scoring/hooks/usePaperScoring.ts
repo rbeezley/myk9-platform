@@ -48,6 +48,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
       const seconds = digitsToSeconds(timeDigits);
       const statusValue = mapQualificationToResultStatus(result);
       const resultReason = result === 'NQ' || result === 'EX' ? reason?.trim() || null : null;
+      const completedAt = new Date().toISOString();
       setIsSaving(true);
       try {
         await replicatedEntriesTable.updateEntry(entryId, {
@@ -58,6 +59,10 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
           searchTimeSeconds: seconds,
           total_faults: faults,
           totalFaults: faults,
+          is_scored: true,
+          isScored: true,
+          scoring_completed_at: completedAt,
+          scoringCompletedAt: completedAt,
           checkInStatus: 'completed',
           check_in_status: 'completed',
         });

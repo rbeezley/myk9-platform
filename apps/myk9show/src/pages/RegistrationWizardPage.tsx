@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useMatch } from 'react-router-dom';
+import { useParams, useNavigate, useMatch, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getErrorMessage } from '@myk9/core';
@@ -50,17 +50,24 @@ import {
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
 import { submitShowRegistration } from '@/features/registration/submitShowRegistration';
+import {
+  isShowDeskLateEntryMode,
+  resolveRegistrationCompletionPath,
+} from './RegistrationWizardPage.routes';
 
 function RegistrationWizardContent() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
   // showId is guaranteed by the outer RegistrationWizardPage guard
   const showId = showIdParam!;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isInsideSidebar = !!useMatch('/secretary/*');
+  const isLateEntryMode = isShowDeskLateEntryMode(searchParams);
+  const workflowLabel = isLateEntryMode ? 'Late entry' : 'Register';
+  const sidebarTitle = isLateEntryMode ? 'Late entry' : 'Register for Show';
 
   // Auth and permissions
-  const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } =
-    useRegistrationPermissions();
+  const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
   const { user } = useAuthContext();
   const { triggerSync } = useReplicationSync();
 
@@ -375,8 +382,12 @@ function RegistrationWizardContent() {
     // On the last step, complete registration and navigate away
     if (isLastStep) {
       markStepComplete(currentStep);
-      notifications.success('Registration completed successfully');
-      navigate(`/shows/${showId}`);
+      notifications.success(
+        isLateEntryMode
+          ? 'Late entry completed successfully'
+          : 'Registration completed successfully'
+      );
+      navigate(resolveRegistrationCompletionPath(showId, isLateEntryMode));
       return;
     }
 
@@ -564,7 +575,7 @@ function RegistrationWizardContent() {
                 <span>/</span>
                 <span className="truncate max-w-[200px]">{currentShow?.name || 'Show'}</span>
                 <span>/</span>
-                <span className="text-foreground font-medium">Register</span>
+                <span className="text-foreground font-medium">{workflowLabel}</span>
               </div>
             </div>
           </div>
@@ -581,7 +592,7 @@ function RegistrationWizardContent() {
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative">
                     <h2 className="text-base font-semibold mb-1 text-foreground group-hover:text-primary transition-colors duration-300">
-                      Register for Show
+                      {sidebarTitle}
                     </h2>
                     {currentShow && (
                       <p className="text-xs text-muted-foreground mb-4 truncate">

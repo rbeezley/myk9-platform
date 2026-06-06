@@ -24,22 +24,22 @@ describe('DateCircle', () => {
     expect(screen.queryByText(/day/)).not.toBeInTheDocument();
   });
 
-  it('applies green border for accepting status', () => {
+  it('applies primary border for accepting status', () => {
     const { container } = render(<DateCircle startDate="2026-05-09" status="accepting" />);
     const dateBox = container.querySelector('[data-testid="date-box"]');
-    expect(dateBox?.className).toContain('border-green-500');
+    expect(dateBox?.className).toContain('border-primary');
   });
 
-  it('applies orange border for closing_soon status', () => {
+  it('applies warning-orange border for closing_soon status', () => {
     const { container } = render(<DateCircle startDate="2026-05-09" status="closing_soon" />);
     const dateBox = container.querySelector('[data-testid="date-box"]');
-    expect(dateBox?.className).toContain('border-orange-500');
+    expect(dateBox?.className).toContain('border-warning-orange');
   });
 
-  it('applies blue border for in_progress status', () => {
+  it('applies primary border for in_progress status', () => {
     const { container } = render(<DateCircle startDate="2026-05-09" status="in_progress" />);
     const dateBox = container.querySelector('[data-testid="date-box"]');
-    expect(dateBox?.className).toContain('border-blue-500');
+    expect(dateBox?.className).toContain('border-primary');
   });
 
   it('has accessible aria-label for multi-day show', () => {

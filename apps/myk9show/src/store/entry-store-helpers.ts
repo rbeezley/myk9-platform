@@ -35,7 +35,7 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
       handlerId: replicated.handlerId,
       entryFee: replicated.entryFee || 0,
       paymentStatus: (replicated.paymentStatus as 'pending' | 'paid' | 'refunded') || 'pending',
-      specialRequests: replicated.specialRequests,
+      specialRequests: replicated.specialRequests ?? undefined,
       armband: replicated.armband,
       runOrder: replicated.runOrder,
       jumpHeight: replicated.jumpHeight,

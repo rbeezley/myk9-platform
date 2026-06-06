@@ -6,9 +6,9 @@
  */
 
 import { EventEmitter } from '../sync/eventEmitter';
-import { syncService } from '../sync/syncService';
 import { getOptimalStorage } from '../database/storage-adapter';
 import { logger } from '@/services/LoggingService';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import type { StateStorage } from 'zustand/middleware';
 import type {
   CheckInEntry,
@@ -342,21 +342,10 @@ export class OfflineCheckInService extends EventEmitter {
 
   private async syncOperation(operation: CheckInOperation): Promise<void> {
     try {
-      await syncService.addToQueue({
-        entityType: 'entries',
-        entityId: operation.entryId,
-        operation: 'update',
-        data: {
-          checkInStatus: operation.newStatus,
-          checkInTime: operation.performedAt,
-          checkInGate: operation.gateId,
-          checkInStewardId: operation.performedBy,
-          handlerChange: operation.handlerChange,
-          specialRequests: operation.specialRequests,
-          scratchReason: operation.scratchReason,
-        },
-        priority: 'medium',
-      });
+      // INTENT: Persist only the durable check-in status through replication here.
+      // Gate, steward, and timestamp metadata remain local until a schema-backed
+      // offline metadata sync contract exists.
+      await updateReplicatedCheckInStatus(operation.entryId, operation.newStatus);
 
       operation.isSynced = true;
       operation.syncedAt = this.getCurrentTime();

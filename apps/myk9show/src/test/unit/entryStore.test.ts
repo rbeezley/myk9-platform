@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useEntryStore, type ShowEntryInput } from '@/store/entryStore';
+import { replicatedEntriesTable } from '@/services/replication';
 
 // Mock the sync service
 vi.mock('@/services/sync/syncService', () => ({
@@ -156,6 +157,27 @@ describe('Phase 3.1: Entry Store - Single Dog, Single Class Entry', () => {
       expect(confirmedEntry!.statusHistory).toHaveLength(4);
       expect(confirmedEntry!.statusHistory[3].status).toBe('confirmed');
       expect(confirmedEntry!.statusHistory[3].userId).toBe('secretary-user');
+    });
+
+    it('queues check-in status through the narrow replicated mutation', async () => {
+      const entryStore = useEntryStore.getState();
+      const updateCheckInStatus = vi
+        .spyOn(replicatedEntriesTable, 'updateCheckInStatus')
+        .mockResolvedValue('mutation-1');
+      const updateEntry = vi.spyOn(replicatedEntriesTable, 'updateEntry');
+
+      const updated = await entryStore.updateCheckInStatus(
+        entryId,
+        'checked-in',
+        'gate-user'
+      );
+
+      expect(updateCheckInStatus).toHaveBeenCalledWith(entryId, 'checked-in');
+      expect(updateEntry).not.toHaveBeenCalled();
+      expect(updated?.checkInStatus).toBe('checked-in');
+
+      updateCheckInStatus.mockRestore();
+      updateEntry.mockRestore();
     });
   });
 

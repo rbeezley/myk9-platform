@@ -1,13 +1,18 @@
 /**
  * useCheckInMutation — Optimistic check-in status update via React Query.
  *
- * Updates the entry's check-in status in Supabase with optimistic UI update
- * on both the showDayDetails and entries query caches. Rolls back on failure.
+ * Uses optimistic UI updates on showDayDetails and entries caches. Staff flows
+ * default to the narrow replicated writer. Exhibitor self check-in must opt into
+ * `self-checkin-rpc` because direct `entries` UPDATE is manager-only under RLS;
+ * the `self_checkin_entry` SECURITY DEFINER RPC preserves owner-scoped authority.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CheckInStatus } from '@myk9/core';
-import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
+import {
+  updateReplicatedCheckInStatus,
+  updateSelfCheckInStatus,
+} from '@/services/show-day/checkInStatus';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
 
 interface CheckInMutationInput {
@@ -16,25 +21,41 @@ interface CheckInMutationInput {
   classId?: string | undefined;
 }
 
-/**
- * Persist check-in status to Supabase via SECURITY DEFINER RPC.
- * Using RPC instead of direct UPDATE restricts handlers to check_in_status
- * only — the policy no longer allows handlers to update other columns.
- */
-async function updateCheckInStatus({ entryId, newStatus }: CheckInMutationInput): Promise<void> {
-  const { error } = await supabase.rpc('self_checkin_entry', {
-    p_entry_id: entryId,
-    p_new_status: newStatus,
-  });
-
-  if (error) throw new Error(`Check-in update failed: ${error.message}`);
+interface CheckInMutationContext {
+  previousShowDay: [readonly unknown[], ShowDayDetailRow[] | undefined][];
+  previousEntries: [readonly unknown[], unknown][];
+  previousClassEntries: [readonly unknown[], unknown][];
 }
 
-export function useCheckInMutation() {
-  const queryClient = useQueryClient();
+export type CheckInWriter = 'replicated' | 'self-checkin-rpc';
 
-  return useMutation({
-    mutationFn: updateCheckInStatus,
+interface UseCheckInMutationOptions {
+  writer?: CheckInWriter | undefined;
+}
+
+async function updateCheckInStatus(
+  { entryId, newStatus }: CheckInMutationInput,
+  writer: CheckInWriter
+): Promise<void> {
+  try {
+    if (writer === 'self-checkin-rpc') {
+      await updateSelfCheckInStatus(entryId, newStatus);
+      return;
+    }
+
+    await updateReplicatedCheckInStatus(entryId, newStatus);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Check-in update failed: ${message}`);
+  }
+}
+
+export function useCheckInMutation(options: UseCheckInMutationOptions = {}) {
+  const queryClient = useQueryClient();
+  const writer = options.writer ?? 'replicated';
+
+  return useMutation<void, Error, CheckInMutationInput, CheckInMutationContext>({
+    mutationFn: input => updateCheckInStatus(input, writer),
 
     onMutate: async ({ entryId, newStatus, classId }) => {
       // Cancel in-flight queries to avoid overwriting our optimistic update

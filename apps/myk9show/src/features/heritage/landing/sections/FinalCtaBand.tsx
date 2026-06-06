@@ -52,7 +52,7 @@ export function FinalCtaBand({ entryWizardUrl }: FinalCtaBandProps) {
             fontFamily: "'EB Garamond', Georgia, serif",
           }}
         >
-          Submit Entry
+          Enter this show
         </a>
 
         <HeritageOrnamentRule variant="gold" className="w-48" />

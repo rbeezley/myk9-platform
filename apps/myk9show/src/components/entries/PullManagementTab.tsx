@@ -41,11 +41,13 @@ import {
 import {
   getPendingScratchRequests as getPendingPullRequests,
   getScratchedEntries as getPulledEntries,
-  approveScratchRequest as approvePullRequest,
-  denyScratchRequest as denyPullRequest,
   updateRefundStatus,
-  ScratchRequest as PullRequest,
+  type ScratchRequest as PullRequest,
 } from '@/services/database/day-of-operations';
+import {
+  approvePullRequestReplicated,
+  denyPullRequestReplicated,
+} from '@/services/show-day/requestManagement';
 
 interface PullManagementTabProps {
   showId: string;
@@ -133,9 +135,8 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     setIsProcessing(true);
 
     try {
-      // Refund processing is handled separately via the payment service —
-      // approveScratchRequest only writes the status transition.
-      const { error } = await approvePullRequest(selectedRequest.id);
+      // Refund processing is handled separately via the payment service.
+      const { error } = await approvePullRequestReplicated(selectedRequest.id);
 
       if (error) {
         toast.error('Failed to approve pull request');
@@ -158,7 +159,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({ showId, on
     setIsProcessing(true);
 
     try {
-      const { error } = await denyPullRequest(selectedRequest.id, denyReason);
+      const { error } = await denyPullRequestReplicated(selectedRequest.id, denyReason);
 
       if (error) {
         toast.error('Failed to deny pull request');

@@ -1,14 +1,12 @@
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { PlusCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { queryKeys } from '@/lib/queryClient';
 import {
   getClassesWithCapacity,
   type ClassWithCapacity,
 } from '@/services/database/day-of-operations';
-import { DayOfEntryDialog } from '@/pages/secretary/DayOfOperationsPage/DayOfEntryDialog';
 
 interface WorkbenchLateEntryActionProps {
   showId: string;
@@ -24,8 +22,7 @@ async function loadClassesWithCapacity(showId: string): Promise<ClassWithCapacit
 
 export function WorkbenchLateEntryAction({ showId }: WorkbenchLateEntryActionProps) {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const navigate = useNavigate();
   const {
     data: classes = [],
     isLoading,
@@ -46,11 +43,7 @@ export function WorkbenchLateEntryAction({ showId }: WorkbenchLateEntryActionPro
         ? `${openClassCount} class${openClassCount === 1 ? '' : 'es'} with space`
         : 'No classes with space';
 
-  function handleSuccess() {
-    void queryClient.invalidateQueries({ queryKey: classCapacityKey(showId) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(showId) });
-  }
+  const lateEntryHref = `/secretary/register/${encodeURIComponent(showId)}?source=show-desk&entryMode=late`;
 
   return (
     <section
@@ -66,20 +59,12 @@ export function WorkbenchLateEntryAction({ showId }: WorkbenchLateEntryActionPro
       <Button
         type="button"
         className="shrink-0"
-        onClick={() => setIsDialogOpen(true)}
+        onClick={() => navigate(lateEntryHref)}
         disabled={!canOpen}
       >
         <PlusCircle className="mr-2 h-4 w-4" aria-hidden="true" />
         Add late entry
       </Button>
-      <DayOfEntryDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        showId={showId}
-        userId={user?.id}
-        classes={classes}
-        onSuccess={handleSuccess}
-      />
     </section>
   );
 }

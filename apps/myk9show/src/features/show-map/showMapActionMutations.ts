@@ -1,9 +1,13 @@
-import { CLASS_STATUS } from '@myk9/core';
+import { CLASS_STATUS, logger, type CheckInStatus } from '@myk9/core';
 
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
-import { processMoveUp } from '@/services/database/day-of-operations';
-import { restoreEntryStatus, scratchEntryDayOf } from '@/services/database/entries/lifecycle';
-import { replicatedClassesTable } from '@/services/replication';
+import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
+import {
+  updateReplicatedCheckInStatus,
+  updateReplicatedDayOfScratch,
+} from '@/services/show-day/checkInStatus';
+import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusAudit';
+import { generateUUID } from '@/utils/idUtils';
 
 export interface ShowMapMoveUpInput {
   entryId: string;
@@ -38,16 +42,29 @@ export function sourceIdFromShowMapNodeId(nodeId: string, expectedType: string):
 }
 
 export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> {
-  // Secretary/staff Show Map path mirrors CheckInReportPage: staff can update
-  // check_in_status directly, while exhibitor self-check-in uses the RPC path.
-  const { error } = await supabase
-    .from('entries')
-    .update({ check_in_status: 'checked-in' })
-    .eq('id', entryId);
+  await updateReplicatedCheckInStatus(entryId, 'checked-in');
+}
 
-  if (error) {
-    throw createDatabaseError(error, 'entries', 'show_map_mark_checked_in');
-  }
+function readEntryStatus(entry: Awaited<ReturnType<typeof replicatedEntriesTable.getEntryById>>) {
+  return entry?.entryStatus ?? entry?.entry_status ?? entry?.status ?? null;
+}
+
+export async function approveShowMapEntry(entryId: string): Promise<string | null> {
+  const entry = await replicatedEntriesTable.getEntryById(entryId);
+  const mutationId = await replicatedEntriesTable.updateEntryStatus(entryId, 'confirmed');
+
+  await logReplicatedEntryStatusChange({
+    entryId,
+    fromStatus: readEntryStatus(entry),
+    toStatus: 'confirmed',
+    action: 'approve_entry',
+  });
+
+  return mutationId;
+}
+
+export async function bulkApproveShowMapEntries(entryIds: string[]): Promise<(string | null)[]> {
+  return Promise.all(entryIds.map(entryId => approveShowMapEntry(entryId)));
 }
 
 export async function markShowMapClassStarted(classId: string): Promise<void> {
@@ -70,18 +87,8 @@ export async function scratchShowMapEntry(
   entryId: string,
   reason: string | undefined
 ): Promise<void> {
-  // Route through the lifecycle seam so the pull is audit-logged and the
-  // side-effect fields (check_in_status='pulled', withdrawal_reason,
-  // special_requests) are written consistently with other day-of pulls.
   const trimmed = reason?.trim();
-  const { error } = await scratchEntryDayOf(
-    entryId,
-    trimmed || 'Marked no-show from Show Map'
-  );
-
-  if (error) {
-    throw createDatabaseError(error, 'entries', 'show_map_scratch_entry');
-  }
+  await updateReplicatedDayOfScratch(entryId, trimmed || 'Marked no-show from Show Map');
 }
 
 function readNestedName(value: unknown): string | null {
@@ -185,44 +192,95 @@ export async function moveUpShowMapEntry({
   targetClassId,
   reason,
 }: ShowMapMoveUpInput): Promise<ShowMapMoveUpResult> {
-  const { data: currentEntry, error: fetchError } = await supabase
-    .from('entries')
-    .select('id, entry_status, check_in_status, special_requests')
-    .eq('id', entryId)
-    .single();
+  const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
 
-  if (fetchError || !currentEntry) {
-    throw createDatabaseError(
-      fetchError || new Error('Entry not found'),
-      'entries',
-      'show_map_move_up_fetch'
-    );
+  if (!currentEntry) {
+    throw createDatabaseError(new Error('Entry not found'), 'entries', 'show_map_move_up_fetch');
   }
 
-  const { data, error } = await processMoveUp(entryId, targetClassId, reason);
-  if (error) {
-    throw createDatabaseError(error, 'entries', 'show_map_move_up');
+  const targetClass = await replicatedClassesTable.getClassById(targetClassId);
+  if (!targetClass) {
+    throw createDatabaseError(new Error('Target class not found'), 'classes', 'show_map_move_up');
   }
 
-  const newEntryId = data?.id ? String(data.id) : null;
-  if (!newEntryId) {
-    throw createDatabaseError(
-      new Error('Move-up did not return the new entry.'),
-      'entries',
-      'show_map_move_up'
-    );
+  const targetEntries = await replicatedEntriesTable.getEntriesByClass(targetClassId);
+  // INTENT: This is an offline-first local capacity guard. It can under-count if
+  // the replica is incomplete; server sync/conflict review remains the backstop
+  // for concurrent move-ups or stale devices.
+  const acceptedCount = targetEntries.filter(entry => {
+    const status = entry.entryStatus ?? entry.entry_status;
+    return status === 'confirmed' || status === 'checked-in';
+  }).length;
+  const limit = targetClass.maxEntries ?? 999;
+  if (acceptedCount >= limit) {
+    throw createDatabaseError(new Error('Target class is full'), 'entries', 'show_map_move_up');
   }
+
+  const previousEntryStatus =
+    currentEntry.entryStatus ?? currentEntry.entry_status ?? currentEntry.status ?? null;
+  const previousCheckInStatus = currentEntry.checkInStatus ?? currentEntry.check_in_status ?? null;
+  const previousSpecialRequests =
+    currentEntry.specialRequests ?? currentEntry.special_requests ?? null;
+  const moveNote = `Moved up to ${targetClass.name}${reason ? ': ' + reason : ''}`;
+  const newEntryId = generateUUID();
+
+  await replicatedEntriesTable.updateEntry(entryId, {
+    entryStatus: 'moved',
+    entry_status: 'moved',
+    specialRequests: moveNote,
+    special_requests: moveNote,
+  });
+
+  try {
+    await replicatedEntriesTable.createEntry({
+      id: newEntryId,
+      dogId: currentEntry.dogId,
+      showId: currentEntry.showId,
+      classId: targetClassId,
+      trialId: targetClass.trialId ?? targetClass.trial_id,
+      trial_id: targetClass.trialId ?? targetClass.trial_id,
+      entryStatus: 'confirmed',
+      entry_status: 'confirmed',
+      paymentStatus: 'waived',
+      entryFee: 0,
+      jumpHeight: currentEntry.jumpHeight,
+      handler: currentEntry.handler,
+      armband: currentEntry.armband,
+      specialRequests: `Moved up from class ${currentEntry.classId ?? currentEntry.class_id}${reason ? ': ' + reason : ''}`,
+      special_requests: `Moved up from class ${currentEntry.classId ?? currentEntry.class_id}${reason ? ': ' + reason : ''}`,
+    });
+  } catch (error) {
+    try {
+      await replicatedEntriesTable.updateEntry(entryId, {
+        entryStatus: previousEntryStatus ?? undefined,
+        entry_status: previousEntryStatus ?? undefined,
+        checkInStatus: previousCheckInStatus ?? undefined,
+        check_in_status: previousCheckInStatus ?? undefined,
+        specialRequests: previousSpecialRequests,
+        special_requests: previousSpecialRequests,
+      });
+    } catch (rollbackError) {
+      logger.error('[show-map] Failed to roll back move-up after create failure', rollbackError);
+    }
+    throw createDatabaseError(error, 'entries', 'show_map_move_up_create');
+  }
+
+  await logReplicatedEntryStatusChange({
+    entryId,
+    fromStatus: previousEntryStatus,
+    toStatus: 'moved',
+    action: 'mark_entry_moved',
+    reason,
+    metadata: { targetClassName: targetClass.name },
+  });
 
   return {
     originalEntryId: entryId,
     newEntryId,
-    previousEntryStatus:
-      typeof currentEntry.entry_status === 'string' ? currentEntry.entry_status : null,
-    previousCheckInStatus:
-      typeof currentEntry.check_in_status === 'string' ? currentEntry.check_in_status : null,
-    previousSpecialRequests:
-      typeof currentEntry.special_requests === 'string' ? currentEntry.special_requests : null,
-    targetClassName: readNestedName(data?.class),
+    previousEntryStatus,
+    previousCheckInStatus,
+    previousSpecialRequests,
+    targetClassName: targetClass.name,
   };
 }
 
@@ -235,27 +293,28 @@ export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<
     );
   }
 
-  const now = new Date().toISOString();
-  const { error: removeError } = await supabase
-    .from('entries')
-    .update({
-      deleted_at: now,
-      updated_at: now,
-    })
-    .eq('id', input.newEntryId);
-
-  if (removeError) {
-    throw createDatabaseError(removeError, 'entries', 'show_map_undo_move_up_remove');
-  }
-
-  const { error: restoreError } = await restoreEntryStatus({
-    entryId: input.originalEntryId,
-    previousEntryStatus: input.previousEntryStatus,
-    previousCheckInStatus: input.previousCheckInStatus,
-    previousSpecialRequests: input.previousSpecialRequests,
+  const deletedAt = new Date().toISOString();
+  await replicatedEntriesTable.updateEntry(input.newEntryId, {
+    deletedAt,
+    deleted_at: deletedAt,
+  });
+  const restoredCheckInStatus = (input.previousCheckInStatus ?? 'no-status') as CheckInStatus;
+  await replicatedEntriesTable.updateEntry(input.originalEntryId, {
+    entryStatus: input.previousEntryStatus,
+    entry_status: input.previousEntryStatus,
+    checkInStatus: restoredCheckInStatus,
+    check_in_status: restoredCheckInStatus,
+    specialRequests: input.previousSpecialRequests,
+    special_requests: input.previousSpecialRequests,
   });
 
-  if (restoreError) {
-    throw createDatabaseError(restoreError, 'entries', 'show_map_undo_move_up_restore');
-  }
+  await logReplicatedEntryStatusChange({
+    entryId: input.originalEntryId,
+    fromStatus: 'moved',
+    toStatus: input.previousEntryStatus,
+    action: 'restore_entry_status',
+    metadata: {
+      checkInStatus: restoredCheckInStatus,
+    },
+  });
 }

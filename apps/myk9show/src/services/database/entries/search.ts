@@ -96,7 +96,10 @@ export const USER_ENTRIES_SELECT = `
       registration_id,
       registration:registration_id (
         id,
-        confirmation_number
+        confirmation_number,
+        payment_status,
+        payment_reference,
+        paid_amount
       ),
       dog:dog_id (
         id,
@@ -291,13 +294,22 @@ export const getUserEntries = async (userId: string) => {
           e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
         );
 
-        // Load enrollment confirmation numbers (not in the replication store)
+        // Load enrollment payment fields (not in the replication store)
         const enrollmentIds = [...new Set(filtered.map(e => e.registrationId).filter(Boolean))];
-        const enrollmentsMap = new Map<string, { id: string; confirmation_number: string }>();
+        const enrollmentsMap = new Map<
+          string,
+          {
+            id: string;
+            confirmation_number: string;
+            payment_status: string;
+            payment_reference: string | null;
+            paid_amount: number | null;
+          }
+        >();
         if (enrollmentIds.length > 0) {
           const { data: enrollments } = await supabase
             .from('enrollments')
-            .select('id, confirmation_number')
+            .select('id, confirmation_number, payment_status, payment_reference, paid_amount')
             .in('id', enrollmentIds as string[]);
           if (enrollments) {
             for (const e of enrollments) {

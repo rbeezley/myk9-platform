@@ -78,7 +78,7 @@ export function FinalFlagBand({
             border: 'none',
           }}
         >
-          Open the entry wizard →
+          Enter this show
         </a>
       </BannerFlagBar>
     </div>

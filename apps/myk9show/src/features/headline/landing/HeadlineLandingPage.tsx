@@ -45,13 +45,13 @@ function HeadlineNav({ data }: { data: HeritageLandingData }) {
           </a>
           <div className="hd-nav-links">
             <a href="#judges">Judges</a>
-            <a href="#particulars">Particulars</a>
-            <a href="#roster">Roster</a>
+            <a href="#particulars">Details</a>
+            <a href="#roster">Entry status</a>
             <a href="#schedule">Schedule</a>
             <a href="#enter">Enter</a>
           </div>
           <a className="hd-nav-cta" href={data.entryWizardUrl}>
-            Submit Entry
+            Enter this show
           </a>
         </div>
       </nav>
@@ -68,12 +68,12 @@ function Hero({ data }: { data: HeritageLandingData }) {
       <div className="hd-hero-tag">{data.licenseLanguage}</div>
       <div className="hd-club-line">{data.clubName}</div>
       <h1 className="hd-title">
-        {data.showName || 'Scent Work'} <span className="accent">Trial</span>
+        {data.showName || 'Scent Work Trial'}
         <span className="mark">.</span>
       </h1>
       <p className="hd-subtitle">
         {data.welcomeText ??
-          `${data.showSubtitle}. A clear premium-style guide for exhibitors, judges, fees, schedule, and entry details.`}
+          `${data.showSubtitle}. Dates, judges, fees, schedule, venue notes, and entry details in one place.`}
       </p>
 
       <div className="hd-hero-grid">
@@ -98,10 +98,10 @@ function Hero({ data }: { data: HeritageLandingData }) {
       <div className="hd-hero-bottom">
         <div className="hd-cta-stack">
           <a className="hd-cta" href={data.entryWizardUrl}>
-            Submit Entry
+            Enter this show
           </a>
           <a className="hd-cta ghost" href="#particulars">
-            View particulars
+            Review details
           </a>
           <span className="hd-cta-meta">
             Closes {shortDate(data.entryCloseDate, data.timezone)}
@@ -143,7 +143,7 @@ function Judges({ data }: { data: HeritageLandingData }) {
           <div className="hd-judge" key={judge.id}>
             <div className="role">{joinOrFallback(judge.trials, 'Trials TBD')}</div>
             <h3 className="name">{judge.name}</h3>
-            <div className="city">{judge.city ?? 'Assignment details in premium'}</div>
+            <div className="city">{judge.city ?? 'Assignment details will be posted here'}</div>
             <div className="panel">
               <span className="panel-label">Element panel</span>
               {joinOrFallback(judge.elements, 'Elements assigned by trial')}
@@ -158,7 +158,7 @@ function Judges({ data }: { data: HeritageLandingData }) {
 function Particulars({ data }: { data: HeritageLandingData }) {
   return (
     <section className="hd-section" id="particulars">
-      <SectionHead index={2} kicker="Trial information" title="The particulars.">
+      <SectionHead index={2} kicker="Before you enter" title="Entry details.">
         <p className="hd-prose">{data.showSubtitle}</p>
       </SectionHead>
       <table className="hd-detail-table">
@@ -226,7 +226,7 @@ function Roster({ data }: { data: HeritageLandingData }) {
 
   return (
     <section className="hd-section" id="roster">
-      <SectionHead index={3} kicker="Live status" title="The roster, as it stands." />
+      <SectionHead index={3} kicker="Live status" title="Entry status at a glance." />
       <div className="hd-twocol">
         <div
           className="hd-capacity in"

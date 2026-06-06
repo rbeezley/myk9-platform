@@ -90,7 +90,7 @@ describe('HeadlineLandingPage', () => {
     expect(screen.getByText('Cynthia Beagles')).toBeTruthy();
     expect(screen.getByText('$25')).toBeTruthy();
     expect(screen.getByText('137')).toBeTruthy();
-    expect(screen.getAllByRole('link', { name: /submit entry/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: /enter this show/i })[0]).toHaveAttribute(
       'href',
       '/shows/show-1/register'
     );

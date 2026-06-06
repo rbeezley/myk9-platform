@@ -107,7 +107,7 @@ export function StickyNav({ clubName, entryWizardUrl }: StickyNavProps) {
               fontFamily: "'EB Garamond', Georgia, serif",
             }}
           >
-            Submit Entry
+            Enter this show
           </a>
         </div>
       </nav>

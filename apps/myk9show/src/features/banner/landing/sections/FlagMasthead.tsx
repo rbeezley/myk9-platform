@@ -1,6 +1,6 @@
 import { BannerFlagBar } from '../../components/BannerFlagBar';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
-import { bannerColors, bannerSpacing } from '../../tokens';
+import { bannerSpacing } from '../../tokens';
 import { formatDateInTimezone, formatDateRange } from '../utils/dateFormat';
 import type { BannerBrandColors } from '../../hooks/useBannerBrandColor';
 
@@ -83,7 +83,7 @@ export function FlagMasthead({
             textDecoration: 'none',
           }}
         >
-          Enter the trial →
+          Enter this show
         </a>
       </div>
 
@@ -123,8 +123,8 @@ export function FlagMasthead({
           gap: 0,
           marginTop: 40,
           maxWidth: bannerSpacing.contentMax,
-          borderTop: `1px solid rgba(255,255,255,0.25)`,
-          borderBottom: `1px solid rgba(255,255,255,0.25)`,
+          borderTop: `1px solid ${brandColors.textOnFlag}`,
+          borderBottom: `1px solid ${brandColors.textOnFlag}`,
         }}
       >
         {[
@@ -137,7 +137,7 @@ export function FlagMasthead({
             key={cell.label}
             style={{
               padding: '20px 14px',
-              borderRight: i === arr.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.25)',
+              borderRight: i === arr.length - 1 ? 'none' : `1px solid ${brandColors.textOnFlag}`,
             }}
           >
             <div
@@ -159,7 +159,7 @@ export function FlagMasthead({
                 fontWeight: 800,
                 fontSize: 22,
                 letterSpacing: '-0.025em',
-                color: bannerColors.paper,
+                color: brandColors.textOnFlag,
               }}
             >
               {cell.value}

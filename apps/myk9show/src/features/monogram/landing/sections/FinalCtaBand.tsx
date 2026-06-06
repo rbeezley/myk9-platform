@@ -113,7 +113,7 @@ export function FinalCtaBand({
             transition: 'all 280ms ease',
           }}
         >
-          Open the entry wizard
+          Enter this show
           <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
             →
           </span>

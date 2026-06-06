@@ -9,12 +9,10 @@ interface StickyNavProps {
 
 const SECTIONS = [
   { id: 'welcome', label: 'Welcome' },
-  { id: 'particulars', label: 'Particulars' },
+  { id: 'particulars', label: 'Details' },
   { id: 'judges', label: 'Judges' },
-  { id: 'roster', label: 'Roster' },
   { id: 'plan', label: 'Plan' },
   { id: 'onday', label: 'On the day' },
-  { id: 'who', label: 'Who' },
 ] as const;
 
 /**
@@ -24,7 +22,9 @@ const SECTIONS = [
  */
 export function StickyNav({ flag, entryCount, entryLimit }: StickyNavProps) {
   const statusLabel =
-    entryLimit != null ? `Open · ${entryCount} / ${entryLimit} entries` : `Open · ${entryCount} entries`;
+    entryLimit != null
+      ? `Entries open · ${entryCount} / ${entryLimit}`
+      : `Entries open · ${entryCount}`;
 
   return (
     <nav

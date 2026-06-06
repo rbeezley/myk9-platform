@@ -10,7 +10,7 @@ interface StickyNavProps {
 
 /**
  * Sticky top nav: 32px solid-ink monogram + italic Bodoni club name on the
- * left, framed "Enter the trial" CTA on the right. Translucent paper
+ * left, framed "Enter this show" CTA on the right. Translucent paper
  * background with backdrop-blur — matches the handoff's `.mg-nav` block.
  *
  * Anchors / IntersectionObserver tracking aren't required here: the Monogram
@@ -69,7 +69,7 @@ export function StickyNav({ clubName, monogramLetters, entryWizardUrl }: StickyN
           transition: 'all 240ms ease',
         }}
       >
-        Enter the trial
+        Enter this show
       </a>
     </nav>
   );

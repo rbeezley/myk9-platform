@@ -162,6 +162,13 @@ export function useBrowseShowsFilters({
           const showDate = new Date(show.startDate);
           return showDate >= now && showDate <= nextMonth;
         });
+      } else if (filters.dateRange === 'next_month') {
+        const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const firstOfMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+        filtered = filtered.filter(show => {
+          const showDate = new Date(show.startDate);
+          return showDate >= firstOfNextMonth && showDate < firstOfMonthAfter;
+        });
       }
     }
 

@@ -31,6 +31,38 @@ function makeShow(overrides: Partial<Show> = {}): Show {
   };
 }
 
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+describe('useBrowseShowsFilters — date range filter', () => {
+  it('next_month returns only shows starting in the next calendar month', async () => {
+    const now = new Date();
+    const midNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
+    const midMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 15);
+
+    const shows = [
+      makeShow({ id: 'this-month', startDate: isoDate(now), endDate: isoDate(now) }),
+      makeShow({ id: 'next-month', startDate: isoDate(midNextMonth), endDate: isoDate(midNextMonth) }),
+      makeShow({ id: 'month-after', startDate: isoDate(midMonthAfter), endDate: isoDate(midMonthAfter) }),
+    ];
+
+    const { result } = renderHook(() =>
+      useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' })
+    );
+
+    await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));
+
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, dateRange: 'next_month' }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.filteredShows.map(s => s.id)).toEqual(['next-month']);
+    });
+  });
+});
+
 describe('useBrowseShowsFilters — discipline filter', () => {
   it('includes shows whose events array contains the mapped discipline', async () => {
     const shows = [

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -330,27 +329,9 @@ const BrowseShowsPage: React.FC = () => {
           );
         })}
 
-        {authUser && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link to="/calendar">
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 shadow-sm rounded-full"
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Full Calendar</span>
-                  <span className="sm:hidden">Calendar</span>
-                </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>Open full calendar with show management</TooltipContent>
-          </Tooltip>
-        )}
       </div>
     ),
-    [tabQuickActions, authUser]
+    [tabQuickActions]
   );
 
   // Audit page access

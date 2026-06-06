@@ -69,6 +69,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const [, setIsAddingToCart] = useState<string | null>(null);
 
   const cartItems = useCartItems();
+  const cartShowId = useCartStore(state => state.cart?.show_id ?? null);
+  const cartExhibitorId = useCartStore(state => state.cart?.exhibitor_id ?? null);
+  const cartIsLoading = useCartStore(state => state.isLoading);
   const loadCart = useCartStore(state => state.loadCart);
   const createCart = useCartStore(state => state.createCart);
   const addItem = useCartStore(state => state.addItem);
@@ -215,16 +218,33 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // persisted items but classSelections (wizard-level state) starts empty.
   // isClassSelected() shows them as checked (inCart), but canProceed() only
   // reads classSelections — so Next stays grayed out. Reconcile once on load.
+  //
+  // Guard on show_id + exhibitor_id + !isLoading: the Zustand cart is global
+  // and may still hold a previous show's items while this show's cart loads.
+  // Reconciling against stale items would copy the wrong show's classes and
+  // set the ref, preventing a second reconcile once the right cart arrives.
   const hasReconciledFromCart = useRef(false);
   useEffect(() => {
     if (hasReconciledFromCart.current) return;
     if (!useCartFlow) return;
+    if (cartIsLoading) return;
+    if (cartShowId !== showId || cartExhibitorId !== exhibitorId) return;
     if (cartItems.length === 0) return;
     const reconstructed = reconcileCartToSelections(cartItems, classSelections);
     if (!reconstructed) return;
     hasReconciledFromCart.current = true;
     onSelectionChange(reconstructed);
-  }, [cartItems, classSelections, useCartFlow, onSelectionChange]);
+  }, [
+    cartItems,
+    classSelections,
+    useCartFlow,
+    cartIsLoading,
+    cartShowId,
+    cartExhibitorId,
+    showId,
+    exhibitorId,
+    onSelectionChange,
+  ]);
 
   const handleClassToggle = async (
     dogId: string,

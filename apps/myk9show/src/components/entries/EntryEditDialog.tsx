@@ -166,16 +166,19 @@ export function EntryEditDialog({
     setError(null);
 
     try {
-      // Save handler changes
-      if (handler !== entry.handler) {
-        const { error } = await updateEntryHandler({
-          entryId: entry.id,
-          handler,
-        });
-        if (error) {
-          setError('Failed to update handler. Please try again.');
-          setIsSaving(false);
-          return;
+      // Save handler changes — update every class row in the grouped card,
+      // not just entry.id (which is only the first class row after grouping).
+      if ((handler || '') !== (entry.handler || '')) {
+        for (const classEntry of entry.classes) {
+          const { error } = await updateEntryHandler({
+            entryId: classEntry.id,
+            handler,
+          });
+          if (error) {
+            setError('Failed to update handler. Please try again.');
+            setIsSaving(false);
+            return;
+          }
         }
       }
 
@@ -205,7 +208,7 @@ export function EntryEditDialog({
   };
 
   const hasChanges = () => {
-    if (handler !== entry.handler) return true;
+    if ((handler || '') !== (entry.handler || '')) return true;
     for (const [classId, edits] of Object.entries(classEdits)) {
       const originalClass = entry.classes.find((c) => c.id === classId);
       if (edits.jumpHeight && edits.jumpHeight !== originalClass?.jumpHeight) return true;

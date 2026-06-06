@@ -19,6 +19,7 @@ import {
 } from '@/utils/entryManagementUtils';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
+import { EntryStatus } from '@/types/show-registration-types';
 import type { MyEntry, EntryClass } from './my-entries-types';
 
 interface UseMyEntriesDataReturn {
@@ -45,10 +46,30 @@ interface UseMyEntriesDataOptions {
   persistCheckInStatus: (input: PersistCheckInStatusInput) => Promise<unknown>;
 }
 
+// Highest-priority status wins when merging class rows for the same dog+show.
+// ACCEPTED beats PENDING because the dog is in — the card should look "green".
+// Terminal statuses (SCRATCHED, CANCELLED) lose to any active status.
+const ENTRY_STATUS_PRIORITY: Record<EntryStatus, number> = {
+  [EntryStatus.ACCEPTED]: 6,
+  [EntryStatus.PENDING]: 5,
+  [EntryStatus.WAITLIST]: 4,
+  [EntryStatus.MISSING_INFO]: 3,
+  [EntryStatus.MOVED]: 2,
+  [EntryStatus.REJECTED]: 1,
+  [EntryStatus.SCRATCHED]: 0,
+  [EntryStatus.CANCELLED]: 0,
+};
+
+function dominantStatus(a: EntryStatus, b: EntryStatus): EntryStatus {
+  return (ENTRY_STATUS_PRIORITY[a] ?? 0) >= (ENTRY_STATUS_PRIORITY[b] ?? 0) ? a : b;
+}
+
 /**
  * Groups flat per-class entry rows into one card per dog per show.
  * Each DB row represents one class; a dog entered in N classes at the same show
  * produces N rows that must be merged so the card shows all classes together.
+ * entryStatus is the highest-priority status across all merged rows so the
+ * card and tab counts reflect the most "active" state, not just the seed row.
  */
 export function groupEntriesByShowAndDog(rawEntries: MyEntry[]): MyEntry[] {
   const groups = new Map<string, MyEntry>();
@@ -58,6 +79,7 @@ export function groupEntriesByShowAndDog(rawEntries: MyEntry[]): MyEntry[] {
     if (existing) {
       existing.classes.push(...entry.classes);
       existing.totalFee += entry.totalFee;
+      existing.entryStatus = dominantStatus(existing.entryStatus, entry.entryStatus);
     } else {
       groups.set(key, { ...entry, classes: [...entry.classes] });
     }

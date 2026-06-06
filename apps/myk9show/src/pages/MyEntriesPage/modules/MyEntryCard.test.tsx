@@ -142,6 +142,20 @@ describe('groupEntriesByShowAndDog', () => {
   it('returns an empty array for empty input', () => {
     expect(groupEntriesByShowAndDog([])).toEqual([]);
   });
+
+  it('uses the highest-priority status when merging — ACCEPTED beats PENDING seed', () => {
+    const seed = makeEntry({ entryStatus: EntryStatus.PENDING, classes: [makeClass({ id: 'c1' })] });
+    const second = makeEntry({ entryStatus: EntryStatus.ACCEPTED, classes: [makeClass({ id: 'c2' })] });
+    const result = groupEntriesByShowAndDog([seed, second]);
+    expect(result[0].entryStatus).toBe(EntryStatus.ACCEPTED);
+  });
+
+  it('uses the highest-priority status — ACCEPTED seed is not downgraded by SCRATCHED row', () => {
+    const seed = makeEntry({ entryStatus: EntryStatus.ACCEPTED, classes: [makeClass({ id: 'c1', status: 'entered' })] });
+    const scratched = makeEntry({ entryStatus: EntryStatus.SCRATCHED, classes: [makeClass({ id: 'c2', status: 'scratched' })] });
+    const result = groupEntriesByShowAndDog([seed, scratched]);
+    expect(result[0].entryStatus).toBe(EntryStatus.ACCEPTED);
+  });
 });
 
 describe('MyEntryCard handler display', () => {

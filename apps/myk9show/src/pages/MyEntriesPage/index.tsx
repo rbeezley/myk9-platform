@@ -406,6 +406,12 @@ const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUp
     ...(c.runOrder !== undefined && { runOrder: c.runOrder }),
   }));
 
+  // After grouping, all classes for the same dog+show share a handler.
+  // Use the first active class's handler as the representative initial value.
+  const representativeHandler =
+    dialog.entry.classes.find(c => c.status === 'entered')?.handler ??
+    dialog.entry.classes[0]?.handler;
+
   return (
     <EntryEditDialog
       open={dialog.open}
@@ -415,6 +421,7 @@ const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUp
         showId: dialog.entry.showId,
         showName: dialog.entry.showName,
         dogName: dialog.entry.dogName,
+        ...(representativeHandler !== undefined && { handler: representativeHandler }),
         classes: mappedClasses,
       }}
       onUpdate={onUpdate}

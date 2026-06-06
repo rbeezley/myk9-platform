@@ -76,7 +76,7 @@ export function CompactStatsRow({
     <div className={cn('grid grid-cols-4 gap-3', className)}>
       {stats.map(stat => (
         <button
-          key={stat.href}
+          key={stat.label}
           type="button"
           onClick={() => onNavigate(stat.href)}
           className={cn(

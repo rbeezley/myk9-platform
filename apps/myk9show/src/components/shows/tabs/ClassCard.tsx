@@ -13,6 +13,7 @@ interface ClassInfo {
   ring: number;
   status: ClassStatusValue;
   entryCount: number;
+  userHasEntry?: boolean;
 }
 
 interface LiveData {
@@ -44,6 +45,7 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
     <div
       className={cn(
         'rounded-xl border border-border/50 bg-card p-4 space-y-3 transition-all',
+        classInfo.userHasEntry && 'border-primary/30 bg-primary/5',
         onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30'
       )}
       onClick={onClick}
@@ -53,7 +55,12 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
     >
       {/* Header: element/level + status */}
       <div className="flex items-start justify-between gap-2">
-        <div>
+        <div className="min-w-0">
+          {classInfo.userHasEntry && (
+            <span className="mb-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              My entry
+            </span>
+          )}
           <h3 className="font-semibold text-base text-card-foreground">{classInfo.element}</h3>
           <p className="text-sm text-muted-foreground">
             {classInfo.level}

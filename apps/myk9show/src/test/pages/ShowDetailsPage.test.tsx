@@ -332,20 +332,21 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByText('Bluegrass Classic')).toBeInTheDocument();
   });
 
-  it('renders tabs: Overview, Trials, Classes, Entries, Results', () => {
+  it('renders exhibitor tabs: Overview, Trials, My Entries, Classes, Results', () => {
     mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
     expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Trials/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /My Entries/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Entries/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /My Stats/ })).toBeNull();
     expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
   });
 
-  it('defaults to Overview tab when user has entries', () => {
+  it('defaults to My Entries tab when user has entries', () => {
     mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
-    const tab = screen.getByRole('tab', { name: /Overview/ });
+    const tab = screen.getByRole('tab', { name: /My Entries/ });
     expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
   });
 
@@ -433,7 +434,7 @@ describe('ShowDetailsPage', () => {
     renderPage();
     expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: /Entries/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /My Entries/ })).toBeNull();
     // Results tab is now visible to all users (including unauthenticated)
     expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
   });

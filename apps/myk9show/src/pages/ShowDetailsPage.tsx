@@ -243,22 +243,24 @@ const ShowDetailsPage: React.FC = () => {
   // Tab state — URL-synced with dynamic allowed tabs
   const isAuthenticated = !!user;
   const canShowMap = features.showMap && canManageShow;
-  const allowedTabs = useMemo(
-    () =>
-      isAuthenticated
-        ? [
-            'overview',
-            'trials',
-            'classes',
-            'my-entries',
-            'my-stats',
-            'results',
-            ...(canShowMap ? ['map'] : []),
-          ]
-        : ['overview', 'trials', 'classes', 'results'],
-    [isAuthenticated, canShowMap]
-  );
-  const [activeTab, setTab] = useUrlTab(allowedTabs, 'overview');
+  const allowedTabs = useMemo(() => {
+    if (!isAuthenticated) return ['overview', 'trials', 'classes', 'results'];
+    if (canManageShow) {
+      return [
+        'overview',
+        ...(canShowMap ? ['map'] : []),
+        'trials',
+        'classes',
+        'my-entries',
+        'my-stats',
+        'results',
+      ];
+    }
+    return ['overview', 'trials', 'my-entries', 'classes', 'results'];
+  }, [isAuthenticated, canManageShow, canShowMap]);
+  const defaultTab =
+    isAuthenticated && !canManageShow && hasUserEntries ? 'my-entries' : 'overview';
+  const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
 
   // Flatten trial classes into ClassInfo for ClassesTab
   const showClasses = useMemo(() => {
@@ -350,14 +352,24 @@ const ShowDetailsPage: React.FC = () => {
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       ...(canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
       { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
+      ...(!canManageShow && isAuthenticated
+        ? [
+            {
+              id: 'my-entries',
+              label: 'My Entries',
+              icon: ClipboardList,
+              count: userEntries.length,
+            },
+          ]
+        : []),
       { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
-      ...(isAuthenticated
+      ...(canManageShow && isAuthenticated
         ? [
             {
               id: 'my-entries',
               label: 'Entries',
               icon: ClipboardList,
-              count: canManageShow ? catalogEntryCount : userEntries.length,
+              count: catalogEntryCount,
             },
             { id: 'my-stats', label: 'My Stats', icon: BarChart3 },
           ]
@@ -523,10 +535,12 @@ const ShowDetailsPage: React.FC = () => {
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
-          <LandingPageCard
-            showId={actualCurrentShow.id}
-            showStyle={getShowStyle(actualCurrentShow)}
-          />
+          {canManageShow && (
+            <LandingPageCard
+              showId={actualCurrentShow.id}
+              showStyle={getShowStyle(actualCurrentShow)}
+            />
+          )}
         </div>
 
         <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>

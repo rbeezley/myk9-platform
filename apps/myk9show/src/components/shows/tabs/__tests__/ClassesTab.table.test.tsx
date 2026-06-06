@@ -39,6 +39,14 @@ const mockClasses = [
 ];
 
 describe('ClassesTab table view', () => {
+  it('defaults entered exhibitors to their classes in card view', () => {
+    render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries />);
+    expect(screen.getByText(/showing your entered classes first/i)).toBeInTheDocument();
+    expect(screen.getByText('My entry')).toBeInTheDocument();
+    expect(screen.getByText('Detective')).toBeInTheDocument();
+    expect(screen.queryByText('Handler Discrimination')).not.toBeInTheDocument();
+  });
+
   it('renders sortable column headers including Trial', () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
     const headers = screen.getAllByRole('columnheader');

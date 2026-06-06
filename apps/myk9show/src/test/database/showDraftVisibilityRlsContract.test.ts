@@ -31,8 +31,11 @@ describe('show draft visibility RLS contract', () => {
     expect(selectPolicy).toContain(
       "status in ('published', 'upcoming', 'in_progress', 'completed')"
     );
-    expect(selectPolicy).toContain('public.can_manage_show(id)');
+    expect(selectPolicy).toContain('club_id is not null');
+    expect(selectPolicy).toContain('public.is_club_admin(club_id)');
+    expect(selectPolicy).toContain('public.is_trial_secretary(club_id)');
     expect(selectPolicy).toContain('public.is_site_admin()');
+    expect(selectPolicy).not.toContain('public.can_manage_show(id)');
     expect(selectPolicy).not.toContain('is_trial_secretary()');
   });
 });

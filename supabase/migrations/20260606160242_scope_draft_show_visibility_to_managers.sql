@@ -13,7 +13,13 @@ create policy "shows_select" on public.shows
     deleted_at is null
     and (
       status in ('published', 'upcoming', 'in_progress', 'completed')
-      or (select public.can_manage_show(id))
+      or (
+        club_id is not null
+        and (
+          (select public.is_club_admin(club_id))
+          or (select public.is_trial_secretary(club_id))
+        )
+      )
       or (select public.is_site_admin())
     )
   );

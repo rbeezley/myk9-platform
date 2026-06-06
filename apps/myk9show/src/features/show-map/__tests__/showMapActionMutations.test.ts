@@ -10,6 +10,7 @@ import {
 
 const mockFrom = vi.fn();
 const mockProcessMoveUp = vi.fn();
+const mockUpdateReplicatedCheckInStatus = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -27,6 +28,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 vi.mock('@/services/database/day-of-operations', () => ({
   processMoveUp: (...args: unknown[]) => mockProcessMoveUp(...args),
+}));
+
+vi.mock('@/services/show-day/checkInStatus', () => ({
+  updateReplicatedCheckInStatus: (...args: unknown[]) =>
+    mockUpdateReplicatedCheckInStatus(...args),
 }));
 
 function makeUpdateChain(result: { error: Error | null } = { error: null }) {
@@ -79,22 +85,19 @@ describe('showMapActionMutations', () => {
     expect(sourceIdFromShowMapNodeId('entry:', 'entry')).toBeNull();
   });
 
-  it('writes check_in_status = "checked-in" to the matching entry row', async () => {
-    const chain = makeUpdateChain();
-    mockFrom.mockReturnValue(chain);
+  it('marks the entry checked in through the replicated show-day helper', async () => {
+    mockUpdateReplicatedCheckInStatus.mockResolvedValue(undefined);
 
     await markShowMapEntryCheckedIn('entry-1');
 
-    expect(mockFrom).toHaveBeenCalledWith('entries');
-    expect(chain.update).toHaveBeenCalledWith({ check_in_status: 'checked-in' });
-    expect(chain.eq).toHaveBeenCalledWith('id', 'entry-1');
+    expect(mockUpdateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('throws a friendly database error when the update fails', async () => {
-    const chain = makeUpdateChain({ error: new Error('permission denied') });
-    mockFrom.mockReturnValue(chain);
+  it('surfaces replicated check-in update failures', async () => {
+    mockUpdateReplicatedCheckInStatus.mockRejectedValue(new Error('offline queue failed'));
 
-    await expect(markShowMapEntryCheckedIn('entry-1')).rejects.toThrow('permission denied');
+    await expect(markShowMapEntryCheckedIn('entry-1')).rejects.toThrow('offline queue failed');
   });
 
   it('marks a scratch / no-show as pulled for ringside propagation', async () => {

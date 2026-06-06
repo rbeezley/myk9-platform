@@ -4,6 +4,7 @@ import { createDatabaseError, supabase } from '@/services/database/supabaseClien
 import { processMoveUp } from '@/services/database/day-of-operations';
 import { restoreEntryStatus, scratchEntryDayOf } from '@/services/database/entries/lifecycle';
 import { replicatedClassesTable } from '@/services/replication';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 
 export interface ShowMapMoveUpInput {
   entryId: string;
@@ -38,16 +39,7 @@ export function sourceIdFromShowMapNodeId(nodeId: string, expectedType: string):
 }
 
 export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> {
-  // Secretary/staff Show Map path mirrors CheckInReportPage: staff can update
-  // check_in_status directly, while exhibitor self-check-in uses the RPC path.
-  const { error } = await supabase
-    .from('entries')
-    .update({ check_in_status: 'checked-in' })
-    .eq('id', entryId);
-
-  if (error) {
-    throw createDatabaseError(error, 'entries', 'show_map_mark_checked_in');
-  }
+  await updateReplicatedCheckInStatus(entryId, 'checked-in');
 }
 
 export async function markShowMapClassStarted(classId: string): Promise<void> {

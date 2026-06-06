@@ -1,6 +1,6 @@
 import { CHECKIN_STATUS } from '@myk9/core';
 import type { CheckInStatus } from '@myk9/core';
-import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { logger } from '@/services/LoggingService';
 
 /**
@@ -13,9 +13,7 @@ export function transitionToInRing(
 ): void {
   if (currentStatus === CHECKIN_STATUS.COMPLETED.value) return;
 
-  replicatedEntriesTable
-    .updateEntry(entryId, {
-      checkInStatus: CHECKIN_STATUS.IN_RING.value,
+  updateReplicatedCheckInStatus(entryId, CHECKIN_STATUS.IN_RING.value, {
       ring_entry_time: new Date().toISOString(),
     })
     .catch(err =>
@@ -28,9 +26,7 @@ export function transitionToInRing(
  * Sets check-in status + ring_exit_time.
  */
 export function transitionToCompleted(entryId: string): void {
-  replicatedEntriesTable
-    .updateEntry(entryId, {
-      checkInStatus: CHECKIN_STATUS.COMPLETED.value,
+  updateReplicatedCheckInStatus(entryId, CHECKIN_STATUS.COMPLETED.value, {
       ring_exit_time: new Date().toISOString(),
     })
     .catch(err =>

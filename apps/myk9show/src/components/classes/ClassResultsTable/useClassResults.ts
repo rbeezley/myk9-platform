@@ -136,12 +136,19 @@ export function useClassResults({
       try {
         await replicatedEntriesTable.updateEntry(entryId, {
           resultStatus: 'pending',
+          result_status: 'pending',
           isScored: false,
+          is_scored: false,
           searchTimeSeconds: 0,
+          search_time_seconds: 0,
           totalFaults: 0,
+          total_faults: 0,
           judgeNotes: null,
+          judge_notes: null,
           finalPlacement: null,
+          final_placement: undefined,
           scoringCompletedAt: null,
+          scoring_completed_at: null,
           disqualification_reason: null,
         });
 
@@ -253,17 +260,31 @@ export function useClassResults({
 
         try {
           const placement = placements.get(row.entryId);
+          const completedAt = new Date().toISOString();
+          const resultStatus = mapQualificationToResultStatus(row.qualification);
+          const searchTimeSeconds = inputFormatToDbSeconds(row.searchTime);
+          const totalFaults = parseInt(row.faults) || 0;
+          const finalPlacement = placement != null ? String(placement) : null;
+          const ringExitTime = new Date().toISOString();
           await replicatedEntriesTable.updateEntry(row.entryId, {
-            resultStatus: mapQualificationToResultStatus(row.qualification),
-            searchTimeSeconds: inputFormatToDbSeconds(row.searchTime),
-            totalFaults: parseInt(row.faults) || 0,
+            resultStatus,
+            result_status: resultStatus,
+            searchTimeSeconds,
+            search_time_seconds: searchTimeSeconds,
+            totalFaults,
+            total_faults: totalFaults,
             judgeNotes: row.notes || null,
-            finalPlacement: placement != null ? String(placement) : null,
+            judge_notes: row.notes || null,
+            finalPlacement,
+            final_placement: finalPlacement ?? undefined,
             disqualification_reason: row.qualificationReason || null,
             isScored: true,
-            scoringCompletedAt: new Date().toISOString(),
+            is_scored: true,
+            scoringCompletedAt: completedAt,
+            scoring_completed_at: completedAt,
             checkInStatus: CHECKIN_STATUS.COMPLETED.value,
-            ring_exit_time: new Date().toISOString(),
+            check_in_status: CHECKIN_STATUS.COMPLETED.value,
+            ring_exit_time: ringExitTime,
           });
           succeededIds.push(row.entryId);
         } catch (entryErr) {

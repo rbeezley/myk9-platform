@@ -102,8 +102,8 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
 
     await waitFor(() => {
       expect(result.current.filteredShows.some(s => s.id === 'anchor')).toBe(true);
+      expect(result.current.filteredShows.some(s => s.id === 'in-progress')).toBe(true);
     });
-    expect(result.current.filteredShows.some(s => s.id === 'in-progress')).toBe(true);
   });
 });
 

@@ -10,6 +10,7 @@ This inventory supports Phase 0 of the proactive quality system. It organizes th
 - Run `pnpm qa:e2e-map:check` after adding, deleting, moving, or reclassifying Playwright specs.
 - Prefer focused commands over broad suites while the suite is being stabilized.
 - Do not run shared-system mutations from QA work without explicit confirmation.
+- Run scheduled Nightly QA from an isolated detached `origin/main` worktree with a unique Playwright/Vite port. Dirty local checkout state is not Nightly signal; a broken `origin/main` baseline is.
 - Temporary note, 2026-05-14: GitHub Actions is unavailable until the billing/spending-limit reset on 2026-06-01. Until then, do not wait on Actions for PR or nightly QA decisions when the job fails before starting with the billing annotation; use focused local verification and Vercel previews where available, then merge by explicit judgment.
 
 ## Automatic Fix Boundary
@@ -48,6 +49,7 @@ Do not auto-fix; log a finding instead:
 | Asset                         | Use When                                           | Command Or Invocation                                                                                                           | Output                                           | Cadence                                    | Known Limitations                                                                         |
 | ----------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | E2E suite map drift check     | Preventing unclassified specs                      | `pnpm qa:e2e-map:check`                                                                                                         | Fails if any E2E spec is unmapped or stale       | Every spec add/delete/move and pre-commit  | Checks classification coverage, not whether the category choice is correct                |
+| Isolated Nightly prep         | Preparing trusted scheduled Nightly runs           | `pnpm qa:nightly:prepare`                                                                                                       | Detached `origin/main` worktree plus `.qa-nightly.env` with unique Playwright port | Every scheduled Nightly                    | Prepares the baseline and env; the agent still runs the documented Nightly phases and records findings |
 | CRUD discovery batch          | Bug-hunting core entity CRUD outside Nightly       | `pnpm qa:discovery:crud`                                                                                                        | Full CRUD feature-audit signal and findings      | Weekly or before promoting CRUD coverage   | Includes dog, club, people, class, trial, and show CRUD, including show soft delete       |
 | Full CRUD discovery alias     | Compatibility command for prior QA notes           | `pnpm qa:discovery:crud:full`                                                                                                   | Full CRUD feature-audit signal                   | Same as CRUD discovery batch               | Alias for the same full batch while the QA workflow is still settling                     |
 | myK9Show Playwright config    | Local E2E against Vite dev server                  | `cd apps/myk9show && pnpm test:e2e:clean <spec> --project=chromium --workers=1`                                                 | Playwright report, traces/screenshots on failure | Feature replay, smoke, nightly             | Default `pnpm test:e2e` runs every project/browser and can be too broad for PR confidence |
@@ -118,6 +120,16 @@ pnpm test:e2e -- --project=chromium
 ### Nightly
 
 Nightly has three phases.
+
+Scheduled Nightly runs must start from an isolated detached `origin/main` worktree, not the shared primary checkout. This prevents concurrent local agents or dirty WIP from contaminating the trusted baseline.
+
+Prepare the isolated baseline first:
+
+```bash
+pnpm qa:nightly:prepare
+```
+
+Then run the documented phases from the generated worktree using the `.qa-nightly.env` values for `PLAYWRIGHT_PORT`, `PLAYWRIGHT_BASE_URL`, and `PLAYWRIGHT_HMR_PORT`. Treat a dirty primary checkout as irrelevant after isolation. Abort only when the isolated `origin/main` baseline cannot be prepared, dependencies cannot be bootstrapped, the dev server cannot bind the generated port, or the global 30-minute wall-clock budget is exceeded.
 
 Phase 1 runs promoted Vitest registration service/store checks:
 

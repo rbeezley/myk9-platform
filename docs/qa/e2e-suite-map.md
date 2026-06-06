@@ -42,6 +42,14 @@ pnpm test:e2e -- --project=chromium
 
 Nightly has three phases: deterministic Vitest registration service/store checks, stable Playwright smoke, then an agent/browser route-health sweep.
 
+Scheduled Nightly runs must be isolated from the primary checkout:
+
+```bash
+pnpm qa:nightly:prepare
+```
+
+Run the phases below from the generated detached `origin/main` worktree, using the generated `.qa-nightly.env` values for `PLAYWRIGHT_PORT`, `PLAYWRIGHT_BASE_URL`, and `PLAYWRIGHT_HMR_PORT`. Dirty local WIP in the primary checkout does not block Nightly once this isolated baseline exists. Abort only if the isolated `origin/main` baseline cannot be prepared, dependencies cannot bootstrap, the app cannot bind the generated port, or the global 30-minute wall-clock budget is exceeded.
+
 Phase 1 runs promoted registration service/store checks that used to be stale Playwright wrappers:
 
 ```bash

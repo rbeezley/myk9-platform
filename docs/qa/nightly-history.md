@@ -18,6 +18,16 @@ Track scheduled Nightly outcomes here until a more automated report exists. Keep
 
 ## History
 
+### 2026-06-06
+
+- **Playwright command:** pass. Phase 1 Vitest `18/18` (3.3s). Phase 2 Wave 1 passed on the **first** run — `44 passed (2.8m, --retries=0)`, no `>60s` stalls (slowest spec 10.7s). No fixes needed: the 06-05 secretary-cluster root-cause fixes (stale `New Show`→`Add Show` affordance + armband seed collision) held on a fresh `origin/main` cut a day later, so the `QA-TEST-FLAKE-010` cluster that flaked 05-27→06-04 is genuinely stable.
+- **Route sweep:** pass — 6/6 role groups, **49 routes** at desktop + 375px, every route `render=ok`, `err=0`, `repl=0`, `http=0`, `skel=0`, `overflow375=0px`. public `9/9`, exhibitor `11/11`, secretary `11/11`, judge `4/4`, club-admin `1/1`, admin `13/13`.
+- **Active specs:** Vitest `18/18`; active Playwright `44/44` first-pass.
+- **Failures:** none. No code/test fix required this run.
+- **Demotions/promotions:** none.
+- **Findings:** **Refreshed** `QA-MOBILE-LAYOUT-BREAK-012` — `/` 375px `overflow=0px` for the 3rd consecutive run (06-04/05/06). Investigated the git-log close path and found it **not** met: the only landing change in the 06-02→06-04 window (PR #514, header `Sign in` link) cannot explain a 52px overflow fix. Kept open; downgrade candidate `medium`→`low`; close path narrowed to a committed `/`-overflow assertion. No other open findings — `QA-TEST-FLAKE-010`, `QA-CONSOLE-ERROR-011`, `QA-LOADING-STATE-013`, `QA-MISSING-LOADING-STATE-015` were all closed 06-05 and did not regress.
+- **Notes:** Ran from a dedicated worktree (`.codex/worktrees/nightly-qa-2026-06-06`) on branch `codex/nightly-qa-2026-06-06` cut from `origin/main` `4723a590`, clean tree at session start. **Isolation realized as a hard guarantee, not best-effort:** the local primary checkout was dirty (a co-resident agent's Browse-Shows + show-day WIP) and `main` was 10 commits behind `origin/main`, so the first scheduled invocation correctly **aborted** at the pre-flight gate rather than overwrite WIP; this isolated re-run cut a fresh worktree from `origin/main` and sidestepped it entirely. Pre-flight port guard confirmed a co-resident agent held `5173`/`24678`, so this run used `5193`/`25193` (`PLAYWRIGHT_BASE_URL`/`PLAYWRIGHT_PORT`/`PLAYWRIGHT_HMR_PORT` + `--strictPort`) and never contended. No product/shared-system mutation. The route-health sweep again used a throwaway probe (`temp-nightly-route-health-2026-06-06.spec.ts`), created/run/removed before commit; `pnpm qa:e2e-map:check` clean. **Top durable follow-up (now ~5 nights running): persist the route-health sweep as a committed `nightly` spec with a console-error budget** — this also becomes the close path for `QA-MOBILE-LAYOUT-BREAK-012`. Spawned as a dedicated follow-up task this session so the new always-on gate gets human review before it can red future nightlies.
+
 ### 2026-06-05
 
 - **Playwright command:** pass after low-risk test-only fixes. Phase 1 Vitest `18/18`. Phase 2 Wave 1 initial run `36 passed, 4 failed, 4 did not run (3.2m, --retries=0)` — no hang (slowest spec 16.4s, well under the 90s budget; a sharp contrast to 06-04's 1.1h). After fixes, the exact active Nightly Playwright command passed `44 passed (2.8m, --retries=0)` with no >60s stalls.

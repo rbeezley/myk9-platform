@@ -151,16 +151,21 @@ export function useBrowseShowsFilters({
       selectedTab === 'past' || selectedTab === 'managing' || selectedTab === 'assignments';
     if (!skipDateFilter && filters.dateRange !== 'all') {
       const now = new Date();
+      // Compare against local midnight so shows starting today aren't hidden.
+      // ISO date-only strings parse as UTC midnight, which falls before the
+      // current moment in any negative-offset timezone.
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       if (filters.dateRange === 'upcoming') {
         filtered = filtered.filter(show => {
-          const showDate = new Date(show.startDate);
-          return showDate >= now;
+          const [y, m, d] = show.startDate.split('T')[0].split('-').map(Number);
+          return new Date(y, m - 1, d) >= startOfToday;
         });
       } else if (filters.dateRange === 'this_month') {
         const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
         filtered = filtered.filter(show => {
-          const showDate = new Date(show.startDate);
-          return showDate >= now && showDate <= nextMonth;
+          const [y, m, d] = show.startDate.split('T')[0].split('-').map(Number);
+          const showLocalDate = new Date(y, m - 1, d);
+          return showLocalDate >= startOfToday && showLocalDate <= nextMonth;
         });
       } else if (filters.dateRange === 'next_month') {
         // Compare YYYY-MM string prefixes to avoid UTC-vs-local boundary issues.

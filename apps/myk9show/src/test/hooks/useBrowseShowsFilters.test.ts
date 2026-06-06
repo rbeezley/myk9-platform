@@ -35,6 +35,56 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+// ISO date-only string built from local calendar components — mirrors how DB values arrive
+// and avoids the UTC-midnight-vs-local-midnight ambiguity that caused the original bug.
+function localISODate(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Far-future anchor show — gives applyFilters a stable "I've run" signal when
+// included alongside boundary-case shows whose presence/absence we're testing.
+const ANCHOR = makeShow({ id: 'anchor', startDate: '2099-01-01', endDate: '2099-01-02' });
+
+describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regression)', () => {
+  it('includes a show whose startDate is today', async () => {
+    const todayShow = makeShow({ id: 'today', startDate: localISODate(0), endDate: localISODate(0) });
+
+    const { result } = renderHook(() =>
+      useBrowseShowsFilters({
+        shows: [ANCHOR, todayShow],
+        entries: [],
+        userContext: null,
+        selectedTab: 'all',
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.filteredShows.some(s => s.id === 'anchor')).toBe(true);
+    });
+    expect(result.current.filteredShows.some(s => s.id === 'today')).toBe(true);
+  });
+
+  it('excludes a show whose startDate is yesterday', async () => {
+    const pastShow = makeShow({ id: 'yesterday', startDate: localISODate(-1), endDate: localISODate(-1) });
+
+    const { result } = renderHook(() =>
+      useBrowseShowsFilters({
+        shows: [ANCHOR, pastShow],
+        entries: [],
+        userContext: null,
+        selectedTab: 'all',
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.filteredShows.some(s => s.id === 'anchor')).toBe(true);
+    });
+    expect(result.current.filteredShows.some(s => s.id === 'yesterday')).toBe(false);
+  });
+});
+
 describe('useBrowseShowsFilters — date range filter', () => {
   it('next_month returns only shows starting in the next calendar month', async () => {
     const now = new Date();

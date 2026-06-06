@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mockSupabase } from '@/test/mocks/supabase';
+import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 import { createDayOfEntry, getClassesWithCapacity, searchDogs } from '../entries';
 
 const replicationMocks = vi.hoisted(() => ({
@@ -147,10 +147,40 @@ describe('createDayOfEntry', () => {
   });
 
   it('searches day-of entry dogs from the replicated dog table', async () => {
+    mockSupabase.from.mockReturnValue(
+      createChainableQuery({
+        data: [{ id: 'person-1', first_name: 'Jamie', last_name: 'Walker' }],
+        error: null,
+      })
+    );
+
     const result = await searchDogs('Rocket');
 
     expect(replicationMocks.searchReplicatedDogs).toHaveBeenCalledWith('Rocket');
-    expect(mockSupabase.from).not.toHaveBeenCalled();
+    expect(mockSupabase.from).toHaveBeenCalledWith('people');
+    expect(result.data).toEqual([
+      {
+        id: 'dog-1',
+        name: 'Rocket Dog',
+        call_name: 'Rocket',
+        breed: 'Border Collie',
+        owner: {
+          id: 'person-1',
+          first_name: 'Jamie',
+          last_name: 'Walker',
+        },
+      },
+    ]);
+  });
+
+  it('keeps replicated dog results when owner name lookup is unavailable', async () => {
+    mockSupabase.from.mockImplementation(() => {
+      throw new Error('offline');
+    });
+
+    const result = await searchDogs('Rocket');
+
+    expect(replicationMocks.searchReplicatedDogs).toHaveBeenCalledWith('Rocket');
     expect(result.data).toEqual([
       {
         id: 'dog-1',

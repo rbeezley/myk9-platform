@@ -6,15 +6,17 @@
  *
  * Per-route checks:
  *   render       – body innerText > 20 chars (not blank / stuck-loading)
+ *   path         – final URL pathname matches expected route (not redirected to sign-in)
  *   console-err  – 0 (minus NOISE_PATTERNS documented below)
  *   repl-err     – 0 (QA-CONSOLE-ERROR-011 budget; regression guard)
  *   http-err     – 0 owned 4xx/5xx (from the app dev server or Supabase APIs)
  *   overflow375  – 0px horizontal overflow at 375px (routes flagged check375)
  *
- * Structure: one test per role group. Each test signs in once via signIn()
- * (or annotates + skips if credentials fail) then sweepRoutes() visits every
- * route in the list, soft-asserting each check so all routes are visited even
- * when some fail.
+ * Structure: one test per role group. Each test skips only when the credential
+ * strings are explicitly absent before the test starts (no try/catch); any
+ * sign-in failure propagates as a hard test failure so real auth/UI regressions
+ * are visible. sweepRoutes() visits every route using expect.soft() so all
+ * routes are checked even when individual assertions fail.
  *
  * Proof: run alone + full active Nightly Playwright command with --retries=0.
  */
@@ -153,11 +155,18 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
     const bodyText = await page.evaluate(() => document.body.innerText.trim());
     expect.soft(bodyText.length, `${id}: page rendered blank`).toBeGreaterThan(20);
 
-    // Health checks (console errors, replication errors, owned 4xx/5xx).
-    const viols = violations(health);
-    expect.soft(viols, `${id}: browser health violations`).toHaveLength(0);
+    // Path check: prove the intended route rendered, not a redirect to /sign-in
+    // or an access-denied page (both would pass the render check above).
+    const currentPath = new URL(page.url()).pathname;
+    const expectedBase = route.path.split('?')[0];
+    const pathOk =
+      expectedBase === '/' ? currentPath === '/' : currentPath.startsWith(expectedBase);
+    expect
+      .soft(pathOk, `${id}: unexpected redirect (expected ≈ ${expectedBase}, got ${currentPath})`)
+      .toBe(true);
 
-    // 375px overflow check.
+    // 375px overflow check — run before health assertion so mobile-viewport
+    // errors are captured in health before we evaluate violations.
     if (route.check375) {
       await page.setViewportSize({ width: 375, height: 667 });
       await page.waitForTimeout(300);
@@ -167,6 +176,11 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
       expect.soft(overflowPx, `${id}: horizontal overflow at 375px`).toBe(0);
       await page.setViewportSize({ width: 1280, height: 720 });
     }
+
+    // Health checks (console errors, replication errors, owned 4xx/5xx).
+    // Evaluated after the mobile resize so any mobile-triggered errors are included.
+    const viols = violations(health);
+    expect.soft(viols, `${id}: browser health violations`).toHaveLength(0);
 
     // Annotate result for report visibility.
     test
@@ -185,91 +199,66 @@ test.describe('Route health: public', () => {
 
 test.describe('Route health: exhibitor', () => {
   test('exhibitor routes render clean', async ({ page }) => {
-    try {
-      await signIn(
-        page,
-        TEST_USERS.EXHIBITOR.email,
-        TEST_USERS.EXHIBITOR.password,
-        '/exhibitor/entries'
-      );
-    } catch (e) {
+    const user = TEST_USERS.EXHIBITOR;
+    if (!user.email || !user.password) {
       test
         .info()
-        .annotations.push({ type: 'note', description: `Exhibitor sign-in failed: ${e}` });
-      test.skip(true, 'Exhibitor credentials unavailable — group skipped');
+        .annotations.push({ type: 'note', description: 'Exhibitor credentials absent from environment' });
+      test.skip(true, 'Exhibitor credentials absent — group skipped');
     }
+    await signIn(page, user.email, user.password, '/exhibitor/entries');
     await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES);
   });
 });
 
 test.describe('Route health: secretary', () => {
   test('secretary routes render clean', async ({ page }) => {
-    try {
-      await signIn(
-        page,
-        TEST_USERS.SECRETARY.email,
-        TEST_USERS.SECRETARY.password,
-        '/secretary/dashboard'
-      );
-    } catch (e) {
+    const user = TEST_USERS.SECRETARY;
+    if (!user.email || !user.password) {
       test
         .info()
-        .annotations.push({ type: 'note', description: `Secretary sign-in failed: ${e}` });
-      test.skip(true, 'Secretary credentials unavailable — group skipped');
+        .annotations.push({ type: 'note', description: 'Secretary credentials absent from environment' });
+      test.skip(true, 'Secretary credentials absent — group skipped');
     }
+    await signIn(page, user.email, user.password, '/secretary/dashboard');
     await sweepRoutes(page, 'secretary', SECRETARY_ROUTES);
   });
 });
 
 test.describe('Route health: judge', () => {
   test('judge routes render clean', async ({ page }) => {
-    try {
-      await signIn(
-        page,
-        TEST_USERS.JUDGE.email,
-        TEST_USERS.JUDGE.password,
-        '/judge/dashboard'
-      );
-    } catch (e) {
-      test.info().annotations.push({ type: 'note', description: `Judge sign-in failed: ${e}` });
-      test.skip(true, 'Judge credentials unavailable — group skipped');
+    const user = TEST_USERS.JUDGE;
+    if (!user.email || !user.password) {
+      test.info().annotations.push({ type: 'note', description: 'Judge credentials absent from environment' });
+      test.skip(true, 'Judge credentials absent — group skipped');
     }
+    await signIn(page, user.email, user.password, '/judge/dashboard');
     await sweepRoutes(page, 'judge', JUDGE_ROUTES);
   });
 });
 
 test.describe('Route health: club-admin', () => {
   test('club-admin routes render clean', async ({ page }) => {
-    try {
-      await signIn(
-        page,
-        TEST_USERS.CLUB_ADMIN.email,
-        TEST_USERS.CLUB_ADMIN.password,
-        '/club-admin/members'
-      );
-    } catch (e) {
+    const user = TEST_USERS.CLUB_ADMIN;
+    if (!user.email || !user.password) {
       test
         .info()
-        .annotations.push({ type: 'note', description: `Club-admin sign-in failed: ${e}` });
-      test.skip(true, 'Club-admin credentials unavailable — group skipped');
+        .annotations.push({ type: 'note', description: 'Club-admin credentials absent from environment' });
+      test.skip(true, 'Club-admin credentials absent — group skipped');
     }
+    await signIn(page, user.email, user.password, '/club-admin/members');
     await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES);
   });
 });
 
 test.describe('Route health: admin', () => {
   test('admin routes render clean', async ({ page }) => {
-    try {
-      await signIn(
-        page,
-        TEST_USERS.SITE_ADMIN.email,
-        TEST_USERS.SITE_ADMIN.password,
-        '/admin/dashboard'
-      );
-    } catch (e) {
-      test.info().annotations.push({ type: 'note', description: `Admin sign-in failed: ${e}` });
-      test.skip(true, 'Admin credentials unavailable — group skipped');
+    const user = TEST_USERS.SITE_ADMIN;
+    if (!user.email || !user.password) {
+      test.info().annotations.push({ type: 'note', description: 'Admin credentials absent from environment' });
+      test.skip(true, 'Admin credentials absent — group skipped');
     }
+    await signIn(page, user.email, user.password, '/admin/dashboard');
     await sweepRoutes(page, 'admin', ADMIN_ROUTES);
   });
 });

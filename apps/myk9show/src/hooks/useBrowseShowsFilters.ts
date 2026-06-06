@@ -157,7 +157,7 @@ export function useBrowseShowsFilters({
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       if (filters.dateRange === 'upcoming') {
         filtered = filtered.filter(show => {
-          const [y, m, d] = show.startDate.split('T')[0].split('-').map(Number);
+          const [y, m, d] = (show.endDate || show.startDate).split('T')[0].split('-').map(Number);
           return new Date(y, m - 1, d) >= startOfToday;
         });
       } else if (filters.dateRange === 'this_month') {

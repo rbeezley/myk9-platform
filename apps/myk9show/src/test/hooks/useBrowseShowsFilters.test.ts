@@ -83,6 +83,28 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
     });
     expect(result.current.filteredShows.some(s => s.id === 'yesterday')).toBe(false);
   });
+
+  it('includes an in-progress show whose startDate has passed and endDate is future', async () => {
+    const inProgressShow = makeShow({
+      id: 'in-progress',
+      startDate: localISODate(-5),
+      endDate: localISODate(5),
+    });
+
+    const { result } = renderHook(() =>
+      useBrowseShowsFilters({
+        shows: [ANCHOR, inProgressShow],
+        entries: [],
+        userContext: null,
+        selectedTab: 'all',
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.filteredShows.some(s => s.id === 'anchor')).toBe(true);
+      expect(result.current.filteredShows.some(s => s.id === 'in-progress')).toBe(true);
+    });
+  });
 });
 
 describe('useBrowseShowsFilters — date range filter', () => {

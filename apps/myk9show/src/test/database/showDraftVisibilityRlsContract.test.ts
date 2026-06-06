@@ -5,7 +5,15 @@ import { describe, expect, it } from 'vitest';
 const migration = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260606160242_scope_draft_show_visibility_to_managers.sql'
+    '../../../../../supabase/migrations/20260606204100_include_show_scoped_secretary_drafts.sql'
+  ),
+  'utf8'
+);
+
+const showSecretaryMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/163_mailin_enrollment_rls_and_club_secretary.sql'
   ),
   'utf8'
 );
@@ -33,9 +41,22 @@ describe('show draft visibility RLS contract', () => {
     );
     expect(selectPolicy).toContain('club_id is not null');
     expect(selectPolicy).toContain('public.is_club_admin(club_id)');
-    expect(selectPolicy).toContain('public.is_trial_secretary(club_id)');
+    expect(selectPolicy).toContain('public.is_show_secretary(id)');
     expect(selectPolicy).toContain('public.is_site_admin()');
     expect(selectPolicy).not.toContain('public.can_manage_show(id)');
     expect(selectPolicy).not.toContain('is_trial_secretary()');
+  });
+
+  it('keeps is_show_secretary compatible with club-scoped secretary grants', () => {
+    const helper = sliceBetween(
+      showSecretaryMigration,
+      'CREATE OR REPLACE FUNCTION public.is_show_secretary(check_show_id UUID)',
+      '-- ============================================================================'
+    );
+
+    expect(helper).toContain("r.name = 'secretary' AND ur.show_id = check_show_id");
+    expect(helper).toContain(
+      'ur.club_id = (SELECT club_id FROM public.shows WHERE id = check_show_id)'
+    );
   });
 });

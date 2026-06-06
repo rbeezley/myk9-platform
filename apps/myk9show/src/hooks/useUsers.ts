@@ -65,6 +65,7 @@ export function useUpdatePerson() {
         city: person.city || null,
         state: person.state || null,
         zip_code: person.zipCode || null,
+        profile_image: person.profileImage || null,
       });
       if (error || !data) throw new Error(error?.message || 'Failed to update user');
       return mapDatabaseToUser(data);

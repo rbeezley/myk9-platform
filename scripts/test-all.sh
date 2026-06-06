@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fast parallel test runner for the myk9 monorepo
 # Runs each test file individually with a timeout to prevent hangs
-# Usage: ./scripts/test-all.sh [app]  (app = myk9show | myk9q | all)
+# Usage: ./scripts/test-all.sh [app]  (app = myk9show | all)
 
 set -e
 
@@ -59,10 +59,6 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "$APP" = "all" ] || [ "$APP" = "myk9show" ]; then
   run_app_tests "$REPO_ROOT/apps/myk9show" "myk9show"
-fi
-
-if [ "$APP" = "all" ] || [ "$APP" = "myk9q" ]; then
-  run_app_tests "$REPO_ROOT/apps/myk9q" "myk9q"
 fi
 
 echo ""

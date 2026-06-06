@@ -52,13 +52,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-  # Packages + myK9Q run through turbo so the remote cache provides affected-only
+  # Packages run through turbo so the remote cache provides affected-only
   # behaviour: a PR touching only myK9Show turns these into cache hits.
   # Runs in parallel with quality and test-show — no needs: quality.
   #
   # Coverage runs only on push-to-main (post-merge), not on every PR.
-  test-packages-and-q:
-    name: Test (packages + myK9Q)
+  test-packages:
+    name: Test packages
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: github.event_name == 'push' || github.event.pull_request.draft == false
@@ -81,11 +81,6 @@ jobs:
 
       - name: Test packages
         run: pnpm test:packages ${{ github.event_name == 'push' && '-- --coverage' || '' }}
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-
-      - name: Test myK9Q
-        run: pnpm exec turbo run test --filter=@myk9/q -- --reporter=default ${{ github.event_name == 'push' && '--coverage' || '' }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
@@ -126,7 +121,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
 
   # Umbrella job — "Test" is the required check in the branch ruleset.
-  # Aggregates test-packages-and-q + all test-show shards.
+  # Aggregates test-packages + all test-show shards.
   # always() ensures this job runs even when sub-jobs fail (so GitHub sees a
   # definitive pass/fail rather than a stuck "pending" state). The non-draft
   # condition mirrors the sub-jobs so draft PRs skip this job too — without it,
@@ -135,7 +130,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    needs: [test-packages-and-q, test-show]
+    needs: [test-packages, test-show]
     if: always() && (github.event_name == 'push' || github.event.pull_request.draft == false)
 
     steps:
@@ -203,46 +198,6 @@ jobs:
   # E2E jobs temporarily disabled to conserve GitHub Actions minutes (1,805/2,000 used).
   # Resets April 1, 2026. Re-enable after reset.
   # See: https://github.com/rbeezley/myk9-platform/settings/billing
-  #
-  # e2e-myk9q:
-  #   name: E2E myK9Q
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   needs: build
-  #   continue-on-error: true
-  #
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #
-  #     - uses: pnpm/action-setup@v6
-  #
-  #     - uses: actions/setup-node@v6
-  #       with:
-  #         node-version: '20'
-  #         cache: 'pnpm'
-  #
-  #     - name: Install dependencies
-  #       run: pnpm install --frozen-lockfile
-  #
-  #     - name: Build
-  #       run: pnpm build
-  #
-  #     - name: Install Playwright browsers
-  #       run: npx playwright install --with-deps chromium
-  #
-  #     - name: Run E2E tests
-  #       run: pnpm --filter=@myk9/q test:e2e:ci
-  #       env:
-  #         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  #         VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-  #
-  #     - name: Upload test results
-  #       if: always()
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: myk9q-e2e-results
-  #         path: apps/myk9q/playwright-report-ci/
-  #         retention-days: 7
   #
   # e2e-myk9show:
   #   name: E2E myK9Show

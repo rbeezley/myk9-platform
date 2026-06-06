@@ -14,7 +14,7 @@ This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixi
 
 ## Current development phase — consolidate, don't duplicate
 
-The project is **pre-launch with no real users yet** (both monorepo apps). The current phase is focused on **simplifying and consolidating** — making a smooth, intuitive, logical workflow across the app. We are **not** in a phase of building new isolated features or adding more surface area.
+The project is **pre-launch with no real users yet** for the monorepo myK9Show app. The old monorepo `apps/myk9q` app has been deleted after being absorbed into myK9Show `/at-show`; do not rebuild it. The current phase is focused on **simplifying and consolidating** — making a smooth, intuitive, logical workflow across the app. We are **not** in a phase of building new isolated features or adding more surface area.
 
 This shapes every UX decision. Before proposing a new page, sheet, dialog, or affordance:
 
@@ -52,15 +52,12 @@ When creating implementation or remediation plans, always save them to a markdow
 # Package manager: pnpm (not npm)
 pnpm install          # Install all dependencies
 pnpm dev:show         # Run myK9Show dev server (localhost:5173)
-pnpm dev:q            # Run myK9Q dev server
 pnpm build            # Build all packages and apps
 pnpm typecheck        # TypeScript check across monorepo
 pnpm lint             # ESLint across monorepo
 
 # Testing (run from app directories)
-cd apps/myk9q && pnpm test        # myK9Q unit tests (vitest)
 cd apps/myk9show && pnpm test     # myK9Show unit tests (vitest)
-cd apps/myk9q && pnpm test:e2e    # myK9Q E2E tests (playwright)
 cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)
 
 # Run a single test file
@@ -72,8 +69,8 @@ cd apps/myk9show && npx vitest run -t "pattern"
 ## Architecture Decisions
 
 - **UI library (myK9Show):** Base UI via shadcn/ui — NOT Radix (Radix stagnated after WorkOS acquisition)
-- **UI library (myK9Q):** Semantic CSS — do not add Tailwind to myK9Q
-- **Database:** Unified Supabase project (`myk9-platform`) for both apps
+- **Deleted monorepo app:** `apps/myk9q` was removed after ringside functionality moved into myK9Show `/at-show` and shared packages
+- **Database:** Unified Supabase project (`myk9-platform`)
 - **Formatting:** Prettier auto-format hook runs on every file edit
 
 ## Database Configuration
@@ -93,14 +90,13 @@ cd apps/myk9show && npx vitest run -t "pattern"
 ## Deployment
 
 - **myK9Show staging:** myk9-platform-myk9show.vercel.app (auto-deploys from `main`)
-- **myK9Q staging:** myk9-platform-myk9q.vercel.app (auto-deploys from `main`)
-- **Legacy production:** myk9q.com (separate repo, untouched)
+- **Legacy production myK9Qv3:** myk9q.com (separate repo, untouched)
 
 ## Key Patterns
 
-### Offline-first data (myK9Q)
+### Offline-first data
 
-Always use replicated tables — never bypass with direct Supabase calls (breaks offline):
+myK9Show and its shared ringside packages are offline-first where show-day reliability requires it. Always use replicated tables / replication-backed query functions for persistent app data that must work offline — never bypass with direct Supabase reads in core flows (breaks offline):
 
 ```typescript
 import { replicatedClassesTable } from '@myk9/replication';
@@ -114,7 +110,7 @@ await replicatedClassesTable.updateClassStatus(classId, status);
 | **Zustand**           | Client/UI state shared across components | Modals, filters, selections, domain stores |
 | **React Query**       | Server state, async data fetching        | Lists, detail views, search results        |
 | **React Context**     | Cross-cutting concerns (rarely changes)  | Auth/RBAC, theme, app-wide config          |
-| **@myk9/replication** | Persistent data that must work offline   | Show data, class entries, scores (myK9Q)   |
+| **@myk9/replication** | Persistent data that must work offline   | Show data, class entries, ringside scoring |
 | **Local `useState`**  | Ephemeral, component-scoped state        | Form inputs, timers, dialog open/close     |
 
 ## Testing

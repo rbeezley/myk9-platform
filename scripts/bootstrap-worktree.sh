@@ -58,7 +58,6 @@ fi
 # 2. Copy .env files from main repo
 ENV_FILES=(
   "apps/myk9show/.env"
-  "apps/myk9q/.env"
 )
 
 for env_file in "${ENV_FILES[@]}"; do

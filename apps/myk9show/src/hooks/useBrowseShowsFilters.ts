@@ -119,7 +119,7 @@ export function useBrowseShowsFilters({
     if (filters.discipline !== 'all') {
       const showType = DISCIPLINE_MAP[filters.discipline];
       if (showType) {
-        filtered = filtered.filter(show => show.organization.includes(showType));
+        filtered = filtered.filter(show => show.events.includes(showType));
       }
     }
 

@@ -14,8 +14,8 @@ export function transitionToInRing(
   if (currentStatus === CHECKIN_STATUS.COMPLETED.value) return;
 
   updateReplicatedCheckInStatus(entryId, CHECKIN_STATUS.IN_RING.value, {
-      ring_entry_time: new Date().toISOString(),
-    })
+    ring_entry_time: new Date().toISOString(),
+  })
     .catch(err =>
       logger.error('Failed to transition entry to in-ring', 'scoring', {}, err as Error)
     );
@@ -27,8 +27,8 @@ export function transitionToInRing(
  */
 export function transitionToCompleted(entryId: string): void {
   updateReplicatedCheckInStatus(entryId, CHECKIN_STATUS.COMPLETED.value, {
-      ring_exit_time: new Date().toISOString(),
-    })
+    ring_exit_time: new Date().toISOString(),
+  })
     .catch(err =>
       logger.error('Failed to transition entry to completed', 'scoring', {}, err as Error)
     );

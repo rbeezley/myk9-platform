@@ -314,6 +314,45 @@ describe('ReplicatedEntriesTable', () => {
       expect(result?.armband).toBe('101'); // Unchanged
     });
 
+    it('should queue null final_placement when a reset clears both placement aliases', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.set('entry-1', {
+        id: 'entry-1',
+        classId: 'class-1',
+        resultStatus: 'qualified',
+        result_status: 'qualified',
+        finalPlacement: '1',
+        final_placement: '1',
+      });
+
+      await table.updateEntry('entry-1', {
+        resultStatus: 'pending',
+        result_status: 'pending',
+        finalPlacement: null,
+        final_placement: undefined,
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          result_status: 'pending',
+          final_placement: null,
+        })
+      );
+    });
+
     it('should mark entry as pending sync after update', async () => {
       const entry: ReplicatedEntry = {
         id: 'entry-1',

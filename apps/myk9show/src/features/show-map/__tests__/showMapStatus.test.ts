@@ -83,6 +83,18 @@ describe('showMapStatus', () => {
         kind: 'neutral',
       });
     });
+
+    it('skips signature requirement when all entries are scratched', () => {
+      expect(
+        classifyClassWrapUpStatus({ status: 'In Progress' }, [
+          { entry_status: 'scratched', check_in_status: 'pulled' },
+        ])
+      ).toMatchObject({
+        value: 'class-ready-for-wrap-up',
+        label: 'Ready for wrap-up',
+        kind: 'neutral',
+      });
+    });
   });
 
   it('keeps check-in and run status independent', () => {

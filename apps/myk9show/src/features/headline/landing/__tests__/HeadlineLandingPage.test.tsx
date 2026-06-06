@@ -3,6 +3,10 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HeadlineLandingPage } from '../HeadlineLandingPage';
 
+const landingDataState = vi.hoisted(() => ({
+  showName: 'Spring Scent Work Trial',
+}));
+
 vi.mock('@/features/headline/fonts', () => ({
   ensureHeadlineFontsLoaded: vi.fn(),
 }));
@@ -21,7 +25,7 @@ vi.mock('@/features/heritage/hooks/useCountdown', () => ({
 vi.mock('@/features/heritage/landing/useHeritageLandingData', () => ({
   useHeritageLandingData: () => ({
     clubName: 'Bexar County Kennel Club',
-    showName: 'Spring Scent Work Trial',
+    showName: landingDataState.showName,
     showSubtitle: 'AKC Licensed Trial · 2 Trials',
     welcomeText: null,
     trialChairName: null,
@@ -75,6 +79,7 @@ describe('HeadlineLandingPage', () => {
   const originalTimezone = process.env.TZ;
 
   afterEach(() => {
+    landingDataState.showName = 'Spring Scent Work Trial';
     if (originalTimezone) {
       process.env.TZ = originalTimezone;
     } else {
@@ -102,5 +107,13 @@ describe('HeadlineLandingPage', () => {
     render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
 
     expect(screen.getAllByText('Jun 12, 2026 – Jun 14, 2026')).toHaveLength(2);
+  });
+
+  it('keeps Trial in the hero title when the show name omits it', () => {
+    landingDataState.showName = 'Pacific Northwest Scent Work';
+
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    expect(screen.getByRole('heading', { name: /Pacific Northwest Scent Work Trial/i })).toBeTruthy();
   });
 });

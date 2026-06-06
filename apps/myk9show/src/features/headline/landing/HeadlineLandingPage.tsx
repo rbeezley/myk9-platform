@@ -33,6 +33,11 @@ function joinOrFallback(items: string[], fallback: string): string {
   return present.length > 0 ? present.join(' · ') : fallback;
 }
 
+function getHeroTitleParts(showName: string | null | undefined): { base: string; suffix: string | null } {
+  const base = showName?.trim() || 'Scent Work';
+  return /\btrial\b/i.test(base) ? { base, suffix: null } : { base, suffix: 'Trial' };
+}
+
 function HeadlineNav({ data }: { data: HeritageLandingData }) {
   return (
     <>
@@ -62,13 +67,20 @@ function HeadlineNav({ data }: { data: HeritageLandingData }) {
 function Hero({ data }: { data: HeritageLandingData }) {
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
   const totalRuns = data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD';
+  const title = getHeroTitleParts(data.showName);
 
   return (
     <header className="hd-hero" id="overview">
       <div className="hd-hero-tag">{data.licenseLanguage}</div>
       <div className="hd-club-line">{data.clubName}</div>
       <h1 className="hd-title">
-        {data.showName || 'Scent Work Trial'}
+        {title.base}
+        {title.suffix && (
+          <>
+            {' '}
+            <span className="accent">{title.suffix}</span>
+          </>
+        )}
         <span className="mark">.</span>
       </h1>
       <p className="hd-subtitle">

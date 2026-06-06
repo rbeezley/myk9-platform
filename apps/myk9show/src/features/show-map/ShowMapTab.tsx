@@ -287,7 +287,7 @@ function ShowMapTabView({
           <SummaryItem label="Trials" value={trials.length} />
           <SummaryItem label="Classes" value={classes.length} />
           <SummaryItem label="Entries" value={catalogEntryCount} />
-          <SummaryItem label="Need Attention" value={attentionCount} />
+          {canManageShow && <SummaryItem label="Need Attention" value={attentionCount} />}
         </div>
       </div>
       <ShowMapToolbar

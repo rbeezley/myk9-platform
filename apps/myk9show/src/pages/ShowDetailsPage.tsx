@@ -6,8 +6,6 @@ import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard,
-  Trophy,
-  ListChecks,
   ClipboardList,
   Medal,
   BarChart3,
@@ -17,6 +15,13 @@ import {
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
@@ -25,7 +30,6 @@ import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
-import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
@@ -44,10 +48,8 @@ import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
-import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
-import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
@@ -242,21 +244,15 @@ const ShowDetailsPage: React.FC = () => {
 
   // Tab state — URL-synced with dynamic allowed tabs
   const isAuthenticated = !!user;
-  const canShowMap = features.showMap && canManageShow;
+  const canShowMap = features.showMap;
   const allowedTabs = useMemo(
-    () =>
-      isAuthenticated
-        ? [
-            'overview',
-            'trials',
-            'classes',
-            'my-entries',
-            'my-stats',
-            'results',
-            ...(canShowMap ? ['map'] : []),
-          ]
-        : ['overview', 'trials', 'classes', 'results'],
-    [isAuthenticated, canShowMap]
+    () => [
+      'overview',
+      ...(canShowMap ? ['map'] : []),
+      ...(!canManageShow && isAuthenticated ? ['my-entries', 'my-stats'] : []),
+      'results',
+    ],
+    [isAuthenticated, canShowMap, canManageShow]
   );
   const [activeTab, setTab] = useUrlTab(allowedTabs, 'overview');
 
@@ -294,23 +290,6 @@ const ShowDetailsPage: React.FC = () => {
     );
   }, [actualCurrentShow, showJudgeRoster, showClasses]);
 
-  // Trial statistics for card display (class counts, entry counts, scoring progress)
-  const trialStats = useMemo(() => {
-    const stats: Record<string, TrialStats> = {};
-    for (const trial of associatedTrials) {
-      const classes = trialClasses[trial.id] || [];
-      const classIdSet = new Set(classes.map(c => c.id));
-      const trialEntryCount = showEntries.filter((e: Record<string, unknown>) =>
-        classIdSet.has(e.class_id as string)
-      ).length;
-      stats[trial.id] = {
-        classCount: classes.length,
-        entryCount: trialEntryCount,
-        completedClasses: classes.filter(cls => cls.status === CLASS_STATUS.COMPLETED).length,
-      };
-    }
-    return stats;
-  }, [associatedTrials, trialClasses, showEntries]);
 
   // Redirect if no show ID
   useEffect(() => {
@@ -345,35 +324,18 @@ const ShowDetailsPage: React.FC = () => {
   );
 
   // Tab definitions for PrimaryTabs (must be before early returns — rules of hooks)
-  const tabDefs: PrimaryTabDef[] = useMemo(
-    () => [
-      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-      ...(canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
-      { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
-      { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
-      ...(isAuthenticated
-        ? [
-            {
-              id: 'my-entries',
-              label: 'Entries',
-              icon: ClipboardList,
-              count: canManageShow ? catalogEntryCount : userEntries.length,
-            },
-            { id: 'my-stats', label: 'My Stats', icon: BarChart3 },
-          ]
-        : []),
-      { id: 'results', label: 'Results', icon: Medal, count: 0 },
-    ],
-    [
-      isAuthenticated,
-      canShowMap,
-      canManageShow,
-      associatedTrials.length,
-      showClasses.length,
-      catalogEntryCount,
-      userEntries.length,
-    ]
-  );
+  const tabDefs: PrimaryTabDef[] = useMemo((): PrimaryTabDef[] => {
+    const tabs: PrimaryTabDef[] = [{ id: 'overview', label: 'Overview', icon: LayoutDashboard }];
+    if (canShowMap) tabs.push({ id: 'map', label: 'Show Map', icon: ListTree });
+    if (!canManageShow && isAuthenticated) {
+      const myEntriesTab: PrimaryTabDef = { id: 'my-entries', label: 'My Entries', icon: ClipboardList };
+      if (userEntries.length > 0) myEntriesTab.count = userEntries.length;
+      tabs.push(myEntriesTab);
+      tabs.push({ id: 'my-stats', label: 'My Stats', icon: BarChart3 });
+    }
+    tabs.push({ id: 'results', label: 'Results', icon: Medal });
+    return tabs;
+  }, [isAuthenticated, canShowMap, canManageShow, userEntries.length]);
 
   // Loading state
   if (fastLoading) {
@@ -478,20 +440,8 @@ const ShowDetailsPage: React.FC = () => {
           closedMessage={
             !canManageShow && !entryStatus.canEnter ? entryStatus.description : undefined
           }
-          {...(!canManageShow
-            ? entryStatus.canEnter
-              ? {
-                  primaryAction: {
-                    label: hasUserEntries ? 'Manage Entry' : 'Enter This Show',
-                    onClick: handleRegisterForShow,
-                  },
-                }
-              : hasUserEntries
-                ? { primaryAction: { label: 'View Entry', onClick: handleRegisterForShow } }
-                : {}
-            : {})}
           secondaryActions={
-            canManageShow && (
+            canManageShow ? (
               <div className="flex items-center gap-1">
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 {workbenchHref && (
@@ -502,32 +452,59 @@ const ShowDetailsPage: React.FC = () => {
                     </Link>
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setShowEditPanel(true)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" aria-label="More actions">
+                      <span className="text-base leading-none tracking-widest">···</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            )
+            ) : entryStatus.canEnter ? (
+              <button
+                className="h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5]"
+                onClick={handleRegisterForShow}
+              >
+                {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
+              </button>
+            ) : hasUserEntries ? (
+              <Button variant="outline" size="sm" onClick={handleRegisterForShow}>
+                View Entry
+              </Button>
+            ) : undefined
           }
-          footer={<QuickInfoCards show={actualCurrentShow} />}
+          footer={
+            <QuickInfoCards
+              show={actualCurrentShow}
+              canManageShow={canManageShow}
+              entryCount={catalogEntryCount}
+            />
+          }
         />
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
-          <LandingPageCard
-            showId={actualCurrentShow.id}
-            showStyle={getShowStyle(actualCurrentShow)}
-          />
-        </div>
+        {canManageShow && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
+            <LandingPageCard
+              showId={actualCurrentShow.id}
+              showStyle={getShowStyle(actualCurrentShow)}
+            />
+          </div>
+        )}
 
         <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
           <TabsContent value="overview">
@@ -538,39 +515,13 @@ const ShowDetailsPage: React.FC = () => {
             />
           </TabsContent>
 
-          <TabsContent value="trials">
-            <TrialsTab
-              trials={associatedTrials}
-              showId={actualCurrentShow.id}
-              trialStats={trialStats}
-            />
-          </TabsContent>
-
-          <TabsContent value="classes">
-            <ClassesTab
-              classes={showClasses}
-              showId={actualCurrentShow.id}
-              userHasEntries={hasUserEntries}
-              hideRing={associatedTrials.some(
-                t =>
-                  t.trialType === 'Scent Work' ||
-                  t.trialType === 'Nosework' ||
-                  t.trialType === 'Scent Detection'
-              )}
-            />
-          </TabsContent>
-
-          {isAuthenticated && (
+          {isAuthenticated && !canManageShow && (
             <TabsContent value="my-entries">
-              {canManageShow ? (
-                <EntriesTab showId={actualCurrentShow.id} />
-              ) : (
-                <MyEntriesTab showId={actualCurrentShow.id} />
-              )}
+              <MyEntriesTab showId={actualCurrentShow.id} />
             </TabsContent>
           )}
 
-          {isAuthenticated && (
+          {isAuthenticated && !canManageShow && (
             <TabsContent value="my-stats">
               <MyShowStatsTab showId={actualCurrentShow.id} />
             </TabsContent>

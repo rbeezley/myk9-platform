@@ -21,6 +21,7 @@ import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/Co
 import { features } from '@/config/features';
 import BrowseDogsPage from '@/pages/BrowseDogsPage';
 import DogDetailPage from '@/pages/DogDetailPage';
+import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
   return enabled ? (
@@ -453,5 +454,8 @@ export const PublicRoutes = () => (
         </SuspenseWrapper>
       }
     />
+
+    {/* Design prototype — no auth, dev iteration only */}
+    <Route path="/prototype/show" element={<ShowDetailsPrototype />} />
   </>
 );

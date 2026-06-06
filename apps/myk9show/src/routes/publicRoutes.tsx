@@ -456,6 +456,6 @@ export const PublicRoutes = () => (
     />
 
     {/* Design prototype — no auth, dev iteration only */}
-    <Route path="/prototype/show" element={<ShowDetailsPrototype />} />
+    {import.meta.env.DEV && <Route path="/prototype/show" element={<ShowDetailsPrototype />} />}
   </>
 );

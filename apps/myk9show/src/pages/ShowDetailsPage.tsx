@@ -244,7 +244,7 @@ const ShowDetailsPage: React.FC = () => {
 
   // Tab state — URL-synced with dynamic allowed tabs
   const isAuthenticated = !!user;
-  const canShowMap = features.showMap;
+  const canShowMap = features.showMap && isAuthenticated;
   const allowedTabs = useMemo(
     () => [
       'overview',

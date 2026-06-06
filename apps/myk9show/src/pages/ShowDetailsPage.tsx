@@ -221,7 +221,7 @@ const ShowDetailsPage: React.FC = () => {
 
   // Check if user has entries in this show (determines default tab)
   // Only enable polling when the My Entries tab is active (fix #3)
-  const { entries: userEntries } = useMyEntries(showId_);
+  const { entries: userEntries, isLoading: entriesLoading } = useMyEntries(showId_);
   const userDogIds = useMemo(() => {
     const databaseUserId = userWithRoles?.databaseUserId;
     if (!databaseUserId) return new Set<string>();
@@ -369,8 +369,10 @@ const ShowDetailsPage: React.FC = () => {
       ? { ...actualCurrentShow, style: actualCurrentShow.experiencePublishedStyle }
       : actualCurrentShow;
 
-  // Styled public landing — renders for any visitor who is not staff.
+  // Styled public landing — renders for non-staff visitors who are NOT yet entered.
   // Staff (secretary / admin / club_admin) always reach the management UI.
+  // Authenticated exhibitors with entries bypass the marketing landing and see
+  // the tabbed details UI (classes, my entries, run order) instead.
   //
   // We gate on an *explicit* style being set, not the `getShowStyle()` fallback
   // value ('monogram'). Otherwise legacy shows with `style = null` would
@@ -387,14 +389,25 @@ const ShowDetailsPage: React.FC = () => {
   // component. The `hasExplicitStyle` gate skips the styled path
   // entirely when no style is set.
   if (hasExplicitStyle && !isSecretary && !isAdmin && !hasRole('club_admin')) {
-    const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
-    return (
-      <StyledLanding
-        show={publicLandingShow}
-        trial={associatedTrials[0] ?? null}
-        allTrials={associatedTrials}
-      />
-    );
+    // For authenticated users, wait for entries to resolve before deciding
+    // which experience to render — avoids flashing the landing page briefly.
+    if (user && entriesLoading) {
+      return (
+        <PageShell>
+          <LoadingSkeleton variant="cards" />
+        </PageShell>
+      );
+    }
+    if (!hasUserEntries) {
+      const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
+      return (
+        <StyledLanding
+          show={publicLandingShow}
+          trial={associatedTrials[0] ?? null}
+          allTrials={associatedTrials}
+        />
+      );
+    }
   }
 
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries);

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Search, RefreshCw } from 'lucide-react';
+import { CalendarDays, ListChecks, RefreshCw, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -15,8 +15,7 @@ interface MyEntriesTabProps {
 export function MyEntriesTab({ showId }: MyEntriesTabProps) {
   const navigate = useNavigate();
   const loadEntries = useEntryStore(s => s.loadEntries);
-  const { dogGroups, allEntries, totalClasses, isLoading, isError } =
-    useShowEntriesForUser(showId);
+  const { dogGroups, allEntries, totalClasses, isLoading, isError } = useShowEntriesForUser(showId);
 
   if (isLoading) {
     return <LoadingSkeleton variant="cards" count={3} />;
@@ -52,10 +51,30 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
-        {totalClasses} {totalClasses === 1 ? 'class' : 'classes'} across{' '}
-        {dogGroups.length} {dogGroups.length === 1 ? 'dog' : 'dogs'}
-      </p>
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+            <CalendarDays className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-foreground">My run schedule</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {totalClasses} {totalClasses === 1 ? 'class' : 'classes'} across {dogGroups.length}{' '}
+              {dogGroups.length === 1 ? 'dog' : 'dogs'}. Times, armbands, judges, and results stay
+              together here.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(`/shows/${showId}?tab=classes`)}
+          className="mt-4 gap-1.5 sm:mt-0 sm:shrink-0"
+        >
+          <ListChecks className="h-4 w-4" />
+          All classes
+        </Button>
+      </div>
 
       <WhereToBe entries={allEntries} showId={showId} />
 

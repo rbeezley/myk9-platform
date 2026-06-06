@@ -6,6 +6,8 @@ import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard,
+  Trophy,
+  ListChecks,
   ClipboardList,
   Medal,
   BarChart3,
@@ -30,6 +32,7 @@ import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
+import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
@@ -48,8 +51,10 @@ import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
+import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
 import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
+import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
@@ -145,7 +150,10 @@ const ShowDetailsPage: React.FC = () => {
   const trialClasses = useTrialStore(s => s.trialClasses);
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
-  const { data: showEntries = [] } = useEntriesByShowQuery(id || '', !!id);
+  const { data: showEntries = [], isLoading: showEntriesLoading } = useEntriesByShowQuery(
+    id || '',
+    !!id
+  );
   const catalogEntryCount = countCatalogEntries(showEntries);
   const { dogs } = useDogStoreCompat();
 
@@ -221,7 +229,7 @@ const ShowDetailsPage: React.FC = () => {
 
   // Check if user has entries in this show (determines default tab)
   // Only enable polling when the My Entries tab is active (fix #3)
-  const { entries: userEntries, isLoading: entriesLoading } = useMyEntries(showId_);
+  const { entries: userEntries, isLoading: userEntriesLoading } = useMyEntries(showId_);
   const userDogIds = useMemo(() => {
     const databaseUserId = userWithRoles?.databaseUserId;
     if (!databaseUserId) return new Set<string>();
@@ -241,20 +249,36 @@ const ShowDetailsPage: React.FC = () => {
     return classIds;
   }, [showEntries, userDogIds]);
   const hasUserEntries = userEntryClassIds.size > 0 || userEntries.length > 0;
+  const isAuthenticated = !!user;
+  const requestedTab = searchParams.get('tab');
+  const isWaitingForExhibitorEntryDefault =
+    isAuthenticated &&
+    !canManageShow &&
+    !requestedTab &&
+    (showEntriesLoading || userEntriesLoading);
 
   // Tab state — URL-synced with dynamic allowed tabs
-  const isAuthenticated = !!user;
-  const canShowMap = features.showMap && isAuthenticated;
-  const allowedTabs = useMemo(
-    () => [
-      'overview',
-      ...(canShowMap ? ['map'] : []),
-      ...(!canManageShow && isAuthenticated ? ['my-entries', 'my-stats'] : []),
-      'results',
-    ],
-    [isAuthenticated, canShowMap, canManageShow]
-  );
-  const [activeTab, setTab] = useUrlTab(allowedTabs, 'overview');
+  const canShowMap = features.showMap && canManageShow;
+  const allowedTabs = useMemo(() => {
+    if (!isAuthenticated) return ['overview', 'trials', 'classes', 'results'];
+    if (canManageShow) {
+      return [
+        'overview',
+        ...(canShowMap ? ['map'] : []),
+        'trials',
+        'classes',
+        'my-entries',
+        'my-stats',
+        'results',
+      ];
+    }
+    return ['overview', 'trials', 'my-entries', 'classes', 'results'];
+  }, [isAuthenticated, canManageShow, canShowMap]);
+  const defaultTab =
+    isAuthenticated && !canManageShow && !isWaitingForExhibitorEntryDefault && hasUserEntries
+      ? 'my-entries'
+      : 'overview';
+  const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
 
   // Flatten trial classes for judge roster resolution and entry overlap detection
   const showClasses = useMemo(() => {
@@ -290,6 +314,23 @@ const ShowDetailsPage: React.FC = () => {
     );
   }, [actualCurrentShow, showJudgeRoster, showClasses]);
 
+  // Trial statistics for card display (class counts, entry counts, scoring progress)
+  const trialStats = useMemo(() => {
+    const stats: Record<string, TrialStats> = {};
+    for (const trial of associatedTrials) {
+      const classes = trialClasses[trial.id] || [];
+      const classIdSet = new Set(classes.map(c => c.id));
+      const trialEntryCount = showEntries.filter((e: Record<string, unknown>) =>
+        classIdSet.has(e.class_id as string)
+      ).length;
+      stats[trial.id] = {
+        classCount: classes.length,
+        entryCount: trialEntryCount,
+        completedClasses: classes.filter(cls => cls.status === CLASS_STATUS.COMPLETED).length,
+      };
+    }
+    return stats;
+  }, [associatedTrials, trialClasses, showEntries]);
 
   // Redirect if no show ID
   useEffect(() => {
@@ -324,18 +365,45 @@ const ShowDetailsPage: React.FC = () => {
   );
 
   // Tab definitions for PrimaryTabs (must be before early returns — rules of hooks)
-  const tabDefs: PrimaryTabDef[] = useMemo((): PrimaryTabDef[] => {
-    const tabs: PrimaryTabDef[] = [{ id: 'overview', label: 'Overview', icon: LayoutDashboard }];
-    if (canShowMap) tabs.push({ id: 'map', label: 'Show Map', icon: ListTree });
-    if (!canManageShow && isAuthenticated) {
-      const myEntriesTab: PrimaryTabDef = { id: 'my-entries', label: 'My Entries', icon: ClipboardList };
-      if (userEntries.length > 0) myEntriesTab.count = userEntries.length;
-      tabs.push(myEntriesTab);
-      tabs.push({ id: 'my-stats', label: 'My Stats', icon: BarChart3 });
-    }
-    tabs.push({ id: 'results', label: 'Results', icon: Medal });
-    return tabs;
-  }, [isAuthenticated, canShowMap, canManageShow, userEntries.length]);
+  const tabDefs: PrimaryTabDef[] = useMemo(
+    () => [
+      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+      ...(canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
+      { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
+      ...(!canManageShow && isAuthenticated
+        ? [
+            {
+              id: 'my-entries',
+              label: 'My Entries',
+              icon: ClipboardList,
+              count: userEntries.length,
+            },
+          ]
+        : []),
+      { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
+      ...(canManageShow && isAuthenticated
+        ? [
+            {
+              id: 'my-entries',
+              label: 'Entries',
+              icon: ClipboardList,
+              count: catalogEntryCount,
+            },
+            { id: 'my-stats', label: 'My Stats', icon: BarChart3 },
+          ]
+        : []),
+      { id: 'results', label: 'Results', icon: Medal, count: 0 },
+    ],
+    [
+      isAuthenticated,
+      canShowMap,
+      canManageShow,
+      associatedTrials.length,
+      showClasses.length,
+      catalogEntryCount,
+      userEntries.length,
+    ]
+  );
 
   // Loading state
   if (fastLoading) {
@@ -391,7 +459,7 @@ const ShowDetailsPage: React.FC = () => {
   if (hasExplicitStyle && !isSecretary && !isAdmin && !hasRole('club_admin')) {
     // For authenticated users, wait for entries to resolve before deciding
     // which experience to render — avoids flashing the landing page briefly.
-    if (user && entriesLoading) {
+    if (user && userEntriesLoading) {
       return (
         <PageShell>
           <LoadingSkeleton variant="cards" />
@@ -529,45 +597,77 @@ const ShowDetailsPage: React.FC = () => {
           </div>
         )}
 
-        <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
-          <TabsContent value="overview">
-            <ShowOverviewTab
-              show={actualCurrentShow}
-              canManageShow={canManageShow}
-              judges={effectiveJudges}
-            />
-          </TabsContent>
-
-          {isAuthenticated && !canManageShow && (
-            <TabsContent value="my-entries">
-              <MyEntriesTab showId={actualCurrentShow.id} />
+        {isWaitingForExhibitorEntryDefault ? (
+          <div className="mt-6">
+            <LoadingSkeleton variant="cards" count={2} />
+          </div>
+        ) : (
+          <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
+            <TabsContent value="overview">
+              <ShowOverviewTab
+                show={actualCurrentShow}
+                canManageShow={canManageShow}
+                judges={effectiveJudges}
+              />
             </TabsContent>
-          )}
 
-          {isAuthenticated && !canManageShow && (
-            <TabsContent value="my-stats">
-              <MyShowStatsTab showId={actualCurrentShow.id} />
+            <TabsContent value="trials">
+              <TrialsTab
+                trials={associatedTrials}
+                showId={actualCurrentShow.id}
+                trialStats={trialStats}
+              />
             </TabsContent>
-          )}
 
-          <TabsContent value="results">
-            <ShowResultsTab showId={actualCurrentShow.id} />
-          </TabsContent>
-
-          {canShowMap && (
-            <TabsContent value="map">
-              <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-                <ShowMapTab
-                  show={actualCurrentShow}
-                  trials={associatedTrials}
-                  classes={showClasses}
-                  entries={showEntries}
-                  canManageShow={false}
-                />
-              </Suspense>
+            <TabsContent value="classes">
+              <ClassesTab
+                classes={showClasses}
+                showId={actualCurrentShow.id}
+                userHasEntries={hasUserEntries}
+                hideRing={associatedTrials.some(
+                  t =>
+                    t.trialType === 'Scent Work' ||
+                    t.trialType === 'Nosework' ||
+                    t.trialType === 'Scent Detection'
+                )}
+              />
             </TabsContent>
-          )}
-        </PrimaryTabs>
+
+            {isAuthenticated && (
+              <TabsContent value="my-entries">
+                {canManageShow ? (
+                  <EntriesTab showId={actualCurrentShow.id} />
+                ) : (
+                  <MyEntriesTab showId={actualCurrentShow.id} />
+                )}
+              </TabsContent>
+            )}
+
+            {isAuthenticated && canManageShow && (
+              <TabsContent value="my-stats">
+                <MyShowStatsTab showId={actualCurrentShow.id} />
+              </TabsContent>
+            )}
+
+            <TabsContent value="results">
+              <ShowResultsTab showId={actualCurrentShow.id} />
+            </TabsContent>
+
+            {canShowMap && (
+              <TabsContent value="map">
+                <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+                  <ShowMapTab
+                    show={actualCurrentShow}
+                    trials={associatedTrials}
+                    classes={showClasses}
+                    entries={showEntries}
+                    canManageShow={false}
+                  />
+                </Suspense>
+              </TabsContent>
+            )}
+          </PrimaryTabs>
+        )}
       </PageShell>
 
       {/* Dialogs */}

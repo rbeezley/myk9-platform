@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MineToggle } from '@/components/common/MineToggle';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -69,15 +69,36 @@ function formatTrialDate(dateStr: string): string {
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
   const navigate = useNavigate();
   const { hasPermission } = useRBAC();
-  const [viewMode, setViewMode] = useViewPreference('classes', 'table');
-  const [isMine, setIsMine] = useState(false);
+  const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
+    'classes',
+    userHasEntries ? 'cards' : 'table'
+  );
+  const [viewModeTouched, setViewModeTouched] = useState(false);
+  const [isMine, setIsMine] = useState(userHasEntries);
+  const [mineFilterTouched, setMineFilterTouched] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+  const viewMode =
+    userHasEntries && !hasStoredViewPreference && !viewModeTouched ? 'cards' : storedViewMode;
+
+  const setViewMode = (mode: string) => {
+    setViewModeTouched(true);
+    setViewModePreference(mode);
+  };
+
+  // Entry ownership resolves after mount. Keep defaulting to "Mine" until the
+  // exhibitor explicitly asks for all classes.
+  const effectiveIsMine = userHasEntries && !mineFilterTouched ? true : isMine;
+
+  const handleMineToggle = () => {
+    setMineFilterTouched(true);
+    setIsMine(!effectiveIsMine);
+  };
 
   const mineCount = useMemo(() => classes.filter(c => c.userHasEntry).length, [classes]);
   const mineFilteredClasses = useMemo(
-    () => (isMine ? classes.filter(c => c.userHasEntry) : classes),
-    [classes, isMine]
+    () => (effectiveIsMine ? classes.filter(c => c.userHasEntry) : classes),
+    [classes, effectiveIsMine]
   );
 
   const classDisplayStatuses = useMemo(() => {
@@ -162,7 +183,20 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         header: 'Trial',
         meta: { responsiveHide: 'md' as const },
       },
-      { accessorKey: 'element', header: 'Element' },
+      {
+        accessorKey: 'element',
+        header: 'Element',
+        cell: ({ row }) => (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span>{row.original.element}</span>
+            {row.original.userHasEntry && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                My entry
+              </span>
+            )}
+          </div>
+        ),
+      },
       {
         accessorKey: 'level',
         header: 'Level',
@@ -238,16 +272,22 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+      {userHasEntries && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+          Showing your entered classes first. Switch to all classes for the complete schedule.
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           <StatusFilter
             filter={statusFilter}
             onFilterChange={setStatusFilter}
             counts={statusCounts}
           />
           <MineToggle
-            isMine={isMine}
-            onToggle={() => setIsMine(!isMine)}
+            isMine={effectiveIsMine}
+            onToggle={handleMineToggle}
             allLabel="All Classes"
             mineLabel="My Classes"
             allCount={classes.length}
@@ -255,7 +295,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
             hidden={!userHasEntries}
           />
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:ml-auto">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
           {canManage && (
             <Button
@@ -283,6 +323,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           tableId="classesTab"
           columns={classColumns}
           data={tableData}
+          getRowClassName={cls => (cls.userHasEntry ? 'bg-primary/5' : '')}
           initialSorting={[
             { id: 'trialLabel', desc: false },
             { id: 'element', desc: false },

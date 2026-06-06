@@ -51,15 +51,17 @@ vi.mock('@/hooks/useFastShowDetails', () => ({
 
 // Mock entries for "mine" detection
 let mockUserEntries: Array<{ id: string; showId: string }> = [];
+let mockUserEntriesLoading = false;
 vi.mock('@/hooks/useMyEntries', () => ({
   useMyEntries: () => ({
     entries: mockUserEntries,
     entriesByClass: [],
-    isLoading: false,
+    isLoading: mockUserEntriesLoading,
     isError: false,
   }),
 }));
 
+let mockShowEntriesLoading = false;
 let mockShowEntries: Array<{
   id: string;
   show_id?: string;
@@ -69,7 +71,7 @@ let mockShowEntries: Array<{
   check_in_status?: string;
 }> = [];
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
-  useEntriesByShowQuery: () => ({ data: mockShowEntries }),
+  useEntriesByShowQuery: () => ({ data: mockShowEntries, isLoading: mockShowEntriesLoading }),
 }));
 
 let mockDogs: Array<{ id: string; ownerId: string }> = [];
@@ -285,7 +287,9 @@ describe('ShowDetailsPage', () => {
     };
     mockLoading = false;
     mockUserEntries = [];
+    mockUserEntriesLoading = false;
     mockShowEntries = [];
+    mockShowEntriesLoading = false;
     mockDogs = [];
     mockTrials = [];
     mockTrialClasses = {};
@@ -312,23 +316,32 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByText('Bluegrass Classic')).toBeInTheDocument();
   });
 
-  it('renders exhibitor tabs: Overview, Show Map, My Entries, My Stats, Results', () => {
+  it('renders exhibitor tabs: Overview, Trials, My Entries, Classes, Results', () => {
     mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
     expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Show Map/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Trials/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /My Entries/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /My Stats/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /My Stats/ })).toBeNull();
     expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: /Trials/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /Show Map/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: /^Entries$/ })).toBeNull();
   });
 
-  it('defaults to Overview tab when user has entries', () => {
+  it('defaults to My Entries tab when user has entries', () => {
     mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
-    const tab = screen.getByRole('tab', { name: /Overview/ });
+    const tab = screen.getByRole('tab', { name: /My Entries/ });
     expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
+  });
+
+  it('holds the exhibitor tabs while entry defaulting is loading', () => {
+    mockUserEntriesLoading = true;
+    mockShowEntriesLoading = true;
+    renderPage();
+    expect(screen.queryByRole('tab', { name: /Overview/ })).toBeNull();
+    expect(document.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
   });
 
   it('defaults to Overview tab when user has no entries', () => {
@@ -371,6 +384,9 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.user = null;
     renderPage();
     expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /My Entries/ })).toBeNull();
+    // Results tab is now visible to all users (including unauthenticated)
     expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /Show Map/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: /My Entries/ })).toBeNull();

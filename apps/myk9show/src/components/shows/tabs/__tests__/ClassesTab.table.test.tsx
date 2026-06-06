@@ -1,3 +1,4 @@
+import { beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { ClassesTab } from '../ClassesTab';
 
@@ -39,6 +40,35 @@ const mockClasses = [
 ];
 
 describe('ClassesTab table view', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('defaults entered exhibitors to their classes in card view', () => {
+    render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries />);
+    expect(screen.getByText(/showing your entered classes first/i)).toBeInTheDocument();
+    expect(screen.getByText('My entry')).toBeInTheDocument();
+    expect(screen.getByText('Detective')).toBeInTheDocument();
+    expect(screen.queryByText('Handler Discrimination')).not.toBeInTheDocument();
+  });
+
+  it('switches to card view when entry ownership resolves after mount', () => {
+    const { rerender } = render(
+      <ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />
+    );
+    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+
+    rerender(<ClassesTab classes={mockClasses} showId="s1" userHasEntries />);
+    expect(screen.getByText(/showing your entered classes first/i)).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
+  });
+
+  it('honors stored table preference for entered exhibitors', () => {
+    localStorage.setItem('view-pref-classes', 'table');
+    render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries />);
+    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+  });
+
   it('renders sortable column headers including Trial', () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
     const headers = screen.getAllByRole('columnheader');

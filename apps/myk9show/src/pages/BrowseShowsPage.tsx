@@ -337,8 +337,7 @@ const BrowseShowsPage: React.FC = () => {
               onClick={() => action.onClick({} as Show)}
             >
               <IconComponent className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">{action.label}</span>
-              <span className="sm:hidden">Create</span>
+              <span>{action.label}</span>
             </Button>
           );
         })}

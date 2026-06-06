@@ -79,7 +79,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {show.clubName && <span className="truncate">{show.clubName}</span>}
-            {show.clubName && show.startDate && <span className="text-border">|</span>}
+            {show.clubName && show.startDate && <span className="text-muted-foreground/30">|</span>}
             {show.startDate && (
               <span className="flex-shrink-0">
                 {formatDateRange(show.startDate, show.endDate, 'short', false)}
@@ -128,7 +128,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
  */
 export const ShowCardHorizontalSkeleton: React.FC = () => (
   <div className="rounded-xl bg-card shadow-card p-4">
-    <div className="flex flex-col md:flex-row md:items-center gap-3">
+    <div className="flex flex-row items-center gap-3">
       <div className="flex-shrink-0">
         <div className="w-14 h-14 rounded-xl bg-muted animate-pulse" />
       </div>
@@ -140,6 +140,7 @@ export const ShowCardHorizontalSkeleton: React.FC = () => (
           <div className="h-5 w-16 bg-muted rounded-full animate-pulse" />
         </div>
       </div>
+      <div className="h-5 w-5 bg-muted rounded animate-pulse flex-shrink-0" />
     </div>
   </div>
 );

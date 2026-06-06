@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MapPin } from 'lucide-react';
+import { ChevronRight, MapPin } from 'lucide-react';
 import { formatFee } from '@/utils/format';
 import { DateCircle } from '@/components/shows/DateCircle';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
@@ -39,7 +39,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
         'group relative overflow-hidden rounded-xl bg-card shadow-card cursor-pointer',
         'transition-all duration-200 ease-out',
         'hover:shadow-card-hover',
-        entryStatus.status === 'closing_soon' && 'ring-2 ring-orange-400/50',
+        entryStatus.status === 'closing_soon' && 'ring-2 ring-warning-orange',
         isSelected && 'ring-2 ring-primary/50'
       )}
     >
@@ -48,7 +48,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
         className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-label={`View ${show.name}`}
       />
-      <div className="flex flex-col md:flex-row md:items-center gap-3 p-4">
+      <div className="flex flex-row items-center gap-3 p-4">
         {/* Left: checkbox + DateCircle */}
         <div className="flex items-center gap-3 flex-shrink-0">
           {onToggleSelect && (
@@ -68,10 +68,10 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
           <DateCircle startDate={show.startDate} endDate={show.endDate} status={showCardStatus} />
         </div>
 
-        {/* Right: title + meta + tags */}
+        {/* Center: title + meta + tags */}
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="flex items-start gap-2 flex-wrap">
-            <h3 className="text-base font-bold leading-tight group-hover:text-primary transition-colors truncate">
+            <h3 className="text-base font-semibold leading-tight group-hover:text-primary transition-colors truncate">
               {show.name}
             </h3>
             <EntryStatusBadge show={show} userHasEntries={userHasEntries} size="sm" />
@@ -109,6 +109,15 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
               ))}
           </div>
         </div>
+
+        {/* Trailing arrow — terracotta for actionable shows, muted for closed */}
+        <ChevronRight
+          className={cn(
+            'h-5 w-5 flex-shrink-0 transition-colors opacity-50 group-hover:opacity-100',
+            entryStatus.canEnter ? 'text-primary' : 'text-muted-foreground'
+          )}
+          aria-hidden="true"
+        />
       </div>
     </div>
   );

@@ -45,33 +45,33 @@ export const STATUS_STYLES: Record<
   { border: string; monthText: string; badgeBg: string }
 > = {
   upcoming: {
-    border: 'border-border/15',
+    border: 'border-border/30',
     monthText: 'text-muted-foreground',
-    badgeBg: 'bg-muted',
+    badgeBg: 'bg-muted/30',
   },
   accepting: {
-    border: 'border-green-500',
-    monthText: 'text-green-500',
-    badgeBg: 'bg-green-500/15',
+    border: 'border-primary',
+    monthText: 'text-primary',
+    badgeBg: 'bg-primary/10',
   },
   closing_soon: {
-    border: 'border-orange-500',
-    monthText: 'text-orange-500',
-    badgeBg: 'bg-orange-500/15',
+    border: 'border-warning-orange',
+    monthText: 'text-warning-orange',
+    badgeBg: 'bg-warning-orange/10',
   },
   in_progress: {
-    border: 'border-blue-500',
-    monthText: 'text-blue-500',
-    badgeBg: 'bg-blue-500/15',
+    border: 'border-primary',
+    monthText: 'text-primary',
+    badgeBg: 'bg-primary/10',
   },
   completed: {
-    border: 'border-green-500',
-    monthText: 'text-green-500',
-    badgeBg: 'bg-green-500/15',
+    border: 'border-border/30',
+    monthText: 'text-muted-foreground',
+    badgeBg: 'bg-muted/20',
   },
   closed: {
-    border: 'border-border/15',
+    border: 'border-border/20',
     monthText: 'text-muted-foreground',
-    badgeBg: 'bg-muted',
+    badgeBg: 'bg-muted/10',
   },
 };

@@ -19,7 +19,7 @@ export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
   isSelected,
   onToggleSelect,
 }) => (
-  <StaggeredGrid className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+  <StaggeredGrid className="grid grid-cols-1 md:grid-cols-2 gap-3">
     {shows.map(show => {
       const toggleProps = onToggleSelect ? { onToggleSelect: () => onToggleSelect(show) } : {};
 

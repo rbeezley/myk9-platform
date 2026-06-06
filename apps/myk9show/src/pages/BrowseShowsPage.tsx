@@ -326,8 +326,7 @@ const BrowseShowsPage: React.FC = () => {
                 onClick={() => action.onClick({} as Show)}
               >
                 <IconComponent className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">{action.label}</span>
-                <span className="sm:hidden">Create</span>
+                <span>{action.label}</span>
               </Button>
             </PermissionGuard>
           ) : (
@@ -408,11 +407,11 @@ const BrowseShowsPage: React.FC = () => {
       return (
         <EmptyState
           icon={Search}
-          title={hasActiveFilters ? 'No matching shows' : 'No shows found'}
+          title={hasActiveFilters ? 'No matching shows' : 'No shows yet'}
           description={
             hasActiveFilters
-              ? 'Try adjusting your filters or search to find what you are looking for.'
-              : 'Check back soon for upcoming shows in your area.'
+              ? 'Try clearing a filter or broadening your search.'
+              : 'Shows will appear here as they are added. Try searching by discipline or club name above.'
           }
           action={
             hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : undefined
@@ -480,7 +479,7 @@ const BrowseShowsPage: React.FC = () => {
           <PageHeader breadcrumbs={breadcrumbs} title="Shows" actions={actionButtons} />
 
           {/* Filter toolbar */}
-          <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
+          <div className="bg-card border border-border/40 rounded-2xl p-4 space-y-3">
             <SearchBar
               value={filters.search}
               onChange={value => setFilters(prev => ({ ...prev, search: value }))}

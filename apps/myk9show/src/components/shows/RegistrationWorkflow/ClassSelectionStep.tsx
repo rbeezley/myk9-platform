@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList } from '@/components/ui/tabs';
@@ -27,6 +27,7 @@ import {
   addClassToSelections,
   removeClassFromSelections,
   buildDisplayLabel,
+  reconcileCartToSelections,
 } from './ClassSelectionStep.helpers';
 import {
   DogTabTrigger,
@@ -68,6 +69,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const [, setIsAddingToCart] = useState<string | null>(null);
 
   const cartItems = useCartItems();
+  const cartShowId = useCartStore(state => state.cart?.show_id ?? null);
+  const cartExhibitorId = useCartStore(state => state.cart?.exhibitor_id ?? null);
+  const cartIsLoading = useCartStore(state => state.isLoading);
   const loadCart = useCartStore(state => state.loadCart);
   const createCart = useCartStore(state => state.createCart);
   const addItem = useCartStore(state => state.addItem);
@@ -209,6 +213,38 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // may only be in the replication layer (IndexedDB). Local selection state is
   // sufficient — the cart is only needed for exhibitor self-service persistence.
   const useCartFlow = !!exhibitorId && !isSecretary && !isAdmin;
+
+  // When returning to the form in a new session, the Supabase cart loads with
+  // persisted items but classSelections (wizard-level state) starts empty.
+  // isClassSelected() shows them as checked (inCart), but canProceed() only
+  // reads classSelections — so Next stays grayed out. Reconcile once on load.
+  //
+  // Guard on show_id + exhibitor_id + !isLoading: the Zustand cart is global
+  // and may still hold a previous show's items while this show's cart loads.
+  // Reconciling against stale items would copy the wrong show's classes and
+  // set the ref, preventing a second reconcile once the right cart arrives.
+  const hasReconciledFromCart = useRef(false);
+  useEffect(() => {
+    if (hasReconciledFromCart.current) return;
+    if (!useCartFlow) return;
+    if (cartIsLoading) return;
+    if (cartShowId !== showId || cartExhibitorId !== exhibitorId) return;
+    if (cartItems.length === 0) return;
+    const reconstructed = reconcileCartToSelections(cartItems, classSelections);
+    if (!reconstructed) return;
+    hasReconciledFromCart.current = true;
+    onSelectionChange(reconstructed);
+  }, [
+    cartItems,
+    classSelections,
+    useCartFlow,
+    cartIsLoading,
+    cartShowId,
+    cartExhibitorId,
+    showId,
+    exhibitorId,
+    onSelectionChange,
+  ]);
 
   const handleClassToggle = async (
     dogId: string,

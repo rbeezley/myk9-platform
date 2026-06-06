@@ -383,6 +383,8 @@ This phase has no push delivery — it only fixes who the fanout _would_ target.
 
 ### Phase 6 — Delete `apps/myk9q`
 
+> **Implementation status (2026-06-06):** Repo deletion completed in branch `codex/delete-myk9q-app`: `apps/myk9q` removed from the workspace, root scripts, CI, bootstrap helpers, and tracking docs. The separate myK9Qv3 repository and `myk9q.com` production deployment were not touched. Deleting or disabling the monorepo `myk9-platform-myk9q` Vercel project remains a separate approval-gated shared-system operation.
+
 Waits at least 30 days after Phase 4 redirect is live so stale PWA installs have a chance to land on the redirect and be migrated.
 
 1. Confirm `packages/ringside` is consumed only by `apps/myk9show` (no remaining `apps/myk9q` imports of anything outside the package).

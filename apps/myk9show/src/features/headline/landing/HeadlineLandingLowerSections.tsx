@@ -8,7 +8,7 @@ export function ScheduleAndPlan({ data }: { data: HeritageLandingData }) {
       num: item.type ?? `Hotel · ${String(index + 1).padStart(2, '0')}`,
       title: item.name,
       meta: [item.address, item.phone].filter(Boolean).join(' · '),
-      info: item.url ?? 'Listed in the published premium.',
+      info: item.url ?? 'More details will be posted by the club.',
     })),
     data.hospitalityNotes
       ? {
@@ -31,7 +31,7 @@ export function ScheduleAndPlan({ data }: { data: HeritageLandingData }) {
           num: 'Venue',
           title: data.venueName ?? 'Trial venue',
           meta: data.venueAddress,
-          info: 'Check-in and crating details are listed in the premium.',
+          info: 'Check-in and crating details will be posted by the club.',
         }
       : null,
   ].filter((item): item is { num: string; title: string; meta: string; info: string } =>
@@ -106,9 +106,9 @@ export function FinalCta({ data }: { data: HeritageLandingData }) {
           <div className="l">Online entry</div>
           <div className="v">{data.showName}</div>
           <a className="cta" href={data.entryWizardUrl}>
-            Submit Entry
+            Enter this show
           </a>
-          <div className="helper">Saves and resumes</div>
+          <div className="helper">Review before submitting</div>
         </div>
       </div>
     </section>
@@ -125,7 +125,7 @@ export function Footer({ data }: { data: HeritageLandingData }) {
         </div>
         <div className="col">
           <h4>Trial Secretary</h4>
-          <p>{data.secretaryName ?? 'Secretary listed in premium'}</p>
+          <p>{data.secretaryName ?? 'Secretary will be posted here'}</p>
           {data.secretaryEmail && (
             <a href={`mailto:${data.secretaryEmail}`}>{data.secretaryEmail}</a>
           )}

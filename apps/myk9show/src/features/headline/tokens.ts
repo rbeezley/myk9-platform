@@ -6,13 +6,13 @@
  */
 
 export const headlineColors = {
-  paper: '#fafafa',
-  ink: '#0a0a0a',
-  soft: '#2a2a2a',
-  mute: '#6b6b6b',
-  hair: '#d8d8d6',
-  accent: '#c4302b',
-  marker: '#ffe566',
+  paper: '#f5f4ed',
+  ink: '#141413',
+  soft: '#3d3d3a',
+  mute: '#5e5d59',
+  hair: '#e8e6dc',
+  accent: '#c96442',
+  marker: '#e8e6dc',
 } as const;
 
 export const headlineTypography = {

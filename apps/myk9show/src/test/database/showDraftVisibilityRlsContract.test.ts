@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const migration = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260606160242_scope_draft_show_visibility_to_managers.sql'
+    '../../../../../supabase/migrations/20260606204100_include_show_scoped_secretary_drafts.sql'
   ),
   'utf8'
 );
@@ -33,7 +33,7 @@ describe('show draft visibility RLS contract', () => {
     );
     expect(selectPolicy).toContain('club_id is not null');
     expect(selectPolicy).toContain('public.is_club_admin(club_id)');
-    expect(selectPolicy).toContain('public.is_trial_secretary(club_id)');
+    expect(selectPolicy).toContain('public.is_show_secretary(id)');
     expect(selectPolicy).toContain('public.is_site_admin()');
     expect(selectPolicy).not.toContain('public.can_manage_show(id)');
     expect(selectPolicy).not.toContain('is_trial_secretary()');

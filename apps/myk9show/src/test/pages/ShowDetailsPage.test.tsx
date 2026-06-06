@@ -544,6 +544,19 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByTestId('monogram-landing')).toBeNull();
   });
 
+  it('renders the tabbed UI for an authenticated exhibitor with entries, even on a styled show', () => {
+    mockShow = {
+      ...mockShow,
+      style: 'headline',
+    };
+    mockUserEntries = [{ id: 'entry-1', showId: 'show-1' }];
+
+    renderPage();
+
+    expect(screen.queryByTestId('headline-landing')).toBeNull();
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+  });
+
   it('shows success feedback after saving show edits', async () => {
     const user = userEvent.setup();
     mockAuthContext.isSecretary = true;

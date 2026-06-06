@@ -68,8 +68,11 @@ export const DogStrip: React.FC<DogStripProps> = ({ dogs, onAddDog }) => {
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-2">
         My Dogs
+        <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
+          {dogs.length}
+        </span>
       </p>
       <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
         {dogs.map(dog => (

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { EntryStatusStepper } from '@/components/entries/EntryStatusStepper';
-import { Calendar, MapPin, DollarSign, Eye, Edit, Download } from 'lucide-react';
+import { Calendar, MapPin, DollarSign, Eye, Edit, Download, User } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
@@ -51,6 +51,8 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
     entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
     entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
     entry.paymentStatus === PaymentStatus.PAID_BY_CASH;
+
+  const isFullyComplete = entry.entryStatus === EntryStatus.ACCEPTED && isPaid;
 
   const canEdit =
     entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED;
@@ -94,10 +96,12 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
         </div>
       </div>
 
-      {/* Status Stepper */}
-      <div className="py-4 px-1">
-        <EntryStatusStepper entryStatus={entry.entryStatus} paymentStatus={entry.paymentStatus} />
-      </div>
+      {/* Status Stepper — hidden once accepted + paid; header badges carry that state */}
+      {!isFullyComplete && (
+        <div className="py-4 px-1">
+          <EntryStatusStepper entryStatus={entry.entryStatus} paymentStatus={entry.paymentStatus} />
+        </div>
+      )}
 
       {/* Show Details */}
       <div className="myk9-entries-details-grid">
@@ -143,11 +147,19 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
           {entry.classes.map(cls => (
             <div key={cls.id} className="myk9-entries-class-item">
               <div className="flex items-center gap-2 flex-1">
-                <span className="myk9-entries-class-name">
-                  {cls.name}
-                  {cls.number ? ` #${cls.number}` : ''}
-                  {cls.jumpHeight && ` (${cls.jumpHeight})`}
-                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="myk9-entries-class-name">
+                    {cls.name}
+                    {cls.number ? ` #${cls.number}` : ''}
+                    {cls.jumpHeight && ` (${cls.jumpHeight})`}
+                  </span>
+                  {cls.handler && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                      <User className="h-3 w-3 flex-shrink-0" />
+                      {cls.handler}
+                    </span>
+                  )}
+                </div>
 
                 {/* Result badge for scored entries */}
                 {cls.isScored && cls.resultStatus && (

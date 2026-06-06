@@ -11,6 +11,8 @@ import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { EntryStatus } from '@/types/show-registration-types';
+import { isPendingEntry, isAcceptedEntry, isWaitlistEntry } from '@/utils/entryPredicates';
+import { isPastShowEntry } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
@@ -36,14 +38,14 @@ import {
 } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
 
-const ENTRY_TABS: PrimaryTabDef[] = [
+const ENTRY_TAB_DEFS = [
   { id: 'all', label: 'All', icon: List },
   { id: 'pending', label: 'Pending', icon: Clock },
   { id: 'accepted', label: 'Accepted', icon: CheckCircle },
   { id: 'waitlist', label: 'Waitlist', icon: Users },
   { id: 'upcoming', label: 'Upcoming', icon: CalendarDays },
   { id: 'completed', label: 'Completed', icon: CircleCheck },
-];
+] as const satisfies Omit<PrimaryTabDef, 'count'>[];
 import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
@@ -53,7 +55,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useMyEntriesData,
   useMyEntriesFilters,
-  MyEntriesStatsCards,
   MyEntryCard,
   type MyEntry,
   type EntryClass,
@@ -83,13 +84,29 @@ const MyEntriesPage: React.FC = () => {
 
   // Note: "Upcoming Shows" / "Past Shows" are distinct-show, date-range-aware
   // counts derived once in useMyEntriesFilters (entryStats) so the top cards and
-  // the stat grid never drift. Only entry-status + dog counts live here.
-  const statistics = useMemo(
-    () => ({
+  // the stat grid never drift. Only entry-status counts live here.
+  const statistics = useMemo(() => {
+    const now = new Date();
+    return {
       activeEntries: entries.filter((e: MyEntry) => e.entryStatus === EntryStatus.ACCEPTED).length,
-      totalDogs: dogs.length,
-    }),
-    [entries, dogs]
+      tabCounts: {
+        all: entries.length,
+        pending: entries.filter(isPendingEntry).length,
+        accepted: entries.filter(isAcceptedEntry).length,
+        waitlist: entries.filter(isWaitlistEntry).length,
+        upcoming: entries.filter(e => !isPastShowEntry(e, now)).length,
+        completed: entries.filter(e => isPastShowEntry(e, now)).length,
+      },
+    };
+  }, [entries]);
+
+  const entryTabs = useMemo<PrimaryTabDef[]>(
+    () =>
+      ENTRY_TAB_DEFS.map(tab => ({
+        ...tab,
+        count: statistics.tabCounts[tab.id],
+      })),
+    [statistics.tabCounts]
   );
 
   // Dialog states
@@ -219,7 +236,7 @@ const MyEntriesPage: React.FC = () => {
             activeEntries={statistics.activeEntries}
             upcomingShows={entryStats.upcomingShows}
             pastShows={entryStats.pastShows}
-            totalDogs={statistics.totalDogs}
+            totalFees={entryStats.totalFees}
             onNavigate={navigate}
           />
 
@@ -235,16 +252,18 @@ const MyEntriesPage: React.FC = () => {
             onAddDog={() => setAddDogOpen(true)}
           />
 
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
             My Entries
+            {entries.length > 0 && (
+              <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
+                {entries.length}
+              </span>
+            )}
           </p>
-
-          {/* Summary Stats */}
-          <MyEntriesStatsCards stats={entryStats} />
 
           {/* Entries List */}
           <PrimaryTabs
-            tabs={ENTRY_TABS}
+            tabs={entryTabs}
             value={selectedTab}
             onValueChange={value => setSelectedTab(value as EntryTabFilter)}
             className="space-y-6"

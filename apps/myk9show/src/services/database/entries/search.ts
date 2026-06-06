@@ -113,7 +113,7 @@ export const USER_ENTRIES_SELECT = `
         start_date,
         end_date,
         entry_close_date,
-        venue,
+        venue_name,
         city,
         state
       ),

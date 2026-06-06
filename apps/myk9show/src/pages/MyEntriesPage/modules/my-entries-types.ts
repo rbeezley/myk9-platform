@@ -20,6 +20,8 @@ export interface EntryClass {
   trialType?: string | undefined;
   runOrder?: number | undefined;
   status: 'entered' | 'scratched' | 'moved' | 'absent';
+  /** Denormalized handler display name; may differ from the dog owner when a proxy handles the dog. */
+  handler?: string | undefined;
   checkInStatus?: CheckInStatus | undefined;
   checkInTime?: Date | undefined;
   /** Whether this entry has been scored */

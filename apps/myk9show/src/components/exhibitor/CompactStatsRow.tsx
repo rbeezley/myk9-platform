@@ -6,13 +6,14 @@
  */
 
 import { cn } from '@/lib/utils';
-import { FileText, Calendar, Heart, History } from 'lucide-react';
+import { FileText, Calendar, DollarSign, History } from 'lucide-react';
 import { type ReactNode } from 'react';
 
 interface StatItem {
   icon: ReactNode;
   label: string;
   value: number;
+  displayValue?: string;
   href: string;
   tint: string;
   iconColor: string;
@@ -22,7 +23,7 @@ interface CompactStatsRowProps {
   activeEntries: number;
   upcomingShows: number;
   pastShows: number;
-  totalDogs: number;
+  totalFees: number;
   onNavigate: (path: string) => void;
   className?: string | undefined;
 }
@@ -31,7 +32,7 @@ export function CompactStatsRow({
   activeEntries,
   upcomingShows,
   pastShows,
-  totalDogs,
+  totalFees,
   onNavigate,
   className,
 }: CompactStatsRowProps) {
@@ -61,12 +62,13 @@ export function CompactStatsRow({
       iconColor: 'text-purple-400',
     },
     {
-      icon: <Heart className="h-5 w-5" />,
-      label: totalDogs === 1 ? 'Dog Registered' : 'Dogs Registered',
-      value: totalDogs,
-      href: '/dogs',
-      tint: 'bg-rose-500/8 dark:bg-rose-500/12 border-rose-500/15',
-      iconColor: 'text-rose-400',
+      icon: <DollarSign className="h-5 w-5" />,
+      label: 'Total Fees',
+      value: totalFees,
+      displayValue: `$${totalFees.toLocaleString()}`,
+      href: '/exhibitor/entries',
+      tint: 'bg-emerald-500/8 dark:bg-emerald-500/12 border-emerald-500/15',
+      iconColor: 'text-emerald-500',
     },
   ];
 
@@ -87,7 +89,9 @@ export function CompactStatsRow({
           aria-label={`${stat.value} ${stat.label}. View details.`}
         >
           <div className={cn('opacity-70', stat.iconColor)}>{stat.icon}</div>
-          <span className="text-2xl font-bold text-foreground tabular-nums">{stat.value}</span>
+          <span className="text-2xl font-bold text-foreground tabular-nums">
+            {stat.displayValue ?? stat.value}
+          </span>
           <span className="text-xs text-muted-foreground font-medium">{stat.label}</span>
         </button>
       ))}

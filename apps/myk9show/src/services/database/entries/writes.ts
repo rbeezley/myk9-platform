@@ -285,21 +285,18 @@ export const updateEntryDetails = async (params: {
   }
 };
 
-// Update entry handler
+// Update entry handler — routes through update_entry_handler() RPC because the
+// entries_update RLS policy only permits show managers. The RPC enforces
+// owner/co-owner/handler scope server-side before writing the denormalized TEXT.
 export const updateEntryHandler = async (params: { entryId: string; handler: string }) => {
   const startTime = Date.now();
   const { entryId, handler } = params;
 
   try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        handler,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select()
-      .single();
+    const { error } = await supabase.rpc(
+      'update_entry_handler' as never,
+      { p_entry_id: entryId, p_handler: handler } as never
+    );
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'update_handler', duration, error?.message);
@@ -308,7 +305,7 @@ export const updateEntryHandler = async (params: { entryId: string; handler: str
       throw createDatabaseError(error, 'entries', 'update_handler');
     }
 
-    return { data, error: null };
+    return { data: null, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'update_handler');

@@ -14,11 +14,12 @@ vi.mock('@/hooks/useRBAC', () => ({
 }));
 
 let mockViewMode = 'table';
+let mockHasStoredViewPreference = false;
 const mockSetViewMode = vi.fn((m: string) => {
   mockViewMode = m;
 });
 vi.mock('@/hooks/useViewPreference', () => ({
-  useViewPreference: () => [mockViewMode, mockSetViewMode],
+  useViewPreference: () => [mockViewMode, mockSetViewMode, mockHasStoredViewPreference],
   CARD_TABLE_MODES: [
     { key: 'cards', label: 'Cards', icon: 'grid' },
     { key: 'table', label: 'Table', icon: 'table' },
@@ -127,22 +128,23 @@ vi.mock('@/components/common/EmptyState', () => ({
 describe('ClassesTab', () => {
   beforeEach(() => {
     mockViewMode = 'table';
+    mockHasStoredViewPreference = false;
     mockNavigate.mockClear();
     mockSetViewMode.mockClear();
   });
 
   it('renders a table with class info', () => {
-    render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
+    render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
     expect(screen.getByText('Containers')).toBeInTheDocument();
     expect(screen.getAllByText('Novice')).toHaveLength(2);
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
   });
 
-  it('defaults to showing all classes when user has entries', () => {
+  it('defaults to showing entered classes first when user has entries', () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
     expect(screen.getByText('Containers')).toBeInTheDocument();
     expect(screen.getByText('Interior')).toBeInTheDocument();
-    expect(screen.getByText('Exterior')).toBeInTheDocument();
+    expect(screen.queryByText('Exterior')).toBeNull();
   });
 
   it('shows only user classes when toggled to My Classes', () => {
@@ -179,8 +181,8 @@ describe('ClassesTab', () => {
   it('MineToggle filters in card view', () => {
     mockViewMode = 'cards';
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={true} />);
-    expect(screen.getAllByTestId('class-card')).toHaveLength(3);
-    fireEvent.click(screen.getByText('My Classes'));
     expect(screen.getAllByTestId('class-card')).toHaveLength(2);
+    fireEvent.click(screen.getByText('All Classes'));
+    expect(screen.getAllByTestId('class-card')).toHaveLength(3);
   });
 });

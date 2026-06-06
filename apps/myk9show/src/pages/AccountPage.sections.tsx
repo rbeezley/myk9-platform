@@ -21,8 +21,8 @@ export function ProfileSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onSuccess = useCallback(
-    (url: string) => {
-      if (form.person) updatePerson.mutate({ ...form.person, profileImage: url });
+    async (url: string) => {
+      if (form.person) await updatePerson.mutateAsync({ ...form.person, profileImage: url });
     },
     [form.person, updatePerson]
   );

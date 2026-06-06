@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
+import { notifications } from '@/lib/notifications';
 import {
   getAllUsers,
   createUser,
@@ -72,6 +73,9 @@ export function useUpdatePerson() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+    onError: (error: Error) => {
+      notifications.error(error.message || 'Failed to save profile.');
     },
   });
 }

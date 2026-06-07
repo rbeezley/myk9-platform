@@ -206,3 +206,27 @@ Audited 2026-02-15. All 3 items were already fully implemented (document was sta
 - Hooks: useFieldLevelSync, useSearchWorker, usePushNotifications, useBatchMutations, useTrialsDatabase, useEncryptedStorage
 - Services: ErrorTracker, PerformanceBudgetService, mockDataService, migration.ts, judgeAssignmentQueries
 - Utils: optimisticHelpers
+
+---
+
+## 9. Future Idea — Real-time presence/collaboration on the replication layer
+
+**Logged 2026-06-07 (PR #576).** PR #576 deleted an unfinished, never-wired-in
+collaboration cluster (`services/collaboration/*`, `components/collaboration/*`,
+`hooks/useCollaboration.ts`) along with its only consumer, the dead `AppLayout`.
+It was a Supabase-Realtime presence + broadcast system: who's online and where,
+live entity-change notifications, edit locks, and typing indicators — i.e.
+Google-Docs-style coordination for show-day.
+
+**Why it was removed, not kept:** it duplicated the app's canonical live-data
+path (offline-first `@myk9/replication` + scoring realtime), and its "live
+updates" were `broadcast`-based with zero `postgres_changes` subscriptions — so
+it only saw changes made by other clients running that same code (missing edge
+functions, the legacy app, and direct DB writes).
+
+**If the capability is wanted later** ("3 judges online, secretary is on Ring 2",
+soft edit-locks to avoid clobbering a shared record): build *presence* on top of
+the replication / Supabase-realtime layer the app already depends on rather than
+re-introducing a parallel sync mechanism. The deleted code in PR #576's history
+is a usable reference for the presence/heartbeat and edit-lock logic — crib the
+algorithms, not the architecture.

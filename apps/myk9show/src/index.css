@@ -419,6 +419,32 @@ select:hover {
     --shadow-ring-primary: 0px 0px 0px 1px var(--primary);
     --shadow-ring-inset: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.15);
     --sidebar-border: #e8e6dc;
+
+    /* ---- App top-chrome offsets ----
+       The PWA install banner (PWAInstallBanner) and the fixed AppHeader are
+       BOTH pinned to the top of the viewport; when the banner shows it sits
+       ABOVE the header. These vars let the header, sidebar, and sticky
+       sub-headers stack below the banner instead of overlapping it.
+       --pwa-banner-height: 0 unless the banner is mounted (toggled via the
+         .pwa-banner-visible class on <html> by PWAInstallBanner).
+       --app-top-inset: full fixed-chrome height = banner + 3rem header. */
+    --pwa-banner-height: 0px;
+    --app-top-inset: 3rem;
+  }
+
+  /* PWAInstallBanner adds this class to <html> while the banner is visible.
+     Heights mirror the banner's own h-[52px] sm:h-[56px] spacer so the header
+     drop, the sidebar top, and the content offset never drift apart. */
+  html.pwa-banner-visible {
+    --pwa-banner-height: 52px;
+    --app-top-inset: calc(3rem + 52px);
+  }
+
+  @media (min-width: 640px) {
+    html.pwa-banner-visible {
+      --pwa-banner-height: 56px;
+      --app-top-inset: calc(3rem + 56px);
+    }
   }
 
   .dark {

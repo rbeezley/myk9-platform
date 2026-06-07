@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTimestamp, formattedBuildDate, productVersion } from './appVersion';
+import { buildTimestamp, formattedBuildDate, getBuildReference, productVersion } from './appVersion';
 
 describe('appVersion', () => {
   it('exposes a non-empty product version from package.json', () => {
@@ -16,5 +16,23 @@ describe('appVersion', () => {
 
   it("renders 'Development' instead of an Invalid Date when on the dev fallback", () => {
     expect(formattedBuildDate).toBe('Development');
+  });
+
+  it('uses the squash-merge PR number as the build reference', () => {
+    expect(getBuildReference('fix(myk9show): edit handlers per class entry (#580)', '')).toBe(
+      '#580'
+    );
+  });
+
+  it('uses the last PR number when the commit message references multiple PR-like values', () => {
+    expect(getBuildReference('fix: resolve issue from (#400) context (#580)', '')).toBe('#580');
+  });
+
+  it('falls back to short SHA when no PR number is present', () => {
+    expect(getBuildReference('chore: bump deps', 'abc1234def')).toBe('abc1234');
+  });
+
+  it('returns empty string when SHA is too short and no PR number is present', () => {
+    expect(getBuildReference('chore: bump deps', 'abc')).toBe('');
   });
 });

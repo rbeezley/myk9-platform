@@ -8,6 +8,8 @@ import {
   Send,
 } from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
+import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
@@ -378,12 +380,14 @@ export function ShowWorkbenchPage() {
   }
 
   return (
-    <PageShell>
+    <ShowPresenceProvider showId={showId}>
+      <PageShell>
       <PageHeader
         breadcrumbs={breadcrumbs}
         title={`${currentShow.name || 'Show'} workbench`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <ShowPresenceStack className="mr-1" />
             <Button asChild variant="outline" size="sm">
               <Link to={`/shows/${currentShow.id}`}>
                 <Eye className="h-4 w-4 mr-2" />
@@ -496,7 +500,8 @@ export function ShowWorkbenchPage() {
           </Suspense>
         </PrimaryTabsContent>
       </PrimaryTabs>
-    </PageShell>
+      </PageShell>
+    </ShowPresenceProvider>
   );
 }
 

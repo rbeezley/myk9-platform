@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { JudgePresenceDot } from '@/features/show-presence/JudgePresenceDot';
-import { judgesOnClass } from '@/features/show-presence/presenceSelectors';
+import {
+  judgesOnClass,
+  filterPresenceForViewer,
+} from '@/features/show-presence/presenceSelectors';
 import type { ShowPresence } from '@/features/show-presence/types';
 
 function p(overrides: Partial<ShowPresence> & { userId: string; name: string }): ShowPresence {
@@ -24,6 +27,32 @@ describe('judgesOnClass', () => {
     expect(judgesOnClass(present, 'c1').map(j => j.userId)).toEqual(['j1']);
     expect(judgesOnClass(present, 'c2').map(j => j.userId)).toEqual(['j2']);
     expect(judgesOnClass(present, 'c9')).toEqual([]);
+  });
+});
+
+describe('filterPresenceForViewer (privacy, plan §10 #2)', () => {
+  const roster = [
+    p({ userId: 'sec', name: 'Sue', role: 'secretary' }),
+    p({ userId: 'jud', name: 'Jane', role: 'judge' }),
+    p({ userId: 'ex1', name: 'Ann', role: 'exhibitor' }),
+    p({ userId: 'ex2', name: 'Bob', role: 'exhibitor' }),
+  ];
+
+  it('lets staff see everyone', () => {
+    expect(filterPresenceForViewer(roster, 'sec', 'secretary').map(x => x.userId).sort()).toEqual([
+      'ex1',
+      'ex2',
+      'jud',
+      'sec',
+    ]);
+  });
+
+  it('lets an exhibitor see only staff plus themselves', () => {
+    expect(filterPresenceForViewer(roster, 'ex1', 'exhibitor').map(x => x.userId).sort()).toEqual([
+      'ex1',
+      'jud',
+      'sec',
+    ]);
   });
 });
 

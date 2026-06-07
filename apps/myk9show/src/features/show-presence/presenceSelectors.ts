@@ -12,3 +12,21 @@ export function judgesOnClass(present: ShowPresence[], classId: string): ShowPre
       p.location.entityId === classId
   );
 }
+
+/** Anyone who is not an exhibitor counts as "staff" for presence visibility. */
+export function isStaffRole(role: string): boolean {
+  return role !== 'exhibitor';
+}
+
+/**
+ * Privacy filter (plan §10 #2): staff see everyone; exhibitors see only staff
+ * (plus themselves). Applied once, per viewer, in ShowPresenceProvider.
+ */
+export function filterPresenceForViewer(
+  roster: ShowPresence[],
+  viewerId: string | undefined,
+  viewerRole: string
+): ShowPresence[] {
+  if (isStaffRole(viewerRole)) return roster;
+  return roster.filter(p => isStaffRole(p.role) || p.userId === viewerId);
+}

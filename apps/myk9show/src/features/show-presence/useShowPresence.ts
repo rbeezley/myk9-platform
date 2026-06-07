@@ -112,7 +112,7 @@ export function useShowPresence(showId: string | undefined): UseShowPresenceResu
     const next: ShowPresence = {
       userId,
       name: firstName ?? email?.split('@')[0] ?? 'Someone',
-      role: getUserRoles()[0] ?? 'exhibitor',
+      role: getUserRoles?.()?.[0] ?? 'exhibitor',
       location: { page: location.pathname, ...(entityForPath(location.pathname) ?? {}) },
       activity: activityForPath(location.pathname),
       ts: Date.now(),

@@ -17,7 +17,8 @@
  */
 
 import type { ReactNode } from 'react';
-import { Route } from 'react-router-dom';
+import { Route, useParams } from 'react-router-dom';
+import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { createEnhancedLazy, RouteLazyPresets } from '@/utils/enhancedLazyLoading';
@@ -46,8 +47,18 @@ const AtShowClassListPage = createEnhancedLazy(
 );
 
 /**
+ * Broadcast show presence while an at-show page is open. Reads `:showId` from the
+ * route (so it must render inside the routed tree) and makes the admitted user a
+ * presence producer — this is where exhibitors and judges spend show day.
+ */
+function AtShowPresenceBoundary({ children }: { children: ReactNode }) {
+  const { showId } = useParams<{ showId: string }>();
+  return <ShowPresenceProvider showId={showId}>{children}</ShowPresenceProvider>;
+}
+
+/**
  * Wrap an at-show page in the shared guard stack: access gate → suspense →
- * per-show enablement gate → page transition.
+ * per-show enablement gate → presence boundary → page transition.
  */
 function atShowElement(page: ReactNode): ReactNode {
   return (
@@ -55,7 +66,9 @@ function atShowElement(page: ReactNode): ReactNode {
       <RingsideSessionHeartbeat>
         <SuspenseWrapper>
           <UnifiedRingsideGate>
-            <PageTransition>{page}</PageTransition>
+            <AtShowPresenceBoundary>
+              <PageTransition>{page}</PageTransition>
+            </AtShowPresenceBoundary>
           </UnifiedRingsideGate>
         </SuspenseWrapper>
       </RingsideSessionHeartbeat>

@@ -40,6 +40,10 @@ import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
 import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
 import { useMessageShowClassOptions } from '@/features/messages/hooks/useMessageShowClassOptions';
+import type {
+  MessageShowDeliveryLane,
+  MessageShowRecipientType,
+} from '@/features/show-workbench/messageShow';
 
 type MessageCenterTab = 'notifications' | 'showMessages';
 
@@ -192,6 +196,18 @@ export function MessageCenterPanel() {
   const [composeShowId, setComposeShowId] = useState<string>('');
 
   const isStaffDestination = isSecretary || isAdmin || hasRole('club_admin');
+  const canPostShowWideMessage = author.isOfficial;
+  const canSendTargetedShowMessages = isSecretary || isAdmin || hasRole('trial_secretary');
+  const canComposeShowMessage = canPostShowWideMessage || canSendTargetedShowMessages;
+  const composeAllowedRecipients: MessageShowRecipientType[] = canComposeShowMessage
+    ? [
+        'all_show',
+        ...(canSendTargetedShowMessages ? (['class', 'checked_in'] as const) : []),
+      ]
+    : [];
+  const composeShowWideDeliveryLane: MessageShowDeliveryLane = canPostShowWideMessage
+    ? 'announcement'
+    : 'targeted';
   const showsById = new Map(shows.map(show => [show.id, show]));
   const staffShows =
     currentShowIds.length > 0
@@ -306,6 +322,14 @@ export function MessageCenterPanel() {
           />
         ) : (
           <>
+            {messagesError && (
+              <div className="flex items-center justify-between gap-3 border-b border-border/50 p-3">
+                <p className="text-sm text-destructive">Couldn't load all messages.</p>
+                <Button variant="outline" size="sm" onClick={handleRetryMessages}>
+                  Try again
+                </Button>
+              </div>
+            )}
             {filteredAnnouncements.map(announcement => (
               <AnnouncementItem
                 key={announcement.id}
@@ -369,7 +393,7 @@ export function MessageCenterPanel() {
         size="sm"
         {...unreadHeaderProps}
       >
-        {author.isOfficial && (
+        {canComposeShowMessage && (
           <div className="flex gap-2 border-b border-border/50 p-3">
             <Button
               variant="default"
@@ -381,9 +405,11 @@ export function MessageCenterPanel() {
               <Plus className="mr-1.5 h-4 w-4" />
               Compose
             </Button>
-            <Button variant="outline" size="sm" onClick={handleOpenFullView}>
-              Open full view
-            </Button>
+            {isStaffDestination && (
+              <Button variant="outline" size="sm" onClick={handleOpenFullView}>
+                Open full view
+              </Button>
+            )}
           </div>
         )}
         <div className="flex border-b border-border/50 px-4" role="tablist">
@@ -461,6 +487,8 @@ export function MessageCenterPanel() {
               <MessageShowComposer
                 showId={selectedComposeShowId}
                 classes={composeClasses}
+                allowedRecipients={composeAllowedRecipients}
+                showWideDeliveryLane={composeShowWideDeliveryLane}
                 showHistoryLink={false}
                 onSent={() => setIsComposeOpen(false)}
               />

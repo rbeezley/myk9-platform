@@ -68,6 +68,40 @@ describe('MessageShowComposer', () => {
     expect(mockSendTargetedMessage).not.toHaveBeenCalled();
   });
 
+  it('can limit a show-wide sender to the everyone-in-show lane', async () => {
+    const { user } = render(
+      <MessageShowComposer showId="show-1" classes={classes} allowedRecipients={['all_show']} />
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
+
+    expect(await screen.findByRole('option', { name: 'Everyone in show' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'A class' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Everyone checked in' })).not.toBeInTheDocument();
+  });
+
+  it('can send everyone-in-show through targeted messaging when the caller cannot post show-wide posts', async () => {
+    const { user } = render(
+      <MessageShowComposer
+        showId="show-1"
+        classes={classes}
+        showWideDeliveryLane="targeted"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    await waitFor(() => {
+      expect(mockSendTargetedMessage).toHaveBeenCalledWith(
+        'show-1',
+        { type: 'all_show', sendPush: true },
+        'Lunch is ready for judges, stewards, and volunteers. Please check in at hospitality.'
+      );
+    });
+    expect(mockPostAnnouncement).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+  });
+
   it('sends quiet everyone-in-show messages with normal priority when push is unchecked', async () => {
     const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
 

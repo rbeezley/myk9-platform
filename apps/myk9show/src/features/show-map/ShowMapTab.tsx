@@ -3,6 +3,7 @@ import { ListTree, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getShowMapNodeId } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
+import { useShowPresence } from '@/features/show-presence/useShowPresence';
 import { ShowMapMoveUpDialog, type ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
@@ -179,6 +180,8 @@ function ShowMapTabView({
   compact = false,
   state,
 }: ShowMapTabProps & { state: ShowMapWorkbenchState }) {
+  // Live presence for the per-class "judge online" dot (plan §6 Phase 1).
+  const { present } = useShowPresence(show.id);
   const {
     tree,
     scope,
@@ -338,6 +341,7 @@ function ShowMapTabView({
           onAction={executeAction}
           enableRowActions={canManageShow}
           attentionCountsByNodeId={attentionCountsByNodeId}
+          presence={present}
           onResetFilters={resetFilters}
           runOrderControls={
             canManageShow

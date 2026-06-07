@@ -11,6 +11,9 @@ import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { ShowMapRowActionsMenu } from './ShowMapRowActionsMenu';
 import { ShowMapRunOrderMenu } from './ShowMapRunOrderMenu';
 import { ShowMapSortableEntryRow } from './ShowMapSortableEntryRow';
+import { JudgePresenceDot } from '@/features/show-presence/JudgePresenceDot';
+import { judgesOnClass } from '@/features/show-presence/presenceSelectors';
+import type { ShowPresence } from '@/features/show-presence/types';
 import { DEFAULT_SHOW_MAP_SCOPE } from './showMapTimeScope';
 import type { ShowMapAutoSortKind } from './showMapRunOrderAutoSort';
 import { isShowMapEntryPinnedForReorder } from './showMapReorderMode';
@@ -48,6 +51,9 @@ interface ShowMapStructureTableProps {
   scope?: ShowMapScopeState | undefined;
   scopeNow?: Date | undefined;
   attentionCountsByNodeId?: ReadonlyMap<string, number> | undefined;
+  // Live presence roster for this show (Phase 1, docs/plan-show-presence.md).
+  // Drives the per-class "judge online" dot. Empty/omitted ⇒ no dots.
+  presence?: ShowPresence[] | undefined;
   onResetFilters?: (() => void) | undefined;
   // Class-row Run Order menu controls. When omitted, the menu is not
   // rendered (read-only / browse-only contexts like the public map).
@@ -159,9 +165,20 @@ function ClassPrimaryActionButton({
   );
 }
 
-function StatusCell({ node, attentionCount }: { node: ShowMapNode; attentionCount: number }) {
+function StatusCell({
+  node,
+  attentionCount,
+  present,
+}: {
+  node: ShowMapNode;
+  attentionCount: number;
+  present: ShowPresence[];
+}) {
+  const classId = node.type === 'class' ? node.id.slice(node.type.length + 1) : null;
+  const hasJudge = classId ? judgesOnClass(present, classId).length > 0 : false;
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap items-center gap-1">
+      {classId && <JudgePresenceDot present={present} classId={classId} />}
       {node.status && <Badge variant="secondary">{node.status.label}</Badge>}
       {node.wrapUpStatus && (
         <Badge variant={node.wrapUpStatus.kind === 'attention' ? 'destructive' : 'outline'}>
@@ -172,9 +189,11 @@ function StatusCell({ node, attentionCount }: { node: ShowMapNode; attentionCoun
       {attentionCount > 0 && (
         <Badge variant="outline">{attentionCount} need attention</Badge>
       )}
-      {!node.status && !node.wrapUpStatus && !node.checkInStatus && attentionCount === 0 && (
-        <span className="text-sm text-muted-foreground">-</span>
-      )}
+      {!node.status &&
+        !node.wrapUpStatus &&
+        !node.checkInStatus &&
+        attentionCount === 0 &&
+        !hasJudge && <span className="text-sm text-muted-foreground">-</span>}
     </div>
   );
 }
@@ -241,6 +260,7 @@ export function ShowMapStructureTable({
   scope = DEFAULT_SHOW_MAP_SCOPE,
   scopeNow = new Date(),
   attentionCountsByNodeId,
+  presence = [],
   onResetFilters,
   runOrderControls,
   reorderMode,
@@ -450,6 +470,7 @@ export function ShowMapStructureTable({
             <StatusCell
               node={node}
               attentionCount={attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0}
+              present={presence}
             />
             <ProgressCell node={node} />
             <div className="flex justify-end">
@@ -529,6 +550,7 @@ export function ShowMapStructureTable({
         <StatusCell
           node={node}
           attentionCount={attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0}
+          present={presence}
         />
         <ProgressCell node={node} />
 

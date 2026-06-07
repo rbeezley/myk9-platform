@@ -10,6 +10,7 @@ import {
   useShowPresence,
   dedupePresence,
   activityForPath,
+  entityForPath,
   presenceChannelName,
 } from '@/features/show-presence/useShowPresence';
 
@@ -77,6 +78,24 @@ describe('activityForPath', () => {
     expect(activityForPath('/shows/s1/edit')).toBe('editing');
     expect(activityForPath('/exhibitor/entries')).toBe('checking-in');
     expect(activityForPath('/shows/s1')).toBe('viewing');
+  });
+});
+
+describe('entityForPath', () => {
+  it('extracts the class from an at-show scoring route', () => {
+    expect(entityForPath('/at-show/show-1/class/abc-123')).toEqual({
+      entityType: 'class',
+      entityId: 'abc-123',
+    });
+    expect(entityForPath('/at-show/show-1/class/abc-123/score/e9')).toEqual({
+      entityType: 'class',
+      entityId: 'abc-123',
+    });
+  });
+
+  it('returns undefined off a class route', () => {
+    expect(entityForPath('/shows/show-1')).toBeUndefined();
+    expect(entityForPath('/at-show/show-1')).toBeUndefined();
   });
 });
 

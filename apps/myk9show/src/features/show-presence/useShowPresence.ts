@@ -30,6 +30,15 @@ export function presenceChannelName(showId: string): string {
 }
 
 /**
+ * Kill switch (plan §12). Off by default via `features.showPresence`; an env
+ * override (`VITE_SHOW_PRESENCE=true`) enables it for E2E / manual smoke without
+ * editing the const. Evaluated at call time so the flag can be toggled in tests.
+ */
+function showPresenceEnabled(): boolean {
+  return features.showPresence || import.meta.env?.VITE_SHOW_PRESENCE === 'true';
+}
+
+/**
  * Map a route path to a coarse activity. Pure + tiny so it is unit-testable
  * and callers/tests never need the router. Order matters: most-specific first.
  */
@@ -38,6 +47,16 @@ export function activityForPath(path: string): PresenceActivity {
   if (path.includes('/edit')) return 'editing';
   if (path.includes('/check-in') || path.includes('/entries')) return 'checking-in';
   return 'viewing';
+}
+
+/**
+ * Extract the class a user is on from the at-show route, so a judge scoring
+ * `/at-show/:showId/class/:classId` advertises which ring/class they're at.
+ * Drives the per-ring "judge online" dot on the show map. Pure + tiny.
+ */
+export function entityForPath(path: string): { entityType: 'class'; entityId: string } | undefined {
+  const match = path.match(/\/at-show\/[^/]+\/class\/([^/]+)/);
+  return match ? { entityType: 'class', entityId: match[1]! } : undefined;
 }
 
 /** Flatten Supabase presence state into one ShowPresence per user (latest ts wins). */
@@ -94,7 +113,7 @@ export function useShowPresence(showId: string | undefined): UseShowPresenceResu
       userId,
       name: firstName ?? email?.split('@')[0] ?? 'Someone',
       role: getUserRoles()[0] ?? 'exhibitor',
-      location: { page: location.pathname },
+      location: { page: location.pathname, ...(entityForPath(location.pathname) ?? {}) },
       activity: activityForPath(location.pathname),
       ts: Date.now(),
     };
@@ -110,7 +129,7 @@ export function useShowPresence(showId: string | undefined): UseShowPresenceResu
   // Declared after the identity effect so infoRef is populated first on mount.
   // Gated by the kill switch (plan §12): when off we open no channel at all.
   useEffect(() => {
-    if (!features.showPresence || !showId || !userId || !infoRef.current) return undefined;
+    if (!showPresenceEnabled() || !showId || !userId || !infoRef.current) return undefined;
 
     const name = presenceChannelName(showId);
     const channel = supabase.channel(name, { config: { presence: { key: userId } } });

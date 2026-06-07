@@ -18,8 +18,8 @@
 - Exhibitor dashboard, show calendar, entry workflow
 - Notification infrastructure (FCM tokens, notification queue, preferences)
 - `exhibitor_profiles.subscription_tier` (free | premium | pro) in the DB
-- Realtime infrastructure (RealtimeScoringService, RealtimeEventBus, RealtimeConnectionManager)
-- Collaboration services (CollaborationHub, LiveUpdates, Presence)
+- Realtime infrastructure: Supabase `postgres_changes` (entries, classes, show_messages, show_message_threads, show_announcements, shows) + `@myk9/replication` offline sync. (The standalone `RealtimeScoringService` / `RealtimeEventBus` / `RealtimeConnectionManager` classes were never wired and were removed 2026-06-07 — see `docs/realtime-publication-audit.md`.)
+- Collaboration services (CollaborationHub, LiveUpdates, Presence) — removed in PR #576 as never-wired duplication of the replication layer
 
 ### Critical Gaps
 

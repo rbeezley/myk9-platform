@@ -28,7 +28,6 @@ These require integration with other systems or significant implementation.
 | `store/trialStore.ts` (x3) | ReplicatedClassesTable integration | Replication system |
 | `services/sync/InitialSyncOrchestrator.ts` | Supabase sync logic | Supabase |
 | `services/sync/SmartQueryBuilder.ts` | Supabase query replacement | Supabase |
-| `services/realtime/RealtimeScoringService.ts` | Conflict resolution | Sync system |
 | `pages/MyEntriesPage.tsx` | API/IndexedDB entries fetch | Data layer |
 
 **Action:** Create feature-level issues for each integration.

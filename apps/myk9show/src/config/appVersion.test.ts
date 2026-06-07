@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTimestamp, formattedBuildDate, productVersion } from './appVersion';
+import { buildTimestamp, formattedBuildDate, getBuildReference, productVersion } from './appVersion';
 
 describe('appVersion', () => {
   it('exposes a non-empty product version from package.json', () => {
@@ -16,5 +16,11 @@ describe('appVersion', () => {
 
   it("renders 'Development' instead of an Invalid Date when on the dev fallback", () => {
     expect(formattedBuildDate).toBe('Development');
+  });
+
+  it('uses the squash-merge PR number as the build reference', () => {
+    expect(getBuildReference('fix(myk9show): edit handlers per class entry (#580)', '')).toBe(
+      '#580'
+    );
   });
 });

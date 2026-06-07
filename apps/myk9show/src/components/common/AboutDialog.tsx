@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog/dialog';
-import { productVersion, formattedBuildDate } from '@/config/appVersion';
+import { productVersion, formattedBuildLabel } from '@/config/appVersion';
 import {
   applyPwaUpdate,
   checkForPwaUpdate,
@@ -82,7 +82,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onOpenChange }) 
 
         <div className="text-center space-y-1">
           <p className="text-sm text-muted-foreground">Version {productVersion}</p>
-          <p className="text-xs text-muted-foreground/70">Build: {formattedBuildDate}</p>
+          <p className="text-xs text-muted-foreground/70">Build: {formattedBuildLabel}</p>
         </div>
 
         <UpdateRow status={status} onCheck={handleCheck} onApply={handleApply} />

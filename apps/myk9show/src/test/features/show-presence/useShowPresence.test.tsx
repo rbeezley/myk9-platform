@@ -48,7 +48,13 @@ beforeEach(() => {
   (features as { showPresence: boolean }).showPresence = true;
   vi.mocked(supabase.channel).mockImplementation((name: string) => {
     lastChannel = {
-      topic: name,
+      // Supabase prefixes the channel topic with "realtime:" — the engine must
+      // key sync events off this ACTUAL topic, not the un-prefixed name we passed
+      // (a real bug that left the roster permanently empty, found in live E2E).
+      topic: `realtime:${name}`,
+      // Channels track only once joined; mirror that so the engine's joined-guard
+      // is exercised rather than bypassed.
+      state: 'joined',
       on: vi.fn(),
       subscribe: vi.fn((cb?: (status: string) => void) => {
         cb?.('SUBSCRIBED');
@@ -128,12 +134,14 @@ describe('useShowPresence', () => {
     );
   });
 
-  it('reflects presence-sync events for its own channel', () => {
+  it('reflects presence-sync events keyed by the channel topic (realtime: prefix)', () => {
     const { result } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
 
     act(() => {
       eventEmitter.emit('presence:sync', {
-        channel: presenceChannelName('s1'),
+        // setupOptimizedPresence emits keyed by channel.topic, which Supabase
+        // prefixes with "realtime:". The engine must match THIS, not the name.
+        channel: lastChannel.topic,
         users: 2,
         state: {
           u1: [{ userId: 'u1', name: 'Mariana', role: 'exhibitor', ts: 1 }],
@@ -146,12 +154,31 @@ describe('useShowPresence', () => {
     expect(result.current.present.map(p => p.name).sort()).toEqual(['Bob', 'Mariana']);
   });
 
+  it('ignores a sync keyed by the un-prefixed name (regression: realtime: prefix)', () => {
+    // Guards the live bug: comparing against presenceChannelName(showId) instead
+    // of channel.topic dropped every sync, leaving the roster permanently empty.
+    const { result } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
+
+    act(() => {
+      eventEmitter.emit('presence:sync', {
+        channel: presenceChannelName('s1'), // un-prefixed — must NOT match
+        users: 2,
+        state: {
+          u1: [{ userId: 'u1', name: 'Mariana', role: 'exhibitor', ts: 1 }],
+          u2: [{ userId: 'u2', name: 'Bob', role: 'judge', ts: 2 }],
+        },
+      });
+    });
+
+    expect(result.current.present).toHaveLength(0);
+  });
+
   it('ignores presence-sync events for a different channel', () => {
     const { result } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
 
     act(() => {
       eventEmitter.emit('presence:sync', {
-        channel: presenceChannelName('OTHER'),
+        channel: `realtime:${presenceChannelName('OTHER')}`,
         users: 1,
         state: { z: [{ userId: 'z', name: 'Zed', ts: 9 }] },
       });

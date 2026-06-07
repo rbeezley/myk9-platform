@@ -135,7 +135,12 @@ export function useShowPresence(
     } else {
       infoRef.current = next;
     }
-    channelRef.current?.track(infoRef.current);
+    // Push the move immediately ONLY if the channel has joined. Before join,
+    // Realtime rejects the push ("tried to push 'presence' before joining"); the
+    // channel effect's SUBSCRIBED handler does the first track with this same
+    // infoRef, so nothing is lost.
+    const channel = channelRef.current;
+    if (channel && String(channel.state) === 'joined') channel.track(infoRef.current);
   }, [userId, name, role, avatarUrl, location.pathname]);
 
   // Channel lifecycle — only re-runs when the show or the user identity changes.
@@ -153,9 +158,14 @@ export function useShowPresence(
       infoRef.current as unknown as Record<string, unknown>
     );
 
+    // setupOptimizedPresence emits 'presence:sync' keyed by channel.topic, which
+    // Supabase prefixes with "realtime:" (e.g. "realtime:presence:show:<id>").
+    // Match that ACTUAL topic, not the un-prefixed name we passed to .channel() —
+    // otherwise every sync is discarded and the roster never populates.
+    const topic = channel.topic;
     const onSync = (payload: unknown) => {
       const evt = payload as PresenceSyncEvent;
-      if (evt.channel !== name) return;
+      if (evt.channel !== topic) return;
       setPresent(dedupePresence(evt.state));
     };
     eventEmitter.on('presence:sync', onSync);

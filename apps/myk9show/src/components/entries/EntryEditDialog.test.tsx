@@ -1,13 +1,20 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { EntryEditDialog } from './EntryEditDialog';
 
-// The dialog only renders its class list once canModifyEntry resolves true.
-vi.mock('@/services/database/entries', () => ({
+const entryServiceMocks = vi.hoisted(() => ({
   canModifyEntry: vi.fn().mockResolvedValue({ canModify: true }),
   updateEntryDetails: vi.fn().mockResolvedValue({ error: null }),
   updateEntryHandler: vi.fn().mockResolvedValue({ error: null }),
   withdrawEntry: vi.fn().mockResolvedValue({ error: null }),
+}));
+
+// The dialog only renders its class list once canModifyEntry resolves true.
+vi.mock('@/services/database/entries', () => ({
+  canModifyEntry: entryServiceMocks.canModifyEntry,
+  updateEntryDetails: entryServiceMocks.updateEntryDetails,
+  updateEntryHandler: entryServiceMocks.updateEntryHandler,
+  withdrawEntry: entryServiceMocks.withdrawEntry,
 }));
 
 const noop = () => {};
@@ -30,6 +37,14 @@ function makeEntry(trialType: string) {
     ],
   };
 }
+
+beforeEach(() => {
+  entryServiceMocks.canModifyEntry.mockResolvedValue({ canModify: true });
+  entryServiceMocks.updateEntryDetails.mockResolvedValue({ error: null });
+  entryServiceMocks.updateEntryHandler.mockResolvedValue({ error: null });
+  entryServiceMocks.withdrawEntry.mockResolvedValue({ error: null });
+  vi.clearAllMocks();
+});
 
 describe('EntryEditDialog — jump height visibility by discipline', () => {
   it('hides the Jump Height field for scent work entries', async () => {
@@ -56,5 +71,61 @@ describe('EntryEditDialog — jump height visibility by discipline', () => {
 
     expect(await screen.findByText(/Container Novice A/)).toBeInTheDocument();
     expect(screen.queryByText('Jump Height:')).not.toBeInTheDocument();
+  });
+});
+
+describe('EntryEditDialog — per-class handlers', () => {
+  it('saves each class entry with its own handler', async () => {
+    const entry = {
+      ...makeEntry('Scent Work'),
+      classes: [
+        {
+          id: 'entry-exterior',
+          name: 'Exterior Novice B',
+          number: '101',
+          fee: 30,
+          trialType: 'Scent Work',
+          status: 'entered' as const,
+          handler: 'Mariana Alexander',
+        },
+        {
+          id: 'entry-container',
+          name: 'Container Novice B',
+          number: '102',
+          fee: 30,
+          trialType: 'Scent Work',
+          status: 'entered' as const,
+          handler: 'Jamie Walker',
+        },
+      ],
+    };
+
+    const { user } = render(
+      <EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />
+    );
+
+    const exteriorHandler = await screen.findByRole('textbox', {
+      name: 'Handler for Exterior Novice B',
+    });
+    const containerHandler = screen.getByRole('textbox', {
+      name: 'Handler for Container Novice B',
+    });
+
+    await user.clear(exteriorHandler);
+    await user.type(exteriorHandler, 'Mariana Alexander');
+    await user.clear(containerHandler);
+    await user.type(containerHandler, 'Chris Lee');
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
+        entryId: 'entry-container',
+        handler: 'Chris Lee',
+      });
+    });
+    expect(entryServiceMocks.updateEntryHandler).not.toHaveBeenCalledWith({
+      entryId: 'entry-exterior',
+      handler: 'Chris Lee',
+    });
   });
 });

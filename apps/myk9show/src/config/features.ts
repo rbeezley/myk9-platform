@@ -37,12 +37,14 @@ export const features = {
   showPresence: false,
 
   // Show-day live-update nudge (Phase 2, docs/plan-show-presence-phase2.md).
-  // KILL SWITCH, dark by default. Flip true to open a Realtime channel on the
-  // show's entries + classes that nudges the existing incremental replication
-  // sync (~1-2s freshness instead of the 60s background poll). When off, the
-  // 60s ReplicationSyncProvider poll still keeps data fresh — this only makes it
-  // faster. Env override: VITE_SHOW_LIVE_SYNC=true (for E2E / live validation).
-  showLiveSync: false,
+  // KILL SWITCH. ENABLED after live validation 2026-06-07 (real-Realtime probe +
+  // two-context browser smoke confirmed the show-live channel subscribes and the
+  // replication:sync-requested nudge fires on a real entry change). Opens a
+  // Realtime channel on the show's entries + classes that nudges the existing
+  // incremental replication sync (~1-2s freshness instead of the 60s background
+  // poll). Flip to false to instantly fall back to the 60s poll. Env override:
+  // VITE_SHOW_LIVE_SYNC (for E2E / forcing the state in a given environment).
+  showLiveSync: true,
 } as const;
 
 export type Features = typeof features;

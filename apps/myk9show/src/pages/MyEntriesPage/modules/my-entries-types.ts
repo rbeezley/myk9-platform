@@ -19,8 +19,6 @@ export interface EntryClass {
   trialDate?: Date | undefined;
   /** Trial number assigned by the show secretary/registry. */
   trialNumber?: string | undefined;
-  /** Dog's armband for this show/class row. */
-  armband?: string | undefined;
   jumpHeight?: string | undefined;
   /** Trial discipline (e.g. "Scent Work", "Agility"); gates the jump-height field. */
   trialType?: string | undefined;

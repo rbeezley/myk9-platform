@@ -62,8 +62,8 @@ export function CompactStatsRow({
       value: pastShows,
       href: '/exhibitor/entries?tab=completed',
       accent: 'bg-violet-500',
-      tint: 'bg-purple-500/8 dark:bg-purple-500/12 border-purple-500/15',
-      iconColor: 'text-purple-400',
+      tint: 'bg-violet-500/8 dark:bg-violet-500/12 border-violet-500/15',
+      iconColor: 'text-violet-500',
     },
     {
       icon: <DollarSign className="h-5 w-5" />,
@@ -111,15 +111,6 @@ export function CompactStatsRow({
             >
               {stat.icon}
             </span>
-          </span>
-          <span className="mt-3 block h-1.5 overflow-hidden rounded-full bg-background/70">
-            <span
-              className={cn(
-                'block h-full rounded-full opacity-80 transition-all duration-300 group-hover:opacity-100',
-                stat.accent
-              )}
-              style={{ width: stat.value > 0 ? '72%' : '18%' }}
-            />
           </span>
         </button>
       ))}

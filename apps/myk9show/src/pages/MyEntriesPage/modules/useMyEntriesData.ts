@@ -148,7 +148,6 @@ export function useMyEntriesData({
             fee: (entry.entry_fee as number) || 0,
             trialDate,
             trialNumber,
-            armband,
             jumpHeight: (entry.jump_height as string) || undefined,
             trialType: trialData?.trial_type || classData.trial?.trial_type || undefined,
             runOrder: (entry.run_order as number) || undefined,

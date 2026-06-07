@@ -204,6 +204,22 @@ describe('groupEntriesByShowAndDog', () => {
     const result = groupEntriesByShowAndDog([seed, scratched]);
     expect(result[0].entryStatus).toBe(EntryStatus.ACCEPTED);
   });
+
+  it('keeps an armband from a later row when the seed row has none', () => {
+    const seed = makeEntry({
+      armband: undefined,
+      classes: [makeClass({ id: 'c1' })],
+    });
+    const second = makeEntry({
+      armband: '142',
+      classes: [makeClass({ id: 'c2' })],
+    });
+
+    const result = groupEntriesByShowAndDog([seed, second]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].armband).toBe('142');
+  });
 });
 
 describe('MyEntryCard handler display', () => {
@@ -243,9 +259,10 @@ describe('MyEntryCard class detail display', () => {
     const subtitle = screen.getByText(/Registration/).parentElement;
     expect(subtitle).not.toBeNull();
     expect(subtitle).toHaveTextContent('142');
-    expect(subtitle?.textContent?.indexOf('142')).toBeLessThan(
-      subtitle?.textContent?.indexOf('Rex') ?? 0
-    );
+    expect(subtitle).toHaveTextContent('Rex');
+
+    const subtitleText = subtitle?.textContent ?? '';
+    expect(subtitleText.indexOf('142')).toBeLessThan(subtitleText.indexOf('Rex'));
   });
 
   it('shows trial date and trial number on class cards without the class fee amount', () => {

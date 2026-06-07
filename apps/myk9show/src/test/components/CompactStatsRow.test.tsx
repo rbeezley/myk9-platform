@@ -7,32 +7,35 @@ describe('CompactStatsRow', () => {
   const defaultProps = {
     activeEntries: 3,
     upcomingShows: 2,
-    totalDogs: 1,
+    pastShows: 1,
+    totalFees: 150,
     onNavigate: vi.fn(),
   };
 
-  it('renders all three stat cards with values', () => {
+  it('renders all four stat cards with values', () => {
     render(<CompactStatsRow {...defaultProps} />);
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('Active Entries')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('Dog Registered')).toBeInTheDocument(); // singular
+    expect(screen.getByText('Past Show')).toBeInTheDocument();
+    expect(screen.getByText('$150')).toBeInTheDocument();
+    expect(screen.getByText('Total Fees')).toBeInTheDocument();
   });
 
   it('uses singular label when count is 1', () => {
-    render(<CompactStatsRow {...defaultProps} activeEntries={1} upcomingShows={1} totalDogs={1} />);
+    render(<CompactStatsRow {...defaultProps} activeEntries={1} upcomingShows={1} pastShows={1} />);
     expect(screen.getByText('Active Entry')).toBeInTheDocument();
     expect(screen.getByText('Upcoming Show')).toBeInTheDocument();
-    expect(screen.getByText('Dog Registered')).toBeInTheDocument();
+    expect(screen.getByText('Past Show')).toBeInTheDocument();
   });
 
   it('uses plural label when count is not 1', () => {
-    render(<CompactStatsRow {...defaultProps} activeEntries={0} upcomingShows={5} totalDogs={3} />);
+    render(<CompactStatsRow {...defaultProps} activeEntries={0} upcomingShows={5} pastShows={3} />);
     expect(screen.getByText('Active Entries')).toBeInTheDocument();
     expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
-    expect(screen.getByText('Dogs Registered')).toBeInTheDocument();
+    expect(screen.getByText('Past Shows')).toBeInTheDocument();
   });
 
   it('navigates to entries page when entries card is clicked', async () => {
@@ -53,13 +56,13 @@ describe('CompactStatsRow', () => {
     expect(onNavigate).toHaveBeenCalledWith('/shows');
   });
 
-  it('navigates to dogs page when dogs card is clicked', async () => {
+  it('navigates to completed entries when past shows card is clicked', async () => {
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
-    const dogsCard = screen.getByLabelText(/Dog.*View details/i);
-    await userEvent.click(dogsCard);
-    expect(onNavigate).toHaveBeenCalledWith('/dogs');
+    const pastCard = screen.getByLabelText(/Past Show.*View details/i);
+    await userEvent.click(pastCard);
+    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries?tab=completed');
   });
 
   it('applies custom className', () => {
@@ -68,8 +71,9 @@ describe('CompactStatsRow', () => {
   });
 
   it('renders zero counts correctly', () => {
-    render(<CompactStatsRow {...defaultProps} activeEntries={0} upcomingShows={0} totalDogs={0} />);
+    render(<CompactStatsRow {...defaultProps} activeEntries={0} upcomingShows={0} pastShows={0} totalFees={0} />);
     const zeros = screen.getAllByText('0');
     expect(zeros).toHaveLength(3);
+    expect(screen.getByText('$0')).toBeInTheDocument();
   });
 });

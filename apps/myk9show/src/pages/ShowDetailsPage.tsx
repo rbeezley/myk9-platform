@@ -72,6 +72,8 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { countCatalogEntries } from '@/features/show-map/entryCounts';
+import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
+import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -481,7 +483,7 @@ const ShowDetailsPage: React.FC = () => {
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries);
 
   return (
-    <>
+    <ShowPresenceProvider showId={id}>
       <PageShell>
         <PageHeader
           breadcrumbs={breadcrumbs}
@@ -522,7 +524,9 @@ const ShowDetailsPage: React.FC = () => {
             !canManageShow && !entryStatus.canEnter ? entryStatus.description : undefined
           }
           secondaryActions={
-            canManageShow ? (
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <ShowPresenceStack />
+              {canManageShow ? (
               <div className="flex flex-wrap items-center gap-2">
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 {workbenchHref && (
@@ -576,7 +580,8 @@ const ShowDetailsPage: React.FC = () => {
               >
                 View Entry
               </Button>
-            ) : undefined
+            ) : null}
+            </div>
           }
           footer={
             <QuickInfoCards
@@ -726,7 +731,7 @@ const ShowDetailsPage: React.FC = () => {
           showName={actualCurrentShow.name || 'Unknown Show'}
         />
       )}
-    </>
+    </ShowPresenceProvider>
   );
 };
 

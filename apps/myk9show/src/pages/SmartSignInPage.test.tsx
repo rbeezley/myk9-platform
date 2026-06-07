@@ -97,13 +97,54 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByTestId('continue-button'));
 
     await waitFor(() => expect(validatePasscodeMock).toHaveBeenCalledWith('j9f3b'));
-    expect(setGrantSpy).toHaveBeenCalledWith({
-      showId: 'show-x',
-      role: 'judge',
-      passcode: 'j9f3b',
-      source: 'passcode',
-    });
+    // No name typed → grant carries a minted sessionId but no name.
+    expect(setGrantSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showId: 'show-x',
+        role: 'judge',
+        passcode: 'j9f3b',
+        source: 'passcode',
+        sessionId: expect.any(String),
+      })
+    );
+    expect(setGrantSpy.mock.calls[0]?.[0]).not.toHaveProperty('name');
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x'));
+  });
+
+  it('passes the optional typed name into the anonymous grant', async () => {
+    validatePasscodeMock.mockResolvedValue({
+      ok: true,
+      role: 'judge',
+      showId: 'show-x',
+      showName: 'Spring Trial',
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    // The name field appears only once the input classifies as a passcode.
+    await user.type(screen.getByTestId('credential-input'), 'j9f3b');
+    await user.type(screen.getByTestId('display-name-input'), 'Judge Sarah');
+    await user.click(screen.getByTestId('continue-button'));
+
+    await waitFor(() =>
+      expect(setGrantSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          showId: 'show-x',
+          role: 'judge',
+          name: 'Judge Sarah',
+          sessionId: expect.any(String),
+          source: 'passcode',
+        })
+      )
+    );
+  });
+
+  it('does not show the name field for the email branch', async () => {
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
+    expect(screen.queryByTestId('display-name-input')).not.toBeInTheDocument();
   });
 
   it('prefills the smart field from a show-access code query param', () => {

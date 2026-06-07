@@ -32,6 +32,20 @@ export interface RingsideGrant {
   /** Original normalized passcode, kept in memory only for ringside presence RPCs. */
   passcode?: string;
   /**
+   * Display name the anonymous user optionally typed at passcode entry. Powers
+   * show presence so a passcode-only judge/steward shows a real name (not just
+   * "Judge"). Display-only — never an authz signal. Absent for signed-in grants
+   * (those carry the account's own name).
+   */
+  name?: string;
+  /**
+   * Stable per-session id for an ANONYMOUS grant (minted once at passcode entry).
+   * It is this device's presence channel key + dedup key, since an anonymous
+   * user has no account `user.id`. Ephemeral by construction: a reload wipes the
+   * grant, so a fresh session gets a fresh id. Unset for signed-in grants.
+   */
+  sessionId?: string;
+  /**
    * How the grant was obtained. `'passcode'` is the only source today
    * (account + passcode merge); `'account'` is reserved for future use.
    */

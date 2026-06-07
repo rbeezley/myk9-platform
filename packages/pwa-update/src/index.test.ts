@@ -153,6 +153,28 @@ describe('@myk9/pwa-update', () => {
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
+  it('manual update checks report an update after onNeedRefresh has fired', async () => {
+    const { registerSW, captured } = makeRegisterSWMock();
+    const ctrl = setupPwaUpdate({ registerSW, version: 'v1', onPrompt: vi.fn() });
+    const registration = {
+      update: vi.fn().mockResolvedValue(undefined),
+      waiting: null,
+      installing: null,
+    };
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        getRegistration: vi.fn().mockResolvedValue(registration),
+      },
+    });
+
+    captured.opts?.onNeedRefresh?.();
+
+    await expect(ctrl.checkForUpdate()).resolves.toBe(true);
+  });
+
   it('unsubscribe stops the handler from firing', () => {
     const { registerSW, captured } = makeRegisterSWMock();
     const ctrl = setupPwaUpdate({ registerSW, version: 'v1', onPrompt: vi.fn() });

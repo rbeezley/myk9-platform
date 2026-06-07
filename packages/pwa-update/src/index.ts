@@ -122,6 +122,7 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
   let activeRegistration: ServiceWorkerRegistration | undefined;
   let pollIntervalHandle: ReturnType<typeof setInterval> | undefined;
   let initialCheckTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  let updateKnownAvailable = false;
   const updateAvailableHandlers = new Set<() => void>();
   const inMemoryPromptedVersions = new Set<string>();
 
@@ -186,6 +187,7 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
       updateSW = opts.registerSW({
         onNeedRefresh() {
           log.info('[PWA] update available', { version: opts.version });
+          updateKnownAvailable = true;
           notifyUpdateAvailable();
           tryShowPrompt();
         },
@@ -261,7 +263,9 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
         activeRegistration ?? (await navigator.serviceWorker.getRegistration());
       if (!registration) return false;
       await registration.update();
-      return Boolean(registration.waiting || registration.installing);
+      updateKnownAvailable =
+        updateKnownAvailable || Boolean(registration.waiting || registration.installing);
+      return updateKnownAvailable;
     } catch (error) {
       log.warn('[PWA] manual update check failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -288,6 +292,7 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
     }
     updateSW = undefined;
     activeRegistration = undefined;
+    updateKnownAvailable = false;
     updateAvailableHandlers.clear();
     inMemoryPromptedVersions.clear();
   };

@@ -161,15 +161,17 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(screen.queryByText('+8%')).not.toBeInTheDocument();
     });
 
-    it('should display meaningful stat card labels', async () => {
+    it('should render the stats area without fake data', async () => {
       renderWithProviders(<MyEntriesPage />);
 
       await screen.findByRole('tablist');
 
-      // Should have stat cards with meaningful titles
-      expect(screen.getByText('Total Entries')).toBeInTheDocument();
-      expect(screen.getByText('Needs Action')).toBeInTheDocument();
-      expect(screen.getByText('Total Fees')).toBeInTheDocument();
+      // CompactStatsRow is mocked to null in this file; its label assertions
+      // live in CompactStatsRow.test.tsx. Verify the page renders tabs and
+      // no fake trend strings leak in from anywhere else on the page.
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+      expect(screen.queryByText('+5%')).not.toBeInTheDocument();
+      expect(screen.queryByText('+12%')).not.toBeInTheDocument();
     });
   });
 

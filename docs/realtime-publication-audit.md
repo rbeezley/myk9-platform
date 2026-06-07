@@ -8,7 +8,7 @@
 
 Supabase Realtime streams `postgres_changes` by tailing the Postgres WAL **through the `supabase_realtime` publication**. A table that is not a member of that publication produces no WAL stream for Realtime, so a `.on('postgres_changes', { table: 'X' })` subscription **silently delivers nothing** — no error, no warning, the callback simply never fires. On show day this means a "live" surface can quietly stop updating.
 
-## Live publication membership (source of truth)
+## Publication membership at audit time (pre-PR baseline)
 
 ```sql
 SELECT schemaname, tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime';
@@ -21,11 +21,26 @@ SELECT schemaname, tablename FROM pg_publication_tables WHERE pubname = 'supabas
 | `show_message_threads` | `106_show_messages.sql` |
 | `classes` | `108_tv_display_anon_access.sql` |
 
-The publication is **fully reproducible from migrations** (1:1 match — no dashboard-only drift). No re-assertion migration is needed.
+These four were **fully reproducible from migrations** (1:1 match — no dashboard-only drift), so no *re-assertion* migration was needed for the existing membership. This PR does **add** `show_announcements` and `shows` via migration `20260607143000` (see secondary findings below) — those are new members, not a re-assertion of drifted state.
+
+### Post-PR membership (current source of truth)
+
+After migration `20260607143000`, the publication contains **six** tables — verified against the live DB:
+
+| Table | Added by migration |
+|---|---|
+| `entries` | `092_add_check_in_status.sql` |
+| `show_messages` | `106_show_messages.sql` |
+| `show_message_threads` | `106_show_messages.sql` |
+| `classes` | `108_tv_display_anon_access.sql` |
+| `show_announcements` | `20260607143000_realtime_publish_announcements_and_shows.sql` |
+| `shows` | `20260607143000_realtime_publish_announcements_and_shows.sql` |
 
 ## Subscriber audit — every `postgres_changes` table target vs. membership
 
-| Table | Exists? | In publication? | Subscriber(s) | Verdict |
+The "In publication?" column is the **at-audit-time** state (the pre-PR baseline above); the "Verdict" column is the resolution this PR applied.
+
+| Table | Exists? | In publication? (at audit) | Subscriber(s) | Verdict |
 |---|---|---|---|---|
 | `entries` | ✅ | ✅ | `useClassRealtime`, `useNotificationMonitor`, `useCheckInStatusSubscription`, `useShowCheckInSubscription`, `useRealTimeUpdates`, `useTVRealtime` | Healthy |
 | `classes` | ✅ | ✅ | `useClassRealtime`, `useNotificationMonitor`, `useTVRealtime` | Healthy |

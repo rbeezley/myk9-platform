@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { eventEmitter } from '@/services/sync/eventEmitter';
 import { supabase } from '@/supabaseClient';
 import { setupOptimizedPresence } from '@/utils/realtimeOptimization';
+import { features } from '@/config/features';
 import {
   useShowPresence,
   dedupePresence,
@@ -28,6 +29,8 @@ vi.mock('@/hooks/useAuthContext', () => ({
   }),
 }));
 
+vi.mock('@/config/features', () => ({ features: { showPresence: true } }));
+
 interface FakeChannel {
   topic: string;
   on: ReturnType<typeof vi.fn>;
@@ -45,6 +48,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (features as { showPresence: boolean }).showPresence = true;
   vi.mocked(supabase.channel).mockImplementation((name: string) => {
     lastChannel = {
       topic: name,
@@ -155,6 +159,12 @@ describe('useShowPresence', () => {
 
   it('does nothing without a showId', () => {
     renderHook(() => useShowPresence(undefined), { wrapper });
+    expect(supabase.channel).not.toHaveBeenCalled();
+  });
+
+  it('opens no channel when the kill switch is off', () => {
+    (features as { showPresence: boolean }).showPresence = false;
+    renderHook(() => useShowPresence('s1'), { wrapper });
     expect(supabase.channel).not.toHaveBeenCalled();
   });
 });

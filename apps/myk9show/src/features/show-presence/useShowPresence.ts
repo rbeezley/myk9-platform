@@ -15,6 +15,7 @@ import { supabase } from '@/supabaseClient';
 import { eventEmitter } from '@/services/sync/eventEmitter';
 import { setupOptimizedPresence } from '@/utils/realtimeOptimization';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { features } from '@/config/features';
 import type { PresenceActivity, ShowPresence } from './types';
 
 /** Payload shape emitted by setupOptimizedPresence on the 'presence:sync' bus. */
@@ -107,8 +108,9 @@ export function useShowPresence(showId: string | undefined): UseShowPresenceResu
 
   // Channel lifecycle — only re-runs when the show or the user identity changes.
   // Declared after the identity effect so infoRef is populated first on mount.
+  // Gated by the kill switch (plan §12): when off we open no channel at all.
   useEffect(() => {
-    if (!showId || !userId || !infoRef.current) return undefined;
+    if (!features.showPresence || !showId || !userId || !infoRef.current) return undefined;
 
     const name = presenceChannelName(showId);
     const channel = supabase.channel(name, { config: { presence: { key: userId } } });

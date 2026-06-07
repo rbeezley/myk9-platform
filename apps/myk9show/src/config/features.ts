@@ -29,6 +29,12 @@ export const features = {
   showDay: false,
   analytics: false,
   showMap: true,
+
+  // Show-day presence (Phase 1, docs/plan-show-presence.md). KILL SWITCH, not a
+  // "coming soon" gate: dark by default. Flip true to open the Realtime presence
+  // channel + render the avatar stack. (A runtime/remote flag for instant disable
+  // without a redeploy is the §12-complete follow-up.)
+  showPresence: false,
 } as const;
 
 export type Features = typeof features;

@@ -23,4 +23,16 @@ describe('appVersion', () => {
       '#580'
     );
   });
+
+  it('uses the last PR number when the commit message references multiple PR-like values', () => {
+    expect(getBuildReference('fix: resolve issue from (#400) context (#580)', '')).toBe('#580');
+  });
+
+  it('falls back to short SHA when no PR number is present', () => {
+    expect(getBuildReference('chore: bump deps', 'abc1234def')).toBe('abc1234');
+  });
+
+  it('returns empty string when SHA is too short and no PR number is present', () => {
+    expect(getBuildReference('chore: bump deps', 'abc')).toBe('');
+  });
 });

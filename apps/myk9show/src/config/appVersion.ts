@@ -9,11 +9,6 @@
 
 import { version } from '../../package.json';
 
-// Build timestamp - injected by Vite at build time
-declare const __BUILD_TIMESTAMP__: string;
-declare const __GIT_COMMIT_SHA__: string;
-declare const __GIT_COMMIT_MESSAGE__: string;
-
 /** Product version from package.json */
 export const productVersion = version;
 
@@ -30,8 +25,9 @@ export const buildCommitMessage =
   typeof __GIT_COMMIT_MESSAGE__ !== 'undefined' ? __GIT_COMMIT_MESSAGE__ : '';
 
 export const getBuildReference = (commitMessage: string, commitSha: string): string => {
-  const prMatch = commitMessage.match(/\(#(\d+)\)/);
-  if (prMatch?.[1]) return `#${prMatch[1]}`;
+  const prMatches = Array.from(commitMessage.matchAll(/\(#(\d+)\)/g));
+  const lastPrMatch = prMatches[prMatches.length - 1];
+  if (lastPrMatch?.[1]) return `#${lastPrMatch[1]}`;
 
   const normalizedSha = commitSha.trim();
   return normalizedSha.length >= 7 ? normalizedSha.slice(0, 7) : '';

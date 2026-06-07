@@ -1,8 +1,8 @@
 /**
  * CompactStatsRow — At-a-glance stat cards for the exhibitor dashboard.
  *
- * Each stat is a tappable card with an accent icon, large number, and label.
- * Cards use subtle background tints to add warmth and visual distinction.
+ * Each stat is a tappable card with a compact icon chip, large number, and label.
+ * Cards stay neutral so state colors only appear when they carry meaning.
  */
 
 import { cn } from '@/lib/utils';
@@ -93,7 +93,7 @@ export function CompactStatsRow({
           type="button"
           onClick={() => onNavigate(stat.href)}
           className={cn(
-            'group relative min-h-[92px] overflow-hidden rounded-lg border border-border/60 bg-card/70 p-3 text-left shadow-sm',
+            'group relative min-h-[92px] overflow-hidden rounded-xl border border-border/60 bg-card/90 p-3 text-left shadow-sm',
             'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]',
             'transition-all duration-300',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'

@@ -45,6 +45,8 @@ describe('CompactStatsRow', () => {
     const icon = entriesCard.querySelector('[data-slot="icon"]');
     const label = screen.getByText('Entries');
 
+    expect(entriesCard).toHaveClass('rounded-xl');
+    expect(entriesCard).toHaveClass('bg-card/90');
     expect(entriesCard.querySelector('.h-1')).not.toBeInTheDocument();
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveClass('text-muted-foreground');

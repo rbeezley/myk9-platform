@@ -22,6 +22,7 @@
 
 import { useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { getPrimaryRole } from '@/context/AuthContext';
 import { useRingsideGrantStore, selectGrantRoleForShow } from '@/store/ringsideGrantStore';
 import { features } from '@/config/features';
 
@@ -54,7 +55,11 @@ export function useLocalPresenceIdentity(
   const enabled = showPresenceEnabled();
   const userId = user?.id;
   const email = user?.email;
-  const accountRole = enabled && userId ? (getUserRoles?.()?.[0] ?? 'exhibitor') : null;
+  // Use the HIGHEST-privilege role (getPrimaryRole walks the role hierarchy), not
+  // getUserRoles()[0] — the first role is often 'exhibitor' even for a secretary,
+  // which mis-classified per-show staff as exhibitors and (via the privacy filter)
+  // hid them from everyone. Matches how AtShowAccessGate treats account roles.
+  const accountRole = enabled && userId ? getPrimaryRole(getUserRoles?.() ?? []) : null;
   // Grant role only when scoped to THIS show; wins over the account role.
   const grantRole = enabled ? selectGrantRoleForShow(activeGrant, showId) : null;
   const grantName = activeGrant?.name;

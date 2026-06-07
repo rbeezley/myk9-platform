@@ -601,14 +601,19 @@ export function setupOptimizedPresence(
     smartHeartbeat.startHeartbeat(
       channelName,
       async () => {
-        await channel.track(userInfo);
+        // Only push once the channel has actually joined — Realtime rejects a
+        // track before SUBSCRIBED ("tried to push 'presence' before joining").
+        if (String(channel.state) === 'joined') await channel.track(userInfo);
       },
       options.heartbeatInterval
     );
   }
 
-  // Initial presence track
-  channel.track(userInfo);
+  // Initial presence track — guarded for the same reason. Callers that subscribe
+  // BEFORE calling this (e.g. RealtimeScoringService) are already joined, so this
+  // fires immediately; callers that subscribe AFTER (useShowPresence) must do the
+  // initial track in their own SUBSCRIBED handler — this no-ops pre-join.
+  if (String(channel.state) === 'joined') channel.track(userInfo);
 
   // Return cleanup function
   return () => {

@@ -50,6 +50,20 @@ describe('useLocalPresenceIdentity', () => {
     expect(result.current).toEqual({ userId: 'u1', name: 'Sue', role: 'secretary' });
   });
 
+  it('uses the highest-privilege role, not the first listed (regression)', () => {
+    // The live bug: getUserRoles()[0] is often 'exhibitor' even for a secretary,
+    // so per-show staff were mis-classified and (via the privacy filter) hidden
+    // from everyone. getPrimaryRole walks the role hierarchy instead.
+    h.getUserRolesSpy.mockReturnValue(['exhibitor', 'secretary']);
+    h.auth = {
+      user: { id: 'u1', email: 'sue@example.com' },
+      firstName: 'Sue',
+      getUserRoles: h.getUserRolesSpy,
+    };
+    const { result } = renderHook(() => useLocalPresenceIdentity('s1'));
+    expect(result.current?.role).toBe('secretary');
+  });
+
   it('falls back to the email local-part when there is no first name', () => {
     h.auth = {
       user: { id: 'u1', email: 'sue@example.com' },

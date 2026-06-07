@@ -61,10 +61,10 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
     // Verify meaningful stat card titles
-    await expect(page.locator('text=Total Entries')).toBeVisible();
-    await expect(page.getByText('Accepted').first()).toBeVisible();
-    await expect(page.locator('text=Needs Action')).toBeVisible();
-    await expect(page.locator('text=Total Fees')).toBeVisible();
+    await expect(page.locator('text=Entries')).toBeVisible();
+    await expect(page.locator('text=Upcoming Shows')).toBeVisible();
+    await expect(page.locator('text=Past Shows')).toBeVisible();
+    await expect(page.locator('text=Current Fees')).toBeVisible();
   });
 
   test('should show real contextual information in stat cards', async ({ page }) => {
@@ -74,9 +74,9 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     const pageContent = await page.content();
     const hasContextualInfo =
       pageContent.includes('upcoming') ||
-      pageContent.includes('paid') ||
-      pageContent.includes('awaiting') ||
-      pageContent.includes('payment');
+      pageContent.includes('accepted') ||
+      pageContent.includes('entered') ||
+      pageContent.includes('Amount due');
     expect(hasContextualInfo).toBe(true);
   });
 });

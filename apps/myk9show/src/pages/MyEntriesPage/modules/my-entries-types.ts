@@ -84,9 +84,18 @@ export interface MyEntryStats {
   pastShows: number;
   /** Distinct shows running today or in the future. */
   upcomingShows: number;
+  /** Accepted entries belonging to a non-past/current-or-upcoming show. */
+  currentAcceptedEntries: number;
+  /** Pending-review entries belonging to a non-past/current-or-upcoming show. */
+  currentPendingEntries: number;
   acceptedPaid: number;
   acceptedUnpaid: number;
   needsAction: number;
+  /** Fees for non-past accepted or pending-review entries only. */
+  currentFees: number;
+  /** Unpaid fees for non-past accepted entries only. */
+  currentAmountDue: number;
+  /** All-time fees across every loaded user entry. */
   totalFees: number;
   paidFees: number;
   unpaidFees: number;

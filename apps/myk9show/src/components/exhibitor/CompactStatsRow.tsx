@@ -1,8 +1,8 @@
 /**
  * CompactStatsRow — At-a-glance stat cards for the exhibitor dashboard.
  *
- * Each stat is a tappable card with a large number, label, and accent icon.
- * Cards use subtle background tints to add warmth and visual distinction.
+ * Each stat is a tappable card with a compact icon chip, large number, and label.
+ * Cards stay neutral so state colors only appear when they carry meaning.
  */
 
 import { cn } from '@/lib/utils';
@@ -14,102 +14,120 @@ interface StatItem {
   label: string;
   value: number;
   displayValue?: string;
+  detail?: string;
+  detailClassName?: string;
   href: string;
-  accent: string;
-  tint: string;
   iconColor: string;
+  iconChipClassName?: string;
 }
 
 interface CompactStatsRowProps {
-  activeEntries: number;
+  acceptedEntries: number;
+  pendingEntries: number;
   upcomingShows: number;
   pastShows: number;
-  totalFees: number;
+  currentFees: number;
+  amountDue: number;
   onNavigate: (path: string) => void;
   className?: string | undefined;
 }
 
 export function CompactStatsRow({
-  activeEntries,
+  acceptedEntries,
+  pendingEntries,
   upcomingShows,
   pastShows,
-  totalFees,
+  currentFees,
+  amountDue,
   onNavigate,
   className,
 }: CompactStatsRowProps) {
+  const currentEntries = acceptedEntries + pendingEntries;
+  const feeDetail = amountDue > 0 ? `Amount due $${amountDue.toLocaleString()}` : 'Paid in full';
   const stats: StatItem[] = [
     {
       icon: <FileText className="h-5 w-5" />,
-      label: activeEntries === 1 ? 'Active Show Entry' : 'Active Show Entries',
-      value: activeEntries,
+      label: currentEntries === 1 ? 'Entry' : 'Entries',
+      value: currentEntries,
+      detail: `${acceptedEntries} accepted · ${pendingEntries} pending`,
       href: '/exhibitor/entries',
-      accent: 'bg-primary',
-      tint: 'bg-primary/8 dark:bg-primary/12 border-primary/15',
-      iconColor: 'text-primary',
+      iconColor: 'text-muted-foreground',
     },
     {
       icon: <Calendar className="h-5 w-5" />,
       label: upcomingShows === 1 ? 'Upcoming Show' : 'Upcoming Shows',
       value: upcomingShows,
+      detail: 'entered',
       href: '/shows',
-      accent: 'bg-blue-500',
-      tint: 'bg-blue-500/8 dark:bg-blue-500/12 border-blue-500/15',
-      iconColor: 'text-blue-500',
+      iconColor: 'text-muted-foreground',
     },
     {
       icon: <History className="h-5 w-5" />,
       label: pastShows === 1 ? 'Past Show' : 'Past Shows',
       value: pastShows,
+      detail: 'entered',
       href: '/exhibitor/entries?tab=completed',
-      accent: 'bg-violet-500',
-      tint: 'bg-violet-500/8 dark:bg-violet-500/12 border-violet-500/15',
-      iconColor: 'text-violet-500',
+      iconColor: 'text-muted-foreground',
     },
     {
       icon: <DollarSign className="h-5 w-5" />,
-      label: 'Total Fees',
-      value: totalFees,
-      displayValue: `$${totalFees.toLocaleString()}`,
+      label: 'Current Fees',
+      value: currentFees,
+      displayValue: `$${currentFees.toLocaleString()}`,
+      detail: feeDetail,
+      ...(amountDue > 0 ? { detailClassName: 'text-amber-500' } : {}),
       href: '/exhibitor/entries',
-      accent: 'bg-emerald-500',
-      tint: 'bg-emerald-500/8 dark:bg-emerald-500/12 border-emerald-500/15',
-      iconColor: 'text-emerald-500',
+      iconColor: amountDue > 0 ? 'text-amber-500' : 'text-emerald-500',
+      iconChipClassName:
+        amountDue > 0
+          ? 'border-amber-500/30 bg-amber-500/10'
+          : 'border-emerald-500/25 bg-emerald-500/10',
     },
   ];
 
   return (
-    <div className={cn('grid grid-cols-2 gap-3 lg:grid-cols-4', className)}>
+    <div className={cn('grid grid-cols-4 gap-3 max-[720px]:grid-cols-2', className)}>
       {stats.map(stat => (
         <button
           key={stat.label}
           type="button"
           onClick={() => onNavigate(stat.href)}
           className={cn(
-            'group relative min-h-[112px] overflow-hidden rounded-lg border p-4 text-left shadow-sm',
-            stat.tint,
+            'group relative min-h-[92px] overflow-hidden rounded-xl border border-border/60 bg-card p-3 text-left shadow-sm',
             'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]',
             'transition-all duration-300',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
           )}
           aria-label={`${stat.value} ${stat.label}. View details.`}
         >
-          <span className={cn('absolute inset-x-0 top-0 h-1', stat.accent)} aria-hidden="true" />
-          <span className="flex items-start justify-between gap-3">
-            <span className="flex min-w-0 flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {stat.label}
-              </span>
-              <span className="text-3xl font-bold leading-none text-foreground tabular-nums">
-                {stat.displayValue ?? stat.value}
-              </span>
-            </span>
+          <span className="flex items-start gap-4">
             <span
+              data-slot="icon"
               className={cn(
-                'flex size-9 shrink-0 items-center justify-center rounded-lg bg-background/70 shadow-sm ring-1 ring-border/60',
+                'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/20 bg-muted/25 shadow-sm',
+                stat.iconChipClassName,
                 stat.iconColor
               )}
             >
               {stat.icon}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {stat.label}
+              </span>
+              <span className="text-2xl font-bold leading-none text-foreground tabular-nums">
+                {stat.displayValue ?? stat.value}
+              </span>
+              {stat.detail && (
+                <span
+                  className={cn(
+                    'truncate text-[11px] font-medium text-muted-foreground',
+                    stat.detailClassName
+                  )}
+                >
+                  {stat.detail}
+                </span>
+              )}
             </span>
           </span>
         </button>

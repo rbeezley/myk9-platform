@@ -74,6 +74,7 @@ import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { countCatalogEntries } from '@/features/show-map/entryCounts';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
+import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -525,6 +526,7 @@ const ShowDetailsPage: React.FC = () => {
           }
           secondaryActions={
             <div className="flex flex-wrap items-center justify-end gap-3">
+              <LiveUpdateIndicator />
               <ShowPresenceStack />
               {canManageShow ? (
               <div className="flex flex-wrap items-center gap-2">

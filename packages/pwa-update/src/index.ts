@@ -16,6 +16,7 @@ const DEFAULT_PROMPTED_KEY = 'sw_prompted_version';
 const DEFAULT_POLL_INTERVAL_MS = 10 * 60 * 1000;
 const DEFAULT_INITIAL_CHECK_DELAY_MS = 5000;
 const DEFAULT_DEFERRAL_RETRY_MS = 2000;
+const DEFAULT_APPLY_RELOAD_FALLBACK_MS = 3000;
 
 export type UpdateSWFn = (reloadPage?: boolean) => Promise<void>;
 
@@ -56,8 +57,12 @@ export interface SetupPwaUpdateOptions {
   initialCheckDelayMs?: number;
   /** How often to re-check shouldDefer once a prompt is queued. Default 2s. */
   deferralRetryMs?: number;
+  /** Reload fallback after applying an update. Default 3s. */
+  applyReloadFallbackMs?: number;
   /** localStorage key for prompt-once dedup. Default 'sw_prompted_version'. */
   promptedKey?: string;
+  /** Optional reload hook for tests. Defaults to window.location.reload. */
+  reloadPage?: () => void;
   /** Optional logger. Defaults to no-op. */
   logger?: PwaLogger;
 }
@@ -117,14 +122,34 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
   const pollIntervalMs = opts.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const initialCheckDelayMs = opts.initialCheckDelayMs ?? DEFAULT_INITIAL_CHECK_DELAY_MS;
   const deferralRetryMs = opts.deferralRetryMs ?? DEFAULT_DEFERRAL_RETRY_MS;
+  const applyReloadFallbackMs =
+    opts.applyReloadFallbackMs ?? DEFAULT_APPLY_RELOAD_FALLBACK_MS;
+  const reloadPage = (): void => {
+    if (opts.reloadPage) {
+      opts.reloadPage();
+      return;
+    }
+    window.location.reload();
+  };
 
   let updateSW: UpdateSWFn | undefined;
   let activeRegistration: ServiceWorkerRegistration | undefined;
   let pollIntervalHandle: ReturnType<typeof setInterval> | undefined;
   let initialCheckTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  let applyReloadFallbackTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
   let updateKnownAvailable = false;
   const updateAvailableHandlers = new Set<() => void>();
   const inMemoryPromptedVersions = new Set<string>();
+
+  const scheduleApplyReloadFallback = (): void => {
+    if (applyReloadFallbackTimeoutHandle !== undefined) {
+      clearTimeout(applyReloadFallbackTimeoutHandle);
+    }
+    applyReloadFallbackTimeoutHandle = setTimeout(() => {
+      log.info('[PWA] applyUpdate fallback reload fired');
+      reloadPage();
+    }, applyReloadFallbackMs);
+  };
 
   const safeGetItem = (key: string): string | null => {
     try {
@@ -243,16 +268,32 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
       return;
     }
     if (!updateSW) {
-      window.location.reload();
+      reloadPage();
       return;
+    }
+    let shouldFallbackReload = false;
+    // Fallbacks only apply once onNeedRefresh has proven an update is pending.
+    if (updateKnownAvailable && 'serviceWorker' in navigator) {
+      const registration =
+        activeRegistration ??
+        (await navigator.serviceWorker.getRegistration().catch(() => undefined));
+      if (!registration?.waiting) {
+        log.info('[PWA] known update has already activated; reloading page');
+        reloadPage();
+        return;
+      }
+      shouldFallbackReload = true;
     }
     try {
       await updateSW(true);
+      if (shouldFallbackReload) {
+        scheduleApplyReloadFallback();
+      }
     } catch (error) {
       log.warn('[PWA] applyUpdate fallback to reload', {
         error: error instanceof Error ? error.message : String(error),
       });
-      window.location.reload();
+      reloadPage();
     }
   };
 
@@ -289,6 +330,10 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
     if (initialCheckTimeoutHandle !== undefined) {
       clearTimeout(initialCheckTimeoutHandle);
       initialCheckTimeoutHandle = undefined;
+    }
+    if (applyReloadFallbackTimeoutHandle !== undefined) {
+      clearTimeout(applyReloadFallbackTimeoutHandle);
+      applyReloadFallbackTimeoutHandle = undefined;
     }
     updateSW = undefined;
     activeRegistration = undefined;

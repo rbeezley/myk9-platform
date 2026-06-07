@@ -143,6 +143,73 @@ describe('@myk9/pwa-update', () => {
     expect(updateSW).toHaveBeenCalledWith(true);
   });
 
+  it('reloads when an update is known but no waiting service worker remains', async () => {
+    const { registerSW, updateSW, captured } = makeRegisterSWMock();
+    const reloadPage = vi.fn();
+    const ctrl = setupPwaUpdate({
+      registerSW,
+      version: 'v1',
+      onPrompt: vi.fn(),
+      reloadPage,
+    });
+    const registration = {
+      update: vi.fn().mockResolvedValue(undefined),
+      waiting: null,
+      installing: null,
+    };
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        getRegistration: vi.fn().mockResolvedValue(registration),
+      },
+    });
+
+    captured.opts?.onNeedRefresh?.();
+
+    await ctrl.applyUpdate();
+
+    expect(updateSW).not.toHaveBeenCalled();
+    expect(reloadPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to reload after applying a waiting update if Workbox does not reload', async () => {
+    vi.useFakeTimers();
+    const { registerSW, updateSW, captured } = makeRegisterSWMock();
+    const reloadPage = vi.fn();
+    const ctrl = setupPwaUpdate({
+      registerSW,
+      version: 'v1',
+      onPrompt: vi.fn(),
+      reloadPage,
+      applyReloadFallbackMs: 1000,
+    });
+    const registration = {
+      update: vi.fn().mockResolvedValue(undefined),
+      waiting: {},
+      installing: null,
+    };
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        getRegistration: vi.fn().mockResolvedValue(registration),
+      },
+    });
+
+    captured.opts?.onNeedRefresh?.();
+    await ctrl.applyUpdate();
+
+    expect(updateSW).toHaveBeenCalledWith(true);
+    expect(reloadPage).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+
+    expect(reloadPage).toHaveBeenCalledTimes(1);
+  });
+
   it('onUpdateAvailable subscribers fire on each onNeedRefresh, even after first prompt', () => {
     const { registerSW, captured } = makeRegisterSWMock();
     const ctrl = setupPwaUpdate({ registerSW, version: 'v1', onPrompt: vi.fn() });

@@ -8,7 +8,8 @@
  * All pages with sidebars should use this component for consistency.
  *
  * Design decisions:
- * - Sidebar is positioned below the fixed header (top-16 = 64px)
+ * - Sidebar is positioned below the fixed chrome via --app-top-inset
+ *   (3rem header, or 3rem + PWA banner when the install banner is showing)
  * - Sidebar z-index (z-40) is below header z-index (z-50)
  * - Mobile overlay appears below header but above content
  * - Supports both fixed-width and dynamic-width (collapsible) sidebars
@@ -23,8 +24,10 @@ import { Menu } from 'lucide-react';
 const SIDEBAR_LAYOUT_CONSTANTS = {
   /** App header height in pixels (h-12 = 3rem = 48px) */
   HEADER_HEIGHT: 48,
-  /** Tailwind class for header height offset */
-  HEADER_OFFSET_CLASS: 'top-12',
+  /** Tailwind class that offsets fixed children below the app top-chrome.
+   *  Reads --app-top-inset (index.css): 3rem header alone, or 3rem + the PWA
+   *  install banner when it is showing. Falls back to 3rem if the var is unset. */
+  HEADER_OFFSET_CLASS: 'top-[var(--app-top-inset,3rem)]',
   /** Default sidebar width in pixels */
   DEFAULT_WIDTH: 288, // w-72 = 18rem = 288px
   /** Collapsed sidebar width in pixels */
@@ -193,7 +196,10 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           : sidebar}
       </div>
 
-      {/* Main content area with responsive left margin */}
+      {/* Main content area with responsive left margin.
+          pt-12 clears the fixed header only — the PWA banner offset is already
+          applied by PWAInstallBanner's in-flow spacer above this subtree, so we
+          must NOT add --app-top-inset here or the banner height double-counts. */}
       <main
         className={cn(
           'flex-1 overflow-auto pt-12',
@@ -201,9 +207,11 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
         )}
         style={{ '--sidebar-width': `${mainMarginWidth}px` } as React.CSSProperties}
       >
-        {/* Mobile header with menu button */}
+        {/* Mobile header with menu button. Sticks flush under the app chrome
+            (header, or header + PWA banner) via --app-top-inset — matching the
+            fixed header's height so the greeting below it is never overlapped. */}
         {showMobileMenuButton && (
-          <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-16 z-30">
+          <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-[var(--app-top-inset,3rem)] z-30">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" onClick={() => setMobileOpen(true)}>
                 <Menu className="h-4 w-4 mr-2" />

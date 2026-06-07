@@ -148,7 +148,7 @@ const AppHeader: React.FC = () => {
   if (isAtShow) return null;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background text-foreground border-border h-12 shadow-[var(--shadow-header)]">
+    <nav className="fixed top-[var(--pwa-banner-height,0px)] left-0 right-0 z-50 border-b bg-background text-foreground border-border h-12 shadow-[var(--shadow-header)]">
       <div className="px-4 sm:px-6 h-full">
         <div className="flex items-center justify-between h-full">
           {/* Left: Logo */}

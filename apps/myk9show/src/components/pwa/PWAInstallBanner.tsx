@@ -8,7 +8,7 @@
  * Uses shadcn Dialog for iOS instructions modal.
  */
 
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Download, X, Share } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,17 @@ export function PWAInstallBanner() {
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   const shouldShow = !isInstalled && !isDismissed && (canInstall || isIOSSafari);
+
+  // Publish the banner's presence to the rest of the app shell. The fixed
+  // AppHeader, the sidebar, and sticky sub-headers all read --pwa-banner-height
+  // / --app-top-inset (index.css) so they stack BELOW this banner instead of
+  // hiding behind it. useLayoutEffect runs before paint, avoiding a flash where
+  // the header sits at top-0 for one frame.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('pwa-banner-visible', shouldShow);
+    return () => root.classList.remove('pwa-banner-visible');
+  }, [shouldShow]);
 
   if (!shouldShow) return null;
 
@@ -33,7 +44,7 @@ export function PWAInstallBanner() {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md animate-in slide-in-from-top duration-300">
+      <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md animate-in slide-in-from-top duration-300">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5 sm:px-6">
           {isIOSSafari ? (
             <Share className="h-5 w-5 shrink-0" />
@@ -66,8 +77,9 @@ export function PWAInstallBanner() {
         </div>
       </div>
 
-      {/* Spacer to push content below the fixed banner */}
-      <div className="h-[52px] sm:h-[56px]" />
+      {/* Spacer to push in-flow content below the fixed banner. Driven by the
+          same var the header/sidebar read so the offsets can never drift. */}
+      <div className="h-[var(--pwa-banner-height,0px)]" />
 
       {/* iOS Safari Instructions Dialog */}
       <Dialog open={showIOSInstructions} onOpenChange={setShowIOSInstructions}>

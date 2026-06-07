@@ -174,10 +174,10 @@ export function MessageShowComposer({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 id="message-show-title" className="text-base font-semibold">
-            Message Show
+            Show Messages
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            One composer for show-wide updates and targeted exhibitor messages.
+            Send a show message to everyone or a targeted group.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

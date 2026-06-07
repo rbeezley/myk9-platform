@@ -4,7 +4,7 @@
 
 **Goal:** Make the top-menu Message Center the single secretary communication hub, while keeping `/secretary/messages` as the full conversation history view.
 
-**Architecture:** Consolidate compose/read entry points around `MessageCenterPanel`. Reuse the existing `MessageShowComposer` for show-wide announcements and targeted exhibitor messages, and remove duplicate primary navigation from the left sidebar and Show Desk tools sheet. Keep the secretary messages route as a deep-linked full view for message history and long-thread review.
+**Architecture:** Consolidate compose/read entry points around `MessageCenterPanel`. Reuse the existing `MessageShowComposer` for show-wide and targeted show messages, and remove duplicate primary navigation from the left sidebar and Show Desk tools sheet. Keep the secretary messages route as a deep-linked full view for message history and long-thread review.
 
 **Tech Stack:** React, TypeScript, Zustand stores, React Query, shadcn/ui primitives, Vitest with `src/test/utils/testUtils.tsx`.
 
@@ -23,8 +23,9 @@ This plan follows the project's consolidation rule: do not keep multiple surface
 The agreed product model:
 
 - Top Message Center is the one place for communication.
-- Message Center supports reading notifications, announcements, and messages.
-- Message Center supports secretary compose for announcements and targeted messages.
+- Message Center supports reading notifications and show messages.
+- Message Center supports secretary compose for show-wide and targeted show messages.
+- "Announcement" remains an internal delivery lane where needed; the user-facing model is just "Show messages."
 - `/secretary/messages` remains available as a full conversation/history view.
 - Messages no longer appears as a primary left-sidebar destination.
 - Show Desk tools no longer includes `Message Show`; the top Message Center button is already present on every page.
@@ -38,6 +39,7 @@ The old left-sidebar Messages item and Show Desk `Message Show` tool duplicate t
 - Modify: `apps/myk9show/src/components/notifications/MessageCenterPanel.tsx`
   - Add secretary compose entry.
   - Replace the announcement-only create dialog with the shared `MessageShowComposer`.
+  - Fold show-wide posts into the `Show messages` tab instead of exposing a separate `Announcements` tab.
   - Add explicit show selection before composing.
   - Add a full-view/history link.
 - Create: `apps/myk9show/src/features/messages/hooks/useMessageShowClassOptions.ts`
@@ -518,9 +520,9 @@ Replace `CreateAnnouncementDialog` usage with:
   <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
     <DialogContent className="max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Compose show communication</DialogTitle>
+        <DialogTitle>Compose show message</DialogTitle>
         <DialogDescription>
-          Send a show announcement or a targeted exhibitor message.
+          Send a show message to everyone, a class, or checked-in exhibitors.
         </DialogDescription>
       </DialogHeader>
 
@@ -794,7 +796,7 @@ Open the app and verify:
 - Top Message Center opens from any secretary page.
 - Staff users see Compose and Open full view.
 - Compose requires a show when multiple shows are available.
-- Compose can send show-wide announcements and targeted messages through the shared composer.
+- Compose can send show-wide and targeted show messages through the shared composer.
 - Show Desk tools no longer includes Message Show.
 - `/secretary/messages` still loads directly and works as Communication History.
 - Message Center compose from a dashboard page with managed shows but no active show subscription still offers show selection.

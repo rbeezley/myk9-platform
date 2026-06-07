@@ -81,10 +81,6 @@ vi.mock('@/components/announcements/AnnouncementItem', () => ({
   ),
 }));
 
-vi.mock('@/components/announcements/CreateAnnouncementDialog', () => ({
-  CreateAnnouncementDialog: () => <div data-testid="create-announcement-dialog" />,
-}));
-
 function makePayload(id: string): NotificationPayload {
   return {
     id,
@@ -155,10 +151,11 @@ describe('MessageCenterPanel', () => {
     expect(dialog.querySelector('.slide-over-panel')).toHaveClass('right-0');
   });
 
-  it('orders tabs as Notifications, Announcements, Messages', () => {
+  it('orders tabs as Notifications and Show messages', () => {
     renderPanel();
     const tabs = screen.getAllByRole('tab').map(tab => tab.textContent);
-    expect(tabs).toEqual(['Notifications', 'Announcements', 'Messages']);
+    expect(tabs).toEqual(['Notifications', 'Show messages']);
+    expect(screen.queryByRole('tab', { name: 'Announcements' })).not.toBeInTheDocument();
   });
 
   it('defaults to the Notifications tab', () => {
@@ -201,7 +198,7 @@ describe('MessageCenterPanel', () => {
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: /compose/i }));
 
-    expect(screen.getByRole('dialog', { name: /compose show communication/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /compose show message/i })).toBeInTheDocument();
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
@@ -221,7 +218,7 @@ describe('MessageCenterPanel', () => {
     renderPanel();
 
     expect(
-      screen.queryByRole('dialog', { name: /compose show communication/i })
+      screen.queryByRole('dialog', { name: /compose show message/i })
     ).not.toBeInTheDocument();
     expect(classOptionsHookMock).toHaveBeenCalledWith(null, { enabled: false });
   });
@@ -258,7 +255,7 @@ describe('MessageCenterPanel', () => {
     expect(screen.getByRole('button', { name: /compose/i })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /compose/i }));
 
-    expect(screen.getByRole('dialog', { name: /compose show communication/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /compose show message/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('combobox'));
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
     expect(screen.getByText('Summer Trial')).toBeInTheDocument();
@@ -308,7 +305,7 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
     fireEvent.click(screen.getByRole('button', { name: /Spring Trial/i }));
 
     expect(navigateMock).toHaveBeenCalledWith('/messages/show-1');
@@ -338,7 +335,7 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
     fireEvent.click(screen.getByRole('button', { name: /Spring Trial/i }));
 
     expect(navigateMock).toHaveBeenCalledWith('/secretary/messages?showId=show-1');
@@ -348,10 +345,29 @@ describe('MessageCenterPanel', () => {
     renderPanel();
 
     expect(screen.getByText('No notifications yet')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Announcements' }));
-    expect(screen.getByText('No announcements yet')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
-    expect(screen.getByText('No messages yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+    expect(screen.getByText('No show messages yet')).toBeInTheDocument();
+  });
+
+  it('shows existing show-wide posts inside Show messages, not a separate Announcements tab', async () => {
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      announcements: [
+        {
+          id: 'announcement-1',
+          title: 'Ring paused',
+          content: 'Please stay nearby.',
+          is_read: false,
+        },
+      ],
+      unreadCount: 1,
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+
+    expect(screen.getByTestId('announcement-item')).toHaveTextContent('Ring paused');
+    expect(screen.queryByRole('tab', { name: 'Announcements' })).not.toBeInTheDocument();
   });
 
   it('shows a retry action when message loading fails', async () => {
@@ -364,7 +380,7 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
     fireEvent.click(screen.getByRole('button', { name: /try again/i }));
 
     expect(subscribe).toHaveBeenCalledWith(['show-1']);

@@ -33,9 +33,11 @@ describe('MessageShowComposer', () => {
     mockSendTargetedMessage.mockResolvedValue({ total_recipients: 8 });
   });
 
-  it('only exposes title editing for everyone-in-show announcements', async () => {
+  it('describes everyone-in-show as a show message, not an announcement choice', async () => {
     const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
 
+    expect(screen.getByText('Send a show message to everyone or a targeted group.')).toBeInTheDocument();
+    expect(screen.queryByText(/announcement/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Title')).toHaveValue('Lunch is ready');
 
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }));

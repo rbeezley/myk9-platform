@@ -41,7 +41,7 @@ import { getAnnouncementAuthor } from '@/types/announcement-types';
 import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
 import { useMessageShowClassOptions } from '@/features/messages/hooks/useMessageShowClassOptions';
 
-type MessageCenterTab = 'notifications' | 'announcements' | 'messages';
+type MessageCenterTab = 'notifications' | 'showMessages';
 
 function PriorityIcon({
   priority,
@@ -274,81 +274,71 @@ export function MessageCenterPanel() {
     );
   }
 
-  function renderAnnouncementsTab() {
+  function renderShowMessagesTab() {
     const filteredAnnouncements = unreadOnly
       ? announcements.filter(announcement => !announcement.is_read)
       : announcements;
-    if (filteredAnnouncements.length === 0) {
-      return (
-        <EmptyPanelState
-          icon={Megaphone}
-          title="No announcements yet"
-          body={unreadOnly ? 'No unread announcements' : "You're all caught up"}
-        />
-      );
-    }
-    return (
-      <div className="flex-1 overflow-y-auto">
-        {filteredAnnouncements.map(announcement => (
-          <AnnouncementItem
-            key={announcement.id}
-            announcement={announcement}
-            onMarkRead={id => {
-              if (author.id) void annMarkRead(id, author.id);
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  function renderMessagesTab() {
     const visibleThreads = unreadOnly
       ? threads.filter(thread => (thread.unread_count ?? 0) > 0)
       : threads;
+    const hasShowMessages = filteredAnnouncements.length > 0 || visibleThreads.length > 0;
+
     return (
       <div className="flex-1 overflow-y-auto">
-        {messagesLoading ? (
+        {messagesLoading && !hasShowMessages ? (
           <div className="p-6 text-sm text-muted-foreground">Loading messages...</div>
-        ) : messagesError ? (
+        ) : messagesError && !hasShowMessages ? (
           <div className="space-y-3 p-6">
             <p className="text-sm text-destructive">Couldn't load messages.</p>
             <Button variant="outline" size="sm" onClick={handleRetryMessages}>
               Try again
             </Button>
           </div>
-        ) : visibleThreads.length === 0 ? (
+        ) : !hasShowMessages ? (
           <EmptyPanelState
             icon={MessageSquare}
-            title="No messages yet"
+            title="No show messages yet"
             body={
               unreadOnly
-                ? 'No unread messages'
-                : 'Conversations with show organizers will appear here.'
+                ? 'No unread show messages'
+                : 'Show-wide updates and direct messages will appear here.'
             }
           />
         ) : (
-          visibleThreads.map(thread => (
-            <button
-              key={thread.id}
-              type="button"
-              onClick={() => handleThreadClick(thread.id, thread.show_id)}
-              className="flex w-full items-start gap-3 border-b border-border/50 px-4 py-3 text-left hover:bg-muted/40"
-            >
-              <MessageSquare className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">{thread.show_name ?? 'Show message'}</span>
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                  {thread.last_message_preview ?? thread.participant_name ?? 'Open conversation'}
+          <>
+            {filteredAnnouncements.map(announcement => (
+              <AnnouncementItem
+                key={announcement.id}
+                announcement={announcement}
+                onMarkRead={id => {
+                  if (author.id) void annMarkRead(id, author.id);
+                }}
+              />
+            ))}
+            {visibleThreads.map(thread => (
+              <button
+                key={thread.id}
+                type="button"
+                onClick={() => handleThreadClick(thread.id, thread.show_id)}
+                className="flex w-full items-start gap-3 border-b border-border/50 px-4 py-3 text-left hover:bg-muted/40"
+              >
+                <MessageSquare className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">
+                    {thread.show_name ?? 'Show message'}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {thread.last_message_preview ?? thread.participant_name ?? 'Open conversation'}
+                  </span>
                 </span>
-              </span>
-              {(thread.unread_count ?? 0) > 0 && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  {thread.unread_count}
-                </span>
-              )}
-            </button>
-          ))
+                {(thread.unread_count ?? 0) > 0 && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {thread.unread_count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </>
         )}
       </div>
     );
@@ -399,8 +389,7 @@ export function MessageCenterPanel() {
         <div className="flex border-b border-border/50 px-4" role="tablist">
           {[
             { key: 'notifications' as const, label: 'Notifications', icon: Bell },
-            { key: 'announcements' as const, label: 'Announcements', icon: Megaphone },
-            { key: 'messages' as const, label: 'Messages', icon: MessageSquare },
+            { key: 'showMessages' as const, label: 'Show messages', icon: MessageSquare },
           ].map(tab => (
             <button
               key={tab.key}
@@ -431,17 +420,16 @@ export function MessageCenterPanel() {
           </label>
         </div>
         {activeTab === 'notifications' && renderNotificationsTab()}
-        {activeTab === 'announcements' && renderAnnouncementsTab()}
-        {activeTab === 'messages' && renderMessagesTab()}
+        {activeTab === 'showMessages' && renderShowMessagesTab()}
       </SlideOverPanel>
 
       {isComposeOpen && (
         <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Compose show communication</DialogTitle>
+              <DialogTitle>Compose show message</DialogTitle>
               <DialogDescription>
-                Send a show announcement or a targeted exhibitor message.
+                Send a show message to everyone, a class, or checked-in exhibitors.
               </DialogDescription>
             </DialogHeader>
 

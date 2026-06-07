@@ -129,9 +129,20 @@ confirmation — but as an **ambient indicator, deliberately not a toast.**
 
 `LiveUpdateIndicator` (`features/show-live-sync/LiveUpdateIndicator.tsx`) sits
 beside the presence stack at the two in-show seams (`ShowWorkbenchPage`,
-`ShowDetailsPage`) and listens for the same `replication:sync-requested` nudge.
-It appears **only after the first real update**, shows "Updated just now" and
-decays to "Updated N minutes ago," with a brief dot pulse on each update.
+`ShowDetailsPage`). It shows "Updated just now" → "Updated N minutes ago".
+
+**Honest freshness (Codex #591 P2).** The `replication:sync-requested` nudge is
+only a *pre-sync* signal — `triggerSync` can skip (offline / unauthenticated /
+already syncing) or fail mid-download — so the nudge alone is **not** proof the
+cache refreshed. The badge therefore treats the nudge as "a change was detected"
+(arms `pending`) and confirms "Updated" only when a sync has actually
+**completed**: the provider advances `status.lastSyncAt` on success only, never
+on skip/failure. A pure 60s poll advances `lastSyncAt` too, but with no pending
+nudge it is ignored, so the badge stays scoped to *this show's* live activity.
+Read via a non-throwing `useContext(ReplicationSyncContext)` so the widget
+degrades to nothing (never crashes) outside the provider; confirmation uses the
+adjust-state-during-render pattern (not an effect) to satisfy the
+`set-state-in-effect` / `refs` lint rules.
 
 Design constraints (from `docs/INTENT.md` §3 "Calm Over Clever" / "No
 notification overload"; §4 litmus — nothing reads as broken on show day):
@@ -148,9 +159,10 @@ notification overload"; §4 litmus — nothing reads as broken on show day):
 - Gated by the `showLiveSync` kill switch; an `// INTENT:` comment guards it
   against being "upgraded" into a spinner/status badge.
 
-Reuses `formatRelativeTime` (`utils/format.ts`) — no new time helper. 6 unit
-tests (off-by-flag, appears-on-update, decays, inert-when-off, ARIA region,
-listener cleanup).
+Reuses `formatRelativeTime` (`utils/format.ts`) — no new time helper. 8 unit
+tests (nothing-before-activity, **nudge-alone-does-not-claim-fresh**,
+shows-only-after-sync-completes, **ignores-poll-with-no-pending-change**, decays,
+inert-when-off, ARIA region, listener cleanup).
 
 ---
 

@@ -30,11 +30,14 @@ export const features = {
   analytics: false,
   showMap: true,
 
-  // Show-day presence (Phase 1, docs/plan-show-presence.md). KILL SWITCH, not a
-  // "coming soon" gate: dark by default. Flip true to open the Realtime presence
-  // channel + render the avatar stack. (A runtime/remote flag for instant disable
-  // without a redeploy is the §12-complete follow-up.)
-  showPresence: false,
+  // Show-day presence (Phase 1, docs/plan-show-presence.md). KILL SWITCH.
+  // ENABLED after live validation 2026-06-07 (#585 + cross-role two-context
+  // browser smoke confirmed staff/exhibitor see each other on real Realtime and
+  // the privacy filter holds). Opens the Realtime presence channel + renders the
+  // avatar stack and per-ring judge dots. Flip to false to instantly close the
+  // channel. (A runtime/remote flag for instant disable without a redeploy is the
+  // §12-complete follow-up.)
+  showPresence: true,
 
   // Show-day live-update nudge (Phase 2, docs/plan-show-presence-phase2.md).
   // KILL SWITCH. ENABLED after live validation 2026-06-07 (real-Realtime probe +

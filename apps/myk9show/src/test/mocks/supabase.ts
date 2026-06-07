@@ -63,6 +63,13 @@ export function createMockSupabase() {
     on: vi.fn().mockReturnThis(),
     subscribe: vi.fn().mockReturnValue({ status: 'SUBSCRIBED' }),
     unsubscribe: vi.fn(),
+    // Presence API — exercised whenever features.showPresence is on (e.g. any
+    // page rendered through ShowPresenceProvider). setupOptimizedPresence's
+    // cleanup calls untrack(); track()/presenceState() round out the shape so a
+    // presence-wrapped page never crashes a test that isn't about presence.
+    track: vi.fn(),
+    untrack: vi.fn(),
+    presenceState: vi.fn().mockReturnValue({}),
   });
 
   return {

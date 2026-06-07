@@ -93,7 +93,7 @@ export function CompactStatsRow({
           type="button"
           onClick={() => onNavigate(stat.href)}
           className={cn(
-            'group relative min-h-[92px] overflow-hidden rounded-xl border border-border/60 bg-card/90 p-3 text-left shadow-sm',
+            'group relative min-h-[92px] overflow-hidden rounded-xl border border-border/60 bg-card p-3 text-left shadow-sm',
             'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]',
             'transition-all duration-300',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'

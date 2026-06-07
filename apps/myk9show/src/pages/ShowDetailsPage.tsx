@@ -72,6 +72,8 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { countCatalogEntries } from '@/features/show-map/entryCounts';
+import { useShowPresence } from '@/features/show-presence/useShowPresence';
+import { PresenceStack } from '@/features/show-presence/PresenceStack';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
@@ -146,6 +148,8 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { endNavigation } = useNavigationPerformance();
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
+  // Who else is currently here at this show (ephemeral presence; see plan §6 Phase 1).
+  const { present: showPresence } = useShowPresence(id);
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const loadTrials = useTrialStore(s => s.loadTrials);
@@ -522,7 +526,9 @@ const ShowDetailsPage: React.FC = () => {
             !canManageShow && !entryStatus.canEnter ? entryStatus.description : undefined
           }
           secondaryActions={
-            canManageShow ? (
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <PresenceStack present={showPresence} />
+              {canManageShow ? (
               <div className="flex flex-wrap items-center gap-2">
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
                 {workbenchHref && (
@@ -576,7 +582,8 @@ const ShowDetailsPage: React.FC = () => {
               >
                 View Entry
               </Button>
-            ) : undefined
+            ) : null}
+            </div>
           }
           footer={
             <QuickInfoCards

@@ -39,11 +39,11 @@ function makeEntry(trialType: string) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   entryServiceMocks.canModifyEntry.mockResolvedValue({ canModify: true });
   entryServiceMocks.updateEntryDetails.mockResolvedValue({ error: null });
   entryServiceMocks.updateEntryHandler.mockResolvedValue({ error: null });
   entryServiceMocks.withdrawEntry.mockResolvedValue({ error: null });
-  vi.clearAllMocks();
 });
 
 describe('EntryEditDialog — jump height visibility by discipline', () => {
@@ -118,14 +118,11 @@ describe('EntryEditDialog — per-class handlers', () => {
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     await waitFor(() => {
+      expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledTimes(1);
       expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
         entryId: 'entry-container',
         handler: 'Chris Lee',
       });
-    });
-    expect(entryServiceMocks.updateEntryHandler).not.toHaveBeenCalledWith({
-      entryId: 'entry-exterior',
-      handler: 'Chris Lee',
     });
   });
 });

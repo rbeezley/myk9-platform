@@ -1,5 +1,7 @@
+import { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { supabase } from '@/supabaseClient';
 import { features } from '@/config/features';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
@@ -21,6 +23,7 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 
 // The 400ms debounce in the hook. Kept in sync with NUDGE_DEBOUNCE_MS.
 const DEBOUNCE_MS = 400;
+const PAST_DEBOUNCE_MS = DEBOUNCE_MS + 80;
 const SYNC_EVENT = 'replication:sync-requested';
 
 interface Binding {
@@ -38,6 +41,8 @@ let lastChannel: FakeChannel | null;
 let subscribeCb: ((status: string) => void) | undefined;
 let dispatchSpy: ReturnType<typeof vi.spyOn>;
 
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
 const setFlag = (on: boolean) => {
   (features as { showLiveSync: boolean }).showLiveSync = on;
 };
@@ -54,25 +59,28 @@ const setTrials = (ids: string[]) => {
 const nudgeCount = () =>
   dispatchSpy.mock.calls.filter(([e]) => (e as Event).type === SYNC_EVENT).length;
 
+const classesBindings = () =>
+  lastChannel?.bindings.filter(b => b.opts.table === 'classes') ?? [];
+
 const bindingFor = (table: string, filter?: string) =>
   lastChannel?.bindings.find(
     b => b.opts.table === table && (filter === undefined || b.opts.filter === filter)
   );
 
-/**
- * Render the hook and flush the async trials read so the channel is created.
- * No default for `showId` — `mount(undefined)` must pass undefined through (a
- * default value would be substituted for an explicit `undefined` argument).
- */
-async function mount(showId: string | undefined) {
-  const utils = renderHook(() => useShowLiveSync(showId));
-  await vi.advanceTimersByTimeAsync(0);
-  return utils;
+/** Render the hook under a fresh QueryClient and return the client for invalidation. */
+function mount(showId: string | undefined) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  const utils = renderHook(() => useShowLiveSync(showId), { wrapper });
+  return { ...utils, queryClient };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.useFakeTimers();
   setFlag(true);
   setTrials([]);
   lastChannel = null;
@@ -97,7 +105,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.useRealTimers();
   dispatchSpy.mockRestore();
 });
 
@@ -119,85 +126,107 @@ describe('liveSyncChannelName', () => {
 describe('useShowLiveSync', () => {
   it('opens no channel when the kill switch is off (no env override)', async () => {
     setFlag(false);
-    await mount('s1');
+    mount('s1');
+    await sleep(50);
     expect(supabase.channel).not.toHaveBeenCalled();
   });
 
   it('opens no channel without a showId', async () => {
-    await mount(undefined);
+    mount(undefined);
+    await sleep(50);
     expect(supabase.channel).not.toHaveBeenCalled();
   });
 
   it('subscribes to show-filtered entries and one binding per trial', async () => {
     setTrials(['t1', 't2']);
-    await mount('s1');
+    mount('s1');
 
+    await waitFor(() => expect(classesBindings()).toHaveLength(2));
     expect(supabase.channel).toHaveBeenCalledWith('show-live:s1');
     // entries: tight show_id filter (the value-sensitive bit — assert exactly).
     expect(bindingFor('entries')?.opts.filter).toBe('show_id=eq.s1');
     // classes: one eq binding per trial (no show_id column on classes).
     expect(bindingFor('classes', 'trial_id=eq.t1')).toBeTruthy();
     expect(bindingFor('classes', 'trial_id=eq.t2')).toBeTruthy();
-    expect(lastChannel?.bindings.filter(b => b.opts.table === 'classes')).toHaveLength(2);
   });
 
   it('still watches entries but skips classes when the show has no trials', async () => {
     setTrials([]);
-    await mount('s1');
+    mount('s1');
 
-    expect(bindingFor('entries')).toBeTruthy();
-    expect(lastChannel?.bindings.filter(b => b.opts.table === 'classes')).toHaveLength(0);
+    await waitFor(() => expect(bindingFor('entries')).toBeTruthy());
+    expect(classesBindings()).toHaveLength(0);
+  });
+
+  it('rebinds with class subscriptions once the trials cache fills (cold start)', async () => {
+    // Cold start: replicated trials not yet synced → entries-only.
+    setTrials([]);
+    const { queryClient } = mount('s1');
+    await waitFor(() => expect(bindingFor('entries')).toBeTruthy());
+    expect(classesBindings()).toHaveLength(0);
+    const firstChannel = lastChannel;
+
+    // Startup sync lands trials and invalidates ['trials'] (what triggerSync does).
+    setTrials(['t1']);
+    queryClient.invalidateQueries({ queryKey: ['trials'] });
+
+    // The refetch must rebind: new channel with the class subscription, old removed.
+    await waitFor(() => expect(classesBindings()).toHaveLength(1));
+    expect(bindingFor('classes', 'trial_id=eq.t1')).toBeTruthy();
+    expect(supabase.removeChannel).toHaveBeenCalledWith(firstChannel);
   });
 
   it('collapses a burst of changes into exactly one debounced nudge', async () => {
     setTrials(['t1']);
-    await mount('s1');
+    mount('s1');
+    await waitFor(() => expect(bindingFor('classes', 'trial_id=eq.t1')).toBeTruthy());
     subscribeCb?.('SUBSCRIBED'); // initial connect — does not nudge
 
-    const entries = bindingFor('entries')!;
-    const classes = bindingFor('classes', 'trial_id=eq.t1')!;
-    entries.cb({});
-    entries.cb({});
-    classes.cb({});
+    bindingFor('entries')!.cb({});
+    bindingFor('entries')!.cb({});
+    bindingFor('classes', 'trial_id=eq.t1')!.cb({});
 
-    expect(nudgeCount()).toBe(0); // still within the debounce window
-    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    await waitFor(() => expect(nudgeCount()).toBe(1));
+    await sleep(PAST_DEBOUNCE_MS); // ensure the burst really collapsed to one
     expect(nudgeCount()).toBe(1);
   });
 
   it('does not nudge on first connect, but does on reconnect (catch-up)', async () => {
     setTrials(['t1']);
-    await mount('s1');
+    mount('s1');
+    await waitFor(() => expect(bindingFor('entries')).toBeTruthy());
 
     subscribeCb?.('SUBSCRIBED'); // first connect
-    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    await sleep(PAST_DEBOUNCE_MS);
     expect(nudgeCount()).toBe(0);
 
     subscribeCb?.('SUBSCRIBED'); // reconnect
-    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
-    expect(nudgeCount()).toBe(1);
+    await waitFor(() => expect(nudgeCount()).toBe(1));
   });
 
   it('removes the channel and clears the pending nudge on unmount', async () => {
     setTrials(['t1']);
-    const { unmount } = await mount('s1');
+    const { unmount } = mount('s1');
+    await waitFor(() => expect(bindingFor('entries')).toBeTruthy());
     subscribeCb?.('SUBSCRIBED');
+    const channel = lastChannel;
 
     bindingFor('entries')!.cb({}); // schedules a nudge
     unmount(); // cleanup must clear the timer + remove the channel
-    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    await sleep(PAST_DEBOUNCE_MS);
 
-    expect(supabase.removeChannel).toHaveBeenCalledWith(lastChannel);
+    expect(supabase.removeChannel).toHaveBeenCalledWith(channel);
     expect(nudgeCount()).toBe(0);
   });
 
   it('dispatches a bare event with no payload (the sync writes the cache)', async () => {
     setTrials(['t1']);
-    await mount('s1');
+    mount('s1');
+    await waitFor(() => expect(bindingFor('entries')).toBeTruthy());
     subscribeCb?.('SUBSCRIBED');
 
     bindingFor('entries')!.cb({});
-    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    await waitFor(() => expect(nudgeCount()).toBe(1));
 
     const evt = dispatchSpy.mock.calls.find(([e]) => (e as Event).type === SYNC_EVENT)?.[0] as
       | Event

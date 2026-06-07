@@ -22,12 +22,21 @@ actual code.
 
 ### Mechanism
 
-`useShowLiveSync(showId)` is a **pure side-effect hook** (returns `void`, holds
-no React state → never re-renders its host). It:
+`useShowLiveSync(showId)` returns `void` and re-renders its host only when the
+show's trial **set** actually changes (React Query structural sharing dedupes
+equal refetches), so it stays effectively render-free. It:
 
-1. Reads the show's trial IDs from the **already-synced** replicated cache
-   (`replicatedTrialsTable.getTrialsByShow(showId)` — a local IndexedDB read,
-   not a network call).
+1. Reads the show's trial IDs **reactively** from the offline-first replicated
+   cache via `useQuery({ queryKey: ['trials', 'live-sync', showId], queryFn: () =>
+   replicatedTrialsTable.getTrialsByShow(showId) })` (a local IndexedDB read, not
+   a network call). Keying under `['trials']` is deliberate: the incremental
+   `triggerSync` invalidates `['trials']` on every sync, so on a **cold start**
+   (fresh device, cache not yet synced) the first read returns `[]` → we bind
+   entries-only; when the startup sync fills the cache and invalidates, this
+   refetches, the trial-id key changes, and the effect **rebinds** with the class
+   subscriptions. This closes the gap where a cold mount would otherwise be
+   stranded entries-only until remount (Codex PR #587 review, P2). The subscribe
+   effect waits for `isFetched` so a warm mount opens exactly one channel.
 2. Opens one Realtime channel `show-live:<showId>` and subscribes to
    `postgres_changes`:
    - `entries` filtered `show_id=eq.<showId>` (high-volume: check-ins, scores,
@@ -57,14 +66,16 @@ no React state → never re-renders its host). It:
 
 ### Robustness / failure modes
 
-- **`getTrialsByShow` throws or returns `[]`** — wrapped in try/catch; on failure
-  or empty result we still subscribe to `entries` and skip `classes` (degrades to
-  the 60s poll for class-status only; entries stay live). A trials-read failure
-  must never crash the host subtree.
-- **Async race / StrictMode double-mount** — the trials read is async, so the
-  effect guards channel creation behind a `cancelled` flag set in cleanup; if the
-  effect is torn down before the read resolves, no channel is opened. Cleanup
-  removes the channel (if created) and clears any pending debounce timer.
+- **Cold start (trials cache empty)** — handled reactively (see Mechanism #1):
+  bind entries-only, then rebind with classes when the `['trials']` invalidation
+  refetches a now-populated cache. Regression-tested.
+- **`getTrialsByShow` throws** — React Query owns the async; an error leaves
+  `data` undefined → entries-only, and the next sync invalidation refetches
+  (self-healing). No manual try/catch needed; the host subtree never crashes.
+- **StrictMode double-mount / navigation** — React Query owns the async read, so
+  no manual `cancelled` guard is needed; the effect's channel setup is now
+  synchronous (created from already-fetched `trialIdKey`). Cleanup removes the
+  channel and clears any pending debounce timer.
 - **Realtime error/timeout (`CHANNEL_ERROR`, `TIMED_OUT`, `CLOSED`)** — not
   treated specially; the client auto-rejoins and the reconnect catch-up + 60s
   poll are the safety net. No bespoke retry path (avoids a parallel system).
@@ -140,30 +151,29 @@ No migration. No shared-DB change. No new provider.
 
 ## Tests (assertion-first)
 
-Unit (`useShowLiveSync.test.tsx`), mirroring the show-presence mock shape
-(`vi.mock` of `@/supabaseClient` returning a fake channel with chainable `.on`,
-`.subscribe(cb→'SUBSCRIBED')`, `topic`, `state`; mock `replicatedTrialsTable`):
+Unit (`useShowLiveSync.test.tsx`, 11 tests), mock `@/supabaseClient` (fake
+channel capturing `.on` bindings + the `.subscribe` callback), `@/config/features`
+(toggle the flag), and `replicatedTrialsTable`; render under a `QueryClient`
+(real timers + `waitFor`, since trial IDs now resolve through React Query):
 
-1. **Off by default** — with the flag dark and no env override, the hook opens
-   **no channel** (`supabase.channel` not called). *(write red first: assert
-   not-called)*
-2. **Subscribes to entries + per-trial classes when enabled** — with env
-   override on and `getTrialsByShow` → `[{id:'t1'},{id:'t2'}]`, asserts
-   `.on('postgres_changes', { table: 'entries', filter: 'show_id=eq.<id>' }, …)`
-   **and** one classes binding per trial:
-   `.on(... { table: 'classes', filter: 'trial_id=eq.t1' } …)` and
-   `… 'trial_id=eq.t2' …`, with the exact filter strings (assertion-first on the
-   filter value — the value-sensitive bit).
-3. **Debounced single nudge** — firing N postgres_changes callbacks within the
-   window dispatches **exactly one** `replication:sync-requested`
-   (`window.addEventListener` spy), after the debounce elapses (fake timers).
-4. **No classes subscription when show has no trials** — `getTrialsByShow` → `[]`
-   ⇒ entries `.on` registered, classes `.on` **not** registered (degrades to
-   poll for classes; entries still live).
-5. **Reconnect catch-up** — second `SUBSCRIBED` fires one nudge; first does not.
-6. **Cleanup** — unmount calls `supabase.removeChannel` and clears the pending
+1. **Off by default** — flag dark, no env override ⇒ **no channel**
+   (`supabase.channel` not called).
+2. **No showId** ⇒ no channel.
+3. **Subscribes to entries + per-trial classes** — `getTrialsByShow` →
+   `[{id:'t1'},{id:'t2'}]`: asserts the entries binding `filter: 'show_id=eq.s1'`
+   **and** one classes binding per trial (`'trial_id=eq.t1'`, `'trial_id=eq.t2'`),
+   exact filter strings (assertion-first on the value-sensitive bit).
+4. **No classes binding when the show has no trials** — `[]` ⇒ entries-only.
+5. **Cold-start rebind (regression for Codex P2)** — start with trials `[]`
+   (entries-only), then set trials `['t1']` and `invalidateQueries(['trials'])`
+   (what `triggerSync` does): asserts the classes binding appears **and** the old
+   channel is `removeChannel`'d — proving the `['trials']` invalidation rebinds.
+6. **Debounced single nudge** — N callbacks within the window ⇒ **exactly one**
+   `replication:sync-requested`.
+7. **Reconnect catch-up** — second `SUBSCRIBED` fires one nudge; first does not.
+8. **Cleanup** — unmount calls `supabase.removeChannel` and clears the pending
    debounce timer (no nudge after unmount).
-7. **No payload trust** — the nudge is a bare `Event` with no `detail` (the
+9. **No payload trust** — the nudge is a bare `Event` with no `detail` (the
    sync, not the payload, writes the cache).
 
 Run: `cd apps/myk9show && npx vitest run src/test/features/show-live-sync/useShowLiveSync.test.tsx`,

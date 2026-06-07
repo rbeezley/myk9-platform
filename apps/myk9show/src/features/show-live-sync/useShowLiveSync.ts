@@ -9,13 +9,15 @@
  * 60s background poll.
  *
  * Deliberately reads NOTHING from the realtime payload: the replication sync
- * (RLS-authorized, offline-first) is what writes the cache. We do NOT stand up a
+ * (RLS-authorized, offline-first) is what writes the cache, so offline-first
+ * authority stays with the replication layer (CLAUDE.md). We do NOT stand up a
  * parallel realtime engine (the PR #576 mistake) or a second poll — the existing
  * ReplicationSyncProvider 60s poll remains the fallback when this is off or
  * disconnected; the nudge only makes the existing freshness faster.
  */
 
 import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/supabaseClient';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
@@ -41,17 +43,45 @@ export function liveSyncChannelName(showId: string): string {
 
 /**
  * Subscribe to the show's live data and nudge the incremental replication sync
- * on change. Pure side effect — returns nothing and holds no React state, so it
- * never re-renders its host. Mounted once per show via ShowPresenceProvider.
+ * on change. Mounted once per show via ShowPresenceProvider. Re-renders its host
+ * only when the show's trial SET actually changes (React Query structural
+ * sharing dedupes equal refetches), so it stays effectively render-free.
  */
 export function useShowLiveSync(showId: string | undefined): void {
+  const enabled = showLiveSyncEnabled();
+
+  // Reactive trial IDs from the OFFLINE-FIRST replicated cache. `classes` has no
+  // `show_id` (FK is `trial_id`), so the classes subscription is scoped to this
+  // show's trials. Keyed under 'trials' so the replication sync's ['trials']
+  // invalidation refetches it: on a COLD START (fresh device, cache not yet
+  // synced) `getTrialsByShow` returns [] and we bind entries-only; when the
+  // startup sync fills the cache and invalidates ['trials'], this refetches, the
+  // `trialIdKey` below changes, and the effect REBINDS with the class
+  // subscriptions — instead of stranding the mount entries-only until remount.
+  const { data: trials, isFetched } = useQuery({
+    queryKey: ['trials', 'live-sync', showId],
+    queryFn: () => replicatedTrialsTable.getTrialsByShow(showId!),
+    enabled: enabled && !!showId,
+  });
+
+  // Stable, order-independent key. A refetch that returns the same trials (new
+  // array reference, same ids) must NOT re-run the subscribe effect — only an
+  // actual change to the trial set does (e.g. the cold-start fill, or a trial
+  // added mid-session).
+  const trialIdKey = (trials ?? [])
+    .map(trial => trial.id)
+    .sort()
+    .join(',');
+
   useEffect(() => {
     // Kill switch (plan §12 sibling): when off (or no show) the hook is a
-    // complete no-op — it opens no channel at all.
-    if (!showLiveSyncEnabled() || !showId) return undefined;
+    // complete no-op — it opens no channel at all. Also wait for the trials query
+    // to settle (`isFetched`) before subscribing, so a warm mount opens ONE
+    // channel with its class bindings rather than an entries-only channel that
+    // immediately rebinds. On cold start `isFetched` is true with an empty list,
+    // so we still bind entries-only and let the refetch add classes later.
+    if (!enabled || !showId || !isFetched) return undefined;
 
-    let channel: RealtimeChannel | null = null;
-    let cancelled = false;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     // The first SUBSCRIBED is the initial connect — provider startup sync already
     // covers mount, so we don't nudge. A later SUBSCRIBED is a reconnect: catch
@@ -68,53 +98,35 @@ export function useShowLiveSync(showId: string | undefined): void {
       }, NUDGE_DEBOUNCE_MS);
     };
 
-    void (async () => {
-      // Local read of the already-synced replicated trials (IndexedDB, not a
-      // network call). `classes` has no `show_id` (FK is `trial_id`), so we scope
-      // the classes subscription to this show's trials.
-      let trialIds: string[] = [];
-      try {
-        const trials = await replicatedTrialsTable.getTrialsByShow(showId);
-        trialIds = trials.map(trial => trial.id);
-      } catch {
-        // A trials-read failure must never crash the host subtree — fall back to
-        // entries-only; the 60s poll keeps class-status fresh until next remount.
-        trialIds = [];
-      }
-      // The effect may have been torn down (StrictMode double-mount / navigation)
-      // while the async read was in flight — never open a channel after cleanup.
-      if (cancelled) return;
-
-      const ch = supabase.channel(liveSyncChannelName(showId));
-      // High-volume signal: check-ins, scores, placements are all denormalized on
-      // `entries` (migration 003), and `entries` has `show_id` for a tight filter.
-      ch.on(
+    const channel: RealtimeChannel = supabase.channel(liveSyncChannelName(showId));
+    // High-volume signal: check-ins, scores, placements are all denormalized on
+    // `entries` (migration 003), and `entries` has `show_id` for a tight filter.
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'entries', filter: `show_id=eq.${showId}` },
+      nudgeSync
+    );
+    // One binding per trial. `eq` is universally supported; `trial_id=in.(…)` is
+    // unverifiable server-side (the client passes `filter` through verbatim) so
+    // we avoid it (see plan). Empty until the trials cache fills on cold start —
+    // the query above rebinds us when it does.
+    const trialIds = trialIdKey ? trialIdKey.split(',') : [];
+    for (const trialId of trialIds) {
+      channel.on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'entries', filter: `show_id=eq.${showId}` },
+        { event: '*', schema: 'public', table: 'classes', filter: `trial_id=eq.${trialId}` },
         nudgeSync
       );
-      // One binding per trial. `eq` is universally supported; `trial_id=in.(…)` is
-      // unverifiable server-side (the client passes `filter` through verbatim) so
-      // we avoid it (see plan). Typical shows have 1-6 trials.
-      for (const trialId of trialIds) {
-        ch.on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'classes', filter: `trial_id=eq.${trialId}` },
-          nudgeSync
-        );
-      }
-      ch.subscribe(status => {
-        if (status !== 'SUBSCRIBED') return;
-        if (hasConnected) nudgeSync(); // reconnect catch-up
-        hasConnected = true;
-      });
-      channel = ch;
-    })();
+    }
+    channel.subscribe(status => {
+      if (status !== 'SUBSCRIBED') return;
+      if (hasConnected) nudgeSync(); // reconnect catch-up
+      hasConnected = true;
+    });
 
     return () => {
-      cancelled = true;
       if (debounceTimer) clearTimeout(debounceTimer);
-      if (channel) supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-  }, [showId]);
+  }, [enabled, showId, isFetched, trialIdKey]);
 }

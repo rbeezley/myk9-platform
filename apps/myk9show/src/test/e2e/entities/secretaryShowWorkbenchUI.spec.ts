@@ -61,9 +61,8 @@ test.describe('Secretary Show Workbench UI', () => {
     await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Show Desk' }).click();
-    await page.getByRole('button', { name: /open tools panel/i }).click();
-    const toolsPanel = page.getByRole('dialog', { name: 'Tools panel' });
-    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toBeVisible();
+    const toolsPanel = await openToolsPanel(page);
+    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
     await toolsPanel.getByRole('button', { name: /close/i }).click();
     await expectWorkbenchSection(page, 'Closeout');
     await expect(page.getByRole('heading', { name: 'Show-day reconciliation' })).toBeVisible();
@@ -75,21 +74,12 @@ test.describe('Secretary Show Workbench UI', () => {
     await expectBrowserHealthClean(testInfo);
   });
 
-  test('keeps communication and incident actions visibly guarded before mutation', async ({
-    page,
-  }, testInfo) => {
+  test('keeps incident actions visibly guarded before mutation', async ({ page }, testInfo) => {
     await openWorkbench(page);
     await page.getByRole('tab', { name: 'Show Desk' }).click();
-    await page.getByRole('button', { name: /open tools panel/i }).click();
-    const toolsPanel = page.getByRole('dialog', { name: 'Tools panel' });
+    const toolsPanel = await openToolsPanel(page);
 
-    await toolsPanel.getByRole('button', { name: /Message Show/i }).click();
-    await expect(toolsPanel.getByRole('heading', { name: 'Message Show' })).toBeVisible();
-    await expect(toolsPanel.getByRole('combobox', { name: 'Recipient' })).toBeVisible();
-    await expect(toolsPanel.getByLabel('Title')).toHaveValue(/.+/);
-    await expect(toolsPanel.getByLabel('Message')).toHaveValue(/.+/);
-    await expect(toolsPanel.getByLabel('Send push alert')).toBeVisible();
-    await expect(toolsPanel.getByRole('button', { name: /Reset/i })).toBeVisible();
+    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
 
     await toolsPanel.getByRole('button', { name: /Incident log/i }).click();
     const incidentLog = toolsPanel.getByRole('region', { name: 'Incident log' });
@@ -118,6 +108,13 @@ async function openWorkbench(page: Page) {
   await expect(page.getByRole('heading', { name: /workbench$/i })).toBeVisible({
     timeout: 15000,
   });
+}
+
+async function openToolsPanel(page: Page) {
+  await page.getByRole('button', { name: /open tools panel/i }).click();
+  const toolsPanel = page.getByRole('dialog', { name: /show desk tools/i });
+  await expect(toolsPanel).toBeVisible({ timeout: 10000 });
+  return toolsPanel;
 }
 
 async function expectWorkbenchSection(page: Page, name: string) {

@@ -13,16 +13,33 @@ import {
 } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useNotificationStore, type AlertEntry } from '@/store/notificationStore';
 import { useAnnouncementStore } from '@/store/announcementStore';
 import { useMessageStore } from '@/store/messageStore';
+import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { NotificationType, NotificationPriority } from '@myk9/notifications';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
 import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
-import { CreateAnnouncementDialog } from '@/components/announcements/CreateAnnouncementDialog';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
+import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
+import { useMessageShowClassOptions } from '@/features/messages/hooks/useMessageShowClassOptions';
 
 type MessageCenterTab = 'notifications' | 'announcements' | 'messages';
 
@@ -168,11 +185,30 @@ export function MessageCenterPanel() {
 
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const author = getAnnouncementAuthor(user, userWithRoles);
+  const shows = useShowStore(s => s.shows);
   const [activeTab, setActiveTab] = useState<MessageCenterTab>('notifications');
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeShowId, setComposeShowId] = useState<string>('');
 
   const isStaffDestination = isSecretary || isAdmin || hasRole('club_admin');
+  const showsById = new Map(shows.map(show => [show.id, show]));
+  const staffShows =
+    currentShowIds.length > 0
+      ? currentShowIds.map((showId, index) => {
+          const show = showsById.get(showId);
+          return {
+            id: showId,
+            name: show?.name ?? (currentShowIds.length === 1 ? 'Current show' : `Show ${index + 1}`),
+          };
+        })
+      : shows.map(show => ({ id: show.id, name: show.name }));
+  const selectedComposeShowId =
+    composeShowId || (staffShows.length === 1 ? staffShows[0].id : '');
+  const { data: composeClasses = [] } = useMessageShowClassOptions(
+    isComposeOpen && selectedComposeShowId ? selectedComposeShowId : null,
+    { enabled: isComposeOpen && !!selectedComposeShowId }
+  );
   const totalUnread = notificationUnread + announcementUnread + messageUnread;
 
   function handleMarkAllRead() {
@@ -198,6 +234,16 @@ export function MessageCenterPanel() {
 
   function handleRetryMessages() {
     void retryMessageSubscribe(messageShowIds);
+  }
+
+  function handleOpenCompose() {
+    setComposeShowId(staffShows.length === 1 ? staffShows[0].id : '');
+    setIsComposeOpen(true);
+  }
+
+  function handleOpenFullView() {
+    closeCenter();
+    navigate('/secretary/messages');
   }
 
   function renderNotificationsTab() {
@@ -243,20 +289,6 @@ export function MessageCenterPanel() {
     }
     return (
       <div className="flex-1 overflow-y-auto">
-        {author.isOfficial && (
-          <div className="border-b border-border/50 p-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => setIsCreateOpen(true)}
-              disabled={currentShowIds.length === 0}
-            >
-              <Plus className="mr-1.5 h-3 w-3" />
-              New Announcement
-            </Button>
-          </div>
-        )}
         {filteredAnnouncements.map(announcement => (
           <AnnouncementItem
             key={announcement.id}
@@ -347,6 +379,23 @@ export function MessageCenterPanel() {
         size="sm"
         {...unreadHeaderProps}
       >
+        {author.isOfficial && (
+          <div className="flex gap-2 border-b border-border/50 p-3">
+            <Button
+              variant="default"
+              size="sm"
+              className="flex-1"
+              onClick={handleOpenCompose}
+              disabled={staffShows.length === 0}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Compose
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleOpenFullView}>
+              Open full view
+            </Button>
+          </div>
+        )}
         <div className="flex border-b border-border/50 px-4" role="tablist">
           {[
             { key: 'notifications' as const, label: 'Notifications', icon: Bell },
@@ -386,15 +435,52 @@ export function MessageCenterPanel() {
         {activeTab === 'messages' && renderMessagesTab()}
       </SlideOverPanel>
 
-      {isCreateOpen && currentShowIds.length > 0 && (
-        <CreateAnnouncementDialog
-          isOpen={isCreateOpen}
-          onClose={() => setIsCreateOpen(false)}
-          showId={currentShowIds[0]}
-          authorId={author.id}
-          authorRole={author.role}
-          authorName={author.name}
-        />
+      {isComposeOpen && (
+        <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Compose show communication</DialogTitle>
+              <DialogDescription>
+                Send a show announcement or a targeted exhibitor message.
+              </DialogDescription>
+            </DialogHeader>
+
+            {staffShows.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="message-center-compose-show">Show</Label>
+                <Select value={composeShowId} onValueChange={setComposeShowId}>
+                  <SelectTrigger id="message-center-compose-show">
+                    <SelectValue placeholder="Select a show" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staffShows.map(show => (
+                      <SelectItem key={show.id} value={show.id}>
+                        {show.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {staffShows.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Select or load a managed show before composing.
+              </p>
+            )}
+
+            {selectedComposeShowId ? (
+              <MessageShowComposer
+                showId={selectedComposeShowId}
+                classes={composeClasses}
+                showHistoryLink={false}
+                onSent={() => setIsComposeOpen(false)}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Select a show to continue.</p>
+            )}
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

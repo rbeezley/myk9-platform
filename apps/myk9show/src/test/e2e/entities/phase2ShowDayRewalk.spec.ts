@@ -54,8 +54,9 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
 
     await page.getByRole('tab', { name: 'Show Desk' }).click();
     await page.getByRole('button', { name: /open tools panel/i }).click();
-    const toolsPanel = page.getByRole('dialog', { name: 'Tools panel' });
-    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toBeVisible();
+    const toolsPanel = page.getByRole('dialog', { name: /show desk tools/i });
+    await expect(toolsPanel).toBeVisible({ timeout: 10000 });
+    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
     await toolsPanel.getByRole('button', { name: /close/i }).click();
     await expect(page.getByRole('heading', { name: 'Closeout' })).toBeVisible();
 

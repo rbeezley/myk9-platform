@@ -122,17 +122,47 @@ zero-new-handler. The only cost (fan-out to all 9 replicated tables per nudge,
 worth a parallel trigger path at this phase. Revisit only if profiling on large
 shows shows the empty checks matter.
 
-### Deliberate scope boundary — no toast/indicator in Phase 2
+### Phase 2.1 — the ambient freshness indicator (shipped, NOT a toast)
 
-The scoping doc listed an optional "Results updated" toast (reviving the deleted
-`LiveUpdateIndicator`). **Deferred deliberately, not as a rotting follow-up:**
-the engine is complete and *lovable* on its own — data simply stays fresh
-silently, which is the correct default for a live results board. A naive toast
-firing on every entry change during a busy 500-entry show would be *anti*-lovable
-(noise). A good indicator needs real "meaningful change" gating (debounced
-count, dismissible, ARIA-polite) — its own small design exercise. It is **not**
-integral to "live updates work." No `TODO` is left in code; this paragraph is
-the record. Revisit as Phase 2.1 if users ask for visible confirmation.
+Phase 2 shipped live-sync silent on purpose. Phase 2.1 adds the *visible*
+confirmation — but as an **ambient indicator, deliberately not a toast.**
+
+`LiveUpdateIndicator` (`features/show-live-sync/LiveUpdateIndicator.tsx`) sits
+beside the presence stack at the two in-show seams (`ShowWorkbenchPage`,
+`ShowDetailsPage`). It shows "Updated just now" → "Updated N minutes ago".
+
+**Honest freshness (Codex #591 P2).** The `replication:sync-requested` nudge is
+only a *pre-sync* signal — `triggerSync` can skip (offline / unauthenticated /
+already syncing) or fail mid-download — so the nudge alone is **not** proof the
+cache refreshed. The badge therefore treats the nudge as "a change was detected"
+(arms `pending`) and confirms "Updated" only when a sync has actually
+**completed**: the provider advances `status.lastSyncAt` on success only, never
+on skip/failure. A pure 60s poll advances `lastSyncAt` too, but with no pending
+nudge it is ignored, so the badge stays scoped to *this show's* live activity.
+Read via a non-throwing `useContext(ReplicationSyncContext)` so the widget
+degrades to nothing (never crashes) outside the provider; confirmation uses the
+adjust-state-during-render pattern (not an effect) to satisfy the
+`set-state-in-effect` / `refs` lint rules.
+
+Design constraints (from `docs/INTENT.md` §3 "Calm Over Clever" / "No
+notification overload"; §4 litmus — nothing reads as broken on show day):
+
+- **Not a toast.** A toast per change on a busy 500-entry show is anti-lovable
+  noise. This is a quiet, glanceable badge that never interrupts.
+- **Positive-only.** No offline / error / "syncing…" states — those live in the
+  global sync dashboard (`components/sync/*`), not on the show-day surface.
+- **Never claims live without proof.** Renders nothing until a real update
+  arrives, so an idle show shows nothing.
+- **Natural a11y throttle.** Relative-time bucketing keeps the string at "just
+  now" through a burst, so the `role="status"` region doesn't spam screen
+  readers. No bespoke debounce needed.
+- Gated by the `showLiveSync` kill switch; an `// INTENT:` comment guards it
+  against being "upgraded" into a spinner/status badge.
+
+Reuses `formatRelativeTime` (`utils/format.ts`) — no new time helper. 8 unit
+tests (nothing-before-activity, **nudge-alone-does-not-claim-fresh**,
+shows-only-after-sync-completes, **ignores-poll-with-no-pending-change**, decays,
+inert-when-off, ARIA region, listener cleanup).
 
 ---
 

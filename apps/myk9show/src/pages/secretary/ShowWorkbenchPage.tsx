@@ -10,6 +10,7 @@ import {
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
+import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
@@ -387,6 +388,7 @@ export function ShowWorkbenchPage() {
         title={`${currentShow.name || 'Show'} workbench`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <LiveUpdateIndicator />
             <ShowPresenceStack className="mr-1" />
             <Button asChild variant="outline" size="sm">
               <Link to={`/shows/${currentShow.id}`}>

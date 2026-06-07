@@ -15,6 +15,12 @@ export interface EntryClass {
   name: string;
   number: string;
   fee: number;
+  /** Trial date for this class row, distinct from the show start date. */
+  trialDate?: Date | undefined;
+  /** Trial number assigned by the show secretary/registry. */
+  trialNumber?: string | undefined;
+  /** Dog's armband for this show/class row. */
+  armband?: string | undefined;
   jumpHeight?: string | undefined;
   /** Trial discipline (e.g. "Scent Work", "Agility"); gates the jump-height field. */
   trialType?: string | undefined;
@@ -54,6 +60,8 @@ export interface MyEntry {
   };
   dogName: string;
   dogId: string;
+  /** Dog's armband number for this show, shared across class rows when assigned. */
+  armband?: string | undefined;
   classes: EntryClass[];
   totalFee: number;
   entryStatus: EntryStatus;

@@ -80,7 +80,14 @@ export async function buildReplicatedUserEntryRows(
       dog: entry.dogId ? (maps.dogsMap.get(entry.dogId) ?? null) : null,
       cls,
       show: entry.showId ? (maps.showsMap.get(entry.showId) ?? null) : null,
-      trial: trial ? { id: trial.id, trial_type: trial.trialType ?? null } : null,
+      trial: trial
+        ? {
+            id: trial.id,
+            trial_type: trial.trialType ?? null,
+            date: trial.date ?? trial.trial_date ?? null,
+            trial_number: trial.trialNumber ?? trial.trial_number ?? null,
+          }
+        : null,
     });
     const enrollment = entry.registrationId ? enrollmentsMap.get(entry.registrationId) : null;
     if (enrollment) {

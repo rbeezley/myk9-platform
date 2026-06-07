@@ -15,6 +15,7 @@ interface StatItem {
   value: number;
   displayValue?: string;
   href: string;
+  accent: string;
   tint: string;
   iconColor: string;
 }
@@ -42,6 +43,7 @@ export function CompactStatsRow({
       label: activeEntries === 1 ? 'Active Show Entry' : 'Active Show Entries',
       value: activeEntries,
       href: '/exhibitor/entries',
+      accent: 'bg-primary',
       tint: 'bg-primary/8 dark:bg-primary/12 border-primary/15',
       iconColor: 'text-primary',
     },
@@ -50,6 +52,7 @@ export function CompactStatsRow({
       label: upcomingShows === 1 ? 'Upcoming Show' : 'Upcoming Shows',
       value: upcomingShows,
       href: '/shows',
+      accent: 'bg-blue-500',
       tint: 'bg-blue-500/8 dark:bg-blue-500/12 border-blue-500/15',
       iconColor: 'text-blue-500',
     },
@@ -58,6 +61,7 @@ export function CompactStatsRow({
       label: pastShows === 1 ? 'Past Show' : 'Past Shows',
       value: pastShows,
       href: '/exhibitor/entries?tab=completed',
+      accent: 'bg-violet-500',
       tint: 'bg-purple-500/8 dark:bg-purple-500/12 border-purple-500/15',
       iconColor: 'text-purple-400',
     },
@@ -67,32 +71,56 @@ export function CompactStatsRow({
       value: totalFees,
       displayValue: `$${totalFees.toLocaleString()}`,
       href: '/exhibitor/entries',
+      accent: 'bg-emerald-500',
       tint: 'bg-emerald-500/8 dark:bg-emerald-500/12 border-emerald-500/15',
       iconColor: 'text-emerald-500',
     },
   ];
 
   return (
-    <div className={cn('grid grid-cols-4 gap-3', className)}>
+    <div className={cn('grid grid-cols-2 gap-3 lg:grid-cols-4', className)}>
       {stats.map(stat => (
         <button
           key={stat.label}
           type="button"
           onClick={() => onNavigate(stat.href)}
           className={cn(
-            'flex flex-col items-center gap-1.5 rounded-xl border p-4',
+            'group relative min-h-[112px] overflow-hidden rounded-lg border p-4 text-left shadow-sm',
             stat.tint,
             'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]',
-            'transition-all duration-300 min-h-[48px]',
+            'transition-all duration-300',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
           )}
           aria-label={`${stat.value} ${stat.label}. View details.`}
         >
-          <div className={cn('opacity-70', stat.iconColor)}>{stat.icon}</div>
-          <span className="text-2xl font-bold text-foreground tabular-nums">
-            {stat.displayValue ?? stat.value}
+          <span className={cn('absolute inset-x-0 top-0 h-1', stat.accent)} aria-hidden="true" />
+          <span className="flex items-start justify-between gap-3">
+            <span className="flex min-w-0 flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {stat.label}
+              </span>
+              <span className="text-3xl font-bold leading-none text-foreground tabular-nums">
+                {stat.displayValue ?? stat.value}
+              </span>
+            </span>
+            <span
+              className={cn(
+                'flex size-9 shrink-0 items-center justify-center rounded-lg bg-background/70 shadow-sm ring-1 ring-border/60',
+                stat.iconColor
+              )}
+            >
+              {stat.icon}
+            </span>
           </span>
-          <span className="text-xs text-muted-foreground font-medium">{stat.label}</span>
+          <span className="mt-3 block h-1.5 overflow-hidden rounded-full bg-background/70">
+            <span
+              className={cn(
+                'block h-full rounded-full opacity-80 transition-all duration-300 group-hover:opacity-100',
+                stat.accent
+              )}
+              style={{ width: stat.value > 0 ? '72%' : '18%' }}
+            />
+          </span>
         </button>
       ))}
     </div>

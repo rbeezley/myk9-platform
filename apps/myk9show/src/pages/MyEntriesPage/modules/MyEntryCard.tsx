@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { EntryStatusStepper } from '@/components/entries/EntryStatusStepper';
-import { Calendar, MapPin, DollarSign, Eye, Edit, Download, User } from 'lucide-react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { Calendar, CalendarDays, MapPin, Eye, Edit, Download, User } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
@@ -86,8 +87,13 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
             {getStatusIcon(entry.entryStatus, entry.paymentStatus)}
             {entry.showName}
           </div>
-          <div className="myk9-entries-card-subtitle">
-            {entry.dogName} • Registration #{entry.registrationNumber || 'Pending'}
+          <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-2">
+            {entry.armband && (
+              <ArmbandBadge armband={entry.armband} className="size-8 rounded-lg text-xs" />
+            )}
+            <span>{entry.dogName}</span>
+            <span aria-hidden="true">•</span>
+            <span>Registration #{entry.registrationNumber || 'Pending'}</span>
           </div>
         </div>
         <div className="myk9-entries-badges">
@@ -135,8 +141,14 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
         )}
 
         <div className="myk9-entries-detail-item">
-          <DollarSign className="h-4 w-4" />
-          <span>${entry.totalFee} total</span>
+          <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">
+            {entry.classes.length}
+          </span>
+          <span>
+            {entry.classes.length === 1
+              ? '1 class entered'
+              : `${entry.classes.length} classes entered`}
+          </span>
         </div>
       </div>
 
@@ -146,13 +158,28 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
         <div className="myk9-entries-classes-grid">
           {entry.classes.map(cls => (
             <div key={cls.id} className="myk9-entries-class-item">
-              <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="flex flex-col min-w-0">
                   <span className="myk9-entries-class-name">
                     {cls.name}
                     {cls.number ? ` #${cls.number}` : ''}
                     {cls.jumpHeight && ` (${cls.jumpHeight})`}
                   </span>
+                  {(cls.trialDate || cls.trialNumber) && (
+                    <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      {cls.trialDate && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-2 py-1 font-medium">
+                          <CalendarDays className="h-3 w-3" />
+                          {format(cls.trialDate, 'MMM d')}
+                        </span>
+                      )}
+                      {cls.trialNumber && (
+                        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 font-semibold text-primary">
+                          Trial {cls.trialNumber}
+                        </span>
+                      )}
+                    </span>
+                  )}
                   {cls.handler && (
                     <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                       <User className="h-3 w-3 flex-shrink-0" />
@@ -190,7 +217,6 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                 {cls.isScored && cls.totalFaults != null && cls.totalFaults > 0 && (
                   <span className="text-xs text-warning-orange">{cls.totalFaults}F</span>
                 )}
-                <span className="myk9-entries-class-fee">${cls.fee}</span>
               </div>
             </div>
           ))}

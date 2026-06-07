@@ -127,12 +127,16 @@ export const USER_ENTRIES_SELECT = `
         class_number,
         trial:trial_id (
           id,
-          trial_type
+          trial_type,
+          date,
+          trial_number
         )
       ),
       trial:trial_id (
         id,
-        trial_type
+        trial_type,
+        date,
+        trial_number
       )
     `;
 

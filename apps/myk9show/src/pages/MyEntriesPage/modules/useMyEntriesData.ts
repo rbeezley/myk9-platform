@@ -80,6 +80,7 @@ export function groupEntriesByShowAndDog(rawEntries: MyEntry[]): MyEntry[] {
       existing.classes.push(...entry.classes);
       existing.totalFee += entry.totalFee;
       existing.entryStatus = dominantStatus(existing.entryStatus, entry.entryStatus);
+      existing.armband = existing.armband ?? entry.armband;
     } else {
       groups.set(key, { ...entry, classes: [...entry.classes] });
     }
@@ -124,11 +125,18 @@ export function useMyEntriesData({
       id: string;
       name: string;
       class_number?: string;
-      trial?: { trial_type?: string } | null;
+      trial?: { trial_type?: string; date?: string; trial_number?: string | null } | null;
     } | null;
     // Discipline gates the jump-height field. Prefer entries.trial_id, but fall
     // back through class.trial_id so legacy entries with NULL trial_id still work.
-    const trialData = entry.trial as { trial_type?: string } | null;
+    const trialData = entry.trial as {
+      trial_type?: string;
+      date?: string;
+      trial_number?: string | null;
+    } | null;
+    const armband = entry.armband ? String(entry.armband) : undefined;
+    const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
+    const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
 
     // Build a single-element classes array from this entry row's own data
     const classes: EntryClass[] = classData
@@ -138,6 +146,9 @@ export function useMyEntriesData({
             name: classData.name || 'Unknown Class',
             number: classData.class_number || '',
             fee: (entry.entry_fee as number) || 0,
+            trialDate,
+            trialNumber,
+            armband,
             jumpHeight: (entry.jump_height as string) || undefined,
             trialType: trialData?.trial_type || classData.trial?.trial_type || undefined,
             runOrder: (entry.run_order as number) || undefined,
@@ -182,6 +193,7 @@ export function useMyEntriesData({
       },
       dogName: dog?.call_name || dog?.name || 'Unknown Dog',
       dogId: dog?.id || '',
+      armband,
       classes,
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,

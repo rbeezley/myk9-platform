@@ -9,8 +9,8 @@
  */
 
 import { useMemo, type ReactNode } from 'react';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowPresence } from './useShowPresence';
+import { useLocalPresenceIdentity } from './useLocalPresenceIdentity';
 import { filterPresenceForViewer } from './presenceSelectors';
 import { ShowPresenceContext } from './showPresenceContext';
 
@@ -21,11 +21,14 @@ export function ShowPresenceProvider({
   showId: string | undefined;
   children: ReactNode;
 }) {
-  const { present: roster } = useShowPresence(showId);
-  const { user, getUserRoles } = useAuthContext();
-  const viewerId = user?.id;
-  // Display/privacy role only (never an authz signal); default to least-privilege.
-  const viewerRole = getUserRoles?.()?.[0] ?? 'exhibitor';
+  // One identity for both roles: the local user PRODUCES with it (useShowPresence)
+  // and is filtered as a VIEWER with it (below). Covers a signed-in account AND an
+  // anonymous passcode grant — so a passcode-only judge both lights the dot and
+  // sees the full roster. Display/privacy role only, never an authz signal.
+  const identity = useLocalPresenceIdentity(showId);
+  const { present: roster } = useShowPresence(showId, identity);
+  const viewerId = identity?.userId;
+  const viewerRole = identity?.role ?? 'exhibitor';
 
   const value = useMemo(
     () => ({ present: filterPresenceForViewer(roster, viewerId, viewerRole) }),

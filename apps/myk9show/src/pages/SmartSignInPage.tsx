@@ -31,12 +31,15 @@ type PendingPasscode = {
  * (Phase 1c). Anonymous passcodes route straight to `/at-show/:showId`.
  *
  * INTENT: respects the clock (≤2 taps), plain language, no jargon, visible
- * labels, `aria-live` on every transition. The confirmation is the ONLY added
- * prompt and only for the rare signed-in-types-passcode case.
+ * labels, `aria-live` on every transition. The signed-in confirmation is the
+ * only added prompt for the rare signed-in-types-passcode case. Anonymous
+ * passcode users get one OPTIONAL "Your name" field (never required, never an
+ * extra tap) so they show a real name in show presence instead of "Judge".
  */
 const SmartSignInPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [credential, setCredential] = useState(() => searchParams.get('code') ?? '');
+  const [displayName, setDisplayName] = useState('');
   const [step, setStep] = useState<'input' | 'password'>('input');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -115,11 +118,15 @@ const SmartSignInPage: React.FC = () => {
       } else {
         // Anonymous: the passcode itself is the show-scoped grant. Keep it in
         // memory before routing so `/at-show/:showId` can admit this device
-        // without account RBAC.
+        // without account RBAC. The optional name + a minted session id give this
+        // device a presence identity (anon users have no account user.id).
+        const typedName = displayName.trim();
         setGrant({
           showId: result.showId,
           role: result.role,
           passcode: normalizedCredential,
+          ...(typedName ? { name: typedName } : {}),
+          sessionId: crypto.randomUUID(),
           source: 'passcode',
         });
         navigate(`/at-show/${result.showId}`);
@@ -239,6 +246,31 @@ const SmartSignInPage: React.FC = () => {
               <div id="credential-hint" className="min-h-5 mb-3 text-sm text-muted-foreground">
                 {liveHint}
               </div>
+
+              {/* Optional name — only for the anonymous passcode branch. Never
+                  required, never blocks the ≤2-tap path; powers show presence. */}
+              {kind === 'passcode' && !user && (
+                <div className="mb-3">
+                  <label className="block mb-1 font-medium" htmlFor="display-name">
+                    Your name{' '}
+                    <span className="font-normal text-muted-foreground">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="display-name"
+                    data-testid="display-name-input"
+                    autoComplete="name"
+                    autoCapitalize="words"
+                    placeholder="e.g. Judge Sarah"
+                    value={displayName}
+                    onChange={e => setDisplayName(e.target.value)}
+                    className="h-11 w-full rounded-md border border-input bg-background p-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Shown to others at the show so they know who&apos;s at each ring.
+                  </p>
+                </div>
+              )}
 
               {error && (
                 <div id="credential-error" className="text-destructive mb-4 text-center">

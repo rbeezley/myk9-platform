@@ -22,19 +22,11 @@ vi.mock('@/utils/realtimeOptimization', () => ({
   setupOptimizedPresence: vi.fn(() => vi.fn()),
 }));
 
-const { getUserRolesSpy } = vi.hoisted(() => ({
-  getUserRolesSpy: vi.fn(() => ['exhibitor']),
-}));
-
-vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({
-    user: { id: 'u1', email: 'mariana@example.com' },
-    firstName: 'Mariana',
-    getUserRoles: getUserRolesSpy,
-  }),
-}));
-
 vi.mock('@/config/features', () => ({ features: { showPresence: true } }));
+
+// Identity is resolved upstream (useLocalPresenceIdentity) and injected, so the
+// engine takes no auth dependency — these tests pass it directly.
+const IDENTITY = { userId: 'u1', name: 'Mariana', role: 'exhibitor' };
 
 interface FakeChannel {
   topic: string;
@@ -124,7 +116,7 @@ describe('dedupePresence', () => {
 
 describe('useShowPresence', () => {
   it('joins the show-scoped channel and tracks the local identity', () => {
-    renderHook(() => useShowPresence('s1'), { wrapper });
+    renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
 
     expect(supabase.channel).toHaveBeenCalledWith(presenceChannelName('s1'), {
       config: { presence: { key: 'u1' } },
@@ -137,7 +129,7 @@ describe('useShowPresence', () => {
   });
 
   it('reflects presence-sync events for its own channel', () => {
-    const { result } = renderHook(() => useShowPresence('s1'), { wrapper });
+    const { result } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
 
     act(() => {
       eventEmitter.emit('presence:sync', {
@@ -155,7 +147,7 @@ describe('useShowPresence', () => {
   });
 
   it('ignores presence-sync events for a different channel', () => {
-    const { result } = renderHook(() => useShowPresence('s1'), { wrapper });
+    const { result } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
 
     act(() => {
       eventEmitter.emit('presence:sync', {
@@ -172,7 +164,7 @@ describe('useShowPresence', () => {
     const cleanup = vi.fn();
     vi.mocked(setupOptimizedPresence).mockReturnValue(cleanup);
 
-    const { unmount } = renderHook(() => useShowPresence('s1'), { wrapper });
+    const { unmount } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
     const channel = lastChannel;
     unmount();
 
@@ -181,22 +173,18 @@ describe('useShowPresence', () => {
   });
 
   it('does nothing without a showId', () => {
-    renderHook(() => useShowPresence(undefined), { wrapper });
+    renderHook(() => useShowPresence(undefined, IDENTITY), { wrapper });
+    expect(supabase.channel).not.toHaveBeenCalled();
+  });
+
+  it('does nothing without an identity (anonymous, no grant)', () => {
+    renderHook(() => useShowPresence('s1', null), { wrapper });
     expect(supabase.channel).not.toHaveBeenCalled();
   });
 
   it('opens no channel when the kill switch is off', () => {
     (features as { showPresence: boolean }).showPresence = false;
-    renderHook(() => useShowPresence('s1'), { wrapper });
+    renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
     expect(supabase.channel).not.toHaveBeenCalled();
-  });
-
-  it('does not read presence-only auth fields when the kill switch is off', () => {
-    // Regression guard (review P1): the dark hook must be a no-op, not just
-    // crash-free — it must not touch getUserRoles (older auth mocks omit it).
-    (features as { showPresence: boolean }).showPresence = false;
-    getUserRolesSpy.mockClear();
-    renderHook(() => useShowPresence('s1'), { wrapper });
-    expect(getUserRolesSpy).not.toHaveBeenCalled();
   });
 });

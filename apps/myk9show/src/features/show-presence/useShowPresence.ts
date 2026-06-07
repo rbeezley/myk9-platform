@@ -14,8 +14,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/supabaseClient';
 import { eventEmitter } from '@/services/sync/eventEmitter';
 import { setupOptimizedPresence } from '@/utils/realtimeOptimization';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { features } from '@/config/features';
+import type { LocalPresenceIdentity } from './useLocalPresenceIdentity';
 import type { PresenceActivity, ShowPresence } from './types';
 
 /** Payload shape emitted by setupOptimizedPresence on the 'presence:sync' bus. */
@@ -88,13 +88,23 @@ export interface UseShowPresenceResult {
   present: ShowPresence[];
 }
 
-export function useShowPresence(showId: string | undefined): UseShowPresenceResult {
-  const { user, firstName, getUserRoles } = useAuthContext();
+export function useShowPresence(
+  showId: string | undefined,
+  identity: LocalPresenceIdentity | null
+): UseShowPresenceResult {
   const location = useLocation();
   const [present, setPresent] = useState<ShowPresence[]>([]);
 
-  const userId = user?.id;
-  const email = user?.email;
+  // Identity is resolved upstream (useLocalPresenceIdentity) so the producer here
+  // and the privacy filter in ShowPresenceProvider read ONE source — auth account
+  // or anonymous passcode grant — and never disagree. Destructure to primitives so
+  // the identity effect keys on field VALUES, not the object reference: an unstable
+  // identity (a caller that rebuilds it each render) must never spin a track→sync→
+  // re-render loop.
+  const userId = identity?.userId;
+  const name = identity?.name;
+  const role = identity?.role;
+  const avatarUrl = identity?.avatarUrl;
 
   // Single mutable presence payload. setupOptimizedPresence's heartbeat captures
   // this reference, so mutating it in place re-tracks the latest activity on the
@@ -105,16 +115,17 @@ export function useShowPresence(showId: string | undefined): UseShowPresenceResu
   // Keep the presence payload current with identity + route, and push the change
   // immediately so others see the move without waiting for the next heartbeat.
   useEffect(() => {
-    // Kill switch (plan §12): when off, the hook is a complete no-op — don't build
-    // the payload or even read presence-only auth fields (getUserRoles).
-    if (!showPresenceEnabled() || !userId) {
+    // Kill switch (plan §12): when off (or no identity), the hook is a complete
+    // no-op — identity resolution already returns null when dark.
+    if (!showPresenceEnabled() || !userId || !name || !role) {
       infoRef.current = null;
       return;
     }
     const next: ShowPresence = {
       userId,
-      name: firstName ?? email?.split('@')[0] ?? 'Someone',
-      role: getUserRoles?.()?.[0] ?? 'exhibitor',
+      name,
+      role,
+      ...(avatarUrl ? { avatarUrl } : {}),
       location: { page: location.pathname, ...(entityForPath(location.pathname) ?? {}) },
       activity: activityForPath(location.pathname),
       ts: Date.now(),
@@ -125,7 +136,7 @@ export function useShowPresence(showId: string | undefined): UseShowPresenceResu
       infoRef.current = next;
     }
     channelRef.current?.track(infoRef.current);
-  }, [userId, email, firstName, getUserRoles, location.pathname]);
+  }, [userId, name, role, avatarUrl, location.pathname]);
 
   // Channel lifecycle — only re-runs when the show or the user identity changes.
   // Declared after the identity effect so infoRef is populated first on mount.

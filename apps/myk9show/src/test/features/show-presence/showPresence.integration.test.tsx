@@ -15,8 +15,8 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { supabase } from '@/supabaseClient';
 import { features } from '@/config/features';
-import { AuthContext, type AuthContextType } from '@/context/AuthContext';
 import { useShowPresence } from '@/features/show-presence/useShowPresence';
+import type { LocalPresenceIdentity } from '@/features/show-presence/useLocalPresenceIdentity';
 
 // --- Simulated Supabase Realtime presence transport -------------------------
 // A registry shared across all channels with the same name relays track/untrack
@@ -67,23 +67,17 @@ vi.mock('@/supabaseClient', () => ({
 
 vi.mock('@/config/features', () => ({ features: { showPresence: true } }));
 
-// Each client gets its OWN identity via a per-tree AuthContext.Provider, so a
-// re-render (triggered when the other client joins) never adopts the wrong user.
-function makeIdentity(id: string, name: string, role: string): AuthContextType {
-  return {
-    user: { id, email: `${name.toLowerCase()}@example.com` },
-    firstName: name,
-    getUserRoles: () => [role],
-  } as unknown as AuthContextType;
+// Identity is injected per renderHook call (not read from context), so each
+// client keeps its own — a re-render can't adopt the wrong user. This also
+// exercises the same `useShowPresence(showId, identity)` contract the provider
+// uses in production.
+function makeIdentity(id: string, name: string, role: string): LocalPresenceIdentity {
+  return { userId: id, name, role };
 }
 
-function makeWrapper(identity: AuthContextType) {
-  return ({ children }: { children: ReactNode }) => (
-    <MemoryRouter initialEntries={['/shows/s1']}>
-      <AuthContext.Provider value={identity}>{children}</AuthContext.Provider>
-    </MemoryRouter>
-  );
-}
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <MemoryRouter initialEntries={['/shows/s1']}>{children}</MemoryRouter>
+);
 
 beforeEach(() => {
   registry.clear();
@@ -101,12 +95,11 @@ beforeEach(() => {
 
 describe('show presence — two clients on one show', () => {
   it('each client sees the other, and a client drops when it leaves', async () => {
-    const alice = renderHook(() => useShowPresence('s1'), {
-      wrapper: makeWrapper(makeIdentity('u1', 'Alice', 'exhibitor')),
-    });
-    const bob = renderHook(() => useShowPresence('s1'), {
-      wrapper: makeWrapper(makeIdentity('u2', 'Bob', 'judge')),
-    });
+    // Stable identity refs (as the provider passes a memoized identity in prod).
+    const aliceId = makeIdentity('u1', 'Alice', 'exhibitor');
+    const bobId = makeIdentity('u2', 'Bob', 'judge');
+    const alice = renderHook(() => useShowPresence('s1', aliceId), { wrapper });
+    const bob = renderHook(() => useShowPresence('s1', bobId), { wrapper });
 
     // Both clients converge on the same two-person roster.
     await waitFor(() => {

@@ -1,11 +1,16 @@
 /**
- * ShowPresenceProvider — owns the single presence channel for one show.
+ * ShowPresenceProvider — the per-show realtime boundary for one show.
  *
  * Wrapping any per-show surface (Show Details, Workbench, at-show) in this
  * provider does two things: (1) makes the local user a PRODUCER — they broadcast
  * their presence while the surface is open; (2) exposes the privacy-filtered
  * roster to any descendant via useShowPresenceRoster(). One channel per show per
  * tab (plan §7), and the privacy rule (plan §10 #2) is applied here, once.
+ *
+ * It also hosts the Phase 2 live-update nudge (useShowLiveSync) — a sibling
+ * realtime feature that shares this exact lifecycle (mounted at the same three
+ * in-show seams). The two features keep INDEPENDENT kill switches (each hook
+ * checks its own flag); they are co-located here, not coupled.
  */
 
 import { useMemo, type ReactNode } from 'react';
@@ -13,6 +18,7 @@ import { useShowPresence } from './useShowPresence';
 import { useLocalPresenceIdentity } from './useLocalPresenceIdentity';
 import { filterPresenceForViewer } from './presenceSelectors';
 import { ShowPresenceContext } from './showPresenceContext';
+import { useShowLiveSync } from '../show-live-sync/useShowLiveSync';
 
 export function ShowPresenceProvider({
   showId,
@@ -29,6 +35,11 @@ export function ShowPresenceProvider({
   const { present: roster } = useShowPresence(showId, identity);
   const viewerId = identity?.userId;
   const viewerRole = identity?.role ?? 'exhibitor';
+
+  // Phase 2 (docs/plan-show-presence-phase2.md): nudge the incremental
+  // replication sync when this show's entries/classes change so in-show surfaces
+  // refresh live. Independent kill switch; no-op when its flag is dark.
+  useShowLiveSync(showId);
 
   const value = useMemo(
     () => ({ present: filterPresenceForViewer(roster, viewerId, viewerRole) }),

@@ -111,8 +111,20 @@ describe('groupEntriesByShowAndDog', () => {
   it('merges two class rows for the same dog and registration into one card', () => {
     const classA = makeClass({ id: 'c1', name: 'Container Search', fee: 25 });
     const classB = makeClass({ id: 'c2', name: 'Exterior Search', fee: 30 });
-    const rowA = makeEntry({ id: 'c1', registrationId: 'r1', dogId: 'd1', classes: [classA], totalFee: 25 });
-    const rowB = makeEntry({ id: 'c2', registrationId: 'r1', dogId: 'd1', classes: [classB], totalFee: 30 });
+    const rowA = makeEntry({
+      id: 'c1',
+      registrationId: 'r1',
+      dogId: 'd1',
+      classes: [classA],
+      totalFee: 25,
+    });
+    const rowB = makeEntry({
+      id: 'c2',
+      registrationId: 'r1',
+      dogId: 'd1',
+      classes: [classB],
+      totalFee: 30,
+    });
 
     const result = groupEntriesByShowAndDog([rowA, rowB]);
 
@@ -122,8 +134,20 @@ describe('groupEntriesByShowAndDog', () => {
   });
 
   it('keeps separate cards for different dogs at the same show', () => {
-    const rowA = makeEntry({ id: 'e1', registrationId: 'r1', dogId: 'd1', dogName: 'Rex', classes: [makeClass({ id: 'c1' })] });
-    const rowB = makeEntry({ id: 'e2', registrationId: 'r2', dogId: 'd2', dogName: 'Ziva', classes: [makeClass({ id: 'c2' })] });
+    const rowA = makeEntry({
+      id: 'e1',
+      registrationId: 'r1',
+      dogId: 'd1',
+      dogName: 'Rex',
+      classes: [makeClass({ id: 'c1' })],
+    });
+    const rowB = makeEntry({
+      id: 'e2',
+      registrationId: 'r2',
+      dogId: 'd2',
+      dogName: 'Ziva',
+      classes: [makeClass({ id: 'c2' })],
+    });
 
     const result = groupEntriesByShowAndDog([rowA, rowB]);
 
@@ -131,8 +155,20 @@ describe('groupEntriesByShowAndDog', () => {
   });
 
   it('keeps separate cards for the same dog at different shows', () => {
-    const rowA = makeEntry({ id: 'e1', registrationId: 'r1', dogId: 'd1', showId: 's1', classes: [makeClass({ id: 'c1' })] });
-    const rowB = makeEntry({ id: 'e2', registrationId: 'r2', dogId: 'd1', showId: 's2', classes: [makeClass({ id: 'c2' })] });
+    const rowA = makeEntry({
+      id: 'e1',
+      registrationId: 'r1',
+      dogId: 'd1',
+      showId: 's1',
+      classes: [makeClass({ id: 'c1' })],
+    });
+    const rowB = makeEntry({
+      id: 'e2',
+      registrationId: 'r2',
+      dogId: 'd1',
+      showId: 's2',
+      classes: [makeClass({ id: 'c2' })],
+    });
 
     const result = groupEntriesByShowAndDog([rowA, rowB]);
 
@@ -144,17 +180,45 @@ describe('groupEntriesByShowAndDog', () => {
   });
 
   it('uses the highest-priority status when merging — ACCEPTED beats PENDING seed', () => {
-    const seed = makeEntry({ entryStatus: EntryStatus.PENDING, classes: [makeClass({ id: 'c1' })] });
-    const second = makeEntry({ entryStatus: EntryStatus.ACCEPTED, classes: [makeClass({ id: 'c2' })] });
+    const seed = makeEntry({
+      entryStatus: EntryStatus.PENDING,
+      classes: [makeClass({ id: 'c1' })],
+    });
+    const second = makeEntry({
+      entryStatus: EntryStatus.ACCEPTED,
+      classes: [makeClass({ id: 'c2' })],
+    });
     const result = groupEntriesByShowAndDog([seed, second]);
     expect(result[0].entryStatus).toBe(EntryStatus.ACCEPTED);
   });
 
   it('uses the highest-priority status — ACCEPTED seed is not downgraded by SCRATCHED row', () => {
-    const seed = makeEntry({ entryStatus: EntryStatus.ACCEPTED, classes: [makeClass({ id: 'c1', status: 'entered' })] });
-    const scratched = makeEntry({ entryStatus: EntryStatus.SCRATCHED, classes: [makeClass({ id: 'c2', status: 'scratched' })] });
+    const seed = makeEntry({
+      entryStatus: EntryStatus.ACCEPTED,
+      classes: [makeClass({ id: 'c1', status: 'entered' })],
+    });
+    const scratched = makeEntry({
+      entryStatus: EntryStatus.SCRATCHED,
+      classes: [makeClass({ id: 'c2', status: 'scratched' })],
+    });
     const result = groupEntriesByShowAndDog([seed, scratched]);
     expect(result[0].entryStatus).toBe(EntryStatus.ACCEPTED);
+  });
+
+  it('keeps an armband from a later row when the seed row has none', () => {
+    const seed = makeEntry({
+      armband: undefined,
+      classes: [makeClass({ id: 'c1' })],
+    });
+    const second = makeEntry({
+      armband: '142',
+      classes: [makeClass({ id: 'c2' })],
+    });
+
+    const result = groupEntriesByShowAndDog([seed, second]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].armband).toBe('142');
   });
 });
 
@@ -185,5 +249,37 @@ describe('MyEntryCard handler display', () => {
     renderCard(entry);
     expect(screen.getByText('R. Beezley')).toBeInTheDocument();
     expect(screen.getByText('Sarah M.')).toBeInTheDocument();
+  });
+});
+
+describe('MyEntryCard class detail display', () => {
+  it('shows the dog armband before the dog name', () => {
+    renderCard(makeEntry({ armband: '142' }));
+
+    const subtitle = screen.getByText(/Registration/).parentElement;
+    expect(subtitle).not.toBeNull();
+    expect(subtitle).toHaveTextContent('142');
+    expect(subtitle).toHaveTextContent('Rex');
+
+    const subtitleText = subtitle?.textContent ?? '';
+    expect(subtitleText.indexOf('142')).toBeLessThan(subtitleText.indexOf('Rex'));
+  });
+
+  it('shows trial date and trial number on class cards without the class fee amount', () => {
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            fee: 25,
+            trialDate: new Date('2026-09-02T00:00:00'),
+            trialNumber: '2',
+          }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('Sep 2')).toBeInTheDocument();
+    expect(screen.getByText('Trial 2')).toBeInTheDocument();
+    expect(screen.queryByText('$25')).not.toBeInTheDocument();
   });
 });

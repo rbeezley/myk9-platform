@@ -56,9 +56,15 @@ describe('ShowTodayBanner', () => {
 
     renderBanner();
 
-    expect(screen.getByLabelText('Show today')).toHaveClass('bg-[#f2faf5]', 'dark:bg-[#16221b]');
+    expect(screen.getByLabelText('Show today')).toHaveClass('rounded-lg', 'border', 'border-l-4');
+    expect(screen.getByText('Show day is here')).toBeInTheDocument();
+    expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+    expect(screen.getByText('First class 8:30 AM').parentElement).toHaveClass(
+      'text-muted-foreground'
+    );
+    expect(screen.getByText('1 entry')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /at the show/i }));
+    fireEvent.click(screen.getByRole('button', { name: /go to show day/i }));
 
     await waitFor(() => expect(preFavoriteShow).toHaveBeenCalledWith('show-1'));
     expect(await screen.findByText('AT SHOW')).toBeInTheDocument();
@@ -83,7 +89,7 @@ describe('ShowTodayBanner', () => {
 
     renderBanner();
 
-    fireEvent.click(screen.getByRole('button', { name: /at the show/i }));
+    fireEvent.click(screen.getByRole('button', { name: /go to show day/i }));
 
     expect(await screen.findByText('AT SHOW')).toBeInTheDocument();
   });

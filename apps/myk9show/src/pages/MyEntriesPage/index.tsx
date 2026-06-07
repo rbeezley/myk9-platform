@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { EntryStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isAcceptedEntry, isWaitlistEntry } from '@/utils/entryPredicates';
 import { isPastShowEntry } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
@@ -87,8 +86,10 @@ const MyEntriesPage: React.FC = () => {
   // the stat grid never drift. Only entry-status counts live here.
   const statistics = useMemo(() => {
     const now = new Date();
+    const currentEntries = entries.filter(e => !isPastShowEntry(e, now));
     return {
-      activeEntries: entries.filter((e: MyEntry) => e.entryStatus === EntryStatus.ACCEPTED).length,
+      acceptedEntries: currentEntries.filter(isAcceptedEntry).length,
+      pendingEntries: currentEntries.filter(isPendingEntry).length,
       tabCounts: {
         all: entries.length,
         pending: entries.filter(isPendingEntry).length,
@@ -242,10 +243,12 @@ const MyEntriesPage: React.FC = () => {
           <ShowTodayBanner />
 
           <CompactStatsRow
-            activeEntries={statistics.activeEntries}
+            acceptedEntries={statistics.acceptedEntries}
+            pendingEntries={statistics.pendingEntries}
             upcomingShows={entryStats.upcomingShows}
             pastShows={entryStats.pastShows}
-            totalFees={entryStats.totalFees}
+            currentFees={entryStats.currentFees}
+            amountDue={entryStats.currentAmountDue}
             onNavigate={navigate}
           />
 

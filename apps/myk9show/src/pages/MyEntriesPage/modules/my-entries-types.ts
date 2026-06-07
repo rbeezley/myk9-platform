@@ -87,6 +87,11 @@ export interface MyEntryStats {
   acceptedPaid: number;
   acceptedUnpaid: number;
   needsAction: number;
+  /** Fees for non-past/current-or-upcoming entries only. */
+  currentFees: number;
+  /** Unpaid fees for non-past/current-or-upcoming entries only. */
+  currentAmountDue: number;
+  /** All-time fees across every loaded user entry. */
   totalFees: number;
   paidFees: number;
   unpaidFees: number;

@@ -83,6 +83,7 @@ export function useMyEntriesFilters({
     const now = new Date();
     const accepted = entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
     const pending = entries.filter(e => e.entryStatus === EntryStatus.PENDING);
+    const currentEntries = entries.filter(entry => !isPastShowEntry(entry, now));
     // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day
     // show running today counts as upcoming, not past, matching the Show Today banner.
     const showDateStats = computeMyEntriesShowDateStats(entries, now);
@@ -97,6 +98,10 @@ export function useMyEntriesFilters({
     const totalFees = entries.reduce((sum, entry) => sum + entry.totalFee, 0);
     const paidFees = paidEntries.reduce((sum, e) => sum + e.totalFee, 0);
     const unpaidFees = unpaidEntries.reduce((sum, e) => sum + e.totalFee, 0);
+    const currentFees = currentEntries.reduce((sum, entry) => sum + entry.totalFee, 0);
+    const currentAmountDue = currentEntries
+      .filter(entry => entry.paymentStatus === PaymentStatus.PENDING)
+      .reduce((sum, entry) => sum + entry.totalFee, 0);
 
     return {
       total: entries.length,
@@ -108,6 +113,8 @@ export function useMyEntriesFilters({
       acceptedPaid: acceptedPaid.length,
       acceptedUnpaid: acceptedUnpaid.length,
       needsAction: needsAction.length,
+      currentFees,
+      currentAmountDue,
       totalFees,
       paidFees,
       unpaidFees,

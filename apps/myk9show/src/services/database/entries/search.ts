@@ -4,7 +4,7 @@
  * Read-only operations for statistics aggregation, searching, and eligibility checks.
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  */
-import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError, logQuery, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -14,6 +14,10 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
+import {
+  buildReplicatedUserEntryRows,
+  findMissingReplicatedUserEntryRelations,
+} from './userEntriesReplication';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -275,77 +279,73 @@ export const getEntryStatistics = async (showId?: string) => {
 
 // Get entries for the current user
 export const getUserEntries = async (userId: string) => {
+  const startTime = Date.now();
+
   try {
-    return await withReplicationFallback(
-      async () => {
-        const [allEntries, dogs, classes, shows, trials] = await Promise.all([
-          replicatedEntriesTable.getAll(),
-          replicatedDogsTable.getAllDogs(),
-          replicatedClassesTable.getAll(),
-          replicatedShowsTable.getAllShows(),
-          replicatedTrialsTable.getAll(),
-        ]);
-        const dogsMap = buildMapFromArray(dogs, d => d.id);
-        const classesMap = buildMapFromArray(classes, c => c.id);
-        const showsMap = buildMapFromArray(shows, s => s.id);
-        const trialsMap = buildMapFromArray(trials, t => t.id);
-        const ownedDogIds = new Set(dogs.filter(dog => dog.ownerId === userId).map(dog => dog.id));
-        const filtered = allEntries.filter(
-          e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
-        );
-
-        // Load enrollment payment fields (not in the replication store)
-        const enrollmentIds = [...new Set(filtered.map(e => e.registrationId).filter(Boolean))];
-        const enrollmentsMap = new Map<
-          string,
-          {
-            id: string;
-            confirmation_number: string;
-            payment_status: string;
-            payment_reference: string | null;
-            paid_amount: number | null;
-          }
-        >();
-        if (enrollmentIds.length > 0) {
-          const { data: enrollments } = await supabase
-            .from('enrollments')
-            .select('id, confirmation_number, payment_status, payment_reference, paid_amount')
-            .in('id', enrollmentIds as string[]);
-          if (enrollments) {
-            for (const e of enrollments) {
-              enrollmentsMap.set(e.id, e);
-            }
-          }
-        }
-
-        const data = filtered.map(entry => {
-          // Resolve the entry's discipline via its class → trial. Entries carry
-          // class_id (not trial_id) in the replication store, so hop through the
-          // class to read trial_type. The trial sub-object shape mirrors the
-          // PostgREST `trial:trial_id(id, trial_type)` join so transformEntry
-          // reads it identically on both paths.
-          const cls = entry.classId ? (classesMap.get(entry.classId) ?? null) : null;
-          const trial = cls?.trialId ? (trialsMap.get(cls.trialId) ?? null) : null;
-          const row = mapReplicatedEntryToDbRow(entry, {
-            dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
-            cls,
-            show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
-            trial: trial ? { id: trial.id, trial_type: trial.trialType ?? null } : null,
-          });
-          const enrollment = entry.registrationId ? enrollmentsMap.get(entry.registrationId) : null;
-          if (enrollment) {
-            row.registration = enrollment;
-          }
-          return row;
-        });
-        return { data, error: null };
-      },
-      () => postgrestGetUserEntries(userId),
-      'entries',
-      'select_user_entries'
+    const [allEntries, dogs, classes, shows, trials] = await Promise.all([
+      replicatedEntriesTable.getAll(),
+      replicatedDogsTable.getAllDogs(),
+      replicatedClassesTable.getAll(),
+      replicatedShowsTable.getAllShows(),
+      replicatedTrialsTable.getAll(),
+    ]);
+    const dogsMap = buildMapFromArray(dogs, d => d.id);
+    const classesMap = buildMapFromArray(classes, c => c.id);
+    const showsMap = buildMapFromArray(shows, s => s.id);
+    const trialsMap = buildMapFromArray(trials, t => t.id);
+    const ownedDogIds = new Set(dogs.filter(dog => dog.ownerId === userId).map(dog => dog.id));
+    const filtered = allEntries.filter(
+      e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
     );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
+
+    // If entry rows have synced before their joined class/show/dog rows, the
+    // first render can show the entry card without classes. Prefer the complete
+    // online join when available, but keep the partial replicated result if the
+    // user is offline.
+    const missingRelations = findMissingReplicatedUserEntryRelations(filtered, {
+      dogsMap,
+      classesMap,
+      showsMap,
+    });
+
+    if (missingRelations.length > 0) {
+      try {
+        const result = await postgrestGetUserEntries(userId);
+        logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
+        return result;
+      } catch {
+        // Permanently-missing relation rows will try the online join on each
+        // load; when offline or blocked, the replicated rows still keep the
+        // exhibitor's entries available.
+        const partialReplicationResult = await buildReplicatedUserEntryRows(filtered, {
+          dogsMap,
+          classesMap,
+          showsMap,
+          trialsMap,
+        });
+        logQuery('entries', 'select_user_entries_partial', Date.now() - startTime);
+        return partialReplicationResult;
+      }
+    }
+
+    const partialReplicationResult = await buildReplicatedUserEntryRows(filtered, {
+      dogsMap,
+      classesMap,
+      showsMap,
+      trialsMap,
+    });
+    logQuery('entries', 'select_user_entries', Date.now() - startTime);
+    return partialReplicationResult;
+  } catch {
+    try {
+      const result = await postgrestGetUserEntries(userId);
+      logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
+      return result;
+    } catch (error) {
+      const dbError = createDatabaseError(error, 'entries', 'select_user_entries');
+      logQuery('entries', 'select_user_entries', Date.now() - startTime, dbError.message);
+      return { data: [], error: dbError as DatabaseError };
+    }
   }
 };
 

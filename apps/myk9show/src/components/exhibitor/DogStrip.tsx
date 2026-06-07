@@ -1,14 +1,13 @@
 /**
  * DogStrip — horizontal scrolling row of dog cards for the My Shows page.
  *
- * Fetches entries directly so it doesn't need to share types with the parent.
- * React Query deduplicates the fetch — no extra network call.
+ * Receives entry-derived counts from the parent so the dog badges stay in sync
+ * with the grouped My Entries cards on the same page.
  */
 
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PawPrint } from 'lucide-react';
-import { useEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { DogStripCard } from './DogStripCard';
 
 interface DogRegistration {
@@ -26,24 +25,16 @@ interface Dog {
 
 interface DogStripProps {
   dogs: Dog[];
+  upcomingClassCountByDog?: Record<string, number>;
   onAddDog?: () => void;
 }
 
-export const DogStrip: React.FC<DogStripProps> = ({ dogs, onAddDog }) => {
+export const DogStrip: React.FC<DogStripProps> = ({
+  dogs,
+  upcomingClassCountByDog = {},
+  onAddDog,
+}) => {
   const navigate = useNavigate();
-  const { data: rawEntries = [] } = useEntriesQuery();
-
-  const upcomingCountByDog = useMemo(() => {
-    const now = new Date();
-    const counts: Record<string, number> = {};
-    for (const entry of rawEntries as Array<{ dog_id: string; show?: { start_date?: string } }>) {
-      const showDate = entry.show?.start_date ? new Date(entry.show.start_date) : null;
-      if (showDate && showDate > now) {
-        counts[entry.dog_id] = (counts[entry.dog_id] ?? 0) + 1;
-      }
-    }
-    return counts;
-  }, [rawEntries]);
 
   const breedsByDogId = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -81,7 +72,7 @@ export const DogStrip: React.FC<DogStripProps> = ({ dogs, onAddDog }) => {
             dogId={dog.id}
             dogName={dog.call_name ?? dog.name ?? 'Unknown'}
             breed={breedsByDogId.get(dog.id) ?? []}
-            upcomingCount={upcomingCountByDog[dog.id] ?? 0}
+            upcomingClassCount={upcomingClassCountByDog[dog.id] ?? 0}
           />
         ))}
         <button

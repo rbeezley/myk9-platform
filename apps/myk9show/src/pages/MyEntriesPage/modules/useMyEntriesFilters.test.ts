@@ -84,4 +84,65 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
     act(() => result.current.setSelectedTab('completed'));
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['ended']);
   });
+
+  it('derives current summary counts and amount due from non-past entries once', () => {
+    const acceptedUnpaidCurrent = makeEntry({
+      id: 'accepted-unpaid-current',
+      showId: 'accepted-unpaid-show',
+      showDate: new Date(2026, 5, 9),
+      entryStatus: EntryStatus.ACCEPTED,
+      paymentStatus: PaymentStatus.PENDING,
+      totalFee: 25,
+    });
+    const acceptedPaidCurrent = makeEntry({
+      id: 'accepted-paid-current',
+      showId: 'accepted-paid-show',
+      showDate: new Date(2026, 5, 10),
+      entryStatus: EntryStatus.ACCEPTED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      totalFee: 10,
+    });
+    const pendingReviewCurrent = makeEntry({
+      id: 'pending-review-current',
+      showId: 'pending-review-show',
+      showDate: new Date(2026, 5, 11),
+      entryStatus: EntryStatus.PENDING,
+      paymentStatus: PaymentStatus.PENDING,
+      totalFee: 30,
+    });
+    const waitlistCurrent = makeEntry({
+      id: 'waitlist-current',
+      showId: 'waitlist-show',
+      showDate: new Date(2026, 5, 12),
+      entryStatus: EntryStatus.WAITLIST,
+      paymentStatus: PaymentStatus.PENDING,
+      totalFee: 40,
+    });
+    const acceptedUnpaidPast = makeEntry({
+      id: 'accepted-unpaid-past',
+      showId: 'accepted-unpaid-past-show',
+      showDate: new Date(2026, 4, 1),
+      showEndDate: new Date(2026, 4, 2),
+      entryStatus: EntryStatus.ACCEPTED,
+      paymentStatus: PaymentStatus.PENDING,
+      totalFee: 50,
+    });
+
+    const { result } = renderHook(() =>
+      useMyEntriesFilters({
+        entries: [
+          acceptedUnpaidCurrent,
+          acceptedPaidCurrent,
+          pendingReviewCurrent,
+          waitlistCurrent,
+          acceptedUnpaidPast,
+        ],
+      })
+    );
+
+    expect(result.current.entryStats.currentAcceptedEntries).toBe(2);
+    expect(result.current.entryStats.currentPendingEntries).toBe(1);
+    expect(result.current.entryStats.currentFees).toBe(65);
+    expect(result.current.entryStats.currentAmountDue).toBe(25);
+  });
 });

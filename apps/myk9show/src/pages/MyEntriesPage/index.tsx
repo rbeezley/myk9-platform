@@ -81,15 +81,12 @@ const MyEntriesPage: React.FC = () => {
 
   const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
 
-  // Note: "Upcoming Shows" / "Past Shows" are distinct-show, date-range-aware
-  // counts derived once in useMyEntriesFilters (entryStats) so the top cards and
-  // the stat grid never drift. Only entry-status counts live here.
+  // Note: Date-range-aware summary counts live in useMyEntriesFilters
+  // (entryStats) so the top cards and filters never drift. Only tab counts
+  // live here.
   const statistics = useMemo(() => {
     const now = new Date();
-    const currentEntries = entries.filter(e => !isPastShowEntry(e, now));
     return {
-      acceptedEntries: currentEntries.filter(isAcceptedEntry).length,
-      pendingEntries: currentEntries.filter(isPendingEntry).length,
       tabCounts: {
         all: entries.length,
         pending: entries.filter(isPendingEntry).length,
@@ -243,8 +240,8 @@ const MyEntriesPage: React.FC = () => {
           <ShowTodayBanner />
 
           <CompactStatsRow
-            acceptedEntries={statistics.acceptedEntries}
-            pendingEntries={statistics.pendingEntries}
+            acceptedEntries={entryStats.currentAcceptedEntries}
+            pendingEntries={entryStats.currentPendingEntries}
             upcomingShows={entryStats.upcomingShows}
             pastShows={entryStats.pastShows}
             currentFees={entryStats.currentFees}

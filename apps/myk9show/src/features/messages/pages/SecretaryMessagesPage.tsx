@@ -1,27 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessageStore } from '@/store/messageStore';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 import { useShowStore } from '@/store/showStore';
-import { supabase } from '@/lib/supabase-client';
 import { ThreadList } from '@/features/messages/components/ThreadList';
 import { MessageBubble } from '@/features/messages/components/MessageBubble';
 import { MessageInput } from '@/features/messages/components/MessageInput';
-import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
-import { buildMessageShowClassLabel } from '@/features/show-workbench/messageShow';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/common/EmptyState';
-import { MessageSquare, Users } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 
 const ALL_SHOWS = 'all';
 
@@ -34,7 +23,6 @@ export default function SecretaryMessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
-  const [showTargetedModal, setShowTargetedModal] = useState(false);
 
   const threads = useMessageStore(s => s.threads);
   const messagesByThread = useMessageStore(s => s.messagesByThread);
@@ -67,40 +55,6 @@ export default function SecretaryMessagesPage() {
   const { sendMessage, isSending } = useMessageMutations();
 
   const selectedShowId = filterShowId === ALL_SHOWS ? null : filterShowId;
-
-  // Message Show class list — only meaningful when a specific show is selected.
-  const { data: classes = [] } = useQuery({
-    queryKey: ['show-classes-for-messages', selectedShowId],
-    queryFn: async () => {
-      if (!selectedShowId) return [];
-      const { data } = await supabase
-        .from('classes')
-        .select('id, class_number, name, element, level, section, trials!inner(show_id)')
-        .eq('trials.show_id' as string, selectedShowId)
-        .order('class_number');
-      const withCounts = await Promise.all(
-        (data || []).map(async c => {
-          const { count } = await supabase
-            .from('entries')
-            .select('id', { count: 'exact', head: true })
-            .eq('class_id', c.id)
-            .is('deleted_at', null);
-          return {
-            id: c.id,
-            label: buildMessageShowClassLabel({
-              name: c.name,
-              element: c.element,
-              level: c.level,
-              section: c.section,
-            }),
-            entryCount: count ?? 0,
-          };
-        })
-      );
-      return withCounts;
-    },
-    enabled: !!selectedShowId,
-  });
 
   const showNameMap = useMemo(() => Object.fromEntries(shows.map(s => [s.id, s.name])), [shows]);
 
@@ -179,22 +133,7 @@ export default function SecretaryMessagesPage() {
         )}
       >
         <div className="p-4 border-b flex items-center justify-between gap-2">
-          <h1 className="text-lg font-semibold">Messages</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowTargetedModal(true)}
-            disabled={!selectedShowId}
-            aria-label="Message Show"
-            title={
-              selectedShowId
-                ? 'Send a message in this show'
-                : 'Select a show to send a show message'
-            }
-          >
-            <Users className="h-4 w-4 mr-1" />
-            Message Show
-          </Button>
+          <h1 className="text-lg font-semibold">Communication History</h1>
         </div>
         <div className="border-b px-4 py-2">
           <label className="sr-only" htmlFor="messages-show-filter">
@@ -272,25 +211,6 @@ export default function SecretaryMessagesPage() {
         )}
       </div>
 
-      {selectedShowId && (
-        <Dialog open={showTargetedModal} onOpenChange={setShowTargetedModal}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Message Show</DialogTitle>
-              <DialogDescription>
-                Use push alert to also notify recipients outside the app for time-sensitive
-                updates.
-              </DialogDescription>
-            </DialogHeader>
-            <MessageShowComposer
-              showId={selectedShowId}
-              classes={classes}
-              showHistoryLink={false}
-              onSent={() => setShowTargetedModal(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

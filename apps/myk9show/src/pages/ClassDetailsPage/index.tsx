@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import {
   ClipboardList,
   LayoutDashboard,
-  MessageSquare,
   MoreVertical,
   Pencil,
   Trash2,
@@ -205,16 +204,6 @@ const ClassDetailsPage: React.FC = () => {
   const headerActions = useMemo(() => {
     return (
       <div className="flex items-center gap-2">
-        {(isSecretary || isAdmin) && parentShow?.id && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/secretary/shows/${parentShow.id}?phase=show-desk`)}
-          >
-            <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-            Message Show
-          </Button>
-        )}
         {(isSecretary || isAdmin) && parentShow?.id && (
           <Button
             variant="outline"

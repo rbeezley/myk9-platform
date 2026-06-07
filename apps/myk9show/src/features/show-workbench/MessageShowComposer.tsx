@@ -21,6 +21,7 @@ import {
   buildMessageShowDraft,
   getMessageShowDeliveryLane,
   type MessageShowClassOption,
+  type MessageShowDeliveryLane,
   type MessageShowRecipientType,
   type MessageShowTemplateId,
 } from './messageShow';
@@ -33,6 +34,8 @@ interface MessageShowComposerProps {
   classes: MessageShowClassOption[];
   onSent?: () => void;
   showHistoryLink?: boolean;
+  allowedRecipients?: readonly MessageShowRecipientType[];
+  showWideDeliveryLane?: MessageShowDeliveryLane;
 }
 
 const RECIPIENT_LABELS: Record<MessageShowRecipientType, string> = {
@@ -50,8 +53,11 @@ export function MessageShowComposer({
   classes,
   onSent,
   showHistoryLink = true,
+  allowedRecipients = ['all_show', 'class', 'checked_in'],
+  showWideDeliveryLane = 'announcement',
 }: MessageShowComposerProps) {
-  const [recipient, setRecipient] = useState<MessageShowRecipientType>('all_show');
+  const defaultRecipient = allowedRecipients[0] ?? 'all_show';
+  const [recipient, setRecipient] = useState<MessageShowRecipientType>(defaultRecipient);
   const [selectedTemplateId, setSelectedTemplateId] = useState<MessageShowTemplateId>(
     DEFAULT_MESSAGE_SHOW_TEMPLATE.id
   );
@@ -68,13 +74,19 @@ export function MessageShowComposer({
     () => classes.find(cls => cls.id === selectedClassId) ?? classes[0] ?? null,
     [classes, selectedClassId]
   );
-  const isAnnouncementLane = getMessageShowDeliveryLane(recipient) === 'announcement';
+  const isAnnouncementLane =
+    recipient === 'all_show'
+      ? showWideDeliveryLane === 'announcement'
+      : getMessageShowDeliveryLane(recipient) === 'announcement';
   const isSendingMessage = isSending || isPostingAnnouncement;
+  const recipientOptions = Object.entries(RECIPIENT_LABELS).filter(([value]) =>
+    allowedRecipients.includes(value as MessageShowRecipientType)
+  );
 
   function reset() {
     const nextClassId = classes[0]?.id ?? '';
     const draft = buildMessageShowDraft(DEFAULT_MESSAGE_SHOW_TEMPLATE.id, classes[0]?.label);
-    setRecipient('all_show');
+    setRecipient(defaultRecipient);
     setSelectedTemplateId(DEFAULT_MESSAGE_SHOW_TEMPLATE.id);
     setSelectedClassId(nextClassId);
     setTitle(draft.title);
@@ -143,6 +155,16 @@ export function MessageShowComposer({
       return;
     }
 
+    if (recipient === 'all_show') {
+      const result = await sendTargetedMessage(
+        showId,
+        { type: 'all_show', sendPush: sendPushAlert },
+        message.trim()
+      );
+      if (result) handleSent();
+      return;
+    }
+
     if (recipient === 'class') {
       if (!selectedClass) {
         toast.error('Select a class before sending');
@@ -174,10 +196,10 @@ export function MessageShowComposer({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 id="message-show-title" className="text-base font-semibold">
-            Message Show
+            Show Messages
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            One composer for show-wide updates and targeted exhibitor messages.
+            Send a show message to everyone or a targeted group.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -214,7 +236,7 @@ export function MessageShowComposer({
               <SelectValue>{RECIPIENT_LABELS[recipient]}</SelectValue>
             </SelectTrigger>
             <SelectContent className="w-full">
-              {Object.entries(RECIPIENT_LABELS).map(([value, label]) => (
+              {recipientOptions.map(([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {label}
                 </SelectItem>

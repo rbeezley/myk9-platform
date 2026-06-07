@@ -34,7 +34,6 @@ import {
   Send,
   ListChecks,
   HelpCircle,
-  MessageSquare,
   BarChart3,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
@@ -197,12 +196,6 @@ export function buildUnifiedSidebarConfig(
             href: '/secretary/results-submission',
             icon: Send,
             description: 'Submit results to sanctioning organizations',
-          },
-          {
-            title: 'Messages',
-            href: '/secretary/messages',
-            icon: MessageSquare,
-            description: 'Conversations with exhibitors across your shows',
           },
         ],
       });

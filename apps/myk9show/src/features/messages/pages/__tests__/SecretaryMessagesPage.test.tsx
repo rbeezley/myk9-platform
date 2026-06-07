@@ -159,9 +159,14 @@ describe('SecretaryMessagesPage — all-shows mode', () => {
     expect(select.value).toBe('all');
   });
 
-  it('disables the "Message Show" button until a specific show is selected', () => {
+  it('frames the page as communication history', () => {
     renderAtUrl('/secretary/messages');
-    expect(screen.getByRole('button', { name: /message show/i })).toBeDisabled();
+    expect(screen.getByRole('heading', { name: /communication history/i })).toBeInTheDocument();
+  });
+
+  it('does not expose compose because Message Center owns communication creation', () => {
+    renderAtUrl('/secretary/messages');
+    expect(screen.queryByRole('button', { name: /message show/i })).not.toBeInTheDocument();
   });
 });
 
@@ -176,20 +181,9 @@ describe('SecretaryMessagesPage — filtered mode', () => {
     expect(screen.queryByText('Bob Handler')).not.toBeInTheDocument();
   });
 
-  it('enables the "Message Show" button when a specific show is selected', () => {
+  it('does not expose compose when a specific show is selected', () => {
     renderAtUrl('/secretary/messages?showId=show-1');
-    expect(screen.getByRole('button', { name: /message show/i })).not.toBeDisabled();
-  });
-
-  it('opens the shared Message Show composer from the compose entry', async () => {
-    renderAtUrl('/secretary/messages?showId=show-1');
-    fireEvent.click(screen.getByRole('button', { name: /message show/i }));
-
-    expect(
-      await screen.findByRole('heading', { name: /message show/i, level: 2 })
-    ).toBeInTheDocument();
-    expect(screen.getByText(/also notify recipients outside the app/i)).toBeInTheDocument();
-    expect(screen.queryByText(/message exhibitors/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /message show/i })).not.toBeInTheDocument();
   });
 
   it('shows a "no messages in [show]" empty state with Clear filter affordance', () => {

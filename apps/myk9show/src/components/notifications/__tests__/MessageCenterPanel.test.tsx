@@ -7,6 +7,9 @@ import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 import type { NotificationPayload } from '@myk9/notifications';
 
 const navigateMock = vi.fn();
+const { classOptionsHookMock } = vi.hoisted(() => ({
+  classOptionsHookMock: vi.fn(() => ({ data: [] })),
+}));
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -39,6 +42,41 @@ vi.mock('@/store/messageStore', async () => {
   return { useMessageStore };
 });
 
+vi.mock('@/store/showStore', async () => {
+  const { create } = await import('zustand');
+  const useShowStore = create<Record<string, unknown>>()(() => ({
+    shows: [
+      { id: 'show-1', name: 'Spring Trial' },
+      { id: 'show-2', name: 'Summer Trial' },
+    ],
+  }));
+  return { useShowStore };
+});
+
+vi.mock('@/features/show-workbench/MessageShowComposer', () => ({
+  MessageShowComposer: ({
+    showId,
+    allowedRecipients,
+    showWideDeliveryLane,
+  }: {
+    showId: string;
+    allowedRecipients?: string[];
+    showWideDeliveryLane?: string;
+  }) => (
+    <div
+      data-testid="message-show-composer"
+      data-allowed-recipients={allowedRecipients?.join(',') ?? ''}
+      data-show-wide-lane={showWideDeliveryLane ?? ''}
+    >
+      Composer for {showId}
+    </div>
+  ),
+}));
+
+vi.mock('@/features/messages/hooks/useMessageShowClassOptions', () => ({
+  useMessageShowClassOptions: (...args: unknown[]) => classOptionsHookMock(...args),
+}));
+
 let authContext: Record<string, unknown> = {
   user: { id: 'user-1', email: 'test@test.com' },
   userWithRoles: { id: 'user-1', roles: ['exhibitor'], scopes: [], user_metadata: {} },
@@ -55,10 +93,6 @@ vi.mock('@/components/announcements/AnnouncementItem', () => ({
   AnnouncementItem: ({ announcement }: { announcement: { title: string } }) => (
     <div data-testid="announcement-item">{announcement.title}</div>
   ),
-}));
-
-vi.mock('@/components/announcements/CreateAnnouncementDialog', () => ({
-  CreateAnnouncementDialog: () => <div data-testid="create-announcement-dialog" />,
 }));
 
 function makePayload(id: string): NotificationPayload {
@@ -79,6 +113,8 @@ function renderPanel() {
 
 beforeEach(async () => {
   navigateMock.mockReset();
+  classOptionsHookMock.mockClear();
+  classOptionsHookMock.mockReturnValue({ data: [] });
   authContext = {
     user: { id: 'user-1', email: 'test@test.com' },
     userWithRoles: { id: 'user-1', roles: ['exhibitor'], scopes: [], user_metadata: {} },
@@ -112,6 +148,13 @@ beforeEach(async () => {
     subscribe: vi.fn(),
     markThreadRead: vi.fn(),
   });
+  const { useShowStore } = await import('@/store/showStore');
+  (useShowStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    shows: [
+      { id: 'show-1', name: 'Spring Trial' },
+      { id: 'show-2', name: 'Summer Trial' },
+    ],
+  });
 });
 
 describe('MessageCenterPanel', () => {
@@ -122,16 +165,181 @@ describe('MessageCenterPanel', () => {
     expect(dialog.querySelector('.slide-over-panel')).toHaveClass('right-0');
   });
 
-  it('orders tabs as Notifications, Announcements, Messages', () => {
+  it('orders tabs as Notifications and Show messages', () => {
     renderPanel();
     const tabs = screen.getAllByRole('tab').map(tab => tab.textContent);
-    expect(tabs).toEqual(['Notifications', 'Announcements', 'Messages']);
+    expect(tabs).toEqual(['Notifications', 'Show messages']);
+    expect(screen.queryByRole('tab', { name: 'Announcements' })).not.toBeInTheDocument();
   });
 
   it('defaults to the Notifications tab', () => {
     useNotificationStore.getState().addAlert(makePayload('1'));
     renderPanel();
     expect(screen.getByText('Alert 1')).toBeInTheDocument();
+  });
+
+  it('shows a compose action for staff users', async () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['show-1'],
+    });
+
+    renderPanel();
+
+    expect(screen.getByRole('button', { name: /compose/i })).toBeInTheDocument();
+  });
+
+  it('requires staff users to pick a show before composing when multiple shows are active', async () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['show-1', 'show-2'],
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+
+    expect(screen.getByRole('dialog', { name: /compose show message/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+  });
+
+  it('does not load compose class options until staff opens compose', async () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['show-1'],
+    });
+
+    renderPanel();
+
+    expect(
+      screen.queryByRole('dialog', { name: /compose show message/i })
+    ).not.toBeInTheDocument();
+    expect(classOptionsHookMock).toHaveBeenCalledWith(null, { enabled: false });
+  });
+
+  it('opens the secretary full communication view from Message Center', () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /open full view/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/secretary/messages');
+  });
+
+  it('lets staff compose from managed shows even without an active show subscription', async () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: [],
+    });
+
+    renderPanel();
+    expect(screen.getByRole('button', { name: /compose/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+
+    expect(screen.getByRole('dialog', { name: /compose show message/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('combobox'));
+    expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+    expect(screen.getByText('Summer Trial')).toBeInTheDocument();
+  });
+
+  it('lets staff compose for the active show before the show list hydrates', async () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['active-show'],
+    });
+    const { useShowStore } = await import('@/store/showStore');
+    (useShowStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      shows: [],
+    });
+
+    renderPanel();
+    expect(screen.getByRole('button', { name: /compose/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+
+    expect(screen.getByTestId('message-show-composer')).toHaveTextContent('Composer for active-show');
+  });
+
+  it('limits judge compose to show-wide messages only', async () => {
+    authContext = {
+      user: { id: 'judge-1', email: 'judge@test.com' },
+      userWithRoles: { id: 'judge-1', roles: ['judge'], scopes: [], user_metadata: {} },
+      isSecretary: false,
+      isAdmin: false,
+      hasRole: (role: string) => role === 'judge',
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['show-1'],
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+
+    const composer = screen.getByTestId('message-show-composer');
+    expect(composer).toHaveAttribute('data-allowed-recipients', 'all_show');
+    expect(composer).toHaveAttribute('data-show-wide-lane', 'announcement');
+    expect(screen.queryByRole('button', { name: /open full view/i })).not.toBeInTheDocument();
+  });
+
+  it('lets site admins compose through targeted message lanes', async () => {
+    authContext = {
+      user: { id: 'admin-1', email: 'admin@test.com' },
+      userWithRoles: { id: 'admin-1', roles: ['site_admin'], scopes: [], user_metadata: {} },
+      isSecretary: false,
+      isAdmin: true,
+      hasRole: (role: string) => role === 'site_admin',
+    };
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['show-1'],
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+
+    const composer = screen.getByTestId('message-show-composer');
+    expect(composer).toHaveAttribute('data-allowed-recipients', 'all_show,class,checked_in');
+    expect(composer).toHaveAttribute('data-show-wide-lane', 'targeted');
   });
 
   it('renders messages and routes exhibitors to /messages/:showId', async () => {
@@ -154,7 +362,7 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
     fireEvent.click(screen.getByRole('button', { name: /Spring Trial/i }));
 
     expect(navigateMock).toHaveBeenCalledWith('/messages/show-1');
@@ -184,7 +392,7 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
     fireEvent.click(screen.getByRole('button', { name: /Spring Trial/i }));
 
     expect(navigateMock).toHaveBeenCalledWith('/secretary/messages?showId=show-1');
@@ -194,10 +402,29 @@ describe('MessageCenterPanel', () => {
     renderPanel();
 
     expect(screen.getByText('No notifications yet')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Announcements' }));
-    expect(screen.getByText('No announcements yet')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
-    expect(screen.getByText('No messages yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+    expect(screen.getByText('No show messages yet')).toBeInTheDocument();
+  });
+
+  it('shows existing show-wide posts inside Show messages, not a separate Announcements tab', async () => {
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      announcements: [
+        {
+          id: 'announcement-1',
+          title: 'Ring paused',
+          content: 'Please stay nearby.',
+          is_read: false,
+        },
+      ],
+      unreadCount: 1,
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+
+    expect(screen.getByTestId('announcement-item')).toHaveTextContent('Ring paused');
+    expect(screen.queryByRole('tab', { name: 'Announcements' })).not.toBeInTheDocument();
   });
 
   it('shows a retry action when message loading fails', async () => {
@@ -210,9 +437,37 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
     fireEvent.click(screen.getByRole('button', { name: /try again/i }));
 
+    expect(subscribe).toHaveBeenCalledWith(['show-1']);
+  });
+
+  it('keeps message retry visible when show-wide posts are present', async () => {
+    const subscribe = vi.fn();
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      announcements: [
+        {
+          id: 'announcement-1',
+          title: 'Ring paused',
+          content: 'Please stay nearby.',
+          is_read: false,
+        },
+      ],
+    });
+    const { useMessageStore } = await import('@/store/messageStore');
+    (useMessageStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      error: 'Failed to load messages',
+      currentShowIds: ['show-1'],
+      subscribe,
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+
+    expect(screen.getByTestId('announcement-item')).toHaveTextContent('Ring paused');
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
     expect(subscribe).toHaveBeenCalledWith(['show-1']);
   });
 

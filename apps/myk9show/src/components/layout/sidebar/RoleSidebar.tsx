@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { SidebarConfig } from './types';
 import { collectNavHrefs, useActivePath } from './useActivePath';
-import { useMessageStore } from '@/store/messageStore';
 
 export interface RoleSidebarProps {
   config: SidebarConfig;
@@ -33,7 +32,6 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
   // Pre-computed once per config identity (stable across renders since config is a module-level constant)
   const allHrefs = React.useMemo(() => collectNavHrefs(groups), [groups]);
   const isActive = useActivePath(allHrefs, config.dashboardHref);
-  const messageUnreadCount = useMessageStore(s => s.unreadCount);
 
   return (
     <div className="flex h-full flex-col bg-[var(--sidebar)] overflow-hidden">
@@ -84,14 +82,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
               <div className="space-y-1">
                 {group.items.map(item => {
                   const active = isActive(item.href);
-                  // Messages items show a live unread count badge
-                  const isMessagesItem = item.href.endsWith('/messages');
-                  const dynamicBadgeCount = isMessagesItem ? messageUnreadCount : 0;
-                  const badgeLabel =
-                    item.badge ??
-                    (dynamicBadgeCount > 0
-                      ? String(dynamicBadgeCount > 99 ? '99+' : dynamicBadgeCount)
-                      : undefined);
+                  const badgeLabel = item.badge;
                   return (
                     <Link
                       // Multiple static nav items can intentionally share the same fallback href.
@@ -116,11 +107,6 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                             active ? 'text-primary' : 'text-[#a09f98] group-hover:text-foreground'
                           )}
                         />
-                        {isCollapsed && dynamicBadgeCount > 0 && (
-                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                            {dynamicBadgeCount > 9 ? '9+' : dynamicBadgeCount}
-                          </span>
-                        )}
                       </div>
                       {!isCollapsed && (
                         <div className="flex-1 min-w-0">

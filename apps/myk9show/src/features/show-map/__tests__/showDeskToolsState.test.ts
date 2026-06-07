@@ -62,6 +62,15 @@ describe('showDeskToolsState', () => {
     expect(loadOpenToolIds('show-123', tools)).toEqual(['broadcast']);
   });
 
+  it('drops the removed Message Show tool id from saved state', () => {
+    window.localStorage.setItem(
+      getShowDeskToolsStorageKey('show-123'),
+      JSON.stringify(['message-show', 'tasks'])
+    );
+
+    expect(loadOpenToolIds('show-123', tools)).toEqual(['tasks']);
+  });
+
   it('saves open section ids without throwing', () => {
     saveOpenToolIds('show-123', ['access-codes']);
 

@@ -535,7 +535,7 @@ describe('ShowWorkbenchPage', () => {
   // 9 desk-tool sections + 3 closeout links with the right props. The new
   // component tests for ShowDeskToolsSheet + ShowDeskCloseoutSection only
   // verify the shells (they pass stub children). This test fills the gap.
-  it('composes the 9 tool sections + 3 closeout links into the Show Desk tab', async () => {
+  it('composes the tool sections + 3 closeout links into the Show Desk tab', async () => {
     const user = userEvent.setup();
     mockTrials = [
       {
@@ -562,7 +562,7 @@ describe('ShowWorkbenchPage', () => {
 
     renderWorkbench('/secretary/shows/show-1?phase=show-desk');
 
-    // Tools sheet: open it and assert all 9 sections render with show-scoped data.
+    // Tools sheet: open it and assert the remaining sections render with show-scoped data.
     await user.click(await screen.findByRole('button', { name: /open tools panel/i }));
     const dialog = await screen.findByRole('dialog', { name: /show desk tools/i });
     expect(within(dialog).getByRole('button', { name: /late entries/i })).toHaveAttribute(
@@ -576,10 +576,7 @@ describe('ShowWorkbenchPage', () => {
     await user.click(within(dialog).getByRole('button', { name: /judge hospitality/i }));
     expect(within(dialog).getByRole('heading', { name: 'Hospitality' })).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: /message show/i }));
-    expect(within(dialog).getByRole('heading', { name: 'Message Show' })).toBeInTheDocument();
-    expect(within(dialog).queryByRole('heading', { name: 'Quick broadcast' })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole('heading', { name: 'Message a class' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /message show/i })).not.toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('button', { name: /incident log/i }));
     expect(within(dialog).getByTestId('incident-log-card')).toHaveTextContent(

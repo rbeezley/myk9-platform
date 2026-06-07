@@ -40,8 +40,6 @@ import { ShowDayReconciliation } from '@/features/show-workbench/ShowDayReconcil
 import { IncidentCloseoutSummary } from '@/features/show-workbench/IncidentCloseoutSummary';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
-import { MessageShowComposer } from '@/features/show-workbench/MessageShowComposer';
-import { buildMessageShowClassLabel } from '@/features/show-workbench/messageShow';
 import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
 import { SetupAdaptiveHeader } from '@/features/show-workbench/SetupAdaptiveHeader';
 import { SetupPublishSection } from '@/features/show-workbench/SetupPublishSection';
@@ -259,26 +257,6 @@ export function ShowWorkbenchPage() {
             judges={effectiveJudges.map(judge => ({
               id: judge.judgeId,
               name: judge.judgeName,
-            }))}
-          />
-        ),
-      },
-      {
-        id: 'message-show',
-        title: 'Message Show',
-        summary: 'Send updates, class messages, and push alerts',
-        content: (
-          <MessageShowComposer
-            showId={currentShow.id}
-            classes={showClasses.map(cls => ({
-              id: cls.id,
-              label: buildMessageShowClassLabel({
-                name: cls.name,
-                element: cls.element,
-                level: cls.level,
-                section: cls.section,
-              }),
-              entryCount: cls.entryCount,
             }))}
           />
         ),

@@ -176,13 +176,11 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/secretary/shows/show-1?phase=show-desk');
   });
 
-  it('routes class messaging to the consolidated Message Show surface', async () => {
-    const { user } = renderClassDetailsPage();
+  it('does not duplicate show messaging from the class header', () => {
+    renderClassDetailsPage();
 
     expect(screen.queryByRole('button', { name: /message class/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /message show/i }));
-
-    expect(screen.getByTestId('location')).toHaveTextContent('/secretary/shows/show-1?phase=show-desk');
+    expect(screen.queryByRole('button', { name: /message show/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show messages/i })).not.toBeInTheDocument();
   });
 });

@@ -22,11 +22,15 @@ vi.mock('@/utils/realtimeOptimization', () => ({
   setupOptimizedPresence: vi.fn(() => vi.fn()),
 }));
 
+const { getUserRolesSpy } = vi.hoisted(() => ({
+  getUserRolesSpy: vi.fn(() => ['exhibitor']),
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'u1', email: 'mariana@example.com' },
     firstName: 'Mariana',
-    getUserRoles: () => ['exhibitor'],
+    getUserRoles: getUserRolesSpy,
   }),
 }));
 
@@ -185,5 +189,14 @@ describe('useShowPresence', () => {
     (features as { showPresence: boolean }).showPresence = false;
     renderHook(() => useShowPresence('s1'), { wrapper });
     expect(supabase.channel).not.toHaveBeenCalled();
+  });
+
+  it('does not read presence-only auth fields when the kill switch is off', () => {
+    // Regression guard (review P1): the dark hook must be a no-op, not just
+    // crash-free — it must not touch getUserRoles (older auth mocks omit it).
+    (features as { showPresence: boolean }).showPresence = false;
+    getUserRolesSpy.mockClear();
+    renderHook(() => useShowPresence('s1'), { wrapper });
+    expect(getUserRolesSpy).not.toHaveBeenCalled();
   });
 });

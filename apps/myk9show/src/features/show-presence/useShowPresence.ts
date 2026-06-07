@@ -105,7 +105,9 @@ export function useShowPresence(showId: string | undefined): UseShowPresenceResu
   // Keep the presence payload current with identity + route, and push the change
   // immediately so others see the move without waiting for the next heartbeat.
   useEffect(() => {
-    if (!userId) {
+    // Kill switch (plan §12): when off, the hook is a complete no-op — don't build
+    // the payload or even read presence-only auth fields (getUserRoles).
+    if (!showPresenceEnabled() || !userId) {
       infoRef.current = null;
       return;
     }

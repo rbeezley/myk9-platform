@@ -19,6 +19,7 @@ import {
 } from '@/utils/entryManagementUtils';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
+import { EntryStatus } from '@/types/show-registration-types';
 import type { MyEntry, EntryClass } from './my-entries-types';
 
 interface UseMyEntriesDataReturn {
@@ -43,6 +44,47 @@ interface PersistCheckInStatusInput {
 
 interface UseMyEntriesDataOptions {
   persistCheckInStatus: (input: PersistCheckInStatusInput) => Promise<unknown>;
+}
+
+// Highest-priority status wins when merging class rows for the same dog+show.
+// ACCEPTED beats PENDING because the dog is in — the card should look "green".
+// Terminal statuses (SCRATCHED, CANCELLED) lose to any active status.
+const ENTRY_STATUS_PRIORITY: Record<EntryStatus, number> = {
+  [EntryStatus.ACCEPTED]: 6,
+  [EntryStatus.PENDING]: 5,
+  [EntryStatus.WAITLIST]: 4,
+  [EntryStatus.MISSING_INFO]: 3,
+  [EntryStatus.MOVED]: 2,
+  [EntryStatus.REJECTED]: 1,
+  [EntryStatus.SCRATCHED]: 0,
+  [EntryStatus.CANCELLED]: 0,
+};
+
+function dominantStatus(a: EntryStatus, b: EntryStatus): EntryStatus {
+  return (ENTRY_STATUS_PRIORITY[a] ?? 0) >= (ENTRY_STATUS_PRIORITY[b] ?? 0) ? a : b;
+}
+
+/**
+ * Groups flat per-class entry rows into one card per dog per show.
+ * Each DB row represents one class; a dog entered in N classes at the same show
+ * produces N rows that must be merged so the card shows all classes together.
+ * entryStatus is the highest-priority status across all merged rows so the
+ * card and tab counts reflect the most "active" state, not just the seed row.
+ */
+export function groupEntriesByShowAndDog(rawEntries: MyEntry[]): MyEntry[] {
+  const groups = new Map<string, MyEntry>();
+  for (const entry of rawEntries) {
+    const key = `${entry.registrationId}:${entry.dogId}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.classes.push(...entry.classes);
+      existing.totalFee += entry.totalFee;
+      existing.entryStatus = dominantStatus(existing.entryStatus, entry.entryStatus);
+    } else {
+      groups.set(key, { ...entry, classes: [...entry.classes] });
+    }
+  }
+  return Array.from(groups.values());
 }
 
 /**
@@ -72,7 +114,7 @@ export function useMyEntriesData({
       start_date: string;
       end_date?: string | null;
       entry_close_date?: string | null;
-      venue?: string;
+      venue_name?: string;
       city?: string;
       state?: string;
     } | null;
@@ -100,6 +142,7 @@ export function useMyEntriesData({
             trialType: trialData?.trial_type || classData.trial?.trial_type || undefined,
             runOrder: (entry.run_order as number) || undefined,
             status: mapClassEntryStatus(entry.entry_status as string),
+            handler: (entry.handler as string) || undefined,
             // Read the persisted check-in status instead of hardcoding undefined,
             // or the card always shows "Not Checked In" even after a check-in.
             checkInStatus: normalizeCheckInStatus(entry.check_in_status),
@@ -133,7 +176,7 @@ export function useMyEntriesData({
       showDate: parseShowDate(show?.start_date) ?? new Date(),
       showEndDate: parseShowDate(show?.end_date),
       location: {
-        venue: show?.venue || '',
+        venue: show?.venue_name || '',
         city: show?.city || '',
         state: show?.state || '',
       },
@@ -170,7 +213,7 @@ export function useMyEntriesData({
         return;
       }
 
-      const userEntries = data.map(entry => transformEntry(entry));
+      const userEntries = groupEntriesByShowAndDog(data.map(entry => transformEntry(entry)));
       setEntries(userEntries);
       setIsError(false);
     } catch (error) {
@@ -210,7 +253,9 @@ export function useMyEntriesData({
    */
   const updateEntryCheckIn = useCallback(
     async (entryId: string, classId: string, status: CheckInStatus, notes?: string) => {
-      const entry = entries.find(e => e.id === entryId);
+      // After grouping, entry.id is the first class row's id and may differ from
+      // classId. Find the grouped card that contains the target class instead.
+      const entry = entries.find(e => e.id === entryId || e.classes.some(c => c.id === classId));
       const classEntry = entry?.classes.find(c => c.id === classId);
 
       if (!entry || !classEntry) return;
@@ -235,7 +280,9 @@ export function useMyEntriesData({
           })
         );
 
-        await persistCheckInStatus({ entryId, classId, newStatus: status });
+        // classId is the individual entry row id — use it as the DB target so
+        // grouped cards with multiple classes update the right row.
+        await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
 
         // Log the check-in status change
         auditService.log({

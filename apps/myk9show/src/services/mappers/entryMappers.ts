@@ -471,5 +471,8 @@ export const mapReplicatedShowToEntryRow = (show: ReplicatedShow): Record<string
     end_date: 'endDate',
     entry_close_date: 'entryCloseDate',
     location: 'location',
+    venue_name: 'venueName',
+    city: 'city',
+    state: 'state',
     status: 'status',
   });

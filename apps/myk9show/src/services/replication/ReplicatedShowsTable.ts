@@ -35,6 +35,9 @@ export interface ReplicatedShow {
   startDate: string;
   endDate: string;
   location?: string | undefined;
+  venueName?: string | undefined;
+  city?: string | undefined;
+  state?: string | undefined;
   status?: string | undefined;
   entryOpenDate?: string | undefined;
   entryCloseDate?: string | undefined;
@@ -77,6 +80,9 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     startDate: row.start_date,
     endDate: row.end_date,
     location: row.location ?? undefined,
+    venueName: row.venue_name ?? undefined,
+    city: row.city ?? undefined,
+    state: row.state ?? undefined,
     status: row.status ?? undefined,
     entryOpenDate: row.entry_open_date ?? undefined,
     entryCloseDate: row.entry_close_date ?? undefined,

@@ -19,5 +19,4 @@ export {
 } from './myEntriesUtils';
 
 // Components
-export { MyEntriesStatsCards } from './MyEntriesStatsCards';
 export { MyEntryCard } from './MyEntryCard';

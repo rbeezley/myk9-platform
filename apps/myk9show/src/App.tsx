@@ -35,6 +35,7 @@ import { AtShowRoutes } from './routes/atShowRoutes';
 
 // Unified layout
 import { UnifiedAppLayout } from './components/layout/UnifiedAppLayout';
+import { AppShellMobileNavProvider } from './components/layout/AppShellMobileNavProvider';
 import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 
 // Components
@@ -254,134 +255,136 @@ function App() {
                           <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
                         )}
                       >
-                        <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-                          <PWAInstallBanner />
-                          <AppHeader />
-                          <NotificationCenter />
-                          <Routes>
-                            {/* Surface gate — when VITE_PUBLIC_SURFACE=wizard,
+                        <AppShellMobileNavProvider>
+                          <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                            <PWAInstallBanner />
+                            <AppHeader />
+                            <NotificationCenter />
+                            <Routes>
+                              {/* Surface gate — when VITE_PUBLIC_SURFACE=wizard,
                                 only the show-creation wizard surface is
                                 reachable for non-admins. No-op otherwise. */}
-                            <Route element={<WizardSurfaceGate />}>
-                            {/* Public routes */}
-                            <Route
-                              path="/"
-                              element={
-                                <PageTransition>
-                                  <HomeRedirect />
-                                </PageTransition>
-                              }
-                            />
-                            <Route
-                              path="/pricing-page"
-                              element={
-                                <PageTransition>
-                                  <Suspense fallback={<PageLoadingFallback />}>
-                                    <PricingPage />
-                                  </Suspense>
-                                </PageTransition>
-                              }
-                            />
-                            <Route
-                              path="/sign-in"
-                              element={
-                                <PageTransition>
-                                  <Suspense fallback={<PageLoadingFallback />}>
-                                    <SmartSignInPage />
-                                  </Suspense>
-                                </PageTransition>
-                              }
-                            />
-                            <Route
-                              path="/at-show"
-                              element={
-                                <PageTransition>
-                                  <Suspense fallback={<PageLoadingFallback />}>
-                                    <SmartSignInPage />
-                                  </Suspense>
-                                </PageTransition>
-                              }
-                            />
-                            <Route path="/login" element={<Navigate to="/sign-in" replace />} />
-                            <Route
-                              path="/sign-up"
-                              element={
-                                <PageTransition>
-                                  <Suspense fallback={<PageLoadingFallback />}>
-                                    <SignUpPage />
-                                  </Suspense>
-                                </PageTransition>
-                              }
-                            />
-                            <Route
-                              path="/forgot-password"
-                              element={
-                                <PageTransition>
-                                  <Suspense fallback={<PageLoadingFallback />}>
-                                    <ForgotPasswordPage />
-                                  </Suspense>
-                                </PageTransition>
-                              }
-                            />
+                              <Route element={<WizardSurfaceGate />}>
+                                {/* Public routes */}
+                                <Route
+                                  path="/"
+                                  element={
+                                    <PageTransition>
+                                      <HomeRedirect />
+                                    </PageTransition>
+                                  }
+                                />
+                                <Route
+                                  path="/pricing-page"
+                                  element={
+                                    <PageTransition>
+                                      <Suspense fallback={<PageLoadingFallback />}>
+                                        <PricingPage />
+                                      </Suspense>
+                                    </PageTransition>
+                                  }
+                                />
+                                <Route
+                                  path="/sign-in"
+                                  element={
+                                    <PageTransition>
+                                      <Suspense fallback={<PageLoadingFallback />}>
+                                        <SmartSignInPage />
+                                      </Suspense>
+                                    </PageTransition>
+                                  }
+                                />
+                                <Route
+                                  path="/at-show"
+                                  element={
+                                    <PageTransition>
+                                      <Suspense fallback={<PageLoadingFallback />}>
+                                        <SmartSignInPage />
+                                      </Suspense>
+                                    </PageTransition>
+                                  }
+                                />
+                                <Route path="/login" element={<Navigate to="/sign-in" replace />} />
+                                <Route
+                                  path="/sign-up"
+                                  element={
+                                    <PageTransition>
+                                      <Suspense fallback={<PageLoadingFallback />}>
+                                        <SignUpPage />
+                                      </Suspense>
+                                    </PageTransition>
+                                  }
+                                />
+                                <Route
+                                  path="/forgot-password"
+                                  element={
+                                    <PageTransition>
+                                      <Suspense fallback={<PageLoadingFallback />}>
+                                        <ForgotPasswordPage />
+                                      </Suspense>
+                                    </PageTransition>
+                                  }
+                                />
 
-                            <Route
-                              path="/auth/callback"
-                              element={
-                                <Suspense fallback={<PageLoadingFallback />}>
-                                  <AuthCallbackPage />
-                                </Suspense>
-                              }
-                            />
-                            <Route
-                              path="/reset-password"
-                              element={
-                                <Suspense fallback={<PageLoadingFallback />}>
-                                  <ResetPasswordPage />
-                                </Suspense>
-                              }
-                            />
+                                <Route
+                                  path="/auth/callback"
+                                  element={
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <AuthCallbackPage />
+                                    </Suspense>
+                                  }
+                                />
+                                <Route
+                                  path="/reset-password"
+                                  element={
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <ResetPasswordPage />
+                                    </Suspense>
+                                  }
+                                />
 
-                            {/* Onboarding wizard — full-page, no sidebar */}
-                            <Route
-                              path="/onboarding"
-                              element={
-                                <Suspense fallback={<PageLoadingFallback />}>
-                                  <ExhibitorOnboardingPage />
-                                </Suspense>
-                              }
-                            />
+                                {/* Onboarding wizard — full-page, no sidebar */}
+                                <Route
+                                  path="/onboarding"
+                                  element={
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <ExhibitorOnboardingPage />
+                                    </Suspense>
+                                  }
+                                />
 
-                            {/* At-show ringside — full-screen judge view on a
+                                {/* At-show ringside — full-screen judge view on a
                                 phone. Intentionally OUTSIDE UnifiedAppLayout (no
                                 sidebar / mobile hamburger nav); AppHeader also
                                 hides itself on /at-show. Mirrors myK9Q's
                                 standalone ringside so the page's own header sits
                                 at the true top with no host chrome stacked above. */}
-                            {AtShowRoutes()}
+                                {AtShowRoutes()}
 
-                            {/* All other routes — inside unified sidebar layout */}
-                            <Route element={<UnifiedAppLayout />}>
-                              {AdminRoutes()}
-                              {JudgeSidebarRoutes()}
-                              {SecretaryRoutes()}
-                              {ClubAdminRoutes()}
-                              {PublicRoutes()}
-                            </Route>
+                                {/* All other routes — inside unified sidebar layout */}
+                                <Route element={<UnifiedAppLayout />}>
+                                  {AdminRoutes()}
+                                  {JudgeSidebarRoutes()}
+                                  {SecretaryRoutes()}
+                                  {ClubAdminRoutes()}
+                                  {PublicRoutes()}
+                                </Route>
 
-                            {/* 404 catch-all */}
-                            <Route
-                              path="*"
-                              element={
-                                <PageTransition>
-                                  <Suspense fallback={<PageLoadingFallback />}>
-                                    <NotFoundPage />
-                                  </Suspense>
-                                </PageTransition>
-                              }
-                            />
-                            </Route>
-                          </Routes>
-                        </div>
+                                {/* 404 catch-all */}
+                                <Route
+                                  path="*"
+                                  element={
+                                    <PageTransition>
+                                      <Suspense fallback={<PageLoadingFallback />}>
+                                        <NotFoundPage />
+                                      </Suspense>
+                                    </PageTransition>
+                                  }
+                                />
+                              </Route>
+                            </Routes>
+                          </div>
+                        </AppShellMobileNavProvider>
                       </ErrorBoundary>
                     </ExhibitorOnboardingChecker>
                   </AlertInitializer>

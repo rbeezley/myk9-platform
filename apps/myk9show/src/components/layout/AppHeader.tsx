@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   Info,
   MessageSquare,
+  Menu,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -44,6 +45,30 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useCurrentUserPerson } from '@/hooks/useProfileForm';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useAppShellMobileNav } from './useAppShellMobileNav';
+
+const MOBILE_SIDEBAR_QUERY = '(max-width: 767px)';
+
+function useIsMobileSidebarViewport() {
+  const [isMobileSidebarViewport, setIsMobileSidebarViewport] = useState(() =>
+    typeof window === 'undefined' || !window.matchMedia
+      ? false
+      : window.matchMedia(MOBILE_SIDEBAR_QUERY).matches
+  );
+
+  useEffect(() => {
+    if (!window.matchMedia) return;
+
+    const mediaQuery = window.matchMedia(MOBILE_SIDEBAR_QUERY);
+    const updateViewport = () => setIsMobileSidebarViewport(mediaQuery.matches);
+
+    updateViewport();
+    mediaQuery.addEventListener('change', updateViewport);
+    return () => mediaQuery.removeEventListener('change', updateViewport);
+  }, []);
+
+  return isMobileSidebarViewport;
+}
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -53,6 +78,8 @@ const AppHeader: React.FC = () => {
   const networkStatus = useNetworkStatus();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isMobileNavOpen, openMobileNav } = useAppShellMobileNav();
+  const isMobileSidebarViewport = useIsMobileSidebarViewport();
   // The marketing landing renders its own editorial sticky header
   // (LandingHeader). Suppressing this global app bar on `/` for guests
   // avoids two stacked headers.
@@ -60,8 +87,7 @@ const AppHeader: React.FC = () => {
   // At-show ringside is a full-screen judge view on a phone (mirrors myK9Q's
   // standalone ringside). Suppress this global app bar so it doesn't eat
   // vertical space above the ringside page's own header.
-  const isAtShow =
-    location.pathname === '/at-show' || location.pathname.startsWith('/at-show/');
+  const isAtShow = location.pathname === '/at-show' || location.pathname.startsWith('/at-show/');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -151,10 +177,25 @@ const AppHeader: React.FC = () => {
     <nav className="fixed top-[var(--pwa-banner-height,0px)] left-0 right-0 z-50 border-b bg-background text-foreground border-border h-12 shadow-[var(--shadow-header)]">
       <div className="px-4 sm:px-6 h-full">
         <div className="flex items-center justify-between h-full">
-          {/* Left: Logo */}
-          <Link to="/" className="flex items-center">
-            <span className="text-lg font-bold text-foreground tracking-tight">myK9Show</span>
-          </Link>
+          {/* Left: Mobile navigation + logo */}
+          <div className="flex min-w-0 items-center gap-2">
+            {user && openMobileNav && isMobileSidebarViewport && !isMobileNavOpen && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={openMobileNav}
+                className="md:hidden -ml-2 p-1.5 rounded-lg"
+                aria-label="Open navigation"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
+            <Link to="/" className="flex min-w-0 items-center">
+              <span className="truncate text-lg font-bold text-foreground tracking-tight">
+                myK9Show
+              </span>
+            </Link>
+          </div>
 
           {/* Center: Search (desktop) */}
           {user && (

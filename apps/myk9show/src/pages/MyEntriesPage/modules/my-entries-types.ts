@@ -93,7 +93,7 @@ export interface MyEntryStats {
   needsAction: number;
   /** Fees for non-past accepted or pending-review entries only. */
   currentFees: number;
-  /** Unpaid fees for non-past accepted entries only. */
+  /** Unpaid fees for non-past accepted or pending-review entries only. */
   currentAmountDue: number;
   /** All-time fees across every loaded user entry. */
   totalFees: number;

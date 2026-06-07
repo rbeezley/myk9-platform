@@ -102,7 +102,7 @@ export function useMyEntriesFilters({
     const paidFees = paidEntries.reduce((sum, e) => sum + e.totalFee, 0);
     const unpaidFees = unpaidEntries.reduce((sum, e) => sum + e.totalFee, 0);
     const currentFees = currentSummaryEntries.reduce((sum, entry) => sum + entry.totalFee, 0);
-    const currentAmountDue = currentAcceptedEntries
+    const currentAmountDue = currentSummaryEntries
       .filter(entry => entry.paymentStatus === PaymentStatus.PENDING)
       .reduce((sum, entry) => sum + entry.totalFee, 0);
 

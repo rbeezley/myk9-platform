@@ -143,6 +143,6 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
     expect(result.current.entryStats.currentAcceptedEntries).toBe(2);
     expect(result.current.entryStats.currentPendingEntries).toBe(1);
     expect(result.current.entryStats.currentFees).toBe(65);
-    expect(result.current.entryStats.currentAmountDue).toBe(25);
+    expect(result.current.entryStats.currentAmountDue).toBe(55);
   });
 });

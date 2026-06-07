@@ -176,38 +176,42 @@ describe('@myk9/pwa-update', () => {
 
   it('falls back to reload after applying a waiting update if Workbox does not reload', async () => {
     vi.useFakeTimers();
-    const { registerSW, updateSW, captured } = makeRegisterSWMock();
-    const reloadPage = vi.fn();
-    const ctrl = setupPwaUpdate({
-      registerSW,
-      version: 'v1',
-      onPrompt: vi.fn(),
-      reloadPage,
-      applyReloadFallbackMs: 1000,
-    });
-    const registration = {
-      update: vi.fn().mockResolvedValue(undefined),
-      waiting: {},
-      installing: null,
-    };
-    Object.defineProperty(navigator, 'serviceWorker', {
-      configurable: true,
-      value: {
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        getRegistration: vi.fn().mockResolvedValue(registration),
-      },
-    });
+    try {
+      const { registerSW, updateSW, captured } = makeRegisterSWMock();
+      const reloadPage = vi.fn();
+      const ctrl = setupPwaUpdate({
+        registerSW,
+        version: 'v1',
+        onPrompt: vi.fn(),
+        reloadPage,
+        applyReloadFallbackMs: 1000,
+      });
+      const registration = {
+        update: vi.fn().mockResolvedValue(undefined),
+        waiting: {},
+        installing: null,
+      };
+      Object.defineProperty(navigator, 'serviceWorker', {
+        configurable: true,
+        value: {
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          getRegistration: vi.fn().mockResolvedValue(registration),
+        },
+      });
 
-    captured.opts?.onNeedRefresh?.();
-    await ctrl.applyUpdate();
+      captured.opts?.onNeedRefresh?.();
+      await ctrl.applyUpdate();
 
-    expect(updateSW).toHaveBeenCalledWith(true);
-    expect(reloadPage).not.toHaveBeenCalled();
+      expect(updateSW).toHaveBeenCalledWith(true);
+      expect(reloadPage).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
-    expect(reloadPage).toHaveBeenCalledTimes(1);
+      expect(reloadPage).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('onUpdateAvailable subscribers fire on each onNeedRefresh, even after first prompt', () => {

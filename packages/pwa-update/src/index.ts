@@ -272,6 +272,7 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
       return;
     }
     let shouldFallbackReload = false;
+    // Fallbacks only apply once onNeedRefresh has proven an update is pending.
     if (updateKnownAvailable && 'serviceWorker' in navigator) {
       const registration =
         activeRegistration ??

@@ -15,7 +15,7 @@ describe('CompactStatsRow', () => {
   it('renders all four stat cards with values', () => {
     render(<CompactStatsRow {...defaultProps} />);
     expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('Active Entries')).toBeInTheDocument();
+    expect(screen.getByText('Active Show Entries')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
@@ -26,14 +26,14 @@ describe('CompactStatsRow', () => {
 
   it('uses singular label when count is 1', () => {
     render(<CompactStatsRow {...defaultProps} activeEntries={1} upcomingShows={1} pastShows={1} />);
-    expect(screen.getByText('Active Entry')).toBeInTheDocument();
+    expect(screen.getByText('Active Show Entry')).toBeInTheDocument();
     expect(screen.getByText('Upcoming Show')).toBeInTheDocument();
     expect(screen.getByText('Past Show')).toBeInTheDocument();
   });
 
   it('uses plural label when count is not 1', () => {
     render(<CompactStatsRow {...defaultProps} activeEntries={0} upcomingShows={5} pastShows={3} />);
-    expect(screen.getByText('Active Entries')).toBeInTheDocument();
+    expect(screen.getByText('Active Show Entries')).toBeInTheDocument();
     expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
     expect(screen.getByText('Past Shows')).toBeInTheDocument();
   });
@@ -42,7 +42,7 @@ describe('CompactStatsRow', () => {
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
-    const entriesCard = screen.getByLabelText(/Active Entries.*View details/i);
+    const entriesCard = screen.getByLabelText(/Active Show Entries.*View details/i);
     await userEvent.click(entriesCard);
     expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries');
   });

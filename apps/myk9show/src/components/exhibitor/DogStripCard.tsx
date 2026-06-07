@@ -1,7 +1,7 @@
 /**
  * DogStripCard — compact dog card for the My Shows page dog strip.
  *
- * Shows dog name, breed, upcoming show count (green) or "Not entered" (amber),
+ * Shows dog name, breed, upcoming class count (green) or "Not entered" (amber),
  * and earned title abbreviations. Clicking navigates to the dog's detail page.
  */
 
@@ -13,14 +13,14 @@ interface DogStripCardProps {
   dogId: string;
   dogName: string;
   breed: string[];
-  upcomingCount: number;
+  upcomingClassCount: number;
 }
 
 export const DogStripCard: React.FC<DogStripCardProps> = ({
   dogId,
   dogName,
   breed,
-  upcomingCount,
+  upcomingClassCount,
 }) => {
   const navigate = useNavigate();
   const { earnedAbbreviations, isLoading: titlesLoading } = useTitleProgress(dogId);
@@ -42,9 +42,10 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
         </div>
       )}
       <div className="flex flex-wrap gap-1">
-        {upcomingCount > 0 ? (
+        {upcomingClassCount > 0 ? (
           <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-            {upcomingCount} upcoming
+            {upcomingClassCount} upcoming{' '}
+            {upcomingClassCount === 1 ? 'class' : 'classes'}
           </span>
         ) : (
           <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">

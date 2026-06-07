@@ -109,6 +109,15 @@ const MyEntriesPage: React.FC = () => {
     [statistics.tabCounts]
   );
 
+  const upcomingClassCountByDog = useMemo(() => {
+    const now = new Date();
+    return entries.reduce<Record<string, number>>((counts, entry) => {
+      if (isPastShowEntry(entry, now)) return counts;
+      counts[entry.dogId] = (counts[entry.dogId] ?? 0) + entry.classes.length;
+      return counts;
+    }, {});
+  }, [entries]);
+
   // Dialog states
   const [checkInDialog, setCheckInDialog] = useState<CheckInDialogState>({
     open: false,
@@ -249,6 +258,7 @@ const MyEntriesPage: React.FC = () => {
                 registrations?: { breed?: string; organization?: string; status?: string }[];
               }[]
             }
+            upcomingClassCountByDog={upcomingClassCountByDog}
             onAddDog={() => setAddDogOpen(true)}
           />
 

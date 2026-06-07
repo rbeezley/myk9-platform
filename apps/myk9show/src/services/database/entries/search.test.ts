@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { USER_ENTRIES_SELECT } from './search';
+import { USER_ENTRIES_SELECT, findMissingReplicatedUserEntryRelations } from './search';
 
 /**
  * The PostgREST fallback for getUserEntries must select every column the
@@ -42,5 +42,53 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     expect(USER_ENTRIES_SELECT).toMatch(
       /registration:registration_id\s*\([^)]*confirmation_number[^)]*payment_status/s
     );
+  });
+});
+
+describe('findMissingReplicatedUserEntryRelations', () => {
+  it('reports class/show/dog relation rows that have not hydrated yet', () => {
+    const missing = findMissingReplicatedUserEntryRelations(
+      [
+        {
+          id: 'entry-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          showId: 'show-1',
+        },
+        {
+          id: 'entry-2',
+          classId: 'class-2',
+          dogId: 'dog-2',
+          showId: 'show-1',
+        },
+      ],
+      {
+        classesMap: new Map([['class-1', {}]]),
+        dogsMap: new Map([['dog-1', {}]]),
+        showsMap: new Map([['show-1', {}]]),
+      }
+    );
+
+    expect(missing).toEqual(['class:class-2', 'dog:dog-2']);
+  });
+
+  it('returns no missing relations when every referenced row is available', () => {
+    const missing = findMissingReplicatedUserEntryRelations(
+      [
+        {
+          id: 'entry-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          showId: 'show-1',
+        },
+      ],
+      {
+        classesMap: new Map([['class-1', {}]]),
+        dogsMap: new Map([['dog-1', {}]]),
+        showsMap: new Map([['show-1', {}]]),
+      }
+    );
+
+    expect(missing).toEqual([]);
   });
 });

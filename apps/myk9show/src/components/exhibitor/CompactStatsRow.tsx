@@ -39,7 +39,7 @@ export function CompactStatsRow({
   const stats: StatItem[] = [
     {
       icon: <FileText className="h-5 w-5" />,
-      label: activeEntries === 1 ? 'Active Entry' : 'Active Entries',
+      label: activeEntries === 1 ? 'Active Show Entry' : 'Active Show Entries',
       value: activeEntries,
       href: '/exhibitor/entries',
       tint: 'bg-primary/8 dark:bg-primary/12 border-primary/15',

@@ -637,8 +637,8 @@ describe('ReplicatedDogsTable', () => {
         // syncReplicatedTable uses getReplicatedRow (not get) to check existing rows
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
-        // syncReplicatedTable uses batchSet (not set) to write clean rows
-        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+        // syncReplicatedTable uses individual set() calls to write clean rows
+        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
 
         // Mock updateSyncMetadata
         const updateMetadataSpy = vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
@@ -663,7 +663,7 @@ describe('ReplicatedDogsTable', () => {
         expect(result.rowsAffected).toBe(2);
         expect(result.conflictsResolved).toBe(0);
 
-        expect(batchSetSpy).toHaveBeenCalledWith(expect.arrayContaining([expect.any(Object)]));
+        expect(setSpy).toHaveBeenCalled();
         expect(updateMetadataSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             lastIncrementalSyncAt: expect.any(Number),
@@ -721,7 +721,7 @@ describe('ReplicatedDogsTable', () => {
         );
 
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
-        vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+        vi.spyOn(dogsTable, 'set').mockResolvedValue();
         vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
         const result = await dogsTable.sync('owner-123');
@@ -810,7 +810,7 @@ describe('ReplicatedDogsTable', () => {
         // syncReplicatedTable uses getReplicatedRow to detect existing rows
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
-        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
 
         const mockRemoteRow = createMockRow(remoteDog);
 
@@ -832,7 +832,7 @@ describe('ReplicatedDogsTable', () => {
         expect(result.conflictsResolved).toBe(1);
 
         // Verify resolved data: server wins but local image preserved
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = setSpy.mock.calls[0]![1] as ReplicatedDog;
         expect(resolvedDog.name).toBe('Updated Max'); // Server value
         expect(resolvedDog.weight).toBe('85 lbs'); // Server value
         expect(resolvedDog.imageUrl).toBe('https://local.com/dog.jpg'); // Local value preserved
@@ -860,7 +860,7 @@ describe('ReplicatedDogsTable', () => {
         vi.spyOn(dogsTable, 'getAll').mockResolvedValue([localDog]);
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
-        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
 
         const mockRemoteRow = createMockRow(remoteDog);
 
@@ -878,7 +878,7 @@ describe('ReplicatedDogsTable', () => {
 
         await dogsTable.sync('owner-123');
 
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = setSpy.mock.calls[0]![1] as ReplicatedDog;
         expect(resolvedDog.imageUrl).toBe('https://remote.com/dog.jpg');
       });
 
@@ -904,7 +904,7 @@ describe('ReplicatedDogsTable', () => {
         vi.spyOn(dogsTable, 'getAll').mockResolvedValue([localDog]);
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
-        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
 
         const mockRemoteRow = createMockRow(remoteDog);
 
@@ -922,7 +922,7 @@ describe('ReplicatedDogsTable', () => {
 
         await dogsTable.sync('owner-123');
 
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = setSpy.mock.calls[0]![1] as ReplicatedDog;
         expect(resolvedDog.imageUrl).toBe('https://remote.com/dog.jpg');
       });
     });
@@ -988,7 +988,7 @@ describe('ReplicatedDogsTable', () => {
       vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
-      const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+      const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
 
       const mockQuery = {
         select: vi.fn().mockReturnThis(),
@@ -1004,7 +1004,7 @@ describe('ReplicatedDogsTable', () => {
 
       await dogsTable.sync('owner-123');
 
-      const camelCaseDog = batchSetSpy.mock.calls[0][0][0];
+      const camelCaseDog = setSpy.mock.calls[0]![1] as ReplicatedDog;
 
       expect(camelCaseDog.callName).toBe('Maxie');
       expect(camelCaseDog.dateOfBirth).toBe('2020-01-15');
@@ -1048,7 +1048,7 @@ describe('ReplicatedDogsTable', () => {
       vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
-      const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
+      const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
 
       const mockQuery = {
         select: vi.fn().mockReturnThis(),
@@ -1064,7 +1064,7 @@ describe('ReplicatedDogsTable', () => {
 
       await dogsTable.sync('owner-123');
 
-      const dog = batchSetSpy.mock.calls[0][0][0];
+      const dog = setSpy.mock.calls[0]![1] as ReplicatedDog;
 
       expect(dog.callName).toBeUndefined();
       expect(dog.sex).toBeUndefined();

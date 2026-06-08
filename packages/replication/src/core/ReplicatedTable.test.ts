@@ -232,6 +232,27 @@ describe('ReplicatedTable', () => {
       expect(result?.name).toBe('Rex from server');
     });
 
+    it('clears base metadata when marking a dirty row as synced so the next dirty edit captures a fresh base', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+
+      await table.markAsSynced('1');
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: false,
+        syncStatus: 'synced',
+        baseData: undefined,
+        baseVersion: undefined,
+        conflict: undefined,
+      });
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'absent' }, true);
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        baseData: { id: '1', name: 'Rex', status: 'checked-in' },
+      });
+    });
+
     // Race-condition regression for PR #351 review finding #1. The original
     // split-transaction implementation did get() in one tx, then put() in a
     // second tx — leaving a window in which a concurrent set(..., true) could

@@ -268,10 +268,18 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const normalizedData = { ...data, id: normalizedId } as T;
     const shouldCaptureBase = isDirty && existingRow && !existingRow.isDirty;
     const baseData = isDirty
-      ? existingRow?.baseData ?? (shouldCaptureBase ? existingRow.data : undefined)
+      ? existingRow?.isDirty
+        ? existingRow.baseData
+        : shouldCaptureBase
+          ? existingRow.data
+          : undefined
       : undefined;
     const baseVersion = isDirty
-      ? existingRow?.baseVersion ?? (shouldCaptureBase ? existingRow.version : undefined)
+      ? existingRow?.isDirty
+        ? existingRow.baseVersion
+        : shouldCaptureBase
+          ? existingRow.version
+          : undefined
       : undefined;
 
     const row: ReplicatedRow<T> = {
@@ -389,6 +397,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       isDirty: false,
       syncStatus: 'synced',
       lastSyncedAt: Date.now(),
+      baseData: undefined,
+      baseVersion: undefined,
+      conflict: undefined,
     });
     await tx.done;
 

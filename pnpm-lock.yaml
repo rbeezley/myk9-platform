@@ -6,7 +6,7 @@ settings:
 
 overrides:
   eslint-plugin-react-hooks: 7.0.1
-  '@supabase/supabase-js': 2.107.0
+  '@supabase/supabase-js': 2.108.0
   undici: ^7.16.0
   path-to-regexp: ^8.2.0
   '@isaacs/brace-expansion': 5.0.1
@@ -83,8 +83,8 @@ importers:
         specifier: ^4.5.1
         version: 4.5.1(react@19.2.7)
       '@supabase/supabase-js':
-        specifier: 2.107.0
-        version: 2.107.0
+        specifier: 2.108.0
+        version: 2.108.0
       '@tanstack/react-query':
         specifier: ^5.101.0
         version: 5.101.0(react@19.2.7)
@@ -415,8 +415,8 @@ importers:
   packages/replication:
     dependencies:
       '@supabase/supabase-js':
-        specifier: 2.107.0
-        version: 2.107.0
+        specifier: 2.108.0
+        version: 2.108.0
       idb:
         specifier: ^8.0.3
         version: 8.0.3
@@ -477,8 +477,8 @@ importers:
         specifier: workspace:*
         version: link:../test-utils
       '@supabase/supabase-js':
-        specifier: 2.107.0
-        version: 2.107.0
+        specifier: 2.108.0
+        version: 2.108.0
       '@tanstack/react-query':
         specifier: ^5.101.0
         version: 5.101.0(react@19.2.7)
@@ -647,8 +647,8 @@ importers:
   packages/supabase:
     dependencies:
       '@supabase/supabase-js':
-        specifier: 2.107.0
-        version: 2.107.0
+        specifier: 2.108.0
+        version: 2.108.0
     devDependencies:
       '@myk9/core':
         specifier: workspace:*
@@ -3064,8 +3064,8 @@ packages:
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
 
-  '@supabase/auth-js@2.107.0':
-    resolution: {integrity: sha512-XA7x+WIeIvuC3GTZ2ey67QcBbGw4n+o5B7M+dMm9KT1lL3wX1B52DfEWW00WuPt/LnniJLLIn1WIm9YPtuxzKQ==}
+  '@supabase/auth-js@2.108.0':
+    resolution: {integrity: sha512-0CzVGVqHfNOhRQVEcAmu58Mex2Ce0zL3aGfyV+iFQjTK6OntLK/hLCLr/VDRX0E8/2CdsiY99L7fZ/8ys/op4w==}
     engines: {node: '>=20.0.0'}
 
   '@supabase/cli-darwin-arm64@2.105.0':
@@ -3108,27 +3108,27 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@supabase/functions-js@2.107.0':
-    resolution: {integrity: sha512-iMtRUmEj1KOgQd/a3MR4hnBlPnZc62DW8+z8aPpnzbxWkexEZUVL2fSgvvp15gqFg1V55e2yMGqgK+yhSQxp5w==}
+  '@supabase/functions-js@2.108.0':
+    resolution: {integrity: sha512-lqEGDzT7QBUuKYzi5lHpV/XecXT9wikzcbXMbFo6krNpSDynD1sHM8wcsfB/BAqa4NkFuy3vF4JCV8MeakV8IQ==}
     engines: {node: '>=20.0.0'}
 
   '@supabase/phoenix@0.4.2':
     resolution: {integrity: sha512-YSAGnmDAfuleFCVt3CeurQZAhxRfXWeZIIkwp7NhYzQ1UwW6ePSnzsFAiUm/mbCkfoCf70QQHKW/K6RKh52a4A==}
 
-  '@supabase/postgrest-js@2.107.0':
-    resolution: {integrity: sha512-7ARs47/tyIjX7T0Ive20d4NY8zQYXsP5/P07jJWxffSIM2gpnSnGRnL/Fe15GPbdjsW2sTYeckHcyaoKbM6yWQ==}
+  '@supabase/postgrest-js@2.108.0':
+    resolution: {integrity: sha512-8AwTkPqowDYv/qh016CyXeZ3Ukpw6NHyfqc7DWV4afLR2hAiapf3zRKV2ZLG+//T1LK84HrR6X8VBwfgHWmNyw==}
     engines: {node: '>=20.0.0'}
 
-  '@supabase/realtime-js@2.107.0':
-    resolution: {integrity: sha512-cF2KYdR3JIn9YlWGeluY9S0G+otqTdL6hB8GzpatlEIY6fZudCcyFo6Dc3+X9tjeb+x9XcIyNAk9qhNAknjH1A==}
+  '@supabase/realtime-js@2.108.0':
+    resolution: {integrity: sha512-N3xR0u7TNr+c5wuLSU60rcfu/H/8N0WBs7iHWwjI/NxKwY3XWSyLUbpbpU8bzmL0dA/Gk9Mupri8mxKUXBW+iw==}
     engines: {node: '>=20.0.0'}
 
-  '@supabase/storage-js@2.107.0':
-    resolution: {integrity: sha512-/X8OOVwKBn8aVKuHAGOz2yLA0d2OauqhVuy4mNtN+o7wttHOgx1/j+pqOzlsjmhOHrYykF6AJNZhs3gKZzcMUw==}
+  '@supabase/storage-js@2.108.0':
+    resolution: {integrity: sha512-zMYQmh87CId7d8i/1FIfv4fMDcXPutmIJSpoY58GLXi7M266MNzxWGNabDk4i555Oj1Nqtsu2i3Qo3rpWUXO6A==}
     engines: {node: '>=20.0.0'}
 
-  '@supabase/supabase-js@2.107.0':
-    resolution: {integrity: sha512-ChKzdlWVweMUUhr0U79JhMmgm1haS/C5JquaiCDr70JaGARRtjjoY9rkIheXWybXxTSNzRiQs3Sk8IAg1HS3ZA==}
+  '@supabase/supabase-js@2.108.0':
+    resolution: {integrity: sha512-AjPoimM9MZLZbddnlDBGmpZ/Tas1dNcJvuZy/VD1AfmrjBC8J2RSw6UOqR4ISLLlEioOLca/5t1crFnAxa0wRQ==}
     engines: {node: '>=20.0.0'}
 
   '@swc/helpers@0.5.21':
@@ -9039,7 +9039,7 @@ snapshots:
 
   '@standard-schema/utils@0.3.0': {}
 
-  '@supabase/auth-js@2.107.0':
+  '@supabase/auth-js@2.108.0':
     dependencies:
       tslib: 2.8.1
 
@@ -9067,33 +9067,33 @@ snapshots:
   '@supabase/cli-windows-x64@2.105.0':
     optional: true
 
-  '@supabase/functions-js@2.107.0':
+  '@supabase/functions-js@2.108.0':
     dependencies:
       tslib: 2.8.1
 
   '@supabase/phoenix@0.4.2': {}
 
-  '@supabase/postgrest-js@2.107.0':
+  '@supabase/postgrest-js@2.108.0':
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/realtime-js@2.107.0':
+  '@supabase/realtime-js@2.108.0':
     dependencies:
       '@supabase/phoenix': 0.4.2
       tslib: 2.8.1
 
-  '@supabase/storage-js@2.107.0':
+  '@supabase/storage-js@2.108.0':
     dependencies:
       iceberg-js: 0.8.1
       tslib: 2.8.1
 
-  '@supabase/supabase-js@2.107.0':
+  '@supabase/supabase-js@2.108.0':
     dependencies:
-      '@supabase/auth-js': 2.107.0
-      '@supabase/functions-js': 2.107.0
-      '@supabase/postgrest-js': 2.107.0
-      '@supabase/realtime-js': 2.107.0
-      '@supabase/storage-js': 2.107.0
+      '@supabase/auth-js': 2.108.0
+      '@supabase/functions-js': 2.108.0
+      '@supabase/postgrest-js': 2.108.0
+      '@supabase/realtime-js': 2.108.0
+      '@supabase/storage-js': 2.108.0
 
   '@swc/helpers@0.5.21':
     dependencies:
@@ -9758,7 +9758,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@edge-runtime/vm@3.2.0)(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@27.4.0(@noble/hashes@1.8.0))(vite@7.3.5(@types/node@25.9.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.8.3))
+      vitest: 4.1.8(@edge-runtime/vm@3.2.0)(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@27.4.0(@noble/hashes@1.8.0))(vite@7.3.5(@types/node@25.9.2)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.8.3))
 
   '@vitest/expect@4.1.7':
     dependencies:
@@ -9859,7 +9859,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@edge-runtime/vm@3.2.0)(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@27.4.0(@noble/hashes@1.8.0))(vite@7.3.5(@types/node@25.9.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.8.3))
+      vitest: 4.1.8(@edge-runtime/vm@3.2.0)(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@27.4.0(@noble/hashes@1.8.0))(vite@7.3.5(@types/node@25.9.2)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.8.3))
 
   '@vitest/utils@4.1.7':
     dependencies:

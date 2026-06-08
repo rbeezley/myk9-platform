@@ -156,8 +156,10 @@ cross-show page can't take a page-level one); (b) **read** = per-class-row
 broadcasts one slot), so for multi-class groups a secretary sees the exhibitor on the primary
 class — a graceful, advisory-only gap, never a wrong-entity badge. Covered by
 `EntryEditDialog.editAwareness.test.tsx` (incl. a multi-class read case). The two dialogs are
-**not** duplicates (exhibitor pre-deadline self-edit vs staff results/handler edit). Next:
-live two-browser validation, then flip the flag in a follow-up.
+**not** duplicates (exhibitor pre-deadline self-edit vs staff results/handler edit). The flag
+is already flipped (#594) — run the two-browser validation on staging if not yet done.
+**Phase 3 is complete (show + entry, staff + exhibitor). Next major phase: Phase 4 (conflict
+surfacing) — its own track, pre-GA; see `docs/handoffs/2026-06-08-presence-edit-awareness-followups.md`.**
 
 **Goal:** reduce wasted/colliding edits without hard locks.
 

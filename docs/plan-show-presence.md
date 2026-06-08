@@ -128,13 +128,15 @@ Each phase is independently shippable and leaves the app in a better state. Each
 
 ### Phase 3 — Soft edit awareness ("X is editing")
 
-**[STATUS 2026-06-07] — Implemented behind a dark flag (not yet flipped).** Landed:
-`features.showEditAwareness` (dark; env override `VITE_SHOW_EDIT_AWARENESS`), producer
-setters `setEditing`/`clearEditing` on the existing presence channel (`useShowPresence`),
-the `whoIsEditing` selector, the `useEditingPresence` (set-on-open/clear-on-close) and
-`useIsEntityBeingEdited` hooks, and the advisory `<EditingBadge>`. Full unit coverage
-(selector truth table, producer track assertions, badge, cleanup, plus an
-`EditEntryDialog` integration test). **Wired surfaces:** (1) `ShowEditPanel`
+**[STATUS 2026-06-08] — SHIPPED & ENABLED (`features.showEditAwareness: true`).** Landed
+dark in #593 (impl + Codex-found first-mount race fix) and enabled in #594. On the wire:
+producer setters `setEditing`/`clearEditing` on the existing presence channel
+(`useShowPresence`, with a `pendingEditRef` that survives the child-before-parent effect
+ordering on first mount), the `whoIsEditing` selector, the `useEditingPresence`
+(set-on-open/clear-on-close) and `useIsEntityBeingEdited` hooks, and the advisory
+`<EditingBadge>` (`role="status"`, calm amber dot, `// INTENT:`-guarded as advisory-only —
+never a lock, Save stays enabled). Env override `VITE_SHOW_EDIT_AWARENESS`; flip the const
+back to `false` to instantly close it. **Wired surfaces:** (1) `ShowEditPanel`
 (`entityType: 'show'`), already inside a `ShowPresenceProvider`; (2) `EditEntryDialog`
 (`entityType: 'entry'`) on `ClassDetailsPage` — that page is show-scoped (`/shows/:showId/…`)
 so it was wrapped in a `ShowPresenceProvider showId={parentShow?.id}` to host it. **§2
@@ -154,8 +156,10 @@ cross-show page can't take a page-level one); (b) **read** = per-class-row
 broadcasts one slot), so for multi-class groups a secretary sees the exhibitor on the primary
 class — a graceful, advisory-only gap, never a wrong-entity badge. Covered by
 `EntryEditDialog.editAwareness.test.tsx` (incl. a multi-class read case). The two dialogs are
-**not** duplicates (exhibitor pre-deadline self-edit vs staff results/handler edit). Next:
-live two-browser validation, then flip the flag in a follow-up.
+**not** duplicates (exhibitor pre-deadline self-edit vs staff results/handler edit). The flag
+is already flipped (#594) — run the two-browser validation on staging if not yet done.
+**Phase 3 is complete (show + entry, staff + exhibitor). Next major phase: Phase 4 (conflict
+surfacing) — its own track, pre-GA; see `docs/handoffs/2026-06-08-presence-edit-awareness-followups.md`.**
 
 **Goal:** reduce wasted/colliding edits without hard locks.
 

@@ -391,6 +391,21 @@ export class MutationManager {
           continue;
         }
 
+        // Hold uploads for rows with unresolved conflicts. Uploading would either
+        // be immediately OCC-rejected (noisy retry loop) or, if OCC were somehow
+        // bypassed, silently overwrite the remote value the user just accepted via
+        // "Take theirs". The mutation stays in the queue until the user resolves.
+        const replicatedRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+          mutation.tableName,
+          String(mutation.rowId),
+        ])) as ReplicatedRow<unknown> | undefined;
+        if (replicatedRow?.syncStatus === 'conflict') {
+          this.logger.log(
+            `[MutationManager] Skipping ${mutation.id} — ${mutation.tableName}/${mutation.rowId} has unresolved conflict`
+          );
+          continue;
+        }
+
         try {
           const { newServerVersion } = await this.executeMutation(mutation);
           await this.markReplicatedRowSynced(db, mutation, newServerVersion);

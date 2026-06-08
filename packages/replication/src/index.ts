@@ -38,6 +38,11 @@ export type {
 export { ConflictResolver, conflictResolver } from './conflict/ConflictResolver';
 export { ConflictManager, conflictManager } from './conflict/ConflictManager';
 export type { ConflictEvent, ConflictEventType, ConflictStats } from './conflict/ConflictManager';
+export {
+  detectDirtyRowConflict,
+  type DirtyRowConflictInput,
+  type DirtyRowConflictResult,
+} from './conflict/detectDirtyRowConflict';
 
 // Dependency injection interfaces
 export type {

@@ -281,6 +281,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           ? existingRow.version
           : undefined
       : undefined;
+    const shouldPreserveConflict = isDirty && existingRow?.syncStatus === 'conflict';
+    const conflict = shouldPreserveConflict ? existingRow.conflict : undefined;
 
     const row: ReplicatedRow<T> = {
       tableName: this.tableName,
@@ -292,9 +294,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       accessCount: existingRow?.accessCount || 0,
       lastModifiedAt: Date.now(),
       isDirty,
-      syncStatus: isDirty ? 'pending' : 'synced',
+      syncStatus: isDirty ? (shouldPreserveConflict ? 'conflict' : 'pending') : 'synced',
       ...(baseData !== undefined && { baseData }),
       ...(baseVersion !== undefined && { baseVersion }),
+      conflict,
     };
 
     await tx.store.put(row);
@@ -310,19 +313,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   async markConflict(id: string, conflict: ReplicationConflictSnapshot<T>): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
-    const key = [this.tableName, normalizedId];
-    const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
       | ReplicatedRow<T>
       | undefined;
 
-    if (!existingRow) return;
+    if (!existingRow || existingRow.version !== conflict.localVersion) {
+      await tx.done;
+      return;
+    }
 
-    await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+    await tx.store.put({
       ...existingRow,
       isDirty: true,
       syncStatus: 'conflict',
       conflict,
     });
+    await tx.done;
 
     this.notifyListeners();
   }
@@ -330,8 +337,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   async replaceFromRemote(id: string, remoteData: T): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
-    const key = [this.tableName, normalizedId];
-    const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
       | ReplicatedRow<T>
       | undefined;
 
@@ -351,7 +358,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       conflict: undefined,
     };
 
-    await db.put(REPLICATION_STORES.REPLICATED_TABLES, row);
+    await tx.store.put(row);
+    await tx.done;
     this.notifyListeners();
   }
 

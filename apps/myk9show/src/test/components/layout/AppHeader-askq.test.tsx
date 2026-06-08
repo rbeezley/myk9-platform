@@ -2,6 +2,8 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import AppHeader from '@/components/layout/AppHeader';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
+import { AppShellMobileNavProvider } from '@/components/layout/AppShellMobileNavProvider';
+import { useRegisterAppShellMobileNav } from '@/components/layout/useAppShellMobileNav';
 
 vi.mock('@/hooks/useTheme', () => ({
   useTheme: () => ({ theme: 'light', toggleTheme: vi.fn() }),
@@ -50,9 +52,26 @@ vi.mock('@/components/notifications/NotificationBell', () => ({
   NotificationBell: () => null,
 }));
 
+function mockMobileSidebarViewport(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 describe('AppHeader AskQ integration', () => {
   beforeEach(() => {
     useAskQPanelStore.getState().close();
+    mockMobileSidebarViewport(false);
   });
 
   it('renders the AskQ button in the header', () => {
@@ -74,5 +93,65 @@ describe('AppHeader AskQ integration', () => {
     await user.click(screen.getByLabelText('AskQ Assistant'));
 
     expect(useAskQPanelStore.getState().isOpen).toBe(true);
+  });
+
+  it('shows mobile navigation in the app bar when a sidebar registers it', async () => {
+    mockMobileSidebarViewport(true);
+    const openMobileNav = vi.fn();
+
+    function RegisterMobileNav() {
+      useRegisterAppShellMobileNav(openMobileNav, false);
+      return null;
+    }
+
+    const { user } = render(
+      <AppShellMobileNavProvider>
+        <RegisterMobileNav />
+        <AppHeader />
+      </AppShellMobileNavProvider>
+    );
+
+    await user.click(screen.getByLabelText('Open navigation'));
+
+    expect(openMobileNav).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText('Open navigation')).not.toBeInTheDocument();
+  });
+
+  it('hides mobile navigation in the app bar when the sidebar is already open', () => {
+    mockMobileSidebarViewport(true);
+    const openMobileNav = vi.fn();
+
+    function RegisterOpenMobileNav() {
+      useRegisterAppShellMobileNav(openMobileNav, true);
+      return null;
+    }
+
+    render(
+      <AppShellMobileNavProvider>
+        <RegisterOpenMobileNav />
+        <AppHeader />
+      </AppShellMobileNavProvider>
+    );
+
+    expect(screen.queryByLabelText('Open navigation')).not.toBeInTheDocument();
+  });
+
+  it('hides mobile navigation in the app bar on desktop-width viewports', () => {
+    mockMobileSidebarViewport(false);
+    const openMobileNav = vi.fn();
+
+    function RegisterDesktopNav() {
+      useRegisterAppShellMobileNav(openMobileNav, false);
+      return null;
+    }
+
+    render(
+      <AppShellMobileNavProvider>
+        <RegisterDesktopNav />
+        <AppHeader />
+      </AppShellMobileNavProvider>
+    );
+
+    expect(screen.queryByLabelText('Open navigation')).not.toBeInTheDocument();
   });
 });

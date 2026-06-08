@@ -8,7 +8,7 @@
  * Scoring routes render OUTSIDE this layout (full-screen, no sidebar).
  */
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarLayout } from '@/components/layout/SidebarLayout';
 import { RoleSidebar } from '@/components/layout/sidebar';
@@ -19,6 +19,7 @@ import type { RoleScope } from '@/types/auth-types';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
 import { AskQPanel } from '@/components/askq/AskQPanel';
+import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
 import type { ClubContext } from './sidebar/unifiedSidebarConfig';
 
@@ -58,6 +59,8 @@ export const UnifiedAppLayout: React.FC = () => {
     [roles, clubContext, activeShowId]
   );
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
+  const openMobileNav = useCallback(() => setMobileOpen(true), [setMobileOpen]);
+  useRegisterAppShellMobileNav(openMobileNav, mobileOpen);
 
   // Guest users see content without sidebar
   if (!user) {
@@ -80,6 +83,7 @@ export const UnifiedAppLayout: React.FC = () => {
         isCollapsed
         hoverToExpand
         mobileMenuLabel="Navigation"
+        showMobileMenuButton={false}
         mobileOpen={mobileOpen}
         onMobileOpenChange={setMobileOpen}
       >

@@ -514,13 +514,17 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   // syncStatus:'conflict' in IDB — re-dispatching fires the existing
   // handleConflict toast automatically so the resolution prompt reappears.
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !showConflictSurfacingEnabled()) return;
 
     const resurface = async () => {
       for (const { table } of REPLICATED_TABLES) {
-        const conflicts = await (table as ReplicatedTable<{ id: string }>).getConflictedRows();
-        for (const snapshot of conflicts) {
-          window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
+        try {
+          const conflicts = await (table as ReplicatedTable<{ id: string }>).getConflictedRows();
+          for (const snapshot of conflicts) {
+            window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
+          }
+        } catch (err) {
+          logger.warn('Failed to re-surface conflicts for table', 'replication', { err });
         }
       }
     };

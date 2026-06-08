@@ -41,10 +41,14 @@ const hoisted = vi.hoisted(() => {
     waitlist_entries: makeConflictSpy('waitlist_entries'),
   };
 
-  return { authState, unsubscribeSpy, conflictSpies };
+  // Kill-switch: default ON (true) so normal tests exercise the resurface path.
+  // Override per-test with flagEnabled.mockReturnValue(false) to verify suppression.
+  const flagEnabled = vi.fn().mockReturnValue(true);
+
+  return { authState, unsubscribeSpy, conflictSpies, flagEnabled };
 });
 
-const { authState, unsubscribeSpy, conflictSpies } = hoisted;
+const { authState, unsubscribeSpy, conflictSpies, flagEnabled } = hoisted;
 
 // ── module mocks ─────────────────────────────────────────────────────────────
 
@@ -54,6 +58,10 @@ vi.mock('@/lib/notifications', () => ({
 
 vi.mock('@/hooks/useStoreSubscriptions', () => ({
   useStoreSubscriptions: () => undefined,
+}));
+
+vi.mock('@/features/show-presence/conflictSurfacingFlag', () => ({
+  showConflictSurfacingEnabled: hoisted.flagEnabled,
 }));
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
@@ -154,8 +162,6 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
 
 import { ReplicationSyncProvider } from '../ReplicationSyncProvider';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
 function fakeSession(): Session {
   return { access_token: 'tok', user: { id: 'u1' } } as unknown as Session;
 }
@@ -175,13 +181,45 @@ function renderProvider() {
   );
 }
 
+async function triggerAuth(session: Session | null) {
+  await act(async () => {
+    authState.callback?.('INITIAL_SESSION', session);
+  });
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function makeConflictSnapshot(tableName: string) {
+  return {
+    tableName,
+    rowId: 'row-1',
+    fields: ['status'],
+    localData: { id: 'row-1', status: 'checked-in' },
+    remoteData: { id: 'row-1', status: 'absent' },
+    baseData: { id: 'row-1', status: 'no-status' },
+    baseVersion: 1,
+    localVersion: 2,
+    remoteServerVersion: 7,
+    detectedAt: 0,
+  };
+}
+
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
   beforeEach(() => {
     authState.callback = null;
     unsubscribeSpy.mockClear();
-    for (const spy of Object.values(conflictSpies)) spy.mockClear();
+    flagEnabled.mockReturnValue(true);
+    // Reset each spy to its default (one conflict per table).
+    // mockReset() first — previous tests may have overridden the resolved value.
+    for (const [tableName, spy] of Object.entries(conflictSpies)) {
+      spy.mockReset();
+      spy.mockResolvedValue([makeConflictSnapshot(tableName)]);
+    }
   });
 
   it('dispatches replication:conflict for every persisted conflict on auth', async () => {
@@ -195,13 +233,7 @@ describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
     });
 
     renderProvider();
-
-    await act(async () => {
-      authState.callback?.('INITIAL_SESSION', fakeSession());
-    });
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await triggerAuth(fakeSession());
 
     // 9 tables × 1 conflict each = 9 events
     expect(dispatched).toHaveLength(9);
@@ -222,13 +254,7 @@ describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
     });
 
     renderProvider();
-
-    await act(async () => {
-      authState.callback?.('INITIAL_SESSION', null);
-    });
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await triggerAuth(null);
 
     expect(dispatched).toHaveLength(0);
     for (const spy of Object.values(conflictSpies)) {
@@ -250,15 +276,52 @@ describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
     });
 
     renderProvider();
-
-    await act(async () => {
-      authState.callback?.('INITIAL_SESSION', fakeSession());
-    });
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await triggerAuth(fakeSession());
 
     expect(dispatched).toHaveLength(0);
+    vi.restoreAllMocks();
+  });
+
+  it('does not dispatch events when the conflict surfacing flag is off', async () => {
+    flagEnabled.mockReturnValue(false);
+
+    const dispatched: CustomEvent[] = [];
+    vi.spyOn(window, 'dispatchEvent').mockImplementation(e => {
+      if (e instanceof CustomEvent && e.type === 'replication:conflict') dispatched.push(e);
+      return true;
+    });
+
+    renderProvider();
+    await triggerAuth(fakeSession());
+
+    expect(dispatched).toHaveLength(0);
+    for (const spy of Object.values(conflictSpies)) {
+      expect(spy).not.toHaveBeenCalled();
+    }
+
+    vi.restoreAllMocks();
+  });
+
+  it('continues resurfacing remaining tables when one table throws', async () => {
+    // First table (shows) throws — the other 8 should still dispatch their conflicts.
+    conflictSpies.shows.mockRejectedValue(new Error('IDB transaction error'));
+
+    const dispatched: CustomEvent[] = [];
+    vi.spyOn(window, 'dispatchEvent').mockImplementation(e => {
+      if (e instanceof CustomEvent && e.type === 'replication:conflict') dispatched.push(e);
+      return true;
+    });
+
+    renderProvider();
+    await triggerAuth(fakeSession());
+
+    // shows threw → 8 remaining tables × 1 conflict each = 8 events
+    expect(dispatched).toHaveLength(8);
+    // None of the dispatched events should be for the failing table
+    for (const e of dispatched) {
+      expect(e.detail.tableName).not.toBe('shows');
+    }
+
     vi.restoreAllMocks();
   });
 });

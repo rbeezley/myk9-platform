@@ -574,6 +574,8 @@ Expected: PASS.
 
 ## Task 4: Hold Pending Mutations for Conflicted Rows
 
+> **Descoped in [#602](https://github.com/rbeezley/myk9-platform/pull/602) — deferred.** The mutation-hold mechanism (skip upload for rows in `syncStatus: 'conflict'`) was not implemented. `discardPendingMutationsForRow` was added to `MutationManager` for the "Take theirs" toast action, but the upload-skip guard was not wired. This task becomes the second phase of the OCC blocker tracked in `OPEN-TODOS.md § Phase 4 Conflict Surfacing — Pre-Enablement`: once the upload path carries version preconditions and stale writes are rejected, a mutation hold for conflicted rows makes sense to layer in.
+
 **Files:**
 
 - Modify `packages/replication/src/MutationManager.ts`
@@ -695,6 +697,8 @@ cd packages/replication && pnpm typecheck
 Expected: PASS.
 
 ## Task 5: Resolution Helpers
+
+> **Partially shipped in [#602](https://github.com/rbeezley/myk9-platform/pull/602).** `clearConflict()` (keep-mine) and `replaceFromRemote()` (take-theirs) are live on `ReplicatedTable`, and `discardPendingMutationsForRow()` is live on `MutationManager`. What remains deferred: `resolveReplicationConflict(id, resolution)` unified API, `getConflictedRows()` for re-prompting on mount, and the conflict registry described in Task 7. The inline toast in `ReplicationSyncProvider` calls the shipped primitives directly. Implement the unified API and `getConflictedRows` when the OCC blocker (Task 4) is resolved and the feature is ready to enable.
 
 **Files:**
 
@@ -908,6 +912,8 @@ pnpm typecheck
 Expected: PASS.
 
 ## Task 7: Calm Global Conflict UI
+
+> **Descoped in [#602](https://github.com/rbeezley/myk9-platform/pull/602) — simplified.** `ReplicationConflictListener`, `ReplicationConflictReviewDialog`, and the conflict registry described here were replaced with inline Sonner toast handling directly in `ReplicationSyncProvider.tsx`. The persistent toast (`duration: Infinity`) with "Take theirs" / "Keep mine" actions calls the shipped `clearConflict` / `replaceFromRemote` / `discardPendingMutationsForRow` primitives. The structured listener + registry + review dialog remain as the upgrade path when the flag is enabled at scale and a richer review surface is warranted.
 
 **Files:**
 

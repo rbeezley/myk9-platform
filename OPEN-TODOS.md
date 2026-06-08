@@ -4,6 +4,16 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Phase 4 Conflict Surfacing — Pre-Enablement
+
+PR [#602](https://github.com/rbeezley/myk9-platform/pull/602) ships conflict-surfacing dark (`features.showConflictSurfacing: false`). The following must be resolved before the flag is set to `true`.
+
+- [ ] **[BLOCKER] Fix upload-before-download ordering — OCC required** — `syncReplicatedTable.ts:64` calls `uploadPendingMutations()` before the download/detection loop. On reconnect, `MutationManager.ts:455` unconditionally writes the local value to the server and then `markReplicatedRowSynced` clears `isDirty` + `baseData` — so the detector sees a clean row and skips. The canonical "two users edited the same field offline" case is silently LWW-resolved at the DB before detection ever runs. **Fix path:** add optimistic concurrency control (OCC) to the server write: the UPDATE must carry `WHERE version = baseVersion` (or an `updated_at` precondition). A rejected stale write leaves the row dirty so the download loop can detect the collision. Requires either a `version` column migration on replicated tables or adopting `updated_at` as the OCC precondition. Task 4 in the plan doc covers the mutation-hold side of this work.
+
+- [ ] **Two-browser smoke validation** — With `VITE_SHOW_CONFLICT_SURFACING=true`, open the same entry in two tabs, edit the same field offline in both, reconnect → conflict toast must appear. This is the manual proof that the OCC blocker above is resolved. Run against staging before flipping `features.showConflictSurfacing: true` in production config.
+
+---
+
 ## Platform Unification — myK9Show + myK9Q
 
 - [ ] **Disable/delete monorepo myK9Q Vercel project** — After PR #570 merges, disable or delete the unused `myk9-platform-myk9q` Vercel project so monorepo myK9Show changes no longer trigger stale/failing myK9Q deploys. This is a shared-system mutation and requires separate explicit approval at execution time. Do **not** touch the separate myK9Qv3 repository or production `myk9q.com`.

@@ -62,13 +62,14 @@ export const features = {
   showEditAwareness: true,
 
   // Phase 4 conflict surfacing (docs/plan-show-presence.md §6 Phase 4 + §12).
-  // KILL SWITCH — OFF until dark-launched and conflict-rate metric looks sane.
+  // KILL SWITCH — smoke-tested 2026-06-08; enabled after toast + both resolution
+  // paths (keep-mine/take-theirs) confirmed correct in live browser smoke test.
   // When on, same-field collisions at the replication sync chokepoint surface as
-  // `replication:conflict` window events and a <ConflictBanner> prompts reconcile.
+  // `replication:conflict` window events and a persistent Sonner toast prompts reconcile.
   // Covers ALL replicated tables (entries, classes, shows, dogs, …) automatically.
   // Rollback = flip to false; existing field-merge/LWW path is byte-for-byte unchanged.
   // Env override: VITE_SHOW_CONFLICT_SURFACING=true (for E2E / manual smoke).
-  showConflictSurfacing: false,
+  showConflictSurfacing: true,
 } as const;
 
 export type Features = typeof features;

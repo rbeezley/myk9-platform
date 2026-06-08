@@ -4,13 +4,23 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
-## Phase 4 Conflict Surfacing — Pre-Enablement
+## Phase 4 Conflict Surfacing — Shipped 2026-06-08
 
-PR [#602](https://github.com/rbeezley/myk9-platform/pull/602) ships conflict-surfacing dark (`features.showConflictSurfacing: false`). The following must be resolved before the flag is set to `true`.
+PRs [#602](https://github.com/rbeezley/myk9-platform/pull/602) (detection primitives) + [#603](https://github.com/rbeezley/myk9-platform/pull/603) (OCC version preconditions + test fixes) + [#604](https://github.com/rbeezley/myk9-platform/pull/604) (flag enable). `features.showConflictSurfacing: true` as of 2026-06-08.
 
-- [ ] **[BLOCKER] Fix upload-before-download ordering — OCC required** — `syncReplicatedTable.ts:64` calls `uploadPendingMutations()` before the download/detection loop. On reconnect, `MutationManager.ts:455` unconditionally writes the local value to the server and then `markReplicatedRowSynced` clears `isDirty` + `baseData` — so the detector sees a clean row and skips. The canonical "two users edited the same field offline" case is silently LWW-resolved at the DB before detection ever runs. **Fix path:** add optimistic concurrency control (OCC) to the server write: the UPDATE must carry `WHERE version = baseVersion` (or an `updated_at` precondition). A rejected stale write leaves the row dirty so the download loop can detect the collision. Requires either a `version` column migration on replicated tables or adopting `updated_at` as the OCC precondition. Task 4 in the plan doc covers the mutation-hold side of this work.
+- [x] ~~**[BLOCKER] Fix upload-before-download ordering — OCC required**~~ — Resolved 2026-06-08 by PR [#603](https://github.com/rbeezley/myk9-platform/pull/603): `MutationManager` uploads now carry a `WHERE version = <baseVersion>` OCC precondition; a stale write is rejected (0-row result = conflict), leaving the row dirty for the download loop to detect. Server trigger auto-increments `version` on each accepted write.
+- [x] ~~**Two-browser smoke validation**~~ — Completed 2026-06-08 in this session. Synthetic `replication:conflict` event dispatch confirmed the Sonner toast appears; "Keep mine" (clears conflict state + updates server version) and "Take theirs" (replaces local data + discards pending mutation) both confirmed correct in live browser. Flag flipped `true` in PR [#604](https://github.com/rbeezley/myk9-platform/pull/604).
 
-- [ ] **Two-browser smoke validation** — With `VITE_SHOW_CONFLICT_SURFACING=true`, open the same entry in two tabs, edit the same field offline in both, reconnect → conflict toast must appear. This is the manual proof that the OCC blocker above is resolved. Run against staging before flipping `features.showConflictSurfacing: true` in production config.
+---
+
+## Phase 4 Conflict Surfacing — Deferred Polish
+
+Descoped from the shipped #602–#604 MVP. Not blockers for the enabled flag; build when the need surfaces.
+
+- [ ] **Mount-time conflict re-prompt (`getConflictedRows()`)** — Conflicts navigated away from do not re-surface on the next visit; the row stays `syncStatus: 'conflict'` but no toast re-fires. Add `getConflictedRows()` to `ReplicatedTable<T>` and wire `ReplicationSyncProvider` to re-emit `replication:conflict` events for any persisted conflict row on provider mount. Plan doc: `docs/plan-show-presence-phase-4-conflict-surfacing.md` §Task 5.
+- [ ] **Mutation-hold for conflicted rows (Task 4)** — OCC prevents the stale upload from landing silently, but the pending mutation for a row in `syncStatus: 'conflict'` still attempts upload on every sync cycle (and fails) until the user resolves. Add an upload-skip guard in `MutationManager.uploadPendingMutations` for rows whose `syncStatus === 'conflict'` so the queue stays quiet until resolution. Plan doc §Task 4.
+- [ ] **Two-context Playwright E2E spec** — The 2026-06-08 validation was manual. Add a Playwright two-context spec (two browser contexts on the same show) that proves same-field offline edits in both contexts surface a conflict toast on reconnect. Plan doc §Task 8 "Automated multi-client E2E."
+- [ ] **`resolveReplicationConflict()` unified API** — The inline toast calls `clearConflict` / `replaceFromRemote` / `discardPendingMutationsForRow` directly. Wrap into a `resolveReplicationConflict(id, resolution: 'keep-mine' | 'take-theirs')` helper + `getConflictedRows()` query for any future conflict registry or richer review dialog. Plan doc §Task 5.
 
 ---
 

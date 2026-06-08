@@ -139,12 +139,21 @@ the `whoIsEditing` selector, the `useEditingPresence` (set-on-open/clear-on-clos
 (`entityType: 'entry'`) on `ClassDetailsPage` — that page is show-scoped (`/shows/:showId/…`)
 so it was wrapped in a `ShowPresenceProvider showId={parentShow?.id}` to host it. **§2
 entry-level acceptance is met:** two staff opening the same `EditEntryDialog` each see the
-other's badge — both key on the same `entries.id`. **Deferred (verify first):** the
-*exhibitor*-side `EntryEditDialog` lives on the **cross-show** `MyEntriesPage` (`/my-entries`,
-no single show), so it can't take a page-level provider. Letting it join the
-*exhibitor↔secretary* cross-surface case needs (a) a per-dialog provider scoped to
-`entry.showId` and (b) confirming `EntryData.id === entries.id` (the id the secretary side
-keys on) — unverified, so not wired here to avoid a silent id-mismatch. The two dialogs are
+other's badge — both key on the same `entries.id`. (3) **[ADDED 2026-06-07]** the
+*exhibitor*-side `EntryEditDialog` on the **cross-show** `MyEntriesPage` now also participates,
+closing the *exhibitor↔secretary* cross-surface case. **Id-equality finding:** `EntryData.id`
+is **not** a safe shared key — `groupEntriesByShowAndDog` collapses a dog's N class rows into
+one card whose `id` is only the **first** row's `entries.id`, so a single header badge keyed on
+it would silently miss a secretary editing any non-first class. The correct shared id space is
+the **per-class** `EntryClass.id` (each *is* a real `entries.id`; proven by the save path and
+`EntryEditDialog.test.tsx:122`). Wiring respects that and the single `editing` slot per user:
+(a) a per-dialog `ShowPresenceProvider showId={entry.showId}` wraps just the open dialog (the
+cross-show page can't take a page-level one); (b) **read** = per-class-row
+`<EditingBadge entityId={classEntry.id}>`, exact for every class; (c) **write** =
+`useEditingPresence('entry', entry.id)` advertises the group's *primary* id only (the model
+broadcasts one slot), so for multi-class groups a secretary sees the exhibitor on the primary
+class — a graceful, advisory-only gap, never a wrong-entity badge. Covered by
+`EntryEditDialog.editAwareness.test.tsx` (incl. a multi-class read case). The two dialogs are
 **not** duplicates (exhibitor pre-deadline self-edit vs staff results/handler edit). Next:
 live two-browser validation, then flip the flag in a follow-up.
 

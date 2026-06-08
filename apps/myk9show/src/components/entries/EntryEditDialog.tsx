@@ -46,6 +46,8 @@ import {
 } from '@/services/database/entries';
 import { logger } from '@/services/LoggingService';
 import { disciplineUsesJumpHeight } from '@/types/template.types';
+import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
+import { EditingBadge } from '@/features/show-presence/EditingBadge';
 
 interface EntryClass {
   id: string;
@@ -96,6 +98,19 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
     classId: string | null;
     className: string | null;
   }>({ open: false, classId: null, className: null });
+
+  // Phase 3 soft edit-awareness (docs/plan-show-presence.md §6): advertise that
+  // this exhibitor has this entry open so a secretary editing the SAME row on
+  // ClassDetailsPage sees the "X is editing this" heads-up. The presence payload
+  // carries a single `editing` slot, but this card groups MULTIPLE class rows
+  // (each EntryClass.id is its own entries.id). We can only broadcast one, so we
+  // advertise the group's primary id (entry.id === classes[0].id, a real
+  // entries.id). The READ side is per-row (see EditingBadge below) and so covers
+  // every class exactly; only this WRITE side is limited to the primary class for
+  // multi-class groups — a graceful, advisory-only gap (never a wrong-entity
+  // badge). No-op unless mounted under a ShowPresenceProvider (MyEntriesPage wraps
+  // the open dialog) and the edit-awareness flag is live.
+  useEditingPresence('entry', open && entry.id ? entry.id : undefined);
 
   // Check if modifications are allowed when dialog opens
   useEffect(() => {
@@ -321,6 +336,16 @@ export function EntryEditDialog({ open, onOpenChange, entry, onUpdate }: EntryEd
                             </Button>
                           )}
                         </div>
+
+                        {/* Advisory heads-up if a secretary already has THIS class
+                          row's entry open on ClassDetailsPage. Keyed on the per-class
+                          entries.id (not the grouped card id) so it matches the
+                          secretary's surface exactly, for every class in the group. */}
+                        <EditingBadge
+                          entityType="entry"
+                          entityId={classEntry.id}
+                          className="mt-2"
+                        />
 
                         <div className="mt-3 space-y-1.5">
                           <Label htmlFor={`handler-${classEntry.id}`} className="text-sm">

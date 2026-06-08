@@ -509,6 +509,29 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     return () => window.removeEventListener('replication:conflict', handleConflict);
   }, []);
 
+  // Re-surface persisted conflicts from previous sessions when the user
+  // authenticates.  A conflict navigated away from before resolving stays
+  // syncStatus:'conflict' in IDB — re-dispatching fires the existing
+  // handleConflict toast automatically so the resolution prompt reappears.
+  useEffect(() => {
+    if (!isAuthenticated || !showConflictSurfacingEnabled()) return;
+
+    const resurface = async () => {
+      for (const { table } of REPLICATED_TABLES) {
+        try {
+          const conflicts = await (table as ReplicatedTable<{ id: string }>).getConflictedRows();
+          for (const snapshot of conflicts) {
+            window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
+          }
+        } catch (err) {
+          logger.warn('Failed to re-surface conflicts for table', 'replication', { err });
+        }
+      }
+    };
+
+    void resurface();
+  }, [isAuthenticated]);
+
   // Expose diagnostic helpers on window for browser console debugging
   useEffect(() => {
     const diag = {

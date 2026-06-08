@@ -418,6 +418,82 @@ describe('ReplicatedTable', () => {
     });
   });
 
+  describe('getConflictedRows', () => {
+    const makeSnapshot = (version: number) => ({
+      tableName: '',
+      rowId: '1',
+      fields: ['status'],
+      localData: { id: '1', name: 'Rex', status: 'checked-in' },
+      remoteData: { id: '1', name: 'Rex', status: 'absent' },
+      baseData: { id: '1', name: 'Rex', status: 'ready' },
+      baseVersion: 1,
+      localVersion: version,
+      remoteServerVersion: 5,
+      detectedAt: 1,
+    });
+
+    it('returns empty array when no rows exist', async () => {
+      expect(await table.getConflictedRows()).toEqual([]);
+    });
+
+    it('returns empty array when rows exist but none are conflicted', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      expect(await table.getConflictedRows()).toEqual([]);
+    });
+
+    it('returns the conflict snapshot for a row in syncStatus:conflict', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const row = await table.getReplicatedRow('1');
+      const snapshot = { ...makeSnapshot(row!.version), tableName: table.getTableName() };
+
+      await table.markConflict('1', snapshot);
+
+      const conflicts = await table.getConflictedRows();
+      expect(conflicts).toHaveLength(1);
+      expect(conflicts[0]).toMatchObject({
+        rowId: '1',
+        fields: ['status'],
+        remoteServerVersion: 5,
+      });
+    });
+
+    it('returns snapshots for all conflicted rows and excludes non-conflicted ones', async () => {
+      // Row 1: conflicted
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const row1 = await table.getReplicatedRow('1');
+      await table.markConflict('1', { ...makeSnapshot(row1!.version), tableName: table.getTableName(), rowId: '1' });
+
+      // Row 2: just pending (not conflicted)
+      await table.set('2', { id: '2', name: 'Buddy', status: 'ready' });
+      await table.set('2', { id: '2', name: 'Buddy', status: 'checked-in' }, true);
+
+      // Row 3: conflicted
+      await table.set('3', { id: '3', name: 'Max', status: 'ready' });
+      await table.set('3', { id: '3', name: 'Max', status: 'checked-in' }, true);
+      const row3 = await table.getReplicatedRow('3');
+      await table.markConflict('3', { ...makeSnapshot(row3!.version), tableName: table.getTableName(), rowId: '3' });
+
+      const conflicts = await table.getConflictedRows();
+      expect(conflicts).toHaveLength(2);
+      const ids = conflicts.map(c => c.rowId).sort();
+      expect(ids).toEqual(['1', '3']);
+    });
+
+    it('returns empty after clearConflict resolves the row', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const row = await table.getReplicatedRow('1');
+      await table.markConflict('1', { ...makeSnapshot(row!.version), tableName: table.getTableName() });
+
+      await table.clearConflict('1');
+
+      expect(await table.getConflictedRows()).toEqual([]);
+    });
+  });
+
   describe('getAll', () => {
     it('should return empty array when no data', async () => {
       const results = await table.getAll();

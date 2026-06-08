@@ -131,7 +131,10 @@ export {
 export { ReplicatedTableCacheManager } from './core/ReplicatedTableCache';
 export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
-export { syncReplicatedTable } from './syncReplicatedTable';
+export {
+  syncReplicatedTable,
+  configureConflictSurfacing,
+} from './syncReplicatedTable';
 export type {
   RemoteFetchContext,
   SyncReplicatedTableAdapter,

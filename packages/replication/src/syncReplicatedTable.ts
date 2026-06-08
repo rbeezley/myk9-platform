@@ -1,5 +1,6 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
-import type { SyncOptions, SyncResult } from './types';
+import type { ReplicationConflictSnapshot, SyncOptions, SyncResult } from './types';
+import { detectDirtyRowConflict } from './conflict/detectDirtyRowConflict';
 
 export interface SyncScope {
   /**
@@ -41,6 +42,36 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
 export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
   uploadPendingMutations?: () => Promise<unknown>;
   incrementalBufferMs?: number;
+  /** Phase 4 kill switch (docs/plan-show-presence.md §12). When false (default),
+   *  same-field collisions are silently resolved last-write-wins, matching the
+   *  pre-Phase-4 behavior exactly. Flip to true to surface conflicts as
+   *  `replication:conflict` events instead.
+   *
+   *  Per-call override takes precedence over `configureConflictSurfacing()`. */
+  conflictSurfacingEnabled?: boolean;
+}
+
+/**
+ * Module-level Phase 4 kill switch — set once at app startup via
+ * `configureConflictSurfacing(true)`. Individual `syncReplicatedTable` call-sites
+ * can still override with the per-call `conflictSurfacingEnabled` option.
+ *
+ * @see configureConflictSurfacing
+ */
+let _conflictSurfacingEnabled = false;
+
+/**
+ * Configure whether same-field collisions are surfaced globally.
+ * Call this once during app boot (e.g. in ReplicationSyncProvider) after reading
+ * the app-level feature flag. Prefer the per-call option in tests.
+ */
+export function configureConflictSurfacing(enabled: boolean): void {
+  _conflictSurfacingEnabled = enabled;
+}
+
+/** Reset to default (false). For test cleanup only. */
+export function _resetConflictSurfacingForTests(): void {
+  _conflictSurfacingEnabled = false;
 }
 
 export async function syncReplicatedTable<TRemote, TLocal extends { id: string }>(
@@ -97,6 +128,38 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       }
 
       if (existing?.isDirty) {
+        // Phase 4: detect same-field collisions when the flag is on and we have a
+        // clean base snapshot to diff against. If fields overlap → surface the
+        // conflict; the row is held dirty and the user must reconcile. Non-overlapping
+        // fields fall through to mergeDirtyRow as before.
+        const surfaceConflicts = options.conflictSurfacingEnabled ?? _conflictSurfacingEnabled;
+        if (surfaceConflicts && existing.baseData !== undefined) {
+          const detection = detectDirtyRowConflict({
+            base: existing.baseData,
+            local: existing.data,
+            remote: remoteLocal,
+          });
+          if (detection.hasConflict) {
+            const snapshot: ReplicationConflictSnapshot<TLocal> = {
+              tableName: table.getTableName(),
+              rowId: id,
+              fields: detection.fields,
+              localData: existing.data,
+              remoteData: remoteLocal,
+              baseData: existing.baseData,
+              baseVersion: existing.baseVersion ?? 0,
+              localVersion: existing.version,
+              detectedAt: Date.now(),
+            };
+            await table.markConflict(id, snapshot);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
+            }
+            rowsAffected++;
+            continue;
+          }
+        }
+
         if (adapter.mergeDirtyRow) {
           const merged = adapter.mergeDirtyRow(existing.data, remoteLocal);
           await table.set(id, { ...merged, id } as TLocal, true);

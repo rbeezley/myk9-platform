@@ -21,7 +21,15 @@ import {
   ReplicationSyncContext,
   type ReplicationSyncContextValue,
 } from '@/context/ReplicationSyncContext';
-import { MutationManager, SYNC_INTERVAL_MS } from '@myk9/replication';
+import {
+  MutationManager,
+  SYNC_INTERVAL_MS,
+  ReplicatedTable,
+  configureConflictSurfacing,
+  type ReplicationConflictEventDetail,
+} from '@myk9/replication';
+import { toast } from 'sonner';
+import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { supabase } from '@/services/database/supabaseClient';
 
 // Import replicated table singletons
@@ -92,6 +100,10 @@ const mutationManager = new MutationManager(supabase, { logger: replicationLogge
 for (const { table } of REPLICATED_TABLES) {
   table.setMutationManager(mutationManager);
 }
+
+// Configure Phase 4 conflict surfacing at module load — evaluated once so the
+// flag state at startup governs the full session (consistent with kill-switch use).
+configureConflictSurfacing(showConflictSurfacingEnabled());
 
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
   children,
@@ -431,6 +443,51 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     window.addEventListener('replication:sync-failed', handleSyncFailed);
     return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);
+  }, []);
+
+  // Phase 4: surface same-field replication conflicts as persistent toasts.
+  // Upholds the §2.5 hard guarantee — no silent data loss on any replicated table.
+  // The toast ID deduplicates re-fires from repeated sync cycles on the same row.
+  useEffect(() => {
+    const handleConflict = (event: Event) => {
+      const detail = (event as CustomEvent<ReplicationConflictEventDetail>).detail;
+      const conflictId = `conflict:${detail.tableName}:${detail.rowId}`;
+
+      logger.warn('Replication conflict detected', 'replication', {
+        tableName: detail.tableName,
+        rowId: detail.rowId,
+        fields: detail.fields,
+      });
+
+      const tableConfig = REPLICATED_TABLES.find(t => t.name === detail.tableName);
+
+      toast.warning('This record was changed elsewhere', {
+        id: conflictId,
+        // INTENT: Conflict toasts persist until the user makes an explicit choice.
+        // See docs/plan-show-presence.md §7 conflict-state lifecycle.
+        duration: Infinity,
+        description: `${detail.fields.length === 1 ? 'Field' : 'Fields'} changed: ${detail.fields.join(', ')}`,
+        action: {
+          label: 'Take theirs',
+          onClick: () => {
+            if (tableConfig) {
+              void (tableConfig.table as ReplicatedTable<{ id: string }>).replaceFromRemote(
+                detail.rowId,
+                detail.remoteData as { id: string }
+              );
+            }
+            toast.dismiss(conflictId);
+          },
+        },
+        cancel: {
+          label: 'Keep mine',
+          onClick: () => toast.dismiss(conflictId),
+        },
+      });
+    };
+
+    window.addEventListener('replication:conflict', handleConflict);
+    return () => window.removeEventListener('replication:conflict', handleConflict);
   }, []);
 
   // Expose diagnostic helpers on window for browser console debugging

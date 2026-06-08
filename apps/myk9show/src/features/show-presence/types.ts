@@ -8,6 +8,12 @@
 
 export type PresenceActivity = 'viewing' | 'scoring' | 'editing' | 'checking-in';
 
+/** The entity a user currently has open for editing (drives Phase 3 awareness). */
+export interface EditTarget {
+  entityType: string;
+  entityId: string;
+}
+
 export interface PresenceLocation {
   /** Current route path, e.g. '/at-show/ring/3'. */
   page: string;
@@ -25,7 +31,7 @@ export interface ShowPresence {
   location: PresenceLocation;
   activity: PresenceActivity;
   /** Set while this user has an entity's edit surface open (drives Phase 3). */
-  editing?: { entityType: string; entityId: string };
+  editing?: EditTarget;
   /** Epoch ms of the last track; used to pick the latest meta when deduping. */
   ts: number;
 }

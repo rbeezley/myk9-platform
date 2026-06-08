@@ -5,6 +5,8 @@ import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types
 import { showToFormData, formDataToShowSaveData } from './ShowEditPanel.helpers';
 import { showSchemas } from '@/lib/validation';
 import { ShowEditForm } from './ShowEditForm';
+import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
+import { EditingBadge } from '@/features/show-presence/EditingBadge';
 
 // Cast needed: Zod's .optional() outputs `T | undefined` in its _output type,
 // but exactOptionalPropertyTypes treats `field?: T` as "T when present, absent otherwise".
@@ -15,11 +17,18 @@ const showEditSchema = showSchemas.edit as unknown as z.ZodSchema<ShowEditFormDa
 export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
   open,
   onClose,
+  showId,
   showName,
   initialShowData,
   onSave,
   enableAutoSave = false,
 }) => {
+  // Phase 3 soft edit-awareness: advertise that this user has the show's edit
+  // surface open — but ONLY while the panel is open (closed → undefined clears the
+  // advisory). Rides the show presence channel; a clean no-op outside a
+  // ShowPresenceProvider (e.g. when this panel is reused in ClubDetails).
+  useEditingPresence('show', open ? showId : undefined);
+
   // Convert show data to form data
   const initialFormData = useMemo(() => showToFormData(initialShowData), [initialShowData]);
 
@@ -48,6 +57,8 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
       saveLabel="Save Changes"
       cancelLabel="Cancel"
     >
+      {/* Advisory heads-up if another staff member already has this show open. */}
+      <EditingBadge entityType="show" entityId={showId} className="mb-3" />
       <ShowEditForm />
     </EditPanelWrapper>
   );

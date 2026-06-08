@@ -5,9 +5,17 @@
  */
 
 import { useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/common/FormField';
+import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
+import { EditingBadge } from '@/features/show-presence/EditingBadge';
 import type { ShowEntry } from './types';
 
 interface Dog {
@@ -35,10 +43,16 @@ export function EditEntryDialog({
 }: EditEntryDialogProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
+  // Phase 3 soft edit-awareness: advertise that this user has this entry open for
+  // editing — but only while the dialog is actually open. Rides the show presence
+  // channel; a clean no-op unless this dialog is mounted under a ShowPresenceProvider
+  // (it is on ClassDetailsPage; it is not on the cross-show MyEntriesPage).
+  useEditingPresence('entry', open && entryId ? entryId : undefined);
+
   const entry = entryId
-    ? (rawEntries.find((e) => (e as ShowEntry).id === entryId) as ShowEntry | undefined)
+    ? (rawEntries.find(e => (e as ShowEntry).id === entryId) as ShowEntry | undefined)
     : undefined;
-  const dog = entry ? dogs.find((d) => d.id === entry.dogId) : undefined;
+  const dog = entry ? dogs.find(d => d.id === entry.dogId) : undefined;
 
   const handleSave = () => {
     if (!formRef.current || !entry) return;
@@ -67,6 +81,8 @@ export function EditEntryDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Entry & Results</DialogTitle>
+          {/* Advisory heads-up if another staff member already has this entry open. */}
+          {entryId && <EditingBadge entityType="entry" entityId={entryId} />}
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto space-y-4">
           {!entry ? (
@@ -76,9 +92,7 @@ export function EditEntryDialog({
               {/* Entry Info Header */}
               <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
                 <div>
-                  <h3 className="font-semibold">
-                    {dog?.callName || dog?.name || 'Unknown Dog'}
-                  </h3>
+                  <h3 className="font-semibold">{dog?.callName || dog?.name || 'Unknown Dog'}</h3>
                   <p className="text-sm text-muted-foreground">Entry ID: {entry.id}</p>
                 </div>
               </div>
@@ -158,7 +172,9 @@ export function EditEntryDialog({
                     <select
                       id="status"
                       name="status"
-                      defaultValue={entry.competitionData?.qualified ? 'Qualified' : 'Not Qualified'}
+                      defaultValue={
+                        entry.competitionData?.qualified ? 'Qualified' : 'Not Qualified'
+                      }
                       className="w-full px-3 py-2 border rounded-md text-sm"
                     >
                       <option value="Qualified">Qualified</option>

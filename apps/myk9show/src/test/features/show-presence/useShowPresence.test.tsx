@@ -24,6 +24,13 @@ vi.mock('@/utils/realtimeOptimization', () => ({
 
 vi.mock('@/config/features', () => ({ features: { showPresence: true } }));
 
+// Phase 3 producer setters gate on the edit-awareness kill switch; control it
+// here without depending on the features const. Default ON; flipped per-test.
+const enabledEditAwareness = vi.fn(() => true);
+vi.mock('@/features/show-presence/editAwarenessFlag', () => ({
+  showEditAwarenessEnabled: () => enabledEditAwareness(),
+}));
+
 // Identity is resolved upstream (useLocalPresenceIdentity) and injected, so the
 // engine takes no auth dependency — these tests pass it directly.
 const IDENTITY = { userId: 'u1', name: 'Mariana', role: 'exhibitor' };
@@ -45,6 +52,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 beforeEach(() => {
   vi.clearAllMocks();
+  enabledEditAwareness.mockReturnValue(true);
   (features as { showPresence: boolean }).showPresence = true;
   vi.mocked(supabase.channel).mockImplementation((name: string) => {
     lastChannel = {
@@ -213,5 +221,40 @@ describe('useShowPresence', () => {
     (features as { showPresence: boolean }).showPresence = false;
     renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
     expect(supabase.channel).not.toHaveBeenCalled();
+  });
+});
+
+describe('useShowPresence edit-awareness producer (Phase 3)', () => {
+  it('setEditing mutates the tracked payload and re-tracks with the editing slot', () => {
+    const { result } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
+    lastChannel.track.mockClear(); // ignore the mount-time track
+
+    act(() => result.current.setEditing({ entityType: 'entry', entityId: 'e1' }));
+
+    expect(lastChannel.track).toHaveBeenCalledWith(
+      expect.objectContaining({ editing: { entityType: 'entry', entityId: 'e1' } })
+    );
+  });
+
+  it('clearEditing removes the editing slot and re-tracks without it', () => {
+    const { result } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
+    act(() => result.current.setEditing({ entityType: 'entry', entityId: 'e1' }));
+    lastChannel.track.mockClear();
+
+    act(() => result.current.clearEditing());
+
+    expect(lastChannel.track).toHaveBeenCalledTimes(1);
+    const tracked = lastChannel.track.mock.calls[0]![0] as { editing?: unknown };
+    expect(tracked.editing).toBeUndefined();
+  });
+
+  it('setEditing is inert when edit-awareness is dark (broadcasts no editing)', () => {
+    enabledEditAwareness.mockReturnValue(false);
+    const { result } = renderHook(() => useShowPresence('s1', IDENTITY), { wrapper });
+    lastChannel.track.mockClear();
+
+    act(() => result.current.setEditing({ entityType: 'entry', entityId: 'e1' }));
+
+    expect(lastChannel.track).not.toHaveBeenCalled();
   });
 });

@@ -6,11 +6,24 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { ShowPresence } from './types';
+import type { EditTarget, ShowPresence } from './types';
 
 export interface ShowPresenceContextValue {
   /** Who's here, already filtered for the local viewer's role. */
   present: ShowPresence[];
+  /**
+   * The local viewer's id, so edit-awareness selectors can exclude self (a user
+   * never sees their own "editing" badge). Undefined outside a provider / when
+   * presence is off (Phase 3). Explicit `| undefined` because the provider passes
+   * the value through unconditionally and exactOptionalPropertyTypes is on.
+   */
+  viewerId?: string | undefined;
+  /**
+   * Producer setters for soft edit-awareness (Phase 3). Undefined outside a
+   * provider, so panel hooks degrade to a clean no-op rather than throwing.
+   */
+  setEditing?: (target: EditTarget) => void;
+  clearEditing?: () => void;
 }
 
 const EMPTY: ShowPresenceContextValue = { present: [] };

@@ -98,7 +98,7 @@
     "@myk9/supabase": "workspace:*",
     "@myk9/ui": "workspace:*",
     "@react-pdf/renderer": "^4.5.1",
-    "@supabase/supabase-js": "^2.106.2",
+    "@supabase/supabase-js": "^2.107.0",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-table": "^8.21.3",
     "@tiptap/react": "^3.24.0",

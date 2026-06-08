@@ -26,7 +26,7 @@
     "generate-types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.2"
+    "@supabase/supabase-js": "^2.107.0"
   },
   "devDependencies": {
     "@myk9/core": "workspace:*",

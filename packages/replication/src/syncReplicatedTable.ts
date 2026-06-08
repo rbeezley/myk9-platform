@@ -151,9 +151,14 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
               localVersion: existing.version,
               detectedAt: Date.now(),
             };
-            await table.markConflict(id, snapshot);
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
+            const marked = await table.markConflict(id, snapshot);
+            if (marked) {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('replication:conflict', { detail: snapshot })
+                );
+              }
+              conflictsResolved++;
             }
             rowsAffected++;
             continue;

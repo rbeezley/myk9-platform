@@ -245,6 +245,7 @@ describe('syncReplicatedTable', () => {
         isDirty: true,
       });
       expect(result.rowsAffected).toBe(1);
+      expect(result.conflictsResolved).toBe(1);
     });
 
     it('does not conflict when local and remote changed different fields (field-merge path preserved)', async () => {

@@ -18,6 +18,7 @@
 import { features } from '@/config/features';
 
 export function showConflictSurfacingEnabled(): boolean {
+  if (import.meta.env?.VITE_SHOW_CONFLICT_SURFACING === 'false') return false;
   return (
     features.showConflictSurfacing || import.meta.env?.VITE_SHOW_CONFLICT_SURFACING === 'true'
   );

@@ -460,6 +460,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       });
 
       const tableConfig = REPLICATED_TABLES.find(t => t.name === detail.tableName);
+      const anyTable = tableConfig?.table as ReplicatedTable<{ id: string }> | undefined;
 
       toast.warning('This record was changed elsewhere', {
         id: conflictId,
@@ -470,10 +471,13 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         action: {
           label: 'Take theirs',
           onClick: () => {
-            if (tableConfig) {
-              void (tableConfig.table as ReplicatedTable<{ id: string }>).replaceFromRemote(
-                detail.rowId,
-                detail.remoteData as { id: string }
+            // Replace local row with remote data AND discard the pending mutation
+            // that would re-upload the old local value on the next sync.
+            if (anyTable) {
+              void anyTable.replaceFromRemote(detail.rowId, detail.remoteData as { id: string });
+              void mutationManager.discardPendingMutationsForRow(
+                detail.tableName,
+                detail.rowId
               );
             }
             toast.dismiss(conflictId);
@@ -481,7 +485,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         },
         cancel: {
           label: 'Keep mine',
-          onClick: () => toast.dismiss(conflictId),
+          onClick: () => {
+            // Explicitly resolve: clear the conflict snapshot, reset to 'pending'
+            // so the local mutation uploads on the next sync cycle.
+            void anyTable?.clearConflict(detail.rowId);
+            toast.dismiss(conflictId);
+          },
         },
       });
     };

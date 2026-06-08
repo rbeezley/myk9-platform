@@ -310,7 +310,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     this.notifyListeners();
   }
 
-  async markConflict(id: string, conflict: ReplicationConflictSnapshot<T>): Promise<void> {
+  /** Returns true when the conflict was written; false if the version changed
+   *  under us (row edited concurrently — stale snapshot, safe to ignore). */
+  async markConflict(id: string, conflict: ReplicationConflictSnapshot<T>): Promise<boolean> {
     const db = await this.init();
     const normalizedId = String(id);
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
@@ -320,7 +322,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     if (!existingRow || existingRow.version !== conflict.localVersion) {
       await tx.done;
-      return;
+      return false;
     }
 
     await tx.store.put({
@@ -331,6 +333,32 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     });
     await tx.done;
 
+    this.notifyListeners();
+    return true;
+  }
+
+  /** Resolve a conflict by keeping the local edit.
+   *  Clears the conflict snapshot and resets syncStatus to 'pending' so the
+   *  local mutation uploads naturally on the next sync cycle. */
+  async clearConflict(id: string): Promise<void> {
+    const db = await this.init();
+    const normalizedId = String(id);
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    if (!existingRow || existingRow.syncStatus !== 'conflict') {
+      await tx.done;
+      return;
+    }
+
+    await tx.store.put({
+      ...existingRow,
+      syncStatus: 'pending',
+      conflict: undefined,
+    });
+    await tx.done;
     this.notifyListeners();
   }
 

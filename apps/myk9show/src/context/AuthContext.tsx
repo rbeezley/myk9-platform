@@ -128,6 +128,7 @@ export interface AuthContextType {
   refreshPermissions: () => Promise<void>;
 
   firstName: string | null;
+  lastName: string | null;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -602,6 +603,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshPermissions,
 
       firstName: userProfile?.first_name ?? null,
+      lastName: userProfile?.last_name ?? null,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -628,6 +630,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       revokeRole,
       refreshPermissions,
       userProfile?.first_name,
+      userProfile?.last_name,
     ]
   );
 

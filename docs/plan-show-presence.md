@@ -128,6 +128,26 @@ Each phase is independently shippable and leaves the app in a better state. Each
 
 ### Phase 3 — Soft edit awareness ("X is editing")
 
+**[STATUS 2026-06-07] — Implemented behind a dark flag (not yet flipped).** Landed:
+`features.showEditAwareness` (dark; env override `VITE_SHOW_EDIT_AWARENESS`), producer
+setters `setEditing`/`clearEditing` on the existing presence channel (`useShowPresence`),
+the `whoIsEditing` selector, the `useEditingPresence` (set-on-open/clear-on-close) and
+`useIsEntityBeingEdited` hooks, and the advisory `<EditingBadge>`. Full unit coverage
+(selector truth table, producer track assertions, badge, cleanup, plus an
+`EditEntryDialog` integration test). **Wired surfaces:** (1) `ShowEditPanel`
+(`entityType: 'show'`), already inside a `ShowPresenceProvider`; (2) `EditEntryDialog`
+(`entityType: 'entry'`) on `ClassDetailsPage` — that page is show-scoped (`/shows/:showId/…`)
+so it was wrapped in a `ShowPresenceProvider showId={parentShow?.id}` to host it. **§2
+entry-level acceptance is met:** two staff opening the same `EditEntryDialog` each see the
+other's badge — both key on the same `entries.id`. **Deferred (verify first):** the
+*exhibitor*-side `EntryEditDialog` lives on the **cross-show** `MyEntriesPage` (`/my-entries`,
+no single show), so it can't take a page-level provider. Letting it join the
+*exhibitor↔secretary* cross-surface case needs (a) a per-dialog provider scoped to
+`entry.showId` and (b) confirming `EntryData.id === entries.id` (the id the secretary side
+keys on) — unverified, so not wired here to avoid a silent id-mismatch. The two dialogs are
+**not** duplicates (exhibitor pre-deadline self-edit vs staff results/handler edit). Next:
+live two-browser validation, then flip the flag in a follow-up.
+
 **Goal:** reduce wasted/colliding edits without hard locks.
 
 - Edit panels (entry edit, show setup) call `presence.setEditing({ entityType, entityId })` on open and clear on close/unmount.

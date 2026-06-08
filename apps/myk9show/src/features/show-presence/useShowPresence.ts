@@ -8,15 +8,16 @@
  * ephemeral; nothing here touches the replication layer or the database.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/supabaseClient';
 import { eventEmitter } from '@/services/sync/eventEmitter';
 import { setupOptimizedPresence } from '@/utils/realtimeOptimization';
 import { features } from '@/config/features';
+import { showEditAwarenessEnabled } from './editAwarenessFlag';
 import type { LocalPresenceIdentity } from './useLocalPresenceIdentity';
-import type { PresenceActivity, ShowPresence } from './types';
+import type { EditTarget, PresenceActivity, ShowPresence } from './types';
 
 /** Payload shape emitted by setupOptimizedPresence on the 'presence:sync' bus. */
 interface PresenceSyncEvent {
@@ -86,6 +87,13 @@ export function dedupePresence(state: PresenceSyncEvent['state']): ShowPresence[
 export interface UseShowPresenceResult {
   /** Everyone currently present in the show, including the local user. */
   present: ShowPresence[];
+  /**
+   * Begin/refresh the local user's "editing this entity" advisory (Phase 3).
+   * No-op when edit-awareness is dark or presence is off. Stable identity.
+   */
+  setEditing: (target: EditTarget) => void;
+  /** Clear the local user's editing advisory (Phase 3). Stable identity. */
+  clearEditing: () => void;
 }
 
 export function useShowPresence(
@@ -186,5 +194,33 @@ export function useShowPresence(
     };
   }, [showId, userId]);
 
-  return { present };
+  // Phase 3 soft edit-awareness (plan §6): mutate the SINGLE `editing` slot on the
+  // live payload and push it immediately so others see "X is editing this" without
+  // waiting for the next heartbeat. Stable (refs only) so the context value that
+  // exposes them never churns. The track guard mirrors the identity effect: before
+  // join Realtime rejects the push, and the SUBSCRIBED handler tracks this same
+  // infoRef on join — so an edit opened pre-join is not lost.
+  const setEditing = useCallback((target: EditTarget) => {
+    // Gated by edit-awareness's OWN dark flag — when off, broadcast nothing.
+    if (!showEditAwarenessEnabled()) return;
+    const info = infoRef.current;
+    if (!info) return; // presence off / no identity → nothing to track on
+    info.editing = { entityType: target.entityType, entityId: target.entityId };
+    info.ts = Date.now();
+    const channel = channelRef.current;
+    if (channel && String(channel.state) === 'joined') channel.track(info);
+  }, []);
+
+  const clearEditing = useCallback(() => {
+    // Intentionally NOT flag-gated: always able to clear a stale slot (e.g. if the
+    // flag is flipped off mid-edit). No-ops when there is nothing set.
+    const info = infoRef.current;
+    if (!info || !info.editing) return;
+    delete info.editing;
+    info.ts = Date.now();
+    const channel = channelRef.current;
+    if (channel && String(channel.state) === 'joined') channel.track(info);
+  }, []);
+
+  return { present, setEditing, clearEditing };
 }

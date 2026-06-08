@@ -18,7 +18,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/show-presence/useShowPresence', () => ({
-  useShowPresence: () => ({ present: h.roster }),
+  useShowPresence: () => ({ present: h.roster, setEditing: vi.fn(), clearEditing: vi.fn() }),
 }));
 
 vi.mock('@/features/show-presence/useLocalPresenceIdentity', () => ({

@@ -19,6 +19,28 @@ export function isStaffRole(role: string): boolean {
 }
 
 /**
+ * The first OTHER present user (never the viewer) who currently has this exact
+ * entity's edit surface open, or undefined. Drives the Phase 3 "X is editing
+ * this" advisory badge. Self is excluded via `viewerId` so a user never sees
+ * their own editing badge. The roster passed in is already privacy-filtered, so
+ * an exhibitor only ever surfaces a staff editor here (the contention that
+ * matters), never another exhibitor.
+ */
+export function whoIsEditing(
+  present: ShowPresence[],
+  viewerId: string | undefined,
+  entityType: string,
+  entityId: string
+): ShowPresence | undefined {
+  return present.find(
+    p =>
+      p.userId !== viewerId &&
+      p.editing?.entityType === entityType &&
+      p.editing?.entityId === entityId
+  );
+}
+
+/**
  * Privacy filter (plan §10 #2): staff see everyone; exhibitors see only staff
  * (plus themselves). Applied once, per viewer, in ShowPresenceProvider.
  */

@@ -7,13 +7,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import {
-  ClipboardList,
-  LayoutDashboard,
-  MoreVertical,
-  Pencil,
-  Trash2,
-} from 'lucide-react';
+import { ClipboardList, LayoutDashboard, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { replicatedClassesTable } from '@/services/replication';
@@ -48,6 +42,7 @@ import { useMyEntriesInClass } from './useMyEntriesInClass';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
+import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -276,92 +271,96 @@ const ClassDetailsPage: React.FC = () => {
   const className = formatClassTitle(currentClass) || 'Class';
 
   return (
-    <PageShell>
-      <PageHeader breadcrumbs={breadcrumbs} title={className} />
+    // INTENT: per-show presence boundary so edit-awareness works on the staff
+    // entry/results edit here (no-op until features.showEditAwareness is on, and
+    // for anonymous viewers with no presence identity). One channel per show/tab.
+    <ShowPresenceProvider showId={parentShow?.id}>
+      <PageShell>
+        <PageHeader breadcrumbs={breadcrumbs} title={className} />
 
-      <ClassCompactHeader
-        classData={currentClass}
-        parentTrial={parentTrial}
-        actions={headerActions}
-      />
-
-      {!isSecretary && !isAdmin && <ExhibitorClassCallout classId={classId} />}
-
-      {isSecretary || isAdmin ? (
-        <SecretaryRunSheet
-          currentClass={currentClass}
-          dbRawEntries={dbRawEntries}
-          userId={user?.id ?? ''}
-          myEntryIds={myEntryIds}
-          dogs={dogs}
-          organization={parentShow?.organization ?? null}
-          parentShowId={parentShow?.id ?? null}
-        />
-      ) : (
-        <ClassDetailsMain
+        <ClassCompactHeader
           classData={currentClass}
-          classEntries={classEntries}
-          rawEntries={dbRawEntries}
-          parentShow={parentShow}
-          onAddEntry={() => {
-            if (parentShow?.id) {
-              navigate(`/shows/${parentShow.id}/register`);
+          parentTrial={parentTrial}
+          actions={headerActions}
+        />
+
+        {!isSecretary && !isAdmin && <ExhibitorClassCallout classId={classId} />}
+
+        {isSecretary || isAdmin ? (
+          <SecretaryRunSheet
+            currentClass={currentClass}
+            dbRawEntries={dbRawEntries}
+            userId={user?.id ?? ''}
+            myEntryIds={myEntryIds}
+            dogs={dogs}
+            organization={parentShow?.organization ?? null}
+            parentShowId={parentShow?.id ?? null}
+          />
+        ) : (
+          <ClassDetailsMain
+            classData={currentClass}
+            classEntries={classEntries}
+            rawEntries={dbRawEntries}
+            parentShow={parentShow}
+            onAddEntry={() => {
+              if (parentShow?.id) {
+                navigate(`/shows/${parentShow.id}/register`);
+              }
+            }}
+            onDeleteEntry={handleDeleteEntry}
+          />
+        )}
+
+        {/* Dialogs */}
+        <ClassEditPanel
+          open={dialogs.editClassPanelOpen}
+          onClose={dialogs.closeEditClassPanel}
+          classId={currentClass?.id || ''}
+          className={currentClass?.element || ''}
+          initialClassData={currentClass || {}}
+          {...(parentShow?.id !== undefined && { showId: parentShow.id })}
+          onSave={async classData => {
+            if (currentClass?.id) {
+              const updatedClass = { ...currentClass, ...classData };
+              handleSaveClassEdit(updatedClass);
             }
           }}
-          onDeleteEntry={handleDeleteEntry}
         />
-      )}
 
-      {/* Dialogs */}
-      <ClassEditPanel
-        open={dialogs.editClassPanelOpen}
-        onClose={dialogs.closeEditClassPanel}
-        classId={currentClass?.id || ''}
-        className={currentClass?.element || ''}
-        initialClassData={currentClass || {}}
-        {...(parentShow?.id !== undefined && { showId: parentShow.id })}
-        onSave={async classData => {
-          if (currentClass?.id) {
-            const updatedClass = { ...currentClass, ...classData };
-            handleSaveClassEdit(updatedClass);
-          }
-        }}
-      />
+        <DeleteClassDialog
+          open={dialogs.deleteDialogOpen}
+          onOpenChange={dialogs.setDeleteDialogOpen}
+          currentClass={currentClass}
+          onConfirm={handleConfirmDeleteClass}
+        />
 
-      <DeleteClassDialog
-        open={dialogs.deleteDialogOpen}
-        onOpenChange={dialogs.setDeleteDialogOpen}
-        currentClass={currentClass}
-        onConfirm={handleConfirmDeleteClass}
-      />
+        <EditEntryDialog
+          open={dialogs.editEntryDialogOpen}
+          onOpenChange={dialogs.setEditEntryDialogOpen}
+          entryId={dialogs.editEntryId}
+          rawEntries={localRawEntries}
+          dogs={dogs}
+          onSave={handleSaveEntryEdit}
+        />
 
-      <EditEntryDialog
-        open={dialogs.editEntryDialogOpen}
-        onOpenChange={dialogs.setEditEntryDialogOpen}
-        entryId={dialogs.editEntryId}
-        rawEntries={localRawEntries}
-        dogs={dogs}
-        onSave={handleSaveEntryEdit}
-      />
+        <DeleteEntryDialog
+          open={dialogs.deleteEntryDialogOpen}
+          onOpenChange={dialogs.setDeleteEntryDialogOpen}
+          entryId={dialogs.entryToDelete}
+          rawEntries={localRawEntries}
+          dogs={dogs}
+          onConfirm={handleConfirmDeleteEntry}
+        />
 
-      <DeleteEntryDialog
-        open={dialogs.deleteEntryDialogOpen}
-        onOpenChange={dialogs.setDeleteEntryDialogOpen}
-        entryId={dialogs.entryToDelete}
-        rawEntries={localRawEntries}
-        dogs={dogs}
-        onConfirm={handleConfirmDeleteEntry}
-      />
-
-      <ClassRequirementsPanel
-        open={requirementsPanelOpen}
-        onClose={() => setRequirementsPanelOpen(false)}
-        organization={parentShow?.organization || null}
-        element={currentClass?.element || ''}
-        level={currentClass?.level || ''}
-      />
-
-    </PageShell>
+        <ClassRequirementsPanel
+          open={requirementsPanelOpen}
+          onClose={() => setRequirementsPanelOpen(false)}
+          organization={parentShow?.organization || null}
+          element={currentClass?.element || ''}
+          level={currentClass?.level || ''}
+        />
+      </PageShell>
+    </ShowPresenceProvider>
   );
 };
 

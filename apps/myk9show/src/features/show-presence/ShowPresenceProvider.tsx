@@ -32,7 +32,7 @@ export function ShowPresenceProvider({
   // anonymous passcode grant — so a passcode-only judge both lights the dot and
   // sees the full roster. Display/privacy role only, never an authz signal.
   const identity = useLocalPresenceIdentity(showId);
-  const { present: roster } = useShowPresence(showId, identity);
+  const { present: roster, setEditing, clearEditing } = useShowPresence(showId, identity);
   const viewerId = identity?.userId;
   const viewerRole = identity?.role ?? 'exhibitor';
 
@@ -41,9 +41,16 @@ export function ShowPresenceProvider({
   // refresh live. Independent kill switch; no-op when its flag is dark.
   useShowLiveSync(showId);
 
+  // setEditing/clearEditing are stable (ref-backed useCallbacks), so threading
+  // them through the memo does not churn the context value (Phase 3).
   const value = useMemo(
-    () => ({ present: filterPresenceForViewer(roster, viewerId, viewerRole) }),
-    [roster, viewerId, viewerRole]
+    () => ({
+      present: filterPresenceForViewer(roster, viewerId, viewerRole),
+      viewerId,
+      setEditing,
+      clearEditing,
+    }),
+    [roster, viewerId, viewerRole, setEditing, clearEditing]
   );
 
   return <ShowPresenceContext.Provider value={value}>{children}</ShowPresenceContext.Provider>;

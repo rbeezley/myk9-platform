@@ -21,6 +21,9 @@ export interface ReplicationConflictSnapshot<T = Record<string, unknown>> {
   baseData: T;
   baseVersion: number;
   localVersion: number;
+  /** Server-side `version` column of the remote row — used to update the OCC
+   *  precondition after the user chooses "Keep mine" so the next upload succeeds. */
+  remoteServerVersion: number;
   detectedAt: number;
 }
 
@@ -46,6 +49,10 @@ export interface ReplicatedRow<T> {
   syncStatus: SyncStatus;
   baseData?: T; // Clean row snapshot captured when the row first became dirty
   baseVersion?: number; // Version of the clean base snapshot
+  /** Server-side `version` column value from the last successful sync.
+   *  Used as the OCC precondition on the next UPDATE: WHERE version = serverVersion.
+   *  Updated by set() when a clean row arrives from the server. */
+  serverVersion?: number;
   conflict?: ReplicationConflictSnapshot<T>; // Persisted conflict snapshot
 }
 
@@ -85,6 +92,12 @@ export interface PendingMutation {
   /** Causal dependency tracking */
   dependsOn?: string[]; // IDs of mutations that must complete before this one
   sequenceNumber?: number; // Global sequence for ordering
+
+  /** OCC precondition: the server-side `version` column value when this mutation
+   *  was queued. UPDATE carries WHERE version = serverVersion so a concurrent
+   *  server write (version bumped by trigger) causes 0-row rejection rather than
+   *  silent last-write-wins. Absent on INSERT/DELETE or legacy queued mutations. */
+  serverVersion?: number;
 
   /** @internal Set by MutationManager; do not read or mutate externally. */
   nextRetryAt?: number;

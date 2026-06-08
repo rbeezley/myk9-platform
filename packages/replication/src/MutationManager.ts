@@ -48,6 +48,28 @@ const BACKUP_DEBOUNCE_MS = 1000;
 const BACKUP_STORAGE_KEY = 'replication_mutation_backup';
 
 // ============================================
+// ERRORS
+// ============================================
+
+/**
+ * Thrown by executeMutation when an UPDATE is rejected because the server's
+ * version column has moved past the mutation's baseServerVersion. This signals
+ * a concurrent write (not a transient error), so the upload loop must NOT
+ * retry or delete the mutation — it leaves the row dirty so the download phase
+ * can detect the same-field conflict.
+ */
+export class OccRejectionError extends Error {
+  constructor(
+    public readonly tableName: string,
+    public readonly rowId: string,
+    public readonly expectedVersion: number
+  ) {
+    super(`OCC rejection: ${tableName}/${rowId} (expected server version ${expectedVersion})`);
+    this.name = 'OccRejectionError';
+  }
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -118,7 +140,8 @@ export class MutationManager {
     operation: PendingMutation['operation'],
     rowId: string,
     data: Record<string, unknown>,
-    dependsOn?: string[]
+    dependsOn?: string[],
+    serverVersion?: number
   ): Promise<string> {
     // Queue overflow protection
     const pendingCount = await this.getPendingCount();
@@ -149,6 +172,7 @@ export class MutationManager {
       retries: 0,
       status: 'pending',
       dependsOn,
+      ...(serverVersion !== undefined && { serverVersion }),
     };
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
     this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
@@ -191,6 +215,36 @@ export class MutationManager {
     await tx.done;
     this.logger.log(
       `[MutationManager] Discarded ${toDelete.length} mutation(s) for ${tableName}/${rowId} (conflict resolved: take remote)`
+    );
+    await this.writeCurrentMutationsBackup();
+  }
+
+  /**
+   * Update the OCC serverVersion on all pending mutations for a row.
+   *
+   * Call this after the user chooses "Keep mine" so that the next upload uses
+   * the conflict-snapshot's remoteServerVersion as the WHERE precondition.
+   * Without this, the re-upload still carries the stale snapshot version and
+   * is immediately rejected again, causing an infinite conflict loop.
+   */
+  async updateMutationServerVersions(
+    tableName: string,
+    rowId: string,
+    newServerVersion: number
+  ): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+    const toUpdate = all.filter(m => m.tableName === tableName && m.rowId === rowId);
+
+    if (toUpdate.length === 0) return;
+
+    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
+    for (const mutation of toUpdate) {
+      await tx.store.put({ ...mutation, serverVersion: newServerVersion });
+    }
+    await tx.done;
+    this.logger.log(
+      `[MutationManager] Updated serverVersion → ${newServerVersion} for ${toUpdate.length} mutation(s) on ${tableName}/${rowId}`
     );
     await this.writeCurrentMutationsBackup();
   }
@@ -353,6 +407,26 @@ export class MutationManager {
 
           this.logger.log(`[MutationManager] Mutation ${mutation.id} uploaded successfully`);
         } catch (error) {
+          if (error instanceof OccRejectionError) {
+            // Concurrent server write rejected this stale offline mutation.
+            // Do NOT delete the mutation and do NOT clear isDirty — the row
+            // stays dirty so the download loop can detect the same-field conflict
+            // and prompt the user to reconcile.
+            this.logger.warn(
+              `[MutationManager] OCC rejection for ${error.tableName}/${error.rowId} ` +
+                `(expected server version ${error.expectedVersion}). ` +
+                `Row stays dirty for conflict detection.`
+            );
+            results.push({
+              success: false,
+              tableName: mutation.tableName,
+              operation: mutation.operation,
+              rowsAffected: 0,
+              duration: 0,
+              error: error.message,
+            });
+            continue;
+          }
           const message = error instanceof Error ? error.message : String(error);
           const canRetry = isRetryableError(error);
 
@@ -476,17 +550,26 @@ export class MutationManager {
       }
 
       case 'UPDATE': {
+        // Build the query: add OCC precondition when serverVersion is set so a
+        // concurrent server write (trigger bumped version) causes 0-row rejection
+        // rather than silently overwriting with last-write-wins.
+        let updateQuery = this.supabase.from(tableName).update(data).eq('id', data.id as string);
+        if (mutation.serverVersion !== undefined) {
+          updateQuery = updateQuery.eq('version', mutation.serverVersion);
+        }
         const { data: rows, error } = await withTimeout(
-          this.supabase
-            .from(tableName)
-            .update(data)
-            .eq('id', data.id as string)
-            .select('id'),
+          updateQuery.select('id'),
           TIMEOUT_PRESETS.standard,
           `${tableName} update`
         );
         if (error) throw error;
         if (!rows || rows.length === 0) {
+          if (mutation.serverVersion !== undefined) {
+            // 0 rows with a version precondition = OCC rejection (concurrent write).
+            // Throw a distinct error so the upload loop keeps the mutation queued
+            // and the row dirty for the download loop's conflict detector.
+            throw new OccRejectionError(tableName, mutation.rowId, mutation.serverVersion);
+          }
           throw new Error(
             `RLS policy blocked UPDATE on ${tableName} for row ${mutation.rowId}. ` +
               `Check that the authenticated user has the required role.`

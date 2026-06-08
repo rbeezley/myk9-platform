@@ -113,7 +113,6 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     });
 
     const serverIds = new Set<string>();
-    const cleanRowsToCache: TLocal[] = [];
 
     for (const remote of remoteRows) {
       const id = String(adapter.getRemoteId(remote));
@@ -122,6 +121,12 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       const existing = await table.getReplicatedRow(id);
       const remoteLocal = { ...adapter.toLocalRow(remote), id } as TLocal;
       const local = existing?.data ?? null;
+      // Extract the server-side `version` column before toLocalRow() strips it.
+      // Stored as serverVersion on the IDB row so the next offline UPDATE can
+      // carry an OCC precondition (WHERE version = remoteServerVersion).
+      const remoteServerVersion = (remote as Record<string, unknown>).version as
+        | number
+        | undefined;
 
       if (adapter.shouldSkipRemoteRow?.(remote, { local })) {
         continue;
@@ -149,6 +154,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
               baseData: existing.baseData,
               baseVersion: existing.baseVersion ?? 0,
               localVersion: existing.version,
+              remoteServerVersion: remoteServerVersion ?? 0,
               detectedAt: Date.now(),
             };
             const marked = await table.markConflict(id, snapshot);
@@ -182,12 +188,10 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         conflictsResolved++;
       }
 
-      cleanRowsToCache.push({ ...nextRow, id } as TLocal);
+      // Pass remoteServerVersion so set() stores it as the OCC precondition for
+      // future offline UPDATE mutations on this row.
+      await table.set(id, { ...nextRow, id } as TLocal, false, undefined, remoteServerVersion);
       rowsAffected++;
-    }
-
-    if (cleanRowsToCache.length > 0) {
-      await table.batchSet(cleanRowsToCache);
     }
 
     if (adapter.shouldCleanupStaleRows) {

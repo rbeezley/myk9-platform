@@ -314,4 +314,89 @@ describe('syncReplicatedTable', () => {
       expect(await table.get('1')).toMatchObject({ status: 'scratched' });
     });
   });
+
+  describe('OCC (optimistic concurrency control)', () => {
+    it('stores remoteServerVersion on clean rows from the server', async () => {
+      // Remote row includes version column (stripped by toLocalRow but captured separately)
+      const remoteWithVersion = [{ id: 1, name: 'Rex', status: 'checked-in', version: 7 }];
+      const adapter: SyncReplicatedTableAdapter<
+        (typeof remoteWithVersion)[0],
+        LocalEntry
+      > = {
+        fetchRemoteRows: vi.fn(async () => remoteWithVersion),
+        getRemoteId: r => String(r.id),
+        toLocalRow: r => ({ id: String(r.id), name: r.name, status: r.status }),
+      };
+
+      await syncReplicatedTable(table, adapter);
+
+      const row = await table.getReplicatedRow('1');
+      expect(row?.serverVersion).toBe(7);
+      expect(row?.syncStatus).toBe('synced');
+    });
+
+    it('includes remoteServerVersion from the remote row in the conflict snapshot', async () => {
+      const events: CustomEvent[] = [];
+      const handler = (e: Event) => events.push(e as CustomEvent);
+      window.addEventListener('replication:conflict', handler);
+
+      // Set up: clean row then dirty local edit → baseData is captured
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'in-ring' }, true);
+
+      // Remote row carries server version 9 (other user wrote)
+      type RemoteWithVersion = RemoteEntry & { version: number };
+      const adapter: SyncReplicatedTableAdapter<RemoteWithVersion, LocalEntry> = {
+        fetchRemoteRows: vi.fn(async () => [
+          { id: 1, name: 'Rex', status: 'scratched', version: 9 },
+        ]),
+        getRemoteId: r => String(r.id),
+        toLocalRow: r => ({ id: String(r.id), name: r.name, status: r.status }),
+      };
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+      window.removeEventListener('replication:conflict', handler);
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.detail).toMatchObject({
+        remoteServerVersion: 9,
+        fields: ['status'],
+      });
+    });
+
+    it('when upload leaves row dirty (simulated OCC), download still detects conflict', async () => {
+      // Set up: row has baseData, is dirty, upload stub does NOT clear dirty flag
+      // (simulates OCC rejection path where markReplicatedRowSynced was not called)
+      const events: CustomEvent[] = [];
+      const handler = (e: Event) => events.push(e as CustomEvent);
+      window.addEventListener('replication:conflict', handler);
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'in-ring' }, true);
+
+      // Upload stub that does nothing — simulates OCC rejection (row stays dirty)
+      const uploadPendingMutations = vi.fn(async () => undefined);
+
+      const adapter = makeAdapter([{ id: 1, name: 'Rex', status: 'scratched' }]);
+
+      const result = await syncReplicatedTable(
+        table,
+        adapter,
+        {},
+        { uploadPendingMutations, conflictSurfacingEnabled: true }
+      );
+
+      window.removeEventListener('replication:conflict', handler);
+
+      expect(uploadPendingMutations).toHaveBeenCalledTimes(1);
+      // Row stayed dirty after upload → conflict detected during download
+      expect(events).toHaveLength(1);
+      expect(events[0]!.detail).toMatchObject({
+        fields: ['status'],
+        localData: expect.objectContaining({ status: 'in-ring' }),
+        remoteData: expect.objectContaining({ status: 'scratched' }),
+      });
+      expect(result.conflictsResolved).toBe(1);
+    });
+  });
 });

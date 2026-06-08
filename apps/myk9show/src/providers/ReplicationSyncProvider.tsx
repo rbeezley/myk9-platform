@@ -474,7 +474,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             // Replace local row with remote data AND discard the pending mutation
             // that would re-upload the old local value on the next sync.
             if (anyTable) {
-              void anyTable.replaceFromRemote(detail.rowId, detail.remoteData as { id: string });
+              void anyTable.replaceFromRemote(
+                detail.rowId,
+                detail.remoteData as { id: string },
+                detail.remoteServerVersion
+              );
               void mutationManager.discardPendingMutationsForRow(
                 detail.tableName,
                 detail.rowId
@@ -486,9 +490,15 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         cancel: {
           label: 'Keep mine',
           onClick: () => {
-            // Explicitly resolve: clear the conflict snapshot, reset to 'pending'
-            // so the local mutation uploads on the next sync cycle.
-            void anyTable?.clearConflict(detail.rowId);
+            // Explicitly resolve: clear the conflict snapshot, update serverVersion
+            // to the remote's value so the next upload's OCC precondition is correct,
+            // then update queued mutation(s) with the same new serverVersion.
+            void anyTable?.clearConflict(detail.rowId, detail.remoteServerVersion);
+            void mutationManager.updateMutationServerVersions(
+              detail.tableName,
+              detail.rowId,
+              detail.remoteServerVersion
+            );
             toast.dismiss(conflictId);
           },
         },

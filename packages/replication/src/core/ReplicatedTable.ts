@@ -127,12 +127,27 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       this.logger.warn(`[${this.tableName}] No MutationManager set — mutation not queued`);
       return null;
     }
+
+    // Capture the server-side version for OCC precondition on UPDATE. The
+    // row was already written to IDB by the caller's set() call, so serverVersion
+    // is present if the row was ever downloaded from the server.
+    let serverVersion: number | undefined;
+    if (operation === 'UPDATE') {
+      const db = await databaseManager.getDatabase(this.tableName);
+      const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        this.tableName,
+        String(rowId),
+      ])) as ReplicatedRow<unknown> | undefined;
+      serverVersion = row?.serverVersion;
+    }
+
     return this.mutationManager.queueMutation(
       this.tableName,
       operation,
       rowId,
       supabasePayload,
-      dependsOn
+      dependsOn,
+      serverVersion
     );
   }
 
@@ -234,8 +249,18 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /**
    * Set (upsert) a row in local cache
+   *
+   * @param incomingServerVersion - The server's `version` column value from the
+   *   downloaded row. Only pass for clean (isDirty=false) server writes; dirty
+   *   writes preserve the existing serverVersion from the IDB row.
    */
-  async set(id: string, data: T, isDirty = false, expectedVersion?: number): Promise<void> {
+  async set(
+    id: string,
+    data: T,
+    isDirty = false,
+    expectedVersion?: number,
+    incomingServerVersion?: number
+  ): Promise<void> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
@@ -283,6 +308,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       : undefined;
     const shouldPreserveConflict = isDirty && existingRow?.syncStatus === 'conflict';
     const conflict = shouldPreserveConflict ? existingRow.conflict : undefined;
+    // Dirty writes: preserve existing serverVersion (the precondition captured when
+    // the mutation was queued). Clean writes from server: use the incoming server
+    // version if provided, else fall back to whatever was already stored.
+    const serverVersion = isDirty
+      ? existingRow?.serverVersion
+      : (incomingServerVersion ?? existingRow?.serverVersion);
 
     const row: ReplicatedRow<T> = {
       tableName: this.tableName,
@@ -297,6 +328,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       syncStatus: isDirty ? (shouldPreserveConflict ? 'conflict' : 'pending') : 'synced',
       ...(baseData !== undefined && { baseData }),
       ...(baseVersion !== undefined && { baseVersion }),
+      ...(serverVersion !== undefined && { serverVersion }),
       conflict,
     };
 
@@ -339,8 +371,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /** Resolve a conflict by keeping the local edit.
    *  Clears the conflict snapshot and resets syncStatus to 'pending' so the
-   *  local mutation uploads naturally on the next sync cycle. */
-  async clearConflict(id: string): Promise<void> {
+   *  local mutation uploads naturally on the next sync cycle.
+   *
+   *  @param newServerVersion - The remote row's server version from the conflict
+   *    snapshot. Pass this so the next upload uses the correct OCC precondition
+   *    (the server has moved to this version) rather than the stale snapshot that
+   *    caused the original rejection. */
+  async clearConflict(id: string, newServerVersion?: number): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
@@ -357,12 +394,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       ...existingRow,
       syncStatus: 'pending',
       conflict: undefined,
+      ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
     });
     await tx.done;
     this.notifyListeners();
   }
 
-  async replaceFromRemote(id: string, remoteData: T): Promise<void> {
+  async replaceFromRemote(id: string, remoteData: T, remoteServerVersion?: number): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
@@ -383,6 +421,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       syncStatus: 'synced',
       baseData: undefined,
       baseVersion: undefined,
+      serverVersion: remoteServerVersion ?? existingRow?.serverVersion,
       conflict: undefined,
     };
 

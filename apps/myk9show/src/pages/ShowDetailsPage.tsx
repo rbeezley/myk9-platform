@@ -342,6 +342,13 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [id, navigate]);
 
+  // Secretaries get the full workbench — replace so "back" returns to the shows list.
+  useEffect(() => {
+    if (canManageShow && showId) {
+      navigate(`/secretary/shows/${showId}`, { replace: true });
+    }
+  }, [canManageShow, showId, navigate]);
+
   const handleConfirmDelete = () => {
     setShowDeleteDialog(false);
     queryClient.invalidateQueries({ queryKey: ['shows'] });

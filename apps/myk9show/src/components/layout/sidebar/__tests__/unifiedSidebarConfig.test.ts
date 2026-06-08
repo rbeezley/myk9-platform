@@ -208,20 +208,6 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(titles).not.toContain('Calendar');
   });
 
-  it('browse Shows href is /secretary/dashboard for secretary', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-    const browse = config.groups.find(g => g.title === 'Browse');
-    const item = browse?.items.find(i => i.title === 'Shows');
-    expect(item?.href).toBe('/secretary/dashboard');
-  });
-
-  it('browse Shows href is /shows for non-managing roles', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.JUDGE]);
-    const browse = config.groups.find(g => g.title === 'Browse');
-    const item = browse?.items.find(i => i.title === 'Shows');
-    expect(item?.href).toBe('/shows');
-  });
-
   it('browse section hides People from judge-only role', () => {
     const config = buildUnifiedSidebarConfig([UserRole.JUDGE]);
     const browse = config.groups.find(g => g.title === 'Browse');

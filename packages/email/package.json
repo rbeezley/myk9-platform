@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@react-email/render": "^1.0.5",
-    "@types/react": "^19.2.16",
+    "@types/react": "^19.2.17",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",
     "vitest": "^4.1.8"

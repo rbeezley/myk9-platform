@@ -7,6 +7,7 @@ interface TestEntity {
   name: string;
   score?: number;
   class_id?: string;
+  status?: string;
 }
 
 class TestReplicatedTable extends ReplicatedTable<TestEntity> {
@@ -113,6 +114,56 @@ describe('ReplicatedTable', () => {
       await table.set('1', entity); // version = 1
 
       await expect(table.set('1', { ...entity, name: 'Rex v2' }, false, 1)).resolves.not.toThrow();
+    });
+
+    it('stores the clean base row when a row first becomes dirty', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      const clean = await table.getReplicatedRow('1');
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'pending',
+        baseVersion: clean?.version,
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+      });
+    });
+
+    it('preserves the original base when an already dirty row changes again', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      await table.set('1', { id: '1', name: 'Rex', status: 'absent' }, true);
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+      });
+    });
+
+    it('clears base and conflict metadata when a clean server row is stored', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: '1', name: 'Rex', status: 'absent' },
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+        baseVersion: 1,
+        localVersion: 2,
+        detectedAt: 1,
+      });
+
+      await table.replaceFromRemote('1', { id: '1', name: 'Rex', status: 'absent' });
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: false,
+        syncStatus: 'synced',
+        baseData: undefined,
+        baseVersion: undefined,
+        conflict: undefined,
+      });
     });
   });
 

@@ -13,6 +13,9 @@
 // Types
 export type {
   ReplicatedRow,
+  ReplicationConflictSnapshot,
+  ReplicationConflictEventDetail,
+  ReplicationConflictResolution,
   SyncStatus,
   SyncMetadata,
   PendingMutation,

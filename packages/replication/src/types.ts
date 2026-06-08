@@ -9,6 +9,27 @@
  */
 
 /**
+ * Persisted row conflict snapshot for dirty local rows that diverge from the
+ * clean base and remote replacement.
+ */
+export interface ReplicationConflictSnapshot<T = Record<string, unknown>> {
+  tableName: string;
+  rowId: string;
+  fields: string[];
+  localData: T;
+  remoteData: T;
+  baseData: T;
+  baseVersion: number;
+  localVersion: number;
+  detectedAt: number;
+}
+
+export interface ReplicationConflictEventDetail<T = Record<string, unknown>>
+  extends ReplicationConflictSnapshot<T> {}
+
+export type ReplicationConflictResolution = 'keep-local' | 'take-remote';
+
+/**
  * Generic replicated row wrapper
  * Wraps any table row with replication metadata
  */
@@ -23,6 +44,9 @@ export interface ReplicatedRow<T> {
   lastModifiedAt?: number; // Protect recently edited data
   isDirty: boolean; // Has local changes not yet synced
   syncStatus: SyncStatus;
+  baseData?: T; // Clean row snapshot captured when the row first became dirty
+  baseVersion?: number; // Version of the clean base snapshot
+  conflict?: ReplicationConflictSnapshot<T>; // Persisted conflict snapshot
 }
 
 /**

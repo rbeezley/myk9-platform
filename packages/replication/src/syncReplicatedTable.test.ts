@@ -212,4 +212,106 @@ describe('syncReplicatedTable', () => {
       errorMessage: 'network down',
     });
   });
+
+  describe('Phase 4 conflict surfacing (conflictSurfacingEnabled)', () => {
+    it('marks row as conflict and dispatches replication:conflict when local and remote changed the same field', async () => {
+      // Assertion-first: write the expect before the implementation path exists
+      // in the test fixture. The red state proves the wrong value was previously silent.
+      const events: CustomEvent[] = [];
+      const handler = (e: Event) => events.push(e as CustomEvent);
+      window.addEventListener('replication:conflict', handler);
+
+      // Start from a clean row, then dirty it by changing 'status'
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'in-ring' }, true);
+
+      // Remote also changed 'status' → same-field collision
+      const adapter = makeAdapter([{ id: 1, name: 'Rex', status: 'scratched' }]);
+
+      const result = await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      window.removeEventListener('replication:conflict', handler);
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.detail).toMatchObject({
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: expect.objectContaining({ status: 'in-ring' }),
+        remoteData: expect.objectContaining({ status: 'scratched' }),
+      });
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        syncStatus: 'conflict',
+        isDirty: true,
+      });
+      expect(result.rowsAffected).toBe(1);
+      expect(result.conflictsResolved).toBe(1);
+    });
+
+    it('does not conflict when local and remote changed different fields (field-merge path preserved)', async () => {
+      const events: CustomEvent[] = [];
+      const handler = (e: Event) => events.push(e as CustomEvent);
+      window.addEventListener('replication:conflict', handler);
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in', resultStatus: 'pending' });
+      // Local changed 'status'; remote will change 'resultStatus' → non-overlapping
+      await table.set('1', { id: '1', name: 'Rex', status: 'in-ring', resultStatus: 'pending' }, true);
+
+      const adapter = makeAdapter([
+        { id: 1, name: 'Rex', status: 'checked-in', result_status: 'qualified' },
+      ]);
+      adapter.mergeDirtyRow = (local, remote) => ({
+        ...local,
+        resultStatus: remote.resultStatus,
+      });
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      window.removeEventListener('replication:conflict', handler);
+
+      expect(events).toHaveLength(0);
+      expect(await table.get('1')).toMatchObject({ status: 'in-ring', resultStatus: 'qualified' });
+    });
+
+    it('preserves existing LWW/mergeDirtyRow behavior when flag is off', async () => {
+      const events: CustomEvent[] = [];
+      const handler = (e: Event) => events.push(e as CustomEvent);
+      window.addEventListener('replication:conflict', handler);
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'in-ring' }, true);
+
+      const adapter = makeAdapter([{ id: 1, name: 'Rex', status: 'scratched' }]);
+      adapter.mergeDirtyRow = (local, remote) => ({ ...local, status: remote.status });
+
+      // Same-field collision, but flag is off → silent merge
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: false });
+
+      window.removeEventListener('replication:conflict', handler);
+
+      expect(events).toHaveLength(0);
+      expect(await table.get('1')).toMatchObject({ status: 'scratched' });
+    });
+
+    it('falls through to mergeDirtyRow when dirty row has no baseData snapshot', async () => {
+      // A row dirtied without a prior clean state has no baseData → cannot diff → safe fallback
+      const events: CustomEvent[] = [];
+      const handler = (e: Event) => events.push(e as CustomEvent);
+      window.addEventListener('replication:conflict', handler);
+
+      // set with isDirty=true immediately (no clean state captured first)
+      await table.set('1', { id: '1', name: 'Rex', status: 'in-ring' }, true);
+
+      const adapter = makeAdapter([{ id: 1, name: 'Rex', status: 'scratched' }]);
+      adapter.mergeDirtyRow = (local, remote) => ({ ...local, status: remote.status });
+
+      await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
+
+      window.removeEventListener('replication:conflict', handler);
+
+      // No event because there was no baseData to detect against
+      expect(events).toHaveLength(0);
+      expect(await table.get('1')).toMatchObject({ status: 'scratched' });
+    });
+  });
 });

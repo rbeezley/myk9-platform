@@ -60,6 +60,15 @@ export const features = {
   // Vercel preview before merge); flip back to false to instantly close it. Env
   // override: VITE_SHOW_EDIT_AWARENESS=true.
   showEditAwareness: true,
+
+  // Phase 4 conflict surfacing (docs/plan-show-presence.md §6 Phase 4 + §12).
+  // KILL SWITCH — OFF until dark-launched and conflict-rate metric looks sane.
+  // When on, same-field collisions at the replication sync chokepoint surface as
+  // `replication:conflict` window events and a <ConflictBanner> prompts reconcile.
+  // Covers ALL replicated tables (entries, classes, shows, dogs, …) automatically.
+  // Rollback = flip to false; existing field-merge/LWW path is byte-for-byte unchanged.
+  // Env override: VITE_SHOW_CONFLICT_SURFACING=true (for E2E / manual smoke).
+  showConflictSurfacing: false,
 } as const;
 
 export type Features = typeof features;

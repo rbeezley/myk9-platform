@@ -168,6 +168,33 @@ export class MutationManager {
     return db.count(REPLICATION_STORES.PENDING_MUTATIONS);
   }
 
+  /**
+   * Discard all queued mutations for a specific row.
+   *
+   * Call this when the user chooses "Take theirs" in the conflict resolution UI —
+   * otherwise the old local value re-uploads on the next sync cycle and silently
+   * overwrites the remote version the user just accepted.
+   */
+  async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+    const toDelete = all
+      .filter(m => m.tableName === tableName && m.rowId === rowId)
+      .map(m => m.id);
+
+    if (toDelete.length === 0) return;
+
+    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
+    for (const id of toDelete) {
+      await tx.store.delete(id);
+    }
+    await tx.done;
+    this.logger.log(
+      `[MutationManager] Discarded ${toDelete.length} mutation(s) for ${tableName}/${rowId} (conflict resolved: take remote)`
+    );
+    await this.writeCurrentMutationsBackup();
+  }
+
   // ========================================
   // MUTATION UPLOAD
   // ========================================

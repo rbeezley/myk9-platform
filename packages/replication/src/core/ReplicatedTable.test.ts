@@ -7,6 +7,7 @@ interface TestEntity {
   name: string;
   score?: number;
   class_id?: string;
+  status?: string;
 }
 
 class TestReplicatedTable extends ReplicatedTable<TestEntity> {
@@ -114,6 +115,188 @@ describe('ReplicatedTable', () => {
 
       await expect(table.set('1', { ...entity, name: 'Rex v2' }, false, 1)).resolves.not.toThrow();
     });
+
+    it('stores the clean base row when a row first becomes dirty', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      const clean = await table.getReplicatedRow('1');
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'pending',
+        baseVersion: clean?.version,
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+      });
+    });
+
+    it('preserves the original base when an already dirty row changes again', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      await table.set('1', { id: '1', name: 'Rex', status: 'absent' }, true);
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+      });
+    });
+
+    it('clears base and conflict metadata when a clean server row is stored', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: '1', name: 'Rex', status: 'absent' },
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+        baseVersion: 1,
+        localVersion: 2,
+        detectedAt: 1,
+      });
+
+      await table.replaceFromRemote('1', { id: '1', name: 'Rex', status: 'absent' });
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: false,
+        syncStatus: 'synced',
+        baseData: undefined,
+        baseVersion: undefined,
+        conflict: undefined,
+      });
+    });
+
+    it('stores conflict metadata on an existing dirty row and returns true', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const row = await table.getReplicatedRow('1');
+
+      const result = await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: '1', name: 'Rex', status: 'absent' },
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+        baseVersion: row!.baseVersion!,
+        localVersion: row!.version,
+        detectedAt: 1,
+      });
+
+      expect(result).toBe(true);
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'conflict',
+        conflict: expect.objectContaining({
+          fields: ['status'],
+          localVersion: row!.version,
+        }),
+      });
+    });
+
+    it('is a no-op when marking conflict for a missing row and returns false', async () => {
+      const result = await table.markConflict('does-not-exist', {
+        tableName: table.getTableName(),
+        rowId: 'does-not-exist',
+        fields: ['status'],
+        localData: { id: 'does-not-exist', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: 'does-not-exist', name: 'Rex', status: 'absent' },
+        baseData: { id: 'does-not-exist', name: 'Rex', status: 'ready' },
+        baseVersion: 1,
+        localVersion: 1,
+        detectedAt: 1,
+      });
+
+      expect(result).toBe(false);
+      await expect(table.getReplicatedRow('does-not-exist')).resolves.toBeNull();
+    });
+
+    it('keeps a conflicted row conflicted when another dirty edit happens before explicit resolution', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const row = await table.getReplicatedRow('1');
+      await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: '1', name: 'Rex', status: 'absent' },
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+        baseVersion: row!.baseVersion!,
+        localVersion: row!.version,
+        detectedAt: 1,
+      });
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'scratched' }, true);
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'conflict',
+        conflict: expect.objectContaining({ fields: ['status'] }),
+      });
+    });
+
+    it('does not mark conflict from a stale local version after a newer dirty edit lands and returns false', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const stale = await table.getReplicatedRow('1');
+      await table.set('1', { id: '1', name: 'Rex', status: 'scratched' }, true);
+
+      const result = await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: '1', name: 'Rex', status: 'absent' },
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+        baseVersion: stale!.baseVersion!,
+        localVersion: stale!.version,
+        detectedAt: 1,
+      });
+
+      expect(result).toBe(false);
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'pending',
+        data: { status: 'scratched' },
+        conflict: undefined,
+      });
+    });
+
+    it('clearConflict resets syncStatus to pending and removes the conflict snapshot', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const row = await table.getReplicatedRow('1');
+      await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: '1', name: 'Rex', status: 'absent' },
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+        baseVersion: row!.baseVersion!,
+        localVersion: row!.version,
+        detectedAt: 1,
+      });
+
+      await table.clearConflict('1');
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'pending',
+        conflict: undefined,
+        data: { status: 'checked-in' },
+      });
+    });
+
+    it('clearConflict is a no-op on a non-conflicted row', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+
+      await expect(table.clearConflict('1')).resolves.not.toThrow();
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        syncStatus: 'pending',
+      });
+    });
   });
 
   // markAsSynced bypasses the dirty-row guard at set():253. Use this after a
@@ -179,6 +362,27 @@ describe('ReplicatedTable', () => {
       await expect(table.set('1', { id: '1', name: 'Rex from server' }, false)).resolves.not.toThrow();
       const result = await table.get('1');
       expect(result?.name).toBe('Rex from server');
+    });
+
+    it('clears base metadata when marking a dirty row as synced so the next dirty edit captures a fresh base', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+
+      await table.markAsSynced('1');
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: false,
+        syncStatus: 'synced',
+        baseData: undefined,
+        baseVersion: undefined,
+        conflict: undefined,
+      });
+
+      await table.set('1', { id: '1', name: 'Rex', status: 'absent' }, true);
+
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        baseData: { id: '1', name: 'Rex', status: 'checked-in' },
+      });
     });
 
     // Race-condition regression for PR #351 review finding #1. The original

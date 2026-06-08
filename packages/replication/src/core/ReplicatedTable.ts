@@ -13,7 +13,14 @@
  */
 
 import type { IDBPDatabase, IDBPObjectStore } from 'idb';
-import type { ReplicatedRow, SyncMetadata, SyncResult, SyncOptions, CacheStats } from '../types';
+import type {
+  ReplicatedRow,
+  ReplicationConflictSnapshot,
+  SyncMetadata,
+  SyncResult,
+  SyncOptions,
+  CacheStats,
+} from '../types';
 import type { Logger, GetTableTTL, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger, defaultGetTableTTL } from '../dependencies';
 import type { MutationManager } from '../MutationManager';
@@ -259,6 +266,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     const normalizedData = { ...data, id: normalizedId } as T;
+    const shouldCaptureBase = isDirty && existingRow && !existingRow.isDirty;
+    const baseData = isDirty
+      ? existingRow?.isDirty
+        ? existingRow.baseData
+        : shouldCaptureBase
+          ? existingRow.data
+          : undefined
+      : undefined;
+    const baseVersion = isDirty
+      ? existingRow?.isDirty
+        ? existingRow.baseVersion
+        : shouldCaptureBase
+          ? existingRow.version
+          : undefined
+      : undefined;
+    const shouldPreserveConflict = isDirty && existingRow?.syncStatus === 'conflict';
+    const conflict = shouldPreserveConflict ? existingRow.conflict : undefined;
 
     const row: ReplicatedRow<T> = {
       tableName: this.tableName,
@@ -270,7 +294,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       accessCount: existingRow?.accessCount || 0,
       lastModifiedAt: Date.now(),
       isDirty,
-      syncStatus: isDirty ? 'pending' : 'synced',
+      syncStatus: isDirty ? (shouldPreserveConflict ? 'conflict' : 'pending') : 'synced',
+      ...(baseData !== undefined && { baseData }),
+      ...(baseVersion !== undefined && { baseVersion }),
+      conflict,
     };
 
     await tx.store.put(row);
@@ -280,6 +307,87 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       `[${this.tableName}] Cached row: ${normalizedId} (version: ${row.version}, dirty: ${isDirty})`
     );
 
+    this.notifyListeners();
+  }
+
+  /** Returns true when the conflict was written; false if the version changed
+   *  under us (row edited concurrently — stale snapshot, safe to ignore). */
+  async markConflict(id: string, conflict: ReplicationConflictSnapshot<T>): Promise<boolean> {
+    const db = await this.init();
+    const normalizedId = String(id);
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    if (!existingRow || existingRow.version !== conflict.localVersion) {
+      await tx.done;
+      return false;
+    }
+
+    await tx.store.put({
+      ...existingRow,
+      isDirty: true,
+      syncStatus: 'conflict',
+      conflict,
+    });
+    await tx.done;
+
+    this.notifyListeners();
+    return true;
+  }
+
+  /** Resolve a conflict by keeping the local edit.
+   *  Clears the conflict snapshot and resets syncStatus to 'pending' so the
+   *  local mutation uploads naturally on the next sync cycle. */
+  async clearConflict(id: string): Promise<void> {
+    const db = await this.init();
+    const normalizedId = String(id);
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    if (!existingRow || existingRow.syncStatus !== 'conflict') {
+      await tx.done;
+      return;
+    }
+
+    await tx.store.put({
+      ...existingRow,
+      syncStatus: 'pending',
+      conflict: undefined,
+    });
+    await tx.done;
+    this.notifyListeners();
+  }
+
+  async replaceFromRemote(id: string, remoteData: T): Promise<void> {
+    const db = await this.init();
+    const normalizedId = String(id);
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
+
+    const row: ReplicatedRow<T> = {
+      tableName: this.tableName,
+      id: normalizedId,
+      data: { ...remoteData, id: normalizedId } as T,
+      version: existingRow ? existingRow.version + 1 : 1,
+      lastSyncedAt: Date.now(),
+      lastAccessedAt: Date.now(),
+      accessCount: existingRow?.accessCount || 0,
+      lastModifiedAt: Date.now(),
+      isDirty: false,
+      syncStatus: 'synced',
+      baseData: undefined,
+      baseVersion: undefined,
+      conflict: undefined,
+    };
+
+    await tx.store.put(row);
+    await tx.done;
     this.notifyListeners();
   }
 
@@ -325,6 +433,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       isDirty: false,
       syncStatus: 'synced',
       lastSyncedAt: Date.now(),
+      baseData: undefined,
+      baseVersion: undefined,
+      conflict: undefined,
     });
     await tx.done;
 

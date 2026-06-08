@@ -23,6 +23,7 @@ import { CheckInStatus } from '@/types/check-in-types';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
+import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import {
   Calendar,
@@ -417,19 +418,26 @@ const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUp
     ...(c.runOrder !== undefined && { runOrder: c.runOrder }),
   }));
 
+  // MyEntriesPage is cross-show (/my-entries spans many shows), so it can't take a
+  // single page-level presence boundary. Instead wrap just the open dialog in a
+  // per-show ShowPresenceProvider keyed on this entry's show — that makes the
+  // exhibitor a presence producer for the relevant show while editing, so the
+  // Phase 3 edit-awareness hook/badge inside the dialog have a roster to ride.
   return (
-    <EntryEditDialog
-      open={dialog.open}
-      onOpenChange={open => !open && onClose()}
-      entry={{
-        id: dialog.entry.id,
-        showId: dialog.entry.showId,
-        showName: dialog.entry.showName,
-        dogName: dialog.entry.dogName,
-        classes: mappedClasses,
-      }}
-      onUpdate={onUpdate}
-    />
+    <ShowPresenceProvider showId={dialog.entry.showId}>
+      <EntryEditDialog
+        open={dialog.open}
+        onOpenChange={open => !open && onClose()}
+        entry={{
+          id: dialog.entry.id,
+          showId: dialog.entry.showId,
+          showName: dialog.entry.showName,
+          dogName: dialog.entry.dogName,
+          classes: mappedClasses,
+        }}
+        onUpdate={onUpdate}
+      />
+    </ShowPresenceProvider>
   );
 };
 

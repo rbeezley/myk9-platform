@@ -152,6 +152,7 @@ describe('ReplicatedTable', () => {
         baseData: { id: '1', name: 'Rex', status: 'ready' },
         baseVersion: 1,
         localVersion: 2,
+        remoteServerVersion: 0,
         detectedAt: 1,
       });
 
@@ -180,6 +181,7 @@ describe('ReplicatedTable', () => {
         baseData: { id: '1', name: 'Rex', status: 'ready' },
         baseVersion: row!.baseVersion!,
         localVersion: row!.version,
+        remoteServerVersion: 0,
         detectedAt: 1,
       });
 
@@ -204,6 +206,7 @@ describe('ReplicatedTable', () => {
         baseData: { id: 'does-not-exist', name: 'Rex', status: 'ready' },
         baseVersion: 1,
         localVersion: 1,
+        remoteServerVersion: 0,
         detectedAt: 1,
       });
 
@@ -224,6 +227,7 @@ describe('ReplicatedTable', () => {
         baseData: { id: '1', name: 'Rex', status: 'ready' },
         baseVersion: row!.baseVersion!,
         localVersion: row!.version,
+        remoteServerVersion: 0,
         detectedAt: 1,
       });
 
@@ -251,6 +255,7 @@ describe('ReplicatedTable', () => {
         baseData: { id: '1', name: 'Rex', status: 'ready' },
         baseVersion: stale!.baseVersion!,
         localVersion: stale!.version,
+        remoteServerVersion: 0,
         detectedAt: 1,
       });
 
@@ -276,6 +281,7 @@ describe('ReplicatedTable', () => {
         baseData: { id: '1', name: 'Rex', status: 'ready' },
         baseVersion: row!.baseVersion!,
         localVersion: row!.version,
+        remoteServerVersion: 0,
         detectedAt: 1,
       });
 

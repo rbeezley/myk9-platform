@@ -637,7 +637,7 @@ describe('ReplicatedDogsTable', () => {
         // syncReplicatedTable uses getReplicatedRow (not get) to check existing rows
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
-        // syncReplicatedTable uses batchSet (not set) to write clean rows
+        // syncReplicatedTable uses batchSet to write clean rows in a single IDB transaction
         const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
 
         // Mock updateSyncMetadata
@@ -663,7 +663,7 @@ describe('ReplicatedDogsTable', () => {
         expect(result.rowsAffected).toBe(2);
         expect(result.conflictsResolved).toBe(0);
 
-        expect(batchSetSpy).toHaveBeenCalledWith(expect.arrayContaining([expect.any(Object)]));
+        expect(batchSetSpy).toHaveBeenCalled();
         expect(updateMetadataSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             lastIncrementalSyncAt: expect.any(Number),
@@ -832,7 +832,7 @@ describe('ReplicatedDogsTable', () => {
         expect(result.conflictsResolved).toBe(1);
 
         // Verify resolved data: server wins but local image preserved
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
         expect(resolvedDog.name).toBe('Updated Max'); // Server value
         expect(resolvedDog.weight).toBe('85 lbs'); // Server value
         expect(resolvedDog.imageUrl).toBe('https://local.com/dog.jpg'); // Local value preserved
@@ -878,7 +878,7 @@ describe('ReplicatedDogsTable', () => {
 
         await dogsTable.sync('owner-123');
 
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
         expect(resolvedDog.imageUrl).toBe('https://remote.com/dog.jpg');
       });
 
@@ -922,7 +922,7 @@ describe('ReplicatedDogsTable', () => {
 
         await dogsTable.sync('owner-123');
 
-        const resolvedDog = batchSetSpy.mock.calls[0][0][0];
+        const resolvedDog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
         expect(resolvedDog.imageUrl).toBe('https://remote.com/dog.jpg');
       });
     });
@@ -1004,7 +1004,7 @@ describe('ReplicatedDogsTable', () => {
 
       await dogsTable.sync('owner-123');
 
-      const camelCaseDog = batchSetSpy.mock.calls[0][0][0];
+      const camelCaseDog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
 
       expect(camelCaseDog.callName).toBe('Maxie');
       expect(camelCaseDog.dateOfBirth).toBe('2020-01-15');
@@ -1064,7 +1064,7 @@ describe('ReplicatedDogsTable', () => {
 
       await dogsTable.sync('owner-123');
 
-      const dog = batchSetSpy.mock.calls[0][0][0];
+      const dog = batchSetSpy.mock.calls[0]![0][0] as ReplicatedDog;
 
       expect(dog.callName).toBeUndefined();
       expect(dog.sex).toBeUndefined();

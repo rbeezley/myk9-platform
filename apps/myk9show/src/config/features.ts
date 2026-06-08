@@ -50,15 +50,16 @@ export const features = {
   showLiveSync: true,
 
   // Show-day soft edit-awareness (Phase 3, docs/plan-show-presence.md §6).
-  // KILL SWITCH — DARK by default. When on, an edit surface advertises "this user
-  // is editing <entity>" over the EXISTING presence channel (no new channel, no
-  // DB) and other viewers see a calm, advisory "X is editing this" badge. It is
-  // advisory only — never a lock, never disables Save (that's Phase 4). Kept on
-  // its OWN flag (not reusing the already-live showPresence) so it dark-launches
-  // and is validated live with two browsers before flipping — the discipline that
-  // caught three real Realtime bugs in Phases 1-2. Env override:
-  // VITE_SHOW_EDIT_AWARENESS=true (E2E / manual smoke without editing this const).
-  showEditAwareness: false,
+  // KILL SWITCH. When on, an edit surface advertises "this user is editing
+  // <entity>" over the EXISTING presence channel (no new channel, no DB) and other
+  // viewers see a calm, advisory "X is editing this" badge. Advisory only — never a
+  // lock, never disables Save (that's Phase 4). Kept on its OWN flag (not reusing
+  // the already-live showPresence) so it could dark-launch and be validated live
+  // with two browsers — the discipline that caught three real Realtime bugs in
+  // Phases 1-2. ENABLED for that live two-browser validation (run it on this PR's
+  // Vercel preview before merge); flip back to false to instantly close it. Env
+  // override: VITE_SHOW_EDIT_AWARENESS=true.
+  showEditAwareness: true,
 } as const;
 
 export type Features = typeof features;

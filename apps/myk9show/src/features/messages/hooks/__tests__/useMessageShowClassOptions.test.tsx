@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase-client';
 vi.mock('@/lib/supabase-client', () => ({
   supabase: {
     from: vi.fn(),
+    rpc: vi.fn(),
   },
 }));
 
@@ -42,24 +43,10 @@ function mockClassesQuery(
   };
 }
 
-function mockEntriesQuery(
-  data: Array<{ class_id: string | null }> | null,
-  error: Error | null = null
-) {
-  const terminal = {
-    is: vi.fn(() => Promise.resolve({ data, error, count: data?.length ?? 0 })),
-  };
-  return {
-    select: vi.fn(() => ({
-      in: vi.fn(() => terminal),
-      eq: vi.fn(() => terminal),
-    })),
-  };
-}
-
 describe('useMessageShowClassOptions', () => {
   beforeEach(() => {
     vi.mocked(supabase.from).mockReset();
+    vi.mocked(supabase.rpc).mockReset();
   });
 
   it('does not query classes when disabled', () => {
@@ -70,7 +57,7 @@ describe('useMessageShowClassOptions', () => {
     expect(supabase.from).not.toHaveBeenCalled();
   });
 
-  it('loads entry counts with one batched entries query', async () => {
+  it('loads entry counts with one aggregate RPC', async () => {
     vi.mocked(supabase.from).mockImplementation(table => {
       if (table === 'classes') {
         return mockClassesQuery([
@@ -78,23 +65,25 @@ describe('useMessageShowClassOptions', () => {
           { id: 'class-2', name: 'Advanced Interior', element: null, level: null, section: null },
         ]) as never;
       }
-      if (table === 'entries') {
-        return mockEntriesQuery([
-          { class_id: 'class-1' },
-          { class_id: 'class-1' },
-          { class_id: 'class-2' },
-        ]) as never;
-      }
       throw new Error(`Unexpected table: ${table}`);
     });
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: [
+        { class_id: 'class-1', entry_count: 2 },
+        { class_id: 'class-2', entry_count: 1 },
+      ],
+      error: null,
+    } as never);
 
     const { result } = renderHook(() => useMessageShowClassOptions('show-1'), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(supabase.from).toHaveBeenCalledTimes(2);
-    expect(supabase.from).toHaveBeenNthCalledWith(1, 'classes');
-    expect(supabase.from).toHaveBeenNthCalledWith(2, 'entries');
+    expect(supabase.from).toHaveBeenCalledTimes(1);
+    expect(supabase.from).toHaveBeenCalledWith('classes');
+    expect(supabase.rpc).toHaveBeenCalledWith('get_message_class_entry_counts', {
+      p_class_ids: ['class-1', 'class-2'],
+    });
     expect(result.current.data).toEqual([
       { id: 'class-1', label: 'Novice Containers', entryCount: 2 },
       { id: 'class-2', label: 'Advanced Interior', entryCount: 1 },
@@ -116,7 +105,7 @@ describe('useMessageShowClassOptions', () => {
     expect(supabase.from).toHaveBeenCalledTimes(1);
   });
 
-  it('surfaces entry count query errors instead of treating counts as zero', async () => {
+  it('surfaces entry count RPC errors instead of treating counts as zero', async () => {
     const entryError = new Error('network down');
     vi.mocked(supabase.from).mockImplementation(table => {
       if (table === 'classes') {
@@ -124,9 +113,9 @@ describe('useMessageShowClassOptions', () => {
           { id: 'class-1', name: 'Novice Containers', element: null, level: null, section: null },
         ]) as never;
       }
-      if (table === 'entries') return mockEntriesQuery(null, entryError) as never;
       throw new Error(`Unexpected table: ${table}`);
     });
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: entryError } as never);
 
     const { result } = renderHook(() => useMessageShowClassOptions('show-1'), { wrapper });
 

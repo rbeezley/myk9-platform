@@ -8530,6 +8530,13 @@ export type Database = {
           submitted_at: string
         }[]
       }
+      get_message_class_entry_counts: {
+        Args: { p_class_ids: string[] }
+        Returns: {
+          class_id: string
+          entry_count: number
+        }[]
+      }
       get_judge_day_capacity: {
         Args: { p_date: string; p_judge_id: string; p_show_id: string }
         Returns: {

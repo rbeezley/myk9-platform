@@ -221,7 +221,11 @@ export function MessageCenterPanel() {
       : shows.map(show => ({ id: show.id, name: show.name }));
   const selectedComposeShowId =
     composeShowId || (staffShows.length === 1 ? staffShows[0].id : '');
-  const { data: composeClasses = [] } = useMessageShowClassOptions(
+  const {
+    data: composeClasses = [],
+    isError: composeClassesError,
+    refetch: retryComposeClasses,
+  } = useMessageShowClassOptions(
     isComposeOpen && selectedComposeShowId ? selectedComposeShowId : null,
     { enabled: isComposeOpen && !!selectedComposeShowId }
   );
@@ -483,7 +487,29 @@ export function MessageCenterPanel() {
               </p>
             )}
 
-            {selectedComposeShowId ? (
+            {selectedComposeShowId && composeClassesError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="mt-0.5 h-4 w-4 text-destructive" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-destructive">
+                      Couldn't load classes for this show.
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Try again before sending a class message.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void retryComposeClasses()}
+                  >
+                    Try again
+                  </Button>
+                </div>
+              </div>
+            ) : selectedComposeShowId ? (
               <MessageShowComposer
                 showId={selectedComposeShowId}
                 classes={composeClasses}

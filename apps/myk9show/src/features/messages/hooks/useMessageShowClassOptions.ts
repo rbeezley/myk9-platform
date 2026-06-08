@@ -27,19 +27,18 @@ export function useMessageShowClassOptions(
       if (classesError) throw classesError;
       if (!classes?.length) return [];
 
-      const classIds = classes.map(cls => cls.id);
-      const { data: entries, error: entriesError } = await supabase
-        .from('entries')
-        .select('class_id')
-        .in('class_id', classIds)
-        .is('deleted_at', null);
+      const { data: entryCounts, error: entryCountsError } = await supabase.rpc(
+        'get_message_class_entry_counts',
+        {
+          p_class_ids: classes.map(cls => cls.id),
+        }
+      );
 
-      if (entriesError) throw entriesError;
+      if (entryCountsError) throw entryCountsError;
 
-      const entryCounts = new Map<string, number>();
-      for (const entry of entries ?? []) {
-        if (!entry.class_id) continue;
-        entryCounts.set(entry.class_id, (entryCounts.get(entry.class_id) ?? 0) + 1);
+      const entryCountsByClass = new Map<string, number>();
+      for (const row of entryCounts ?? []) {
+        entryCountsByClass.set(row.class_id, Number(row.entry_count));
       }
 
       return classes.map(cls => ({
@@ -50,7 +49,7 @@ export function useMessageShowClassOptions(
           level: cls.level,
           section: cls.section,
         }),
-        entryCount: entryCounts.get(cls.id) ?? 0,
+        entryCount: entryCountsByClass.get(cls.id) ?? 0,
       }));
     },
     enabled: !!showId && (options.enabled ?? true),

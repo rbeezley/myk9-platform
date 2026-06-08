@@ -1,6 +1,11 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
 import type { ReplicationConflictSnapshot, SyncOptions, SyncResult } from './types';
 import { detectDirtyRowConflict } from './conflict/detectDirtyRowConflict';
+import {
+  configureConflictSurfacing as _configureConflictSurfacing,
+  isConflictSurfacingEnabled,
+  _resetConflictSurfacingForTests as _resetForTests,
+} from './conflictConfig';
 
 export interface SyncScope {
   /**
@@ -52,26 +57,20 @@ export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
 }
 
 /**
- * Module-level Phase 4 kill switch — set once at app startup via
- * `configureConflictSurfacing(true)`. Individual `syncReplicatedTable` call-sites
- * can still override with the per-call `conflictSurfacingEnabled` option.
- *
- * @see configureConflictSurfacing
- */
-let _conflictSurfacingEnabled = false;
-
-/**
  * Configure whether same-field collisions are surfaced globally.
  * Call this once during app boot (e.g. in ReplicationSyncProvider) after reading
  * the app-level feature flag. Prefer the per-call option in tests.
+ *
+ * Also gates the OCC upload precondition — when false, UPDATE mutations carry no
+ * version WHERE clause, preserving last-write-wins behavior end-to-end.
  */
 export function configureConflictSurfacing(enabled: boolean): void {
-  _conflictSurfacingEnabled = enabled;
+  _configureConflictSurfacing(enabled);
 }
 
 /** Reset to default (false). For test cleanup only. */
 export function _resetConflictSurfacingForTests(): void {
-  _conflictSurfacingEnabled = false;
+  _resetForTests();
 }
 
 export async function syncReplicatedTable<TRemote, TLocal extends { id: string }>(
@@ -113,6 +112,9 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     });
 
     const serverIds = new Set<string>();
+    // Collect clean rows for a single bulk IDB transaction (batchSet perf path).
+    const cleanRowsToCache: TLocal[] = [];
+    const serverVersionMap = new Map<string, number>();
 
     for (const remote of remoteRows) {
       const id = String(adapter.getRemoteId(remote));
@@ -137,7 +139,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         // clean base snapshot to diff against. If fields overlap → surface the
         // conflict; the row is held dirty and the user must reconcile. Non-overlapping
         // fields fall through to mergeDirtyRow as before.
-        const surfaceConflicts = options.conflictSurfacingEnabled ?? _conflictSurfacingEnabled;
+        const surfaceConflicts = options.conflictSurfacingEnabled ?? isConflictSurfacingEnabled();
         if (surfaceConflicts && existing.baseData !== undefined) {
           const detection = detectDirtyRowConflict({
             base: existing.baseData,
@@ -188,10 +190,20 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         conflictsResolved++;
       }
 
-      // Pass remoteServerVersion so set() stores it as the OCC precondition for
-      // future offline UPDATE mutations on this row.
-      await table.set(id, { ...nextRow, id } as TLocal, false, undefined, remoteServerVersion);
+      // Collect for bulk IDB write; remoteServerVersion is stored on the row so
+      // the next offline UPDATE can carry the OCC precondition.
+      cleanRowsToCache.push({ ...nextRow, id } as TLocal);
+      if (remoteServerVersion !== undefined) {
+        serverVersionMap.set(id, remoteServerVersion);
+      }
       rowsAffected++;
+    }
+
+    if (cleanRowsToCache.length > 0) {
+      await table.batchSet(
+        cleanRowsToCache,
+        serverVersionMap.size > 0 ? serverVersionMap : undefined
+      );
     }
 
     if (adapter.shouldCleanupStaleRows) {

@@ -34,6 +34,7 @@ import {
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
 import { ReplicatedTableCacheManager } from './ReplicatedTableCache';
 import { ReplicatedTableBatchManager } from './ReplicatedTableBatch';
+import { isConflictSurfacingEnabled } from '../conflictConfig';
 
 // Re-export REPLICATION_STORES for backward compatibility
 export { REPLICATION_STORES } from './DatabaseManager';
@@ -128,11 +129,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return null;
     }
 
-    // Capture the server-side version for OCC precondition on UPDATE. The
-    // row was already written to IDB by the caller's set() call, so serverVersion
-    // is present if the row was ever downloaded from the server.
+    // Capture the server-side version for OCC precondition on UPDATE — but only
+    // when conflict surfacing is enabled. When the flag is off, no precondition is
+    // attached and last-write-wins behavior is preserved end-to-end (the kill-switch
+    // contract documented in syncReplicatedTable.ts).
     let serverVersion: number | undefined;
-    if (operation === 'UPDATE') {
+    if (operation === 'UPDATE' && isConflictSurfacingEnabled()) {
       const db = await databaseManager.getDatabase(this.tableName);
       const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
         this.tableName,
@@ -705,12 +707,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   // --- Batch Operations ---
 
-  async batchSet(items: T[]): Promise<void> {
-    return this.batchManager.batchSet(items);
+  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<void> {
+    return this.batchManager.batchSet(items, serverVersions);
   }
 
-  async batchSetChunked(items: T[], chunkSize?: number): Promise<void> {
-    return this.batchManager.batchSetChunked(items, chunkSize);
+  async batchSetChunked(items: T[], chunkSize?: number, serverVersions?: Map<string, number>): Promise<void> {
+    return this.batchManager.batchSetChunked(items, chunkSize, serverVersions);
   }
 
   async batchDelete(ids: string[]): Promise<void> {

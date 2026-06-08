@@ -392,8 +392,11 @@ export class MutationManager {
         }
 
         try {
-          await this.executeMutation(mutation);
-          await this.markReplicatedRowSynced(db, mutation);
+          const { newServerVersion } = await this.executeMutation(mutation);
+          await this.markReplicatedRowSynced(db, mutation, newServerVersion);
+          if (newServerVersion !== undefined) {
+            await this.updateMutationServerVersions(mutation.tableName, mutation.rowId, newServerVersion);
+          }
 
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
 
@@ -529,7 +532,7 @@ export class MutationManager {
    * Uses `select()` after upsert/delete to get the returned rows,
    * which lets us detect RLS silent rejections (0 rows affected = RLS blocked).
    */
-  private async executeMutation(mutation: PendingMutation): Promise<void> {
+  private async executeMutation(mutation: PendingMutation): Promise<{ newServerVersion?: number }> {
     const { tableName, operation, data } = mutation;
 
     switch (operation) {
@@ -546,7 +549,7 @@ export class MutationManager {
               `Check that the authenticated user has the required role.`
           );
         }
-        break;
+        return {};
       }
 
       case 'UPDATE': {
@@ -558,24 +561,44 @@ export class MutationManager {
           updateQuery = updateQuery.eq('version', mutation.serverVersion);
         }
         const { data: rows, error } = await withTimeout(
-          updateQuery.select('id'),
+          updateQuery.select('id, version'),
           TIMEOUT_PRESETS.standard,
           `${tableName} update`
         );
         if (error) throw error;
         if (!rows || rows.length === 0) {
           if (mutation.serverVersion !== undefined) {
-            // 0 rows with a version precondition = OCC rejection (concurrent write).
-            // Throw a distinct error so the upload loop keeps the mutation queued
-            // and the row dirty for the download loop's conflict detector.
-            throw new OccRejectionError(tableName, mutation.rowId, mutation.serverVersion);
+            // Disambiguate: OCC rejection (version advanced) vs RLS denial (version unchanged)
+            // vs row deleted. One bounded re-check avoids silent permanent queue stall.
+            const { data: check } = await withTimeout(
+              this.supabase
+                .from(tableName)
+                .select('version')
+                .eq('id', data.id as string)
+                .maybeSingle(),
+              TIMEOUT_PRESETS.standard,
+              `${tableName} occ-check`
+            );
+            if (!check) {
+              throw new Error(
+                `Row ${mutation.rowId} on ${tableName} no longer exists server-side.`
+              );
+            }
+            if ((check as { version: number }).version !== mutation.serverVersion) {
+              // Version advanced → genuine OCC rejection (concurrent write).
+              // Throw so the upload loop keeps the mutation queued and the row
+              // dirty for the download loop's conflict detector.
+              throw new OccRejectionError(tableName, mutation.rowId, mutation.serverVersion);
+            }
           }
+          // Version unchanged (or no precondition) → RLS blocked the write.
           throw new Error(
             `RLS policy blocked UPDATE on ${tableName} for row ${mutation.rowId}. ` +
               `Check that the authenticated user has the required role.`
           );
         }
-        break;
+        const newServerVersion = (rows[0] as { version?: number }).version;
+        return { newServerVersion };
       }
 
       case 'DELETE': {
@@ -599,7 +622,7 @@ export class MutationManager {
               `Row may have already been deleted, or RLS policy blocked the operation.`
           );
         }
-        break;
+        return {};
       }
 
       default:
@@ -609,7 +632,8 @@ export class MutationManager {
 
   private async markReplicatedRowSynced(
     db: Awaited<ReturnType<typeof databaseManager.getDatabase>>,
-    mutation: PendingMutation
+    mutation: PendingMutation,
+    newServerVersion?: number
   ): Promise<void> {
     if (mutation.operation === 'DELETE') return;
 
@@ -625,6 +649,10 @@ export class MutationManager {
       isDirty: false,
       syncStatus: 'synced',
       lastSyncedAt: Date.now(),
+      // Refresh OCC precondition so subsequent queued mutations use the post-write
+      // version (trigger incremented it on the server). Without this, a second
+      // offline edit to the same row would carry a stale version and spuriously reject.
+      ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
     });
   }
 

@@ -604,6 +604,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Return the persisted conflict snapshots for every row in this table that is
+   * currently in `syncStatus: 'conflict'`.  Used by the app shell on provider
+   * mount to re-surface conflicts the user navigated away from before resolving,
+   * so the Sonner resolution toast reappears on next visit rather than silently
+   * disappearing.
+   */
+  async getConflictedRows(): Promise<ReplicationConflictSnapshot<T>[]> {
+    const db = await this.init();
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
+    const index = tx.store.index('tableName');
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
+    return rows
+      .filter(row => row.syncStatus === 'conflict' && row.conflict !== undefined)
+      .map(row => row.conflict!);
+  }
+
+  /**
    * Get all rows for this table
    */
   async getAll(licenseKey?: string): Promise<T[]> {

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -458,16 +458,18 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByRole('link', { name: /manage in workbench/i })).toHaveAttribute(
-      'href',
-      '/secretary/shows/show-1'
-    );
+    // The link lives inside the 3-dot dropdown; open it first.
+    // Base UI renders the asChild Link as <a role="menuitem">, so query by menuitem.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+    const workbenchItem = screen.getByRole('menuitem', { name: /manage in workbench/i });
+    expect(workbenchItem).toHaveAttribute('href', '/secretary/shows/show-1');
   });
 
   it('hides the workbench link from exhibitors on public show details', () => {
     renderPage();
 
-    expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
+    // canManageShow is false for exhibitors so the 3-dot menu is never rendered.
+    expect(screen.queryByRole('menuitem', { name: /manage in workbench/i })).not.toBeInTheDocument();
   });
 
   it('renders the public Show Map as read-only for show managers', async () => {

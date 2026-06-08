@@ -217,8 +217,12 @@ export function buildUnifiedSidebarConfig(
     }
 
     // 4. Browse section (always visible for non-exhibitor-only users)
+    // Secretaries land on their management dashboard instead of the public shows list.
+    const showsHref = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])
+      ? '/secretary/dashboard'
+      : '/shows';
     const browseItems: NavItem[] = [
-      { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
+      { title: 'Shows', href: showsHref, icon: Calendar, description: 'Find and explore shows' },
       { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
     ];
     // Clubs and People are secretary + admin only (privacy restriction — navigation-ia.md)

@@ -531,14 +531,6 @@ const ShowDetailsPage: React.FC = () => {
               {canManageShow ? (
               <div className="flex flex-wrap items-center gap-2">
                 <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
-                {workbenchHref && (
-                  <Button asChild variant="default" size="sm">
-                    <Link to={workbenchHref}>
-                      <LayoutDashboard className="h-4 w-4 mr-2" />
-                      Manage in Workbench
-                    </Link>
-                  </Button>
-                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -551,6 +543,17 @@ const ShowDetailsPage: React.FC = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {workbenchHref && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link to={workbenchHref}>
+                            <LayoutDashboard className="h-4 w-4 mr-2" />
+                            Manage in Workbench
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit

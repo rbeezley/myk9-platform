@@ -17,7 +17,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MutationManager, type MutationManagerOptions } from './MutationManager';
-import type { PendingMutation } from './types';
+import type { PendingMutation, ReplicatedRow } from './types';
 import type { Logger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { IDBPDatabase } from 'idb';
@@ -452,6 +452,102 @@ describe('MutationManager', () => {
       expect(results).toHaveLength(1);
       expect(results[0]!.success).toBe(false);
       expect(results[0]!.error).toContain('RLS policy blocked');
+    });
+  });
+
+  // ========================================
+  // CONFLICT HOLD
+  // ========================================
+
+  describe('Conflict Hold', () => {
+    function makeConflictedRow(tableName: string, id: string): ReplicatedRow<{ id: string }> {
+      return {
+        tableName,
+        id,
+        data: { id },
+        version: 2,
+        serverVersion: 1,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'conflict',
+      };
+    }
+
+    it('holds upload for a mutation whose row has an unresolved conflict', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.REPLICATED_TABLES,
+        makeConflictedRow('entries', 'entry-hold')
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-hold', tableName: 'entries', rowId: 'entry-hold' })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      // Skipped — not in results
+      expect(results).toHaveLength(0);
+      // Mutation still in queue
+      const remaining = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.id).toBe('mut-hold');
+      // Supabase never touched
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+    });
+
+    it('uploads non-conflicted rows while holding conflicted ones', async () => {
+      // Conflicted row + its mutation
+      await mockDb.put(
+        REPLICATION_STORES.REPLICATED_TABLES,
+        makeConflictedRow('entries', 'entry-conflict')
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-conflict', tableName: 'entries', rowId: 'entry-conflict' })
+      );
+      // Clean row mutation (no REPLICATED_TABLES row needed — absent row is not 'conflict')
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-clean', tableName: 'dogs', rowId: 'dog-1' })
+      );
+
+      const results = await manager.uploadPendingMutations();
+
+      // Only the clean mutation uploaded
+      expect(results).toHaveLength(1);
+      expect(results[0]!.tableName).toBe('dogs');
+      // Conflicted mutation still in queue
+      const remaining = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.id).toBe('mut-conflict');
+    });
+
+    it('uploads the mutation once the conflict is resolved (row back to pending)', async () => {
+      // Start with a conflicted row
+      await mockDb.put(
+        REPLICATION_STORES.REPLICATED_TABLES,
+        makeConflictedRow('entries', 'entry-resolved')
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-resolved', tableName: 'entries', rowId: 'entry-resolved' })
+      );
+
+      // First upload — held
+      await manager.uploadPendingMutations();
+      expect(await mockDb.count(REPLICATION_STORES.PENDING_MUTATIONS)).toBe(1);
+
+      // User resolves "keep mine" — row status transitions back to pending
+      await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+        ...makeConflictedRow('entries', 'entry-resolved'),
+        syncStatus: 'pending',
+      });
+
+      const results = await manager.uploadPendingMutations();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.success).toBe(true);
     });
   });
 

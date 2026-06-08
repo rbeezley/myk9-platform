@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { detectDirtyRowConflict } from './detectDirtyRowConflict';
 
+interface EntryLike {
+  id: string;
+  checkInStatus?: string;
+  resultStatus?: string;
+}
+
 describe('detectDirtyRowConflict', () => {
   it('returns changed fields when local and remote changed the same field from base', () => {
     const result = detectDirtyRowConflict({
@@ -30,5 +36,15 @@ describe('detectDirtyRowConflict', () => {
     });
 
     expect(result).toEqual({ hasConflict: false, fields: [] });
+  });
+
+  it('accepts interface row types without requiring an index signature', () => {
+    const result = detectDirtyRowConflict<EntryLike>({
+      base: { id: '1', checkInStatus: 'no-status' },
+      local: { id: '1', checkInStatus: 'checked-in' },
+      remote: { id: '1', checkInStatus: 'absent' },
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['checkInStatus'] });
   });
 });

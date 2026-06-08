@@ -9,7 +9,7 @@ const DEFAULT_IGNORED_FIELDS = new Set([
   '_localOnly',
 ]);
 
-export interface DirtyRowConflictInput<T extends Record<string, unknown>> {
+export interface DirtyRowConflictInput<T extends object> {
   base: T;
   local: T;
   remote: T;
@@ -21,7 +21,7 @@ export interface DirtyRowConflictResult {
   fields: string[];
 }
 
-export function detectDirtyRowConflict<T extends Record<string, unknown>>({
+export function detectDirtyRowConflict<T extends object>({
   base,
   local,
   remote,
@@ -30,13 +30,16 @@ export function detectDirtyRowConflict<T extends Record<string, unknown>>({
   const ignored = new Set(ignoredFields);
   const fields = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
   const conflicts: string[] = [];
+  const baseRecord = base as Record<string, unknown>;
+  const localRecord = local as Record<string, unknown>;
+  const remoteRecord = remote as Record<string, unknown>;
 
   for (const field of fields) {
     if (ignored.has(field)) continue;
 
-    const baseValue = base[field];
-    const localValue = local[field];
-    const remoteValue = remote[field];
+    const baseValue = baseRecord[field];
+    const localValue = localRecord[field];
+    const remoteValue = remoteRecord[field];
     const localChanged = !deepEqual(localValue, baseValue);
     const remoteChanged = !deepEqual(remoteValue, baseValue);
     const sidesDiffer = !deepEqual(localValue, remoteValue);

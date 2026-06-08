@@ -299,6 +299,32 @@ describe('MessageCenterPanel', () => {
     expect(screen.getByTestId('message-show-composer')).toHaveTextContent('Composer for active-show');
   });
 
+  it('shows a calm load error when compose class options fail', async () => {
+    authContext = {
+      user: { id: 'secretary-1', email: 'secretary@test.com' },
+      userWithRoles: { id: 'secretary-1', roles: ['secretary'], scopes: [], user_metadata: {} },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+    };
+    classOptionsHookMock.mockReturnValue({
+      data: undefined,
+      isError: true,
+      refetch: vi.fn(),
+    });
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      currentShowIds: ['show-1'],
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+
+    expect(screen.getByText("Couldn't load classes for this show.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('message-show-composer')).not.toBeInTheDocument();
+  });
+
   it('limits judge compose to show-wide messages only', async () => {
     authContext = {
       user: { id: 'judge-1', email: 'judge@test.com' },

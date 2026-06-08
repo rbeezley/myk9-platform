@@ -138,20 +138,26 @@ ordering on first mount), the `whoIsEditing` selector, the `useEditingPresence`
 never a lock, Save stays enabled). Env override `VITE_SHOW_EDIT_AWARENESS`; flip the const
 back to `false` to instantly close it. **Wired surfaces:** (1) `ShowEditPanel`
 (`entityType: 'show'`), already inside a `ShowPresenceProvider`; (2) `EditEntryDialog`
-(`entityType: 'entry'`) on `ClassDetailsPage`, which was wrapped in a new
-`ShowPresenceProvider showId={parentShow?.id}` (the route is show-scoped). **§2 entry-level
-acceptance met:** two staff opening the same `EditEntryDialog` each see the other's badge —
-both key on the same `entries.id`.
-
-**Remaining tail — exhibitor cross-surface (deferred; see `docs/handoffs/2026-06-08-presence-edit-awareness-followups.md`).**
-The *exhibitor* `EntryEditDialog` on the cross-show `MyEntriesPage` is NOT wired. Investigated
-2026-06-08: its `EntryData.id` is a **registration grouping** (`classes: EntryClass[]`), NOT
-the per-class `entries.id` the secretary keys on — a naive `entityId: EntryData.id` would
-never match. Cross-surface awareness must key on the per-class id (`EntryClass.id`, i.e. the
-`entries.id`) and the exhibitor dialog — which edits all of a dog's classes at once — needs a
-per-class broadcast model plus a per-dialog `ShowPresenceProvider showId={entry.showId}`. The
-two dialogs are **not** duplicates (exhibitor pre-deadline self-edit vs staff results/handler
-edit). **Next major phase: Phase 4 (conflict surfacing) — its own track, pre-GA.**
+(`entityType: 'entry'`) on `ClassDetailsPage` — that page is show-scoped (`/shows/:showId/…`)
+so it was wrapped in a `ShowPresenceProvider showId={parentShow?.id}` to host it. **§2
+entry-level acceptance is met:** two staff opening the same `EditEntryDialog` each see the
+other's badge — both key on the same `entries.id`. (3) **[ADDED 2026-06-07]** the
+*exhibitor*-side `EntryEditDialog` on the **cross-show** `MyEntriesPage` now also participates,
+closing the *exhibitor↔secretary* cross-surface case. **Id-equality finding:** `EntryData.id`
+is **not** a safe shared key — `groupEntriesByShowAndDog` collapses a dog's N class rows into
+one card whose `id` is only the **first** row's `entries.id`, so a single header badge keyed on
+it would silently miss a secretary editing any non-first class. The correct shared id space is
+the **per-class** `EntryClass.id` (each *is* a real `entries.id`; proven by the save path and
+`EntryEditDialog.test.tsx:122`). Wiring respects that and the single `editing` slot per user:
+(a) a per-dialog `ShowPresenceProvider showId={entry.showId}` wraps just the open dialog (the
+cross-show page can't take a page-level one); (b) **read** = per-class-row
+`<EditingBadge entityId={classEntry.id}>`, exact for every class; (c) **write** =
+`useEditingPresence('entry', entry.id)` advertises the group's *primary* id only (the model
+broadcasts one slot), so for multi-class groups a secretary sees the exhibitor on the primary
+class — a graceful, advisory-only gap, never a wrong-entity badge. Covered by
+`EntryEditDialog.editAwareness.test.tsx` (incl. a multi-class read case). The two dialogs are
+**not** duplicates (exhibitor pre-deadline self-edit vs staff results/handler edit). Next:
+live two-browser validation, then flip the flag in a follow-up.
 
 **Goal:** reduce wasted/colliding edits without hard locks.
 

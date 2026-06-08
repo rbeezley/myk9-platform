@@ -31,13 +31,6 @@ pnpm test:e2e:clean \
   --project=chromium --workers=1
 ```
 
-Add myK9Q only for ringside changes:
-
-```bash
-cd apps/myk9q
-pnpm test:e2e -- --project=chromium
-```
-
 ### Nightly
 
 Nightly has three phases: deterministic Vitest registration service/store checks, stable Playwright smoke, then an agent/browser route-health sweep.
@@ -138,8 +131,6 @@ PR smoke is intentionally small. Its purpose is to confirm the app boots, auth s
 | ---------------------------------------------------------------------- | ----------------------------------------------------- |
 | `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`               | App boots and basic page load works.                  |
 | `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts` | Current strict secretary regression proof.            |
-| `apps/myk9q/tests/e2e/auth.spec.ts`                                    | myK9Q authentication smoke; run for ringside changes. |
-| `apps/myk9q/tests/e2e/core-features.spec.ts`                           | myK9Q core ringside smoke; run for ringside changes.  |
 
 ## Nightly Active
 
@@ -233,6 +224,8 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/real-auth-browse-shows.spec.ts`            | Authenticated browse shows. |
 | `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`     | Detailed show wizard.       |
 | `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`   | Show details navigation.    |
+| `apps/myk9show/src/test/e2e/show-live-sync.spec.ts`                    | Show live-sync live Realtime smoke (data/Realtime-dependent; run when touching show live-sync). |
+| `apps/myk9show/src/test/e2e/show-presence.spec.ts`                     | Show presence live Realtime smoke (data/Realtime-dependent; run when touching show presence). |
 | `apps/myk9show/src/test/e2e/shows-page-ui-improvements.spec.ts`        | Shows page UI improvements. |
 | `apps/myk9show/src/test/e2e/trials-page-ui.spec.ts`                    | Trials page UI.             |
 | `apps/myk9show/src/test/e2e/user-creation-validation.spec.ts`          | User creation validation.   |

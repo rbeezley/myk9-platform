@@ -39,7 +39,9 @@ test.describe('Cross-role workflow smoke', () => {
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('link', { name: 'Add Show' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Personal tasks' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Messages' })).toBeVisible();
+    // Messages is no longer a dashboard/sidebar link; PR #592 consolidated it
+    // into the top Message Center panel.
+    await expect(page.getByRole('button', { name: /^Message Center/ })).toBeVisible();
   });
 
   test('exhibitor can land on My Shows and continue to show discovery', async ({ page }) => {

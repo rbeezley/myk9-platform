@@ -41,7 +41,9 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     });
     await expect(page.getByRole('link', { name: 'Add Show' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Personal tasks' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Messages' })).toBeVisible();
+    // Messages is no longer a dashboard/sidebar link; PR #592 consolidated it
+    // into the top Message Center panel.
+    await expect(page.getByRole('button', { name: /^Message Center/ })).toBeVisible();
   });
 
   test('show creation wizard starts with clear required fields and disabled next state', async ({

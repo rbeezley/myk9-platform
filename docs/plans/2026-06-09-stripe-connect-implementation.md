@@ -44,7 +44,7 @@ No code. Blocks Phases 3–5; Phases 1–2 can proceed in parallel with it.
 
 Pre-checks (CLAUDE.md migration rules):
 - `supabase migration list` — confirm remote state, pick timestamp after the latest.
-- Survey RLS helpers in one pass before writing policies: `grep -rn "club_id" supabase/migrations/*.sql | grep -i "policy\|function"` — reuse the existing club-admin membership pattern (user_roles scoped by `club_id`, migration 005) rather than inventing a new predicate. If a `is_club_admin(club_id)` style helper exists, use it; the SQL below shows the inline form to adapt.
+- [VERIFIED 2026-06-09] The canonical RLS predicate is `has_role(name, club_id)` (used in migrations 009/016/049); role names `club_admin`, `show_secretary`, `trial_secretary`, `platform_admin` are seeded (migration 009). Use `has_role('club_admin', club_stripe_accounts.club_id)` in the policies below instead of the inline `EXISTS` sketches — confirm the helper's exact signature in migration 009 before writing.
 
 ```sql
 -- Stripe Connect: club Express accounts + per-show payout tracking.
@@ -174,6 +174,8 @@ const platformFeePercent = resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_
 
 In `checkout.session.completed` (entry path), `session.payment_intent` is available. Add it to the entry insert object. Extract the insert-row construction into a pure builder in `_shared/entryFromCartItem.ts` and assert (red first) that the built row includes `stripe_payment_intent_id: 'pi_test_123'`.
 
+**[ADDED — VERIFIED PRE-EXISTING BUG] Make entry creation idempotent.** `handleEntryCheckout` currently fetches the cart with no status filter and creates entries unconditionally; the function 200s Stripe before processing (`EdgeRuntime.waitUntil`), so a duplicate event delivery silently creates duplicate paid entries — which the Phase 5 payout calc would then pay the club for twice. Fix in this task: bail out early if `cart.status !== 'active'` (the handler already sets `'submitted'` on completion, making the status the idempotency latch), and log loudly when entry insertion fails after a successful payment since Stripe will never retry (it already received the 200). Test red-first: handler invoked twice with the same event creates entries exactly once.
+
 ### Task 2.3: Deploy + commit
 
 1. `pnpm typecheck`, run the new tests.
@@ -192,7 +194,7 @@ In `checkout.session.completed` (entry path), `session.payment_intent` is availa
 Behavior (model auth/CORS on the existing `stripe-customer-portal`):
 1. Authenticated caller; body `{ club_id, return_path }`.
 2. Verify caller is club admin for `club_id` (same RBAC check pattern the RLS policy uses — query `user_roles`).
-3. Look up `club_stripe_accounts` by `club_id`. If none: `stripe.accounts.create({ type: 'express', metadata: { club_id } })`, upsert row (service role).
+3. Look up `club_stripe_accounts` by `club_id`. If none: `stripe.accounts.create({ type: 'express', capabilities: { transfers: { requested: true } }, metadata: { club_id } })`, upsert row (service role). [ADDED] The `transfers` capability request is required for the separate-charges-and-transfers flow — without it, Phase 5's `transfers.create` is rejected.
 4. `stripe.accountLinks.create({ account, refresh_url, return_url, type: 'account_onboarding' })` — both URLs point at the club settings page with `?connect=refresh|return`.
 5. Return `{ url }`.
 
@@ -325,7 +327,7 @@ Tests RED first: mixed methods (cash/check/waived/secretary_paid excluded), refu
 3. Per show: load entries (id, fee, source, payment_status) via service role → `calculateShowPayoutCents` → look up club's `club_stripe_accounts`.
    - No account or `!payouts_enabled` → insert `show_payouts` as `pending`, send nudge email to club admin via existing `send-email` function; continue.
    - Else insert as `processing` → `stripe.transfers.create({ amount, currency: 'usd', destination: stripe_account_id, transfer_group: show_id, metadata: { show_id } }, { idempotencyKey: `show-payout-${show_id}` })` → update row `completed` + `stripe_transfer_id` + `completed_at`, email the club a payout summary.
-   - Stripe error → row `failed` + `failure_reason` (next run inserts a fresh row — the partial unique index permits it).
+   - Stripe error → row `failed` + `failure_reason` (next run inserts a fresh row — the partial unique index permits it). [ADDED] An **insufficient-available-balance** failure is *expected and benign* when entries were paid on show day (card funds take ~2 business days to clear into available balance); the daily retry self-heals it. Name this in `failure_reason` mapping and in the admin alert email so it doesn't read as an incident.
 4. **[ADDED] Stale-`processing` recovery (run this FIRST each invocation).** A crash between `transfers.create` and the row update leaves a row stuck `processing`, and the unique index would block retries forever. At run start, mark `processing` rows older than 24h as `failed` with `failure_reason='stale_processing'`. The retry is safe even if the original transfer actually went through: the per-show idempotency key makes Stripe return the existing transfer, and the retry path records its `stripe_transfer_id`.
 5. **[ADDED] Platform-admin failure alert.** Any row entering `failed` (including `stale_processing`) emails the platform admin (Richard) via `send-email` with show name, amount, and `failure_reason` — club nudges alone leave the platform blind to broken payouts. Test: failed-transfer path asserts the admin email invocation.
 6. Assert the exact transfer call in tests (mocked Stripe), and that a second run over the same shows creates no second transfer (unique-index conflict path handled gracefully). [EXPANDED] Add: stale-processing row is failed then successfully retried on the following run, recording the idempotent transfer's id.
@@ -336,6 +338,8 @@ Tests RED first: mixed methods (cash/check/waived/secretary_paid excluded), refu
 - Create: `supabase/migrations/<timestamp>_payout_cron.sql`
 
 Follow migration 194 verbatim pattern: `cron.schedule('process-show-payouts', '0 10 * * *', ...)` → `net.http_post` to the hardcoded function URL with `x-function-secret: <PAYOUT_CRON_SECRET literal>`. pg_cron/pg_net already enabled by 193 — no extension changes. Audit with `migration-auditor`, **confirm**, push.
+
+[ADDED] **De-risk option (recommended): hold this migration until after the first live payout.** Everything else can deploy with the cron unscheduled; the first real show's payout is then triggered manually (`curl` with the secret header), the transfer verified in the Stripe dashboard against a hand-calculated expected amount, and only then is the schedule pushed. Automation should inherit trust from a verified manual run, not be granted it upfront.
 
 ### Task 5.4: Payout history in Payments card
 

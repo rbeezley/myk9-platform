@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   CheckCircle,
   Download,
@@ -42,12 +42,14 @@ import type { ReceiptData } from './ConfirmationStep.helpers';
 import type { ConfirmationStepProps, DogClassDetails } from './ConfirmationStep.types';
 import { RegistrationManagementPanel } from './RegistrationManagementPanel';
 import { NotificationPreferencesCard } from './NotificationPreferencesCard';
+import { sendRegistrationConfirmationEmail } from './sendRegistrationConfirmationEmail';
 import { formatRingLabel } from '@/utils/ringLabel';
 
 export type { ConfirmationStepProps } from './ConfirmationStep.types';
 
 export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   registrationNumber = 'REG-123456',
+  registrationId,
   selectedDogs,
   classSelections,
   documents,
@@ -72,6 +74,15 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const { classes = [] } = useClassStoreCompat();
 
   const show = shows.find(s => s.id === showId);
+
+  // Idempotency guards for the "Email Confirmation" action. `sendInFlightRef`
+  // blocks a second send while the first request is still pending (the React
+  // Query `isPending` lag pattern); `emailSentRef` blocks redundant re-sends
+  // after a success. The edge function is itself idempotent (Resend
+  // Idempotency-Key + email_log), so these are a UX safeguard, not the source
+  // of truth.
+  const sendInFlightRef = useRef(false);
+  const emailSentRef = useRef(false);
 
   const buildReceiptData = useCallback((): ReceiptData => {
     const showDate =
@@ -150,27 +161,71 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     });
   }, [onDownloadReceipt, buildReceiptData]);
 
+  const copyReceiptToClipboard = useCallback(async (): Promise<boolean> => {
+    const data = buildReceiptData();
+    const text = generateReceiptText(data);
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Clipboard API may fail (e.g. insecure context).
+      return false;
+    }
+  }, [buildReceiptData]);
+
   const handleSendEmail = useCallback(async () => {
     if (onSendEmail) {
       onSendEmail();
       return;
     }
-    const data = buildReceiptData();
-    const text = generateReceiptText(data);
-    try {
-      await navigator.clipboard.writeText(text);
-      notifications.success('Receipt copied to clipboard', {
-        description: 'Paste it into your email client to send yourself a copy.',
-      });
-    } catch {
-      // Clipboard API may fail (e.g. insecure context), fall back to info toast
-      // TODO: Implement server-side email via Supabase Edge Function
-      notifications.info('Email confirmation coming soon', {
-        description:
-          'Server-side email is not yet available. Use "Download Receipt" to save a copy.',
-      });
+
+    // No registration id (e.g. preview / unsaved draft): clipboard is the only
+    // available path.
+    if (!registrationId) {
+      const copied = await copyReceiptToClipboard();
+      if (copied) {
+        notifications.success('Receipt copied to clipboard', {
+          description: 'Paste it into your email client to send yourself a copy.',
+        });
+      } else {
+        notifications.error('Could not copy receipt', {
+          description: 'Use "Download Receipt" to save a copy instead.',
+        });
+      }
+      return;
     }
-  }, [onSendEmail, buildReceiptData]);
+
+    // INTENT: Exhibitor — "this respects my time". The confirmation email is the
+    // exhibitor's receipt; send it for real on the primary path. Guard against
+    // double-sends from rapid clicks or re-renders.
+    if (sendInFlightRef.current || emailSentRef.current) {
+      notifications.info('Confirmation email already sent', {
+        description: 'Check your inbox — it may take a minute to arrive.',
+      });
+      return;
+    }
+    sendInFlightRef.current = true;
+    try {
+      const result = await sendRegistrationConfirmationEmail(registrationId);
+      if (result.ok) {
+        emailSentRef.current = true;
+        notifications.success('Confirmation email sent', {
+          description: 'Check your inbox — it may take a minute to arrive.',
+        });
+        return;
+      }
+      // Send failed — fall back to clipboard copy so the exhibitor still leaves
+      // with their receipt, and surface the failure.
+      const copied = await copyReceiptToClipboard();
+      notifications.error('Could not send confirmation email', {
+        description: copied
+          ? 'Receipt copied to clipboard instead — paste it into your email client.'
+          : 'Use "Download Receipt" to save a copy instead.',
+      });
+    } finally {
+      sendInFlightRef.current = false;
+    }
+  }, [onSendEmail, registrationId, copyReceiptToClipboard]);
 
   const getStatusIcon = (status: EntryStatus) => {
     switch (status) {

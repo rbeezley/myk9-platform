@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -225,6 +226,51 @@ function renderPage(showId = 'show-1', query = '') {
   );
 }
 
+function makeGeneratedPremium(style: 'heritage' = 'heritage') {
+  return {
+    org: 'AKC',
+    style,
+    templateId: null,
+    show: {
+      name: 'Bluegrass Classic',
+      startDate: '2026-03-22',
+      endDate: '2026-03-23',
+      venue: 'Louisville',
+      entryOpenDate: null,
+      entryCloseDate: null,
+      preEntryFee: 25,
+      dayOfFee: 30,
+      acceptChecks: false,
+      acceptCash: false,
+    },
+    club: { name: 'Bluegrass KC', logoUrl: null },
+    secretary: { name: null, email: null, phone: null, mailingAddress: null },
+    officials: { chairman: null, steward: null },
+    trials: [
+      {
+        name: 'Trial 1',
+        date: '2026-03-22',
+        startTime: null,
+        eventNumber: '20260001',
+        type: 'Scent Work',
+        judges: [{ name: 'Stale Judge', elements: ['Exterior'] }],
+        classes: [],
+      },
+    ],
+    supplemental: {
+      vetClinic: null,
+      accommodations: [],
+      hospitalityNotes: 'Coffee provided.',
+      awardsDescription: null,
+      additionalNotes: null,
+    },
+    narratives: {
+      showHours: 'Doors open at 7:00 AM.',
+      trialInformation: 'Trial briefing at 8:00 AM.',
+    },
+  };
+}
+
 describe('ShowDetailsPage', () => {
   beforeEach(() => {
     mockShow = {
@@ -394,23 +440,54 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('button', { name: 'Manage Entry' })).not.toBeInTheDocument();
   });
 
-  it('redirects secretary to the show workbench', () => {
+  it('does not render a separate Premium List edit button for show managers', () => {
     mockAuthContext.isSecretary = true;
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={qc}>
-        <MemoryRouter initialEntries={['/shows/show-1']}>
-          <Routes>
-            <Route path="/shows/:id" element={<ShowDetailsPage />} />
-            <Route
-              path="/secretary/shows/:id"
-              element={<div data-testid="workbench-page">workbench</div>}
-            />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
-    expect(screen.getByTestId('workbench-page')).toBeInTheDocument();
+    mockShow = {
+      ...mockShow,
+      organization: 'AKC',
+    };
+
+    renderPage();
+
+    expect(screen.getByRole('button', { name: /more actions/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
+  });
+
+  it('shows a workbench link only for show managers on public show details', () => {
+    mockAuthContext.isSecretary = true;
+
+    renderPage();
+
+    // The link lives inside the 3-dot dropdown; open it first.
+    // Base UI renders the asChild Link as <a role="menuitem">, so query by menuitem.
+    fireEvent.click(screen.getByRole('button', { name: /more actions/i }));
+    const workbenchItem = screen.getByRole('menuitem', { name: /manage in workbench/i });
+    expect(workbenchItem).toHaveAttribute('href', '/secretary/shows/show-1');
+  });
+
+  it('hides the workbench link from exhibitors on public show details', () => {
+    renderPage();
+
+    // canManageShow is false for exhibitors so the 3-dot menu is never rendered.
+    expect(screen.queryByRole('menuitem', { name: /manage in workbench/i })).not.toBeInTheDocument();
+  });
+
+  it('renders the public Show Map as read-only for show managers', async () => {
+    mockAuthContext.isSecretary = true;
+    mockTrials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+
+    renderPage('show-1', '?tab=map');
+
+    const showMap = await screen.findByTestId('show-map-tab');
+    expect(showMap).toHaveAttribute('data-can-manage', 'false');
   });
 
   it('uses the published experience style for public landing selection', () => {
@@ -498,4 +575,126 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
   });
 
+  it('shows success feedback after saving show edits', async () => {
+    const user = userEvent.setup();
+    mockAuthContext.isSecretary = true;
+    showEditPanelMock.impl = ({ onSave }) => (
+      <button
+        onClick={() =>
+          onSave({
+            name: 'Bluegrass Classic Renamed',
+            status: 'upcoming',
+            organization: 'AKC',
+            clubId: 'club-1',
+            startDate: '2026-03-22',
+            endDate: '2026-03-23',
+            assignedJudges: [],
+          })
+        }
+      >
+        save mocked edit panel
+      </button>
+    );
+
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
+
+    await waitFor(() => {
+      expect(notificationsSuccessMock).toHaveBeenCalledWith('Show changes saved');
+    });
+  });
+
+  it('publishes experience after saving draft show changes when requested', async () => {
+    const user = userEvent.setup();
+    const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    const setQueryDataSpy = vi.spyOn(QueryClient.prototype, 'setQueryData');
+    mockAuthContext.isSecretary = true;
+    showEditPanelMock.impl = ({ onSave }) => (
+      <button
+        onClick={() =>
+          onSave({
+            name: 'Bluegrass Classic Renamed',
+            status: 'draft',
+            organization: 'AKC',
+            clubId: 'club-1',
+            startDate: '2026-03-22',
+            endDate: '2026-03-23',
+            location: 'Lexington, KY',
+            preEntryFee: '31.50',
+            dayOfShowFee: '41',
+            acceptCheckPayments: true,
+            acceptCashPayments: true,
+            assignedJudges: [
+              {
+                judgeId: 'judge-1',
+                judgeName: 'Fresh Judge',
+                assignedDate: '2026-01-01',
+                assignedClasses: ['Container', 'Interior'],
+              },
+            ],
+            style: 'heritage',
+            publishExperience: true,
+            generatedPremium: makeGeneratedPremium('heritage'),
+            inkSaver: false,
+          })
+        }
+      >
+        save mocked edit panel
+      </button>
+    );
+
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
+
+    expect(updateShowLocallyMock).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ name: 'Bluegrass Classic Renamed', style: 'heritage' })
+    );
+    expect(publishExperienceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showId: 'show-1',
+        inkSaver: false,
+        premium: expect.objectContaining({
+          style: 'heritage',
+          show: expect.objectContaining({
+            name: 'Bluegrass Classic Renamed',
+            venue: 'Lexington, KY',
+            preEntryFee: 31.5,
+            dayOfFee: 41,
+            acceptChecks: true,
+            acceptCash: true,
+          }),
+          trials: expect.arrayContaining([
+            expect.objectContaining({
+              judges: [
+                {
+                  name: 'Fresh Judge',
+                  elements: ['Container', 'Interior'],
+                },
+              ],
+            }),
+          ]),
+        }),
+      })
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'show-1', 'publish-info'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'show-1', 'published-experience-content'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'detail', 'show-1'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'list'],
+    });
+    expect(setQueryDataSpy).toHaveBeenCalledWith(
+      ['shows', 'detail', 'show-1'],
+      expect.objectContaining({ style: 'heritage' })
+    );
+    expect(setQueryDataSpy).toHaveBeenCalledWith(['shows', 'list'], expect.any(Function));
+  });
 });

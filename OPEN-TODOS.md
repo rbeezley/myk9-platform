@@ -20,7 +20,7 @@ Descoped from the shipped #602–#604 MVP. Not blockers for the enabled flag; bu
 - [x] **Mount-time conflict re-prompt (`getConflictedRows()`)** — Shipped PR #606 (2026-06-08). `getConflictedRows()` on `ReplicatedTable<T>` + `ReplicationSyncProvider` re-emits persisted conflicts on auth. Kill-switch gated; per-table error isolation.
 - [x] **Mutation-hold for conflicted rows (Task 4)** — Shipped PR #609 (2026-06-08). Upload-skip guard in `MutationManager.uploadPendingMutations` reads `syncStatus` from IDB; holds mutations while `'conflict'`, releases when user resolves.
 - [ ] **Two-context Playwright E2E spec** — The 2026-06-08 validation was manual. Add a Playwright two-context spec (two browser contexts on the same show) that proves same-field offline edits in both contexts surface a conflict toast on reconnect. Plan doc §Task 8 "Automated multi-client E2E."
-- [ ] **`resolveReplicationConflict()` unified API** — The inline toast calls `clearConflict` / `replaceFromRemote` / `discardPendingMutationsForRow` directly. Wrap into a `resolveReplicationConflict(id, resolution: 'keep-mine' | 'take-theirs')` helper + `getConflictedRows()` query for any future conflict registry or richer review dialog. Plan doc §Task 5.
+- [x] **`resolveReplicationConflict()` unified API** — Shipped (2026-06-09). `resolveReplicationConflict(id, resolution)` on `ReplicatedTable<T>` reads `remoteData` / `remoteServerVersion` from the persisted IDB conflict snapshot; callers no longer thread event-detail params through the toast handler. `ReplicationSyncProvider` toast updated to use the unified API. 3 new tests in `ReplicatedTable.test.ts` (keep-local, take-remote, no-op).
 
 ---
 

@@ -1,41 +1,8 @@
 // apps/myk9show/src/pages/secretary/__tests__/ResultsControlPage.test.tsx
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
-
-// --- Store mocks ---
-const mockShowStoreState = vi.hoisted(() => {
-  const state = {
-    selectedShowId: 'show-1',
-    shows: [
-      { id: 'show-1', name: 'Spring Agility Trial' },
-      { id: 'show-2', name: 'Fall Classic' },
-    ],
-    selectShow: vi.fn((showId: string) => {
-      state.selectedShowId = showId;
-    }),
-  };
-  return state;
-});
-
-const mockSelectShow = mockShowStoreState.selectShow;
-
-const resetShowStore = () => {
-  mockShowStoreState.selectedShowId = 'show-1';
-  mockShowStoreState.shows = [
-    { id: 'show-1', name: 'Spring Agility Trial' },
-    { id: 'show-2', name: 'Fall Classic' },
-  ];
-};
-
-vi.mock('@/store/showStore', () => ({
-  useShowStore: () => ({
-    selectedShowId: mockShowStoreState.selectedShowId,
-    shows: mockShowStoreState.shows,
-    selectShow: mockShowStoreState.selectShow,
-  }),
-}));
 
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: () => ({
@@ -133,20 +100,18 @@ vi.mock('@/hooks/useAuth', () => ({
 
 import ResultsControlPage from '../ResultsControlPage';
 
-function renderPage(initialRoute = '/secretary/results-control') {
+function renderPage(initialRoute = '/secretary/shows/show-1/results-control') {
   return render(<ResultsControlPage />, { initialRoute });
 }
 
 describe('ResultsControlPage', () => {
   beforeEach(() => {
-    resetShowStore();
     vi.clearAllMocks();
   });
 
-  it('renders page title and show name', () => {
+  it('renders page title', () => {
     renderPage();
     expect(screen.getByText('Results Control')).toBeInTheDocument();
-    expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument();
   });
 
   it('renders all three preset cards', () => {
@@ -161,36 +126,6 @@ describe('ResultsControlPage', () => {
     expect(screen.getByText('Self Check-In')).toBeInTheDocument();
   });
 
-  it('selects the route show when ?showId exists', async () => {
-    renderPage('/secretary/results-control?showId=show-2');
-
-    await waitFor(() => expect(mockSelectShow).toHaveBeenCalledWith('show-2'));
-  });
-
-  it('applies the route show once without overriding later show changes', async () => {
-    const { rerender } = renderPage('/secretary/results-control?showId=show-2');
-
-    await waitFor(() => expect(mockSelectShow).toHaveBeenCalledWith('show-2'));
-    expect(mockShowStoreState.selectedShowId).toBe('show-2');
-
-    mockSelectShow.mockClear();
-    mockShowStoreState.selectedShowId = 'show-1';
-    rerender(<ResultsControlPage />);
-
-    await waitFor(() => expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument());
-    expect(mockSelectShow).not.toHaveBeenCalledWith('show-2');
-  });
-
-  it('keeps the selected show when ?showId is invalid', () => {
-    mockShowStoreState.selectedShowId = 'show-2';
-
-    renderPage('/secretary/results-control?showId=missing-show');
-
-    expect(mockSelectShow).not.toHaveBeenCalledWith('missing-show');
-    expect(mockSelectShow).not.toHaveBeenCalledWith('show-1');
-    expect(screen.getByText('Fall Classic')).toBeInTheDocument();
-  });
-
   it('clicking a preset calls the visibility mutation', async () => {
     const user = userEvent.setup();
     renderPage();
@@ -199,13 +134,5 @@ describe('ResultsControlPage', () => {
       expect.objectContaining({ preset: 'open' }),
       expect.any(Object)
     );
-  });
-
-  it('shows no-show state when no show selected', () => {
-    mockShowStoreState.selectedShowId = '';
-    mockShowStoreState.shows = [];
-    renderPage();
-    expect(screen.getByText(/select a show/i)).toBeInTheDocument();
-    mockShowStoreState.selectedShowId = 'show-1'; // reset
   });
 });

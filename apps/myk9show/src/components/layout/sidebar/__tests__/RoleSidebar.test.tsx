@@ -14,10 +14,6 @@ describe('RoleSidebar', () => {
       'href',
       '/secretary/dashboard'
     );
-    expect(screen.getByRole('link', { name: 'Entries' })).toHaveAttribute(
-      'href',
-      '/secretary/entries'
-    );
     expect(screen.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
   });
 });

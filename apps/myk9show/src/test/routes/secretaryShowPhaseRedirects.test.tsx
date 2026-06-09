@@ -107,11 +107,11 @@ describe('secretary show phase redirects', () => {
     });
   });
 
-  it('redirects day-of to the active show Show Desk phase', async () => {
+  it('redirects day-of to the active show show-desk sub-route', async () => {
     renderSecretaryRoutes('/secretary/day-of');
 
     expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
-      '/secretary/shows/show-1?phase=show-desk'
+      '/secretary/shows/show-1/show-desk'
     );
   });
 
@@ -123,19 +123,19 @@ describe('secretary show phase redirects', () => {
     );
   });
 
-  it('redirects check-in to Show Desk', async () => {
+  it('redirects check-in to Show Desk sub-route', async () => {
     renderSecretaryRoutes('/secretary/check-in');
 
     expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
-      '/secretary/shows/show-1?phase=show-desk'
+      '/secretary/shows/show-1/show-desk'
     );
   });
 
-  it('redirects run-order to Setup', async () => {
+  it('redirects run-order to Setup (show base path)', async () => {
     renderSecretaryRoutes('/secretary/run-order');
 
     expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
-      '/secretary/shows/show-1?phase=setup'
+      '/secretary/shows/show-1'
     );
   });
 
@@ -150,7 +150,7 @@ describe('secretary show phase redirects', () => {
     renderSecretaryRoutes('/secretary/day-of');
 
     expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
-      '/secretary/shows/stored-show?phase=show-desk'
+      '/secretary/shows/stored-show/show-desk'
     );
   });
 

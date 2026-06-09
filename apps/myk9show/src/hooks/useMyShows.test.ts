@@ -195,25 +195,25 @@ describe('useMyShows', () => {
     expect(items[1].kind).toBe('info');
   });
 
-  it('today attention href points to the show desk workbench phase', () => {
+  it('today attention href points to the show-desk sub-route', () => {
     const show = makeShow({ id: 'show-today', startDate: TODAY, status: 'in_progress' });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-today?phase=show-desk');
+    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-today/show-desk');
   });
 
-  it('draft attention href points to the setup workbench phase', () => {
+  it('draft attention href points to the show setup (base path)', () => {
     const show = makeShow({ id: 'show-draft', startDate: FUTURE_30, status: 'draft' });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-draft?phase=setup');
+    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-draft');
   });
 
   it('draft attention href points to setup even when the show starts today', () => {
     const show = makeShow({ id: 'show-draft-today', startDate: TODAY, status: 'draft' });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-draft-today?phase=setup');
+    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-draft-today');
   });
 
-  it('closing-soon attention href points to the setup workbench phase', () => {
+  it('closing-soon attention href points to the show setup (base path)', () => {
     const show = makeShow({
       id: 'show-upcoming',
       startDate: FUTURE_30,
@@ -221,6 +221,6 @@ describe('useMyShows', () => {
       entryCloseDate: FUTURE_7,
     });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-upcoming?phase=setup');
+    expect(result.current.attentionNeeded[0].href).toBe('/secretary/shows/show-upcoming');
   });
 });

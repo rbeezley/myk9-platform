@@ -17,7 +17,9 @@ interface ShowPhaseCardProps {
 }
 
 const workbenchHref = (showId: string, phase: 'setup' | 'show-desk') =>
-  `/secretary/shows/${showId}?phase=${phase}`;
+  phase === 'show-desk'
+    ? `/secretary/shows/${showId}/show-desk`
+    : `/secretary/shows/${showId}`;
 
 function TodayCard({
   show,

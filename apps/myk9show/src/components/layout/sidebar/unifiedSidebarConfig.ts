@@ -30,9 +30,6 @@ import {
   ShieldCheck,
   Compass,
   Search,
-  FileBarChart,
-  Send,
-  ListChecks,
   HelpCircle,
   BarChart3,
 } from 'lucide-react';
@@ -164,12 +161,6 @@ export function buildUnifiedSidebarConfig(
           icon: LayoutDashboard,
           description: 'Show management dashboard',
         },
-        {
-          title: 'Entries',
-          href: '/secretary/entries',
-          icon: FileText,
-          description: 'Manage show entries',
-        },
       ];
 
       if (nextShow) {
@@ -177,33 +168,12 @@ export function buildUnifiedSidebarConfig(
           title: nextShow.name,
           href:
             nextShow.phase === 'today'
-              ? `/secretary/shows/${nextShow.id}?phase=show-desk`
-              : `/secretary/shows/${nextShow.id}?phase=setup`,
+              ? `/secretary/shows/${nextShow.id}/show-desk`
+              : `/secretary/shows/${nextShow.id}`,
           icon: nextShow.phase === 'today' ? ClipboardCheck : List,
           description: nextShowDescription(nextShow.phase),
         });
       }
-
-      manageItems.push(
-        {
-          title: 'Reports',
-          href: '/secretary/reports',
-          icon: FileBarChart,
-          description: 'Generate and print reports',
-        },
-        {
-          title: 'Results Control',
-          href: '/secretary/results-control',
-          icon: ListChecks,
-          description: 'Verify results and release to exhibitors',
-        },
-        {
-          title: 'Submit Results',
-          href: '/secretary/results-submission',
-          icon: Send,
-          description: 'Submit results to sanctioning organizations',
-        }
-      );
 
       groups.push({ title: 'Manage', items: manageItems });
     }

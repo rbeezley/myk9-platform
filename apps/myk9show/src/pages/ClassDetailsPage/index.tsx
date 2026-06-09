@@ -226,7 +226,7 @@ const ClassDetailsPage: React.FC = () => {
           <DropdownMenuContent align="end">
             {(isSecretary || isAdmin) && parentShow?.id && (
               <DropdownMenuItem
-                onClick={() => navigate(`/secretary/shows/${parentShow.id}?phase=show-desk`)}
+                onClick={() => navigate(`/secretary/shows/${parentShow.id}/show-desk`)}
               >
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Open in Workbench

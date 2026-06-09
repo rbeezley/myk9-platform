@@ -4,6 +4,18 @@ Active work items only. Resolved historical context lives in git history and dat
 
 ---
 
+## Pre-Launch Critical Audit — 2026-06-09
+
+Full findings in `docs/pre-launch-audit-2026-06-09.md`. Non-Stripe criticals fixed same day (failed-mutation persistence + synchronous backup in `@myk9/replication`, bulk show actions wired to real mutations, armband failures surfaced).
+
+- [ ] **Stripe launch checklist (blocked on Stripe implementation)** — when building payments: webhook idempotency (UNIQUE on `stripe_orders.stripe_checkout_session_id` + processed-event guard), all-or-nothing entry creation in the webhook, non-200 response on processing failure, server-side fee re-derivation in `stripe-checkout` (never trust cart `entry_fee_cents`), `charge.refunded`/dispute handlers, remove `'MOCK-PAYMENT-REF'` from `submitShowRegistration.ts` and the selectable credit-card option.
+- [ ] **Registration confirmation email** — `ConfirmationStep.tsx` still shows "Email confirmation coming soon" (clipboard fallback). Needs a send-confirmation edge function (or reuse of the existing entry-confirmation sender) wired to the registration completion path.
+- [ ] **Waitlist offer notification** — `useWaitlistManagementData.ts` logs instead of notifying the exhibitor when a spot is offered (deferred Phase 6 of waitlist plan).
+- [ ] **Verify live RLS policies against migration lineage** — one `pg_policies` query pass on the linked project to confirm migration 023+/20260604004045 policies replaced the permissive migration-006 ones for `people`/`dogs`/`entries`.
+- [ ] **Delete or finish dormant `ImpersonationService`** — 2FA validation is format-only (`/^\d{6}$/`); no UI consumer found. Delete the service or implement real TOTP before wiring it up.
+
+---
+
 ## Phase 4 Conflict Surfacing — Shipped 2026-06-08
 
 PRs [#602](https://github.com/rbeezley/myk9-platform/pull/602) (detection primitives) + [#603](https://github.com/rbeezley/myk9-platform/pull/603) (OCC version preconditions + test fixes) + [#604](https://github.com/rbeezley/myk9-platform/pull/604) (flag enable). `features.showConflictSurfacing: true` as of 2026-06-08.

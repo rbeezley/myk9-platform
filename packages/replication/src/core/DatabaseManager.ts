@@ -29,6 +29,7 @@ export const REPLICATION_STORES = {
   REPLICATED_TABLES: 'replicated_tables',
   SYNC_METADATA: 'sync_metadata',
   PENDING_MUTATIONS: 'pending_mutations',
+  FAILED_MUTATIONS: 'failed_mutations',
   PREFETCH_CACHE: 'prefetch_cache',
   OFFLINE_QUEUE: 'offline_queue',
 } as const;
@@ -161,6 +162,18 @@ function createObjectStores(
     });
     prefetchStore.createIndex('timestamp', 'timestamp', { unique: false });
     prefetchStore.createIndex('ttl', 'ttl', { unique: false });
+  }
+
+  // Create failed_mutations store (v6) — permanently failed mutations are moved
+  // here instead of being deleted, so offline work (e.g. ringside scores) that
+  // hits an RLS/constraint/auth failure stays reviewable and retryable.
+  if (!db.objectStoreNames.contains(REPLICATION_STORES.FAILED_MUTATIONS)) {
+    logger.log(`[DatabaseManager] Creating FAILED_MUTATIONS store...`);
+    const failedStore = db.createObjectStore(REPLICATION_STORES.FAILED_MUTATIONS, {
+      keyPath: 'id',
+    });
+    failedStore.createIndex('tableName', 'tableName', { unique: false });
+    failedStore.createIndex('failedAt', 'failedAt', { unique: false });
   }
 
   // Create offline_queue store

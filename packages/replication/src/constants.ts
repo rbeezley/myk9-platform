@@ -11,7 +11,7 @@
 export const DB_NAME = 'myK9_Replication';
 
 /** Database schema version */
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 
 /** Total number of tables managed by replication system */
 export const TOTAL_REPLICATED_TABLES = 16;

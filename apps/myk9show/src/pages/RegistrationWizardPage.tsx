@@ -431,6 +431,17 @@ function RegistrationWizardContent() {
         if (submissionResult.armbandAssignments.length > 0) {
           setArmbandAssignments(submissionResult.armbandAssignments);
         }
+        if (submissionResult.armbandFailures.length > 0) {
+          // Entries are submitted; only the armband writes failed. Warn loudly
+          // so the secretary assigns these manually instead of discovering
+          // missing ring numbers on show day. The wizard auto-advances to the
+          // confirmation step, so the toast must persist until dismissed.
+          const count = submissionResult.armbandFailures.length;
+          notifications.error(
+            `Entries submitted, but armband assignment failed for ${count} dog${count === 1 ? '' : 's'}. Assign armbands manually from Entries Management.`,
+            { duration: Infinity, action: { label: 'Dismiss', onClick: () => {} } }
+          );
+        }
         triggerSync();
         markStepComplete(currentStep);
         setCurrentStep(prev => prev + 1);

@@ -225,7 +225,7 @@ Wire `account.updated` → update row by `stripe_account_id` with the patch; `ac
 - Create: `apps/myk9show/src/features/payments/ClubPaymentsCard.tsx` (+ colocated test)
 - Create: `apps/myk9show/src/features/payments/useClubStripeAccount.ts` (React Query read of `club_stripe_accounts`; direct Supabase read is acceptable here — admin config, not offline-critical show-day data)
 
-States: not connected (button → invoke `stripe-connect-onboard`, redirect to returned URL) / onboarding incomplete (resume button) / payouts enabled (green badge) / deauthorized (reconnect prompt). Handle `?connect=return` by refetching. Component test with the custom render from `src/test/utils/testUtils.tsx` covering all four states.
+States: not connected (button → invoke `stripe-connect-onboard`, redirect to returned URL) / onboarding incomplete (resume button) / payouts enabled (green badge) / deauthorized (reconnect prompt). [ADDED] Plus the invoke-failure state: if `stripe-connect-onboard` errors (Stripe down, RBAC denial), show an inline error with retry — never a silent dead button. Handle `?connect=return` by refetching. Component test with the custom render from `src/test/utils/testUtils.tsx` covering all five states.
 
 ### Task 3.4: Online-entry gate
 
@@ -260,7 +260,11 @@ expect(validateRefund({ ..., payoutStatus: 'completed' }).error).toBe('payout_al
 // only paid online entries
 expect(validateRefund({ ..., paymentStatus: 'refunded' }).error).toBe('not_refundable');
 expect(validateRefund({ ..., source: 'manual' }).error).toBe('not_online_payment');
+// [ADDED] entries with no Stripe key (pre-rollout rows, desk payments) are not refundable
+expect(validateRefund({ ..., stripePaymentIntentId: null }).error).toBe('missing_payment_intent');
 ```
+
+**[ADDED] One refund per entry in v1 — intended behavior, state it in the dialog.** A partial refund still sets `payment_status='refunded'`, so a second refund of the same entry is rejected (`not_refundable`), and the entry-scoped idempotency key enforces the same at the Stripe layer. The dialog copy must say the amount is final ("Refunds can only be issued once per entry"). Multi-step refunds are future work.
 
 Function flow: authenticate → verify secretary/club-admin for the entry's show → load entry + any non-failed `show_payouts` row → `validateRefund` → `stripe.refunds.create({ payment_intent, amount }, { idempotencyKey: `refund-entry-${entry_id}` })` → update entry: `refund_amount` (dollars, matching migration 176's NUMERIC), `refunded_at`, `refund_notes`, `payment_status = 'refunded'`. Assert the exact Stripe call: `toHaveBeenCalledWith({ payment_intent: 'pi_x', amount: 5000 }, { idempotencyKey: 'refund-entry-<id>' })`.
 
@@ -322,7 +326,9 @@ Tests RED first: mixed methods (cash/check/waived/secretary_paid excluded), refu
    - No account or `!payouts_enabled` → insert `show_payouts` as `pending`, send nudge email to club admin via existing `send-email` function; continue.
    - Else insert as `processing` → `stripe.transfers.create({ amount, currency: 'usd', destination: stripe_account_id, transfer_group: show_id, metadata: { show_id } }, { idempotencyKey: `show-payout-${show_id}` })` → update row `completed` + `stripe_transfer_id` + `completed_at`, email the club a payout summary.
    - Stripe error → row `failed` + `failure_reason` (next run inserts a fresh row — the partial unique index permits it).
-4. Assert the exact transfer call in tests (mocked Stripe), and that a second run over the same shows creates no second transfer (unique-index conflict path handled gracefully).
+4. **[ADDED] Stale-`processing` recovery (run this FIRST each invocation).** A crash between `transfers.create` and the row update leaves a row stuck `processing`, and the unique index would block retries forever. At run start, mark `processing` rows older than 24h as `failed` with `failure_reason='stale_processing'`. The retry is safe even if the original transfer actually went through: the per-show idempotency key makes Stripe return the existing transfer, and the retry path records its `stripe_transfer_id`.
+5. **[ADDED] Platform-admin failure alert.** Any row entering `failed` (including `stale_processing`) emails the platform admin (Richard) via `send-email` with show name, amount, and `failure_reason` — club nudges alone leave the platform blind to broken payouts. Test: failed-transfer path asserts the admin email invocation.
+6. Assert the exact transfer call in tests (mocked Stripe), and that a second run over the same shows creates no second transfer (unique-index conflict path handled gracefully). [EXPANDED] Add: stale-processing row is failed then successfully retried on the following run, recording the idempotent transfer's id.
 
 ### Task 5.3: Cron schedule migration
 
@@ -361,8 +367,20 @@ Tests green, **confirm**, deploy `cron-process-payouts`; commit `feat(payments):
 3. Confirm the January design doc carries its superseded banner.
 4. Commit: `docs: stripe connect rollout notes`; open PR for the whole branch (main is PR-only).
 
+### Task 6.3: Go-live cutover checklist (manual, Richard) [ADDED]
+
+Everything above runs in Stripe **test mode**. Before the first real show accepts money:
+
+1. Enable Connect (Express) in **live mode** — the dashboard setting is per-mode.
+2. Add the live webhook endpoint with the same event list; update `STRIPE_WEBHOOK_SECRET` to the live signing secret.
+3. Swap `STRIPE_SECRET_KEY` / publishable key to live values (`supabase secrets set` + frontend env).
+4. Re-set `PLATFORM_FEE_PERCENT` and verify `PAYOUT_CRON_SECRET` carried over (secrets are per-project, not per-mode — verify, don't assume).
+5. Smoke test: one real low-value entry payment + refund on a test show before announcing.
+
 ---
 
 ## Out of scope (do not build in this plan)
 
 Exhibitor self-service refunds; post-payout refunds/transfer reversals; annual subscription tier; any change to offline desk payments or the wait-list promotion flow.
+
+[ADDED] **Cancelled shows:** the cron's status filter (`completed`, `closed`) already guarantees a cancelled show's money never transfers — funds stay on the platform balance. v1 refund path for a cancelled show is the secretary issuing per-entry refunds through the Task 4.3 dialog (post-payout block never triggers, since no payout exists). A bulk "refund all entries" action is future work; if a show with dozens of paid entries cancels before that exists, it's dialog-clicking, not data loss.

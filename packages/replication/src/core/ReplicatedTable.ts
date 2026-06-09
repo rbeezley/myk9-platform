@@ -645,7 +645,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     if (resolution === 'keep-local') {
       await this.clearConflict(id, snapshot.remoteServerVersion);
     } else {
-      await this.replaceFromRemote(id, snapshot.remoteData as T, snapshot.remoteServerVersion);
+      await this.replaceFromRemote(id, snapshot.remoteData, snapshot.remoteServerVersion);
     }
     return true;
   }

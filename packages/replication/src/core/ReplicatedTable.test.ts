@@ -329,6 +329,7 @@ describe('ReplicatedTable', () => {
         syncStatus: 'pending',
         conflict: undefined,
         data: { status: 'checked-in' },
+        serverVersion: 5,
       });
     });
 
@@ -357,6 +358,7 @@ describe('ReplicatedTable', () => {
         syncStatus: 'synced',
         conflict: undefined,
         data: { id: '1', name: 'Rex', status: 'absent' },
+        serverVersion: 5,
       });
     });
 

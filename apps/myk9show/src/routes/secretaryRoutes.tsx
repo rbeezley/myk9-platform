@@ -6,13 +6,14 @@
  */
 
 import { lazy, useEffect } from 'react';
-import { Route, Navigate, useParams, useNavigate } from 'react-router-dom';
+import { Route, Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { useShowStore } from '@/store/showStore';
+import { useToastStore } from '@/store/toastStore';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
 const SecretaryDashboardPage = lazy(() =>
@@ -133,25 +134,42 @@ function useSecretaryRedirectShowId(): { showId: string; isResolving: boolean } 
 }
 
 // Redirects /secretary/entries/:showId? to the show-scoped entry management route.
+// Preserves location.search so filters like ?entryTab=pending survive the redirect.
 const SecretaryEntriesRedirect = () => {
   const { showId: paramShowId } = useParams<{ showId?: string }>();
   const { showId: storeShowId, isResolving } = useSecretaryRedirectShowId();
   const resolvedShowId = paramShowId || storeShowId;
+  const { search } = useLocation();
 
   if (isResolving) {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
   if (resolvedShowId) {
-    return <Navigate to={`/secretary/shows/${resolvedShowId}/entry-management`} replace />;
+    return (
+      <Navigate to={`/secretary/shows/${resolvedShowId}/entry-management${search}`} replace />
+    );
   }
 
   return <Navigate to="/secretary/dashboard" replace />;
 };
 
 // Redirects old standalone routes (reports, results-control, results-submission)
-// that have no show context to the dashboard.
-const SecretaryNoContextRedirect = () => <Navigate to="/secretary/dashboard" replace />;
+// that have no show context to the dashboard, with a contextual toast.
+const SecretaryNoContextRedirect = () => {
+  const addToast = useToastStore(s => s.addToast);
+  useEffect(() => {
+    addToast({
+      id: 'no-show-context',
+      type: 'announcement',
+      title: 'Select a show to continue',
+      body: '',
+      priority: 'normal',
+      timestamp: Date.now(),
+    });
+  }, [addToast]);
+  return <Navigate to="/secretary/dashboard" replace />;
+};
 
 const SecretaryShowRedirect = ({
   subPath,

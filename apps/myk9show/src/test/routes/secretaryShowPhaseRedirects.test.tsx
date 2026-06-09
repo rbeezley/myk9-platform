@@ -178,4 +178,12 @@ describe('secretary show phase redirects', () => {
 
     expect(await screen.findByTestId('secretary-dashboard')).toBeInTheDocument();
   });
+
+  it('preserves query string through the entries redirect', async () => {
+    renderSecretaryRoutes('/secretary/entries/show-1?entryTab=pending');
+
+    expect(await screen.findByTestId('show-workbench')).toHaveTextContent(
+      '/secretary/shows/show-1/entry-management?entryTab=pending'
+    );
+  });
 });

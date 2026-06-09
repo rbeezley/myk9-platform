@@ -381,7 +381,7 @@ describe('showMapActions', () => {
       trialId: 'trial-1',
     });
     expect(findAction(actions, 'print-check-in-sheet')).toMatchObject({
-      href: '/secretary/reports?report=check-in-sheet&showId=show-1&trialId=trial-1&classId=class-active',
+      href: '/secretary/shows/show-1/reports?report=check-in-sheet&trialId=trial-1&classId=class-active',
     });
   });
 
@@ -396,10 +396,10 @@ describe('showMapActions', () => {
     const actions = getRankedActions(tree.nodesById['trial:trial-1'], { tree });
 
     expect(findAction(actions, 'open-schedule')).toMatchObject({
-      href: '/secretary/shows/show-1?phase=setup',
+      href: '/secretary/shows/show-1',
     });
     expect(findAction(actions, 'print-trial-reports')).toMatchObject({
-      href: '/secretary/reports?report=trial-secretary-report&showId=show-1&trialId=trial-1',
+      href: '/secretary/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1',
     });
   });
 
@@ -560,7 +560,7 @@ describe('showMapActions', () => {
         expect.objectContaining({
           id: 'collect-judge-signature',
           nodeId: 'class:class-needs-signature',
-          href: '/secretary/reports?report=result-catalog&showId=show-1&trialId=trial-1&classId=class-needs-signature',
+          href: '/secretary/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=class-needs-signature',
           createsAttention: true,
         }),
       ])
@@ -802,12 +802,12 @@ describe('showMapActions', () => {
       expect.objectContaining({
         id: 'review-results',
         nodeId: 'class:class-signed',
-        href: '/secretary/results-control',
+        href: '/secretary/shows/show-1/results-control',
       }),
       expect.objectContaining({
         id: 'submit-final-results',
         nodeId: 'trial:trial-1',
-        href: '/secretary/results-submission',
+        href: '/secretary/shows/show-1/submit-results',
       }),
     ]);
   });

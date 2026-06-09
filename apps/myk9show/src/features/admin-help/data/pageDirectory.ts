@@ -227,14 +227,14 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/shows', '/secretary/dashboard'],
   },
   {
-    path: '/secretary/results-control',
+    path: '/secretary/shows/:showId/results-control',
     title: 'Results Control',
     description: 'Verify class results and release to exhibitors.',
     roles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Results',
     status: 'working',
-    linksTo: [],
+    linksTo: ['/secretary/shows/:showId'],
   },
   {
     path: '/secretary/run-order',

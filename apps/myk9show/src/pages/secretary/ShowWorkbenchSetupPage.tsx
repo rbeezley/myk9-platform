@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { JudgesList } from '@/components/shows/overview/JudgesList';
@@ -33,22 +33,11 @@ function PhaseShell({ title, kicker }: { title: string; kicker: string }) {
 export function ShowWorkbenchSetupPage() {
   const { showId } = useParams<{ showId: string }>();
   const { show: currentShow, isLoading } = useFastShowDetails(showId);
-  const { trials, trialClasses, loadTrials, loadTrialClasses } = useTrialStore(
-    useShallow(s => ({
-      trials: s.trials,
-      trialClasses: s.trialClasses,
-      loadTrials: s.loadTrials,
-      loadTrialClasses: s.loadTrialClasses,
-    }))
+  const { trials, trialClasses } = useTrialStore(
+    useShallow(s => ({ trials: s.trials, trialClasses: s.trialClasses }))
   );
   const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
-
-  useEffect(() => {
-    if (!showId) return;
-    void loadTrials();
-    void loadTrialClasses();
-  }, [showId, loadTrials, loadTrialClasses]);
 
   const associatedTrials = useMemo(
     () =>

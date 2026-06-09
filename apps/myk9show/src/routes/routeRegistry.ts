@@ -102,7 +102,7 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
   '/secretary/shows/:showId': () => import('@/pages/secretary/ShowWorkbenchPage'),
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/secretary/create-show/wizard': () => import('@/pages/secretary/ShowCreationWizardPage'),
-  '/secretary/results-control': () => import('@/pages/secretary/ResultsControlPage'),
+  '/secretary/shows/:showId/results-control': () => import('@/pages/secretary/ResultsControlPage'),
   '/secretary/run-order': () =>
     import('@/pages/secretary/RunOrderPage').then(m => ({ default: m.RunOrderPage })),
   // Add more secretary routes as they're defined

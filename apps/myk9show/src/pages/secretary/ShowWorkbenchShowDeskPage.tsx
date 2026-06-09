@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useEffect } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import {
   FileBarChart,
   ListChecks,
@@ -85,23 +85,12 @@ function toIncidentEntryOption(
 export function ShowWorkbenchShowDeskPage() {
   const { showId } = useParams<{ showId: string }>();
   const { show: currentShow, isLoading } = useFastShowDetails(showId);
-  const { trials, trialClasses, loadTrials, loadTrialClasses } = useTrialStore(
-    useShallow(s => ({
-      trials: s.trials,
-      trialClasses: s.trialClasses,
-      loadTrials: s.loadTrials,
-      loadTrialClasses: s.loadTrialClasses,
-    }))
+  const { trials, trialClasses } = useTrialStore(
+    useShallow(s => ({ trials: s.trials, trialClasses: s.trialClasses }))
   );
   const { data: showEntries = [] } = useEntriesByShowQuery(showId || '', !!showId);
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
   const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
-
-  useEffect(() => {
-    if (!showId) return;
-    void loadTrials();
-    void loadTrialClasses();
-  }, [showId, loadTrials, loadTrialClasses]);
 
   const associatedTrials = useMemo(
     () =>

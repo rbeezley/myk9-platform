@@ -205,7 +205,7 @@ const ClassDetailsPage: React.FC = () => {
             size="sm"
             onClick={() =>
               navigate(
-                `/secretary/entries/${parentShow.id}?trial=${trialId || currentClass?.trialId}`
+                `/secretary/shows/${parentShow.id}/entry-management?trial=${trialId || currentClass?.trialId}`
               )
             }
           >

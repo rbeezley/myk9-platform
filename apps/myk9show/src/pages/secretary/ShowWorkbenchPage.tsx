@@ -17,17 +17,30 @@ import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { ShowContextNav } from '@/components/navigation/ShowContextNav';
 import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export function ShowWorkbenchPage() {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
   const { show: currentShow, isLoading, isError, refetch } = useFastShowDetails(showId);
   const selectShow = useShowStore(s => s.selectShow);
+  const { loadTrials, loadTrialClasses } = useTrialStore(
+    useShallow(s => ({ loadTrials: s.loadTrials, loadTrialClasses: s.loadTrialClasses }))
+  );
 
   // Keep the show store in sync so sub-components that read useShowStore work correctly.
   useEffect(() => {
     if (showId) selectShow(showId);
   }, [showId, selectShow]);
+
+  // Hydrate the trial store for all sub-routes (Results Control, Show Desk, Setup, etc.)
+  // so pages that read useTrialStore work correctly on deep-link / refresh.
+  useEffect(() => {
+    if (!showId) return;
+    void loadTrials();
+    void loadTrialClasses();
+  }, [showId, loadTrials, loadTrialClasses]);
 
   const breadcrumbs = useMemo(
     () => [

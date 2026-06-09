@@ -54,7 +54,7 @@ export function QuickActionsSection({
         title="Pending Entries"
         subtitle="awaiting review"
         ctaLabel="Review Entries"
-        href={`/secretary/entries?showId=${showId}`}
+        href={`/secretary/shows/${showId}/entry-management`}
         borderClass="border-blue-500"
         numberClass="text-blue-400"
       />
@@ -63,7 +63,7 @@ export function QuickActionsSection({
         title="Reports Ready"
         subtitle="classes finalized"
         ctaLabel="Export Reports"
-        href="/secretary/reports"
+        href={`/secretary/shows/${showId}/reports`}
         borderClass="border-green-500"
         numberClass="text-green-400"
       />

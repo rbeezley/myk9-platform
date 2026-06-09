@@ -4,47 +4,51 @@ import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 
+const mockTrialStoreState = vi.hoisted(() => ({
+  trials: [
+    {
+      id: 'trial-1',
+      name: 'Trial A',
+      showId: 'show-1',
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: '',
+      _syncStatus: 'synced',
+    },
+  ],
+}));
+
 vi.mock('@/store/trialStore', () => ({
-  useTrialStore: () => ({
-    trials: [
-      {
-        id: 'trial-1',
-        name: 'Trial A',
-        showId: 'show-1',
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: '',
-        _syncStatus: 'synced',
-      },
-    ],
-  }),
+  useTrialStore: () => mockTrialStoreState,
+}));
+
+const mockClassStoreState = vi.hoisted(() => ({
+  classes: [
+    {
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Standard',
+      level: 'Novice',
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: '',
+      _syncStatus: 'synced',
+    },
+    {
+      id: 'class-2',
+      trialId: 'trial-1',
+      element: 'Standard',
+      level: 'Open',
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: '',
+      _syncStatus: 'synced',
+    },
+  ],
 }));
 
 vi.mock('@/store/classStore', () => ({
-  useClassStore: () => ({
-    classes: [
-      {
-        id: 'class-1',
-        trialId: 'trial-1',
-        element: 'Standard',
-        level: 'Novice',
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: '',
-        _syncStatus: 'synced',
-      },
-      {
-        id: 'class-2',
-        trialId: 'trial-1',
-        element: 'Standard',
-        level: 'Open',
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: '',
-        _syncStatus: 'synced',
-      },
-    ],
-  }),
+  useClassStore: () => mockClassStoreState,
 }));
 
 // --- Query mocks ---
@@ -99,14 +103,54 @@ vi.mock('@/hooks/useAuth', () => ({
 }));
 
 import ResultsControlPage from '../ResultsControlPage';
+import { Routes, Route } from 'react-router-dom';
 
 function renderPage(initialRoute = '/secretary/shows/show-1/results-control') {
-  return render(<ResultsControlPage />, { initialRoute });
+  return render(
+    <Routes>
+      <Route path="/secretary/shows/:showId/results-control" element={<ResultsControlPage />} />
+    </Routes>,
+    { initialRoute }
+  );
 }
 
 describe('ResultsControlPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Restore default seeded state
+    mockTrialStoreState.trials = [
+      {
+        id: 'trial-1',
+        name: 'Trial A',
+        showId: 'show-1',
+        _version: 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: '',
+        _syncStatus: 'synced',
+      },
+    ];
+    mockClassStoreState.classes = [
+      {
+        id: 'class-1',
+        trialId: 'trial-1',
+        element: 'Standard',
+        level: 'Novice',
+        _version: 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: '',
+        _syncStatus: 'synced',
+      },
+      {
+        id: 'class-2',
+        trialId: 'trial-1',
+        element: 'Standard',
+        level: 'Open',
+        _version: 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: '',
+        _syncStatus: 'synced',
+      },
+    ];
   });
 
   it('renders page title', () => {
@@ -134,5 +178,21 @@ describe('ResultsControlPage', () => {
       expect.objectContaining({ preset: 'open' }),
       expect.any(Object)
     );
+  });
+
+  it('renders the UI correctly when the trial store is empty (deep-link / refresh)', () => {
+    // Verifies that the shell-hoisted loadTrials() covers this route:
+    // a cold load with no pre-hydrated store data must not crash or blank out
+    // the preset cards — the React Query layer (show settings) is independent.
+    mockTrialStoreState.trials = [];
+    mockClassStoreState.classes = [];
+
+    renderPage();
+
+    expect(screen.getByText('Results Control')).toBeInTheDocument();
+    expect(screen.getByText('Immediately')).toBeInTheDocument();
+    expect(screen.getByText('After Class')).toBeInTheDocument();
+    expect(screen.getByText('After Review')).toBeInTheDocument();
+    expect(screen.getByText('Self Check-In')).toBeInTheDocument();
   });
 });

@@ -36,12 +36,6 @@ Descoped from the shipped #602–#604 MVP. Not blockers for the enabled flag; bu
 
 ---
 
-## Show Details Page — Navigation Overhaul
-
-- [ ] **Add contextual top nav bar to show detail pages** — A persistent second-tier nav bar renders between the myK9Show logo and header icons on all `/secretary/shows/:showId/*` and `/shows/:showId` routes, containing: **Setup · Show Desk · Entry Management · Reports · Results Control · Submit Results**. Setup and Show Desk remain inline (tab content); Entry Management, Reports, Results Control, Submit Results navigate to dedicated pages at `/secretary/shows/:showId/<section>` with the top nav staying visible and the active item highlighted. Files: `apps/myk9show/src/pages/secretary/SecretaryShowPage.tsx`, `apps/myk9show/src/routes/secretaryRoutes.tsx`, new shared `ShowContextNav` component. Full context in TO-DOS.md § "Show details page navigation overhaul — 2026-06-09".
-
-- [ ] **Remove show-scoped items from secretary sidebar + add 301-redirects** — Once the top nav exists, remove Entry Management, Reports, Results Control, and Submit Results from the sidebar; redirect old standalone routes (`/secretary/reports` → `/secretary/shows/:showId/reports`, etc.) to the new show-scoped URLs. Add a route-driven "Current Show" anchor at the top of the sidebar (shows the active show name when on a show page; dimmed last-visited show otherwise). Files: `apps/myk9show/src/components/navigation/unifiedSidebarConfig.ts`, `apps/myk9show/src/routes/secretaryRoutes.tsx`. Full context in TO-DOS.md § "Show details page navigation overhaul — 2026-06-09".
-
 ---
 
 ## Reports Page — Filter UI Bugs

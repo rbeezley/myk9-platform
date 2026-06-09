@@ -6,6 +6,7 @@ import { ArrowLeft, Download, Printer, Shuffle } from 'lucide-react';
 
 interface RunOrderHeaderProps {
   trialId: string | undefined;
+  showId: string | undefined;
   classCount: number;
   totalConflicts: number;
   errorConflicts: number;
@@ -15,6 +16,7 @@ interface RunOrderHeaderProps {
 
 export const RunOrderHeader: React.FC<RunOrderHeaderProps> = ({
   trialId,
+  showId,
   classCount,
   totalConflicts,
   errorConflicts,
@@ -51,8 +53,12 @@ export const RunOrderHeader: React.FC<RunOrderHeaderProps> = ({
         </Button>
         <Button
           variant="outline"
+          disabled={!showId}
           onClick={() =>
-            startTransition(() => navigate('/secretary/reports?report=judge-supply-checklist'))
+            showId &&
+            startTransition(() =>
+              navigate(`/secretary/shows/${showId}/reports?report=judge-supply-checklist`)
+            )
           }
         >
           <Printer className="h-4 w-4 mr-2" />

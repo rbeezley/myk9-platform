@@ -41,6 +41,7 @@ export const RunOrderPage: React.FC = () => {
     scheduleConfig,
     stats,
     availableJudges,
+    showId,
     isLoading,
     handleReorder,
     handleJudgeAssign,
@@ -65,6 +66,7 @@ export const RunOrderPage: React.FC = () => {
     <div className="container mx-auto p-6 max-w-7xl">
       <RunOrderHeader
         trialId={trialId}
+        showId={showId}
         classCount={classes.length}
         totalConflicts={stats.totalConflicts}
         errorConflicts={stats.errorConflicts}

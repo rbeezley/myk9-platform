@@ -227,14 +227,25 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/shows', '/secretary/dashboard'],
   },
   {
-    path: '/secretary/results-control',
+    path: '/secretary/shows/:showId',
+    title: 'Show Workbench',
+    description:
+      'Per-show hub with contextual nav: Setup, Show Desk, Entry Management, Reports, Results Control, and Submit Results.',
+    roles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Shows',
+    status: 'working',
+    linksTo: ['/secretary/dashboard', '/secretary/shows/:showId/results-control'],
+  },
+  {
+    path: '/secretary/shows/:showId/results-control',
     title: 'Results Control',
     description: 'Verify class results and release to exhibitors.',
     roles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Results',
     status: 'working',
-    linksTo: [],
+    linksTo: ['/secretary/shows/:showId'],
   },
   {
     path: '/secretary/run-order',

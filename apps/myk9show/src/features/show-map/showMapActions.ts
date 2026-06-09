@@ -233,7 +233,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
           label: 'Review results',
           why: 'Confirm placements before final submission',
           priority: 52,
-          href: '/secretary/results-control',
+          ...(showId ? { href: `/secretary/shows/${showId}/results-control` } : {}),
           icon: FileText,
           recommended: true,
           createsAttention: true,
@@ -246,6 +246,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
     node.type === 'trial' &&
     node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.TRIAL_READY_TO_SUBMIT
   ) {
+    const showId = getRootShowId(tree);
     return [
       {
         id: 'submit-final-results',
@@ -253,7 +254,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
         label: 'Submit final results',
         why: 'Completed trial is ready for closeout submission',
         priority: 50,
-        href: '/secretary/results-submission',
+        ...(showId ? { href: `/secretary/shows/${showId}/submit-results` } : {}),
         icon: Send,
         recommended: true,
         createsAttention: true,

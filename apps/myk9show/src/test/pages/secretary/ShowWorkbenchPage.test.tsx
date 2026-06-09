@@ -1,16 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import ShowWorkbenchPage from '@/pages/secretary/ShowWorkbenchPage';
-import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { UserRole } from '@/types/auth-types';
 
 const navigateMock = vi.hoisted(() => vi.fn());
 const refetchMock = vi.hoisted(() => vi.fn());
 const mockUseAuth = vi.hoisted(() => vi.fn());
+const selectShowMock = vi.hoisted(() => vi.fn());
 
 let mockShow: Record<string, unknown> | null = {
   id: 'show-1',
@@ -38,10 +38,6 @@ let mockShow: Record<string, unknown> | null = {
 };
 let mockLoading = false;
 let mockError = false;
-let mockTrials: Array<Record<string, unknown>> = [];
-let mockTrialClasses: Record<string, Array<Record<string, unknown>>> = {};
-let mockShowEntries: Array<Record<string, unknown>> = [];
-let mockResultSubmissions: Array<Record<string, unknown>> = [];
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
@@ -68,142 +64,9 @@ vi.mock('@/hooks/useFastShowDetails', () => ({
   }),
 }));
 
-vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
-  useEntriesByShowQuery: () => ({ data: mockShowEntries }),
-}));
-
-vi.mock('@/hooks/queries/useShowJudges', () => ({
-  useShowJudges: () => ({ data: [] }),
-}));
-
-vi.mock('@/hooks/mutations/useResultSubmission', () => ({
-  useResultSubmissions: () => ({ data: mockResultSubmissions }),
-}));
-
-vi.mock('@/store/trialStore', () => ({
-  useTrialStore: (selector: (state: Record<string, unknown>) => unknown) =>
-    selector({
-      trials: mockTrials,
-      trialClasses: mockTrialClasses,
-      loadTrials: vi.fn(),
-      loadTrialClasses: vi.fn(),
-    }),
-}));
-
-vi.mock('@/features/premium/PremiumDownloadCard', () => ({
-  PremiumDownloadCard: ({ showId }: { showId: string }) => (
-    <div data-testid="premium-download-card">{showId}</div>
-  ),
-}));
-
-vi.mock('@/features/premium/LandingPageCard', () => ({
-  LandingPageCard: ({ showId }: { showId: string }) => (
-    <div data-testid="landing-page-card">{showId}</div>
-  ),
-}));
-
-vi.mock('@/components/shows/overview/ScheduleSummary', () => ({
-  ScheduleSummary: ({ showId }: { showId: string }) => (
-    <div data-testid="schedule-summary">{showId}</div>
-  ),
-}));
-
-vi.mock('@/components/shows/overview/VenueMap', () => ({
-  VenueMap: ({ location }: { location: string }) => <div data-testid="venue-map">{location}</div>,
-}));
-
-vi.mock('@/components/shows/overview/ShowOfficials', () => ({
-  ShowOfficials: ({ showId }: { showId: string }) => (
-    <div data-testid="show-officials">{showId}</div>
-  ),
-}));
-
-vi.mock('@/components/shows/overview/JudgesList', () => ({
-  JudgesList: ({ judges }: { judges?: unknown[] }) => (
-    <div data-testid="judges-list">{judges?.length ?? 0} judges</div>
-  ),
-}));
-
-vi.mock('@/components/secretary/ShowAccessCodesCard', () => ({
-  ShowAccessCodesCard: ({ showId, showName }: { showId: string; showName?: string }) => (
-    <div data-testid="show-access-codes" data-show-id={showId}>
-      {showName}
-    </div>
-  ),
-}));
-
-vi.mock('@/features/show-map/ShowMapTab', () => ({
-  default: ({
-    show,
-    trials,
-    classes,
-    entries,
-    canManageShow,
-    initialDayScope,
-    initialCompletionScope,
-  }: {
-    show: { id: string };
-    trials: unknown[];
-    classes: unknown[];
-    entries: unknown[];
-    canManageShow: boolean;
-    initialDayScope?: string;
-    initialCompletionScope?: string;
-  }) => (
-    <div
-      data-testid="show-map-tab"
-      data-show-id={show.id}
-      data-trial-count={trials.length}
-      data-submitted-trial-count={
-        trials.filter(trial => {
-          if (!trial || typeof trial !== 'object') return false;
-          return Boolean((trial as { resultSubmittedAt?: unknown }).resultSubmittedAt);
-        }).length
-      }
-      data-class-count={classes.length}
-      data-has-ring={String(
-        classes.some(cls => typeof cls === 'object' && cls !== null && 'ring' in cls)
-      )}
-      data-entry-count={entries.length}
-      data-can-manage={String(canManageShow)}
-      data-initial-day-scope={initialDayScope ?? ''}
-      data-initial-completion-scope={initialCompletionScope ?? ''}
-    />
-  ),
-}));
-
-vi.mock('@/features/show-workbench/WorkbenchLateEntryAction', () => ({
-  WorkbenchLateEntryAction: ({ showId }: { showId: string }) => (
-    <button type="button" data-testid="late-entry-action">
-      Add late entry for {showId}
-    </button>
-  ),
-}));
-
-vi.mock('@/features/show-workbench/IncidentLogCard', () => ({
-  IncidentLogCard: ({
-    entries,
-    judges,
-    showId,
-  }: {
-    entries: unknown[];
-    judges: unknown[];
-    showId: string;
-  }) => (
-    <section
-      data-testid="incident-log-card"
-      data-entry-count={entries.length}
-      data-judge-count={judges.length}
-    >
-      Incident log for {showId}
-    </section>
-  ),
-}));
-
-vi.mock('@/features/show-workbench/IncidentCloseoutSummary', () => ({
-  IncidentCloseoutSummary: ({ showId }: { showId: string }) => (
-    <section data-testid="incident-closeout-summary">Incident closeout for {showId}</section>
-  ),
+vi.mock('@/store/showStore', () => ({
+  useShowStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({ selectShow: selectShowMock }),
 }));
 
 vi.mock('react-router-dom', async importOriginal => {
@@ -242,22 +105,17 @@ vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({
     name,
     subtitle,
-    badges,
     footer,
     secondaryActions,
   }: {
     name: string;
     subtitle?: string;
-    badges?: Array<{ label: string }>;
     footer?: React.ReactNode;
     secondaryActions?: React.ReactNode;
   }) => (
     <section data-testid="detail-hero">
       <h2>{name}</h2>
       {subtitle && <p>{subtitle}</p>}
-      {badges?.map(badge => (
-        <span key={badge.label}>{badge.label}</span>
-      ))}
       {secondaryActions}
       {footer}
     </section>
@@ -294,7 +152,9 @@ vi.mock('@/components/shows/ShowDateBlock', () => ({
 }));
 
 vi.mock('@/components/shows/ShowStatusPill', () => ({
-  ShowStatusPill: ({ status }: { status: string }) => <div data-testid="show-status">{status}</div>,
+  ShowStatusPill: ({ status }: { status: string }) => (
+    <div data-testid="show-status">{status}</div>
+  ),
 }));
 
 function makeAuthReturn(email: string | null) {
@@ -323,7 +183,10 @@ function renderWorkbench(initialPath = '/secretary/shows/show-1', email = 'secre
                   <ShowWorkbenchPage />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<div data-testid="setup-sub-page">Setup content</div>} />
+              <Route path="show-desk" element={<div data-testid="show-desk-sub-page">Show Desk content</div>} />
+            </Route>
           </Routes>
         </MemoryRouter>
       </AuthProvider>
@@ -360,11 +223,6 @@ describe('ShowWorkbenchPage', () => {
     };
     mockLoading = false;
     mockError = false;
-    mockTrials = [];
-    mockTrialClasses = {};
-    mockShowEntries = [];
-    mockResultSubmissions = [];
-    useAskQPanelStore.getState().close();
     window.localStorage.clear();
   });
 
@@ -374,12 +232,6 @@ describe('ShowWorkbenchPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('detail-hero')).toHaveTextContent('Bluegrass Classic');
     });
-    // Phase B5: only Setup + Show Desk remain. Today and Wrap-up tabs were
-    // removed; their surfaces are now reachable from Show Desk.
-    expect(screen.getByRole('tab', { name: /Setup/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Show Desk/ })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: /^Today$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: /^Wrap-up$/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /preview public page/i })).toHaveAttribute(
       'href',
       '/shows/show-1'
@@ -387,95 +239,38 @@ describe('ShowWorkbenchPage', () => {
     expect(screen.getByTestId('quick-info')).toHaveTextContent('show-1');
   });
 
-  it('honors the phase URL param', async () => {
-    renderWorkbench('/secretary/shows/show-1?phase=setup');
-
-    const setupTab = await screen.findByRole('tab', { name: /Setup/ });
-    expect(setupTab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('redirects legacy ?phase=today to Show Desk (Phase B5)', async () => {
-    renderWorkbench('/secretary/shows/show-1?phase=today');
-
-    const showDeskTab = await screen.findByRole('tab', { name: /Show Desk/ });
-    expect(showDeskTab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('redirects legacy ?phase=wrap-up to Show Desk (Phase B5)', async () => {
-    renderWorkbench('/secretary/shows/show-1?phase=wrap-up');
-
-    const showDeskTab = await screen.findByRole('tab', { name: /Show Desk/ });
-    expect(showDeskTab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('lands on Show Desk by default when no ?phase is provided (Phase B2a)', async () => {
-    renderWorkbench('/secretary/shows/show-1');
-
-    const showDeskTab = await screen.findByRole('tab', { name: /Show Desk/ });
-    expect(showDeskTab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('falls back to the default tab on an unknown ?phase value', async () => {
-    renderWorkbench('/secretary/shows/show-1?phase=garbage');
-
-    const showDeskTab = await screen.findByRole('tab', { name: /Show Desk/ });
-    expect(showDeskTab).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('renders the adaptive header status pill on the Show Desk tab', async () => {
-    renderWorkbench('/secretary/shows/show-1?phase=show-desk');
-
-    expect(
-      await screen.findByTestId('show-desk-status-pill', undefined, { timeout: 5000 })
-    ).toBeInTheDocument();
-  });
-
-  it('updates phase when a tab is selected', async () => {
-    const user = userEvent.setup();
+  it('renders the ShowContextNav with all 6 section links', async () => {
     renderWorkbench();
 
-    await user.click(await screen.findByRole('tab', { name: /Setup/ }));
+    await waitFor(() => expect(screen.getByTestId('detail-hero')).toBeInTheDocument());
 
-    expect(screen.getByRole('tab', { name: /Setup/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('link', { name: /Setup/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Show Desk/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Entry Management/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Reports/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Results Control/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Submit Results/i })).toBeInTheDocument();
   });
 
-  it('renders Setup panels without public-discovery panels', async () => {
-    // Phase B2a: bare URL lands on Show Desk by default; Setup is reached via explicit ?phase=setup.
-    // Phase B8 replaced the AboutThisPhase banner + PhaseChecklist + AskQ help
-    // card with the SetupAdaptiveHeader, and consolidated Premium + Landing
-    // into the SetupPublishSection.
-    renderWorkbench('/secretary/shows/show-1?phase=setup');
+  it('renders the Setup index route by default', async () => {
+    renderWorkbench('/secretary/shows/show-1');
 
-    expect(await screen.findByLabelText('Setup readiness')).toBeInTheDocument();
-    // Deleted surfaces should not appear.
-    expect(screen.queryByRole('heading', { name: 'About Setup' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'What do I do if...' })).not.toBeInTheDocument();
-    // Publish section groups the two existing cards.
-    expect(screen.getByRole('heading', { name: 'Publish' })).toBeInTheDocument();
-    expect(await screen.findByTestId('premium-download-card')).toHaveTextContent('show-1');
-    expect(screen.getByTestId('landing-page-card')).toHaveTextContent('show-1');
-    // Reference info still inline.
-    expect(screen.getByTestId('schedule-summary')).toHaveTextContent('show-1');
-    expect(screen.getByTestId('venue-map')).toHaveTextContent('Louisville, KY');
-    expect(screen.getByTestId('show-officials')).toHaveTextContent('show-1');
-    expect(screen.getByTestId('judges-list')).toBeInTheDocument();
-    expect(screen.queryByTestId('show-access-codes')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('detail-hero')).toBeInTheDocument());
+    expect(screen.getByTestId('setup-sub-page')).toBeInTheDocument();
   });
 
-  // Phase B5 removed the Today and Wrap-up workbench tabs entirely. Their
-  // surfaces are now reachable from Show Desk (tree, tools sheet, closeout
-  // section). The two former tests "renders Today operational surfaces" and
-  // "renders Wrap-up links to existing closeout surfaces" were exercising
-  // those deleted tabs and have been removed alongside the tabs themselves.
-  // The Tools sheet behavior is now covered by ShowDeskToolsSheet.test.tsx
-  // and the Closeout section by ShowDeskCloseoutSection.test.tsx.
-  //
-  // The "opens AskQ with a selected show-day prompt" test was also removed —
-  // the "Scratch or no-show" prompt it asserted was a Today-phase prompt
-  // dropped in B5. Phase B8 then removed the Setup-tab AskQ help card
-  // entirely (along with the AboutThisPhase banner and PhaseChecklist) in
-  // favor of the signal-driven SetupAdaptiveHeader. The phase-filtered
-  // prompt config itself was removed once no caller remained.
+  it('renders the Show Desk sub-route when navigated to it', async () => {
+    renderWorkbench('/secretary/shows/show-1/show-desk');
+
+    await waitFor(() => expect(screen.getByTestId('detail-hero')).toBeInTheDocument());
+    expect(screen.getByTestId('show-desk-sub-page')).toBeInTheDocument();
+  });
+
+  it('syncs the show store with the route showId on mount', async () => {
+    renderWorkbench('/secretary/shows/show-1');
+
+    await waitFor(() => expect(selectShowMock).toHaveBeenCalledWith('show-1'));
+  });
 
   it('navigates to the existing edit surface', async () => {
     const user = userEvent.setup();
@@ -527,93 +322,5 @@ describe('ShowWorkbenchPage', () => {
     renderWorkbench('/secretary/shows/show-1', null);
 
     expect(screen.getByTestId('sign-in')).toBeInTheDocument();
-  });
-
-  // Phase B5 integration coverage: the legacy "renders Today operational
-  // surfaces" + "renders Wrap-up links" tests were deleted alongside their
-  // tabs, but those tests proved that ShowWorkbenchPage actually composes the
-  // 9 desk-tool sections + 3 closeout links with the right props. The new
-  // component tests for ShowDeskToolsSheet + ShowDeskCloseoutSection only
-  // verify the shells (they pass stub children). This test fills the gap.
-  it('composes the tool sections + 3 closeout links into the Show Desk tab', async () => {
-    const user = userEvent.setup();
-    mockTrials = [
-      {
-        id: 'trial-1',
-        showId: 'show-1',
-        order: '1',
-        trialDate: '2026-03-22',
-        trialNumber: '1',
-        name: 'Trial 1',
-      },
-    ];
-    mockTrialClasses = {
-      'trial-1': [
-        {
-          id: 'class-1',
-          element: 'Container',
-          level: 'Novice A',
-          section: 'A',
-          status: 'completed',
-        },
-      ],
-    };
-    mockShowEntries = [{ id: 'entry-1', class_id: 'class-1' }];
-
-    renderWorkbench('/secretary/shows/show-1?phase=show-desk');
-
-    // Tools sheet: open it and assert the remaining sections render with show-scoped data.
-    await user.click(await screen.findByRole('button', { name: /open tools panel/i }));
-    const dialog = await screen.findByRole('dialog', { name: /show desk tools/i });
-    expect(within(dialog).getByRole('button', { name: /late entries/i })).toHaveAttribute(
-      'aria-expanded',
-      'true'
-    );
-    expect(within(dialog).getByTestId('late-entry-action')).toHaveTextContent(
-      'Add late entry for show-1'
-    );
-
-    await user.click(within(dialog).getByRole('button', { name: /judge hospitality/i }));
-    expect(within(dialog).getByRole('heading', { name: 'Hospitality' })).toBeInTheDocument();
-
-    expect(within(dialog).queryByRole('button', { name: /message show/i })).not.toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole('button', { name: /incident log/i }));
-    expect(within(dialog).getByTestId('incident-log-card')).toHaveTextContent(
-      'Incident log for show-1'
-    );
-
-    await user.click(within(dialog).getByRole('button', { name: /delay scripts/i }));
-    expect(
-      within(dialog).getByRole('heading', { name: 'Schedule delay script' })
-    ).toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole('button', { name: /access codes/i }));
-    expect(within(dialog).getByTestId('show-access-codes')).toHaveAttribute('data-show-id', 'show-1');
-
-    await user.click(within(dialog).getByRole('button', { name: /volunteers/i }));
-    expect(within(dialog).getByRole('heading', { name: 'Volunteers' })).toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole('button', { name: /tasks and notes/i }));
-    expect(within(dialog).getByRole('heading', { name: /tasks & notes/i })).toBeInTheDocument();
-
-    // Closeout section: only renders when the show has a wrap-up-eligible
-    // class (we seeded class-1 as 'completed'). All 3 destination links
-    // present with the active show id preserved. Resolve via the labeled
-    // text then walk up to the anchor — Button asChild +
-    // Link composes the accessible name differently than a plain anchor.
-    const closeout = await screen.findByTestId('show-desk-closeout-section');
-    const resultsControlLink = within(closeout).getByText('Results Control').closest('a');
-    expect(resultsControlLink).toHaveAttribute(
-      'href',
-      '/secretary/results-control?showId=show-1'
-    );
-    const reportsLink = within(closeout).getByText('Reports').closest('a');
-    expect(reportsLink).toHaveAttribute('href', '/secretary/reports?showId=show-1');
-    const submitLink = within(closeout).getByText('Submit Results').closest('a');
-    expect(submitLink).toHaveAttribute(
-      'href',
-      '/secretary/results-submission?showId=show-1'
-    );
   });
 });

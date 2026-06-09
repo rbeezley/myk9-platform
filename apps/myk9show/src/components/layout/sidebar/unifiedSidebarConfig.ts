@@ -55,6 +55,12 @@ function hasAnyRole(userRoles: UserRole[], required: UserRole[]): boolean {
   return required.some(r => userRoles.includes(r));
 }
 
+function nextShowDescription(phase: NextShowContext['phase']): string {
+  if (phase === 'today') return 'Live today';
+  if (phase === 'draft') return 'Draft · finish setup';
+  return 'Setup & scheduling';
+}
+
 export function buildUnifiedSidebarConfig(
   userRoles: UserRole[],
   clubContext?: ClubContext,
@@ -174,8 +180,7 @@ export function buildUnifiedSidebarConfig(
               ? `/secretary/shows/${nextShow.id}?phase=show-desk`
               : `/secretary/shows/${nextShow.id}?phase=setup`,
           icon: nextShow.phase === 'today' ? ClipboardCheck : List,
-          description:
-            nextShow.phase === 'today' ? 'Live today' : nextShow.phase === 'draft' ? 'Draft · finish setup' : 'Setup & scheduling',
+          description: nextShowDescription(nextShow.phase),
         });
       }
 

@@ -106,6 +106,7 @@ export function useMyShows(shows: Show[]): MyShowsBuckets {
     }
 
     upcoming.sort((a, b) => a.startDate.localeCompare(b.startDate));
+    draft.sort((a, b) => a.startDate.localeCompare(b.startDate));
     past.sort((a, b) => b.startDate.localeCompare(a.startDate));
 
     return { today, upcoming, draft, past, attentionNeeded: buildAttentionItems(shows, phases) };

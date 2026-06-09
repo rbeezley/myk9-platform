@@ -44,6 +44,25 @@ Descoped from the shipped #602–#604 MVP. Not blockers for the enabled flag; bu
 
 ---
 
+## Show Map
+
+- [ ] **Add "All Exhibitors" by-dog view to Show Map** — A collapsible top-level row that lists every dog (exhibitor) in the show; expanding a dog row shows that dog's class entries — a dog-pivot of the existing `trial → class → entry` tree (`All Exhibitors | dog | entries` vs `trials | classes | entries`). Mirrors myK9Q's home-page exhibitor list. Reuse the show-map tree primitives, don't fetch new data. Files: `apps/myk9show/src/features/show-map/showMapTree.ts`, `showMapTypes.ts`, `ShowMapStructureTable.tsx`, `ShowMapTab.tsx`. Full context in TO-DOS.md § "All Exhibitors by-dog view on Show Map".
+
+---
+
+## UX Consistency
+
+- [ ] **Standardize item actions into a shared 3-dot menu** — Buttons for per-item actions are spread across pages and cards; consolidate them into one reusable overflow (3-dot/kebab) menu so users learn a single place to find actions on any item. Already FOUR ad-hoc menus exist (`ShowMapRowActionsMenu`, `ClassRowActionsMenu`, `DogActionsMenu`, `EntryActionsMenu`) + 36 files using 3-dot icons — collapse them onto one primitive, generalizing the shipped Show Map `RowActionsMenu` pattern. Keep the single primary CTA visible; menu is for secondary/overflow only (check `docs/INTENT.md`). Files: `apps/myk9show/src/components/ui/dropdown-menu/dropdown-menu.tsx`, `apps/myk9show/src/features/show-map/ShowMapRowActionsMenu.tsx`, `apps/myk9show/src/components/classes/ClassRowActionsMenu.tsx`, `apps/myk9show/src/components/dogs/DogDetails/DogActionsMenu.tsx`, `apps/myk9show/src/components/classes/ClassEntriesTable/components/EntryActionsMenu.tsx`. Full context in TO-DOS.md § "Standardize item actions into a 3-dot menu".
+- [ ] **Compact Entry Management filters + standardize filter UX** — The `/secretary/entries` Filters card wastes vertical space: search + two short-option dropdowns + a full-width Clear button stack to full width (`grid-cols-1 md:grid-cols-4` collapses below `md`). Compact into a single inline filter bar; the status dropdown duplicates the tab row below it (drop or merge). Then standardize ONE filter pattern app-wide — a shared `FilterBar` already exists but this card ignores it. Files: `apps/myk9show/src/components/entries/management/EntryFiltersCard.tsx`, `apps/myk9show/src/hooks/useEntryManagementFilters.ts`, `apps/myk9show/src/components/common/FilterBar/FilterBar.tsx` (existing shared pattern to adopt). Full context in TO-DOS.md § "Compact Entry Management filters".
+
+---
+
+## Entry Management
+
+- [ ] **Add checkbox multi-select for bulk editing on Entry Management** — Each entry row needs a checkbox plus a select-all checkbox; bulk actions apply to the checked set. Today bulk is scope-based (`onBulkCheckIn(entryIds)` via `BulkCheckInDialog` acts on a whole tab) with no row-level selection — add a selection layer and route existing bulk handlers through it. Mind the enrollment grouping (page-level vs per-exhibitor select-all) and extract the UI — `EnrollmentCard.tsx` is already 691 lines (>500 limit). Files: `apps/myk9show/src/components/entries/management/RegistrationView.tsx`, `apps/myk9show/src/components/entries/management/EnrollmentCard.tsx`, `apps/myk9show/src/components/entries/management/BulkCheckInDialog.tsx`, `apps/myk9show/src/components/ui/checkbox`. Full context in TO-DOS.md § "Checkbox bulk-select on Entry Management".
+
+---
+
 ## Platform Unification — myK9Show + myK9Q
 
 - [ ] **Disable/delete monorepo myK9Q Vercel project** — After PR #570 merges, disable or delete the unused `myk9-platform-myk9q` Vercel project so monorepo myK9Show changes no longer trigger stale/failing myK9Q deploys. This is a shared-system mutation and requires separate explicit approval at execution time. Do **not** touch the separate myK9Qv3 repository or production `myk9q.com`.

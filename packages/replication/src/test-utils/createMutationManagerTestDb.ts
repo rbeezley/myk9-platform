@@ -22,6 +22,14 @@ export async function createMutationManagerTestDb(dbName: string): Promise<IDBPD
         store.createIndex('status', 'status', { unique: false });
         store.createIndex('tableName', 'tableName', { unique: false });
       }
+
+      if (!db.objectStoreNames.contains(REPLICATION_STORES.FAILED_MUTATIONS)) {
+        const store = db.createObjectStore(REPLICATION_STORES.FAILED_MUTATIONS, {
+          keyPath: 'id',
+        });
+        store.createIndex('tableName', 'tableName', { unique: false });
+        store.createIndex('failedAt', 'failedAt', { unique: false });
+      }
     },
   });
 }

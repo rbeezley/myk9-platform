@@ -101,6 +101,9 @@ export interface PendingMutation {
 
   /** @internal Set by MutationManager; do not read or mutate externally. */
   nextRetryAt?: number;
+
+  /** When the mutation was moved to the failed_mutations store (permanent failure) */
+  failedAt?: number;
 }
 
 /**

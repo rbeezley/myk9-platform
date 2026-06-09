@@ -303,6 +303,75 @@ describe('ReplicatedTable', () => {
         syncStatus: 'pending',
       });
     });
+
+    it('resolveReplicationConflict keep-local resets to pending without changing local data', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const row = await table.getReplicatedRow('1');
+      await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: '1', name: 'Rex', status: 'absent' },
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+        baseVersion: row!.baseVersion!,
+        localVersion: row!.version,
+        remoteServerVersion: 5,
+        detectedAt: 1,
+      });
+
+      const resolved = await table.resolveReplicationConflict('1', 'keep-local');
+
+      expect(resolved).toBe(true);
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: true,
+        syncStatus: 'pending',
+        conflict: undefined,
+        data: { status: 'checked-in' },
+        serverVersion: 5,
+      });
+    });
+
+    it('resolveReplicationConflict take-remote replaces local data and marks synced', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+      const row = await table.getReplicatedRow('1');
+      await table.markConflict('1', {
+        tableName: table.getTableName(),
+        rowId: '1',
+        fields: ['status'],
+        localData: { id: '1', name: 'Rex', status: 'checked-in' },
+        remoteData: { id: '1', name: 'Rex', status: 'absent' },
+        baseData: { id: '1', name: 'Rex', status: 'ready' },
+        baseVersion: row!.baseVersion!,
+        localVersion: row!.version,
+        remoteServerVersion: 5,
+        detectedAt: 1,
+      });
+
+      const resolved = await table.resolveReplicationConflict('1', 'take-remote');
+
+      expect(resolved).toBe(true);
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        isDirty: false,
+        syncStatus: 'synced',
+        conflict: undefined,
+        data: { id: '1', name: 'Rex', status: 'absent' },
+        serverVersion: 5,
+      });
+    });
+
+    it('resolveReplicationConflict returns false and is a no-op with no conflict snapshot', async () => {
+      await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
+
+      const resolved = await table.resolveReplicationConflict('1', 'keep-local');
+
+      expect(resolved).toBe(false);
+      await expect(table.getReplicatedRow('1')).resolves.toMatchObject({
+        syncStatus: 'pending',
+      });
+    });
   });
 
   // markAsSynced bypasses the dirty-row guard at set():253. Use this after a

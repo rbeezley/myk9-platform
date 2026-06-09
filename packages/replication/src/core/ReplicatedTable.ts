@@ -15,6 +15,7 @@
 import type { IDBPDatabase, IDBPObjectStore } from 'idb';
 import type {
   ReplicatedRow,
+  ReplicationConflictResolution,
   ReplicationConflictSnapshot,
   SyncMetadata,
   SyncResult,
@@ -618,6 +619,35 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return rows
       .filter(row => row.syncStatus === 'conflict' && row.conflict !== undefined)
       .map(row => row.conflict!);
+  }
+
+  /**
+   * Resolve a persisted conflict in one call, reading all required params from
+   * the stored conflict snapshot so callers only need the rowId + choice.
+   *
+   * - 'keep-local': clears the conflict, resets syncStatus → 'pending'.  The
+   *   existing local mutation re-uploads with an updated OCC precondition.
+   * - 'take-remote': replaces local data with the remote version, marks the row
+   *   synced.  Callers should also call
+   *   `mutationManager.discardPendingMutationsForRow` to drop any queued upload.
+   *
+   * Returns false and is a no-op when the row has no persisted conflict snapshot
+   * (e.g. already resolved or row doesn't exist).
+   */
+  async resolveReplicationConflict(
+    id: string,
+    resolution: ReplicationConflictResolution
+  ): Promise<boolean> {
+    const row = await this.getReplicatedRow(id);
+    const snapshot = row?.conflict;
+    if (!snapshot) return false;
+
+    if (resolution === 'keep-local') {
+      await this.clearConflict(id, snapshot.remoteServerVersion);
+    } else {
+      await this.replaceFromRemote(id, snapshot.remoteData, snapshot.remoteServerVersion);
+    }
+    return true;
   }
 
   /**

@@ -1,9 +1,7 @@
-import React, { Suspense, useState, useEffect, useMemo } from 'react';
+import React, { Suspense, useEffect, useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
-import { publishExperience } from '@/features/experience/publishExperience';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
-import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { Navigate, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard,
   Trophy,
@@ -11,35 +9,18 @@ import {
   ClipboardList,
   Medal,
   BarChart3,
-  Trash2,
-  Pencil,
   ListTree,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
-import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
-import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
-import type { ShowInput } from '@/store/showStore';
-import type { Show } from '@/types/show-types';
-import type { ShowJudgeAssignment } from '@/types/judge-types';
-import type { GeneratedPremium } from '@/types/premium-types';
-import { useShowsQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { useShowStore } from '@/store/showStore';
-import { persistShowJudgeAssignments } from '@/services/database/judges';
+import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -49,6 +30,7 @@ import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
@@ -57,9 +39,6 @@ import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
-import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
-import { LandingPageCard } from '@/features/premium/LandingPageCard';
-import { notifications } from '@/lib/notifications';
 import { features } from '@/config/features';
 
 // Shared primitives
@@ -70,7 +49,6 @@ import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
-import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { countCatalogEntries } from '@/features/show-map/entryCounts';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
@@ -102,51 +80,10 @@ function isActiveEntryForMineFilter(entry: Record<string, unknown>): boolean {
   );
 }
 
-function parseOptionalCurrency(value: string | number | undefined): number | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function applyShowFormDataToPremium(
-  premium: GeneratedPremium,
-  formData: Partial<ShowInput>
-): GeneratedPremium {
-  const preEntryFee = parseOptionalCurrency(formData.preEntryFee);
-  const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
-
-  return {
-    ...premium,
-    style: (formData.style ?? premium.style) as GeneratedPremium['style'],
-    show: {
-      ...premium.show,
-      name: formData.name ?? premium.show.name,
-      startDate: formData.startDate ?? premium.show.startDate,
-      endDate: formData.endDate ?? premium.show.endDate,
-      venue: formData.location ?? premium.show.venue,
-      entryOpenDate: formData.entryOpenDate ?? premium.show.entryOpenDate,
-      entryCloseDate: formData.entryCloseDate ?? premium.show.entryCloseDate,
-      preEntryFee: preEntryFee ?? premium.show.preEntryFee,
-      dayOfFee: dayOfFee ?? premium.show.dayOfFee,
-      acceptChecks: formData.acceptCheckPayments ?? premium.show.acceptChecks,
-      acceptCash: formData.acceptCashPayments ?? premium.show.acceptCash,
-    },
-    trials: premium.trials.map(trial => ({
-      ...trial,
-      judges:
-        formData.assignedJudges?.map(judge => ({
-          name: judge.judgeName,
-          elements: judge.assignedClasses ?? [],
-        })) ?? trial.judges,
-    })),
-  };
-}
-
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { endNavigation } = useNavigationPerformance();
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
@@ -177,22 +114,8 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [currentShow, fastLoading, isFromCache, endNavigation]);
 
-  const queryClient = useQueryClient();
   const { data: shows = [] } = useShowsQuery();
 
-  const updateShowLocally = useShowStore(s => s.updateShow);
-
-  // Panel state
-  const [showEditPanel, setShowEditPanel] = useState(
-    () => new URLSearchParams(window.location.search).get('edit') === 'true'
-  );
-  useEffect(() => {
-    if (searchParams.get('edit') === 'true') {
-      searchParams.delete('edit');
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fallback: Find current show from database
   const actualCurrentShow = useMemo(() => {
@@ -342,28 +265,11 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [id, navigate]);
 
-  // Secretaries get the full workbench — replace so "back" returns to the shows list.
-  useEffect(() => {
-    if (canManageShow && showId) {
-      navigate(`/secretary/shows/${showId}`, { replace: true });
-    }
-  }, [canManageShow, showId, navigate]);
-
-  const handleConfirmDelete = () => {
-    setShowDeleteDialog(false);
-    queryClient.invalidateQueries({ queryKey: ['shows'] });
-    setTimeout(() => navigate('/shows'), 100);
-  };
-
   function handleRegisterForShow(): void {
     if (showId) {
       navigate(`/shows/${showId}/register`);
     }
   }
-
-  const workbenchHref = actualCurrentShow?.id
-    ? `/secretary/shows/${actualCurrentShow.id}`
-    : undefined;
 
   // Breadcrumbs for PageHeader
   const breadcrumbs = useMemo(
@@ -440,6 +346,11 @@ const ShowDetailsPage: React.FC = () => {
         <NotFoundState entityName="Show" backTo="/shows" backLabel="Back to Shows" />
       </PageShell>
     );
+  }
+
+  // Managers get the full workbench — replace so "back" returns to the shows list.
+  if (canManageShow && showId) {
+    return <Navigate to={`/secretary/shows/${showId}`} replace />;
   }
 
   const publicLandingShow =
@@ -535,64 +446,23 @@ const ShowDetailsPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-end gap-3">
               <LiveUpdateIndicator />
               <ShowPresenceStack />
-              {canManageShow ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label="More actions"
-                      className="min-h-[44px] sm:min-h-8"
-                    >
-                      <span className="text-base leading-none tracking-widest">···</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {workbenchHref && (
-                      <>
-                        <DropdownMenuItem asChild>
-                          <Link to={workbenchHref}>
-                            <LayoutDashboard className="h-4 w-4 mr-2" />
-                            Manage in Workbench
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => setShowDeleteDialog(true)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ) : entryStatus.canEnter ? (
-              <button
-                className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
-                onClick={handleRegisterForShow}
-              >
-                {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
-              </button>
-            ) : hasUserEntries ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="min-h-[44px] sm:min-h-8"
-                onClick={handleRegisterForShow}
-              >
-                View Entry
-              </Button>
-            ) : null}
+              {entryStatus.canEnter ? (
+                <button
+                  className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
+                  onClick={handleRegisterForShow}
+                >
+                  {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
+                </button>
+              ) : hasUserEntries ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-[44px] sm:min-h-8"
+                  onClick={handleRegisterForShow}
+                >
+                  View Entry
+                </Button>
+              ) : null}
             </div>
           }
           footer={
@@ -603,16 +473,6 @@ const ShowDetailsPage: React.FC = () => {
             />
           }
         />
-
-        {canManageShow && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <PremiumDownloadCard showId={actualCurrentShow.id} showStaleBadge={canManageShow} />
-            <LandingPageCard
-              showId={actualCurrentShow.id}
-              showStyle={getShowStyle(actualCurrentShow)}
-            />
-          </div>
-        )}
 
         {isWaitingForExhibitorEntryDefault ? (
           <div className="mt-6">
@@ -686,63 +546,6 @@ const ShowDetailsPage: React.FC = () => {
           </PrimaryTabs>
         )}
       </PageShell>
-
-      {/* Dialogs */}
-      <ShowEditPanel
-        open={showEditPanel}
-        onClose={() => setShowEditPanel(false)}
-        showId={actualCurrentShow.id || ''}
-        showName={actualCurrentShow.name || ''}
-        initialShowData={actualCurrentShow || {}}
-        onSave={async showData => {
-          if (actualCurrentShow.id) {
-            const showId = actualCurrentShow.id;
-            const publishableShowData = showData as Partial<ShowInput> & {
-              publishExperience?: boolean;
-              generatedPremium?: GeneratedPremium;
-              inkSaver?: boolean;
-            };
-            const localShow = await updateShowLocally(showId, showData as Partial<ShowInput>);
-            if (!localShow) {
-              throw new Error('Show was not available in the local store.');
-            }
-            // Persist judge assignments to judge_assignments table
-            await persistShowJudgeAssignments(showId, showData.assignedJudges || []);
-            queryClient.setQueryData<Show>(showQueryKeys.detail(showId), localShow);
-            queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
-              current?.map(show => (show.id === showId ? localShow : show))
-            );
-
-            if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
-              await publishExperience({
-                showId,
-                premium: applyShowFormDataToPremium(
-                  publishableShowData.generatedPremium,
-                  showData as Partial<ShowInput>
-                ),
-                inkSaver: Boolean(publishableShowData.inkSaver),
-              });
-              queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] });
-              queryClient.invalidateQueries({
-                queryKey: ['shows', showId, 'published-experience-content'],
-              });
-              queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
-              queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
-            }
-          }
-          notifications.success('Show changes saved');
-          setShowEditPanel(false);
-        }}
-      />
-      {showDeleteDialog && showId && actualCurrentShow && (
-        <DeleteShowDialog
-          open={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
-          showId={showId}
-          onDelete={handleConfirmDelete}
-          showName={actualCurrentShow.name || 'Unknown Show'}
-        />
-      )}
     </ShowPresenceProvider>
   );
 };

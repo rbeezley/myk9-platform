@@ -23,6 +23,7 @@
 ## Phase 0 — Stripe dashboard prep (manual, Richard)
 
 No code. Blocks Phases 3–5; Phases 1–2 can proceed in parallel with it.
+[ADDED] Click-by-click version with current-state checks: [docs/operations/stripe-platform-setup.md](../operations/stripe-platform-setup.md).
 
 1. Stripe Dashboard → Settings → Connect: enable Connect, choose **Express**, set branding.
 2. Existing webhook endpoint (`.../functions/v1/stripe-webhook`): add events `account.updated`, `account.application.deauthorized`, `charge.refunded`.

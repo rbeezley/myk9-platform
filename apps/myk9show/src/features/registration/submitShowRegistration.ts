@@ -291,7 +291,10 @@ async function assignArmbandsForEntries({
   });
 
   // Drop assignments that didn't fully persist — reporting an armband the DB
-  // doesn't have is worse than reporting none.
+  // doesn't have is worse than reporting none. For a dog with multiple
+  // entries, the claimed number may already be written on its other entries;
+  // that partial state is deliberate — the secretary reconciles it during the
+  // manual reassignment this failure report triggers.
   const assignments = armbandAssignments.filter(({ dogId }) => !failedDogIds.has(dogId));
   return { assignments, failures };
 }

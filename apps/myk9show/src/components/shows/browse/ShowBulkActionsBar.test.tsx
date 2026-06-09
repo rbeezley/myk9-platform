@@ -4,11 +4,21 @@ import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowBulkActionsBar } from './ShowBulkActionsBar';
 import { updateShow, deleteShow } from '@/services/database/shows';
+import { notifications } from '@/lib/notifications';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 
 vi.mock('@/services/database/shows', () => ({
   updateShow: vi.fn().mockResolvedValue({ data: {}, error: null }),
   deleteShow: vi.fn().mockResolvedValue({ data: {}, error: null }),
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: {
+    error: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
 }));
 
 function makeShow(id: string, name: string): EnhancedShow {
@@ -78,7 +88,7 @@ describe('ShowBulkActionsBar', () => {
     expect(onBulkComplete).toHaveBeenCalledTimes(1);
   });
 
-  it('surfaces partial failures instead of reporting success', async () => {
+  it('surfaces partial failures as a toast and refreshes so retries cannot re-hit succeeded shows', async () => {
     vi.mocked(deleteShow).mockImplementation(async id =>
       id === 'show-2'
         ? ({ data: null, error: new Error('RLS rejected') } as unknown as Awaited<
@@ -93,7 +103,30 @@ describe('ShowBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /delete/i }));
     await user.click(await screen.findByRole('button', { name: /delete shows/i }));
 
-    expect(await screen.findByText(/failed to delete 1 of 2 shows/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(notifications.error).toHaveBeenCalledWith(
+        'Failed to delete 1 of 2 shows.',
+        expect.objectContaining({ description: expect.stringMatching(/re-select/i) })
+      );
+    });
+    // Refresh + clear selection so the succeeded subset reflects immediately
+    // and a retry doesn't re-delete already-deleted shows.
+    expect(onBulkComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the dialog open with an inline error when every show fails', async () => {
+    vi.mocked(deleteShow).mockResolvedValue({
+      data: null,
+      error: new Error('RLS rejected'),
+    } as unknown as Awaited<ReturnType<typeof deleteShow>>);
+
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(screen.getByRole('button', { name: /delete/i }));
+    await user.click(await screen.findByRole('button', { name: /delete shows/i }));
+
+    expect(await screen.findByText(/failed to delete the selected shows/i)).toBeInTheDocument();
     expect(onBulkComplete).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import { updateShow, deleteShow } from '@/services/database/shows';
 import {
   Trash2,
@@ -85,10 +86,19 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
         selectedShows.map(show => updateShow(show.id, { status: pendingStatus }))
       );
       const failedCount = results.filter(result => result.error).length;
+      if (failedCount === selectedShows.length) {
+        setError('Failed to update the selected shows. Please try again.');
+        return;
+      }
       if (failedCount > 0) {
-        setError(
-          `Failed to update ${failedCount} of ${selectedShows.length} shows. The others were updated — refresh to see current statuses.`
+        // Partial failure: refresh + clear selection so the succeeded subset
+        // reflects immediately and a retry can't re-hit already-updated shows.
+        notifications.error(
+          `Failed to update ${failedCount} of ${selectedShows.length} shows.`,
+          { description: 'The other shows were updated. Re-select the failed shows to retry.' }
         );
+        closeDialog();
+        onBulkComplete();
         return;
       }
 
@@ -160,10 +170,19 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
 
       const results = await Promise.all(selectedShows.map(show => deleteShow(show.id)));
       const failedCount = results.filter(result => result.error).length;
+      if (failedCount === selectedShows.length) {
+        setError('Failed to delete the selected shows. Please try again.');
+        return;
+      }
       if (failedCount > 0) {
-        setError(
-          `Failed to delete ${failedCount} of ${selectedShows.length} shows. The others were deleted — refresh to see the current list.`
+        // Partial failure: refresh + clear selection so already-deleted shows
+        // drop out of the list and a retry can't re-delete them.
+        notifications.error(
+          `Failed to delete ${failedCount} of ${selectedShows.length} shows.`,
+          { description: 'The other shows were deleted. Re-select the failed shows to retry.' }
         );
+        closeDialog();
+        onBulkComplete();
         return;
       }
 

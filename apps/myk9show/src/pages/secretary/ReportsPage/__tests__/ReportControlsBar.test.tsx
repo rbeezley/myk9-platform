@@ -5,13 +5,27 @@ import { ReportControlsBar } from '../ReportControlsBar';
 import { reportRegistry } from '@/lib/reports/reportRegistry';
 
 const mockTrials = [
-  { id: 'trial-1', trial_number: 1, date: '2026-04-12' },
-  { id: 'trial-2', trial_number: 2, date: '2026-04-12' },
+  { id: 'trial-1', name: 'Friday Trial 1', trial_number: 1, date: '2026-04-12' },
+  { id: 'trial-2', name: 'Friday Trial 2', trial_number: 2, date: '2026-04-12' },
 ];
 
 const mockClasses = [
-  { id: 'class-1', element: 'Buried', level: 'Novice', section: '', trial_id: 'trial-1' },
-  { id: 'class-2', element: 'Interior', level: 'Advanced', section: '', trial_id: 'trial-1' },
+  {
+    id: 'class-1',
+    name: 'Buried Novice',
+    element: 'Buried',
+    level: 'Novice',
+    section: '',
+    trial_id: 'trial-1',
+  },
+  {
+    id: 'class-2',
+    name: 'Interior Advanced',
+    element: 'Interior',
+    level: 'Advanced',
+    section: '',
+    trial_id: 'trial-1',
+  },
 ];
 
 const defaultProps = {
@@ -152,6 +166,98 @@ describe('ReportControlsBar', () => {
 
     expect(screen.getByText('Class')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /select class/i })).not.toBeDisabled();
+  });
+
+  // Regression: TO-DOS 2026-06-09. The Trial/Class option labels were built from
+  // nullable element/level/section/trial_number columns; when those were empty the
+  // SelectItem label collapsed and shadcn echoed the raw UUID `value`. Labels must
+  // render human names while the option `value` stays the UUID (filter logic keys
+  // off it). UUID shape: 8-4-4-4-12 hex.
+  const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+  describe('Trial/Class option labels show human names, not UUIDs', () => {
+    const uuidTrials = [
+      {
+        id: '874be7e4-b187-4c11-9a3b-0000000000aa',
+        name: 'Friday Trial 1',
+        trial_number: 1,
+        date: '2026-04-12',
+      },
+    ];
+    const uuidClasses = [
+      {
+        id: '10e39f5f-ef3d-4673-b62c-0000000000bb',
+        name: 'Container Novice A',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        trial_id: '874be7e4-b187-4c11-9a3b-0000000000aa',
+      },
+    ];
+
+    it('renders the trial name (not its UUID) as the option label', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          trials={uuidTrials}
+          classes={uuidClasses}
+          trialId="all"
+        />
+      );
+
+      await user.click(screen.getByRole('combobox', { name: /select trial/i }));
+
+      const option = await screen.findByText(/Friday Trial 1/);
+      expect(option).toBeInTheDocument();
+      // No raw UUID is rendered anywhere in the open dropdown.
+      expect(option.textContent ?? '').not.toMatch(UUID_RE);
+    });
+
+    it('renders the class element/level/section (not its UUID) as the option label', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          trials={uuidTrials}
+          classes={uuidClasses}
+          trialId="874be7e4-b187-4c11-9a3b-0000000000aa"
+        />
+      );
+
+      await user.click(screen.getByRole('combobox', { name: /select class/i }));
+
+      const option = await screen.findByText(/Container Novice A/);
+      expect(option).toBeInTheDocument();
+      expect(option.textContent ?? '').not.toMatch(UUID_RE);
+    });
+
+    it('falls back to the class name when element/level/section are empty', async () => {
+      const user = userEvent.setup();
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          trials={uuidTrials}
+          classes={[
+            {
+              id: '10e39f5f-ef3d-4673-b62c-0000000000cc',
+              name: 'Detective Class',
+              element: '',
+              level: '',
+              section: '',
+              trial_id: '874be7e4-b187-4c11-9a3b-0000000000aa',
+            },
+          ]}
+          trialId="874be7e4-b187-4c11-9a3b-0000000000aa"
+        />
+      );
+
+      await user.click(screen.getByRole('combobox', { name: /select class/i }));
+
+      const option = await screen.findByText(/Detective Class/);
+      expect(option).toBeInTheDocument();
+      expect(option.textContent ?? '').not.toMatch(UUID_RE);
+    });
   });
 
   describe('Registry coverage — every enabled report is reachable from the dropdown', () => {

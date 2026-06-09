@@ -21,7 +21,8 @@ import { useShowStore } from '@/store/showStore';
 import { AskQPanel } from '@/components/askq/AskQPanel';
 import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
-import type { ClubContext } from './sidebar/unifiedSidebarConfig';
+import type { ClubContext, NextShowContext } from './sidebar/unifiedSidebarConfig';
+import { useMyShows } from '@/hooks/useMyShows';
 
 function useClubContext(
   roles: UserRole[],
@@ -48,15 +49,24 @@ export const UnifiedAppLayout: React.FC = () => {
   const { user, getUserRoles, userWithRoles } = useAuthContext();
   const roles = getUserRoles();
   const clubs = useClubStore(s => s.clubs);
-  const selectedShowId = useShowStore(s => s.selectedShowId);
   const shows = useShowStore(s => s.shows);
   const scopes = userWithRoles?.scopes ?? EMPTY_SCOPES;
   const clubContext = useClubContext(roles, scopes, clubs);
-  const activeShowId = selectedShowId || (shows.length === 1 ? shows[0]?.id : undefined);
+  const { today, upcoming, draft } = useMyShows(shows);
+
+  const nextShow = useMemo((): NextShowContext | undefined => {
+    const todayShow = today[0];
+    if (todayShow) return { id: todayShow.id, name: todayShow.name, phase: 'today' };
+    const upcomingShow = upcoming[0];
+    if (upcomingShow) return { id: upcomingShow.id, name: upcomingShow.name, phase: 'upcoming' };
+    const draftShow = draft[0];
+    if (draftShow) return { id: draftShow.id, name: draftShow.name, phase: 'draft' };
+    return undefined;
+  }, [today, upcoming, draft]);
 
   const sidebarConfig = useMemo(
-    () => buildUnifiedSidebarConfig(roles, clubContext, activeShowId),
-    [roles, clubContext, activeShowId]
+    () => buildUnifiedSidebarConfig(roles, clubContext, nextShow),
+    [roles, clubContext, nextShow]
   );
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
   const openMobileNav = useCallback(() => setMobileOpen(true), [setMobileOpen]);

@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock('@/config/features', () => ({ features: { showPresence: true } }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => h.auth }));
+vi.mock('@/hooks/useProfileForm', () => ({ useCurrentUserPerson: () => ({ data: undefined }) }));
 
 function setGrant(grant: RingsideGrant | null) {
   useRingsideGrantStore.setState({ activeGrant: grant });

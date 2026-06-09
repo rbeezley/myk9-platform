@@ -24,6 +24,7 @@ import { useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getPrimaryRole } from '@/context/AuthContext';
 import { useRingsideGrantStore, selectGrantRoleForShow } from '@/store/ringsideGrantStore';
+import { useCurrentUserPerson } from '@/hooks/useProfileForm';
 import { features } from '@/config/features';
 
 export interface LocalPresenceIdentity {
@@ -47,7 +48,7 @@ export function roleLabel(role: string): string {
 export function useLocalPresenceIdentity(
   showId: string | undefined
 ): LocalPresenceIdentity | null {
-  const { user, firstName, getUserRoles } = useAuthContext();
+  const { user, firstName, lastName, getUserRoles } = useAuthContext();
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
 
   // Evaluate the kill switch first so a dark hook never even reads the
@@ -65,13 +66,20 @@ export function useLocalPresenceIdentity(
   const grantName = activeGrant?.name;
   const grantSessionId = activeGrant?.sessionId;
 
+  // profileImage lives on the people table, not the auth profile. AppHeader calls
+  // the same hook so this is always a React Query cache hit — no extra network request.
+  const { data: personRecord } = useCurrentUserPerson(userId);
+  const avatarUrl = personRecord?.profileImage ?? undefined;
+
   return useMemo<LocalPresenceIdentity | null>(() => {
     if (!enabled) return null;
     if (userId) {
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
       return {
         userId,
-        name: firstName ?? email?.split('@')[0] ?? 'Someone',
+        name: fullName || email?.split('@')[0] || 'Someone',
         role: grantRole ?? accountRole ?? 'exhibitor',
+        ...(avatarUrl !== undefined && { avatarUrl }),
       };
     }
     // Anonymous: only a present, show-scoped grant with a session id is a producer.
@@ -83,5 +91,5 @@ export function useLocalPresenceIdentity(
       };
     }
     return null;
-  }, [enabled, userId, email, firstName, accountRole, grantRole, grantName, grantSessionId]);
+  }, [enabled, userId, email, firstName, lastName, accountRole, grantRole, grantName, grantSessionId, avatarUrl]);
 }

@@ -126,7 +126,7 @@ Stripe dashboard work: enable Connect (Express), add the three Connect/refund ev
 
 ## UI surfaces
 
-- **Club settings → Payments card**: connect button, onboarding status, payout history (reads `show_payouts`). One new card on an existing page — no new page.
+- **Club settings → Payments card**: connect button, onboarding status, payout history (reads `show_payouts`). One new card on an existing page — no new page. [ADDED 2026-06-09] The connect button leads with a pre-flight "What you'll need" checklist (EIN, club legal name/address, club bank check, treasurer's personal details incl. SSN last-4) with plain-language reassurance about why Stripe asks for identity info — the audience is non-technical retired volunteers, and pre-answering the SSN fear + preventing mid-form abandonment is the design intent. A printable walkthrough guide (`docs/guides/club-payment-setup-guide.md`) and concierge onboarding for the first clubs complete the rollout.
 - **Entries Management**: refund dialog wired into the existing Withdrawn flow + Refund action on the existing status dropdown/row actions. No new page.
 - **Show online-entry toggle**: gate + banner when club isn't connected.
 

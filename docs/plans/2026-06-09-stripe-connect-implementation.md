@@ -229,6 +229,15 @@ Wire `account.updated` → update row by `stripe_account_id` with the patch; `ac
 
 States: not connected (button → invoke `stripe-connect-onboard`, redirect to returned URL) / onboarding incomplete (resume button) / payouts enabled (green badge) / deauthorized (reconnect prompt). [ADDED] Plus the invoke-failure state: if `stripe-connect-onboard` errors (Stripe down, RBAC denial), show an inline error with retry — never a silent dead button. Handle `?connect=return` by refetching. Component test with the custom render from `src/test/utils/testUtils.tsx` covering all five states.
 
+**[ADDED] Pre-flight "What you'll need" step.** The audience is retired, non-technical club volunteers; the #1 failure mode is being dumped into Stripe's form without the required info, abandoning halfway. The connect button does NOT redirect immediately — it first shows a checklist step (inline expansion or dialog) the treasurer reads before continuing:
+
+1. Your club's EIN (on the club's tax paperwork)
+2. The club's legal name and mailing address
+3. One of the club's checks (for the bank routing and account numbers) — **use the club's bank account, not a personal one**
+4. The treasurer's own name, date of birth, home address, and last 4 of their Social Security number
+
+With this reassurance copy, verbatim or close: *"Stripe is required by federal banking law to verify the identity of the person opening the account. myK9Show never sees or stores this information."* And a time-set: *"About 10 minutes. You can safely stop and resume later."* The "Continue to Stripe" button at the bottom does the actual redirect. Component test: checklist renders before any redirect; redirect only fires from the continue button. (`// INTENT:` comment on the step — it exists to pre-answer the SSN fear and prevent mid-form abandonment; do not collapse it into a direct redirect.)
+
 ### Task 3.4: Online-entry gate
 
 **Files:**
@@ -358,7 +367,7 @@ Tests green, **confirm**, deploy `cron-process-payouts`; commit `feat(payments):
 
 ### Task 6.1: Stripe test-mode E2E checklist (manual, with Richard)
 
-1. Onboard a test club through Express (use Stripe's test onboarding data) → card shows payouts enabled.
+1. Onboard a test club through Express (use Stripe's test onboarding data) → card shows payouts enabled. [ADDED] **Screenshot every Stripe screen during this walkthrough** — they feed Task 6.4's printable guide.
 2. Pay a 2-entry cart with `4242 4242 4242 4242` → entries created with `stripe_payment_intent_id`; cart shows 3% fee line.
 3. Withdraw one entry → refund dialog → verify refund in Stripe dashboard, `refund_amount`/`refunded_at` set, `payment_status='refunded'`.
 4. Set the test show's `end_date` 4 days back, invoke `cron-process-payouts` manually with the secret header → transfer appears in dashboard for the NON-refunded entry's fee only; `show_payouts` row `completed`; second manual invoke creates nothing.
@@ -380,6 +389,14 @@ Everything above runs in Stripe **test mode**. Before the first real show accept
 3. Swap `STRIPE_SECRET_KEY` / publishable key to live values (`supabase secrets set` + frontend env).
 4. Re-set `PLATFORM_FEE_PERCENT` and verify `PAYOUT_CRON_SECRET` carried over (secrets are per-project, not per-mode — verify, don't assume).
 5. Smoke test: one real low-value entry payment + refund on a test show before announcing.
+6. [ADDED] **Concierge-onboard the first 3–4 clubs personally**: get on the phone with each treasurer and walk the Stripe form together. Ten minutes per club, and it doubles as usability testing for the Task 6.4 guide — note every place a treasurer hesitates and fix the guide there.
+
+### Task 6.4: Printable club onboarding guide [ADDED]
+
+**Files:**
+- Create: `docs/guides/club-payment-setup-guide.md`
+
+A one-page, hand-it-to-the-treasurer walkthrough with the Task 6.1 screenshots: one screenshot per Stripe screen, the four-item "have these ready" list, the SSN reassurance paragraph, and "if you get stuck" contact info. Written for a reader who prints it out — number every step, no jargon, no URLs to retype (the journey starts from the button in myK9Show). Apply the writing-concisely skill. Link it from the pre-flight checklist step ("Print these instructions") and from `docs/roles/` club documentation.
 
 ---
 

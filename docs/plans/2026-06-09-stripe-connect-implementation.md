@@ -1,0 +1,368 @@
+# Stripe Connect Payouts & Refund Automation — Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> Design doc (read first): [2026-06-09-stripe-payments-revision-design.md](2026-06-09-stripe-payments-revision-design.md)
+
+**Goal:** Clubs receive entry-fee money automatically via Stripe Connect Express transfers after each show, and secretaries issue capped one-click refunds, replacing manual settlement and dashboard refunds.
+
+**Architecture:** Separate charges and transfers — the shipped checkout keeps collecting to the platform account; a daily pg_cron job transfers each closed show's online entry fees (minus refunds, never the 3% platform fee) to the club's Express account 3 days after show end. Refunds before payout are plain Stripe refunds keyed off a new `entries.stripe_payment_intent_id` column; refunds after payout are blocked in v1.
+
+**Tech stack:** Supabase edge functions (Deno) in `apps/myk9show/supabase/functions/`, pg_cron + pg_net (already enabled, migrations 193/194), Stripe Node SDK, React Query + shadcn/ui, vitest.
+
+**Conventions that bind every phase:**
+
+- Money assertions are written FIRST and run red (`expect(stripe.transfers.create).toHaveBeenCalledWith(...)`) per CLAUDE.md assertion-first rule.
+- Every new table gets explicit `GRANT`s + RLS (Supabase no longer auto-exposes `public` tables).
+- `supabase db push` and `supabase functions deploy` are shared-system mutations — confirm with Richard before each (Auto Mode rule).
+- Run `supabase migration list` before creating any migration file; use timestamp naming (`YYYYMMDDHHMMSS_description.sql`) matching recent migrations.
+- Run the `migration-auditor` agent on every migration before push.
+- Commit at the end of every task; `pnpm typecheck` + relevant tests must pass first.
+
+---
+
+## Phase 0 — Stripe dashboard prep (manual, Richard)
+
+No code. Blocks Phases 3–5; Phases 1–2 can proceed in parallel with it.
+
+1. Stripe Dashboard → Settings → Connect: enable Connect, choose **Express**, set branding.
+2. Existing webhook endpoint (`.../functions/v1/stripe-webhook`): add events `account.updated`, `account.application.deauthorized`, `charge.refunded`.
+3. Set secrets (test mode first):
+   ```bash
+   supabase secrets set PLATFORM_FEE_PERCENT=3
+   supabase secrets set PAYOUT_CRON_SECRET=$(openssl rand -hex 32)
+   ```
+   Record the `PAYOUT_CRON_SECRET` value — Phase 5's cron migration embeds it as a literal (pattern: migration 194).
+
+---
+
+## Phase 1 — Schema migration
+
+### Task 1.1: Write the migration
+
+**Files:**
+- Create: `supabase/migrations/<timestamp>_stripe_connect_payouts.sql`
+
+Pre-checks (CLAUDE.md migration rules):
+- `supabase migration list` — confirm remote state, pick timestamp after the latest.
+- Survey RLS helpers in one pass before writing policies: `grep -rn "club_id" supabase/migrations/*.sql | grep -i "policy\|function"` — reuse the existing club-admin membership pattern (user_roles scoped by `club_id`, migration 005) rather than inventing a new predicate. If a `is_club_admin(club_id)` style helper exists, use it; the SQL below shows the inline form to adapt.
+
+```sql
+-- Stripe Connect: club Express accounts + per-show payout tracking.
+-- Design: docs/plans/2026-06-09-stripe-payments-revision-design.md
+
+BEGIN;
+
+CREATE TABLE public.club_stripe_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL UNIQUE REFERENCES clubs(id) ON DELETE CASCADE,
+  stripe_account_id TEXT NOT NULL UNIQUE,
+  onboarding_complete BOOLEAN NOT NULL DEFAULT false,
+  payouts_enabled BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.show_payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  show_id UUID NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+  club_stripe_account_id UUID REFERENCES club_stripe_accounts(id),
+  amount_cents INTEGER NOT NULL CHECK (amount_cents >= 0),
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+  stripe_transfer_id TEXT,
+  scheduled_date DATE,
+  failure_reason TEXT,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- At most one live (non-failed) payout per show; failed rows allow retry rows.
+CREATE UNIQUE INDEX show_payouts_one_live_per_show
+  ON public.show_payouts(show_id) WHERE status <> 'failed';
+
+CREATE INDEX show_payouts_status_idx ON public.show_payouts(status);
+
+-- Per-entry refund key, stamped by stripe-webhook at entry creation.
+ALTER TABLE public.entries
+  ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT;
+
+-- Grants: read for clients, all writes via service_role edge functions.
+GRANT SELECT ON public.club_stripe_accounts TO authenticated;
+GRANT SELECT ON public.show_payouts TO authenticated;
+GRANT ALL ON public.club_stripe_accounts TO service_role;
+GRANT ALL ON public.show_payouts TO service_role;
+
+ALTER TABLE public.club_stripe_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_stripe_accounts FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.show_payouts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.show_payouts FORCE ROW LEVEL SECURITY;
+
+-- ADAPT: replace the EXISTS clauses with the repo's canonical club-admin
+-- predicate found in the pre-check survey.
+CREATE POLICY club_stripe_accounts_club_admin_read
+  ON public.club_stripe_accounts FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_roles ur
+      JOIN roles r ON r.id = ur.role_id
+      WHERE ur.user_id = auth.uid()
+        AND ur.club_id = club_stripe_accounts.club_id
+        AND r.name IN ('club_admin')
+    )
+  );
+
+CREATE POLICY show_payouts_club_read
+  ON public.show_payouts FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM shows s
+      JOIN user_roles ur ON ur.club_id = s.club_id
+      JOIN roles r ON r.id = ur.role_id
+      WHERE s.id = show_payouts.show_id
+        AND ur.user_id = auth.uid()
+        AND r.name IN ('club_admin', 'show_secretary')
+    )
+  );
+
+COMMIT;
+```
+
+### Task 1.2: Audit and push
+
+1. Run the `migration-auditor` agent on the file. Fix findings.
+2. **Confirm with Richard**, then push per `/db-push` skill (password from `supabase/.env`).
+3. Verify: `club_stripe_accounts` and `show_payouts` return empty arrays (not 404) via authenticated supabase-js query.
+4. Commit: `feat(db): stripe connect accounts + show payouts tables`
+
+---
+
+## Phase 2 — Fee config + payment-intent stamping
+
+### Task 2.1: Configurable platform fee (assertion-first)
+
+**Files:**
+- Create: `apps/myk9show/supabase/functions/_shared/platformFee.ts`
+- Create: `apps/myk9show/supabase/functions/_shared/platformFee.test.ts`
+- Modify: `apps/myk9show/supabase/functions/stripe-checkout/index.ts` (~line 341, `const platformFeePercent = 3`)
+
+Pure module (no Deno imports, so vitest can run it):
+
+```typescript
+export function calculatePlatformFeeCents(subtotalCents: number, percent: number): number {
+  if (subtotalCents <= 0 || percent <= 0) return 0;
+  return Math.round((subtotalCents * percent) / 100);
+}
+
+export function resolvePlatformFeePercent(envValue: string | undefined): number {
+  const parsed = Number(envValue);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 20 ? parsed : 3;
+}
+```
+
+Test first, red, then implement: fee math (rounding, zero subtotal), env resolution (unset → 3, garbage → 3, "5" → 5, out-of-range → 3). Check `apps/myk9show/vitest` include globs cover `supabase/functions/**/*.test.ts`; if not, extend the config in this task.
+
+In `stripe-checkout`, replace the constant with:
+
+```typescript
+const platformFeePercent = resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
+```
+
+### Task 2.2: Stamp `stripe_payment_intent_id` on entries
+
+**Files:**
+- Modify: `apps/myk9show/supabase/functions/stripe-webhook/index.ts` (entry-creation insert, ~line 157)
+
+In `checkout.session.completed` (entry path), `session.payment_intent` is available. Add it to the entry insert object. Extract the insert-row construction into a pure builder in `_shared/entryFromCartItem.ts` and assert (red first) that the built row includes `stripe_payment_intent_id: 'pi_test_123'`.
+
+### Task 2.3: Deploy + commit
+
+1. `pnpm typecheck`, run the new tests.
+2. **Confirm with Richard**, then `supabase functions deploy stripe-checkout stripe-webhook --no-verify-jwt`.
+3. Commit: `feat(payments): env-configurable platform fee + payment intent stamping`
+
+---
+
+## Phase 3 — Club Connect onboarding
+
+### Task 3.1: `stripe-connect-onboard` edge function
+
+**Files:**
+- Create: `apps/myk9show/supabase/functions/stripe-connect-onboard/index.ts`
+
+Behavior (model auth/CORS on the existing `stripe-customer-portal`):
+1. Authenticated caller; body `{ club_id, return_path }`.
+2. Verify caller is club admin for `club_id` (same RBAC check pattern the RLS policy uses — query `user_roles`).
+3. Look up `club_stripe_accounts` by `club_id`. If none: `stripe.accounts.create({ type: 'express', metadata: { club_id } })`, upsert row (service role).
+4. `stripe.accountLinks.create({ account, refresh_url, return_url, type: 'account_onboarding' })` — both URLs point at the club settings page with `?connect=refresh|return`.
+5. Return `{ url }`.
+
+### Task 3.2: Webhook Connect handlers
+
+**Files:**
+- Modify: `apps/myk9show/supabase/functions/stripe-webhook/index.ts`
+- Create: `apps/myk9show/supabase/functions/_shared/connectAccountMapper.ts` + test
+
+Pure mapper, assertion-first:
+
+```typescript
+export function accountToRowPatch(account: {
+  details_submitted?: boolean;
+  payouts_enabled?: boolean;
+}): { onboarding_complete: boolean; payouts_enabled: boolean } {
+  return {
+    onboarding_complete: account.details_submitted === true,
+    payouts_enabled: account.payouts_enabled === true,
+  };
+}
+```
+
+Wire `account.updated` → update row by `stripe_account_id` with the patch; `account.application.deauthorized` → set both flags false.
+
+### Task 3.3: Club settings Payments card
+
+**Files:**
+- Locate the club settings page: `grep -rn "club" apps/myk9show/src --include="*.tsx" -l | grep -i "setting"` (one concern, one page — this is a card on the existing page, not a new page).
+- Create: `apps/myk9show/src/features/payments/ClubPaymentsCard.tsx` (+ colocated test)
+- Create: `apps/myk9show/src/features/payments/useClubStripeAccount.ts` (React Query read of `club_stripe_accounts`; direct Supabase read is acceptable here — admin config, not offline-critical show-day data)
+
+States: not connected (button → invoke `stripe-connect-onboard`, redirect to returned URL) / onboarding incomplete (resume button) / payouts enabled (green badge) / deauthorized (reconnect prompt). Handle `?connect=return` by refetching. Component test with the custom render from `src/test/utils/testUtils.tsx` covering all four states.
+
+### Task 3.4: Online-entry gate
+
+**Files:**
+- Locate where a show enables online entries (grep `accepting_entries` / entry settings UI).
+- Add: banner + disabled toggle when `!payouts_enabled` for the show's club, linking to the Payments card. Applies only when newly enabling — existing accepting-entries shows are untouched.
+- Test: gate logic as a pure predicate (`canEnableOnlineEntries(clubAccount)`) + unit test.
+
+### Task 3.5: Deploy + commit
+
+`pnpm typecheck && pnpm lint`, tests green; **confirm**, deploy `stripe-connect-onboard` + `stripe-webhook`; commit `feat(payments): club stripe connect onboarding`.
+
+---
+
+## Phase 4 — Secretary one-click refunds
+
+### Task 4.1: `stripe-refund-entry` edge function (assertion-first)
+
+**Files:**
+- Create: `apps/myk9show/supabase/functions/stripe-refund-entry/index.ts`
+- Create: `apps/myk9show/supabase/functions/_shared/refundValidation.ts` + test
+
+Write these tests RED first against the pure validator:
+
+```typescript
+// cap: requested > entry fee → clamped/rejected
+expect(validateRefund({ entryFeeCents: 5000, requestedCents: 6000, ... }).error).toBe('amount_exceeds_fee');
+// platform fee never refunded: full refund of a $50 entry = exactly 5000
+expect(validateRefund({ entryFeeCents: 5000, requestedCents: undefined, ... }).amountCents).toBe(5000);
+// post-payout block
+expect(validateRefund({ ..., payoutStatus: 'completed' }).error).toBe('payout_already_sent');
+// only paid online entries
+expect(validateRefund({ ..., paymentStatus: 'refunded' }).error).toBe('not_refundable');
+expect(validateRefund({ ..., source: 'manual' }).error).toBe('not_online_payment');
+```
+
+Function flow: authenticate → verify secretary/club-admin for the entry's show → load entry + any non-failed `show_payouts` row → `validateRefund` → `stripe.refunds.create({ payment_intent, amount }, { idempotencyKey: `refund-entry-${entry_id}` })` → update entry: `refund_amount` (dollars, matching migration 176's NUMERIC), `refunded_at`, `refund_notes`, `payment_status = 'refunded'`. Assert the exact Stripe call: `toHaveBeenCalledWith({ payment_intent: 'pi_x', amount: 5000 }, { idempotencyKey: 'refund-entry-<id>' })`.
+
+### Task 4.2: `charge.refunded` reconciliation backstop
+
+**Files:**
+- Modify: `apps/myk9show/supabase/functions/stripe-webhook/index.ts`
+
+Dashboard-issued refunds can't be attributed to a single entry (one payment intent covers a whole cart), so the backstop is deliberately conservative: mark the matching `stripe_orders` row refunded and log a warning naming the payment intent for manual entry-level reconciliation. Skip silently if the refund originated from `stripe-refund-entry` (check refund metadata — set `metadata: { entry_id }` in Task 4.1 and match on it). Idempotent: re-delivery of the event is a no-op.
+
+### Task 4.3: Refund dialog in Entries Management
+
+**Files:**
+- Modify: `apps/myk9show/src/hooks/useEntryManagementActions.ts` (Withdrawn flow)
+- Modify: `apps/myk9show/src/components/entries/management/EntryListCard.tsx` (row action)
+- Create: `apps/myk9show/src/components/entries/management/RefundEntryDialog.tsx` + test
+
+When the secretary selects Withdrawn on a paid online entry, after the status change offer the refund dialog (skip entirely for cash/check/waived entries). Dialog: full (default, shows `$XX.XX` from `entry_fee_cents`) or partial input, capped client-side too; in-flight guard via `useRef` per the established pattern; on success write nothing client-side — refetch entry (the function already updated it). Error states: post-payout block message, Stripe failure with retry.
+
+Component test: full-refund path asserts the function invocation payload (`supabase.functions.invoke('stripe-refund-entry', { body: { entry_id, amount_cents: undefined } })`).
+
+### Task 4.4: Deploy + commit
+
+Tests green, **confirm**, deploy `stripe-refund-entry` + `stripe-webhook`; commit `feat(payments): secretary one-click entry refunds`.
+
+---
+
+## Phase 5 — Automated payouts
+
+### Task 5.1: Payout calculation (assertion-first, pure)
+
+**Files:**
+- Create: `apps/myk9show/supabase/functions/_shared/payoutCalc.ts` + test
+
+```typescript
+interface PayoutEntry {
+  entry_fee_cents: number;
+  source: string;
+  payment_status: string;
+}
+
+export function calculateShowPayoutCents(entries: PayoutEntry[]): number {
+  return entries
+    .filter(e => e.source === 'online' && e.payment_status === 'paid')
+    .reduce((sum, e) => sum + e.entry_fee_cents, 0);
+}
+```
+
+Tests RED first: mixed methods (cash/check/waived/secretary_paid excluded), refunded entries excluded (`payment_status='refunded'`), empty list → 0, multi-trial show entries all counted. Platform fee never appears — it was a separate line item, not part of any `entry_fee_cents`.
+
+### Task 5.2: `cron-process-payouts` edge function
+
+**Files:**
+- Create: `apps/myk9show/supabase/functions/cron-process-payouts/index.ts`
+
+1. Guard: reject unless `x-function-secret` header equals `PAYOUT_CRON_SECRET` (pattern: migration 194 / heritage cron — do NOT rely on bearer JWT or `app.settings` GUCs, see memory `project_trigger_push_guc_unset`).
+2. Query shows: `end_date + 3 days <= today`, status in (`completed`, `closed`), no non-failed `show_payouts` row, ≥1 paid online entry.
+3. Per show: load entries (id, fee, source, payment_status) via service role → `calculateShowPayoutCents` → look up club's `club_stripe_accounts`.
+   - No account or `!payouts_enabled` → insert `show_payouts` as `pending`, send nudge email to club admin via existing `send-email` function; continue.
+   - Else insert as `processing` → `stripe.transfers.create({ amount, currency: 'usd', destination: stripe_account_id, transfer_group: show_id, metadata: { show_id } }, { idempotencyKey: `show-payout-${show_id}` })` → update row `completed` + `stripe_transfer_id` + `completed_at`, email the club a payout summary.
+   - Stripe error → row `failed` + `failure_reason` (next run inserts a fresh row — the partial unique index permits it).
+4. Assert the exact transfer call in tests (mocked Stripe), and that a second run over the same shows creates no second transfer (unique-index conflict path handled gracefully).
+
+### Task 5.3: Cron schedule migration
+
+**Files:**
+- Create: `supabase/migrations/<timestamp>_payout_cron.sql`
+
+Follow migration 194 verbatim pattern: `cron.schedule('process-show-payouts', '0 10 * * *', ...)` → `net.http_post` to the hardcoded function URL with `x-function-secret: <PAYOUT_CRON_SECRET literal>`. pg_cron/pg_net already enabled by 193 — no extension changes. Audit with `migration-auditor`, **confirm**, push.
+
+### Task 5.4: Payout history in Payments card
+
+**Files:**
+- Modify: `apps/myk9show/src/features/payments/ClubPaymentsCard.tsx`
+
+Table of `show_payouts` for the club's shows (show name, amount, status, date). Pending rows with no connected account show the connect nudge inline. Empty state: "Payouts appear here after your first show closes."
+
+### Task 5.5: Deploy + commit
+
+Tests green, **confirm**, deploy `cron-process-payouts`; commit `feat(payments): automated show payouts via stripe connect transfers`.
+
+---
+
+## Phase 6 — End-to-end verification + docs
+
+### Task 6.1: Stripe test-mode E2E checklist (manual, with Richard)
+
+1. Onboard a test club through Express (use Stripe's test onboarding data) → card shows payouts enabled.
+2. Pay a 2-entry cart with `4242 4242 4242 4242` → entries created with `stripe_payment_intent_id`; cart shows 3% fee line.
+3. Withdraw one entry → refund dialog → verify refund in Stripe dashboard, `refund_amount`/`refunded_at` set, `payment_status='refunded'`.
+4. Set the test show's `end_date` 4 days back, invoke `cron-process-payouts` manually with the secret header → transfer appears in dashboard for the NON-refunded entry's fee only; `show_payouts` row `completed`; second manual invoke creates nothing.
+5. Attempt refund on the paid-out entry → blocked with the settle-directly message.
+
+### Task 6.2: Suite + docs sync
+
+1. `pnpm typecheck && pnpm lint`; `cd apps/myk9show && pnpm test` (respect the known hanging-test caveat — report, don't loop).
+2. `OPEN-TODOS.md`: add/close payout items; note the wait-list Phase 7 (promotion payment) can now build on `stripe-checkout` + this infrastructure.
+3. Confirm the January design doc carries its superseded banner.
+4. Commit: `docs: stripe connect rollout notes`; open PR for the whole branch (main is PR-only).
+
+---
+
+## Out of scope (do not build in this plan)
+
+Exhibitor self-service refunds; post-payout refunds/transfer reversals; annual subscription tier; any change to offline desk payments or the wait-list promotion flow.

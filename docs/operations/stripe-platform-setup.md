@@ -21,6 +21,58 @@ signing secrets, API keys, and products exist *separately* in the sandbox vs. li
 happens entirely in the sandbox; go-live repeats three steps in live mode. (Wherever this
 runbook says "test mode," read "inside the sandbox.")
 
+## How the money flows (the mental model)
+
+*Written after the 2026-06-10 sandbox walkthrough, where every step below was exercised
+with real (sandbox) money — including the failure paths.*
+
+**Life of an entry dollar.** An exhibitor pays their entry fees **plus the 3% platform
+fee** in one card charge. The whole amount lands in the **platform's Stripe balance**
+(pending ~2 business days while the card clears, then available). It sits there, pooled,
+for the entire entry period. Three days after the show's end date, the nightly payout run
+computes *online entry fees minus refunds* for that show and **transfers exactly that** to
+the club's connected account. Stripe then auto-deposits it to the club's bank about a day
+later (their Express account pays out daily — never touch that setting). The 3% stays in
+the platform balance: that's the platform's revenue, and it's also what absorbs Stripe's
+~2.9% + 30¢ processing costs.
+
+**Three separate pipes — don't conflate them:**
+
+1. **Platform balance → club** (show payouts): driven by `cron-process-payouts`, nightly.
+   Stripe's payout-schedule setting has *nothing* to do with these transfers.
+2. **Club's Stripe account → club's bank**: Stripe automatic daily (Express default).
+   The treasurer does nothing, ever.
+3. **Platform balance → your bank** (your 3% + premium revenue): **Manual only** — you
+   log in and click *Pay out* when you want your cut (monthly is fine). This is the only
+   pipe the "Manual" payout-schedule setting controls, and it MUST stay Manual (see the
+   payout-schedule section below): the default daily auto-sweep claims the clubs' pooled
+   money for pipe 3 and starves pipe 1 forever.
+
+**Refunds.** Before payout: a secretary refund (entry withdrawn → refund dialog) sends
+that entry's fee back to the exhibitor's card *from the platform balance*, and the payout
+math automatically subtracts it — the club is never paid for refunded money. The platform
+fee portion is not refunded. After payout: the app **blocks** Stripe refunds for that show
+(deliberate v1 rule) — the money is in the club's hands, so a late refund is the club's
+decision (check at the desk, credit at the next show), not a platform balance event.
+
+**Many shows at once.** Five concurrent shows = one pooled Stripe balance, five sums.
+Stripe shows a single number with no per-club breakdown; the per-show ledger lives in the
+app's database (every entry row knows its fee, refund, and show), and each transfer is
+tagged with its show id (`transfer_group`) so everything reconciles one-to-one afterward.
+Clubs see their own payouts on their Payments page. Your operator-side view ("whose money
+is in my balance right now?") is the **pre-launch admin payout ledger** (OPEN-TODOS) —
+until it ships, that question is a database query.
+
+**Float rule of thumb.** Refunds and payouts draw from *available* balance. The clubs'
+money pooled in the balance naturally covers this — just don't sweep your own revenue out
+so aggressively that a same-week refund has nothing to draw on; keep a few hundred dollars
+of float.
+
+**When a transfer fails** you get an alert email (see *Ongoing operations*). The payout
+row is marked `failed` with the reason, nothing has moved, and the next nightly run
+retries from scratch — `insufficient available balance` is the benign, self-healing one
+(card money still clearing; the 3-day buffer usually prevents it entirely).
+
 ## Step 0 — Find out where you stand (5 min, do first)
 
 > **Partially answered 2026-06-09 (live probe during Phase 2):**

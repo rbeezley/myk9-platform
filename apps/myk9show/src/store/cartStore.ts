@@ -131,6 +131,33 @@ export const useCartStore = create<CartState>()(
           }
         },
 
+        // Load the most recent active cart regardless of show — lets /cart be
+        // visited directly (deep link, refresh, new tab). Without this the
+        // page renders only whatever happens to be in tab memory
+        // (2026-06-10 walkthrough finding).
+        loadActiveCart: async (exhibitorId: string) => {
+          const { data, error } = await supabase
+            .from('entry_carts')
+            .select('show_id')
+            .eq('exhibitor_id', exhibitorId)
+            .eq('status', 'active')
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            logger.error('Error finding active cart', 'cartStore', { exhibitorId }, error);
+            set({ cart: null, isLoading: false });
+            return null;
+          }
+          if (!data) {
+            set({ cart: null, isLoading: false });
+            return null;
+          }
+          return get().loadCart(data.show_id, exhibitorId);
+        },
+
         // Create a new cart
         createCart: async (showId: string, exhibitorId: string) => {
           set({ isLoading: true, error: null });

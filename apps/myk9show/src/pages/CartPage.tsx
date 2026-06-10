@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCartStore, useCartItems } from '@/store/cartStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { createEntryCheckoutSession } from '@/lib/stripe';
@@ -29,12 +30,14 @@ import { createEntryCheckoutSession } from '@/lib/stripe';
 export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuthContext();
+  const { profile } = useExhibitorProfile();
   const cart = useCartStore(state => state.cart);
   const items = useCartItems();
   const error = useCartStore(state => state.error);
   const removeItem = useCartStore(state => state.removeItem);
   const clearCart = useCartStore(state => state.clearCart);
   const setError = useCartStore(state => state.setError);
+  const loadActiveCart = useCartStore(state => state.loadActiveCart);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -47,6 +50,15 @@ export default function CartPage() {
       navigate('/sign-in', { state: { from: '/cart' } });
     }
   }, [user, navigate]);
+
+  // Hydrate the active cart on direct visits (refresh, deep link, new tab) —
+  // the store is in-memory only, so without this the page always shows empty
+  // unless the same tab just populated it (2026-06-10 walkthrough finding).
+  useEffect(() => {
+    if (profile?.id) {
+      loadActiveCart(profile.id);
+    }
+  }, [profile?.id, loadActiveCart]);
 
   const handleRemoveItem = async (itemId: string) => {
     setRemovingItemId(itemId);

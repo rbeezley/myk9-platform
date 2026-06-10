@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 import {
@@ -141,8 +142,11 @@ export function useWaitlistManagementData(showId?: string) {
   // Actions
   // Notify the offered exhibitor through the show-messaging system. Resolves
   // the exhibitor's auth account, opens (or reuses) their inbox thread for the
-  // show, and posts the offer message. A failure here is logged but does not
-  // surface as an offer error — the waitlist row is already marked `offered`.
+  // show, and posts the offer message. A failure here never blocks the offer —
+  // the waitlist row is already marked `offered` — but the secretary IS told
+  // (non-blocking toast) when the exhibitor couldn't be reached: a waitlist
+  // offer is time-boxed (`offer_expires_at`), so a silent failure would let the
+  // spot tick toward expiry while the secretary believes they notified them.
   const notifyOfferedExhibitor = useCallback(
     async (
       offer: { exhibitor_id?: string | null } | null | undefined,
@@ -154,12 +158,29 @@ export function useWaitlistManagementData(showId?: string) {
 
       try {
         const { data: target, error } = await getWaitlistOfferMessageTarget(exhibitorId);
-        if (error || !target?.participantAuthUserId) {
+        if (error || !target) {
           logger.error(
-            'Waitlist offer: no messaging account for exhibitor',
+            'Waitlist offer: could not resolve messaging target',
             'secretary',
             { exhibitorId, waitlistEntryId: entry.id },
             error as Error | undefined
+          );
+          toast.warning("Spot offered, but the in-app notification couldn't be sent.");
+          return;
+        }
+
+        if (!target.participantAuthUserId) {
+          // Known, persistent condition (not a transient error): the exhibitor
+          // has no app account, so an in-app offer can't reach them. Surface it
+          // so the secretary contacts them another way before the offer lapses.
+          logger.error('Waitlist offer: exhibitor has no messaging account', 'secretary', {
+            exhibitorId,
+            waitlistEntryId: entry.id,
+          });
+          toast.warning(
+            target.exhibitorName
+              ? `Spot offered. ${target.exhibitorName} has no app account yet — notify them directly.`
+              : 'Spot offered, but this exhibitor has no app account yet — notify them directly.'
           );
           return;
         }
@@ -170,6 +191,11 @@ export function useWaitlistManagementData(showId?: string) {
             exhibitorId,
             waitlistEntryId: entry.id,
           });
+          toast.warning(
+            target.exhibitorName
+              ? `Spot offered, but the in-app message to ${target.exhibitorName} didn't send.`
+              : "Spot offered, but the in-app notification didn't send."
+          );
           return;
         }
 
@@ -185,6 +211,7 @@ export function useWaitlistManagementData(showId?: string) {
           { exhibitorId, waitlistEntryId: entry.id },
           err as Error
         );
+        toast.warning("Spot offered, but the in-app notification didn't send.");
       }
     },
     [getOrCreateThread, sendMessage]

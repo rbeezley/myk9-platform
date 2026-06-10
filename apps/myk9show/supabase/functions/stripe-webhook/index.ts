@@ -2,9 +2,13 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCartItem.ts';
+import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
+// Connect-scoped event destination signs with its OWN secret; optional until
+// the Connected-accounts destination exists in the dashboard.
+const stripeConnectWebhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -40,7 +44,7 @@ Deno.serve(async req => {
     let event: Stripe.Event;
 
     try {
-      event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
+      event = await verifyWithEitherSecret(body, signature);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Webhook signature verification failed: ${errorMessage}`);
@@ -59,6 +63,17 @@ Deno.serve(async req => {
     return Response.json({ error: errorMessage }, { status: 500 });
   }
 });
+
+// Platform-scoped and Connect-scoped destinations sign with different secrets;
+// try the platform secret first, then the Connect secret when configured.
+async function verifyWithEitherSecret(body: string, signature: string): Promise<Stripe.Event> {
+  try {
+    return await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
+  } catch (platformError) {
+    if (!stripeConnectWebhookSecret) throw platformError;
+    return await stripe.webhooks.constructEventAsync(body, signature, stripeConnectWebhookSecret);
+  }
+}
 
 async function handleEvent(event: Stripe.Event) {
   console.log(`Processing event: ${event.type}`);
@@ -82,9 +97,62 @@ async function handleEvent(event: Stripe.Event) {
       await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
       break;
 
+    case 'account.updated':
+      await handleAccountUpdated(event.data.object as Stripe.Account);
+      break;
+
+    case 'account.application.deauthorized':
+      // data.object is the Application; the connected account id rides on event.account
+      await handleAccountDeauthorized(event.account ?? undefined);
+      break;
+
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }
+}
+
+/**
+ * Mirror a connected account's onboarding/payout flags onto club_stripe_accounts.
+ */
+async function handleAccountUpdated(account: Stripe.Account) {
+  const patch = accountToRowPatch(account);
+  const { data, error } = await supabase
+    .from('club_stripe_accounts')
+    .update(patch)
+    .eq('stripe_account_id', account.id)
+    .select('id');
+
+  if (error) {
+    console.error(`Error updating club_stripe_accounts for ${account.id}:`, error);
+    return;
+  }
+  if (!data || data.length === 0) {
+    console.log(`account.updated for ${account.id} matched no club — ignoring`);
+    return;
+  }
+  console.log(
+    `Connect account ${account.id}: onboarding_complete=${patch.onboarding_complete}, payouts_enabled=${patch.payouts_enabled}`
+  );
+}
+
+/**
+ * A club disconnected the platform from their Stripe account: stop payouts.
+ */
+async function handleAccountDeauthorized(accountId: string | undefined) {
+  if (!accountId) {
+    console.error('account.application.deauthorized without event.account — cannot map to a club');
+    return;
+  }
+  const { error } = await supabase
+    .from('club_stripe_accounts')
+    .update({ onboarding_complete: false, payouts_enabled: false })
+    .eq('stripe_account_id', accountId);
+
+  if (error) {
+    console.error(`Error disabling deauthorized account ${accountId}:`, error);
+    return;
+  }
+  console.log(`Connect account ${accountId} deauthorized — payouts disabled`);
 }
 
 /**
@@ -209,7 +277,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     customer_id: stripeCustomer?.id || null,
     stripe_payment_intent_id: paymentIntentId,
     stripe_checkout_session_id: session.id,
-    amount_cents: session.amount_total || 0,
+    // 2020-03-02 API payloads (this account's pinned version) lack amount_total;
+    // the cart snapshots the same number at checkout time.
+    amount_cents: session.amount_total ?? cart.total_cents ?? 0,
     currency: session.currency || 'usd',
     status: 'succeeded',
     order_type: 'entry',

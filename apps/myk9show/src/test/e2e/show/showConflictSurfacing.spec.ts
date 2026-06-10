@@ -38,12 +38,27 @@ import { TEST_USERS } from '../helpers/testUsers';
  *   3. The feature's own pre-enablement validation (plan §"Manual validation") used a
  *      synthetic `replication:conflict` dispatch to confirm the toast + resolution.
  *
- * This spec still exercises the *real shipped runtime end to end*: it runs in two real
- * authenticated browser contexts on the SAME Heritage show, seeds a genuine conflicted
- * row into the real `myK9_Replication` IndexedDB, dispatches the real
- * `replication:conflict` event, asserts the real Sonner toast from the real provider,
- * and — crucially — reads the IndexedDB row back after each resolution so the assertion
- * proves `resolveReplicationConflict` mutated genuinely persisted state, not a mock.
+ * This spec exercises the *real shipped runtime end to end*: it runs in two real
+ * authenticated browser contexts, seeds a genuine conflicted row into the real
+ * `myK9_Replication` IndexedDB, dispatches the real `replication:conflict` event,
+ * asserts the real Sonner toast from the real provider, and — crucially — reads the
+ * IndexedDB row back after each resolution so the assertion proves
+ * `resolveReplicationConflict` mutated genuinely persisted state, not a mock.
+ *
+ * ── Scope: what this does and does NOT cover ──
+ *
+ *   - The two contexts are INDEPENDENT. Each seeds + dispatches + resolves against its
+ *     own isolated IndexedDB; no data crosses A ↔ B and there is no cross-replica
+ *     round-trip (that would need the descoped OCC hold, above). The two contexts exist
+ *     only to run the two resolution branches — keep-local in A, take-remote in B — in
+ *     genuinely separate browser sessions, NOT to test replication between them.
+ *   - Flag-gating is OUT OF SCOPE. The toast handler in `ReplicationSyncProvider` listens
+ *     unconditionally; only the detection/dispatch site is gated by
+ *     `isConflictSurfacingEnabled()` (syncReplicatedTable.ts), covered by its own unit
+ *     test. Because this spec dispatches `replication:conflict` by hand it bypasses that
+ *     gate — it asserts the toast + both resolver branches, not the flag.
+ *   - The Heritage show route is incidental: it only mounts the provider after login; no
+ *     show data is read, so this is not a cross-show assertion.
  *
  * To run:
  *   cd apps/myk9show
@@ -215,14 +230,17 @@ async function dispatchConflict(page: Page, conflict: SeededConflict): Promise<v
   );
 }
 
-test.describe('Show conflict surfacing — two-context replication smoke', () => {
+test.describe('Show conflict surfacing — toast + both resolution branches persist', () => {
   test.describe.configure({ timeout: 120_000 });
 
-  test('two contexts on the same show each surface and resolve a same-field conflict', async ({
+  test('conflict toast surfaces and keep-local / take-remote each persist correctly', async ({
     browser,
   }) => {
-    // Two independent browser contexts (separate IndexedDB/storage) on the same show.
-    // contextA = secretary, contextB = exhibitor — both edit entry check-in status.
+    // Two INDEPENDENT browser contexts (separate IndexedDB/storage). They do not
+    // interact — each runs one resolution branch end to end against its own replica
+    // (keep-local in A, take-remote in B). Per the header "Scope" note, this is not a
+    // cross-replica round-trip; the two roles just exercise both branches in separate
+    // browser sessions.
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
 
@@ -296,11 +314,6 @@ test.describe('Show conflict surfacing — two-context replication smoke', () =>
       expect(rowAfterTakeTheirs?.syncStatus).toBe('synced');
       expect(rowAfterTakeTheirs?.isDirty).toBe(false);
       expect(rowAfterTakeTheirs?.data?.check_in_status).toBe('absent'); // remote value taken
-
-      // Resolution is context-local: A keeping mine did not change B's resolution and
-      // vice versa. A still shows its kept-local row, B shows the remote-taken row.
-      const finalA = await readConflictRow(pageA, rowId);
-      expect(finalA?.data?.check_in_status).toBe('checked-in');
     } finally {
       await contextA.close();
       await contextB.close();

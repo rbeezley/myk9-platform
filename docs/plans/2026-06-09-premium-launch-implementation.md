@@ -1,5 +1,16 @@
 # Premium Launch — Implementation Plan
 
+> **Progress 2026-06-09 (late session):** Tasks 1 + 2 code ✅ COMPLETE, pushed +
+> deployed (early_adopter_until live, boolean dropped — verified via REST;
+> protect trigger fixed to admit postgres/service_role after the auditor showed
+> 186's version silently blocked dashboard grants; PREMIUM_PRICE_IDS mapping
+> deployed with live fallback). Known transient: staging's deployed frontend
+> fails profile loads until this branch merges (pre-launch, accepted).
+> Remaining: Richard's sandbox product/prices + secrets (Task 2 tail), Task 3
+> annual toggle, Task 4 verification — fold into the Phase 6 sitting. Post-merge
+> follow-up: regenerate Supabase TS types (drops is_early_adopter, adds new
+> payment tables/columns — clears the untypedFrom/`as unknown` bridges).
+
 > **For Claude:** small plan (~1 day). Design (read first):
 > [2026-06-09-premium-launch-design.md](2026-06-09-premium-launch-design.md).
 > Conventions identical to the Connect plan: red-first tests on anything

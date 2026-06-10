@@ -56,5 +56,5 @@ This is the **integrity backbone** ([`docs/plan-show-presence.md`](../plan-show-
 - Run `gh pr merge` from the **main repo dir**, never inside a worktree.
 - Before opening a PR, `git fetch origin main` and check nothing raced you (a concurrent merge can silently conflict your branch — happened here).
 - **Codex review default-ON** for behavior/state-shape/render-gate changes (`/review` + `/codex:review`).
-- `pnpm typecheck` (NOT raw tsc) + `pnpm lint`; run the **full** myK9Show suite for any change that flips a flag default or touches shared presence/replication code (the shared `src/test/mocks/supabase.ts` can light up dormant code in other pages' tests). Known unrelated flake: `src/test/debug-database.test.ts` (live-DB timeout).
+- `pnpm typecheck` (NOT raw tsc) + `pnpm lint`; run the **full** myK9Show suite for any change that flips a flag default or touches shared presence/replication code (the shared `src/test/mocks/supabase.ts` can light up dormant code in other pages' tests). Known unrelated flake: `src/test/debug-database.test.ts` (live-DB timeout) — deleted 2026-06-10; no longer applies.
 - Edit-awareness primitives live in `apps/myk9show/src/features/show-presence/`. The kill switch is `editAwarenessFlag.ts` → `showEditAwarenessEnabled()`.

@@ -409,15 +409,17 @@ export function ShowWorkbenchPage() {
                 Show Desk; their own dogs go through the exhibitor flow. Both
                 are deep-links — no re-implementation. Full unification ("Add
                 Entries → whose dog?") is queued for the secretary IA review. */}
-            {activePhase !== 'show-desk' && (
-              <Button
-                size="sm"
-                className="min-h-[44px] sm:min-h-8"
-                onClick={() => handlePhaseChange('show-desk')}
-              >
-                Record Mail-In Entries
-              </Button>
-            )}
+            {/* Always visible — the workbench LANDS on Show Desk (useActivePhase
+                default), so hiding this there would hide it from the very
+                secretary it exists for. Clicking while already on the tab is a
+                harmless no-op. */}
+            <Button
+              size="sm"
+              className="min-h-[44px] sm:min-h-8"
+              onClick={() => handlePhaseChange('show-desk')}
+            >
+              Record Mail-In Entries
+            </Button>
             {getEntryStatus(currentShow, false).canEnter && (
               <Button
                 size="sm"

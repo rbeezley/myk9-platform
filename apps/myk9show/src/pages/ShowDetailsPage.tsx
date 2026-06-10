@@ -528,6 +528,18 @@ const ShowDetailsPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-end gap-3">
               <LiveUpdateIndicator />
               <ShowPresenceStack />
+              {/* Entering is independent of managing: secretaries and club
+                  admins routinely enter their own club's shows. The March 2026
+                  layout cleanup made these mutually exclusive, which removed
+                  the only Enter affordance for anyone with manage rights. */}
+              {entryStatus.canEnter && (
+                <button
+                  className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
+                  onClick={handleRegisterForShow}
+                >
+                  {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
+                </button>
+              )}
               {canManageShow ? (
               <div className="flex flex-wrap items-center gap-2">
                 <ShowStatusPill
@@ -573,14 +585,7 @@ const ShowDetailsPage: React.FC = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            ) : entryStatus.canEnter ? (
-              <button
-                className="min-h-[44px] sm:h-9 px-5 text-sm font-medium rounded-md inline-flex items-center gap-2 transition-colors bg-[#c96442] hover:bg-[#b45a3a] text-[#faf9f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3898ec] focus-visible:ring-offset-2"
-                onClick={handleRegisterForShow}
-              >
-                {hasUserEntries ? 'Manage Entry' : 'Enter This Show'}
-              </button>
-            ) : hasUserEntries ? (
+            ) : hasUserEntries && !entryStatus.canEnter ? (
               <Button
                 variant="outline"
                 size="sm"

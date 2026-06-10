@@ -486,3 +486,4 @@ Both shows: 3-day Fri/Sat/Sun structure (Jun 12-14, 2026), 2 elements per trial 
 - [ ] **Queue-based Offline Dog Create** — Extend MutationManager to `dogs` table and replace rollback behavior with queued offline create.
 - [ ] **Review awesome-design-md for Design Consistency** — Evaluate against current dual approach (shadcn/ui + semantic CSS).
 - [ ] **Research Claude Code Managed Agents for AskQ** — Evaluate managed agents API for the AskQ feature.
+- [ ] **Unify "Add Entries" with whose-dog branching (secretary IA review)** — Workbench now has two labeled doors (Record Mail-In Entries → Show Desk; Enter My Dogs → exhibitor flow). Long-term: one Add Entries entry point that asks whose dog and branches to desk-recording vs self-service-with-payment. Decided 2026-06-10 during the Stripe Phase 6 walkthrough.

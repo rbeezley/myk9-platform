@@ -13,6 +13,7 @@ import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
 import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
+import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
@@ -402,11 +403,37 @@ export function ShowWorkbenchPage() {
             : []
         }
         secondaryActions={
-          <ShowStatusPill
-            showId={currentShow.id}
-            status={currentShow.status}
-            clubId={currentShow.clubId}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Two clearly-named entry doors (2026-06-10 walkthrough finding):
+                most secretary entry work is OTHER people's dogs (mail-ins) via
+                Show Desk; their own dogs go through the exhibitor flow. Both
+                are deep-links — no re-implementation. Full unification ("Add
+                Entries → whose dog?") is queued for the secretary IA review. */}
+            {activePhase !== 'show-desk' && (
+              <Button
+                size="sm"
+                className="min-h-[44px] sm:min-h-8"
+                onClick={() => handlePhaseChange('show-desk')}
+              >
+                Record Mail-In Entries
+              </Button>
+            )}
+            {getEntryStatus(currentShow, false).canEnter && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-h-[44px] sm:min-h-8"
+                onClick={() => navigate(`/shows/${currentShow.id}/register`)}
+              >
+                Enter My Dogs
+              </Button>
+            )}
+            <ShowStatusPill
+              showId={currentShow.id}
+              status={currentShow.status}
+              clubId={currentShow.clubId}
+            />
+          </div>
         }
         footer={<QuickInfoCards show={currentShow} />}
       />

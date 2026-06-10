@@ -19,6 +19,8 @@ import { useUserStore } from '@/store/userStore';
 import { ShowJudgeAssignment } from '@/types/judge-types';
 import { logger } from '@/services/LoggingService';
 import { untypedFrom } from '@/services/database/_shared/untyped-from';
+import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import { canEnableOnlineEntries } from '@/features/payments/onlineEntryGate';
 
 export interface ShowFormData {
   name: string;
@@ -53,6 +55,13 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
   onJudgeAssignmentChange,
   onSave,
 }) => {
+  // Publish gate: newly setting status to 'published' (which opens online
+  // entries) requires the hosting club's Stripe payouts. A show already
+  // published keeps its option enabled so unrelated edits aren't stranded.
+  const clubAccountQuery = useClubStripeAccount(formData.clubId || undefined);
+  const canPublish =
+    formData.status === 'published' || canEnableOnlineEntries(clubAccountQuery.data);
+
   // Get available show types from active templates
   const { templates } = useTemplateStore();
 
@@ -251,13 +260,20 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Draft — not visible to exhibitors</SelectItem>
-                  <SelectItem value="published">Published — live and accepting entries</SelectItem>
+                  <SelectItem value="published" disabled={!canPublish}>
+                    Published — live and accepting entries
+                  </SelectItem>
                   <SelectItem value="upcoming">Upcoming — entries closed</SelectItem>
                   <SelectItem value="in_progress">In Progress — show is running</SelectItem>
                   <SelectItem value="completed">Completed — results finalized</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+              {!canPublish && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Publishing requires the club&apos;s payment account — see My Club → Payments.
+                </p>
+              )}
             </FormField>
           </div>
 

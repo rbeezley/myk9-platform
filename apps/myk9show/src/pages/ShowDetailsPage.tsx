@@ -530,7 +530,11 @@ const ShowDetailsPage: React.FC = () => {
               <ShowPresenceStack />
               {canManageShow ? (
               <div className="flex flex-wrap items-center gap-2">
-                <ShowStatusPill showId={actualCurrentShow.id} status={actualCurrentShow.status} />
+                <ShowStatusPill
+                  showId={actualCurrentShow.id}
+                  status={actualCurrentShow.status}
+                  clubId={actualCurrentShow.clubId}
+                />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

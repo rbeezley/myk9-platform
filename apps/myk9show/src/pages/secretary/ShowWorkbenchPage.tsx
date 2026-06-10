@@ -401,7 +401,13 @@ export function ShowWorkbenchPage() {
             ? [{ label: currentShow.organization, variant: 'default' as const }]
             : []
         }
-        secondaryActions={<ShowStatusPill showId={currentShow.id} status={currentShow.status} />}
+        secondaryActions={
+          <ShowStatusPill
+            showId={currentShow.id}
+            status={currentShow.status}
+            clubId={currentShow.clubId}
+          />
+        }
         footer={<QuickInfoCards show={currentShow} />}
       />
 

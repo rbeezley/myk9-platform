@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,10 +8,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
+import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import {
+  canEnableOnlineEntries,
+  PUBLISH_BLOCKED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 
 interface ShowStatusPillProps {
   showId: string;
   status: string;
+  /** Enables the publish gate: publishing requires the club's Stripe payouts. */
+  clubId?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -45,8 +53,10 @@ const TRANSITIONS: Record<string, { label: string; next: string }[]> = {
   published: [{ label: 'Move to Draft', next: 'draft' }],
 };
 
-export function ShowStatusPill({ showId, status }: ShowStatusPillProps) {
+export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) {
   const { mutateAsync, isPending } = useUpdateShowMutation();
+  const navigate = useNavigate();
+  const clubAccountQuery = useClubStripeAccount(clubId);
   const config = STATUS_CONFIG[status] ?? {
     label: status,
     className: 'bg-muted border border-border text-muted-foreground',
@@ -54,6 +64,16 @@ export function ShowStatusPill({ showId, status }: ShowStatusPillProps) {
   const transitions = TRANSITIONS[status] ?? [];
 
   async function handleTransition(next: string) {
+    // Publishing opens online entries; fail closed unless the club's Stripe
+    // payouts are enabled. Already-published shows are unaffected (the gate
+    // only fires on the draft → published transition).
+    if (next === 'published' && clubId && !canEnableOnlineEntries(clubAccountQuery.data)) {
+      toast.error(PUBLISH_BLOCKED_MESSAGE, {
+        action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
+      });
+      return;
+    }
+
     try {
       await mutateAsync({ id: showId, updates: { status: next } });
       toast.success(`Show ${next === 'published' ? 'published' : 'moved to draft'}.`);

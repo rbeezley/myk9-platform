@@ -35,6 +35,7 @@ import {
   ListChecks,
   HelpCircle,
   BarChart3,
+  Landmark,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
@@ -263,6 +264,12 @@ export function buildUnifiedSidebarConfig(
             href: '/club-admin/members',
             icon: Users,
             description: 'Manage club members',
+          },
+          {
+            title: 'Payments',
+            href: '/club-admin/payments',
+            icon: Landmark,
+            description: 'Bank account and show payouts',
           },
           {
             title: 'Club Profile',

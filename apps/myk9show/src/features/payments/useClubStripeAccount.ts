@@ -38,7 +38,7 @@ export interface ShowPayoutRow {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   completed_at: string | null;
   created_at: string;
-  show: { name: string } | null;
+  show: { name: string; club_id: string } | null;
 }
 
 export function useClubPayoutHistory(clubId: string | undefined) {

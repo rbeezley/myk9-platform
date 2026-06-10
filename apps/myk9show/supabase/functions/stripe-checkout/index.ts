@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -78,11 +79,15 @@ interface EntryCheckoutRequest {
 
 type CheckoutRequest = SubscriptionCheckoutRequest | PaymentCheckoutRequest | EntryCheckoutRequest;
 
-// Valid subscription price IDs — must match stripe-upgrade-subscription allowlist (SA-024)
-const VALID_PRICE_IDS = new Set([
-  'price_1RHz4VAtHgBcw875bF7McPNd', // legacy "excellent" — now premium
-  'price_1RHz3bAtHgBcw875o2gdNaYW', // premium (exhibitors)
-]);
+// Valid subscription price IDs — same env-extended allowlist as
+// stripe-upgrade-subscription and the webhook tier map (SA-024; PR #625
+// review caught this one still hardcoded, which 400'd annual checkout).
+const VALID_PRICE_IDS = new Set(
+  parsePremiumPriceIds(Deno.env.get('PREMIUM_PRICE_IDS'), [
+    'price_1RHz4VAtHgBcw875bF7McPNd', // legacy "excellent" — now premium
+    'price_1RHz3bAtHgBcw875o2gdNaYW', // premium (exhibitors)
+  ])
+);
 
 /** Validate that a URL starts with one of our allowed origins (prevents open redirect) */
 function isAllowedRedirectUrl(url: string): boolean {

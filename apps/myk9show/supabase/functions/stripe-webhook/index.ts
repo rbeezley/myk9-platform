@@ -72,6 +72,11 @@ async function verifyWithEitherSecret(body: string, signature: string): Promise<
     return await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
   } catch (platformError) {
     if (!stripeConnectWebhookSecret) throw platformError;
+    // Log the platform-secret failure so a misconfigured PRIMARY secret isn't
+    // masked by the Connect-secret error when both verifications fail.
+    console.log(
+      `Platform-secret verification failed (${platformError instanceof Error ? platformError.message : 'unknown'}); trying Connect secret`
+    );
     return await stripe.webhooks.constructEventAsync(body, signature, stripeConnectWebhookSecret);
   }
 }
@@ -287,6 +292,18 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .eq('person_id', cart.exhibitor.person_id)
     .single();
 
+  // Resolve each class's trial: entries carry denormalized show_id/trial_id
+  // FKs that nothing else populates, and the payout calc + refund join +
+  // secretary entries list all filter on show_id.
+  const classIds = [...new Set(cart.items.map((i: { class_id: string }) => i.class_id))];
+  const { data: classRows } = await supabase
+    .from('classes')
+    .select('id, trial_id')
+    .in('id', classIds);
+  const trialByClass = new Map<string, string | null>(
+    (classRows ?? []).map((c: { id: string; trial_id: string | null }) => [c.id, c.trial_id])
+  );
+
   // Create entries from cart items, stamping the payment intent as the
   // per-entry refund key for stripe-refund-entry.
   const paymentIntentId = extractPaymentIntentId(session.payment_intent);
@@ -294,7 +311,12 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   for (const item of cart.items) {
     const { data: entry, error: entryError } = await supabase
       .from('entries')
-      .insert(buildEntryInsert(item, paymentIntentId, new Date().toISOString()))
+      .insert(
+        buildEntryInsert(item, paymentIntentId, new Date().toISOString(), {
+          showId: cart.show_id,
+          trialId: trialByClass.get(item.class_id) ?? null,
+        })
+      )
       .select('id')
       .single();
 

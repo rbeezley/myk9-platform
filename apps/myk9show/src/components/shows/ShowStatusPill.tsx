@@ -66,12 +66,21 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
   async function handleTransition(next: string) {
     // Publishing opens online entries; fail closed unless the club's Stripe
     // payouts are enabled. Already-published shows are unaffected (the gate
-    // only fires on the draft → published transition).
-    if (next === 'published' && clubId && !canEnableOnlineEntries(clubAccountQuery.data)) {
-      toast.error(PUBLISH_BLOCKED_MESSAGE, {
-        action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
-      });
-      return;
+    // only fires on the draft → published transition). NOTE: this is a UI
+    // guard — the DB does not enforce it; a bypass merely parks the payout
+    // as 'pending' until the club connects (accepted for v1).
+    if (next === 'published' && clubId) {
+      if (clubAccountQuery.isLoading) {
+        // Don't misreport an onboarded club as unconnected on a cold cache.
+        toast.info('Checking the club’s payment account — try again in a moment.');
+        return;
+      }
+      if (!canEnableOnlineEntries(clubAccountQuery.data)) {
+        toast.error(PUBLISH_BLOCKED_MESSAGE, {
+          action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
+        });
+        return;
+      }
     }
 
     try {

@@ -20,11 +20,16 @@ export interface CartItemForEntry {
 export function buildEntryInsert(
   item: CartItemForEntry,
   paymentIntentId: string | null,
-  submittedAt: string
+  submittedAt: string,
+  context: { showId: string; trialId: string | null }
 ) {
   return {
     dog_id: item.dog_id,
     class_id: item.class_id,
+    // No DB trigger derives these; the payout calc, refund join, and the
+    // secretary's entries list all filter on show_id (reviews of PR #625).
+    trial_id: context.trialId,
+    show_id: context.showId,
     handler_id: item.handler_id,
     entry_status: 'paid',
     payment_status: 'paid',

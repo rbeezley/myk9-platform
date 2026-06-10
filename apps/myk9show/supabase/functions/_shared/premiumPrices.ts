@@ -2,14 +2,16 @@
 // free of Deno/npm imports so the colocated test runs under Node.
 
 // PREMIUM_PRICE_IDS secret: comma-separated Stripe price ids that map to the
-// premium tier (sandbox + live can coexist in the list). Blank/unset falls
-// back to the hardcoded live ids so a missing secret never downgrades anyone.
+// premium tier. The secret EXTENDS the hardcoded live ids — it never replaces
+// them: one deployed webhook serves live subscribers and sandbox testing at
+// once, so a secret listing only sandbox ids must not be able to downgrade a
+// paying live subscriber on their next subscription event (PR #625 review).
 export function parsePremiumPriceIds(envValue: string | undefined, fallback: string[]): string[] {
   const parsed = (envValue ?? '')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  return parsed.length > 0 ? parsed : fallback;
+  return [...new Set([...fallback, ...parsed])];
 }
 
 export function priceIdToTier(

@@ -1,13 +1,16 @@
 import { supabase } from './supabase';
-import { products } from '../stripe-config';
+import { products, annualPriceId } from '../stripe-config';
 
 /**
  * Create a Stripe checkout session for subscription or one-time payment
  */
 export async function createCheckoutSession(priceId: string, mode: 'payment' | 'subscription') {
-  const product = Object.values(products).find(p => p.priceId === priceId);
+  // The annual price lives outside `products` (env-driven, optional); without
+  // this branch the PricingPage annual toggle could never check out (PR #625).
+  const isKnownPrice =
+    priceId === annualPriceId || Object.values(products).some(p => p.priceId === priceId);
 
-  if (!product) {
+  if (!isKnownPrice) {
     throw new Error('Invalid price ID');
   }
 

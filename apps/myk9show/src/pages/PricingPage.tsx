@@ -58,6 +58,8 @@ export default function PricingPage() {
   const navigate = useNavigate();
   // Annual exists only when VITE_STRIPE_PRICE_ANNUAL is configured; the
   // toggle hides entirely otherwise (premium launch plan, Task 3).
+  // INVARIANT: the Stripe annual price MUST be $49.00/yr (unit_amount=4900) —
+  // the display below is a literal. Change both together.
   const [interval, setBillingInterval] = useState<'month' | 'year'>('month');
   const annualActive = interval === 'year' && !!annualPriceId;
 

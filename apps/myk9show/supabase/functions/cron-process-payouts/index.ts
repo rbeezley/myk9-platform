@@ -94,8 +94,9 @@ async function recoverStaleProcessing(summary: Record<string, number>) {
     await alertAdmin(
       'Stale payout recovered for retry',
       `<p>Payout row ${row.id} for show ${row.show_id} (${dollars(row.amount_cents)}) was stuck
-       in 'processing' for over ${STALE_PROCESSING_HOURS}h and has been failed for automatic retry
-       on the next run. The retry is idempotency-protected. No action needed unless it recurs.</p>`
+       in 'processing' for over ${STALE_PROCESSING_HOURS}h and has been failed for automatic retry.
+       Before re-sending, the next run checks Stripe for an existing transfer for this show
+       (transfer_group) and reconciles instead of paying twice. No action needed unless it recurs.</p>`
     );
   }
 }
@@ -104,7 +105,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
   // Recompute the amount from entries at this moment — never trust stored figures.
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('entry_fee, payment_method, payment_status')
+    .select('entry_fee, payment_method, payment_status, refund_amount')
     .eq('show_id', show.id);
 
   if (entriesError) {
@@ -214,6 +215,29 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
   }
 
   try {
+    // Double-pay guard (PR #625 HIGH finding): a row stuck in 'processing'
+    // usually means the run crashed AFTER the transfer succeeded — and Stripe
+    // idempotency keys expire (~24h) BEFORE the stale recovery fires, so the
+    // key alone cannot prevent a re-send. Ask Stripe directly: at most one
+    // transfer per show, ever (transfer_group = show id).
+    const existing = await stripe.transfers.list({ transfer_group: show.id, limit: 1 });
+    if (existing.data.length > 0) {
+      const priorTransfer = existing.data[0];
+      await supabase
+        .from('show_payouts')
+        .update({
+          status: 'completed',
+          stripe_transfer_id: priorTransfer.id,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', rowId);
+      summary.completed++;
+      console.log(
+        `Reconciled existing transfer ${priorTransfer.id} for show ${show.id} — no new transfer sent`
+      );
+      return;
+    }
+
     const transfer = await stripe.transfers.create(
       {
         amount: amountCents,
@@ -277,11 +301,27 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
   }
 }
 
+// Constant-time secret check: hash both sides so the comparison cost is
+// independent of how many leading bytes match (SA-002).
+async function secretMatches(provided: string | null): Promise<boolean> {
+  if (!provided) return false;
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(provided)),
+    crypto.subtle.digest('SHA-256', enc.encode(cronSecret)),
+  ]);
+  const av = new Uint8Array(a);
+  const bv = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
+  return diff === 0;
+}
+
 Deno.serve(async req => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
-  if (req.headers.get('x-function-secret') !== cronSecret) {
+  if (!(await secretMatches(req.headers.get('x-function-secret')))) {
     return new Response('Forbidden', { status: 403 });
   }
 

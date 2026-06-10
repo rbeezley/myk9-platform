@@ -130,7 +130,10 @@ Deno.serve(async req => {
     }
 
     // Live payout state for the show (the unique partial index guarantees at
-    // most one non-failed row).
+    // most one non-failed row). Accepted TOCTOU: the cron could claim
+    // pending → processing between this read and the refund write; the window
+    // is sub-second on a daily cadence, and the cron recomputes amounts from
+    // entries at transfer time, so a committed refund still drops out.
     const { data: payout } = await supabase
       .from('show_payouts')
       .select('status')

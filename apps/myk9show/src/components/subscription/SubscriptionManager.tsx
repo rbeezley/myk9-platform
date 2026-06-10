@@ -58,9 +58,13 @@ export function SubscriptionManager() {
       // stripe_customers to the signed-in person). 2026-06-10 walkthrough:
       // querying with user.id matched nothing, so paid subscribers saw
       // "No active subscription".
+      // order+limit: maybeSingle() throws if a person ever accrues two
+      // customer rows; prefer the newest rather than erroring the page.
       const { data: customer, error: customerError } = await supabase
         .from('stripe_customers')
         .select('id')
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (customerError) throw customerError;

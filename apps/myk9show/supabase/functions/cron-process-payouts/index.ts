@@ -74,14 +74,18 @@ function dollars(cents: number): string {
 }
 
 /** Fail processing rows older than the stale threshold so the unique index
- * reopens for a retry row. Safe: the retry reuses the same idempotency key. */
+ * reopens for a retry row. Double-pay is prevented by the transfers.list
+ * (transfer_group) check before any send, not by the idempotency key.
+ * Staleness keys on updated_at (touched by the set_updated_at trigger on the
+ * pending→processing claim) — created_at would false-flag a row that sat
+ * pending for days before being claimed minutes ago (review finding #1). */
 async function recoverStaleProcessing(summary: Record<string, number>) {
   const cutoff = new Date(Date.now() - STALE_PROCESSING_HOURS * 3600 * 1000).toISOString();
   const { data: stale, error } = await supabase
     .from('show_payouts')
     .update({ status: 'failed', failure_reason: 'stale_processing' })
     .eq('status', 'processing')
-    .lt('created_at', cutoff)
+    .lt('updated_at', cutoff)
     .select('id, show_id, amount_cents');
 
   if (error) {
@@ -102,6 +106,22 @@ async function recoverStaleProcessing(summary: Record<string, number>) {
 }
 
 async function processShow(show: EligibleShow, summary: Record<string, number>) {
+  // Existing live row decides the path: completed/processing → done elsewhere,
+  // pending → reuse the row (recompute), none → create. Checked BEFORE the
+  // entries fetch: eligibility is date-driven, so every settled show stays
+  // eligible forever — without this early exit each historical show would
+  // re-pay the full entries query nightly, unbounded (review finding #2).
+  const { data: liveRow } = await supabase
+    .from('show_payouts')
+    .select('id, status')
+    .eq('show_id', show.id)
+    .neq('status', 'failed')
+    .maybeSingle();
+
+  if (liveRow && liveRow.status !== 'pending') {
+    return; // completed or in-flight
+  }
+
   // Recompute the amount from entries at this moment — never trust stored figures.
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
@@ -117,19 +137,6 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
   if (amountCents <= 0) {
     summary.skipped_no_online_money++;
     return;
-  }
-
-  // Existing live row decides the path: completed/processing → done elsewhere,
-  // pending → reuse the row (recompute), none → create.
-  const { data: liveRow } = await supabase
-    .from('show_payouts')
-    .select('id, status')
-    .eq('show_id', show.id)
-    .neq('status', 'failed')
-    .maybeSingle();
-
-  if (liveRow && liveRow.status !== 'pending') {
-    return; // completed or in-flight
   }
 
   if (!show.club_id) {

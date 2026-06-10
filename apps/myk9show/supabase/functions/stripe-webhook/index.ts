@@ -130,8 +130,11 @@ async function handleEvent(event: Stripe.Event) {
  */
 async function handleChargeRefunded(charge: Stripe.Charge) {
   const refunds = charge.refunds?.data ?? [];
-  const fromRefundEntry = refunds.some(r => r.metadata?.entry_id);
-  if (fromRefundEntry) {
+  // Skip only when EVERY refund came from stripe-refund-entry (.some would let
+  // an app refund mask a later dashboard refund on the same charge — review
+  // finding #3). Mixed charges fall through to the RECONCILE log below.
+  const allFromRefundEntry = refunds.length > 0 && refunds.every(r => r.metadata?.entry_id);
+  if (allFromRefundEntry) {
     console.log(`charge.refunded for ${charge.id} originated from stripe-refund-entry — already recorded`);
     return;
   }

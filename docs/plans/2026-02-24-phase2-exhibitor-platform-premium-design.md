@@ -1,7 +1,7 @@
 # Phase 2: Exhibitor Platform & Premium — Design Document
 
 **Date:** February 24, 2026
-**Status:** Design Complete — Ready for Implementation Planning
+**Status:** ✅ SHIPPED (audited 2026-06-09 — all capabilities live; see [2026-06-09-premium-launch-design.md](2026-06-09-premium-launch-design.md) for the audit table and launch decisions)
 **Depends on:** Phase 1 (Multi-Sport Templates)
 **Enables:** Revenue generation, exhibitor retention
 

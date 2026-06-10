@@ -1,5 +1,8 @@
 # myK9Show Premium Experience — Implementation Roadmap
 
+> **STALE (2026-06-09):** the Critical Gaps table below no longer holds — gating, tier flow, and persistence all shipped between Feb and May. Current audit + launch plan: [docs/plans/2026-06-09-premium-launch-design.md](../../../plans/2026-06-09-premium-launch-design.md).
+
+
 **Date:** 2026-02-21
 **Source:** Ideation session (2026-02-20) + codebase gap analysis
 **Vision:** "The app understands that dog showing is a career, not a transaction, and that insight benefits both sides of the market."

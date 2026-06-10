@@ -31,6 +31,9 @@ export interface SecretaryEntry {
   is_in_ring: boolean | null;
   check_in_status: string | null;
   withdrawal_reason: string | null;
+  payment_method: string | null;
+  refund_amount: number | null;
+  refunded_at: string | null;
   registration_id: string | null;
   registration: {
     id: string;
@@ -146,6 +149,9 @@ export const getEntriesForShow = async (showId: string) => {
         is_in_ring,
         check_in_status,
         withdrawal_reason,
+        payment_method,
+        refund_amount,
+        refunded_at,
         registration_id,
         registration:registration_id (
           id,

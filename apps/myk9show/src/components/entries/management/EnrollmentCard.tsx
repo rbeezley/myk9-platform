@@ -46,6 +46,7 @@ import {
 interface EnrollmentCardProps {
   group: EnrollmentGroup;
   onStatusChange: (entryId: string, status: EntryStatus, withdrawalReason?: string) => void;
+  onEntryRefunded?: () => void;
   onCheckInStatusChange: (
     entry: EntryManagementEntry,
     cls: EntryClass,
@@ -120,6 +121,7 @@ const PAID_STATUSES = new Set([
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
   onStatusChange,
+  onEntryRefunded,
   onCheckInStatusChange,
   onOpenArmbandDialog,
   onCompEntry,
@@ -396,6 +398,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
           <EntryListCard
             entries={group.entries}
             onStatusChange={onStatusChange}
+            onEntryRefunded={onEntryRefunded}
             onCheckInStatusChange={onCheckInStatusChange}
             onOpenArmbandDialog={onOpenArmbandDialog}
             onCompEntry={onCompEntry}

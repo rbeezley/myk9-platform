@@ -211,6 +211,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                   key={group.enrollmentId ?? '__unregistered__'}
                   group={group}
                   onStatusChange={onStatusChange}
+                  onEntryRefunded={onRefresh}
                   onCheckInStatusChange={onCheckInStatusChange}
                   onOpenArmbandDialog={onOpenArmbandDialog}
                   onCompEntry={(entryId: string) => {

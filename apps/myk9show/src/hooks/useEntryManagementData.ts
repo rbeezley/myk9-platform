@@ -131,7 +131,10 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
       // Transform database entries to UI format
       // SecretaryEntry is a flat row (one per class entry), not a grouped structure
-      const transformedEntries: EntryManagementEntry[] = ((data || []) as SecretaryEntry[]).map(
+      // `as unknown` bridge: entries.refund_amount/refunded_at (migration
+      // 20260609220000) aren't in the generated Database types yet — drop the
+      // bridge after the next `supabase gen types` run.
+      const transformedEntries: EntryManagementEntry[] = ((data || []) as unknown as SecretaryEntry[]).map(
         (entry): EntryManagementEntry => ({
           id: entry.id,
           registrationId: entry.registration?.id ?? '',
@@ -187,6 +190,10 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           ...(entry.registration?.refunded_at != null
             ? { enrollmentRefundedAt: entry.registration.refunded_at }
             : {}),
+          // Entry-level Stripe payment/refund state (migration 20260609220000)
+          paymentMethod: entry.payment_method ?? null,
+          refundAmount: entry.refund_amount ?? null,
+          refundedAt: entry.refunded_at ?? null,
         })
       );
 

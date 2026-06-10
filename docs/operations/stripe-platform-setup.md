@@ -124,6 +124,19 @@ Stripe's test world accepts canned data everywhere:
   "use test account" bank option — no real personal data ever enters test mode.
 - Screenshot every onboarding screen — they become the printable treasurer guide (Task 6.4).
 
+## Platform payout schedule — set to MANUAL (required, both modes)
+
+**Found 2026-06-10:** Stripe's default payout schedule sweeps the platform's available
+balance to your bank **daily**. With separate charges & transfers, club payouts draw from
+that same available balance — so the daily sweep leaves $0 for transfers and every club
+payout fails with `insufficient_balance`, forever.
+
+Dashboard → **Balances → Manage payouts → Payout schedule → Manual.** Do this in the
+sandbox AND in live mode before the first real show. The platform's own revenue (the 3%
+fee + premium subscriptions) then accumulates in the balance; pay yourself out manually
+(or set a monthly schedule with a minimum-balance floor large enough to cover upcoming
+show payouts — Manual is simpler and safer at this scale).
+
 ## Go-live — Task 6.3 (later, ~30 min)
 
 Toggle: **Live mode ON**. Three things exist per-mode and must be redone:

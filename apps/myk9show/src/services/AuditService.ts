@@ -25,6 +25,10 @@ export interface AuditServiceConfig {
 export class AuditService {
   private config: AuditServiceConfig;
   private localAuditEntries: AuditEntry[] = [];
+  // Dormant since #620: the only caller of `setImpersonationContext` was the
+  // never-wired `ImpersonationService`, deleted as dead code. Stays null until
+  // impersonation is rebuilt properly — but `log()` still reads it for the
+  // `impersonatingUserId` audit field, so this is a retained hook, not debt.
   private impersonationContext: ImpersonationContext | null = null;
 
   constructor(config: AuditServiceConfig = {}) {
@@ -240,7 +244,14 @@ export class AuditService {
   }
 
   /**
-   * Set impersonation context for admin users
+   * Set impersonation context for admin users.
+   *
+   * Dormant since #620 — its only caller (`ImpersonationService`) was deleted as
+   * never-wired dead code. Intentionally kept as the audit layer's hook: when
+   * impersonation is rebuilt (on the replication layer, with real TOTP), call
+   * this to stamp `impersonatingUserId` onto every audit entry. Do NOT delete as
+   * "dead code" without also retiring the `impersonatingUserId` audit field in
+   * `log()` and its downstream `audit_logs` column / AuditLogViewer display.
    */
   setImpersonationContext(context: ImpersonationContext | null): void {
     this.impersonationContext = context;

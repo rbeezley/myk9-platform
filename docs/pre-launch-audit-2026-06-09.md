@@ -119,7 +119,7 @@ toast success without writing anything. Reachable from the shows browse page.
 
 ## Medium / notes
 
-- **ImpersonationService 2FA is format-only** (`ImpersonationService.ts:325-335`) — any 6-digit string passes. Mitigating factor: no UI consumer of the service was found, so it appears unreachable. Recommend deleting or hard-disabling the service rather than shipping it dormant.
+- ~~**ImpersonationService 2FA is format-only** (`ImpersonationService.ts:325-335`) — any 6-digit string passes.~~ **Resolved 2026-06-09:** confirmed dead (no imports, no route, no UI consumer, no tests) and deleted the service file. Real TOTP was intentionally not implemented — there was no live consumer to justify the security-sensitive change.
 - Judge dashboard renders with hardcoded empty assignments (`JudgeDashboard.tsx:43`).
 - Admin data Import tab is a "coming soon" placeholder; Venue WiFi card save is disabled pending its mutation (known open item).
 - Webhook handler swallows confirmation-email failures with no retry (`stripe-webhook/index.ts:348-351`).

@@ -301,7 +301,20 @@ With this reassurance copy, verbatim or close: *"Stripe is required by federal b
 
 ---
 
-## Phase 4 — Secretary one-click refunds
+## Phase 4 — Secretary one-click refunds ✅ COMPLETE (pushed + deployed 2026-06-09)
+
+> Shipped: refundValidation (10 red-first tests; allows refunds during
+> pending/failed payouts, blocks processing/completed), stripe-refund-entry
+> (RBAC via 3 RPCs, entry-scoped idempotency, entry_id metadata), charge.refunded
+> backstop, RefundEntryDialog chained off Withdrawn + row action. Migration
+> 20260609220000 adds entries.refund_* + write-guard trigger (auditor blocker:
+> managers' full-row UPDATE could forge refunds via PostgREST).
+> SCHEMA-REALITY FIXES folded in: Feb webhook insert targeted nonexistent
+> columns (entry_fee_cents/source/notes) — corrected to entry_fee dollars +
+> payment_method='online' + special_requests; migration 176's refund columns
+> are on ENROLLMENTS (desk refunds), entries needed their own. Phase 5 payout
+> calc MUST use payment_method='online' and entry_fee*100, not the plan's
+> original source/entry_fee_cents references.
 
 ### Task 4.1: `stripe-refund-entry` edge function (assertion-first)
 

@@ -28,9 +28,10 @@ export default function SubscriptionPage() {
           <Card>
             <CardContent className="p-6 text-center">
               <Star className="h-8 w-8 mx-auto mb-3 text-amber-500" />
-              <h3 className="font-semibold">Premium Features</h3>
+              <h3 className="font-semibold">Title Tracking</h3>
               <p className="text-sm text-muted-foreground">
-                Unlock unlimited shows, advanced analytics, and priority support
+                Automatic title progress and performance statistics for every
+                dog
               </p>
             </CardContent>
           </Card>
@@ -38,9 +39,10 @@ export default function SubscriptionPage() {
           <Card>
             <CardContent className="p-6 text-center">
               <Crown className="h-8 w-8 mx-auto mb-3 text-purple-500" />
-              <h3 className="font-semibold">Enterprise Tools</h3>
+              <h3 className="font-semibold">Health &amp; Training</h3>
               <p className="text-sm text-muted-foreground">
-                API access, custom integrations, and dedicated support
+                Health records, vaccinations, training journal, and pedigree
+                management
               </p>
             </CardContent>
           </Card>
@@ -50,7 +52,7 @@ export default function SubscriptionPage() {
               <CreditCard className="h-8 w-8 mx-auto mb-3 text-green-500" />
               <h3 className="font-semibold">Flexible Billing</h3>
               <p className="text-sm text-muted-foreground">
-                Monthly or yearly plans with easy cancellation
+                Monthly or annual plans with easy cancellation
               </p>
             </CardContent>
           </Card>

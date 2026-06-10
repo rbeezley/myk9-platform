@@ -207,7 +207,17 @@ In `checkout.session.completed` (entry path), `session.payment_intent` is availa
 
 ---
 
-## Phase 3 — Club Connect onboarding
+## Phase 3 — Club Connect onboarding ✅ COMPLETE (deployed + proven 2026-06-09)
+
+> Shipped: stripe-connect-onboard (RBAC via is_club_admin/is_site_admin RPCs as
+> caller, both capabilities, open-redirect-safe paths), webhook account handlers
+> + dual-secret verification (proven live: Connect-scoped account.updated → 200
+> after secret fix), /club-admin/payments page + ClubPaymentsCard (5 states,
+> pre-flight checklist with INTENT comment), publish gate on ShowStatusPill (both
+> render sites) + EditShowDialog. 19 tests. NOTE: club settings page didn't exist —
+> Richard chose a new /club-admin/payments route (sidebar: My Club → Payments).
+> 'published' is the entries-open status; the gate fires on draft→published only.
+> Both destinations pinned to API version 2020-03-02 (deliberate consistency).
 
 ### Task 3.1: `stripe-connect-onboard` edge function
 

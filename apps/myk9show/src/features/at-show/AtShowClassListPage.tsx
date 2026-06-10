@@ -20,6 +20,7 @@ import {
   getFormattedClassStatus,
   type ClassEntry,
 } from '@myk9/ringside';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useAtShowClassList } from './useAtShowClassList';
@@ -28,7 +29,8 @@ import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListS
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
-  const { groups, organization, showName, isLoading, error } = useAtShowClassList(showId);
+  const { groups, organization, showName, isLoading, error, refresh } =
+    useAtShowClassList(showId);
 
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
@@ -99,6 +101,9 @@ export const AtShowClassListPage: React.FC = () => {
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-lg font-medium text-destructive">Failed to load classes</p>
         <p className="text-sm text-muted-foreground">{error.message}</p>
+        <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
+          Try again
+        </Button>
       </div>
     );
   }

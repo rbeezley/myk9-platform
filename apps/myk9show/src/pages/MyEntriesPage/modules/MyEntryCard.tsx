@@ -141,7 +141,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
         )}
 
         <div className="myk9-entries-detail-item">
-          <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-primary/10 px-1 text-sm font-bold text-primary">
             {entry.classes.length}
           </span>
           <span>

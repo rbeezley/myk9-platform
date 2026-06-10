@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
+import { PLATFORM_FEE_PERCENT_LABEL } from '@/store/cartStore.helpers';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 
 interface CartSummaryProps {
@@ -143,7 +144,9 @@ export function CartSummary({
             <span>{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Platform Fee (3%)</span>
+            <span className="text-muted-foreground">
+              Platform Fee ({PLATFORM_FEE_PERCENT_LABEL})
+            </span>
             <span>{formatCurrency(platformFee)}</span>
           </div>
           <Separator />

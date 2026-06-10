@@ -20,6 +20,7 @@ import {
   useCartTotal,
   type CartItemWithDetails,
 } from '@/store/cartStore';
+import { PLATFORM_FEE_PERCENT_LABEL } from '@/store/cartStore.helpers';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 
@@ -170,7 +171,7 @@ export function CartPreviewPanel({
             <span>{formatCurrency(getTotalEntryFees())}</span>
           </div>
           <div className="flex justify-between text-muted-foreground">
-            <span>Platform Fee (3%)</span>
+            <span>Platform Fee ({PLATFORM_FEE_PERCENT_LABEL})</span>
             <span>{formatCurrency(getPlatformFee())}</span>
           </div>
           <div className="flex justify-between font-semibold pt-1 border-t">

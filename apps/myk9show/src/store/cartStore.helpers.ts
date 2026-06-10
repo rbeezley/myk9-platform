@@ -6,8 +6,15 @@
 
 import type { CartItemWithDetails } from './cartStore.types';
 
-// Platform fee rate (3%)
-export const PLATFORM_FEE_RATE = 0.03;
+// Platform fee rate — client-side PREVIEW only; the authoritative rate is the
+// PLATFORM_FEE_PERCENT Supabase secret read by stripe-checkout (which also has
+// a matching fallback in supabase/functions/_shared/platformFee.ts). All three
+// must move together or the cart shows one total and Stripe charges another.
+// Raised 3% → 7% on 2026-06-10 (3% didn't cover Stripe's ~2.9% + 30¢).
+export const PLATFORM_FEE_RATE = 0.07;
+
+/** Display label percent, derived so UI copy can't drift from the rate. */
+export const PLATFORM_FEE_PERCENT_LABEL = `${Math.round(PLATFORM_FEE_RATE * 100)}%`;
 
 // Cart expiration time (30 minutes)
 export const CART_EXPIRATION_MINUTES = 30;

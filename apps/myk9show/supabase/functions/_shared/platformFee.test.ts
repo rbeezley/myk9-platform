@@ -34,19 +34,19 @@ describe('resolvePlatformFeePercent', () => {
     expect(resolvePlatformFeePercent('0')).toBe(0);
   });
 
-  it('falls back to 3 when unset', () => {
-    expect(resolvePlatformFeePercent(undefined)).toBe(3);
+  it('falls back to 7 when unset', () => {
+    expect(resolvePlatformFeePercent(undefined)).toBe(7);
   });
 
-  it('falls back to 3 for empty or whitespace values (a blank secret must not silently disable the fee)', () => {
-    expect(resolvePlatformFeePercent('')).toBe(3);
-    expect(resolvePlatformFeePercent('   ')).toBe(3);
+  it('falls back to 7 for empty or whitespace values (a blank secret must not silently disable the fee)', () => {
+    expect(resolvePlatformFeePercent('')).toBe(7);
+    expect(resolvePlatformFeePercent('   ')).toBe(7);
   });
 
-  it('falls back to 3 for garbage or out-of-range values', () => {
-    expect(resolvePlatformFeePercent('abc')).toBe(3);
-    expect(resolvePlatformFeePercent('-1')).toBe(3);
-    expect(resolvePlatformFeePercent('21')).toBe(3);
-    expect(resolvePlatformFeePercent('Infinity')).toBe(3);
+  it('falls back to 7 for garbage or out-of-range values', () => {
+    expect(resolvePlatformFeePercent('abc')).toBe(7);
+    expect(resolvePlatformFeePercent('-1')).toBe(7);
+    expect(resolvePlatformFeePercent('21')).toBe(7);
+    expect(resolvePlatformFeePercent('Infinity')).toBe(7);
   });
 });

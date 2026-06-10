@@ -26,13 +26,14 @@ runbook says "test mode," read "inside the sandbox.")
 *Written after the 2026-06-10 sandbox walkthrough, where every step below was exercised
 with real (sandbox) money — including the failure paths.*
 
-**Life of an entry dollar.** An exhibitor pays their entry fees **plus the 3% platform
-fee** in one card charge. The whole amount lands in the **platform's Stripe balance**
+**Life of an entry dollar.** An exhibitor pays their entry fees **plus the platform
+fee** (7% since 2026-06-10 — the `PLATFORM_FEE_PERCENT` secret; 3% lost money once
+Stripe's ~2.9% + 30¢ was paid) in one card charge. The whole amount lands in the **platform's Stripe balance**
 (pending ~2 business days while the card clears, then available). It sits there, pooled,
 for the entire entry period. Three days after the show's end date, the nightly payout run
 computes *online entry fees minus refunds* for that show and **transfers exactly that** to
 the club's connected account. Stripe then auto-deposits it to the club's bank about a day
-later (their Express account pays out daily — never touch that setting). The 3% stays in
+later (their Express account pays out daily — never touch that setting). The fee stays in
 the platform balance: that's the platform's revenue, and it's also what absorbs Stripe's
 ~2.9% + 30¢ processing costs.
 
@@ -42,7 +43,7 @@ the platform balance: that's the platform's revenue, and it's also what absorbs 
    Stripe's payout-schedule setting has *nothing* to do with these transfers.
 2. **Club's Stripe account → club's bank**: Stripe automatic daily (Express default).
    The treasurer does nothing, ever.
-3. **Platform balance → your bank** (your 3% + premium revenue): **Manual only** — you
+3. **Platform balance → your bank** (your fee + premium revenue): **Manual only** — you
    log in and click *Pay out* when you want your cut (monthly is fine). This is the only
    pipe the "Manual" payout-schedule setting controls, and it MUST stay Manual (see the
    payout-schedule section below): the default daily auto-sweep claims the clubs' pooled
